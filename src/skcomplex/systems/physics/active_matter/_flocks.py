@@ -99,8 +99,8 @@ class CohesiveParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -140,7 +140,7 @@ class CohesiveParticleElement(Element):
         distance = sqrt(dx**2 + dy**2)
         force = self._attraction(distance, s)
         count = neighbors(1, over=near)
-        angle = uniform('noise', -math.pi, math.pi)
+        angle = uniform("noise", -math.pi, math.pi)
         along_x = (
             s.alpha * neighbors(cos(s.other.theta), over=near)
             + s.beta * neighbors(force * dx / distance, over=others)
@@ -197,8 +197,8 @@ class DelayedVicsekParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction', lags=MEMORY)] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction", lags=MEMORY)] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -247,8 +247,8 @@ class NematicParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -297,8 +297,8 @@ class VicsekParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -364,12 +364,12 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         super().__init__(
             label,
             target=target,
-            read='theta',
-            write='theta',
+            read="theta",
+            write="theta",
             function=self._get_heading,
-            reduce='circular-mean',
+            reduce="circular-mean",
             weights=self._get_side,
-            form='map',
+            form="map",
             combine=self._get_noisy,
             neighborhood=RadiusNeighborhood(1.0, center=True) if neighborhood is None else neighborhood,
         )
@@ -406,15 +406,15 @@ class HeadingAlignmentInteraction(CouplingInteraction):
     def _get_noisy(namespace: SimpleNamespace, reduction: Target) -> Target:
         """Return the mean heading plus a uniform angle in `[-eta pi, eta pi]`."""
         eta = namespace.member.eta
-        return reduction + uniform('noise', -eta * math.pi, eta * math.pi)
+        return reduction + uniform("noise", -eta * math.pi, eta * math.pi)
 
 
 FIT_POINTS = 2
 """The fewest past headings a predicted alignment fits a line through."""
 
 HEADINGS = VisualSpec(
-    'points',
-    {'position': 'x', 'radius': 0.15, 'color_by': 'theta', 'color_range': (-math.pi, math.pi)},
+    "points",
+    {"position": "x", "radius": 0.15, "color_by": "theta", "color_range": (-math.pi, math.pi)},
 )
 
 
@@ -438,12 +438,12 @@ def _modulus(name: str, s: SimpleNamespace) -> Expression:
 
 def _polarization(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean heading, the polar order parameter."""
-    return _modulus('mean_heading', s)
+    return _modulus("mean_heading", s)
 
 
 def _nematic_order(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean axis, the nematic order parameter."""
-    return _modulus('mean_axis', s)
+    return _modulus("mean_axis", s)
 
 
 def _orders(group: str) -> list[ObservableSpec]:
@@ -452,10 +452,10 @@ def _orders(group: str) -> list[ObservableSpec]:
     The moduli are the polar and nematic orders.
     """
     return [
-        ObservableSpec('mean_heading', _heading, group=group),
-        ObservableSpec('polarization', _polarization),
-        ObservableSpec('mean_axis', _axis, group=group),
-        ObservableSpec('nematic_order', _nematic_order),
+        ObservableSpec("mean_heading", _heading, group=group),
+        ObservableSpec("polarization", _polarization),
+        ObservableSpec("mean_axis", _axis, group=group),
+        ObservableSpec("nematic_order", _nematic_order),
     ]
 
 
@@ -476,19 +476,19 @@ def _flock(
     """
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
-        'x': rng.uniform(0.0, size, (n_particles, 2)),
-        'theta': rng.uniform(-math.pi, math.pi, n_particles),
+        "x": rng.uniform(0.0, size, (n_particles, 2)),
+        "theta": rng.uniform(-math.pi, math.pi, n_particles),
         **values,
     }
-    flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+    flock = GroupElement("flock", element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(
         label,
         elements=[flock],
         interactions=[
-            PropulsionStepInteraction('propulsion', target='flock', speed=v0),
+            PropulsionStepInteraction("propulsion", target="flock", speed=v0),
             *([] if alignment is None else [alignment]),
         ],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        space=ContinuousSpace(extent=(size, size), boundary="periodic"),
         time=DiscreteTime(),
     )
 
@@ -563,12 +563,12 @@ class VicsekSystem(BaseSystem):
         'NearestNeighborhood'
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'flocking', 'alignment', 'discrete time', 'neighborhood')
-    references = ('Vicsek et al. 1995', 'Argun et al. 2021', 'Jensen 2023', 'Vicsek and Zafeiris 2012')
+    field = "physics/active_matter"
+    topics = ("active matter", "flocking", "alignment", "discrete time", "neighborhood")
+    references = ("Vicsek et al. 1995", "Argun et al. 2021", "Jensen 2023", "Vicsek and Zafeiris 2012")
     until = 200.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_orders("flock"))
 
     def __init__(
         self,
@@ -582,7 +582,7 @@ class VicsekSystem(BaseSystem):
         vision: float | None = None,
         delay: int = 0,
         memory: int = 5,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -598,22 +598,22 @@ class VicsekSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.neighbors is not None and self.vision is not None:
-            error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
+            error_msg = "A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both."
             raise ParameterError(error_msg)
         if abs(self.delay) > MEMORY or not FIT_POINTS <= self.memory <= MEMORY + 1:
             error_msg = (
-                f'The delay {self.delay!r} and the memory {self.memory!r} need |delay| <= {MEMORY} and 2 <= memory <= '
-                f'{MEMORY + 1}.'
+                f"The delay {self.delay!r} and the memory {self.memory!r} need |delay| <= {MEMORY} and 2 <= memory <= "
+                f"{MEMORY + 1}."
             )
             raise ParameterError(error_msg)
         neighborhood: BaseNeighborhood | None = None
         if self.neighbors is not None:
             neighborhood = NearestNeighborhood(self.neighbors, center=True)
         if self.vision is not None:
-            neighborhood = ConeNeighborhood(1.0, self.vision, direction='theta', center=True)
+            neighborhood = ConeNeighborhood(1.0, self.vision, direction="theta", center=True)
         alignment = HeadingAlignmentInteraction(
-            'alignment',
-            target='flock',
+            "alignment",
+            target="flock",
             neighborhood=neighborhood,
             latency=self.delay,
             memory=self.memory,
@@ -675,12 +675,12 @@ class GregoireChateSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'flocking', 'cohesion', 'discrete time', 'neighborhood')
-    references = ('Grégoire and Chaté 2004', 'Vicsek and Zafeiris 2012')
+    field = "physics/active_matter"
+    topics = ("active matter", "flocking", "cohesion", "discrete time", "neighborhood")
+    references = ("Grégoire and Chaté 2004", "Vicsek and Zafeiris 2012")
     until = 300.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_orders("flock"))
 
     def __init__(
         self,
@@ -692,7 +692,7 @@ class GregoireChateSystem(BaseSystem):
         alpha: float = 1.0,
         beta: float = 0.5,
         seed: int = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -758,12 +758,12 @@ class GinelliNematicsSystem(BaseSystem):
         0.08
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'flocking', 'nematic', 'discrete time', 'neighborhood')
-    references = ('Ginelli et al. 2010', 'Chaté 2020')
+    field = "physics/active_matter"
+    topics = ("active matter", "flocking", "nematic", "discrete time", "neighborhood")
+    references = ("Ginelli et al. 2010", "Chaté 2020")
     until = 300.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_orders("flock"))
 
     def __init__(
         self,
@@ -773,7 +773,7 @@ class GinelliNematicsSystem(BaseSystem):
         v0: float = 0.3,
         eta: float = 0.08,
         seed: int = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -784,7 +784,7 @@ class GinelliNematicsSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
+        alignment = HeadingAlignmentInteraction("alignment", target="flock", nematic=True)
         return _flock(
             self.label,
             NematicParticleElement,

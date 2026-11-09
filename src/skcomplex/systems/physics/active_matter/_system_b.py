@@ -150,17 +150,17 @@ class ActiveSystemBSystem(BaseSystem):
         0.0
     """
 
-    field = 'physics/active_matter'
+    field = "physics/active_matter"
     topics = (
-        'field',
-        'active matter',
-        'phase separation',
-        'microphase separation',
-        'conserved noise',
-        'system b',
-        'spde',
+        "field",
+        "active matter",
+        "phase separation",
+        "microphase separation",
+        "conserved noise",
+        "system b",
+        "spde",
     )
-    references = ('Fodor, Jack, and Cates 2022', 'Wittkowski et al. 2014', 'Tjhung, Nardini, and Cates 2018')
+    references = ("Fodor, Jack, and Cates 2022", "Wittkowski et al. 2014", "Tjhung, Nardini, and Cates 2018")
     until = 1500.0
     dt = 30.0
     solver = EulerMaruyamaSolver(dt=0.02)
@@ -176,7 +176,7 @@ class ActiveSystemBSystem(BaseSystem):
         zeta: float = 4.0,
         D: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -195,13 +195,13 @@ class ActiveSystemBSystem(BaseSystem):
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {
-            'phi': self.mean + 0.05 * rng.uniform(-1.0, 1.0, shape),
-            'kappa': self.kappa,
-            'lam': self.lam,
-            'zeta': self.zeta,
-            'D': self.D,
+            "phi": self.mean + 0.05 * rng.uniform(-1.0, 1.0, shape),
+            "kappa": self.kappa,
+            "lam": self.lam,
+            "zeta": self.zeta,
+            "D": self.D,
         }
         return System(
             self.label,
-            elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
+            elements=[FieldElement("fluid", element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
         )

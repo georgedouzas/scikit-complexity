@@ -22,7 +22,7 @@ from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
-VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})
+VISITED = VisualSpec("image", {"states": ["visited"], "low": 0.0, "high": 1.0})
 
 
 def _mean_position(s: SimpleNamespace) -> object:
@@ -118,15 +118,15 @@ class BiasedTrapWalkSystem(BaseSystem):
         40
     """
 
-    field = 'physics/soft_matter'
-    topics = ('lattice', 'anomalous diffusion', 'disorder', 'traps', 'subdiffusion')
-    references = ('Bertin 2021', 'Bouchaud and Georges 1990')
+    field = "physics/soft_matter"
+    topics = ("lattice", "anomalous diffusion", "disorder", "traps", "subdiffusion")
+    references = ("Bertin 2021", "Bouchaud and Georges 1990")
     until = 2000
     dt = 10
     observables = (
-        ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
-        ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _mean_position),
+        ObservableSpec("visits", group="traps", variable="visited", reduce="sum"),
+        ObservableSpec("walkers", group="traps", variable="occupied", reduce="sum"),
+        ObservableSpec("position", _mean_position),
     )
 
     def __init__(
@@ -137,7 +137,7 @@ class BiasedTrapWalkSystem(BaseSystem):
         alpha: float = 0.5,
         tau0: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -166,19 +166,19 @@ class BiasedTrapWalkSystem(BaseSystem):
         start = np.zeros(shape)
         start[:, 0] = 1.0
         traps = GroupElement(
-            'traps',
+            "traps",
             element=TrapSiteElement,
-            space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
-            values={'occupied': start, 'visited': start, 'tau': tau},
+            space=LatticeSpace(shape, boundary="fixed", fill=-1.0),
+            values={"occupied": start, "visited": start, "tau": tau},
             visual=VISITED,
-            on='sites',
+            on="sites",
         )
         hops = LocalRuleInteraction(
-            'hops',
-            target='traps',
-            state=('occupied', 'visited', 'clock'),
+            "hops",
+            target="traps",
+            state=("occupied", "visited", "clock"),
             rule=self._hop,
             neighborhood=ALONG_ROW,
-            reads=('occupied', 'visited', 'clock', 'tau'),
+            reads=("occupied", "visited", "clock", "tau"),
         )
         return System(self.label, elements=[traps], interactions=[hops])

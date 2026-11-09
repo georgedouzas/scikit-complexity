@@ -80,9 +80,9 @@ class DeformableParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
-        S: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role="velocity")] = 0.0,
+        S: Annotated[npt.ArrayLike, StateSpec(tensor="traceless")] = 0.0,
         gamma: Annotated[float, ParameterSpec()] = 1.0,
         a: Annotated[float, ParameterSpec()] = 1.0,
         b: Annotated[float, ParameterSpec()] = 1.0,
@@ -165,9 +165,9 @@ class DeformableActiveParticlesSystem(BaseSystem):
         5
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'deformable particles', 'tensor', 'circular motion', 'bifurcation')
-    references = ('Ohta and Ohkuma 2009', 'Ohta 2017', 'Tarama 2017')
+    field = "physics/active_matter"
+    topics = ("active matter", "deformable particles", "tensor", "circular motion", "bifurcation")
+    references = ("Ohta and Ohkuma 2009", "Ohta 2017", "Tarama 2017")
     until = 100.0
     dt = 0.25
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -182,7 +182,7 @@ class DeformableActiveParticlesSystem(BaseSystem):
         kappa: float = 0.5,
         noise: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -200,14 +200,14 @@ class DeformableActiveParticlesSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         values = {
-            'x': rng.uniform(0.0, 20.0, (self.n_particles, 2)),
-            'v': rng.normal(0.0, 0.1, (self.n_particles, 2)),
-            'S': np.zeros((self.n_particles, 2)),
-            'gamma': self.gamma,
-            'a': self.a,
-            'b': self.b,
-            'kappa': self.kappa,
-            'noise': self.noise,
+            "x": rng.uniform(0.0, 20.0, (self.n_particles, 2)),
+            "v": rng.normal(0.0, 0.1, (self.n_particles, 2)),
+            "S": np.zeros((self.n_particles, 2)),
+            "gamma": self.gamma,
+            "a": self.a,
+            "b": self.b,
+            "kappa": self.kappa,
+            "noise": self.noise,
         }
-        cells = GroupElement('cells', element=DeformableParticleElement, size=self.n_particles, values=values)
+        cells = GroupElement("cells", element=DeformableParticleElement, size=self.n_particles, values=values)
         return System(self.label, elements=[cells], space=ContinuousSpace(n_dim=2))

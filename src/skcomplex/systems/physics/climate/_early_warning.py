@@ -120,9 +120,9 @@ def early_warning(
         >>> bool(early_warning(x, window=200).autocorrelation_trend[0] > 0.5)
         True
     """
-    autocorrelation = rolling(source, kind='autocorrelation', variables=variables, window=window, detrend=detrend)
-    variance = rolling(source, kind='variance', variables=variables, window=window, detrend=detrend)
-    skewness = rolling(source, kind='skewness', variables=variables, window=window, detrend=detrend)
+    autocorrelation = rolling(source, kind="autocorrelation", variables=variables, window=window, detrend=detrend)
+    variance = rolling(source, kind="variance", variables=variables, window=window, detrend=detrend)
+    skewness = rolling(source, kind="skewness", variables=variables, window=window, detrend=detrend)
     size = int(window or 0)
     reddening = np.asarray([_reddening_of(column, size, detrend=detrend) for column in autocorrelation.values.T])
     return EarlyWarningResult(
@@ -165,7 +165,7 @@ def _reddening(segment: Array) -> float:
     power = np.abs(np.fft.rfft(segment)[1:]) ** 2
     low = power[: max(power.size // 8, 1)]
     high = power[power.size // 2 :]
-    return float(low.mean() / high.mean()) if high.mean() > 0 else float('nan')
+    return float(low.mean() / high.mean()) if high.mean() > 0 else float("nan")
 
 
 def _trend(statistic: Array) -> float:

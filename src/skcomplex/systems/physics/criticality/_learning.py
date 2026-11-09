@@ -105,7 +105,7 @@ class LearningAgentElement(Element):
         up = 1 / (1 + exp(-2 * s.Q / s.temperature))
         return [
             UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
-            UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
+            UpdateLaw(s.sigma, where(uniform("u") < up, 1, -1)),
         ]
 
 
@@ -145,9 +145,9 @@ class SKGameSystem(BaseSystem):
         True
     """
 
-    field = 'physics/criticality'
-    topics = ('spin glass', 'reinforcement learning', 'game', 'disorder', 'discrete map')
-    references = ('Lesmana et al. 2026', 'Sherrington and Kirkpatrick 1975', 'Watkins and Dayan 1992')
+    field = "physics/criticality"
+    topics = ("spin glass", "reinforcement learning", "game", "disorder", "discrete map")
+    references = ("Lesmana et al. 2026", "Sherrington and Kirkpatrick 1975", "Watkins and Dayan 1992")
     until = 200
     dt = 1
 
@@ -158,7 +158,7 @@ class SKGameSystem(BaseSystem):
         alpha: float = 0.5,
         temperature: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_agents = n_agents
@@ -171,11 +171,11 @@ class SKGameSystem(BaseSystem):
         """Return the observable of the mean reward per agent of the SK game."""
         agents = system.elements[0]
         if not isinstance(agents, GroupElement) or agents.values is None:
-            error_msg = 'The SK game needs its first element to be the group of agents with their couplings.'
+            error_msg = "The SK game needs its first element to be the group of agents with their couplings."
             raise ValidationError(error_msg)
-        couplings = np.asarray(agents.values['couplings'], dtype=float)
+        couplings = np.asarray(agents.values["couplings"], dtype=float)
         return [
-            ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
+            ObservableSpec("reward", group="agents", variable="sigma", reduce=partial(_reward, couplings=couplings)),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -184,7 +184,7 @@ class SKGameSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._observables(self._build_system()))
+        settings["observables"] = tuple(self._observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
@@ -192,15 +192,15 @@ class SKGameSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_agents), (self.n_agents, self.n_agents)), 1)
         agents = GroupElement(
-            'agents',
+            "agents",
             element=LearningAgentElement,
             size=self.n_agents,
             values={
-                'sigma': rng.choice([-1.0, 1.0], size=self.n_agents),
-                'Q': 0.0,
-                'alpha': self.alpha,
-                'temperature': self.temperature,
-                'couplings': upper + upper.T,
+                "sigma": rng.choice([-1.0, 1.0], size=self.n_agents),
+                "Q": 0.0,
+                "alpha": self.alpha,
+                "temperature": self.temperature,
+                "couplings": upper + upper.T,
             },
         )
         return System(self.label, elements=[agents])

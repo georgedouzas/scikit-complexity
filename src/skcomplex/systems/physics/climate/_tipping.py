@@ -122,9 +122,9 @@ class TippingCascadeNetworkSystem(BaseSystem):
         5
     """
 
-    field = 'physics/climate'
-    topics = ('tipping points', 'cascades', 'network', 'bistability', 'ode')
-    references = ('Wunderling et al. 2021', 'Klose et al. 2020')
+    field = "physics/climate"
+    topics = ("tipping points", "cascades", "network", "bistability", "ode")
+    references = ("Wunderling et al. 2021", "Klose et al. 2020")
     until = 40.0
     dt = 0.1
 
@@ -135,7 +135,7 @@ class TippingCascadeNetworkSystem(BaseSystem):
         c: float | Sequence[float] = 0.0,
         d: float = 0.2,
         x: float | Sequence[float] = -1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.graph = graph
@@ -156,10 +156,10 @@ class TippingCascadeNetworkSystem(BaseSystem):
         graph = nx.path_graph(4) if self.graph is None else self.graph
         size = graph.number_of_nodes()
         values = {
-            'x': np.broadcast_to(np.asarray(self.x, dtype=float), size).copy(),
-            'c': np.broadcast_to(np.asarray(self.c, dtype=float), size).copy(),
-            'd': self.d,
+            "x": np.broadcast_to(np.asarray(self.x, dtype=float), size).copy(),
+            "c": np.broadcast_to(np.asarray(self.c, dtype=float), size).copy(),
+            "d": self.d,
         }
-        elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
-        coupling = CouplingInteraction('coupling', target='elements', function=self._push)
+        elements = FieldElement("elements", element=TippingElementElement, space=NetworkSpace(graph), values=values)
+        coupling = CouplingInteraction("coupling", target="elements", function=self._push)
         return System(self.label, elements=[elements], interactions=[coupling], time=ContinuousTime())

@@ -105,9 +105,9 @@ class EnergySectorElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
+        reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity="energy")] = 1000.0,
         capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1.0,
+        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity="people")] = 1.0,
         reserve_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
         initial_eroi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
         decline: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
@@ -144,11 +144,11 @@ class EnergySectorElement(Element):
         cost = _extraction_cost(s)
         net = _gross_energy(s) - cost
         return [
-            TransferLaw(s.reserve, Sink('extraction_work'), cost, label='energy_cost'),
-            TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
+            TransferLaw(s.reserve, Sink("extraction_work"), cost, label="energy_cost"),
+            TransferLaw(s.reserve, Sink("society"), net, label="net_energy"),
             RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
-            TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
-            TransferLaw(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
+            TransferLaw(Source("births"), s.population, s.birth_rate * s.population, label="births"),
+            TransferLaw(s.population, Sink("deaths"), s.death_rate * s.population, label="deaths"),
         ]
 
 
@@ -195,16 +195,16 @@ class EnergyReturnSystem(BaseSystem):
         20.0
     """
 
-    field = 'physics/climate'
-    topics = ('energy', 'net energy', 'stocks and flows', 'system dynamics', 'ode')
-    references = ('Mobus 2022',)
+    field = "physics/climate"
+    topics = ("energy", "net energy", "stocks and flows", "system dynamics", "ode")
+    references = ("Mobus 2022",)
     until = 250.0
     dt = 1.0
     observables = (
-        ObservableSpec('eroi', _eroi, element='energy'),
-        ObservableSpec('gross_energy', _gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _net_per_capita, element='energy'),
+        ObservableSpec("eroi", _eroi, element="energy"),
+        ObservableSpec("gross_energy", _gross_energy, element="energy"),
+        ObservableSpec("extraction_cost", _extraction_cost, element="energy"),
+        ObservableSpec("net_per_capita", _net_per_capita, element="energy"),
     )
 
     def __init__(
@@ -215,7 +215,7 @@ class EnergyReturnSystem(BaseSystem):
         initial_eroi: float = 20.0,
         reinvestment: float = 0.1,
         birth_rate: float = 0.03,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.reserve = reserve
@@ -227,7 +227,7 @@ class EnergyReturnSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         sector = EnergySectorElement(
-            'energy',
+            "energy",
             reserve=self.reserve,
             capacity=self.capacity,
             reserve_size=self.reserve,

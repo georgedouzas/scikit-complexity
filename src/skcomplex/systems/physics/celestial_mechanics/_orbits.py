@@ -67,7 +67,7 @@ class KeplerBodyElement(Element):
         10.0
     """
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _star})
+    visual = VisualSpec("bodies", {"positions": ("x", "y"), "trail": None, "marks": _star})
 
     def __init__(
         self,
@@ -131,7 +131,7 @@ class RotatingFrameBodyElement(Element):
         0.1
     """
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
+    visual = VisualSpec("bodies", {"positions": ("x", "y"), "trail": None, "marks": _primaries})
 
     def __init__(
         self,
@@ -218,7 +218,7 @@ INNER_SOLAR_SYSTEM: Preset = (
 )
 """Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
 
-PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
+PRESETS = {"figure_eight": FIGURE_EIGHT, "inner_solar_system": INNER_SOLAR_SYSTEM}
 
 
 class GravityInteraction(PotentialEnergyInteraction):
@@ -258,8 +258,8 @@ class GravityInteraction(PotentialEnergyInteraction):
         first: Annotated[str, RoleSpec()],
         second: Annotated[str, RoleSpec()],
         G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        states: str = 'x',
-        divisor: str = 'm',
+        states: str = "x",
+        divisor: str = "m",
     ) -> None:
         super().__init__(label, target=first, states=states, divisor=divisor)
         self.first = first
@@ -333,14 +333,14 @@ class TwoBodyOrbitSystem(BaseSystem):
         ['planet']
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'gravity', 'hamiltonian')
-    references = ('Kepler 1609', 'Newton 1687')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "gravity", "hamiltonian")
+    references = ("Kepler 1609", "Newton 1687")
     until = 6.0
     dt = 0.01
     solver = Yoshida4Solver()
-    invariants: ClassVar[Mapping[str, float]] = {'planet.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_kepler_energy, element='planet'),)
+    invariants: ClassVar[Mapping[str, float]] = {"planet.energy": 1e-6}
+    observables = (ObservableSpec("energy", _get_kepler_energy, element="planet"),)
 
     def __init__(
         self,
@@ -349,7 +349,7 @@ class TwoBodyOrbitSystem(BaseSystem):
         G: float = 1.0,
         mass: float = 1000.0,
         radius: float = 10.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.eccentricity = eccentricity
@@ -367,13 +367,13 @@ class TwoBodyOrbitSystem(BaseSystem):
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
         return System(
             self.label,
-            elements=[KeplerBodyElement('planet', x=self.radius, y=0.0, px=0.0, py=speed, G=self.G, mass=self.mass)],
+            elements=[KeplerBodyElement("planet", x=self.radius, y=0.0, px=0.0, py=speed, G=self.G, mass=self.mass)],
             interactions=[
                 HamiltonianInteraction(
-                    'gravity',
-                    target='planet',
-                    coordinates=('x', 'y'),
-                    momenta=('px', 'py'),
+                    "gravity",
+                    target="planet",
+                    coordinates=("x", "y"),
+                    momenta=("px", "py"),
                     hamiltonian=self._get_kepler_hamiltonian,
                 ),
             ],
@@ -417,21 +417,21 @@ class NBodySystem(BaseSystem):
         10
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'gravity', 'chaos')
-    references = ('Argun et al. 2021', 'Dilão 2023', 'Chenciner and Montgomery 2000')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "gravity", "chaos")
+    references = ("Argun et al. 2021", "Dilão 2023", "Chenciner and Montgomery 2000")
     until = 6.33
     dt = 0.01
 
     def __init__(
         self,
-        preset: str = 'figure_eight',
+        preset: str = "figure_eight",
         *,
         masses: Sequence[float] | None = None,
         positions: Sequence[Sequence[float]] | None = None,
         velocities: Sequence[Sequence[float]] | None = None,
         G: float | None = None,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.preset = preset
@@ -447,7 +447,7 @@ class NBodySystem(BaseSystem):
         The preset is a named configuration.
         """
         if name not in PRESETS:
-            error_msg = f'Unknown preset {name!r}. Use one of {", ".join(sorted(PRESETS))}.'
+            error_msg = f"Unknown preset {name!r}. Use one of {', '.join(sorted(PRESETS))}."
             raise ValidationError(error_msg)
         return PRESETS[name]
 
@@ -459,14 +459,14 @@ class NBodySystem(BaseSystem):
         velocities = preset_velocities if self.velocities is None else self.velocities
         G = preset_G if self.G is None else self.G
         bodies = [
-            MassPointElement(f'body_{index}', x=list(position), x_d1=list(velocity), m=mass)
+            MassPointElement(f"body_{index}", x=list(position), x_d1=list(velocity), m=mass)
             for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
         ]
         attractions = [
             GravityInteraction(
-                f'gravity_{first}_{second}',
-                first=f'body_{first}',
-                second=f'body_{second}',
+                f"gravity_{first}_{second}",
+                first=f"body_{first}",
+                second=f"body_{second}",
                 G=G,
             )
             for first, second in itertools.combinations(range(len(bodies)), 2)
@@ -516,14 +516,14 @@ class RestrictedThreeBodySystem(BaseSystem):
         0.1
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'gravity', 'chaos', 'rotating frame', 'hamiltonian')
-    references = ('Dilão 2023', 'Szebehely 1967')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "gravity", "chaos", "rotating frame", "hamiltonian")
+    references = ("Dilão 2023", "Szebehely 1967")
     until = 20.0
     dt = 0.02
     solver = RK4Solver()
-    invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_rotating_frame_energy, element='body'),)
+    invariants: ClassVar[Mapping[str, float]] = {"body.energy": 1e-6}
+    observables = (ObservableSpec("energy", _get_rotating_frame_energy, element="body"),)
 
     def __init__(
         self,
@@ -533,7 +533,7 @@ class RestrictedThreeBodySystem(BaseSystem):
         vy: float = 1.15,
         *,
         mu: float = 0.01215,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -553,7 +553,7 @@ class RestrictedThreeBodySystem(BaseSystem):
             self.label,
             elements=[
                 RotatingFrameBodyElement(
-                    'body',
+                    "body",
                     x=self.x,
                     y=self.y,
                     px=self.vx - self.y,
@@ -563,10 +563,10 @@ class RestrictedThreeBodySystem(BaseSystem):
             ],
             interactions=[
                 HamiltonianInteraction(
-                    'motion',
-                    target='body',
-                    coordinates=('x', 'y'),
-                    momenta=('px', 'py'),
+                    "motion",
+                    target="body",
+                    coordinates=("x", "y"),
+                    momenta=("px", "py"),
                     hamiltonian=self._get_rotating_frame_hamiltonian,
                 ),
             ],
@@ -602,9 +602,9 @@ class SitnikovSystem(BaseSystem):
         0.1
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'gravity', 'chaos')
-    references = ('Dilão 2023', 'Sitnikov 1960')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "second order", "gravity", "chaos")
+    references = ("Dilão 2023", "Sitnikov 1960")
     until = 50.0
     dt = 0.05
 
@@ -614,7 +614,7 @@ class SitnikovSystem(BaseSystem):
         vz: float = 0.0,
         *,
         e: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.z = z
@@ -634,8 +634,8 @@ class SitnikovSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         return System(
             self.label,
-            elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],
+            elements=[SitnikovBodyElement("body", z=self.z, z_d1=self.vz, e=self.e)],
             interactions=[
-                GradientInteraction('gravity', target='body', states='z', potential=self._get_sitnikov_potential),
+                GradientInteraction("gravity", target="body", states="z", potential=self._get_sitnikov_potential),
             ],
         )

@@ -443,9 +443,9 @@ class SaltzmanGlaciationSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/climate'
-    topics = ('ode', 'limit cycle', 'ice ages', 'paleoclimate')
-    references = ('Saltzman and Maasch 1991', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("ode", "limit cycle", "ice ages", "paleoclimate")
+    references = ("Saltzman and Maasch 1991", "Datseris and Parlitz 2022")
     until = 50.0
     dt = 0.05
 
@@ -461,7 +461,7 @@ class SaltzmanGlaciationSystem(BaseSystem):
         s: float = 0.6,
         u: float = 0.2,
         nu: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -483,7 +483,7 @@ class SaltzmanGlaciationSystem(BaseSystem):
             self.label,
             elements=[
                 SaltzmanMaaschElement(
-                    'climate',
+                    "climate",
                     x=self.x,
                     y=self.y,
                     z=self.z,
@@ -532,9 +532,9 @@ class CarbonCycleSystem(BaseSystem):
         0.1
     """
 
-    field = 'physics/climate'
-    topics = ('ode', 'excitability', 'carbon cycle', 'mass extinctions')
-    references = ('Rothman 2019', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("ode", "excitability", "carbon cycle", "mass extinctions")
+    references = ("Rothman 2019", "Datseris and Parlitz 2022")
     until = 20.0
     dt = 0.05
 
@@ -545,7 +545,7 @@ class CarbonCycleSystem(BaseSystem):
         *,
         c_x: float = 55.0,
         nu: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.c = c
@@ -555,7 +555,7 @@ class CarbonCycleSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[CarbonCycleElement('ocean', c=self.c, w=self.w, c_x=self.c_x, nu=self.nu)])
+        return System(self.label, elements=[CarbonCycleElement("ocean", c=self.c, w=self.w, c_x=self.c_x, nu=self.nu)])
 
 
 class VanDerPolIceAgesSystem(BaseSystem):
@@ -597,9 +597,9 @@ class VanDerPolIceAgesSystem(BaseSystem):
         0.4
     """
 
-    field = 'physics/climate'
-    topics = ('ode', 'limit cycle', 'relaxation oscillator', 'ice ages', 'paleoclimate')
-    references = ('De Saedeleer, Crucifix, and Wieczorek 2013', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("ode", "limit cycle", "relaxation oscillator", "ice ages", "paleoclimate")
+    references = ("De Saedeleer, Crucifix, and Wieczorek 2013", "Datseris and Parlitz 2022")
     until = 400.0
     dt = 0.5
 
@@ -612,7 +612,7 @@ class VanDerPolIceAgesSystem(BaseSystem):
         beta: float = 0.75,
         gamma: float = 0.0,
         tau: float = 35.09,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -631,7 +631,7 @@ class VanDerPolIceAgesSystem(BaseSystem):
             self.label,
             elements=[
                 VanDerPolIceAgesElement(
-                    'climate',
+                    "climate",
                     x=self.x,
                     y=self.y,
                     alpha=self.alpha,

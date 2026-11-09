@@ -40,15 +40,15 @@ def mode_space(quanta: int = 4) -> HilbertSpec:
         5
     """
     if isinstance(quanta, bool) or not isinstance(quanta, int | np.integer) or quanta < 1:
-        error_msg = f'A mode has quanta = {quanta!r}, which is not a positive integer.'
+        error_msg = f"A mode has quanta = {quanta!r}, which is not a positive integer."
         raise ValidationError(error_msg)
     size = int(quanta) + 1
     operators = {
-        'annihilate': (qutip.destroy(size).full(), False),
-        'create': (qutip.create(size).full(), False),
-        'number': (qutip.num(size).full(), True),
+        "annihilate": (qutip.destroy(size).full(), False),
+        "create": (qutip.create(size).full(), False),
+        "number": (qutip.num(size).full(), True),
     }
-    return HilbertSpec(size, operators, display='number')
+    return HilbertSpec(size, operators, display="number")
 
 
 class ModeElement(Element):
@@ -81,7 +81,7 @@ class ModeElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec('expectations'),
+        visual: VisualSpec | None = VisualSpec("expectations"),
     ) -> None:
         super().__init__(label, visual=visual)
         self.psi = psi

@@ -21,7 +21,7 @@ from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
-TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
+TEMPERATURE_VISUAL = VisualSpec("histograms", {"color_by": "temperature", "histogram_first": True})
 
 
 def _softmax_action(incentive: Expression, temperature: Expression) -> Expression:
@@ -29,7 +29,7 @@ def _softmax_action(incentive: Expression, temperature: Expression) -> Expressio
 
     The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
     """
-    return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
+    return where(uniform("action") < (1 + tanh(incentive / temperature)) / 2, 1, -1)
 
 
 class LearnerElement(Element):
@@ -137,7 +137,7 @@ class LearnerElement(Element):
         if self.evolving:
             least = both(s.fitness <= minimum(s.fitness), mod(s.t, self.settling + 1) < 1 / 2)
             incentive = where(least, 0, s.incentive)
-            temperature = where(least, uniform('newcomer', 0, s.max_temperature), s.temperature)
+            temperature = where(least, uniform("newcomer", 0, s.max_temperature), s.temperature)
         learned = (1 - s.memory) * incentive + s.memory * field
         action = _softmax_action(learned, temperature)
         return [
@@ -192,15 +192,15 @@ class EvolutionarySKGameSystem(BaseSystem):
         (16, True, 0.0)
     """
 
-    field = 'physics/criticality'
-    topics = ('self-organized criticality', 'reinforcement learning', 'spin glass', 'extremal dynamics', 'discrete map')
-    references = ('Lesmana, Feng, Chen, and Lai 2026', 'Bak and Sneppen 1993', 'Sherrington and Kirkpatrick 1975')
+    field = "physics/criticality"
+    topics = ("self-organized criticality", "reinforcement learning", "spin glass", "extremal dynamics", "discrete map")
+    references = ("Lesmana, Feng, Chen, and Lai 2026", "Bak and Sneppen 1993", "Sherrington and Kirkpatrick 1975")
     until = 3000
     dt = 1
     observables = (
-        ObservableSpec('mean_reward', group='agents', variable='reward'),
-        ObservableSpec('mean_temperature', group='agents', variable='temperature'),
-        ObservableSpec('least_fitness', group='agents', variable='fitness', reduce='min'),
+        ObservableSpec("mean_reward", group="agents", variable="reward"),
+        ObservableSpec("mean_temperature", group="agents", variable="temperature"),
+        ObservableSpec("least_fitness", group="agents", variable="fitness", reduce="min"),
     )
 
     def __init__(
@@ -211,7 +211,7 @@ class EvolutionarySKGameSystem(BaseSystem):
         temperature: npt.ArrayLike | None = None,
         max_temperature: float = 2.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_agents = n_agents
@@ -237,16 +237,16 @@ class EvolutionarySKGameSystem(BaseSystem):
         else:
             temperatures = np.broadcast_to(np.asarray(self.temperature, dtype=float), (self.n_agents,)).copy()
         agents = GroupElement(
-            'agents',
+            "agents",
             element=LearnerElement,
             size=self.n_agents,
             values={
-                'spin': spins,
-                'temperature': temperatures,
-                'memory': self.memory,
-                'max_temperature': self.max_temperature,
-                'couplings': couplings,
-                'evolving': evolving,
+                "spin": spins,
+                "temperature": temperatures,
+                "memory": self.memory,
+                "max_temperature": self.max_temperature,
+                "couplings": couplings,
+                "evolving": evolving,
             },
             visual=TEMPERATURE_VISUAL,
         )

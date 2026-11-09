@@ -76,10 +76,10 @@ class ThermalSamplingInteraction(SamplingInteraction):
         target: Annotated[str, RoleSpec()],
         state: str,
         energy: Callable[[SimpleNamespace], object],
-        move: str | Callable[..., object] = 'flip',
+        move: str | Callable[..., object] = "flip",
         temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        rule: str = 'metropolis',
-        schedule: str = 'checkerboard',
+        rule: str = "metropolis",
+        schedule: str = "checkerboard",
         neighborhood: BaseNeighborhood | None = None,
         values: Sequence[float] = (),
         width: float = 1.0,
@@ -106,12 +106,12 @@ class ThermalSamplingInteraction(SamplingInteraction):
 
         Any other name is returned unchanged.
         """
-        return 'energy' if name == 'objective' else name
+        return "energy" if name == "objective" else name
 
     def _get_intensity(self, namespace: SimpleNamespace) -> object:
         """Return one over the temperature.
 
         It is infinite at a temperature of zero, which a row score reads as a value.
         """
-        temperature = SR(self._get_parameter_symbol('temperature', namespace))
-        return float('inf') if temperature.is_zero() else 1 / temperature
+        temperature = SR(self._get_parameter_symbol("temperature", namespace))
+        return float("inf") if temperature.is_zero() else 1 / temperature

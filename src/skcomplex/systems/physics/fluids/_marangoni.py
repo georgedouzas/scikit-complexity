@@ -99,9 +99,9 @@ class BenardMarangoniSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'convection', 'hexagons', 'surface tension', 'spectral', 'pde')
-    references = ('Satz 2022', 'Bestehorn 1993', 'Cross and Hohenberg 1993')
+    field = "physics/fluids"
+    topics = ("field", "convection", "hexagons", "surface tension", "spectral", "pde")
+    references = ("Satz 2022", "Bestehorn 1993", "Cross and Hohenberg 1993")
     until = 300.0
     dt = 5.0
     solver = ETDRK4Solver(dt=0.5)
@@ -114,7 +114,7 @@ class BenardMarangoniSystem(BaseSystem):
         r: float = 0.1,
         g: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -141,24 +141,24 @@ class BenardMarangoniSystem(BaseSystem):
         """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': self.r, 'g': self.g}
+        values = {"u": 0.01 * rng.uniform(-1.0, 1.0, shape), "r": self.r, "g": self.g}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'layer',
+                    "layer",
                     element=MarangoniLayerElement,
                     space=space,
                     values=values,
-                    discretization='spectral',
+                    discretization="spectral",
                 ),
             ],
             interactions=[
                 GradientInteraction(
-                    'relaxation',
-                    target='layer',
-                    states='u',
+                    "relaxation",
+                    target="layer",
+                    states="u",
                     potential=self._get_marangoni_density,
                     variational=True,
                 ),

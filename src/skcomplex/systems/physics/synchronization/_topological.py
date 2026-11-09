@@ -24,7 +24,7 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..common.oscillators import LinkElement, PhaseOscillatorElement
 
-MODELS = ('NL', 'NLT')
+MODELS = ("NL", "NLT")
 
 
 def _order_of(expression: Expression, over: SimpleNamespace) -> Expression:
@@ -47,7 +47,7 @@ def _modulus(values: object) -> float:
 def _node_order(t: float, values: Mapping[str, object]) -> float:
     """Return the order parameter of the node phases."""
     del t
-    return _modulus(values['nodes.theta'])
+    return _modulus(values["nodes.theta"])
 
 
 def _link_order(
@@ -61,7 +61,7 @@ def _link_order(
     The projections are those on the nodes and on the triangles.
     """
     del t
-    phases = np.ravel(np.asarray(values['links.theta'], dtype=float))
+    phases = np.ravel(np.asarray(values["links.theta"], dtype=float))
     return (_modulus(edges.T @ phases) + _modulus(faces @ phases)) / 2
 
 
@@ -118,9 +118,9 @@ class TopologicalKuramotoSystem(BaseSystem):
         [6, 13]
     """
 
-    field = 'physics/synchronization'
-    topics = ('synchronization', 'oscillators', 'phase', 'simplicial complex', 'cell complex', 'explosive')
-    references = ('Majhi, Perc, and Ghosh 2022', 'Ghorbanchian et al. 2021')
+    field = "physics/synchronization"
+    topics = ("synchronization", "oscillators", "phase", "simplicial complex", "cell complex", "explosive")
+    references = ("Majhi, Perc, and Ghosh 2022", "Ghorbanchian et al. 2021")
     until = 40.0
     dt = 0.2
 
@@ -132,8 +132,8 @@ class TopologicalKuramotoSystem(BaseSystem):
         coupling: float = 2.0,
         width: float = 1.0,
         seed: int = 0,
-        model: str = 'NL',
-        label: str = 'system',
+        model: str = "NL",
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_nodes = n_nodes
@@ -181,8 +181,8 @@ class TopologicalKuramotoSystem(BaseSystem):
         """Return the order parameters of the node phases and the link phase projections."""
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('node_order', function=_node_order),
-            ObservableSpec('link_order', function=partial(_link_order, *space.incidences_[:2])),
+            ObservableSpec("node_order", function=_node_order),
+            ObservableSpec("link_order", function=partial(_link_order, *space.incidences_[:2])),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -191,60 +191,60 @@ class TopologicalKuramotoSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._topological_observables(self._build_system()))
+        settings["observables"] = tuple(self._topological_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.model not in MODELS:
-            error_msg = f'Unknown model {self.model!r}. Use one of {", ".join(MODELS)}.'
+            error_msg = f"Unknown model {self.model!r}. Use one of {', '.join(MODELS)}."
             raise ValidationError(error_msg)
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=self.seed)
-        space = CellComplexSpace(NetworkSpace(graph), faces='cliques').prepare()
+        space = CellComplexSpace(NetworkSpace(graph), faces="cliques").prepare()
         n_links = space.incidences_[0].shape[0]
         nodes = GroupElement(
-            'nodes',
+            "nodes",
             element=PhaseOscillatorElement,
             space=space,
-            on='sites',
+            on="sites",
             values={
-                'theta': rng.uniform(-np.pi, np.pi, self.n_nodes),
-                'omega': rng.normal(0.0, self.width, self.n_nodes),
+                "theta": rng.uniform(-np.pi, np.pi, self.n_nodes),
+                "omega": rng.normal(0.0, self.width, self.n_nodes),
             },
         )
         links = GroupElement(
-            'links',
+            "links",
             element=PhaseOscillatorElement,
             space=space,
-            on='edges',
-            values={'theta': rng.uniform(-np.pi, np.pi, n_links), 'omega': rng.normal(0.0, self.width, n_links)},
-            visual=VisualSpec('cell', {'state': 'theta'}),
+            on="edges",
+            values={"theta": rng.uniform(-np.pi, np.pi, n_links), "omega": rng.normal(0.0, self.width, n_links)},
+            visual=VisualSpec("cell", {"state": "theta"}),
         )
         interactions = [
             RateInteraction(
-                'node_coupling',
-                target='nodes',
-                state='theta',
-                sources=['links'],
+                "node_coupling",
+                target="nodes",
+                state="theta",
+                sources=["links"],
                 rate=partial(self._node_rate, self.coupling),
             ),
         ]
-        if self.model == 'NL':
+        if self.model == "NL":
             link_coupling = RateInteraction(
-                'link_coupling',
-                target='links',
-                state='theta',
-                sources=['nodes'],
+                "link_coupling",
+                target="links",
+                state="theta",
+                sources=["nodes"],
                 rate=partial(self._link_rate, self.coupling),
             )
             return System(self.label, elements=[nodes, links], interactions=[*interactions, link_coupling])
-        triangles = GroupElement('triangles', element=LinkElement, space=space, on='hyperedges')
+        triangles = GroupElement("triangles", element=LinkElement, space=space, on="hyperedges")
         link_coupling = RateInteraction(
-            'link_coupling',
-            target='links',
-            state='theta',
-            sources=['nodes', 'triangles'],
+            "link_coupling",
+            target="links",
+            state="theta",
+            sources=["nodes", "triangles"],
             rate=partial(self._triangle_link_rate, self.coupling),
         )
         return System(self.label, elements=[nodes, links, triangles], interactions=[*interactions, link_coupling])

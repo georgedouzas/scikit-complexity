@@ -11,10 +11,10 @@ from ._sited_oscillator import SitedOscillatorElement
 from ._stuart_landau import StuartLandauElement
 
 __all__: list[str] = [
-    'KuramotoCouplingInteraction',
-    'LinkElement',
-    'PhaseOscillatorElement',
-    'SitedOscillatorElement',
-    'StuartLandauElement',
-    'order_parameter',
+    "KuramotoCouplingInteraction",
+    "LinkElement",
+    "PhaseOscillatorElement",
+    "SitedOscillatorElement",
+    "StuartLandauElement",
+    "order_parameter",
 ]

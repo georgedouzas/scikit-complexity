@@ -163,8 +163,8 @@ class SinaiBilliardElement(Element):
         self,
         label: str,
         visual: VisualSpec | None = VisualSpec(
-            'bodies',
-            {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls},
+            "bodies",
+            {"positions": ("x", "y"), "trail": None, "outline": _sinai_walls},
         ),
         *,
         x: Annotated[float, StateSpec()] = 0.1,
@@ -254,8 +254,8 @@ class ThreeDiskBilliardElement(Element):
         self,
         label: str,
         visual: VisualSpec | None = VisualSpec(
-            'bodies',
-            {'positions': ('x', 'y'), 'trail': None, 'outline': _three_disk_walls},
+            "bodies",
+            {"positions": ("x", "y"), "trail": None, "outline": _three_disk_walls},
         ),
         *,
         x: Annotated[float, StateSpec()] = 0.1,
@@ -288,7 +288,7 @@ class ThreeDiskBilliardElement(Element):
         return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
 
 
-SHAPES = ('sinai', 'mushroom', 'three_disk')
+SHAPES = ("sinai", "mushroom", "three_disk")
 
 
 def _wall(
@@ -300,10 +300,10 @@ def _wall(
     """Return the specular reflection of the particle off a wall of the table."""
     return ReflectionInteraction(
         label,
-        target='particle',
+        target="particle",
         guard=guard,
-        positions=('x', 'y'),
-        velocities=('vx', 'vy'),
+        positions=("x", "y"),
+        velocities=("vx", "vy"),
         direction=direction,
         region=region,
     )
@@ -371,15 +371,15 @@ class BilliardsSystem(BaseSystem):
         'MushroomBilliardElement'
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('events', 'billiard', 'chaos', 'mixed phase space')
-    references = ('Sinai 1970', 'Bunimovich 2001', 'Gaspard and Rice 1989', 'Datseris and Parlitz 2022')
+    field = "physics/nonlinear_oscillators"
+    topics = ("events", "billiard", "chaos", "mixed phase space")
+    references = ("Sinai 1970", "Bunimovich 2001", "Gaspard and Rice 1989", "Datseris and Parlitz 2022")
     until = 20.0
     dt = 0.05
 
     def __init__(
         self,
-        shape: str = 'sinai',
+        shape: str = "sinai",
         x: float = 0.1,
         y: float = 0.6,
         vx: float = 0.6,
@@ -391,7 +391,7 @@ class BilliardsSystem(BaseSystem):
         width: float = 0.4,
         height: float = 1.0,
         spacing: float = 2.4,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -425,9 +425,9 @@ class BilliardsSystem(BaseSystem):
 
         The particle reflects specularly off the walls of the table.
         """
-        if self.shape == 'sinai':
+        if self.shape == "sinai":
             table = SinaiBilliardElement(
-                'particle',
+                "particle",
                 x=self.x,
                 y=self.y,
                 vx=self.vx,
@@ -436,16 +436,16 @@ class BilliardsSystem(BaseSystem):
                 radius=self.disc_radius,
             )
             walls = [
-                _wall('right_wall', lambda s: s.target.x - s.target.size, 1),
-                _wall('left_wall', lambda s: s.target.x + s.target.size, -1),
-                _wall('top_wall', lambda s: s.target.y - s.target.size, 1),
-                _wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
-                _wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
+                _wall("right_wall", lambda s: s.target.x - s.target.size, 1),
+                _wall("left_wall", lambda s: s.target.x + s.target.size, -1),
+                _wall("top_wall", lambda s: s.target.y - s.target.size, 1),
+                _wall("bottom_wall", lambda s: s.target.y + s.target.size, -1),
+                _wall("disc", lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
             ]
             return System(self.label, elements=[table], interactions=walls)
-        if self.shape == 'mushroom':
+        if self.shape == "mushroom":
             table = MushroomBilliardElement(
-                'particle',
+                "particle",
                 x=self.x,
                 y=self.y,
                 vx=self.vx,
@@ -455,16 +455,16 @@ class BilliardsSystem(BaseSystem):
                 height=self.height,
             )
             walls = [
-                _wall('cap', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, 1, lambda s: s.target.y > 0),
-                _wall('cap_floor', lambda s: s.target.y, -1, lambda s: abs(s.target.x) > s.target.width),
-                _wall('right_stem_wall', lambda s: s.target.x - s.target.width, 1, lambda s: s.target.y < 0),
-                _wall('left_stem_wall', lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
-                _wall('stem_floor', lambda s: s.target.y + s.target.height, -1),
+                _wall("cap", lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, 1, lambda s: s.target.y > 0),
+                _wall("cap_floor", lambda s: s.target.y, -1, lambda s: abs(s.target.x) > s.target.width),
+                _wall("right_stem_wall", lambda s: s.target.x - s.target.width, 1, lambda s: s.target.y < 0),
+                _wall("left_stem_wall", lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
+                _wall("stem_floor", lambda s: s.target.y + s.target.height, -1),
             ]
             return System(self.label, elements=[table], interactions=walls)
-        if self.shape == 'three_disk':
+        if self.shape == "three_disk":
             table = ThreeDiskBilliardElement(
-                'particle',
+                "particle",
                 x=self.x,
                 y=self.y,
                 vx=self.vx,
@@ -472,7 +472,7 @@ class BilliardsSystem(BaseSystem):
                 spacing=self.spacing,
                 radius=self.disc_radius,
             )
-            walls = [self._disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
+            walls = [self._disc(f"disc_{index}", angle) for index, angle in enumerate(ANGLES)]
             return System(self.label, elements=[table], interactions=walls)
-        error_msg = f'Unknown billiard shape {self.shape!r}. Use one of {", ".join(SHAPES)}.'
+        error_msg = f"Unknown billiard shape {self.shape!r}. Use one of {', '.join(SHAPES)}."
         raise ValidationError(error_msg)

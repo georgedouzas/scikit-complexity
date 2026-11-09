@@ -22,10 +22,10 @@ from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
-AXES = ('x', 'y', 'z')
+AXES = ("x", "y", "z")
 """The names of the coordinates of the position."""
 
-DIRECTIONS = ('ux', 'uy', 'uz')
+DIRECTIONS = ("ux", "uy", "uz")
 """The names of the components of the unit vector along the axis."""
 
 
@@ -153,14 +153,14 @@ class AnisotropicParticleElement(Element):
             laws.append(RateLaw(component, -2 * s.D_r * component))
             for j, other in enumerate(axis):
                 projector = (1 if i == j else 0) - component * other
-                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
-                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
-                laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f"translation_{j}"))
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f"translation_{j}"))
+                laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f"rotation_{j}"))
             laws.append(BoundaryLaw(component, component / length))
         coupling = s.D_c / sqrt(s.D_par)
         for j, other in enumerate(axis):
-            laws.append(NoiseLaw(s.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
-        laws.append(NoiseLaw(s.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
+            laws.append(NoiseLaw(s.psi, sqrt(2) * coupling * other, process=f"translation_{j}"))
+        laws.append(NoiseLaw(s.psi, sqrt(2 * (s.D_spin - coupling**2)), process="spin"))
         return laws
 
 
@@ -226,8 +226,8 @@ class DimerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        c: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
+        c: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        phi: Annotated[float, StateSpec(role="direction")] = 0.0,
         theta1: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         theta2: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -322,9 +322,9 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         0.8
     """
 
-    field = 'physics/soft_matter'
-    topics = ('brownian motion', 'sde', 'rotational diffusion', 'three dimensions', 'anisotropy', 'chirality')
-    references = ('Perrin 1934', 'Han et al. 2006', 'Argun et al. 2021')
+    field = "physics/soft_matter"
+    topics = ("brownian motion", "sde", "rotational diffusion", "three dimensions", "anisotropy", "chirality")
+    references = ("Perrin 1934", "Han et al. 2006", "Argun et al. 2021")
     until = 10.0
     dt = 0.05
     solver = EulerMaruyamaSolver(dt=0.001)
@@ -339,7 +339,7 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         D_spin: float = 0.75,
         D_c: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -357,22 +357,22 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         """
         if self.D_c**2 > self.D_par * self.D_spin:
             error_msg = (
-                f'The coupling {self.D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive.'
+                f"The coupling {self.D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive."
             )
             raise ParameterError(error_msg)
         axes = np.random.default_rng(self.random_state).normal(size=(self.n_particles, 3))
         axes /= np.linalg.norm(axes, axis=1, keepdims=True)
         values = {
-            'ux': axes[:, 0],
-            'uy': axes[:, 1],
-            'uz': axes[:, 2],
-            'D_par': self.D_par,
-            'D_perp': self.D_perp,
-            'D_r': self.D_r,
-            'D_spin': self.D_spin,
-            'D_c': self.D_c,
+            "ux": axes[:, 0],
+            "uy": axes[:, 1],
+            "uz": axes[:, 2],
+            "D_par": self.D_par,
+            "D_perp": self.D_perp,
+            "D_r": self.D_r,
+            "D_spin": self.D_spin,
+            "D_c": self.D_c,
         }
-        particles = GroupElement('particles', element=AnisotropicParticleElement, size=self.n_particles, values=values)
+        particles = GroupElement("particles", element=AnisotropicParticleElement, size=self.n_particles, values=values)
         return System(self.label, elements=[particles])
 
 
@@ -419,9 +419,9 @@ class RigidDimersSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/soft_matter'
-    topics = ('brownian motion', 'sde', 'colloidal molecule', 'rotational diffusion', 'active matter')
-    references = ('Argun et al. 2021',)
+    field = "physics/soft_matter"
+    topics = ("brownian motion", "sde", "colloidal molecule", "rotational diffusion", "active matter")
+    references = ("Argun et al. 2021",)
     until = 20.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -435,7 +435,7 @@ class RigidDimersSystem(BaseSystem):
         D_t: float = 0.1,
         D_r: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_dimers = n_dimers
@@ -453,14 +453,14 @@ class RigidDimersSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         angles = rng.uniform(0.0, 2 * np.pi, (3, self.n_dimers))
         values = {
-            'c': np.zeros((self.n_dimers, 2)),
-            'phi': angles[0],
-            'theta1': angles[1],
-            'theta2': angles[2],
-            'L': self.L,
-            'v0': self.v0,
-            'D_t': self.D_t,
-            'D_r': self.D_r,
+            "c": np.zeros((self.n_dimers, 2)),
+            "phi": angles[0],
+            "theta1": angles[1],
+            "theta2": angles[2],
+            "L": self.L,
+            "v0": self.v0,
+            "D_t": self.D_t,
+            "D_r": self.D_r,
         }
-        dimers = GroupElement('dimers', element=DimerElement, size=self.n_dimers, values=values)
+        dimers = GroupElement("dimers", element=DimerElement, size=self.n_dimers, values=values)
         return System(self.label, elements=[dimers], space=ContinuousSpace(n_dim=2))

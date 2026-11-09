@@ -156,7 +156,7 @@ class DelayedUnitElement(DeclaredElement):
         The lags all hold the initial value.
         """
         lagged = StateSpec(lags=self.delay, initial=(self.value,) * self.delay)
-        return {'x': DeclaredVariableSpec(self.value, lagged), **(self.variables or {})}
+        return {"x": DeclaredVariableSpec(self.value, lagged), **(self.variables or {})}
 
 
 class LogisticUnitElement(Element):
@@ -289,7 +289,7 @@ class RosslerOscillatorElement(Element):
         ]
 
 
-MAPS = ('logistic', 'bernoulli')
+MAPS = ("logistic", "bernoulli")
 
 
 class AggregateAveragingInteraction(MapInteraction):
@@ -345,10 +345,10 @@ class AggregateAveragingInteraction(MapInteraction):
         target: Annotated[str, RoleSpec()],
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
         kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        kind: str = 'logistic',
+        kind: str = "logistic",
         delay: int = 0,
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._average)
+        super().__init__(label, target=target, state="x", function=self._average)
         self.source = source
         self.r = r
         self.kappa = kappa
@@ -368,17 +368,17 @@ class AggregateAveragingInteraction(MapInteraction):
         """
         super()._prepare(context)
         if self.kind not in MAPS:
-            error_msg = f'Unknown map {self.kind!r}. Use one of {", ".join(MAPS)}.'
+            error_msg = f"Unknown map {self.kind!r}. Use one of {', '.join(MAPS)}."
             raise ValidationError(error_msg)
         if isinstance(self.delay, bool) or not isinstance(self.delay, int) or self.delay < 0:
-            error_msg = f'The delay of {self.label!r} is {self.delay!r}. Give a nonnegative integer.'
+            error_msg = f"The delay of {self.label!r} is {self.delay!r}. Give a nonnegative integer."
             raise ValidationError(error_msg)
 
     def _average(self, namespace: SimpleNamespace) -> Expression:
         """Return the map of the aggregate `a = (1 - kappa) x_t + kappa x_s(t - delay)`."""
         source = lag(namespace.source.x, self.delay)
         aggregate = (1 - namespace.kappa) * namespace.target.x + namespace.kappa * source
-        if self.kind == 'bernoulli':
+        if self.kind == "bernoulli":
             return mod(namespace.r * aggregate, 1)
         return namespace.r * aggregate * (1 - aggregate)
 
@@ -420,7 +420,7 @@ class DiffusiveCouplingInteraction(RateInteraction):
         *,
         source: Annotated[str, RoleSpec()],
         target: Annotated[str, RoleSpec()],
-        state: str = 'x2',
+        state: str = "x2",
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, target=target, state=state)
@@ -486,9 +486,9 @@ class CoupledRosslerSystem(BaseSystem):
         [0.98, 1.02]
     """
 
-    field = 'physics/synchronization'
-    topics = ('synchronization', 'chaos', 'ode', 'master stability function', 'networks')
-    references = ('Rössler 1976', 'Pecora and Carroll 1998', 'Datseris and Parlitz 2022', 'Arenas et al. 2008')
+    field = "physics/synchronization"
+    topics = ("synchronization", "chaos", "ode", "master stability function", "networks")
+    references = ("Rössler 1976", "Pecora and Carroll 1998", "Datseris and Parlitz 2022", "Arenas et al. 2008")
     until = 100.0
     dt = 0.1
 
@@ -502,7 +502,7 @@ class CoupledRosslerSystem(BaseSystem):
         b: float = 0.2,
         c: float = 5.7,
         seed: int = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -522,7 +522,7 @@ class CoupledRosslerSystem(BaseSystem):
         starts = np.random.default_rng(self.seed).uniform(-1.0, 1.0, (self.n_oscillators, 2))
         oscillators = [
             RosslerOscillatorElement(
-                f'oscillator_{index}',
+                f"oscillator_{index}",
                 x1=float(starts[index, 0]),
                 x2=float(starts[index, 1]),
                 x3=0.0,
@@ -538,9 +538,9 @@ class CoupledRosslerSystem(BaseSystem):
             links.append((self.n_oscillators - 1, 0))
         couplings = [
             DiffusiveCouplingInteraction(
-                f'coupling_{source}_{target}',
-                source=f'oscillator_{source}',
-                target=f'oscillator_{target}',
+                f"coupling_{source}_{target}",
+                source=f"oscillator_{source}",
+                target=f"oscillator_{target}",
                 k=self.k,
             )
             for first, second in links
@@ -595,9 +595,9 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         0.1
     """
 
-    field = 'physics/synchronization'
-    topics = ('synchronization', 'chaos', 'map', 'logistic map', 'bernoulli map', 'delay')
-    references = ('Gros 2015',)
+    field = "physics/synchronization"
+    topics = ("synchronization", "chaos", "map", "logistic map", "bernoulli map", "delay")
+    references = ("Gros 2015",)
     until = 50
     dt = 1
 
@@ -608,9 +608,9 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         *,
         r: float = 4.0,
         kappa: float = 0.4,
-        kind: str = 'logistic',
+        kind: str = "logistic",
         delay: int = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x1 = x1
@@ -627,14 +627,14 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         """
         if self.delay:
             units: list[Element] = [
-                DelayedUnitElement('first', value=self.x1, delay=self.delay),
-                DelayedUnitElement('second', value=self.x2, delay=self.delay),
+                DelayedUnitElement("first", value=self.x1, delay=self.delay),
+                DelayedUnitElement("second", value=self.x2, delay=self.delay),
             ]
         else:
-            units = [LogisticUnitElement('first', x=self.x1), LogisticUnitElement('second', x=self.x2)]
+            units = [LogisticUnitElement("first", x=self.x1), LogisticUnitElement("second", x=self.x2)]
         averaging = [
             AggregateAveragingInteraction(
-                f'averaging_{target}',
+                f"averaging_{target}",
                 source=source,
                 target=target,
                 r=self.r,
@@ -642,7 +642,7 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
                 kind=self.kind,
                 delay=self.delay,
             )
-            for source, target in (('second', 'first'), ('first', 'second'))
+            for source, target in (("second", "first"), ("first", "second"))
         ]
         return System(self.label, elements=units, interactions=averaging, time=DiscreteTime())
 
@@ -680,9 +680,9 @@ class RosslerDrivenLorenzSystem(BaseSystem):
         ['drive', 'response']
     """
 
-    field = 'physics/synchronization'
-    topics = ('chaos', 'generalized synchronization', 'drive-response', 'ode')
-    references = ('Rulkov et al. 1995', 'Abarbanel, Rulkov, and Sushchik 1996', 'Datseris and Parlitz 2022')
+    field = "physics/synchronization"
+    topics = ("chaos", "generalized synchronization", "drive-response", "ode")
+    references = ("Rulkov et al. 1995", "Abarbanel, Rulkov, and Sushchik 1996", "Datseris and Parlitz 2022")
     until = 100.0
     dt = 0.01
 
@@ -692,7 +692,7 @@ class RosslerDrivenLorenzSystem(BaseSystem):
         *,
         auxiliary: bool = True,
         p: float = 1 / 6,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.k = k
@@ -704,16 +704,16 @@ class RosslerDrivenLorenzSystem(BaseSystem):
 
         The drive acts through the second variable.
         """
-        drive = RosslerOscillatorElement('drive', x1=1.0, x2=0.0, x3=0.0, p=self.p)
-        responses = [LorenzElement('response', x=1.0, y=1.0, z=1.0, beta=2.666)]
+        drive = RosslerOscillatorElement("drive", x1=1.0, x2=0.0, x3=0.0, p=self.p)
+        responses = [LorenzElement("response", x=1.0, y=1.0, z=1.0, beta=2.666)]
         if self.auxiliary:
-            responses.append(LorenzElement('auxiliary', x=-5.0, y=3.0, z=20.0, beta=2.666))
+            responses.append(LorenzElement("auxiliary", x=-5.0, y=3.0, z=20.0, beta=2.666))
         couplings = [
             RateInteraction(
-                f'coupling_{response.label}',
+                f"coupling_{response.label}",
                 target=response.label,
-                state='y',
-                sources=['drive'],
+                state="y",
+                sources=["drive"],
                 rate=lambda s: self.k * s.sources[0].x2,
             )
             for response in responses

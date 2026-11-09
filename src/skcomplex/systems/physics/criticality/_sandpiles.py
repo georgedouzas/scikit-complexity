@@ -142,9 +142,9 @@ class ToppleInteraction(LocalRuleInteraction):
         super().__init__(
             label,
             target=target,
-            state='height',
+            state="height",
             rule=self._topple,
-            neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+            neighborhood=BallNeighborhood(metric="manhattan", center="first"),
         )
         self.threshold = threshold
 
@@ -204,12 +204,12 @@ class FixedEnergySandpileSystem(BaseSystem):
         64
     """
 
-    field = 'physics/criticality'
-    topics = ('lattice', 'absorbing states', 'phase transition', 'conservation', 'sandpile')
-    references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
+    field = "physics/criticality"
+    topics = ("lattice", "absorbing states", "phase transition", "conservation", "sandpile")
+    references = ("Dickman, Vespignani, and Zapperi 1998", "Vespignani et al. 2000", "Gros 2015")
     until = 500
     dt = 1
-    observables = (ObservableSpec('activity', _active, group='pile'),)
+    observables = (ObservableSpec("activity", _active, group="pile"),)
 
     def __init__(
         self,
@@ -217,7 +217,7 @@ class FixedEnergySandpileSystem(BaseSystem):
         *,
         density: float = 2.3,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -230,13 +230,13 @@ class FixedEnergySandpileSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         grains = rng.integers(size, size=round(self.density * size))
         heights = np.bincount(grains, minlength=size).reshape(tuple(self.shape)).astype(float)
-        space = LatticeSpace(tuple(self.shape), boundary='periodic')
+        space = LatticeSpace(tuple(self.shape), boundary="periodic")
         return System(
             self.label,
             elements=[
-                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+                GroupElement("pile", element=SandpileCellElement, space=space, values={"height": heights}, on="sites"),
             ],
-            interactions=[ToppleInteraction('topple', target='pile', threshold=THRESHOLD)],
+            interactions=[ToppleInteraction("topple", target="pile", threshold=THRESHOLD)],
         )
 
 
@@ -271,9 +271,9 @@ class ZhangSandpileSystem(BaseSystem):
         'reset'
     """
 
-    field = 'physics/criticality'
-    topics = ('lattice', 'avalanches', 'power law', 'continuous energy', 'sandpile')
-    references = ('Zhang 1989', 'Jensen 2023')
+    field = "physics/criticality"
+    topics = ("lattice", "avalanches", "power law", "continuous energy", "sandpile")
+    references = ("Zhang 1989", "Jensen 2023")
     until = 10000
     dt = 100
 
@@ -283,7 +283,7 @@ class ZhangSandpileSystem(BaseSystem):
         *,
         threshold: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -307,20 +307,20 @@ class ZhangSandpileSystem(BaseSystem):
         It is a continuous sandpile whose unstable sites give away all their energy.
         """
         energies = np.random.default_rng(self.random_state).uniform(0.0, self.threshold, size=tuple(self.shape))
-        space = LatticeSpace(tuple(self.shape), boundary='fixed')
+        space = LatticeSpace(tuple(self.shape), boundary="fixed")
         avalanche = CascadeInteraction(
-            'avalanche',
-            target='pile',
-            state='energy',
+            "avalanche",
+            target="pile",
+            state="energy",
             threshold=self.threshold,
             share=1 / 4,
-            mode='reset',
+            mode="reset",
             drive=partial(self._load, self.threshold),
         )
         return System(
             self.label,
             elements=[
-                GroupElement('pile', element=EnergySiteElement, space=space, values={'energy': energies}, on='sites'),
+                GroupElement("pile", element=EnergySiteElement, space=space, values={"energy": energies}, on="sites"),
             ],
             interactions=[avalanche],
         )
@@ -359,9 +359,9 @@ class SelfOrganizedBranchingSystem(BaseSystem):
 
     draws = True
 
-    field = 'physics/criticality'
-    topics = ('branching process', 'avalanches', 'mean field', 'self-organized criticality', 'stochastic')
-    references = ('Zapperi, Lauritsen, and Stanley 1995', 'Jensen 2023')
+    field = "physics/criticality"
+    topics = ("branching process", "avalanches", "mean field", "self-organized criticality", "stochastic")
+    references = ("Zapperi, Lauritsen, and Stanley 1995", "Jensen 2023")
     until = 30000
     dt = 1
 
@@ -370,7 +370,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         p: float = 0.3,
         *,
         generations: int = 10,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.p = p
@@ -379,7 +379,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
     @staticmethod
     def _branch(generations: int, s: SimpleNamespace) -> Expression:
         """Return the active sites of the next generation, or a new avalanche's one site."""
-        return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
+        return where(_ends(s.target, generations), 1, 2 * draw("children", "binom", n=s.target.z, p=s.target.p))
 
     @staticmethod
     def _advance(generations: int, s: SimpleNamespace) -> Expression:
@@ -403,16 +403,16 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[BranchingTreeElement('tree', p=self.p)],
+            elements=[BranchingTreeElement("tree", p=self.p)],
             interactions=[
-                MapInteraction('branching', target='tree', state='z', function=partial(self._branch, self.generations)),
+                MapInteraction("branching", target="tree", state="z", function=partial(self._branch, self.generations)),
                 MapInteraction(
-                    'generation',
-                    target='tree',
-                    state='g',
+                    "generation",
+                    target="tree",
+                    state="g",
                     function=partial(self._advance, self.generations),
                 ),
-                MapInteraction('tuning', target='tree', state='p', function=partial(self._tune, self.generations)),
+                MapInteraction("tuning", target="tree", state="p", function=partial(self._tune, self.generations)),
             ],
             time=DiscreteTime(),
         )

@@ -23,7 +23,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.oscillators import StuartLandauElement
 
 QUANTILE_GRID_SIZE = 20001
-DISTRIBUTIONS = ('lorentzian', 'quartic')
+DISTRIBUTIONS = ("lorentzian", "quartic")
 
 
 class GlobalCouplingInteraction(CouplingInteraction):
@@ -61,7 +61,7 @@ class GlobalCouplingInteraction(CouplingInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = 'x',
+        state: str = "x",
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(
@@ -70,8 +70,8 @@ class GlobalCouplingInteraction(CouplingInteraction):
             read=state,
             write=state,
             function=self._pull,
-            reduce='mean',
-            mode='group',
+            reduce="mean",
+            mode="group",
             include_self=True,
         )
         self.state = state
@@ -162,16 +162,16 @@ class OscillatorDeathSystem(BaseSystem):
         4
     """
 
-    field = 'physics/synchronization'
-    topics = ('synchronization', 'oscillators', 'amplitude death', 'mean field', 'ode')
-    references = ('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021')
+    field = "physics/synchronization"
+    topics = ("synchronization", "oscillators", "amplitude death", "mean field", "ode")
+    references = ("Ermentrout 1990", "Mirollo and Strogatz 1990", "Bertin 2021")
     until = 20.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _amplitude, group='oscillators'),
-        ObservableSpec('X', group='oscillators', variable='x'),
-        ObservableSpec('Y', group='oscillators', variable='y'),
-        ObservableSpec('order', _order),
+        ObservableSpec("amplitude", _amplitude, group="oscillators"),
+        ObservableSpec("X", group="oscillators", variable="x"),
+        ObservableSpec("Y", group="oscillators", variable="y"),
+        ObservableSpec("order", _order),
     )
 
     def __init__(
@@ -180,9 +180,9 @@ class OscillatorDeathSystem(BaseSystem):
         *,
         K: float = 3.0,
         width: float = 1.5,
-        distribution: str = 'lorentzian',
+        distribution: str = "lorentzian",
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -198,12 +198,12 @@ class OscillatorDeathSystem(BaseSystem):
         The density is Lorentzian or quartic.
         """
         levels = (np.arange(size) + 1 / 2) / size
-        if distribution == 'lorentzian':
+        if distribution == "lorentzian":
             return width * stats.cauchy.ppf(levels)
-        if distribution == 'quartic':
+        if distribution == "quartic":
             grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
             return width * np.interp(levels, _quartic_cumulative(grid), grid)
-        message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
+        message = f"The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}."
         raise ValidationError(message)
 
     def _build_system(self) -> System:
@@ -211,17 +211,17 @@ class OscillatorDeathSystem(BaseSystem):
         omegas = self._frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = _spread_on_circle(self.n_oscillators, self.random_state)
         oscillators = GroupElement(
-            'oscillators',
+            "oscillators",
             element=StuartLandauElement,
             size=self.n_oscillators,
-            values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
+            values={"x": x, "y": y, "mu": 1.0, "omega": omegas, "tau": 1.0},
         )
         return System(
             self.label,
             elements=[oscillators],
             interactions=[
-                GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=self.K)
-                for state in 'xy'
+                GlobalCouplingInteraction(f"coupling_{state}", target="oscillators", state=state, K=self.K)
+                for state in "xy"
             ],
         )
 
@@ -268,17 +268,17 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         array([0.4, 0.8, 1.2, 1.6])
     """
 
-    field = 'physics/synchronization'
-    topics = ('synchronization', 'oscillators', 'amplitude death', 'mean field', 'heterogeneity', 'ode')
-    references = ("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021')
+    field = "physics/synchronization"
+    topics = ("synchronization", "oscillators", "amplitude death", "mean field", "heterogeneity", "ode")
+    references = ("De Monte, d'Ovidio, and Mosekilde 2003", "Bertin 2021")
     until = 40.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _amplitude, group='systems'),
-        ObservableSpec('X', group='systems', variable='x'),
-        ObservableSpec('Y', group='systems', variable='y'),
-        ObservableSpec('V', _time_scale_deviation_x, group='systems'),
-        ObservableSpec('W', _time_scale_deviation_y, group='systems'),
+        ObservableSpec("amplitude", _amplitude, group="systems"),
+        ObservableSpec("X", group="systems", variable="x"),
+        ObservableSpec("Y", group="systems", variable="y"),
+        ObservableSpec("V", _time_scale_deviation_x, group="systems"),
+        ObservableSpec("W", _time_scale_deviation_y, group="systems"),
     )
 
     def __init__(
@@ -290,7 +290,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         gamma: float = 2.0,
         heterogeneity: float = 0.8,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_systems = n_systems
@@ -306,16 +306,16 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         x, y = _spread_on_circle(self.n_systems, self.random_state)
         radius = math.sqrt(abs(self.beta))
         systems = GroupElement(
-            'systems',
+            "systems",
             element=StuartLandauElement,
             size=self.n_systems,
-            values={'x': radius * x, 'y': radius * y, 'mu': self.beta, 'omega': self.gamma, 'tau': taus},
+            values={"x": radius * x, "y": radius * y, "mu": self.beta, "omega": self.gamma, "tau": taus},
         )
         return System(
             self.label,
             elements=[systems],
             interactions=[
-                GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=self.k)
-                for state in 'xy'
+                GlobalCouplingInteraction(f"coupling_{state}", target="systems", state=state, K=self.k)
+                for state in "xy"
             ],
         )

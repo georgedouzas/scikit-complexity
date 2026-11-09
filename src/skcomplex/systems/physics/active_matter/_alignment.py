@@ -23,8 +23,8 @@ from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 HEADINGS = VisualSpec(
-    'points',
-    {'position': 'x', 'radius': 0.3, 'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)},
+    "points",
+    {"position": "x", "radius": 0.3, "color_by": "theta", "color_range": (0.0, 2 * math.pi)},
 )
 
 
@@ -83,7 +83,7 @@ class PolarAlignmentInteraction(PairCouplingInteraction):
         first: str,
         second: str,
         cutoff: float = 1.0,
-        position: str = 'x',
+        position: str = "x",
         *,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         period: float | None = None,
@@ -94,7 +94,7 @@ class PolarAlignmentInteraction(PairCouplingInteraction):
             second,
             cutoff=cutoff,
             position=position,
-            write='theta',
+            write="theta",
             function=self._torque,
             period=period,
         )
@@ -152,15 +152,15 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'flocking', 'alignment', 'pair interaction')
-    references = ('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "flocking", "alignment", "pair interaction")
+    references = ("Bertin 2021", "Peruani, Deutsch, and Bär 2008", "Chaté 2020")
     until = 100.0
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
-        ObservableSpec('mean_heading', _heading, group='swimmers'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec("mean_heading", _heading, group="swimmers"),
+        ObservableSpec("polarization", _polarization),
     )
 
     def __init__(
@@ -174,7 +174,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         d0: float = 1.0,
         D_t: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -193,21 +193,21 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         swimmers = GroupElement(
-            'swimmers',
+            "swimmers",
             element=ActiveParticleElement,
             size=self.n_particles,
             values={
-                'x': rng.uniform(0.0, self.size, (self.n_particles, 2)),
-                'theta': rng.uniform(0.0, 2 * math.pi, self.n_particles),
-                'D_t': self.D_t,
-                'D_r': self.D_r,
+                "x": rng.uniform(0.0, self.size, (self.n_particles, 2)),
+                "theta": rng.uniform(0.0, 2 * math.pi, self.n_particles),
+                "D_t": self.D_t,
+                "D_r": self.D_r,
             },
             visual=HEADINGS,
         )
         alignment = PolarAlignmentInteraction(
-            'align',
-            first='swimmers',
-            second='swimmers',
+            "align",
+            first="swimmers",
+            second="swimmers",
             cutoff=self.d0,
             period=self.size,
             gamma=self.gamma,
@@ -215,6 +215,6 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         return System(
             self.label,
             elements=[swimmers],
-            interactions=[alignment, SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            interactions=[alignment, SelfPropulsionInteraction("propulsion", target="swimmers", speed=self.speed)],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary="periodic"),
         )

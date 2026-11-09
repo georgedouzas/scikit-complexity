@@ -89,9 +89,9 @@ def maxwell_boltzmann(
         True
     """
     if mass <= 0 or (temperature is not None and temperature <= 0):
-        error_msg = f'maxwell_boltzmann has mass={mass!r} and temperature={temperature!r}. Use positive values.'
+        error_msg = f"maxwell_boltzmann has mass={mass!r} and temperature={temperature!r}. Use positive values."
         raise AnalysisError(error_msg)
-    velocities = _read_velocities(source, group, 'maxwell_boltzmann')
+    velocities = _read_velocities(source, group, "maxwell_boltzmann")
     tests = [_maxwell_boltzmann(frame, mass, temperature) for frame in velocities]
     temperatures, statistics, p_values = np.asarray(tests).T
     return MaxwellBoltzmannResult(velocities, temperatures, statistics, p_values)

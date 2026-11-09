@@ -277,9 +277,9 @@ class Lorenz84System(BaseSystem):
         1.25
     """
 
-    field = 'physics/climate'
-    topics = ('chaos', 'ode', 'atmosphere', 'general circulation')
-    references = ('Lorenz 1984', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("chaos", "ode", "atmosphere", "general circulation")
+    references = ("Lorenz 1984", "Datseris and Parlitz 2022")
     until = 100.0
     dt = 0.05
 
@@ -293,7 +293,7 @@ class Lorenz84System(BaseSystem):
         b: float = 4.0,
         F: float = 8.0,
         G: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -309,7 +309,7 @@ class Lorenz84System(BaseSystem):
         return System(
             self.label,
             elements=[
-                Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
+                Lorenz84Element("atmosphere", x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
             ],
         )
 
@@ -341,9 +341,9 @@ class Lorenz96System(BaseSystem):
         6
     """
 
-    field = 'physics/climate'
-    topics = ('chaos', 'ode', 'atmosphere', 'spatiotemporal chaos', 'data assimilation')
-    references = ('Lorenz 1996', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("chaos", "ode", "atmosphere", "spatiotemporal chaos", "data assimilation")
+    references = ("Lorenz 1996", "Datseris and Parlitz 2022")
     until = 20.0
     dt = 0.05
 
@@ -353,7 +353,7 @@ class Lorenz96System(BaseSystem):
         *,
         F: float = 8.0,
         perturbation: float = 0.01,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -366,7 +366,7 @@ class Lorenz96System(BaseSystem):
         values[0] += self.perturbation
         return System(
             self.label,
-            elements=[Lorenz96Element('ring', x=values, F=self.F)],
+            elements=[Lorenz96Element("ring", x=values, F=self.F)],
             space=ContinuousSpace(n_dim=self.n_sites),
         )
 
@@ -406,9 +406,9 @@ class GeodynamoSystem(BaseSystem):
         0.12
     """
 
-    field = 'physics/climate'
-    topics = ('chaos', 'ode', 'geomagnetism', 'reversals')
-    references = ('Gissinger 2012', 'Datseris and Parlitz 2022')
+    field = "physics/climate"
+    topics = ("chaos", "ode", "geomagnetism", "reversals")
+    references = ("Gissinger 2012", "Datseris and Parlitz 2022")
     until = 500.0
     dt = 0.5
 
@@ -421,7 +421,7 @@ class GeodynamoSystem(BaseSystem):
         mu: float = 0.119,
         nu: float = 0.1,
         Gamma: float = 0.9,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.Q = Q
@@ -436,6 +436,6 @@ class GeodynamoSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                GeodynamoElement('dynamo', Q=self.Q, D=self.D, V=self.V, mu=self.mu, nu=self.nu, Gamma=self.Gamma),
+                GeodynamoElement("dynamo", Q=self.Q, D=self.D, V=self.V, mu=self.mu, nu=self.nu, Gamma=self.Gamma),
             ],
         )

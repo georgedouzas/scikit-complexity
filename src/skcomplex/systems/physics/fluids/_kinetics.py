@@ -144,9 +144,9 @@ class WaveBreakingSystem(BaseSystem):
         16
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'waves', 'breaking', 'conservation law', 'finite volume', 'pde')
-    references = ('Whitham 1974', 'Forrest 2018')
+    field = "physics/fluids"
+    topics = ("field", "waves", "breaking", "conservation law", "finite volume", "pde")
+    references = ("Whitham 1974", "Forrest 2018")
     until = 20.0
     dt = 0.5
     solver = SSPRKSolver()
@@ -158,7 +158,7 @@ class WaveBreakingSystem(BaseSystem):
         k0: float = 1.0,
         amplitude: float = 0.5,
         g: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n = n
@@ -173,24 +173,24 @@ class WaveBreakingSystem(BaseSystem):
         """
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
-        values = {'k': self.k0 * (1 + self.amplitude * np.sin(centers)), 'g': self.g}
+        values = {"k": self.k0 * (1 + self.amplitude * np.sin(centers)), "g": self.g}
         space = LatticeSpace(self.n, spacing=spacing)
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'train',
+                    "train",
                     element=WaveNumberElement,
                     space=space,
                     values=values,
-                    discretization='finite-volume',
+                    discretization="finite-volume",
                 ),
             ],
             interactions=[
                 ConservationInteraction(
-                    'action',
-                    target='train',
-                    state='k',
+                    "action",
+                    target="train",
+                    state="k",
                     flux=lambda s: sqrt(s.target.g * s.target.k),
                 ),
             ],
@@ -228,9 +228,9 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         16
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'kinetic theory', 'discrete velocities', 'finite volume', 'pde')
-    references = ('Carleman 1957', 'Gatignol 1975', 'Bellomo et al. 2017')
+    field = "physics/fluids"
+    topics = ("field", "kinetic theory", "discrete velocities", "finite volume", "pde")
+    references = ("Carleman 1957", "Gatignol 1975", "Bellomo et al. 2017")
     until = 5.0
     dt = 0.1
     solver = SSPRKSolver()
@@ -242,7 +242,7 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         c: float = 1.0,
         kappa: float = 1.0,
         length: float = 10.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n = n
@@ -266,31 +266,31 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         spacing = self.length / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         pulse = np.exp(-((centers - self.length / 2) ** 2))
-        values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(self.n, 0.5), 'c': self.c, 'kappa': self.kappa}
+        values = {"f_plus": 0.5 + pulse, "f_minus": np.full(self.n, 0.5), "c": self.c, "kappa": self.kappa}
         space = LatticeSpace(self.n, spacing=spacing)
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'gas',
+                    "gas",
                     element=CarlemanGasElement,
                     space=space,
                     values=values,
-                    discretization='finite-volume',
+                    discretization="finite-volume",
                 ),
             ],
             interactions=[
                 ConservationInteraction(
-                    'right_movers',
-                    target='gas',
-                    state='f_plus',
+                    "right_movers",
+                    target="gas",
+                    state="f_plus",
                     flux=lambda s: s.target.c * s.target.f_plus,
                     source=self._get_collisions,
                 ),
                 ConservationInteraction(
-                    'left_movers',
-                    target='gas',
-                    state='f_minus',
+                    "left_movers",
+                    target="gas",
+                    state="f_minus",
                     flux=lambda s: -s.target.c * s.target.f_minus,
                     source=lambda s: -self._get_collisions(s),
                 ),

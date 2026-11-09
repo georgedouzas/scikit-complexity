@@ -189,9 +189,9 @@ class ShakenSpringBlockSystem(BaseSystem):
         5
     """
 
-    field = 'physics/soft_matter'
-    topics = ('field', 'sde', 'friction', 'granular matter', 'blocked states')
-    references = ('Bertin 2021', 'Edwards and Oakeshott 1989', 'Bertin, Dauchot, and Droz 2004')
+    field = "physics/soft_matter"
+    topics = ("field", "sde", "friction", "granular matter", "blocked states")
+    references = ("Bertin 2021", "Edwards and Oakeshott 1989", "Bertin, Dauchot, and Droz 2004")
     until = 200.0
     dt = 10.0
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -208,7 +208,7 @@ class ShakenSpringBlockSystem(BaseSystem):
         shake_time: float = 2.0,
         relax_time: float = 8.0,
         v_stick: float = 0.02,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_blocks = n_blocks
@@ -227,20 +227,20 @@ class ShakenSpringBlockSystem(BaseSystem):
         The chain is shaken and relaxed in turn.
         """
         chain = FieldElement(
-            'chain',
+            "chain",
             element=FrictionalBlockElement,
-            space=LatticeSpace(self.n_blocks, boundary='reflecting'),
-            boundary={'x': 'zero-flux', 'v': 'zero-flux'},
+            space=LatticeSpace(self.n_blocks, boundary="reflecting"),
+            boundary={"x": "zero-flux", "v": "zero-flux"},
             values={
-                'x': np.zeros(self.n_blocks),
-                'k': self.k,
-                'anchor': self.anchor,
-                'mu_s': self.mu_s,
-                'mu_d': self.mu_d,
-                'amplitude': self.amplitude,
-                'shake_time': self.shake_time,
-                'relax_time': self.relax_time,
-                'v_stick': self.v_stick,
+                "x": np.zeros(self.n_blocks),
+                "k": self.k,
+                "anchor": self.anchor,
+                "mu_s": self.mu_s,
+                "mu_d": self.mu_d,
+                "amplitude": self.amplitude,
+                "shake_time": self.shake_time,
+                "relax_time": self.relax_time,
+                "v_stick": self.v_stick,
             },
         )
         return System(self.label, elements=[chain])

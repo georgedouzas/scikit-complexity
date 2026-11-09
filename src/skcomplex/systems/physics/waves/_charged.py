@@ -168,9 +168,9 @@ class ChargedSchrodingerSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/waves'
-    topics = ('quantum', 'gauge field', 'electromagnetism', 'wave packet', 'spectral', 'pde')
-    references = ('Schwichtenberg 2020',)
+    field = "physics/waves"
+    topics = ("quantum", "gauge field", "electromagnetism", "wave packet", "spectral", "pde")
+    references = ("Schwichtenberg 2020",)
     until = 8.0
     dt = 0.1
 
@@ -187,7 +187,7 @@ class ChargedSchrodingerSystem(BaseSystem):
         A_t: float = 0.0,
         E: float = 1.0,
         duration: float = 2.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -208,25 +208,25 @@ class ChargedSchrodingerSystem(BaseSystem):
         envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25
         psi = envelope * np.exp(1j * self.momentum * positions)
         values = {
-            'u': psi.real,
-            'w': psi.imag,
-            'D': self.D,
-            'q': self.q,
-            'A_x': self.A_x,
-            'A_t': self.A_t,
-            'E': self.E,
-            'duration': self.duration,
+            "u": psi.real,
+            "w": psi.imag,
+            "D": self.D,
+            "q": self.q,
+            "A_x": self.A_x,
+            "A_t": self.A_t,
+            "E": self.E,
+            "duration": self.duration,
         }
         space = LatticeSpace(self.n_sites, spacing=spacing)
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'packet',
+                    "packet",
                     element=ChargedWaveFunctionElement,
                     space=space,
                     values=values,
-                    discretization='spectral',
+                    discretization="spectral",
                 ),
             ],
         )

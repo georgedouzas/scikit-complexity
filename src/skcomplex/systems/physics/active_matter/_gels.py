@@ -167,13 +167,13 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/active_matter'
-    topics = ('active gel', 'contractile', 'viscoelastic', 'field', 'inversion', 'pattern formation', 'pde')
-    references = ('Brauns and Marchetti 2024', 'arXiv:2306.08868')
+    field = "physics/active_matter"
+    topics = ("active gel", "contractile", "viscoelastic", "field", "inversion", "pattern formation", "pde")
+    references = ("Brauns and Marchetti 2024", "arXiv:2306.08868")
     until = 30.0
     dt = 0.1
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('v', _gel_velocity, group='gel', reduce=_sites),)
+    observables = (ObservableSpec("v", _gel_velocity, group="gel", reduce=_sites),)
 
     def __init__(
         self,
@@ -189,7 +189,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         T0: float = 4.0,
         c_sat: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -222,29 +222,29 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         values = {
-            'c': self.density + self.perturbation * rng.standard_normal(self.n_sites),
-            'u': 0.0,
-            'D': self.D,
-            'gamma': self.gamma,
-            'eta': self.eta,
-            'E': self.E,
-            'T0': self.T0,
-            'c_sat': self.c_sat,
+            "c": self.density + self.perturbation * rng.standard_normal(self.n_sites),
+            "u": 0.0,
+            "D": self.D,
+            "gamma": self.gamma,
+            "eta": self.eta,
+            "E": self.E,
+            "T0": self.T0,
+            "c_sat": self.c_sat,
         }
         gel = FieldElement(
-            'gel',
+            "gel",
             element=ContractileGelSiteElement,
             space=LatticeSpace(self.n_sites, spacing=self.length / self.n_sites),
             values=values,
         )
         transport = AdvectionInteraction(
-            'transport',
-            target='gel',
-            state='c',
+            "transport",
+            target="gel",
+            state="c",
             drift=self._transport,
             limiter=None,
             riemann=None,
         )
-        diffusion = DiffusionInteraction('diffusion', target='gel', state='c', coefficient=self._diffusion)
-        displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
+        diffusion = DiffusionInteraction("diffusion", target="gel", state="c", coefficient=self._diffusion)
+        displacement = RateInteraction("displacement", target="gel", state="u", rate=self._transport)
         return System(self.label, elements=[gel], interactions=[transport, diffusion, displacement])

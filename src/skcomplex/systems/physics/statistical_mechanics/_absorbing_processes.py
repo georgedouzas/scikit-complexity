@@ -139,9 +139,9 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         50.0
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('absorbing state', 'phase transition', 'birth-death process', 'metastability', 'jump process')
-    references = ('Bertin 2021', 'Hinrichsen 2000')
+    field = "physics/statistical_mechanics"
+    topics = ("absorbing state", "phase transition", "birth-death process", "metastability", "jump process")
+    references = ("Bertin 2021", "Hinrichsen 2000")
     until = 100.0
     dt = 0.1
 
@@ -154,7 +154,7 @@ class AbsorbingBirthDeathSystem(BaseSystem):
         volume: float = 100.0,
         density: float = 1.0,
         epsilon: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.kappa = kappa
@@ -167,7 +167,7 @@ class AbsorbingBirthDeathSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         particles = ReactingParticlesElement(
-            'particles',
+            "particles",
             n=float(round(self.density * self.volume)),
             kappa=self.kappa,
             nu=self.nu,

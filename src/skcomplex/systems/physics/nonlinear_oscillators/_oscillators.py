@@ -195,7 +195,7 @@ class HenonHeilesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
+        visual: VisualSpec | None = VisualSpec("bodies", {"positions": ("x", "y"), "trail": None}),
         *,
         x: Annotated[float, StateSpec()] = 0.0,
         y: Annotated[float, StateSpec()] = 0.1,
@@ -305,7 +305,7 @@ class QuadrupoleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None}),
+        visual: VisualSpec | None = VisualSpec("bodies", {"positions": ("q1", "q2"), "trail": None}),
         *,
         q1: Annotated[float, StateSpec()] = 0.0,
         q2: Annotated[float, StateSpec()] = 1.0,
@@ -487,7 +487,7 @@ def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
     return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
 
 
-SPRINGS = ('tangent', 'linear')
+SPRINGS = ("tangent", "linear")
 
 
 def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
@@ -539,9 +539,9 @@ class DuffingSystem(BaseSystem):
         0.3
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('chaos', 'ode', 'second order', 'forcing')
-    references = ('Duffing 1918', 'Trzaska 2023')
+    field = "physics/nonlinear_oscillators"
+    topics = ("chaos", "ode", "second order", "forcing")
+    references = ("Duffing 1918", "Trzaska 2023")
     until = 200.0
     dt = 0.05
 
@@ -555,7 +555,7 @@ class DuffingSystem(BaseSystem):
         beta: float = 1.0,
         gamma: float = 0.5,
         omega: float = 1.2,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -569,9 +569,9 @@ class DuffingSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         acceleration = RateInteraction(
-            'acceleration',
-            target='duffing',
-            state='x',
+            "acceleration",
+            target="duffing",
+            state="x",
             rate=lambda s: (
                 -s.target.delta * derivative(s.target.x, 1)
                 - s.target.alpha * s.target.x
@@ -583,7 +583,7 @@ class DuffingSystem(BaseSystem):
             self.label,
             elements=[
                 DuffingElement(
-                    'duffing',
+                    "duffing",
                     x=self.x,
                     x_d1=self.v,
                     delta=self.delta,
@@ -623,9 +623,9 @@ class VanDerPolSystem(BaseSystem):
         3.0
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('limit cycle', 'ode', 'second order', 'oscillation')
-    references = ('van der Pol 1926', 'Gros 2015')
+    field = "physics/nonlinear_oscillators"
+    topics = ("limit cycle", "ode", "second order", "oscillation")
+    references = ("van der Pol 1926", "Gros 2015")
     until = 50.0
     dt = 0.05
 
@@ -635,7 +635,7 @@ class VanDerPolSystem(BaseSystem):
         v: float = 0.0,
         *,
         mu: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -647,7 +647,7 @@ class VanDerPolSystem(BaseSystem):
 
         The oscillator settles on a limit cycle for `μ > 0`.
         """
-        return System(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+        return System(self.label, elements=[VanDerPolElement("oscillator", x=self.x, x_d1=self.v, mu=self.mu)])
 
 
 class HenonHeilesSystem(BaseSystem):
@@ -680,14 +680,14 @@ class HenonHeilesSystem(BaseSystem):
         0.3
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('chaos', 'ode', 'hamiltonian')
-    references = ('Hénon and Heiles 1964', 'Datseris and Parlitz 2022')
+    field = "physics/nonlinear_oscillators"
+    topics = ("chaos", "ode", "hamiltonian")
+    references = ("Hénon and Heiles 1964", "Datseris and Parlitz 2022")
     until = 200.0
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
-    invariants: ClassVar[Mapping[str, float]] = {'star.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_henon_heiles_energy, element='star'),)
+    invariants: ClassVar[Mapping[str, float]] = {"star.energy": 1e-6}
+    observables = (ObservableSpec("energy", _get_henon_heiles_energy, element="star"),)
 
     def __init__(
         self,
@@ -696,7 +696,7 @@ class HenonHeilesSystem(BaseSystem):
         px: float = 0.35,
         py: float = 0.0,
         *,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -713,13 +713,13 @@ class HenonHeilesSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         return System(
             self.label,
-            elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
+            elements=[HenonHeilesElement("star", x=self.x, y=self.y, px=self.px, py=self.py)],
             interactions=[
                 HamiltonianInteraction(
-                    'motion',
-                    target='star',
-                    coordinates=('x', 'y'),
-                    momenta=('px', 'py'),
+                    "motion",
+                    target="star",
+                    coordinates=("x", "y"),
+                    momenta=("px", "py"),
                     hamiltonian=self._get_henon_heiles_hamiltonian,
                 ),
             ],
@@ -760,9 +760,9 @@ class StuartLandauSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('limit cycle', 'ode', 'hopf bifurcation', 'oscillation')
-    references = ('Gros 2015', 'Dilão 2023')
+    field = "physics/nonlinear_oscillators"
+    topics = ("limit cycle", "ode", "hopf bifurcation", "oscillation")
+    references = ("Gros 2015", "Dilão 2023")
     until = 30.0
     dt = 0.05
 
@@ -774,7 +774,7 @@ class StuartLandauSystem(BaseSystem):
         mu: float = 1.0,
         omega: float = 1.0,
         beta: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -788,7 +788,7 @@ class StuartLandauSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                StuartLandauElement('oscillator', x=self.x, y=self.y, mu=self.mu, omega=self.omega, beta=self.beta),
+                StuartLandauElement("oscillator", x=self.x, y=self.y, mu=self.mu, omega=self.omega, beta=self.beta),
             ],
         )
 
@@ -827,9 +827,9 @@ class ForcedVanDerPolSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('limit cycle', 'ode', 'second order', 'forcing', 'synchronization')
-    references = ('van der Pol and van der Mark 1927', 'Trzaska 2023')
+    field = "physics/nonlinear_oscillators"
+    topics = ("limit cycle", "ode", "second order", "forcing", "synchronization")
+    references = ("van der Pol and van der Mark 1927", "Trzaska 2023")
     until = 100.0
     dt = 0.05
 
@@ -841,7 +841,7 @@ class ForcedVanDerPolSystem(BaseSystem):
         mu: float = 1.0,
         A: float = 1.0,
         omega: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -857,7 +857,7 @@ class ForcedVanDerPolSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu, A=self.A, omega=self.omega)],
+            elements=[VanDerPolElement("oscillator", x=self.x, x_d1=self.v, mu=self.mu, A=self.A, omega=self.omega)],
         )
 
 
@@ -888,9 +888,9 @@ class AdlerEquationSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('synchronization', 'ode', 'phase', 'oscillation')
-    references = ('Adler 1946', 'Datseris and Parlitz 2022')
+    field = "physics/nonlinear_oscillators"
+    topics = ("synchronization", "ode", "phase", "oscillation")
+    references = ("Adler 1946", "Datseris and Parlitz 2022")
     until = 50.0
     dt = 0.1
 
@@ -900,7 +900,7 @@ class AdlerEquationSystem(BaseSystem):
         *,
         detuning: float = 0.5,
         epsilon: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.phi = phi
@@ -914,7 +914,7 @@ class AdlerEquationSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[AdlerPhaseElement('difference', phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
+            elements=[AdlerPhaseElement("difference", phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
         )
 
 
@@ -954,14 +954,14 @@ class NuclearQuadrupoleSystem(BaseSystem):
         0.3
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('chaos', 'ode', 'hamiltonian', 'nuclear physics')
-    references = ('Baran and Raduta 1998', 'Datseris and Parlitz 2022')
+    field = "physics/nonlinear_oscillators"
+    topics = ("chaos", "ode", "hamiltonian", "nuclear physics")
+    references = ("Baran and Raduta 1998", "Datseris and Parlitz 2022")
     until = 200.0
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
-    invariants: ClassVar[Mapping[str, float]] = {'nucleus.energy': 1e-6}
-    observables = (ObservableSpec('energy', _get_quadrupole_energy, element='nucleus'),)
+    invariants: ClassVar[Mapping[str, float]] = {"nucleus.energy": 1e-6}
+    observables = (ObservableSpec("energy", _get_quadrupole_energy, element="nucleus"),)
 
     def __init__(
         self,
@@ -971,7 +971,7 @@ class NuclearQuadrupoleSystem(BaseSystem):
         p2: float = 0.0,
         *,
         B: float = 0.5,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.q1 = q1
@@ -992,13 +992,13 @@ class NuclearQuadrupoleSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[QuadrupoleElement('nucleus', q1=self.q1, q2=self.q2, p1=self.p1, p2=self.p2, B=self.B)],
+            elements=[QuadrupoleElement("nucleus", q1=self.q1, q2=self.q2, p1=self.p1, p2=self.p2, B=self.B)],
             interactions=[
                 HamiltonianInteraction(
-                    'motion',
-                    target='nucleus',
-                    coordinates=('q1', 'q2'),
-                    momenta=('p1', 'p2'),
+                    "motion",
+                    target="nucleus",
+                    coordinates=("q1", "q2"),
+                    momenta=("p1", "p2"),
                     hamiltonian=self._get_quadrupole_hamiltonian,
                 ),
             ],
@@ -1041,9 +1041,9 @@ class ForcedTodaSystem(BaseSystem):
         1.2
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('chaos', 'ode', 'second order', 'forcing', 'resonance')
-    references = ('Toda 1967', 'Kurz and Lauterborn 1988', 'Datseris and Parlitz 2022')
+    field = "physics/nonlinear_oscillators"
+    topics = ("chaos", "ode", "second order", "forcing", "resonance")
+    references = ("Toda 1967", "Kurz and Lauterborn 1988", "Datseris and Parlitz 2022")
     until = 300.0
     dt = 0.05
 
@@ -1055,7 +1055,7 @@ class ForcedTodaSystem(BaseSystem):
         d: float = 0.1,
         a: float = 0.88,
         omega: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -1068,7 +1068,7 @@ class ForcedTodaSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         return System(
             self.label,
-            elements=[TodaElement('toda', x=self.x, x_d1=self.v, d=self.d, a=self.a, omega=self.omega)],
+            elements=[TodaElement("toda", x=self.x, x_d1=self.v, d=self.d, a=self.a, omega=self.omega)],
         )
 
 
@@ -1124,12 +1124,12 @@ class ImpulsiveOscillatorSystem(BaseSystem):
         0.25
     """
 
-    field = 'physics/nonlinear_oscillators'
-    topics = ('ode', 'second order', 'impulses', 'events', 'forcing')
-    references = ('Pilipchuk 2010', 'Trzaska 2023')
+    field = "physics/nonlinear_oscillators"
+    topics = ("ode", "second order", "impulses", "events", "forcing")
+    references = ("Pilipchuk 2010", "Trzaska 2023")
     until = 10.0
     dt = 0.01
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
+    solver = ScipyODESolver(method="DOP853", rtol=1e-10, atol=1e-12)
 
     def __init__(
         self,
@@ -1139,9 +1139,9 @@ class ImpulsiveOscillatorSystem(BaseSystem):
         H: float = 2.0,
         a: float = 0.4165,
         gamma: float = 0.0,
-        spring: str = 'tangent',
+        spring: str = "tangent",
         omega0: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -1155,46 +1155,46 @@ class ImpulsiveOscillatorSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return an oscillator kicked by a periodic train of impulses of alternating sign."""
         if self.spring not in SPRINGS:
-            error_msg = f'Unknown spring {self.spring!r}. Use one of {", ".join(SPRINGS)}.'
+            error_msg = f"Unknown spring {self.spring!r}. Use one of {', '.join(SPRINGS)}."
             raise ParameterError(error_msg)
         if not self.a > 0 or not -1 < self.gamma < 1:
             error_msg = (
-                f'The impulses need a positive quarter period and a shift in (-1, 1), but got {self.a!r} and '
-                f'{self.gamma!r}.'
+                f"The impulses need a positive quarter period and a shift in (-1, 1), but got {self.a!r} and "
+                f"{self.gamma!r}."
             )
             raise ParameterError(error_msg)
-        if self.spring == 'tangent':
+        if self.spring == "tangent":
             restoring = RateInteraction(
-                'spring',
-                target='oscillator',
-                state='x',
+                "spring",
+                target="oscillator",
+                state="x",
                 rate=lambda s: -tan(s.target.x) / cos(s.target.x) ** 2,
             )
         else:
             restoring = RateInteraction(
-                'spring',
-                target='oscillator',
-                state='x',
-                rate=lambda s: -s.target.omega0**2 * s.target.x,
+                "spring",
+                target="oscillator",
+                state="x",
+                rate=lambda s: -(s.target.omega0**2) * s.target.x,
             )
         jump = 2 / (1 - self.gamma**2)
-        pull = {'x_d1': lambda s: s.target.x_d1 - jump * s.target.H}
-        push = {'x_d1': lambda s: s.target.x_d1 + jump * s.target.H}
+        pull = {"x_d1": lambda s: s.target.x_d1 - jump * s.target.H}
+        push = {"x_d1": lambda s: s.target.x_d1 + jump * s.target.H}
         return System(
             self.label,
-            elements=[ImpulsiveOscillatorElement('oscillator', x=self.x, x_d1=self.v, H=self.H, omega0=self.omega0)],
+            elements=[ImpulsiveOscillatorElement("oscillator", x=self.x, x_d1=self.v, H=self.H, omega0=self.omega0)],
             interactions=[
                 restoring,
                 ImpulseInteraction(
-                    'pull',
-                    target='oscillator',
+                    "pull",
+                    target="oscillator",
                     reset=pull,
                     period=4 * self.a,
                     start=(1 - self.gamma) * self.a,
                 ),
                 ImpulseInteraction(
-                    'push',
-                    target='oscillator',
+                    "push",
+                    target="oscillator",
                     reset=push,
                     period=4 * self.a,
                     start=(3 + self.gamma) * self.a,

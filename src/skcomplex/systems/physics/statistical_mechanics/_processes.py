@@ -89,7 +89,7 @@ class ContactSiteElement(Element):
         return [
             LocalRuleLaw(
                 s.infected,
-                BallNeighborhood(metric='manhattan', center='first'),
+                BallNeighborhood(metric="manhattan", center="first"),
                 ContactSiteElement._spread,
                 stochastic=True,
             ),
@@ -208,7 +208,7 @@ class PercolationSiteElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
+            LocalRuleLaw(s.cover, BallNeighborhood(metric="manhattan", center="first"), PercolationSiteElement._burn),
         ]
 
     @staticmethod
@@ -306,7 +306,7 @@ class WalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)}),
+        visual: VisualSpec | None = VisualSpec("agents", {"color_by": "stuck", "color_range": (0.0, 1.0)}),
         *,
         stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
     ) -> None:
@@ -377,9 +377,9 @@ class Q2rSystem(BaseSystem):
         8
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('lattice', 'cellular automaton', 'reversible', 'spins')
-    references = ('Vichniac 1984', 'Pomeau 1984', 'Lindgren 2024')
+    field = "physics/statistical_mechanics"
+    topics = ("lattice", "cellular automaton", "reversible", "spins")
+    references = ("Vichniac 1984", "Pomeau 1984", "Lindgren 2024")
     until = 100
     dt = 1
 
@@ -389,7 +389,7 @@ class Q2rSystem(BaseSystem):
         *,
         up: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -418,18 +418,18 @@ class Q2rSystem(BaseSystem):
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
         space = LatticeSpace(shape)
         group = GroupElement(
-            'spins',
+            "spins",
             element=Q2RSpinElement,
             space=space,
-            values={'spin': spins, 'phase': self._checkerboard(shape)},
-            on='sites',
+            values={"spin": spins, "phase": self._checkerboard(shape)},
+            on="sites",
         )
         flip = LocalRuleInteraction(
-            'flip',
-            target='spins',
-            state=('spin', 'phase'),
+            "flip",
+            target="spins",
+            state=("spin", "phase"),
             rule=self._flip_without_cost,
-            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
+            neighborhood=BallNeighborhood(metric="manhattan", n_dim=len(shape), center="first"),
         )
         return System(self.label, elements=[group], interactions=[flip])
 
@@ -461,9 +461,9 @@ class SitePercolationSystem(BaseSystem):
         100
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('lattice', 'percolation', 'phase transition', 'fire')
-    references = ('Broadbent and Hammersley 1957', 'Stauffer and Aharony 1994', 'Charbonneau 2017')
+    field = "physics/statistical_mechanics"
+    topics = ("lattice", "percolation", "phase transition", "fire")
+    references = ("Broadbent and Hammersley 1957", "Stauffer and Aharony 1994", "Charbonneau 2017")
     until = 200
     dt = 1
 
@@ -473,7 +473,7 @@ class SitePercolationSystem(BaseSystem):
         *,
         p: float = 0.6,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -485,16 +485,16 @@ class SitePercolationSystem(BaseSystem):
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
-        space = LatticeSpace(shape, boundary='fixed')
+        space = LatticeSpace(shape, boundary="fixed")
         return System(
             self.label,
             elements=[
                 GroupElement(
-                    'lattice',
+                    "lattice",
                     element=PercolationSiteElement,
                     space=space,
-                    values={'cover': cover},
-                    on='sites',
+                    values={"cover": cover},
+                    on="sites",
                 ),
             ],
         )
@@ -533,9 +533,9 @@ class ContactProcessSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('lattice', 'stochastic', 'absorbing state', 'phase transition', 'epidemics')
-    references = ('Harris 1974', 'Marro and Dickman 1999', 'Pastor-Satorras et al. 2015')
+    field = "physics/statistical_mechanics"
+    topics = ("lattice", "stochastic", "absorbing state", "phase transition", "epidemics")
+    references = ("Harris 1974", "Marro and Dickman 1999", "Pastor-Satorras et al. 2015")
     until = 200
     dt = 1
 
@@ -547,7 +547,7 @@ class ContactProcessSystem(BaseSystem):
         tau: float = 0.1,
         infected: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -565,11 +565,11 @@ class ContactProcessSystem(BaseSystem):
             self.label,
             elements=[
                 GroupElement(
-                    'lattice',
+                    "lattice",
                     element=ContactSiteElement,
                     space=space,
-                    values={'infected': states, 'rate': self.rate, 'tau': self.tau},
-                    on='sites',
+                    values={"infected": states, "rate": self.rate, "tau": self.tau},
+                    on="sites",
                 ),
             ],
         )
@@ -620,9 +620,9 @@ class TASEPSystem(BaseSystem):
 
     draws = True
 
-    field = 'physics/statistical_mechanics'
-    topics = ('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium')
-    references = ('Derrida, Domany, and Mukamel 1992', 'Schütz 2001', 'Helbing 2001')
+    field = "physics/statistical_mechanics"
+    topics = ("lattice", "stochastic", "exclusion", "traffic", "nonequilibrium")
+    references = ("Derrida, Domany, and Mukamel 1992", "Schütz 2001", "Helbing 2001")
     until = 500
     dt = 1
 
@@ -636,7 +636,7 @@ class TASEPSystem(BaseSystem):
         ring: bool = False,
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -653,7 +653,7 @@ class TASEPSystem(BaseSystem):
 
         The hop has probability `p`, with one draw per edge.
         """
-        return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
+        return s.source.occupied * (1 - s.target.occupied) * bernoulli("hop", s.source.p)
 
     @staticmethod
     def _enter(s: SimpleNamespace) -> Expression:
@@ -661,7 +661,7 @@ class TASEPSystem(BaseSystem):
 
         The entry has probability `alpha`.
         """
-        return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
+        return (1 - s.target.occupied) * bernoulli("entry", s.target.alpha)
 
     @staticmethod
     def _leave(s: SimpleNamespace) -> Expression:
@@ -669,7 +669,7 @@ class TASEPSystem(BaseSystem):
 
         The exit has probability `beta`.
         """
-        return s.source.occupied * bernoulli('exit', s.source.beta)
+        return s.source.occupied * bernoulli("exit", s.source.beta)
 
     def _build_system(self) -> System:
         """Return the totally asymmetric simple exclusion process with parallel update.
@@ -679,40 +679,40 @@ class TASEPSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
-        boundary = 'periodic' if self.ring else 'fixed'
+        boundary = "periodic" if self.ring else "fixed"
         lane = GroupElement(
-            'lane',
+            "lane",
             element=ExclusionSiteElement,
             space=LatticeSpace(self.n_sites, boundary=boundary),
-            values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
-            on='sites',
+            values={"occupied": occupied, "p": self.p, "alpha": self.alpha, "beta": self.beta},
+            on="sites",
         )
         hops = TransferInteraction(
-            'hops',
-            source='lane',
-            target='lane',
-            state='occupied',
+            "hops",
+            source="lane",
+            target="lane",
+            state="occupied",
             amount=self._hop,
-            flow='hops',
+            flow="hops",
             offset=1,
             boundary=boundary,
         )
         if self.ring:
             return System(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
-        first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
+        first, last = "lane[0]", f"lane[{self.n_sites - 1}]"
         entry = TransferInteraction(
-            'entry',
+            "entry",
             source=first,
             target=first,
             state=Source(),
-            into='occupied',
+            into="occupied",
             amount=self._enter,
         )
         leaving = TransferInteraction(
-            'exit',
+            "exit",
             source=last,
             target=last,
-            state='occupied',
+            state="occupied",
             into=Sink(),
             amount=self._leave,
         )
@@ -746,9 +746,9 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         10
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('agents', 'aggregation', 'fractal', 'random walk')
-    references = ('Witten and Sander 1981', 'Charbonneau 2017')
+    field = "physics/statistical_mechanics"
+    topics = ("agents", "aggregation", "fractal", "random walk")
+    references = ("Witten and Sander 1981", "Charbonneau 2017")
     until = 200
     dt = 1
 
@@ -758,7 +758,7 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         *,
         size: int = 41,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -774,14 +774,14 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         stuck = np.zeros(self.n_walkers)
         stuck[0] = 1.0
         walkers = GroupElement(
-            'walkers',
+            "walkers",
             element=WalkerElement,
             size=self.n_walkers,
-            values={'stuck': stuck},
+            values={"stuck": stuck},
             location=[tuple(map(int, cell)) for cell in cells],
         )
         return System(
             self.label,
             elements=[walkers],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
+            space=LatticeSpace((self.size, self.size), boundary="periodic", metric="manhattan"),
         )

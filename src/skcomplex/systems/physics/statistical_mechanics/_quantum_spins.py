@@ -51,16 +51,16 @@ def spin_space(j: float = 0.5) -> HilbertSpec:
     """
     size = 2 * j + 1
     if not float(size).is_integer() or size < MIN_SPIN_DIMENSION:
-        error_msg = f'A spin has j = {j!r}, which is not a positive multiple of one half.'
+        error_msg = f"A spin has j = {j!r}, which is not a positive multiple of one half."
         raise ValidationError(error_msg)
     operators = {
-        'x': (qutip.jmat(j, 'x').full(), True),
-        'y': (qutip.jmat(j, 'y').full(), True),
-        'z': (qutip.jmat(j, 'z').full(), True),
-        'plus': (qutip.jmat(j, '+').full(), False),
-        'minus': (qutip.jmat(j, '-').full(), False),
+        "x": (qutip.jmat(j, "x").full(), True),
+        "y": (qutip.jmat(j, "y").full(), True),
+        "z": (qutip.jmat(j, "z").full(), True),
+        "plus": (qutip.jmat(j, "+").full(), False),
+        "minus": (qutip.jmat(j, "-").full(), False),
     }
-    return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
+    return HilbertSpec(int(size), operators, basis={"up": 0, "down": int(size) - 1})
 
 
 SPIN_HALF = spin_space()
@@ -96,10 +96,10 @@ class SpinElement(Element):
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        psi: Annotated[object, StateSpec(domain=CC)] = "up",
         *,
         hilbert: HilbertSpec = SPIN_HALF,
-        visual: VisualSpec | None = VisualSpec('expectations'),
+        visual: VisualSpec | None = VisualSpec("expectations"),
     ) -> None:
         super().__init__(label, visual=visual)
         self.psi = psi
@@ -149,7 +149,7 @@ class DephasingInteraction(Interaction):
             laws:
                 The dissipators.
         """
-        return [DissipatorLaw(local_operator(member.psi, 'z'), s.gamma) for member in s.target]
+        return [DissipatorLaw(local_operator(member.psi, "z"), s.gamma) for member in s.target]
 
 
 class XXZExchangeInteraction(NeighborInteraction):
@@ -204,9 +204,9 @@ class XXZExchangeInteraction(NeighborInteraction):
         """
         first, second = s.source.psi, s.target.psi
         exchange = (
-            local_operator(first, 'x') * local_operator(second, 'x')
-            + local_operator(first, 'y') * local_operator(second, 'y')
-            + s.delta * local_operator(first, 'z') * local_operator(second, 'z')
+            local_operator(first, "x") * local_operator(second, "x")
+            + local_operator(first, "y") * local_operator(second, "y")
+            + s.delta * local_operator(first, "z") * local_operator(second, "z")
         )
         return [GeneratorLaw(s.J * exchange)]
 
@@ -254,13 +254,13 @@ class ZeemanFieldInteraction(Interaction):
             laws:
                 The field Hamiltonian.
         """
-        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
+        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, "z") for member in s.target))]
 
 
-INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
+INITIAL_STATES = ("neel", "flip", "domain_wall", "ground")
 
 
-BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
+BOUNDARIES = {"periodic": "periodic", "open": "fixed"}
 
 
 def _sites(values: object) -> object:
@@ -279,7 +279,7 @@ def local_magnetization(member: SimpleNamespace) -> Expression:
         operator:
             The local magnetisation.
     """
-    return local_operator(member.psi, 'z')
+    return local_operator(member.psi, "z")
 
 
 def total_magnetization(s: SimpleNamespace) -> Expression:
@@ -293,7 +293,7 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
         operator:
             The total magnetisation.
     """
-    return sum(local_operator(member.psi, 'z') for member in s.chain)
+    return sum(local_operator(member.psi, "z") for member in s.chain)
 
 
 class QuantumHeisenbergSystem(BaseSystem):
@@ -344,14 +344,14 @@ class QuantumHeisenbergSystem(BaseSystem):
         6
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('quantum', 'spins', 'lattice', 'magnetism', 'open system')
-    references = ('Heisenberg 1928', 'Mihailović et al. 2023')
+    field = "physics/statistical_mechanics"
+    topics = ("quantum", "spins", "lattice", "magnetism", "open system")
+    references = ("Heisenberg 1928", "Mihailović et al. 2023")
     until = 8.0
     dt = 0.05
     observables = (
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
-        ObservableSpec('magnetization', total_magnetization),
+        ObservableSpec("sz", local_magnetization, group="chain", reduce=_sites),
+        ObservableSpec("magnetization", total_magnetization),
     )
 
     def __init__(
@@ -362,9 +362,9 @@ class QuantumHeisenbergSystem(BaseSystem):
         delta: float = 1.0,
         h: float = 0.0,
         gamma: float = 0.0,
-        boundary: str = 'periodic',
-        initial: str = 'flip',
-        label: str = 'system',
+        boundary: str = "periodic",
+        initial: str = "flip",
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -378,11 +378,11 @@ class QuantumHeisenbergSystem(BaseSystem):
     @staticmethod
     def _initial_labels(n_sites: int, initial: str) -> list[str]:
         """Return the basis label of every spin of a product initial state."""
-        if initial == 'neel':
-            return ['up' if site % 2 == 0 else 'down' for site in range(n_sites)]
-        if initial == 'flip':
-            return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
-        return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
+        if initial == "neel":
+            return ["up" if site % 2 == 0 else "down" for site in range(n_sites)]
+        if initial == "flip":
+            return ["down" if site == n_sites // 2 else "up" for site in range(n_sites)]
+        return ["up" if site < n_sites // 2 else "down" for site in range(n_sites)]
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
@@ -390,8 +390,8 @@ class QuantumHeisenbergSystem(BaseSystem):
         The initial state `'ground'` starts from the ground state.
         """
         settings = super().get_run_settings()
-        if self.initial == 'ground':
-            settings['initial_state'] = {f'{self.label}.state': 'ground'}
+        if self.initial == "ground":
+            settings["initial_state"] = {f"{self.label}.state": "ground"}
         return settings
 
     def _build_system(self) -> System:
@@ -401,17 +401,17 @@ class QuantumHeisenbergSystem(BaseSystem):
         """
         if self.boundary not in BOUNDARIES or self.initial not in INITIAL_STATES:
             error_msg = (
-                f'Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of '
-                f'{", ".join(BOUNDARIES)} and an initial state of {", ".join(INITIAL_STATES)}.'
+                f"Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of "
+                f"{', '.join(BOUNDARIES)} and an initial state of {', '.join(INITIAL_STATES)}."
             )
             raise ValidationError(error_msg)
         space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
         labels = self._initial_labels(self.n_sites, self.initial)
-        chain = GroupElement('chain', element=SpinElement, space=space, values={'psi': labels}, on='sites')
+        chain = GroupElement("chain", element=SpinElement, space=space, values={"psi": labels}, on="sites")
         interactions: list[BaseInteraction] = [
-            XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),
-            ZeemanFieldInteraction('field', target='chain', h=self.h),
+            XXZExchangeInteraction("exchange", target="chain", J=self.J, delta=self.delta),
+            ZeemanFieldInteraction("field", target="chain", h=self.h),
         ]
         if self.gamma > 0:
-            interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
+            interactions.append(DephasingInteraction("dephasing", target="chain", gamma=self.gamma))
         return System(self.label, elements=[chain], interactions=interactions)

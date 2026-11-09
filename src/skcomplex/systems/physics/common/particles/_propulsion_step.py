@@ -56,10 +56,10 @@ class PropulsionStepInteraction(MapInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        state: str = 'x',
-        heading: str = 'theta',
+        state: str = "x",
+        heading: str = "theta",
     ) -> None:
-        super().__init__(label, target=target, state=state, function=self._step, mode='increment')
+        super().__init__(label, target=target, state=state, function=self._step, mode="increment")
         self.speed = speed
         self.heading = heading
 

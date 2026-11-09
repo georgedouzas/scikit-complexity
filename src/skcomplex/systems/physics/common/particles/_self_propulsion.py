@@ -56,8 +56,8 @@ class SelfPropulsionInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        state: str = 'x',
-        heading: str = 'theta',
+        state: str = "x",
+        heading: str = "theta",
     ) -> None:
         super().__init__(label, target=target, state=state)
         self.speed = speed

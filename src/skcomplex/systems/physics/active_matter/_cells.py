@@ -86,8 +86,8 @@ class MotileCellElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
         v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -195,16 +195,16 @@ class SzaboCellsSystem(BaseSystem):
         (5.656854249492381, 5.656854249492381)
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'flocking', 'tissue', 'neighbours')
-    references = ('Szabó et al. 2006', 'Vicsek and Zafeiris 2012')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "flocking", "tissue", "neighbours")
+    references = ("Szabó et al. 2006", "Vicsek and Zafeiris 2012")
     until = 60.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _heading, group='cells'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec("mean_heading", _heading, group="cells"),
+        ObservableSpec("polarization", _polarization),
     )
 
     def __init__(
@@ -221,7 +221,7 @@ class SzaboCellsSystem(BaseSystem):
         F_rep: float = 30.0,
         F_adh: float = 0.75,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_cells = n_cells
@@ -261,28 +261,28 @@ class SzaboCellsSystem(BaseSystem):
         size = math.sqrt(self.n_cells / self.density)
         rng = np.random.default_rng(self.random_state)
         cells = GroupElement(
-            'cells',
+            "cells",
             element=MotileCellElement,
             size=self.n_cells,
             values={
-                'x': rng.uniform(0.0, size, (self.n_cells, 2)),
-                'theta': rng.uniform(0.0, 2 * math.pi, self.n_cells),
-                'v0': self.v0,
-                'mu': self.mu,
-                'tau': self.tau,
-                'eta': self.eta,
-                'R_eq': self.R_eq,
-                'R_0': self.R_0,
-                'F_rep': self.F_rep,
-                'F_adh': self.F_adh,
+                "x": rng.uniform(0.0, size, (self.n_cells, 2)),
+                "theta": rng.uniform(0.0, 2 * math.pi, self.n_cells),
+                "v0": self.v0,
+                "mu": self.mu,
+                "tau": self.tau,
+                "eta": self.eta,
+                "R_eq": self.R_eq,
+                "R_0": self.R_0,
+                "F_rep": self.F_rep,
+                "F_adh": self.F_adh,
             },
-            visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
+            visual=VisualSpec("points", {"position": "x", "radius": self.R_0 / 2, "color_by": "theta"}),
         )
-        motion = RateInteraction('motion', target='cells', state='x', rate=functools.partial(_velocity, reach=self.R_0))
+        motion = RateInteraction("motion", target="cells", state="x", rate=functools.partial(_velocity, reach=self.R_0))
         turning = RateInteraction(
-            'turning',
-            target='cells',
-            state='theta',
+            "turning",
+            target="cells",
+            state="theta",
             rate=functools.partial(self._turning, reach=self.R_0),
             noise=self._angular_noise,
         )
@@ -290,5 +290,5 @@ class SzaboCellsSystem(BaseSystem):
             self.label,
             elements=[cells],
             interactions=[motion, turning],
-            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+            space=ContinuousSpace(extent=(size, size), boundary="periodic"),
         )

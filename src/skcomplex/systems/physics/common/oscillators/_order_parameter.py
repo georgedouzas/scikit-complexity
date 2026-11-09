@@ -49,6 +49,6 @@ def order_parameter(label: str, group: str) -> list[ObservableSpec]:
         ['order_field', 'order']
     """
     return [
-        ObservableSpec(f'{label}_field', _phase_vector, group=group),
-        ObservableSpec(label, partial(_modulus, f'{label}_field')),
+        ObservableSpec(f"{label}_field", _phase_vector, group=group),
+        ObservableSpec(label, partial(_modulus, f"{label}_field")),
     ]

@@ -64,7 +64,7 @@ class GeodesicParticleElement(Element):
         [0.0, 10.0, 1.5708, 0.0]
     """
 
-    visual = VisualSpec('bodies', {'positions': _equatorial_position, 'trail': None, 'marks': _central_mass})
+    visual = VisualSpec("bodies", {"positions": _equatorial_position, "trail": None, "marks": _central_mass})
 
     def __init__(
         self,
@@ -107,13 +107,13 @@ class SchwarzschildSpace(PseudoRiemannianSpace):
         (r - 2)/r^3
     """
 
-    def __init__(self, mass: float = 1.0, *, curvature: bool = False, label: str = 'space') -> None:
+    def __init__(self, mass: float = 1.0, *, curvature: bool = False, label: str = "space") -> None:
         super().__init__(curvature=curvature, label=label)
         self.mass = mass
 
     def _get_coordinates(self) -> tuple[Expression, ...]:
         """Return the coordinates `(t, r, theta, phi)`."""
-        return tuple(SR.var(name) for name in ('t', 'r', 'theta', 'phi'))
+        return tuple(SR.var(name) for name in ("t", "r", "theta", "phi"))
 
     def _get_metric(self) -> Matrix:
         """Return the Schwarzschild metric of the mass.
@@ -127,7 +127,7 @@ class SchwarzschildSpace(PseudoRiemannianSpace):
                 The mass is not positive.
         """
         if not self.mass > 0:
-            error_msg = f'The mass of {type(self).__name__} is {self.mass!r}. Give a positive mass.'
+            error_msg = f"The mass of {type(self).__name__} is {self.mass!r}. Give a positive mass."
             raise ValidationError(error_msg)
         _, r, theta, _ = self._get_coordinates()
         lapse = 1 - 2 * QQ(self.mass) / r
@@ -173,7 +173,7 @@ class KerrSpace(PseudoRiemannianSpace):
         spin: float = 0.5,
         *,
         curvature: bool = False,
-        label: str = 'space',
+        label: str = "space",
     ) -> None:
         super().__init__(curvature=curvature, label=label)
         self.mass = mass
@@ -181,7 +181,7 @@ class KerrSpace(PseudoRiemannianSpace):
 
     def _get_coordinates(self) -> tuple[Expression, ...]:
         """Return the coordinates `(t, r, theta, phi)`."""
-        return tuple(SR.var(name) for name in ('t', 'r', 'theta', 'phi'))
+        return tuple(SR.var(name) for name in ("t", "r", "theta", "phi"))
 
     def _get_metric(self) -> Matrix:
         """Return the Kerr metric of the mass and the spin.
@@ -196,8 +196,8 @@ class KerrSpace(PseudoRiemannianSpace):
         """
         if not self.mass > 0 or not abs(self.spin) <= self.mass:
             error_msg = (
-                f'{type(self).__name__} has the mass {self.mass!r} and the spin {self.spin!r}. Give a positive mass '
-                'and a spin no larger than it.'
+                f"{type(self).__name__} has the mass {self.mass!r} and the spin {self.spin!r}. Give a positive mass "
+                "and a spin no larger than it."
             )
             raise ValidationError(error_msg)
         _, r, theta, _ = self._get_coordinates()
@@ -223,7 +223,7 @@ class KerrSpace(PseudoRiemannianSpace):
 EQUATOR = math.pi / 2
 """The polar angle of the equatorial plane, where the orbits stay."""
 
-GEODESIC_SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
+GEODESIC_SOLVER = ScipyODESolver(method="DOP853", rtol=1e-10, atol=1e-10)
 """The adaptive solver that keeps the conserved energy, angular momentum, and norm of a geodesic to high accuracy."""
 
 
@@ -263,9 +263,9 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         50.0
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('general relativity', 'ode', 'second order', 'gravity', 'geodesics')
-    references = ('Schwichtenberg 2020', 'Satz 2022', 'Schwarzschild 1916', 'Einstein 1915', 'Carroll 2004')
+    field = "physics/celestial_mechanics"
+    topics = ("general relativity", "ode", "second order", "gravity", "geodesics")
+    references = ("Schwichtenberg 2020", "Satz 2022", "Schwarzschild 1916", "Einstein 1915", "Carroll 2004")
     until = 20000.0
     dt = 10.0
     solver = GEODESIC_SOLVER
@@ -276,7 +276,7 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         eccentricity: float = 0.5,
         *,
         mass: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.semi_major_axis = semi_major_axis
@@ -289,15 +289,16 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         Its perihelion advances every turn.
         """
         if not 0 <= self.eccentricity < 1:
-            error_msg = f'The eccentricity is {self.eccentricity!r}. Give a value in [0, 1) for a bound orbit.'
+            error_msg = f"The eccentricity is {self.eccentricity!r}. Give a value in [0, 1) for a bound orbit."
             raise ValidationError(error_msg)
-        periapsis, apoapsis = self.semi_major_axis * (1 - self.eccentricity), self.semi_major_axis * (
-            1 + self.eccentricity
+        periapsis, apoapsis = (
+            self.semi_major_axis * (1 - self.eccentricity),
+            self.semi_major_axis * (1 + self.eccentricity),
         )
         if periapsis <= 6 * self.mass:
             error_msg = (
-                f'The periapsis {periapsis} lies inside the innermost stable circular orbit at 6 M = {6 * self.mass}. '
-                'Give a larger semi-major axis or a smaller eccentricity.'
+                f"The periapsis {periapsis} lies inside the innermost stable circular orbit at 6 M = {6 * self.mass}. "
+                "Give a larger semi-major axis or a smaller eccentricity."
             )
             raise ValidationError(error_msg)
         lapses = [1 - 2 * self.mass / radius for radius in (periapsis, apoapsis)]
@@ -307,12 +308,12 @@ class SchwarzschildPrecessionSystem(BaseSystem):
             momentum_squared = (lapses[1] - lapses[0]) / (lapses[0] / periapsis**2 - lapses[1] / apoapsis**2)
         energy = math.sqrt(lapses[0] * (1 + momentum_squared / periapsis**2))
         particle = GeodesicParticleElement(
-            'particle',
+            "particle",
             x=[0.0, periapsis, EQUATOR, 0.0],
             x_d1=[energy / lapses[0], 0.0, 0.0, math.sqrt(momentum_squared) / periapsis**2],
         )
         space = SchwarzschildSpace(mass=self.mass)
-        geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
+        geodesic = GeodesicInteraction("geodesic", target="particle", space=space)
         return System(self.label, elements=[particle], interactions=[geodesic], space=space)
 
 
@@ -350,9 +351,9 @@ class LightBendingSystem(BaseSystem):
         1.001
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('general relativity', 'ode', 'second order', 'gravity', 'geodesics', 'light')
-    references = ('Schwichtenberg 2020', 'Satz 2022', 'Einstein 1915', 'Dyson, Eddington, and Davidson 1920')
+    field = "physics/celestial_mechanics"
+    topics = ("general relativity", "ode", "second order", "gravity", "geodesics", "light")
+    references = ("Schwichtenberg 2020", "Satz 2022", "Einstein 1915", "Dyson, Eddington, and Davidson 1920")
     until = 4000.0
     dt = 4.0
     solver = GEODESIC_SOLVER
@@ -363,7 +364,7 @@ class LightBendingSystem(BaseSystem):
         distance: float = 2000.0,
         *,
         mass: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.impact_parameter = impact_parameter
@@ -374,23 +375,23 @@ class LightBendingSystem(BaseSystem):
         """Return a light ray that passes a static mass and is deflected towards it."""
         if self.impact_parameter <= 3 * math.sqrt(3) * self.mass:
             error_msg = (
-                f'The impact parameter {self.impact_parameter} is at most 3 √3 M = {3 * math.sqrt(3) * self.mass}, so '
-                'the mass captures the ray. Give a larger impact parameter.'
+                f"The impact parameter {self.impact_parameter} is at most 3 √3 M = {3 * math.sqrt(3) * self.mass}, so "
+                "the mass captures the ray. Give a larger impact parameter."
             )
             raise ValidationError(error_msg)
         if self.distance <= self.impact_parameter:
-            error_msg = f'The distance {self.distance} is not larger than the impact parameter {self.impact_parameter}.'
+            error_msg = f"The distance {self.distance} is not larger than the impact parameter {self.impact_parameter}."
             raise ValidationError(error_msg)
         radius = math.hypot(self.distance, self.impact_parameter)
         lapse = 1 - 2 * self.mass / radius
         radial = -math.sqrt(1 - lapse * self.impact_parameter**2 / radius**2)
         photon = GeodesicParticleElement(
-            'photon',
+            "photon",
             x=[0.0, radius, EQUATOR, math.atan2(self.impact_parameter, -self.distance)],
             x_d1=[1 / lapse, radial, 0.0, -self.impact_parameter / radius**2],
         )
         space = SchwarzschildSpace(mass=self.mass)
-        geodesic = GeodesicInteraction('geodesic', target='photon', space=space)
+        geodesic = GeodesicInteraction("geodesic", target="photon", space=space)
         return System(self.label, elements=[photon], interactions=[geodesic], space=space)
 
 
@@ -429,9 +430,9 @@ class KerrFrameDraggingSystem(BaseSystem):
         0.00199
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('general relativity', 'ode', 'second order', 'gravity', 'geodesics', 'frame dragging')
-    references = ('Schwichtenberg 2020', 'Kerr 1963', 'Bardeen, Press, and Teukolsky 1972')
+    field = "physics/celestial_mechanics"
+    topics = ("general relativity", "ode", "second order", "gravity", "geodesics", "frame dragging")
+    references = ("Schwichtenberg 2020", "Kerr 1963", "Bardeen, Press, and Teukolsky 1972")
     until = 33.0
     dt = 0.1
     solver = GEODESIC_SOLVER
@@ -442,7 +443,7 @@ class KerrFrameDraggingSystem(BaseSystem):
         *,
         mass: float = 1.0,
         spin: float = 0.9,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.radius = radius
@@ -456,7 +457,7 @@ class KerrFrameDraggingSystem(BaseSystem):
         """
         if self.radius <= 2 * self.mass:
             error_msg = (
-                f'The radius {self.radius} is inside the ergosphere at 2 M = {2 * self.mass}. Give a larger radius.'
+                f"The radius {self.radius} is inside the ergosphere at 2 M = {2 * self.mass}. Give a larger radius."
             )
             raise ValidationError(error_msg)
         space = KerrSpace(mass=self.mass, spin=self.spin)
@@ -466,9 +467,9 @@ class KerrFrameDraggingSystem(BaseSystem):
         omega = -g_tphi / g_phiphi
         rate = 1 / math.sqrt(-(g_tt + 2 * g_tphi * omega + g_phiphi * omega**2))
         particle = GeodesicParticleElement(
-            'particle',
+            "particle",
             x=[0.0, self.radius, EQUATOR, 0.0],
             x_d1=[rate, 0.0, 0.0, omega * rate],
         )
-        geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
+        geodesic = GeodesicInteraction("geodesic", target="particle", space=space)
         return System(self.label, elements=[particle], interactions=[geodesic], space=space)

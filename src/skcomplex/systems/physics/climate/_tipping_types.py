@@ -376,13 +376,13 @@ REAL_TOLERANCE = 1e-9
 
 
 TIPPING_TYPES = {
-    'bifurcation': {'drift': 4e-4, 'b_ini': 1.04e-5, 'b_fin': 1.04e-5, 'a_ini': 0.2, 'nu': 0.0, 'lam': 0.0},
-    'noise': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.69e-5, 'a_ini': 0.6927, 'nu': 1.0, 'lam': 0.0},
-    'rate': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.835e-5, 'a_ini': 0.6927, 'nu': 0.0, 'lam': 1e-6},
+    "bifurcation": {"drift": 4e-4, "b_ini": 1.04e-5, "b_fin": 1.04e-5, "a_ini": 0.2, "nu": 0.0, "lam": 0.0},
+    "noise": {"drift": 0.0, "b_ini": 1.69e-5, "b_fin": 1.69e-5, "a_ini": 0.6927, "nu": 1.0, "lam": 0.0},
+    "rate": {"drift": 0.0, "b_ini": 1.69e-5, "b_fin": 1.835e-5, "a_ini": 0.6927, "nu": 0.0, "lam": 1e-6},
 }
 
 
-FOLLOWERS = ('fold', 'hopf')
+FOLLOWERS = ("fold", "hopf")
 
 
 def _lower_branch(a: float, b: float, phi: float) -> float:
@@ -432,20 +432,20 @@ class SuteraFraedrichTippingSystem(BaseSystem):
         291.6
     """
 
-    field = 'physics/climate'
-    topics = ('tipping points', 'energy balance', 'sde', 'B-tipping', 'N-tipping', 'R-tipping')
-    references = ('Fang, Wang, Kurths, and Fan 2025', 'Sutera 1981', 'Fraedrich 1978', 'Ashwin et al. 2012')
+    field = "physics/climate"
+    topics = ("tipping points", "energy balance", "sde", "B-tipping", "N-tipping", "R-tipping")
+    references = ("Fang, Wang, Kurths, and Fan 2025", "Sutera 1981", "Fraedrich 1978", "Ashwin et al. 2012")
     until = 300.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.05)
 
     def __init__(
         self,
-        tipping: str = 'noise',
+        tipping: str = "noise",
         *,
         rho: float = 0.18,
         nu: float | None = None,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.tipping = tipping
@@ -464,19 +464,19 @@ class SuteraFraedrichTippingSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.tipping not in TIPPING_TYPES:
-            error_msg = f'Unknown tipping type {self.tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
+            error_msg = f"Unknown tipping type {self.tipping!r}. Use one of {', '.join(TIPPING_TYPES)}."
             raise ValidationError(error_msg)
         values = TIPPING_TYPES[self.tipping]
         earth = StochasticEnergyBalanceElement(
-            'earth',
-            T=self._warm_state(1.0, values['b_ini'], values['a_ini']),
-            lam=values['lam'],
-            drift=values['drift'],
-            rho=self.rho if self.tipping == 'rate' else 0.0,
-            b_ini=values['b_ini'],
-            b_fin=values['b_fin'],
-            a_ini=values['a_ini'],
-            nu=values['nu'] if self.nu is None else self.nu,
+            "earth",
+            T=self._warm_state(1.0, values["b_ini"], values["a_ini"]),
+            lam=values["lam"],
+            drift=values["drift"],
+            rho=self.rho if self.tipping == "rate" else 0.0,
+            b_ini=values["b_ini"],
+            b_fin=values["b_fin"],
+            a_ini=values["a_ini"],
+            nu=values["nu"] if self.nu is None else self.nu,
         )
         return System(self.label, elements=[earth])
 
@@ -521,9 +521,9 @@ class RampedStochasticFoldSystem(BaseSystem):
         0.01
     """
 
-    field = 'physics/climate'
-    topics = ('tipping points', 'fold', 'ramp', 'sde', 'early warning signals', 'critical slowing down')
-    references = ('Fang, Wang, Kurths, and Fan 2025', 'Scheffer et al. 2009')
+    field = "physics/climate"
+    topics = ("tipping points", "fold", "ramp", "sde", "early warning signals", "critical slowing down")
+    references = ("Fang, Wang, Kurths, and Fan 2025", "Scheffer et al. 2009")
     until = 500.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -537,7 +537,7 @@ class RampedStochasticFoldSystem(BaseSystem):
         b: float = 1.0,
         phi0: float = -1.0,
         phi1: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.rate = rate
@@ -553,7 +553,7 @@ class RampedStochasticFoldSystem(BaseSystem):
         The tipping point is that of its lower branch.
         """
         fold = RampedFoldElement(
-            'system',
+            "system",
             x=_lower_branch(self.a, self.b, self.phi0),
             a=self.a,
             b=self.b,
@@ -621,16 +621,16 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/climate'
-    topics = ('tipping points', 'cascades', 'fold', 'hopf bifurcation', 'ramp', 'sde')
-    references = ('Dekker, von der Heydt, and Dijkstra 2018', 'Fang, Wang, Kurths, and Fan 2025')
+    field = "physics/climate"
+    topics = ("tipping points", "cascades", "fold", "hopf bifurcation", "ramp", "sde")
+    references = ("Dekker, von der Heydt, and Dijkstra 2018", "Fang, Wang, Kurths, and Fan 2025")
     until = 500.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
-        follower: str = 'fold',
+        follower: str = "fold",
         *,
         coupling: float = 0.4,
         rate: float = 0.004,
@@ -640,7 +640,7 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         c: float = 0.0,
         mu: float = 0.0,
         omega: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.follower = follower
@@ -656,41 +656,41 @@ class LeadingFollowingCascadeSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.follower not in FOLLOWERS:
-            error_msg = f'Unknown follower {self.follower!r}. Use one of {", ".join(FOLLOWERS)}.'
+            error_msg = f"Unknown follower {self.follower!r}. Use one of {', '.join(FOLLOWERS)}."
             raise ValidationError(error_msg)
         start = _lower_branch(-1.0, 1.0, self.phi0)
-        leader = RampedFoldElement('leader', x=start, sigma=self.sigma, phi0=self.phi0, phi1=self.phi1, rate=self.rate)
-        if self.follower == 'fold':
+        leader = RampedFoldElement("leader", x=start, sigma=self.sigma, phi0=self.phi0, phi1=self.phi1, rate=self.rate)
+        if self.follower == "fold":
             follows: Element = FoldFollowerElement(
-                'follower',
+                "follower",
                 y=_lower_branch(-1.0, 1.0, self.c + self.coupling * start),
                 c=self.c,
                 sigma=self.sigma,
             )
             forcing = [
                 RateInteraction(
-                    'forcing',
-                    target='follower',
-                    state='y',
-                    sources=['leader'],
+                    "forcing",
+                    target="follower",
+                    state="y",
+                    sources=["leader"],
                     rate=lambda s: self.coupling * s.sources[0].x,
                 ),
             ]
         else:
-            follows = HopfFollowerElement('follower', mu=self.mu, omega=self.omega, sigma=self.sigma)
+            follows = HopfFollowerElement("follower", mu=self.mu, omega=self.omega, sigma=self.sigma)
             forcing = [
                 RateInteraction(
-                    'forcing_y',
-                    target='follower',
-                    state='y',
-                    sources=['leader'],
+                    "forcing_y",
+                    target="follower",
+                    state="y",
+                    sources=["leader"],
                     rate=lambda s: self.coupling * s.sources[0].x * s.target.y,
                 ),
                 RateInteraction(
-                    'forcing_z',
-                    target='follower',
-                    state='z',
-                    sources=['leader'],
+                    "forcing_z",
+                    target="follower",
+                    state="z",
+                    sources=["leader"],
                     rate=lambda s: self.coupling * s.sources[0].x * s.target.z,
                 ),
             ]

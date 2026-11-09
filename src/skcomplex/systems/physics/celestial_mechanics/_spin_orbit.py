@@ -195,7 +195,7 @@ class RelativisticOrbitElement(Element):
         return [RateLaw(s.u, s.alpha + s.epsilon * s.u**2 - s.u)]
 
 
-COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
+COORDINATES = ("u", "theta", "v", "phi", "psi")
 
 
 def _get_dumbbell_distances(d: SimpleNamespace) -> tuple[Expression, Expression]:
@@ -221,7 +221,7 @@ def _get_dumbbell_parts(d: SimpleNamespace, rates: SimpleNamespace) -> tuple[Exp
 
 def _get_dumbbell_energy(d: SimpleNamespace) -> Expression:
     """Return the energy of a dumbbell, the sum of its kinetic and potential energies."""
-    rates = SimpleNamespace(**{name: getattr(d, f'{name}_d1') for name in COORDINATES})
+    rates = SimpleNamespace(**{name: getattr(d, f"{name}_d1") for name in COORDINATES})
     kinetic, potential = _get_dumbbell_parts(d, rates)
     return kinetic + potential
 
@@ -299,16 +299,16 @@ class KeplerianDumbbellSystem(BaseSystem):
         0.2
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'gravity', 'spin-orbit coupling', 'lagrangian')
-    references = ('Dilão and Murteira 2020', 'Dilão 2023')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "second order", "gravity", "spin-orbit coupling", "lagrangian")
+    references = ("Dilão and Murteira 2020", "Dilão 2023")
     until = 60.0
     dt = 0.05
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
-    invariants: ClassVar[Mapping[str, float]] = {'dumbbell.energy': 1e-6, 'dumbbell.angular_momentum': 1e-6}
+    solver = ScipyODESolver(method="DOP853", rtol=1e-10, atol=1e-12)
+    invariants: ClassVar[Mapping[str, float]] = {"dumbbell.energy": 1e-6, "dumbbell.angular_momentum": 1e-6}
     observables = (
-        ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
-        ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
+        ObservableSpec("energy", _get_dumbbell_energy, element="dumbbell"),
+        ObservableSpec("angular_momentum", _get_dumbbell_momentum, element="dumbbell"),
     )
 
     def __init__(
@@ -327,7 +327,7 @@ class KeplerianDumbbellSystem(BaseSystem):
         delta: float = 0.5,
         epsilon: float = 0.1,
         mu: float = 0.9,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.u = u
@@ -358,7 +358,7 @@ class KeplerianDumbbellSystem(BaseSystem):
         Two masses on a rigid massless arm orbit a primary under gravity.
         """
         dumbbell = DumbbellElement(
-            'dumbbell',
+            "dumbbell",
             u=self.u,
             u_d1=self.vu,
             theta=self.theta,
@@ -374,8 +374,8 @@ class KeplerianDumbbellSystem(BaseSystem):
             mu=self.mu,
         )
         motion = EulerLagrangeInteraction(
-            'motion',
-            target='dumbbell',
+            "motion",
+            target="dumbbell",
             states=COORDINATES,
             lagrangian=self._get_dumbbell_lagrangian,
         )
@@ -418,9 +418,9 @@ class RelativisticOrbitSystem(BaseSystem):
         0.0
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'gravity', 'general relativity', 'precession')
-    references = ('Einstein 1915', 'Dilão 2023')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "second order", "gravity", "general relativity", "precession")
+    references = ("Einstein 1915", "Dilão 2023")
     until = 60.0
     dt = 0.02
 
@@ -431,7 +431,7 @@ class RelativisticOrbitSystem(BaseSystem):
         *,
         alpha: float = 1.0,
         epsilon: float = 0.05,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.u = u
@@ -447,6 +447,6 @@ class RelativisticOrbitSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                RelativisticOrbitElement('planet', u=self.u, u_d1=self.du, alpha=self.alpha, epsilon=self.epsilon),
+                RelativisticOrbitElement("planet", u=self.u, u_d1=self.du, alpha=self.alpha, epsilon=self.epsilon),
             ],
         )

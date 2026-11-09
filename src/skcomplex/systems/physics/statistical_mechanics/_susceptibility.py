@@ -108,11 +108,11 @@ def susceptibility(
         [0.25]
     """
     if size <= 0:
-        error_msg = f'susceptibility has size={size!r}. Use a positive size.'
+        error_msg = f"susceptibility has size={size!r}. Use a positive size."
         raise AnalysisError(error_msg)
-    moments = distribution(source, kind='moments', variables=variables, group=group, absolute=True)
+    moments = distribution(source, kind="moments", variables=variables, group=group, absolute=True)
     if moments.mean is None or moments.variance is None or moments.skewness is None or moments.kurtosis is None:
-        error_msg = 'The distribution of kind moments returned no moments.'
+        error_msg = "The distribution of kind moments returned no moments."
         raise AnalysisError(error_msg)
     values = size * moments.variance
     if temperatures is not None:

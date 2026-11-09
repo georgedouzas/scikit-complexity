@@ -23,7 +23,7 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
-SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+SPIN_IMAGE = VisualSpec("image", {"states": ("spin",), "low": -1.0, "high": 1.0})
 
 
 class BondSpinElement(Element):
@@ -162,7 +162,7 @@ class MattisSpinElement(BondSpinElement):
         self.pattern = pattern
 
 
-NEAREST = BallNeighborhood(metric='manhattan')
+NEAREST = BallNeighborhood(metric="manhattan")
 
 
 class BondSamplingInteraction(SpinSamplingInteraction):
@@ -187,13 +187,13 @@ class BondSamplingInteraction(SpinSamplingInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='spin', energy=self._energy, neighborhood=NEAREST)
+        super().__init__(label, target=target, state="spin", energy=self._energy, neighborhood=NEAREST)
 
     def _energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
         s = namespace.target
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
-        neighbours = neighbors(s.spin, NEAREST, reduce='each')
+        neighbours = neighbors(s.spin, NEAREST, reduce="each")
         return -s.spin * (sum(coupling * other for coupling, other in zip(couplings, neighbours, strict=True)) + s.h)
 
 
@@ -214,10 +214,10 @@ def _bond_states(
     The couplings come from the bonds right and down.
     """
     return {
-        'J_up': np.roll(down, 1, axis=0),
-        'J_left': np.roll(right, 1, axis=1),
-        'J_right': right,
-        'J_down': down,
+        "J_up": np.roll(down, 1, axis=0),
+        "J_left": np.roll(right, 1, axis=1),
+        "J_right": right,
+        "J_down": down,
     }
 
 
@@ -269,12 +269,12 @@ class EdwardsAndersonSystem(BaseSystem):
         [-1.0, 1.0]
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('spin glass', 'disorder', 'lattice', 'Monte Carlo', 'spins')
-    references = ('Edwards and Anderson 1975', 'Bertin 2021', 'Binder and Young 1986')
+    field = "physics/statistical_mechanics"
+    topics = ("spin glass", "disorder", "lattice", "Monte Carlo", "spins")
+    references = ("Edwards and Anderson 1975", "Bertin 2021", "Binder and Young 1986")
     until = 500
     dt = 5
-    observables = (ObservableSpec('magnetization', group='spins', variable='spin'),)
+    observables = (ObservableSpec("magnetization", group="spins", variable="spin"),)
 
     def __init__(
         self,
@@ -283,9 +283,9 @@ class EdwardsAndersonSystem(BaseSystem):
         temperature: float = 0.8,
         J: float = 1.0,
         h: float = 0.0,
-        disorder: str = 'bimodal',
+        disorder: str = "bimodal",
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -302,23 +302,23 @@ class EdwardsAndersonSystem(BaseSystem):
         """
         shape = _square(self.size)
         rng = np.random.default_rng(self.random_state)
-        if self.disorder == 'bimodal':
+        if self.disorder == "bimodal":
             right, down = self.J * rng.choice([-1.0, 1.0], size=(2, *shape))
-        elif self.disorder == 'gaussian':
+        elif self.disorder == "gaussian":
             right, down = self.J * rng.standard_normal((2, *shape))
         else:
             error_msg = f"The disorder is 'bimodal' or 'gaussian', not {self.disorder!r}."
             raise ValidationError(error_msg)
         spins = rng.choice([-1.0, 1.0], size=shape)
         group = GroupElement(
-            'spins',
+            "spins",
             element=BondSpinElement,
             space=LatticeSpace(shape),
-            values={'spin': spins, 'h': self.h, 'temperature': self.temperature, **_bond_states(right, down)},
+            values={"spin": spins, "h": self.h, "temperature": self.temperature, **_bond_states(right, down)},
             visual=SPIN_IMAGE,
-            on='sites',
+            on="sites",
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return System(self.label, elements=[group], interactions=[BondSamplingInteraction("sampling", target="spins")])
 
 
 class MattisSpinGlassSystem(BaseSystem):
@@ -359,14 +359,14 @@ class MattisSpinGlassSystem(BaseSystem):
         True
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('spin glass', 'disorder', 'lattice', 'Monte Carlo', 'spins')
-    references = ('Mattis 1976', 'Bertin 2021')
+    field = "physics/statistical_mechanics"
+    topics = ("spin glass", "disorder", "lattice", "Monte Carlo", "spins")
+    references = ("Mattis 1976", "Bertin 2021")
     until = 300
     dt = 2
     observables = (
-        ObservableSpec('magnetization', group='spins', variable='spin'),
-        ObservableSpec('overlap', _overlap, group='spins'),
+        ObservableSpec("magnetization", group="spins", variable="spin"),
+        ObservableSpec("overlap", _overlap, group="spins"),
     )
 
     def __init__(
@@ -377,7 +377,7 @@ class MattisSpinGlassSystem(BaseSystem):
         J: float = 1.0,
         h: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -395,17 +395,17 @@ class MattisSpinGlassSystem(BaseSystem):
         down = self.J * pattern * np.roll(pattern, -1, axis=0)
         spins = rng.choice([-1.0, 1.0], size=shape)
         group = GroupElement(
-            'spins',
+            "spins",
             element=MattisSpinElement,
             space=LatticeSpace(shape),
             values={
-                'spin': spins,
-                'pattern': pattern,
-                'h': self.h,
-                'temperature': self.temperature,
+                "spin": spins,
+                "pattern": pattern,
+                "h": self.h,
+                "temperature": self.temperature,
                 **_bond_states(right, down),
             },
-            visual=VisualSpec('image', {'states': ()}),
-            on='sites',
+            visual=VisualSpec("image", {"states": ()}),
+            on="sites",
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return System(self.label, elements=[group], interactions=[BondSamplingInteraction("sampling", target="spins")])

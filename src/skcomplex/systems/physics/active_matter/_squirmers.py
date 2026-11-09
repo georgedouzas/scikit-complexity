@@ -23,7 +23,7 @@ from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
-POINTS = VisualSpec('points', {'position': 'x', 'radius': 1.0})
+POINTS = VisualSpec("points", {"position": "x", "radius": 1.0})
 
 
 class SquirmerElement(Element):
@@ -58,7 +58,7 @@ class SquirmerElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
         p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -121,7 +121,7 @@ class SquirmerSlipInteraction(MobilityInteraction):
         super().__init__(
             label,
             target=target,
-            orientation='p',
+            orientation="p",
             velocity=self._get_swimming,
             stresslet=self._get_stresslet_of,
             dipole=self._get_dipole_of,
@@ -202,13 +202,13 @@ class SquirmersSystem(BaseSystem):
         3.0
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'microswimmers', 'squirmers', 'hydrodynamics', 'stokes flow', 'pushers', 'pullers')
+    field = "physics/active_matter"
+    topics = ("active matter", "microswimmers", "squirmers", "hydrodynamics", "stokes flow", "pushers", "pullers")
     references = (
-        'Lighthill 1952',
-        'Blake 1971',
-        'Ishikawa, Simmonds, and Pedley 2006',
-        'te Vrugt and Wittkowski 2024',
+        "Lighthill 1952",
+        "Blake 1971",
+        "Ishikawa, Simmonds, and Pedley 2006",
+        "te Vrugt and Wittkowski 2024",
     )
     until = 40.0
     dt = 0.5
@@ -223,7 +223,7 @@ class SquirmersSystem(BaseSystem):
         viscosity: float = 1.0,
         spacing: float = 5.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_squirmers = n_squirmers
@@ -241,19 +241,19 @@ class SquirmersSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         side = math.ceil(self.n_squirmers ** (1 / 3) - 1e-9)
-        grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing='ij'), axis=-1).reshape(-1, 3)[: self.n_squirmers]
+        grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing="ij"), axis=-1).reshape(-1, 3)[: self.n_squirmers]
         positions = self.spacing * grid + rng.uniform(-0.1, 0.1, size=(self.n_squirmers, 3)) * self.spacing
         orientations = rng.standard_normal((self.n_squirmers, 3))
         orientations /= np.linalg.norm(orientations, axis=1, keepdims=True)
         group = GroupElement(
-            'squirmers',
+            "squirmers",
             element=SquirmerElement,
             size=self.n_squirmers,
-            values={'x': positions, 'p': orientations},
+            values={"x": positions, "p": orientations},
         )
         slip = SquirmerSlipInteraction(
-            'slip',
-            target='squirmers',
+            "slip",
+            target="squirmers",
             B1=self.B1,
             B2=self.beta * self.B1,
             radius=self.radius,

@@ -7,8 +7,8 @@ from ._faults import EarthquakesSystem, FaultElement
 from ._spring_blocks import BurridgeKnopoffSystem, SpringBlockElement
 
 __all__: list[str] = [
-    'BurridgeKnopoffSystem',
-    'EarthquakesSystem',
-    'FaultElement',
-    'SpringBlockElement',
+    "BurridgeKnopoffSystem",
+    "EarthquakesSystem",
+    "FaultElement",
+    "SpringBlockElement",
 ]

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from typing import Annotated
 
 from ....core.components.elements import Element
@@ -93,9 +92,9 @@ class SoilTemperatureSystem(BaseSystem):
         2.5
     """
 
-    field = 'physics/climate'
-    topics = ('discrete map', 'coupled maps', 'chaos', 'land surface')
-    references = ('Mimić, Mihailović, and Budinčević 2013', 'Mihailović et al. 2023')
+    field = "physics/climate"
+    topics = ("discrete map", "coupled maps", "chaos", "land surface")
+    references = ("Mimić, Mihailović, and Budinčević 2013", "Mihailović et al. 2023")
     until = 200
     dt = 1
 
@@ -106,7 +105,7 @@ class SoilTemperatureSystem(BaseSystem):
         *,
         r: float = 3.8,
         epsilon: float = 0.1,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -117,19 +116,19 @@ class SoilTemperatureSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the coupled maps of the surface and deeper temperatures of the soil."""
         surface = MapInteraction(
-            'surface',
-            target='soil',
-            state='x',
+            "surface",
+            target="soil",
+            state="x",
             function=lambda s: s.target.r * s.target.x * (1 - s.target.x) + s.target.epsilon * s.target.y,
         )
         depth = MapInteraction(
-            'depth',
-            target='soil',
-            state='y',
+            "depth",
+            target="soil",
+            state="y",
             function=lambda s: s.target.epsilon * (s.target.x + s.target.y),
         )
         return System(
             self.label,
-            elements=[SoilTemperatureElement('soil', x=self.x, y=self.y, r=self.r, epsilon=self.epsilon)],
+            elements=[SoilTemperatureElement("soil", x=self.x, y=self.y, r=self.r, epsilon=self.epsilon)],
             interactions=[surface, depth],
         )

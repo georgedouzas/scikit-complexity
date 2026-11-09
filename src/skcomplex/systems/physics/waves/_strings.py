@@ -164,9 +164,9 @@ class SpringChainSystem(BaseSystem):
         5
     """
 
-    field = 'physics/waves'
-    topics = ('waves', 'ode', 'springs', 'normal modes', 'mechanics')
-    references = ('Argun et al. 2021',)
+    field = "physics/waves"
+    topics = ("waves", "ode", "springs", "normal modes", "mechanics")
+    references = ("Argun et al. 2021",)
     until = 20.0
     dt = 0.05
     solver = VelocityVerletSolver(dt=0.01)
@@ -182,7 +182,7 @@ class SpringChainSystem(BaseSystem):
         pluck_at: float = 0.5,
         amplitude: float = 0.0,
         omega: float = 2.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_masses = n_masses
@@ -215,7 +215,7 @@ class SpringChainSystem(BaseSystem):
         )
         masses = [
             MassPointElement(
-                f'mass_{index}',
+                f"mass_{index}",
                 x=[float(positions[index]), float(heights[index])],
                 x_d1=[0.0, 0.0],
                 m=self.mass,
@@ -223,21 +223,21 @@ class SpringChainSystem(BaseSystem):
             for index in range(self.n_masses)
         ]
         springs = [
-            SpringInteraction(f'spring_{index}', first=f'mass_{index}', second=f'mass_{index + 1}', k=self.k)
+            SpringInteraction(f"spring_{index}", first=f"mass_{index}", second=f"mass_{index + 1}", k=self.k)
             for index in range(self.n_masses - 1)
         ]
         anchors = [
             DrivenAnchorInteraction(
-                'left_end',
-                target='mass_0',
+                "left_end",
+                target="mass_0",
                 k=self.k,
                 center=[0.0, 0.0],
                 amplitude=self.amplitude,
                 omega=self.omega,
             ),
             DrivenAnchorInteraction(
-                'right_end',
-                target=f'mass_{self.n_masses - 1}',
+                "right_end",
+                target=f"mass_{self.n_masses - 1}",
                 k=self.k,
                 center=[self.length, 0.0],
             ),
@@ -280,9 +280,9 @@ class StandingWavesSystem(BaseSystem):
         9
     """
 
-    field = 'physics/waves'
-    topics = ('waves', 'field', 'pde', 'normal modes')
-    references = ('Starkovich 2021',)
+    field = "physics/waves"
+    topics = ("waves", "field", "pde", "normal modes")
+    references = ("Starkovich 2021",)
     until = 4.0
     dt = 0.05
 
@@ -294,7 +294,7 @@ class StandingWavesSystem(BaseSystem):
         c: float = 1.0,
         mode: int = 1,
         amplitude: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -312,18 +312,18 @@ class StandingWavesSystem(BaseSystem):
         positions = spacing * np.arange(1, self.n_sites + 1)
         shape = self.amplitude * np.sin(self.mode * math.pi * positions / self.length)
         space = LatticeSpace(self.n_sites, spacing=spacing)
-        edges = ('fixed', 0.0)
+        edges = ("fixed", 0.0)
         string = FieldElement(
-            'string',
+            "string",
             element=WaveStringElement,
             space=space,
-            boundary={'u': edges},
-            values={'u': shape, 'c': self.c},
+            boundary={"u": edges},
+            values={"u": shape, "c": self.c},
         )
         tension = RateInteraction(
-            'tension',
-            target='string',
-            state='u',
+            "tension",
+            target="string",
+            state="u",
             rate=lambda s: s.target.c**2 * laplacian(s.target.u),
         )
         return System(self.label, elements=[string], interactions=[tension])

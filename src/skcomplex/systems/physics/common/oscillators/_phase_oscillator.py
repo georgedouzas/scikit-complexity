@@ -51,7 +51,7 @@ class PhaseOscillatorElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        theta: Annotated[float, StateSpec(role='phase')] = 0.0,
+        theta: Annotated[float, StateSpec(role="phase")] = 0.0,
         omega: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)

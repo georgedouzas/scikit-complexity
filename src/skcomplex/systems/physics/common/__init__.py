@@ -7,5 +7,5 @@ criticality systems share, has no family.
 from ._sandpile_cell import SandpileCellElement
 
 __all__: list[str] = [
-    'SandpileCellElement',
+    "SandpileCellElement",
 ]

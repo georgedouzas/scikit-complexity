@@ -167,7 +167,7 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = 'u',
+        state: str = "u",
         r: Annotated[float, ParameterSpec()] = 0.3,
         g: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
@@ -232,9 +232,9 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         -1.5
     """
 
-    field = 'physics/pattern_formation'
-    topics = ('field', 'chaos', 'spirals', 'spectral', 'pde')
-    references = ('Aranson and Kramer 2002', 'Gros 2015')
+    field = "physics/pattern_formation"
+    topics = ("field", "chaos", "spirals", "spectral", "pde")
+    references = ("Aranson and Kramer 2002", "Gros 2015")
     until = 50.0
     dt = 1.0
     solver = ETDRK4Solver(dt=0.1)
@@ -247,7 +247,7 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         b: float = 1.0,
         c: float = -1.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -263,17 +263,17 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': self.b, 'c': self.c}
+        values = {"u": _noise(shape, 0.01, rng), "v": _noise(shape, 0.01, rng), "b": self.b, "c": self.c}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'medium',
+                    "medium",
                     element=GinzburgLandauElement,
                     space=space,
                     values=values,
-                    discretization='spectral',
+                    discretization="spectral",
                 ),
             ],
         )
@@ -309,9 +309,9 @@ class SwiftHohenbergSystem(BaseSystem):
         0.1
     """
 
-    field = 'physics/pattern_formation'
-    topics = ('field', 'rolls', 'convection', 'spectral', 'pde')
-    references = ('Swift and Hohenberg 1977', 'Cross and Hohenberg 1993', 'Datseris and Parlitz 2022')
+    field = "physics/pattern_formation"
+    topics = ("field", "rolls", "convection", "spectral", "pde")
+    references = ("Swift and Hohenberg 1977", "Cross and Hohenberg 1993", "Datseris and Parlitz 2022")
     until = 200.0
     dt = 5.0
     solver = ETDRK4Solver(dt=0.5)
@@ -323,7 +323,7 @@ class SwiftHohenbergSystem(BaseSystem):
         length: float = 16 * math.pi,
         r: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -334,18 +334,18 @@ class SwiftHohenbergSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
-        values = {'u': _noise(shape, 0.01, self.random_state)}
+        values = {"u": _noise(shape, 0.01, self.random_state)}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'cells',
+                    "cells",
                     element=PatternFieldElement,
                     space=space,
                     values=values,
-                    discretization='spectral',
+                    discretization="spectral",
                 ),
             ],
-            interactions=[SwiftHohenbergEnergyInteraction('energy', target='cells', r=self.r)],
+            interactions=[SwiftHohenbergEnergyInteraction("energy", target="cells", r=self.r)],
         )

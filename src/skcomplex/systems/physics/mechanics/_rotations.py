@@ -282,7 +282,7 @@ class GyroscopeInteraction(EulerLagrangeInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=('alpha', 'beta', 'gamma'), forcing=self._get_torques)
+        super().__init__(label, target=target, states=("alpha", "beta", "gamma"), forcing=self._get_torques)
 
     @staticmethod
     def _get_torques(namespace: SimpleNamespace) -> list[Expression]:
@@ -334,7 +334,7 @@ class RotatingSwingInteraction(EulerLagrangeInteraction):
         super().__init__(
             label,
             target=target,
-            states=('phi', 'theta'),
+            states=("phi", "theta"),
             dissipation=self._get_friction,
             forcing=self._get_torques,
         )
@@ -419,9 +419,9 @@ class RotatingSwingSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'rotation', 'lagrangian')
-    references = ('Ryzhov et al. 2021',)
+    field = "physics/mechanics"
+    topics = ("mechanics", "ode", "second order", "rotation", "lagrangian")
+    references = ("Ryzhov et al. 2021",)
     until = 20.0
     dt = 0.05
 
@@ -438,7 +438,7 @@ class RotatingSwingSystem(BaseSystem):
         g: float = 9.81,
         torque: float = 0.0,
         friction: float = 0.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.omega = omega
@@ -458,7 +458,7 @@ class RotatingSwingSystem(BaseSystem):
             self.label,
             elements=[
                 RotatingSwingElement(
-                    'swing',
+                    "swing",
                     phi_d1=self.omega,
                     theta=self.theta,
                     n_chairs=self.n_chairs,
@@ -471,7 +471,7 @@ class RotatingSwingSystem(BaseSystem):
                     friction=self.friction,
                 ),
             ],
-            interactions=[RotatingSwingInteraction('motion', target='swing')],
+            interactions=[RotatingSwingInteraction("motion", target="swing")],
         )
 
 
@@ -507,9 +507,9 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/mechanics'
-    topics = ('mechanics', 'ode', 'rotation', 'angular momentum')
-    references = ('Ryzhov et al. 2021',)
+    field = "physics/mechanics"
+    topics = ("mechanics", "ode", "rotation", "angular momentum")
+    references = ("Ryzhov et al. 2021",)
     until = 10.0
     dt = 0.02
 
@@ -520,7 +520,7 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         r: float = 1.0,
         beta: float = math.pi / 2,
         m: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.omega = omega
@@ -537,17 +537,17 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                RotatingBallElement('right', theta=0.0, m=self.m, r=self.r, beta=self.beta, H=momentum),
-                RotatingBallElement('left', theta=math.pi, m=self.m, r=self.r, beta=self.beta, H=momentum),
+                RotatingBallElement("right", theta=0.0, m=self.m, r=self.r, beta=self.beta, H=momentum),
+                RotatingBallElement("left", theta=math.pi, m=self.m, r=self.r, beta=self.beta, H=momentum),
             ],
             interactions=[
                 RateInteraction(
-                    f'{ball}_turn',
+                    f"{ball}_turn",
                     target=ball,
-                    state='theta',
+                    state="theta",
                     rate=lambda s: s.target.H / (s.target.m * s.target.r**2 * sin(s.target.beta) ** 2),
                 )
-                for ball in ('right', 'left')
+                for ball in ("right", "left")
             ],
         )
 
@@ -601,9 +601,9 @@ class GimballedGyroscopeSystem(BaseSystem):
         10.0
     """
 
-    field = 'physics/mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'rotation', 'gyroscope', 'lagrangian')
-    references = ('Ryzhov et al. 2021',)
+    field = "physics/mechanics"
+    topics = ("mechanics", "ode", "second order", "rotation", "gyroscope", "lagrangian")
+    references = ("Ryzhov et al. 2021",)
     until = 10.0
     dt = 0.01
 
@@ -619,7 +619,7 @@ class GimballedGyroscopeSystem(BaseSystem):
         C1: float = 0.5,
         A2: float = 1.0,
         torque: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.spin = spin
@@ -641,7 +641,7 @@ class GimballedGyroscopeSystem(BaseSystem):
             self.label,
             elements=[
                 GyroscopeElement(
-                    'gyroscope',
+                    "gyroscope",
                     beta=self.beta,
                     gamma_d1=self.spin,
                     A=self.A,
@@ -653,5 +653,5 @@ class GimballedGyroscopeSystem(BaseSystem):
                     torque=self.torque,
                 ),
             ],
-            interactions=[GyroscopeInteraction('motion', target='gyroscope')],
+            interactions=[GyroscopeInteraction("motion", target="gyroscope")],
         )

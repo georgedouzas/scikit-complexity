@@ -16,11 +16,11 @@
 
 ## 3. Relaxation into rates
 
-- [ ] 3.1 Add physics `RelaxationTimeInteraction` in `physics/common/particles/_relaxation_time.py` on
+- [x] 3.1 Add physics `RelaxationTimeInteraction` in `physics/common/particles/_relaxation_time.py` on
   `RateInteraction`, with `goal`, `time`, `noise`, the checks, and the hooks `_get_goal` and `_get_time` of
   `RelaxationInteraction`. Export it from the family and move the relaxation tests that fit physics, such as the
   Ornstein-Uhlenbeck variance, to `tests/systems/physics/common/particles/test_relaxation_time.py`. Verify they pass.
-- [ ] 3.2 Rebase `LangevinThermostatInteraction` and `BhatnagarGrossKrookInteraction` on it, and migrate heat cooling,
+- [x] 3.2 Rebase `LangevinThermostatInteraction` and `BhatnagarGrossKrookInteraction` on it, and migrate heat cooling,
   coloured noise, and climate variability. Verify with the tests of `tests/systems/physics` for those modules and the
   LAMMPS thermostat tests.
 - [ ] 3.3 Add engineering `SpeedAdaptationInteraction` in `engineering/common/traffic/_speed_adaptation.py` with its tests,

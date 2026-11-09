@@ -83,8 +83,8 @@ class TreeNodeElement(ParticleSiteElement):
         self,
         label: str,
         visual: VisualSpec | None = VisualSpec(
-            'points',
-            {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
+            "points",
+            {"position": "x", "radius": 0.04, "color_by": "n", "color_range": (0.0, 2.0), "states": (), "trail": 0},
         ),
         *,
         n: float = 0.0,
@@ -133,12 +133,12 @@ class ExclusionHopsInteraction(TransferInteraction):
             label,
             source=sites,
             target=sites,
-            state='n',
+            state="n",
             amount=1.0,
             rate=self._get_right_rate,
             reverse_rate=self._get_left_rate,
             offset=1,
-            boundary='fixed',
+            boundary="fixed",
         )
         self.sites = sites
         self.p = p
@@ -200,10 +200,10 @@ class ReservoirInteraction(TransferInteraction):
     ) -> None:
         super().__init__(
             label,
-            source='',
-            target='',
+            source="",
+            target="",
             state=Source(),
-            into='n',
+            into="n",
             amount=1.0,
             rate=self._get_entry_rate,
             reverse_rate=self._get_exit_rate,
@@ -271,9 +271,9 @@ class ZeroRangeHopInteraction(TransferInteraction):
     ) -> None:
         super().__init__(
             label,
-            source='',
-            target='',
-            state='n',
+            source="",
+            target="",
+            state="n",
             amount=1.0,
             rate=self._get_forward_rate,
             reverse_rate=self._get_backward_rate,
@@ -353,7 +353,7 @@ class ZeroRangeHopsInteraction(TransferInteraction):
             label,
             source=sites,
             target=sites,
-            state='n',
+            state="n",
             amount=1.0,
             rate=self._get_right_rate,
             reverse_rate=self._get_left_rate,
@@ -421,9 +421,9 @@ class ZeroRangeProcessSystem(BaseSystem):
         (20.0, 1)
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('zero-range process', 'condensation', 'nonequilibrium', 'jump process')
-    references = ('Evans and Hanney 2005', 'Bertin 2021')
+    field = "physics/statistical_mechanics"
+    topics = ("zero-range process", "condensation", "nonequilibrium", "jump process")
+    references = ("Evans and Hanney 2005", "Bertin 2021")
     until = 2000.0
     dt = 10.0
     backend = NumbaBackend()
@@ -437,7 +437,7 @@ class ZeroRangeProcessSystem(BaseSystem):
         p: float = 1.0,
         q: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -460,16 +460,16 @@ class ZeroRangeProcessSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
         sites = GroupElement(
-            'sites',
+            "sites",
             element=ParticleSiteElement,
             space=LatticeSpace(self.n_sites),
-            values={'n': occupations},
-            on='sites',
+            values={"n": occupations},
+            on="sites",
         )
         return System(
             self.label,
             elements=[sites],
-            interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
+            interactions=[ZeroRangeHopsInteraction("hops", sites="sites", p=self.p, q=self.q, b=self.b)],
         )
 
 
@@ -519,9 +519,9 @@ class DissipativeZeroRangeSystem(BaseSystem):
         (13, 14)
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('zero-range process', 'energy cascade', 'nonequilibrium', 'tree', 'jump process')
-    references = ('Bertin 2021', 'Bertin 2005')
+    field = "physics/statistical_mechanics"
+    topics = ("zero-range process", "energy cascade", "nonequilibrium", "tree", "jump process")
+    references = ("Bertin 2021", "Bertin 2005")
     until = 200.0
     dt = 1.0
     backend = NumbaBackend()
@@ -536,7 +536,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
         beta_ext: float = 1.0,
         epsilon0: float = 1.0,
         dissipation: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_levels = n_levels
@@ -573,10 +573,10 @@ class DissipativeZeroRangeSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         n_nodes = self._level_start(self.n_levels + 1, self.branches)
         nodes = GroupElement(
-            'nodes',
+            "nodes",
             element=TreeNodeElement,
             size=n_nodes,
-            values={'x': self._tree_layout(self.n_levels, self.branches)},
+            values={"x": self._tree_layout(self.n_levels, self.branches)},
         )
         interactions: list[BaseInteraction] = []
         for level in range(1, self.n_levels):
@@ -585,19 +585,19 @@ class DissipativeZeroRangeSystem(BaseSystem):
             for index in range(self.branches ** (level - 1)):
                 for branch in range(self.branches):
                     child = below + self.branches * index + branch
-                    link = [f'nodes[{start + index}]', f'nodes[{child}]']
+                    link = [f"nodes[{start + index}]", f"nodes[{child}]"]
                     interactions.append(
-                        ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
+                        ZeroRangeHopInteraction(f"transfer_{start + index}_{child}", link=link, p=rate, q=rate, b=0.0),
                     )
-        leaves = [f'nodes[{index}]' for index in range(self._level_start(self.n_levels, self.branches), n_nodes)]
+        leaves = [f"nodes[{index}]" for index in range(self._level_start(self.n_levels, self.branches), n_nodes)]
         interactions += [
             ReservoirInteraction(
-                'injection',
-                sites=['nodes[0]'],
+                "injection",
+                sites=["nodes[0]"],
                 inflow=self.nu * np.exp(-self.beta_ext * self.epsilon0),
                 outflow=self.nu,
             ),
-            ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
+            ReservoirInteraction("dissipation", sites=leaves, outflow=self.dissipation),
         ]
         return System(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
@@ -642,9 +642,9 @@ class ASEPSystem(BaseSystem):
         3
     """
 
-    field = 'physics/statistical_mechanics'
-    topics = ('exclusion', 'nonequilibrium', 'phase transition', 'traffic', 'jump process')
-    references = ('Derrida, Evans, Hakim, and Pasquier 1993', 'Bertin 2021')
+    field = "physics/statistical_mechanics"
+    topics = ("exclusion", "nonequilibrium", "phase transition", "traffic", "jump process")
+    references = ("Derrida, Evans, Hakim, and Pasquier 1993", "Bertin 2021")
     until = 500.0
     dt = 2.0
     backend = NumbaBackend()
@@ -659,7 +659,7 @@ class ASEPSystem(BaseSystem):
         q: float = 0.0,
         density: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -677,15 +677,15 @@ class ASEPSystem(BaseSystem):
         """
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
         lane = GroupElement(
-            'lane',
+            "lane",
             element=ParticleSiteElement,
-            space=LatticeSpace(self.n_sites, boundary='fixed'),
-            values={'n': occupied},
-            on='sites',
+            space=LatticeSpace(self.n_sites, boundary="fixed"),
+            values={"n": occupied},
+            on="sites",
         )
         interactions = [
-            ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
-            ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
-            ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
+            ExclusionHopsInteraction("hops", sites="lane", p=self.p, q=self.q),
+            ReservoirInteraction("entry", sites=["lane[0]"], inflow=self.alpha, exclusion=True),
+            ReservoirInteraction("exit", sites=[f"lane[{self.n_sites - 1}]"], outflow=self.gamma, exclusion=True),
         ]
         return System(self.label, elements=[lane], interactions=interactions)

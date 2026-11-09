@@ -14,12 +14,12 @@ from ._metric_cosmologies import (
 )
 
 __all__: list[str] = [
-    'DustShellElement',
-    'FLRWCosmologySystem',
-    'FriedmannExpansionSystem',
-    'HomogeneousUniverseElement',
-    'LemaitreTolmanBondiSpace',
-    'OppenheimerSnyderCollapseSystem',
-    'RobertsonWalkerSpace',
-    'ScaleFactorElement',
+    "DustShellElement",
+    "FLRWCosmologySystem",
+    "FriedmannExpansionSystem",
+    "HomogeneousUniverseElement",
+    "LemaitreTolmanBondiSpace",
+    "OppenheimerSnyderCollapseSystem",
+    "RobertsonWalkerSpace",
+    "ScaleFactorElement",
 ]

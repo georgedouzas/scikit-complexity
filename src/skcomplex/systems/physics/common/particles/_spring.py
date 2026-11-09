@@ -54,8 +54,8 @@ class SpringInteraction(PotentialEnergyInteraction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        states: str = 'x',
-        divisor: str = 'm',
+        states: str = "x",
+        divisor: str = "m",
     ) -> None:
         super().__init__(label, target=first, states=states, divisor=divisor)
         self.first = first

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from .....core.components.elements import Element
 from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
-POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
+POINTS = VisualSpec("points", {"position": "x", "radius": 0.05})
 
 
 class BrownianParticleElement(Element):
@@ -53,7 +53,7 @@ class BrownianParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:

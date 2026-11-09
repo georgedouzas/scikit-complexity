@@ -73,7 +73,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
         angles: int = 32,
         frequency: float = 1.0,
         noise: float = 0.5,
-        state: str = 'x',
+        state: str = "x",
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._kernel, state=state)
         self.angles = angles
@@ -151,7 +151,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
         angles: int = 32,
         tumbling: float = 1.0,
         noise: float = 0.5,
-        state: str = 'x',
+        state: str = "x",
     ) -> None:
         super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._kernel, state=state)
         self.angles = angles
@@ -214,9 +214,9 @@ class BertinDrozGregoireSystem(BaseSystem):
         32
     """
 
-    field = 'physics/active_matter'
-    topics = ('field', 'kinetic', 'phase space', 'flocking', 'pde')
-    references = ('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009')
+    field = "physics/active_matter"
+    topics = ("field", "kinetic", "phase space", "flocking", "pde")
+    references = ("Bertin, Droz, and Grégoire 2006", "Bertin, Droz, and Grégoire 2009")
     until = 0.5
     dt = 0.1
     solver = RK4Solver(dt=0.05)
@@ -232,7 +232,7 @@ class BertinDrozGregoireSystem(BaseSystem):
         tumbling: float = 1.0,
         noise: float = 0.5,
         perturbation: float = 0.01,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.positions = positions
@@ -249,38 +249,38 @@ class BertinDrozGregoireSystem(BaseSystem):
 
         Its polar order grows above a transition density.
         """
-        axis = AxisSpec('theta', self.angles, 0.0, 2 * math.pi, periodic=True)
+        axis = AxisSpec("theta", self.angles, 0.0, 2 * math.pi, periodic=True)
         space = PhaseSpace(LatticeSpace((self.positions, self.positions)), [axis]).prepare()
-        theta = space.coordinates_['theta']
+        theta = space.coordinates_["theta"]
         profile = self.density * (1.0 + self.perturbation * np.cos(theta)) / (2 * math.pi)
         values = np.broadcast_to(profile, space.shape_).copy()
         flock = FieldElement(
-            'flock',
+            "flock",
             element=PhaseSpaceDensityElement,
             space=space,
-            values={'x': values},
-            discretization='finite-volume',
+            values={"x": values},
+            discretization="finite-volume",
         )
 
         def drift(_: SimpleNamespace) -> list[Expression]:
-            return [self.speed * cos(coordinate('theta')), self.speed * sin(coordinate('theta')), 0]
+            return [self.speed * cos(coordinate("theta")), self.speed * sin(coordinate("theta")), 0]
 
         return System(
             self.label,
             elements=[flock],
             interactions=[
-                AdvectionInteraction('stream', target='flock', state='x', drift=drift),
+                AdvectionInteraction("stream", target="flock", state="x", drift=drift),
                 AngularDiffusionInteraction(
-                    'tumble',
-                    candidate='flock',
+                    "tumble",
+                    candidate="flock",
                     angles=self.angles,
                     tumbling=self.tumbling,
                     noise=self.noise,
                 ),
                 AngularAlignmentInteraction(
-                    'align',
-                    candidate='flock',
-                    field='flock',
+                    "align",
+                    candidate="flock",
+                    field="flock",
                     angles=self.angles,
                     frequency=self.interaction_range * self.speed,
                     noise=self.noise,

@@ -157,9 +157,9 @@ class BurridgeKnopoffSystem(BaseSystem):
         5
     """
 
-    field = 'physics/seismology'
-    topics = ('field', 'stick-slip', 'earthquakes', 'friction')
-    references = ('Burridge and Knopoff 1967', 'Carlson and Langer 1989', 'Charbonneau 2017')
+    field = "physics/seismology"
+    topics = ("field", "stick-slip", "earthquakes", "friction")
+    references = ("Burridge and Knopoff 1967", "Carlson and Langer 1989", "Charbonneau 2017")
     until = 200.0
     dt = 1.0
     solver = RK4Solver(dt=0.05)
@@ -174,7 +174,7 @@ class BurridgeKnopoffSystem(BaseSystem):
         F0: float = 1.0,
         v_c: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_blocks = n_blocks
@@ -192,17 +192,17 @@ class BurridgeKnopoffSystem(BaseSystem):
         """
         offsets = np.random.default_rng(self.random_state).uniform(-0.5, 0.5, self.n_blocks)
         fault = FieldElement(
-            'fault',
+            "fault",
             element=SpringBlockElement,
-            space=LatticeSpace(self.n_blocks, boundary='reflecting'),
-            boundary={'x': 'zero-flux', 'v': 'zero-flux'},
+            space=LatticeSpace(self.n_blocks, boundary="reflecting"),
+            boundary={"x": "zero-flux", "v": "zero-flux"},
             values={
-                'x': offsets,
-                'k_c': self.k_c,
-                'k_p': self.k_p,
-                'velocity': self.velocity,
-                'F0': self.F0,
-                'v_c': self.v_c,
+                "x": offsets,
+                "k_c": self.k_c,
+                "k_p": self.k_p,
+                "velocity": self.velocity,
+                "F0": self.F0,
+                "v_c": self.v_c,
             },
         )
         return System(self.label, elements=[fault])

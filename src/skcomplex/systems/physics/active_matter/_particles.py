@@ -81,8 +81,8 @@ class DepotParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role="velocity")] = 0.0,
         e: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
         q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
@@ -181,9 +181,9 @@ class InertialActiveParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role="position")] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
-        theta: Annotated[float, StateSpec(order=2, role='direction')] = 0.0,
+        theta: Annotated[float, StateSpec(order=2, role="direction")] = 0.0,
         theta_d1: float = 0.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
@@ -268,7 +268,7 @@ class OrnsteinUhlenbeckParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
         u: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -359,9 +359,9 @@ class TumblerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta'}),
+        visual: VisualSpec | None = VisualSpec("agents", {"color_by": "theta"}),
         *,
-        theta: Annotated[float, StateSpec(role='direction')] = 0.0,
+        theta: Annotated[float, StateSpec(role="direction")] = 0.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
@@ -454,9 +454,9 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         10
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'self-propulsion', 'diffusion')
-    references = ('Argun et al. 2021', 'Bechinger et al. 2016', 'Volpe, Gigan, and Volpe 2014')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "self-propulsion", "diffusion")
+    references = ("Argun et al. 2021", "Bechinger et al. 2016", "Volpe, Gigan, and Volpe 2014")
     until = 20.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -470,7 +470,7 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         D_r: float = 1.0,
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -487,12 +487,12 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         """
         positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
-            'swimmers',
+            "swimmers",
             element=ActiveParticleElement,
             size=self.n_particles,
-            values={'x': positions, 'theta': angles, 'D_t': self.D_t, 'D_r': self.D_r},
+            values={"x": positions, "theta": angles, "D_t": self.D_t, "D_r": self.D_r},
         )
-        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
+        propulsion = SelfPropulsionInteraction("propulsion", target="swimmers", speed=self.speed)
         return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
@@ -535,9 +535,9 @@ class ChiralActiveParticlesSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'self-propulsion', 'chirality')
-    references = ('Bechinger et al. 2016', 'van Teeffelen and Löwen 2008')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "self-propulsion", "chirality")
+    references = ("Bechinger et al. 2016", "van Teeffelen and Löwen 2008")
     until = 20.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -552,7 +552,7 @@ class ChiralActiveParticlesSystem(BaseSystem):
         D_r: float = 0.1,
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -570,12 +570,12 @@ class ChiralActiveParticlesSystem(BaseSystem):
         """
         positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
-            'swimmers',
+            "swimmers",
             element=ActiveParticleElement,
             size=self.n_particles,
-            values={'x': positions, 'theta': angles, 'omega': self.omega, 'D_t': self.D_t, 'D_r': self.D_r},
+            values={"x": positions, "theta": angles, "omega": self.omega, "D_t": self.D_t, "D_r": self.D_r},
         )
-        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
+        propulsion = SelfPropulsionInteraction("propulsion", target="swimmers", speed=self.speed)
         return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
@@ -615,9 +615,9 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'self-propulsion', 'colored noise')
-    references = ('Bechinger et al. 2016', 'Fodor et al. 2016')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "self-propulsion", "colored noise")
+    references = ("Bechinger et al. 2016", "Fodor et al. 2016")
     until = 20.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -631,7 +631,7 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         D_t: float = 0.0,
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -650,10 +650,10 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         positions = rng.uniform(0.0, self.size, (self.n_particles, 2))
         propulsion = rng.normal(0.0, math.sqrt(self.D / self.tau), (self.n_particles, 2))
         group = GroupElement(
-            'swimmers',
+            "swimmers",
             element=OrnsteinUhlenbeckParticleElement,
             size=self.n_particles,
-            values={'x': positions, 'u': propulsion, 'tau': self.tau, 'D': self.D, 'D_t': self.D_t},
+            values={"x": positions, "u": propulsion, "tau": self.tau, "D": self.D, "D_t": self.D_t},
         )
         return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
@@ -691,9 +691,9 @@ class RunAndTumbleSystem(BaseSystem):
         10
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'agents', 'bacteria', 'self-propulsion')
-    references = ('Berg 2004', 'Bechinger et al. 2016')
+    field = "physics/active_matter"
+    topics = ("active matter", "agents", "bacteria", "self-propulsion")
+    references = ("Berg 2004", "Bechinger et al. 2016")
     until = 100
     dt = 1
 
@@ -705,7 +705,7 @@ class RunAndTumbleSystem(BaseSystem):
         tumble_rate: float = 0.1,
         size: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_agents = n_agents
@@ -718,16 +718,16 @@ class RunAndTumbleSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         positions, angles = _swimmers(self.n_agents, self.size, self.random_state)
         group = GroupElement(
-            'bacteria',
+            "bacteria",
             element=TumblerElement,
             size=self.n_agents,
-            values={'theta': angles, 'speed': self.speed, 'tumble_rate': self.tumble_rate, 'width': self.size},
+            values={"theta": angles, "speed": self.speed, "tumble_rate": self.tumble_rate, "width": self.size},
             location=positions,
         )
         return System(
             self.label,
             elements=[group],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            space=ContinuousSpace(extent=(self.size, self.size), boundary="periodic"),
         )
 
 
@@ -769,9 +769,9 @@ class DepotBrownianParticlesSystem(BaseSystem):
         10.0
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'energy depot', 'self-propulsion')
-    references = ('Schweitzer, Ebeling, and Tilch 1998', 'Helbing 2001')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "energy depot", "self-propulsion")
+    references = ("Schweitzer, Ebeling, and Tilch 1998", "Helbing 2001")
     until = 10.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.001)
@@ -786,7 +786,7 @@ class DepotBrownianParticlesSystem(BaseSystem):
         d: float = 10.0,
         D: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -801,10 +801,10 @@ class DepotBrownianParticlesSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
         group = GroupElement(
-            'walkers',
+            "walkers",
             element=DepotParticleElement,
             size=self.n_particles,
-            values={'v': velocities, 'gamma': self.gamma, 'q': self.q, 'c': self.c, 'd': self.d, 'D': self.D},
+            values={"v": velocities, "gamma": self.gamma, "q": self.q, "c": self.c, "d": self.d, "D": self.D},
         )
         return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
@@ -857,9 +857,9 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         10
     """
 
-    field = 'physics/active_matter'
-    topics = ('active matter', 'sde', 'self-propulsion', 'inertia', 'second order')
-    references = ('Löwen 2020', 'Scholz et al. 2018', 'Bechinger et al. 2016')
+    field = "physics/active_matter"
+    topics = ("active matter", "sde", "self-propulsion", "inertia", "second order")
+    references = ("Löwen 2020", "Scholz et al. 2018", "Bechinger et al. 2016")
     until = 20.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -875,7 +875,7 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         D_r: float = 1.0,
         size: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -891,17 +891,17 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
-            'swimmers',
+            "swimmers",
             element=InertialActiveParticleElement,
             size=self.n_particles,
             values={
-                'x': positions,
-                'theta': angles,
-                'speed': self.speed,
-                'mass': self.mass,
-                'moment': self.moment,
-                'D_t': self.D_t,
-                'D_r': self.D_r,
+                "x": positions,
+                "theta": angles,
+                "speed": self.speed,
+                "mass": self.mass,
+                "moment": self.moment,
+                "D_t": self.D_t,
+                "D_r": self.D_r,
             },
         )
         return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))

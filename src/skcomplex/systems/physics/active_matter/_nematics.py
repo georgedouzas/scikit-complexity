@@ -81,7 +81,7 @@ class NematicDensitySiteElement(Element):
         visual: VisualSpec | None = None,
         *,
         rho: Annotated[npt.ArrayLike, StateSpec()] = 1.0,
-        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
+        Q: Annotated[npt.ArrayLike, StateSpec(tensor="traceless")] = 0.0,
         beta: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -272,7 +272,7 @@ class NematicGelSiteElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
+        Q: Annotated[npt.ArrayLike, StateSpec(tensor="traceless")] = 0.0,
         a: Annotated[float, ParameterSpec()] = -1.0,
         c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -366,7 +366,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = 'Q',
+        state: str = "Q",
         a: Annotated[float, ParameterSpec()] = -1.0,
         c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -393,7 +393,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
 
         The field is the negative functional derivative of the free energy.
         """
-        energy = cls('energy', target='field')
+        energy = cls("energy", target="field")
         return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
@@ -414,7 +414,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
 
 
-GEL_ORDERS = ('nematic', 'polar')
+GEL_ORDERS = ("nematic", "polar")
 NEMATIC_BOX = 10.0
 NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
 NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
@@ -425,7 +425,7 @@ NEMATIC_XI = 0.1
 def _check_matrix(utility: str, value: object) -> Matrix:
     """Return a square matrix, or raise an error that names the utility and the value."""
     if not isinstance(value, Matrix) or not value.is_square():
-        error_msg = f'{utility} needs a square matrix, but got {value}, which has another shape.'
+        error_msg = f"{utility} needs a square matrix, but got {value}, which has another shape."
         raise TensorShapeError(error_msg)
     return value
 
@@ -438,7 +438,7 @@ def _check_vector(utility: str, value: object) -> FreeModuleElement:
     if isinstance(value, list | tuple):
         return vector(SR, [SR(item) for item in value])
     if not isinstance(value, FreeModuleElement):
-        error_msg = f'{utility} needs a vector, but got {value}, which has another shape.'
+        error_msg = f"{utility} needs a vector, but got {value}, which has another shape."
         raise TensorShapeError(error_msg)
     return value
 
@@ -490,14 +490,14 @@ def corotational(
         >>> corotational(matrix(SR, [[a, b], [b, -a]]), [var('u'), 0]).dimensions()
         (2, 2)
     """
-    flow = _check_vector('corotational', velocity)
+    flow = _check_vector("corotational", velocity)
     size = len(flow)
     gradients = vector_gradient(flow)
     strain, vorticity = symmetric_part(gradients), antisymmetric_part(gradients)
     if isinstance(value, FreeModuleElement):
         advected = vector(SR, [_advected(item, flow) for item in value])
         return advected - vorticity * value - SR(xi) * (strain * value)
-    tensor = _check_matrix('corotational', value)
+    tensor = _check_matrix("corotational", value)
     advected_tensor = tensor.apply_map(lambda item: _advected(item, flow))
     shifted_tensor = tensor + identity_matrix(SR, size) / size
     aligned = (SR(xi) * strain + vorticity) * shifted_tensor + shifted_tensor * (SR(xi) * strain - vorticity)
@@ -531,8 +531,8 @@ def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleEleme
         >>> upper_convected(identity_matrix(SR, 2), [var('u'), var('v')])[0, 0]
         -2*partial(u, 0)
     """
-    checked = _check_matrix('upper_convected', tensor)
-    flow = _check_vector('upper_convected', velocity)
+    checked = _check_matrix("upper_convected", tensor)
+    flow = _check_vector("upper_convected", velocity)
     gradients = vector_gradient(flow)
     advected = checked.apply_map(lambda item: _advected(item, flow))
     return advected - gradients.transpose() * checked - checked * gradients
@@ -543,7 +543,7 @@ def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
 
     The velocity depends on the order the namespace holds.
     """
-    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
+    return PolarGelSiteElement._velocity(s) if hasattr(s, "p") else NematicGelSiteElement._velocity(s)
 
 
 def _velocity_x(s: SimpleNamespace) -> Expression:
@@ -621,9 +621,9 @@ class DryActiveNematicsSystem(BaseSystem):
         0.5
     """
 
-    field = 'physics/active_matter'
-    topics = ('field', 'active matter', 'nematic', 'tensor', 'liquid crystal', 'giant number fluctuations', 'pde')
-    references = ('Marchetti et al. 2013', 'arXiv:1207.2929')
+    field = "physics/active_matter"
+    topics = ("field", "active matter", "nematic", "tensor", "liquid crystal", "giant number fluctuations", "pde")
+    references = ("Marchetti et al. 2013", "arXiv:1207.2929")
     until = 100.0
     dt = 5.0
     solver = RK4Solver(dt=0.02)
@@ -644,7 +644,7 @@ class DryActiveNematicsSystem(BaseSystem):
         beta: float = 0.5,
         perturbation: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -669,14 +669,14 @@ class DryActiveNematicsSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         sites = int(np.prod(shape))
         values = {
-            'rho': self.density + self.perturbation * rng.standard_normal(sites),
-            'Q': self.perturbation * rng.standard_normal((sites, 2)),
-            'beta': self.beta,
+            "rho": self.density + self.perturbation * rng.standard_normal(sites),
+            "Q": self.perturbation * rng.standard_normal((sites, 2)),
+            "beta": self.beta,
         }
-        nematic = FieldElement('nematic', element=NematicDensitySiteElement, space=LatticeSpace(shape), values=values)
+        nematic = FieldElement("nematic", element=NematicDensitySiteElement, space=LatticeSpace(shape), values=values)
         energy = LandauDeGennesEnergyInteraction(
-            'energy',
-            target='nematic',
+            "energy",
+            target="nematic",
             a=self.a,
             c=self.c,
             K=self.K,
@@ -693,9 +693,9 @@ class DryActiveNematicsSystem(BaseSystem):
             ]
 
         transport = ConservationInteraction(
-            'transport',
-            target='nematic',
-            state='rho',
+            "transport",
+            target="nematic",
+            state="rho",
             flux=flux,
             limiter=None,
             riemann=None,
@@ -785,29 +785,29 @@ class ActiveGelsSystem(BaseSystem):
         (32, 32)
     """
 
-    field = 'physics/active_matter'
-    topics = ('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'active turbulence', 'pde')
+    field = "physics/active_matter"
+    topics = ("field", "active matter", "nematic", "polar", "tensor", "gel", "stokes flow", "active turbulence", "pde")
     references = (
-        'Marchetti et al. 2013',
-        'arXiv:1207.2929',
-        'Kruse et al. 2005',
-        'Voituriez, Joanny, and Prost 2005',
-        'Giomi et al. 2012',
-        'arXiv:1110.4338',
+        "Marchetti et al. 2013",
+        "arXiv:1207.2929",
+        "Kruse et al. 2005",
+        "Voituriez, Joanny, and Prost 2005",
+        "Giomi et al. 2012",
+        "arXiv:1110.4338",
     )
     until = 0.5
     dt = 0.025
     solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
-        ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
+        ObservableSpec("u_x", _velocity_x, group="gel", reduce=_sites),
+        ObservableSpec("u_y", _velocity_y, group="gel", reduce=_sites),
     )
 
     def __init__(
         self,
         shape: Sequence[int] | None = None,
         *,
-        order: str = 'nematic',
+        order: str = "nematic",
         spacing: float | None = None,
         a: float | None = None,
         c: float | None = None,
@@ -819,7 +819,7 @@ class ActiveGelsSystem(BaseSystem):
         film: bool = False,
         perturbation: float | None = None,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -842,21 +842,21 @@ class ActiveGelsSystem(BaseSystem):
         They are longer and coarser for the polar gel, whose flow is slow.
         """
         settings = super().get_run_settings()
-        if self.order == 'polar':
-            settings['until'] = 200.0
-            settings['dt'] = 1.0
-            settings['solver'] = RK4Solver(dt=0.05)
+        if self.order == "polar":
+            settings["until"] = 200.0
+            settings["dt"] = 1.0
+            settings["solver"] = RK4Solver(dt=0.05)
         return settings
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.order not in GEL_ORDERS:
-            error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
+            error_msg = f"The order of the gel is {self.order!r}. Use one of {', '.join(GEL_ORDERS)}."
             raise ValidationError(error_msg)
-        if self.film and self.order != 'polar':
-            error_msg = 'A film of the gel holds a polarisation at its walls. Use order=polar.'
+        if self.film and self.order != "polar":
+            error_msg = "A film of the gel holds a polarisation at its walls. Use order=polar."
             raise ValidationError(error_msg)
-        polar = self.order == 'polar'
+        polar = self.order == "polar"
         shape = ((32, 32) if polar else (128, 128)) if self.shape is None else tuple(self.shape)
         sites = int(np.prod(shape))
         rng = np.random.default_rng(self.random_state)
@@ -870,22 +870,22 @@ class ActiveGelsSystem(BaseSystem):
         size = np.sqrt(-quadratic / cubic) if polar else np.sqrt(-2 * quadratic / cubic) / 2
         start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if quadratic < 0 else noise
         values = {
-            'p' if polar else 'Q': start,
-            'a': quadratic,
-            'c': cubic,
-            'K': self.K,
-            'xi': alignment,
-            'gamma': self.gamma,
-            'eta': self.eta,
-            'zeta': activity,
+            "p" if polar else "Q": start,
+            "a": quadratic,
+            "c": cubic,
+            "K": self.K,
+            "xi": alignment,
+            "gamma": self.gamma,
+            "eta": self.eta,
+            "zeta": activity,
         }
-        symmetry = {'p': ((None, 'even'), (None, 'odd'))} if self.film else None
+        symmetry = {"p": ((None, "even"), (None, "odd"))} if self.film else None
         gel = FieldElement(
-            'gel',
+            "gel",
             element=PolarGelSiteElement if polar else NematicGelSiteElement,
             space=LatticeSpace(shape, spacing=distance),
             values=values,
-            discretization='spectral',
+            discretization="spectral",
             symmetry=symmetry,
         )
         return System(self.label, elements=[gel])

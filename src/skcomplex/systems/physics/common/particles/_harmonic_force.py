@@ -55,8 +55,8 @@ class HarmonicForceInteraction(RateInteraction):
         target: Annotated[str, RoleSpec()],
         F: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        state: str = 'x',
-        divisor: str = 'm',
+        state: str = "x",
+        divisor: str = "m",
     ) -> None:
         super().__init__(label, target=target, state=state, divisor=divisor)
         self.F = F

@@ -57,8 +57,8 @@ class DampingInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        state: str = 'x',
-        divisor: str = 'm',
+        state: str = "x",
+        divisor: str = "m",
     ) -> None:
         super().__init__(label, target=target, state=state, divisor=divisor)
         self.gamma = gamma

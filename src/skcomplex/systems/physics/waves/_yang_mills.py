@@ -24,7 +24,7 @@ from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpe
 from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
-COLOR = MatrixGroupSpec('SU', 3)
+COLOR = MatrixGroupSpec("SU", 3)
 
 
 class ColorLinkElement(Element):
@@ -63,7 +63,7 @@ class ColorLinkElement(Element):
         self.U = U
 
 
-ISOSPIN = MatrixGroupSpec('SU', 2)
+ISOSPIN = MatrixGroupSpec("SU", 2)
 
 
 class IsospinLinkElement(Element):
@@ -102,8 +102,8 @@ class IsospinLinkElement(Element):
         self.U = U
 
 
-KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
-MATRIX_KINDS = ('wilson', 'polyakov')
+KINDS = ("wilson", "polyakov", "charge", "gauss")
+MATRIX_KINDS = ("wilson", "polyakov")
 CHARGE_DIMENSIONS = 2
 LOOP_AXES = 2
 
@@ -197,17 +197,17 @@ def gauge_observables(
         [1.0]
     """
     if kind not in KINDS:
-        error_msg = f'gauge_observables has kind={kind!r}. Use one of {", ".join(KINDS)}.'
+        error_msg = f"gauge_observables has kind={kind!r}. Use one of {', '.join(KINDS)}."
         raise AnalysisError(error_msg)
-    place = getattr(space, 'space', None)
-    if not isinstance(place, LatticeSpace) or place.boundary != 'periodic':
-        error_msg = f'gauge_observables reads the cell complex of a periodic lattice, not {space!r}.'
+    place = getattr(space, "space", None)
+    if not isinstance(place, LatticeSpace) or place.boundary != "periodic":
+        error_msg = f"gauge_observables reads the cell complex of a periodic lattice, not {space!r}."
         raise AnalysisError(error_msg)
     if group is not None and kind not in MATRIX_KINDS:
-        error_msg = f'The kind {kind!r} reads link angles. Matrix links take the kind wilson or polyakov.'
+        error_msg = f"The kind {kind!r} reads link angles. Matrix links take the kind wilson or polyakov."
         raise AnalysisError(error_msg)
-    if kind == 'charge' and len(np.ravel(place.shape)) != CHARGE_DIMENSIONS:
-        error_msg = f'The topological charge is defined on a two-dimensional lattice, not on {place!r}.'
+    if kind == "charge" and len(np.ravel(place.shape)) != CHARGE_DIMENSIONS:
+        error_msg = f"The topological charge is defined on a two-dimensional lattice, not on {place!r}."
         raise AnalysisError(error_msg)
     space.prepare()
     if isinstance(source, Trajectory):
@@ -217,7 +217,7 @@ def gauge_observables(
         frame = 1 if group is None else 2
         values = values[None] if values.ndim == frame else values
     if group is not None:
-        if kind == 'wilson':
+        if kind == "wilson":
             return GaugeObservablesResult(values, _matrix_wilson(space, values, group, extents))
         return GaugeObservablesResult(values, _matrix_polyakov(space, values, group))
     return GaugeObservablesResult(values, _angle_observable(space, values, kind, extents, charges))
@@ -231,11 +231,11 @@ def _angle_observable(
     charges: Sequence[float] | None,
 ) -> Array:
     """Return the observable of a kind of link angles at every frame."""
-    if kind == 'wilson':
+    if kind == "wilson":
         return _wilson(space, values, extents)
-    if kind == 'polyakov':
+    if kind == "polyakov":
         return _polyakov(space, values)
-    if kind == 'charge':
+    if kind == "charge":
         return np.angle(np.exp(1j * (space.incidences_[1] @ values.T).T)).sum(axis=1) / (2 * np.pi)
     divergence = -(space.incidences_[0].T @ values.T).T / space.stars_[0]
     sites = np.zeros(divergence.shape[1]) if charges is None else np.asarray(charges, dtype=float)
@@ -343,7 +343,7 @@ LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
 def _mean_plaquette(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
     """Return the mean of `Re tr U_p / N` over the plaquettes."""
     del t
-    matrices = group.matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
+    matrices = group.matrices_of(np.reshape(np.asarray(values["links.U"], dtype=float), (-1, group.size)))
     plaquettes = group.holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
     return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
 
@@ -354,8 +354,8 @@ def _polyakov_loop(space: CellComplexSpace, group: MatrixGroupSpec, t: float, va
     The loops wind along the last axis.
     """
     del t
-    links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
-    return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
+    links = np.reshape(np.asarray(values["links.U"], dtype=float), (-1, group.size))
+    return float(gauge_observables(links, kind="polyakov", space=space, group=group).value[0])
 
 
 class LatticeYangMillsSystem(BaseSystem):
@@ -415,9 +415,9 @@ class LatticeYangMillsSystem(BaseSystem):
         'ColorLinkElement'
     """
 
-    field = 'physics/waves'
-    topics = ('gauge', 'lattice', 'monte carlo', 'yang-mills', 'qcd', 'cell complex')
-    references = ('Satz 2022', 'Schwichtenberg 2020', 'Wilson 1974', 'Creutz 1980')
+    field = "physics/waves"
+    topics = ("gauge", "lattice", "monte carlo", "yang-mills", "qcd", "cell complex")
+    references = ("Satz 2022", "Schwichtenberg 2020", "Wilson 1974", "Creutz 1980")
     until = 100
     dt = 1
 
@@ -433,7 +433,7 @@ class LatticeYangMillsSystem(BaseSystem):
         hits: int = 4,
         links: npt.ArrayLike | None = None,
         seed: int = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -449,12 +449,12 @@ class LatticeYangMillsSystem(BaseSystem):
     @staticmethod
     def _yang_mills_observables(system: System) -> list[ObservableSpec]:
         """Return the mean plaquette and the Polyakov loop of the links."""
-        links = next(element for element in system.elements if element.label == 'links')
+        links = next(element for element in system.elements if element.label == "links")
         space = links.space.prepare()
         group = next(group for element, group in LINKS.values() if links.element is element)
         return [
-            ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space, group)),
-            ObservableSpec('polyakov_loop', function=partial(_polyakov_loop, space, group)),
+            ObservableSpec("mean_plaquette", function=partial(_mean_plaquette, space, group)),
+            ObservableSpec("polyakov_loop", function=partial(_polyakov_loop, space, group)),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -463,7 +463,7 @@ class LatticeYangMillsSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
+        settings["observables"] = tuple(self._yang_mills_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
@@ -472,7 +472,7 @@ class LatticeYangMillsSystem(BaseSystem):
         The matrices are sampled by the Wilson action.
         """
         if self.colors not in LINKS:
-            error_msg = f'The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {self.colors!r}.'
+            error_msg = f"The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {self.colors!r}."
             raise ValidationError(error_msg)
         element, group = LINKS[self.colors]
         shape = (self.size,) * (self.dimension - 1) + (self.size if self.extent is None else self.extent,)
@@ -487,22 +487,22 @@ class LatticeYangMillsSystem(BaseSystem):
             matrices,
         ):
             error_msg = (
-                f'The initial links are {matrices.shape[0]} matrices of the shape {matrices.shape[1:]}, but the '
-                f'lattice takes {count} matrices of SU({self.colors}), one per link.'
+                f"The initial links are {matrices.shape[0]} matrices of the shape {matrices.shape[1:]}, but the "
+                f"lattice takes {count} matrices of SU({self.colors}), one per link."
             )
             raise ValidationError(error_msg)
         group_links = GroupElement(
-            'links',
+            "links",
             element=element,
             space=space,
-            on='edges',
-            values={'U': group.components_of(matrices)},
+            on="edges",
+            values={"U": group.components_of(matrices)},
         )
         sampling = WilsonSamplingInteraction(
-            'wilson',
-            target='links',
+            "wilson",
+            target="links",
             beta=self.beta,
-            state='U',
+            state="U",
             width=self.width,
             group=group,
             hits=self.hits,

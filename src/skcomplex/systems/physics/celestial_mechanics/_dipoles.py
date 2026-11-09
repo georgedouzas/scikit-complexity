@@ -6,7 +6,6 @@ The module holds a charge in the magnetic dipole field of a planet.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -60,7 +59,7 @@ class DipoleChargeElement(Element):
         2.0
     """
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y', 'z'), 'trail': None, 'marks': [(0.0, 0.0, 0.0)]})
+    visual = VisualSpec("bodies", {"positions": ("x", "y", "z"), "trail": None, "marks": [(0.0, 0.0, 0.0)]})
 
     def __init__(
         self,
@@ -129,9 +128,9 @@ class StormerProblemSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/celestial_mechanics'
-    topics = ('mechanics', 'ode', 'second order', 'magnetism', 'chaos', 'hamiltonian')
-    references = ('Störmer 1955', 'Dilão 2023')
+    field = "physics/celestial_mechanics"
+    topics = ("mechanics", "ode", "second order", "magnetism", "chaos", "hamiltonian")
+    references = ("Störmer 1955", "Dilão 2023")
     until = 20.0
     dt = 0.02
 
@@ -145,7 +144,7 @@ class StormerProblemSystem(BaseSystem):
         vy: float = 0.1,
         vz: float = 0.1,
         alpha: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -177,7 +176,7 @@ class StormerProblemSystem(BaseSystem):
             self.label,
             elements=[
                 DipoleChargeElement(
-                    'charge',
+                    "charge",
                     x=self.x,
                     y=self.y,
                     z=self.z,
@@ -189,9 +188,9 @@ class StormerProblemSystem(BaseSystem):
             ],
             interactions=[
                 EulerLagrangeInteraction(
-                    'lorentz',
-                    target='charge',
-                    states=('x', 'y', 'z'),
+                    "lorentz",
+                    target="charge",
+                    states=("x", "y", "z"),
                     lagrangian=self._get_dipole_lagrangian,
                 ),
             ],

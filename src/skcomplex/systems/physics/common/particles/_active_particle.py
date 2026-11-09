@@ -17,7 +17,7 @@ from .....core.components.elements import Element
 from .....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
-POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
+POINTS = VisualSpec("points", {"position": "x", "radius": 0.2})
 
 
 class ActiveParticleElement(Element):
@@ -67,8 +67,8 @@ class ActiveParticleElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec()] = 0.0,

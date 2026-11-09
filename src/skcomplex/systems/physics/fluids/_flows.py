@@ -270,9 +270,9 @@ class KuramotoSivashinskySystem(BaseSystem):
         'spectral'
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'chaos', 'spectral', 'stiff', 'pde')
-    references = ('Kuramoto 1978', 'Sivashinsky 1977', 'Kassam and Trefethen 2005')
+    field = "physics/fluids"
+    topics = ("field", "chaos", "spectral", "stiff", "pde")
+    references = ("Kuramoto 1978", "Sivashinsky 1977", "Kassam and Trefethen 2005")
     until = 150.0
     dt = 1.0
     solver = ETDRK4Solver(dt=0.25)
@@ -282,7 +282,7 @@ class KuramotoSivashinskySystem(BaseSystem):
         modes: int = 128,
         *,
         length: float = 32 * math.pi,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.modes = modes
@@ -295,30 +295,30 @@ class KuramotoSivashinskySystem(BaseSystem):
         """
         spacing = self.length / self.modes
         positions = np.arange(1, self.modes + 1) * spacing
-        values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
+        values = {"u": np.cos(positions / 16) * (1 + np.sin(positions / 16))}
         space = LatticeSpace(self.modes, spacing=spacing)
         transport = ConservationInteraction(
-            'transport',
-            target='line',
-            state='u',
+            "transport",
+            target="line",
+            state="u",
             flux=lambda s: s.target.u**2 / 2,
             riemann=None,
         )
         linear = RateInteraction(
-            'linear',
-            target='line',
-            state='u',
+            "linear",
+            target="line",
+            state="u",
             rate=lambda s: -laplacian(s.target.u) - laplacian(laplacian(s.target.u)),
         )
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'line',
+                    "line",
                     element=KuramotoSivashinskyElement,
                     space=space,
                     values=values,
-                    discretization='spectral',
+                    discretization="spectral",
                 ),
             ],
             interactions=[transport, linear],
@@ -340,34 +340,34 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
     The laws include its forcing or the buoyancy and the heat.
     """
     advection = AdvectionInteraction(
-        'advection',
-        target='flow',
-        state='omega',
+        "advection",
+        target="flow",
+        state="omega",
         drift=lambda s: _velocity(s.target.omega),
         riemann=None,
     )
     if not buoyant:
-        viscosity = DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
-        forcing = RateInteraction('forcing', target='flow', state='omega', rate=lambda s: s.target.f)
+        viscosity = DiffusionInteraction("viscosity", target="flow", state="omega", coefficient=lambda s: s.target.nu)
+        forcing = RateInteraction("forcing", target="flow", state="omega", rate=lambda s: s.target.f)
         return [advection, viscosity, forcing]
     return [
         advection,
-        DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
+        DiffusionInteraction("viscosity", target="flow", state="omega", coefficient=lambda s: s.target.Pr),
         RateInteraction(
-            'buoyancy',
-            target='flow',
-            state='omega',
+            "buoyancy",
+            target="flow",
+            state="omega",
             rate=lambda s: s.target.Ra * s.target.Pr * gradient(s.target.theta, 2)[0],
         ),
         AdvectionInteraction(
-            'convection',
-            target='flow',
-            state='theta',
+            "convection",
+            target="flow",
+            state="theta",
             drift=lambda s: _velocity(s.target.omega),
             source=lambda s: _velocity(s.target.omega)[1],
             riemann=None,
         ),
-        DiffusionInteraction('conduction', target='flow', state='theta', coefficient=1.0),
+        DiffusionInteraction("conduction", target="flow", state="theta", coefficient=1.0),
     ]
 
 
@@ -381,7 +381,7 @@ def incompressible_flow(
     walls: bool = False,
     vorticity: npt.ArrayLike | None = None,
     temperature: npt.ArrayLike | None = None,
-    label: str = 'system',
+    label: str = "system",
 ) -> System:
     """Return incompressible two-dimensional flow in vorticity-streamfunction form.
 
@@ -430,25 +430,25 @@ def incompressible_flow(
     space = LatticeSpace(shape, spacing=tuple(length / count for length, count in zip(size, shape, strict=True)))
     values: dict[str, object] = {}
     if vorticity is not None:
-        values['omega'] = np.asarray(vorticity, dtype=float)
+        values["omega"] = np.asarray(vorticity, dtype=float)
     if buoyancy is None:
         element: type[Element] = VorticityElement
-        values['nu'] = nu
+        values["nu"] = nu
         if forcing is not None:
-            values['f'] = np.asarray(forcing, dtype=float)
+            values["f"] = np.asarray(forcing, dtype=float)
     else:
         element = BoussinesqElement
         values.update({key: float(value) for key, value in buoyancy.items()})
         if temperature is not None:
-            values['theta'] = np.asarray(temperature, dtype=float)
-    states = ['omega'] if buoyancy is None else ['omega', 'theta']
-    symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
+            values["theta"] = np.asarray(temperature, dtype=float)
+    states = ["omega"] if buoyancy is None else ["omega", "theta"]
+    symmetry = dict.fromkeys(states, (None, "odd")) if walls else None
     field = FieldElement(
-        'flow',
+        "flow",
         element=element,
         space=space,
         values=values,
-        discretization='spectral',
+        discretization="spectral",
         symmetry=symmetry,
     )
     return System(label, elements=[field], interactions=_get_flow_interactions(buoyancy is not None))
@@ -484,9 +484,9 @@ class DecayingTurbulenceSystem(BaseSystem):
         256
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'turbulence', 'spectral', 'pde')
-    references = ('Kraichnan 1967', 'Satz 2022')
+    field = "physics/fluids"
+    topics = ("field", "turbulence", "spectral", "pde")
+    references = ("Kraichnan 1967", "Satz 2022")
     until = 20.0
     dt = 1.0
     solver = ETDRK4Solver(dt=0.05)
@@ -498,7 +498,7 @@ class DecayingTurbulenceSystem(BaseSystem):
         nu: float = 1e-3,
         modes: int = 6,
         random_state: int | np.random.Generator | None = 0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -517,7 +517,7 @@ class DecayingTurbulenceSystem(BaseSystem):
         frequencies = np.meshgrid(
             *[np.abs(np.fft.fftfreq(size, d=1.0 / size)) for size in shape[:-1]],
             np.fft.rfftfreq(shape[-1], d=1.0 / shape[-1]),
-            indexing='ij',
+            indexing="ij",
         )
         spectrum[np.sqrt(sum(item**2 for item in frequencies)) > modes] = 0
         values = np.fft.irfftn(spectrum, s=shape, axes=range(len(shape)))
@@ -563,9 +563,9 @@ class RayleighBenardSystem(BaseSystem):
         500.0
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'convection', 'instability', 'spectral', 'pde')
-    references = ('Rayleigh 1916', 'Chandrasekhar 1961', 'Mihailović et al. 2023')
+    field = "physics/fluids"
+    topics = ("field", "convection", "instability", "spectral", "pde")
+    references = ("Rayleigh 1916", "Chandrasekhar 1961", "Mihailović et al. 2023")
     until = 10.0
     dt = 0.5
     solver = ETDRK4Solver(dt=0.005)
@@ -577,7 +577,7 @@ class RayleighBenardSystem(BaseSystem):
         Pr: float = 1.0,
         shape: Sequence[int] = (32, 32),
         amplitude: float = 1e-3,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.Ra = Ra
@@ -597,7 +597,7 @@ class RayleighBenardSystem(BaseSystem):
         return incompressible_flow(
             self.shape,
             (width, height),
-            buoyancy={'Ra': self.Ra, 'Pr': self.Pr},
+            buoyancy={"Ra": self.Ra, "Pr": self.Pr},
             walls=True,
             temperature=temperature,
             label=self.label,
@@ -632,9 +632,9 @@ class BurgersSystem(BaseSystem):
         16
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'shocks', 'conservation law', 'finite volume', 'pde')
-    references = ('Burgers 1948', 'LeVeque 2002')
+    field = "physics/fluids"
+    topics = ("field", "shocks", "conservation law", "finite volume", "pde")
+    references = ("Burgers 1948", "LeVeque 2002")
     until = 2.0
     dt = 0.1
     solver = SSPRKSolver()
@@ -645,7 +645,7 @@ class BurgersSystem(BaseSystem):
         *,
         mean: float = 1.5,
         amplitude: float = 1.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n = n
@@ -656,21 +656,21 @@ class BurgersSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
-        values = {'u': self.mean + self.amplitude * np.sin(centers)}
+        values = {"u": self.mean + self.amplitude * np.sin(centers)}
         space = LatticeSpace(self.n, spacing=spacing)
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    'line',
+                    "line",
                     element=BurgersElement,
                     space=space,
                     values=values,
-                    discretization='finite-volume',
+                    discretization="finite-volume",
                 ),
             ],
             interactions=[
-                ConservationInteraction('transport', target='line', state='u', flux=lambda s: s.target.u**2 / 2),
+                ConservationInteraction("transport", target="line", state="u", flux=lambda s: s.target.u**2 / 2),
             ],
         )
 
@@ -708,9 +708,9 @@ class ShallowWaterSystem(BaseSystem):
         2.0
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'waves', 'shocks', 'conservation law', 'finite volume', 'pde')
-    references = ('Stoker 1957', 'LeVeque 2002')
+    field = "physics/fluids"
+    topics = ("field", "waves", "shocks", "conservation law", "finite volume", "pde")
+    references = ("Stoker 1957", "LeVeque 2002")
     until = 0.5
     dt = 0.05
     solver = SSPRKSolver()
@@ -723,7 +723,7 @@ class ShallowWaterSystem(BaseSystem):
         upstream: float = 2.0,
         downstream: float = 1.0,
         g: float = 9.81,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.n = n
@@ -739,21 +739,21 @@ class ShallowWaterSystem(BaseSystem):
         """
         depth = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         space = LatticeSpace(self.n, spacing=self.length / self.n)
-        values = {'h': depth, 'q': np.zeros(self.n), 'g': self.g}
-        boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
+        values = {"h": depth, "q": np.zeros(self.n), "g": self.g}
+        boundary = {"h": "zero-flux", "q": "zero-flux"}
         field = FieldElement(
-            'channel',
+            "channel",
             element=ShallowWaterElement,
             space=space,
             boundary=boundary,
             values=values,
-            discretization='finite-volume',
+            discretization="finite-volume",
         )
-        mass = ConservationInteraction('mass', target='channel', state='h', flux=lambda s: s.target.q)
+        mass = ConservationInteraction("mass", target="channel", state="h", flux=lambda s: s.target.q)
         momentum = ConservationInteraction(
-            'momentum',
-            target='channel',
-            state='q',
+            "momentum",
+            target="channel",
+            state="q",
             flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
         )
         return System(self.label, elements=[field], interactions=[mass, momentum])

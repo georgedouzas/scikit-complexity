@@ -110,9 +110,9 @@ class FriedmannExpansionSystem(BaseSystem):
         1.0
     """
 
-    field = 'physics/cosmology'
-    topics = ('cosmology', 'ode', 'second order', 'gravity', 'dark energy')
-    references = ('Friedmann 1922', 'Lemaître 1927', 'Satz 2022')
+    field = "physics/cosmology"
+    topics = ("cosmology", "ode", "second order", "gravity", "dark energy")
+    references = ("Friedmann 1922", "Lemaître 1927", "Satz 2022")
     until = 2.0
     dt = 0.02
 
@@ -123,7 +123,7 @@ class FriedmannExpansionSystem(BaseSystem):
         H0: float = 1.0,
         omega_matter: float = 0.3,
         omega_lambda: float = 0.7,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.a = a
@@ -153,12 +153,12 @@ class FriedmannExpansionSystem(BaseSystem):
         )
         if square < 0:
             error_msg = (
-                f'The Friedmann equation gives a negative squared expansion rate {square} at a = {self.a}. Choose a, '
-                'omega_matter, and omega_lambda for which it is positive.'
+                f"The Friedmann equation gives a negative squared expansion rate {square} at a = {self.a}. Choose a, "
+                "omega_matter, and omega_lambda for which it is positive."
             )
             raise ValidationError(error_msg)
         universe = ScaleFactorElement(
-            'universe',
+            "universe",
             a=self.a,
             a_d1=math.sqrt(square),
             H0=self.H0,
@@ -166,9 +166,9 @@ class FriedmannExpansionSystem(BaseSystem):
             omega_lambda=self.omega_lambda,
         )
         acceleration = GradientInteraction(
-            'acceleration',
-            target='universe',
-            states='a',
+            "acceleration",
+            target="universe",
+            states="a",
             potential=self._get_expansion_potential,
         )
         return System(self.label, elements=[universe], interactions=[acceleration])

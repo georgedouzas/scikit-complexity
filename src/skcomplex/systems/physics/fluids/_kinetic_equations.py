@@ -16,7 +16,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import FieldElement
-from ....core.components.interactions import AdvectionInteraction, EncounterInteraction, RelaxationInteraction
+from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
 from ....core.components.laws.utils import coordinate, gradient, inverse_laplacian, maximum_entropy, moment
 from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, System
@@ -24,9 +24,10 @@ from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, RoleSpec, VisualSpec
 from ..common.fields import PhaseSpaceDensityElement
+from ..common.particles import RelaxationTimeInteraction
 
 
-class BhatnagarGrossKrookInteraction(RelaxationInteraction):
+class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
     """Relaxation of Bhatnagar, Gross, and Krook of a density.
 
     The density relaxes towards the maximum-entropy density with its moments.
@@ -58,8 +59,8 @@ class BhatnagarGrossKrookInteraction(RelaxationInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = 'x',
-        axes: Sequence[str] = ('v',),
+        state: str = "x",
+        axes: Sequence[str] = ("v",),
         time: Callable[[SimpleNamespace], object] | float = 1.0,
     ) -> None:
         super().__init__(label, target=target, state=state, goal=0.0, time=time)
@@ -70,15 +71,15 @@ class BhatnagarGrossKrookInteraction(RelaxationInteraction):
         return maximum_entropy(getattr(namespace.target, self.state), axes=self.axes)
 
 
-SETUPS = ('landau', 'two-stream')
-SHOCK_TUBE = 'sod'
-VELOCITY_AXES = ('vx', 'vy')
-VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
+SETUPS = ("landau", "two-stream")
+SHOCK_TUBE = "sod"
+VELOCITY_AXES = ("vx", "vy")
+VLASOV_VISUAL = VisualSpec("image", {"moments": (0,)})
 
 
 def _get_plane_streaming(_: SimpleNamespace) -> list[Expression]:
     """Return the drift of free streaming over one position and two velocity axes."""
-    return [coordinate('vx'), 0, 0]
+    return [coordinate("vx"), 0, 0]
 
 
 def _get_uniform_gas(positions: int, velocities: int, knudsen: float, half_width: float) -> tuple[FieldElement, float]:
@@ -89,16 +90,16 @@ def _get_uniform_gas(positions: int, velocities: int, knudsen: float, half_width
     length = 2 * math.pi
     axes = [AxisSpec(name, velocities, -half_width, half_width) for name in VELOCITY_AXES]
     space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).prepare()
-    vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
+    vx, vy = np.meshgrid(space.coordinates_["vx"], space.coordinates_["vy"], indexing="ij")
     x = np.arange(positions) * length / positions
     profile = np.exp(-(vx**2 + vy**2) / 2) / (2 * np.pi)
     values = np.multiply.outer(1.0 + 0.2 * np.sin(x), profile)
     gas = FieldElement(
-        'gas',
+        "gas",
         element=PhaseSpaceDensityElement,
         space=space,
-        values={'x': values},
-        discretization='finite-volume',
+        values={"x": values},
+        discretization="finite-volume",
     )
     return gas, 1.0 / knudsen
 
@@ -138,9 +139,9 @@ class BoltzmannEquationSystem(BaseSystem):
         256
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'kinetic', 'phase space', 'collisions', 'pde')
-    references = ('Bellomo et al. 2017', 'Mouhot and Pareschi 2006')
+    field = "physics/fluids"
+    topics = ("field", "kinetic", "phase space", "collisions", "pde")
+    references = ("Bellomo et al. 2017", "Mouhot and Pareschi 2006")
     until = 0.5
     dt = 0.1
     solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
@@ -152,7 +153,7 @@ class BoltzmannEquationSystem(BaseSystem):
         *,
         knudsen: float = 1.0,
         half_width: float = 6.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.positions = positions
@@ -166,10 +167,10 @@ class BoltzmannEquationSystem(BaseSystem):
         The equation is over one position and two velocity axes.
         """
         gas, frequency = _get_uniform_gas(self.positions, self.velocities, self.knudsen, self.half_width)
-        stream = AdvectionInteraction('stream', target='gas', state='x', drift=_get_plane_streaming)
+        stream = AdvectionInteraction("stream", target="gas", state="x", drift=_get_plane_streaming)
         collide = EncounterInteraction(
-            'collide',
-            candidate='gas',
+            "collide",
+            candidate="gas",
             cross_section=_get_maxwell_molecules,
             factor=lambda _: frequency,
         )
@@ -211,9 +212,9 @@ class EnskogSystem(BaseSystem):
         256
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'kinetic', 'phase space', 'collisions', 'pde')
-    references = ('Bellomo et al. 2017', 'Enskog 1922')
+    field = "physics/fluids"
+    topics = ("field", "kinetic", "phase space", "collisions", "pde")
+    references = ("Bellomo et al. 2017", "Enskog 1922")
     until = 0.5
     dt = 0.1
     solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
@@ -226,7 +227,7 @@ class EnskogSystem(BaseSystem):
         knudsen: float = 1.0,
         diameter: float = 0.2,
         half_width: float = 6.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.positions = positions
@@ -244,8 +245,8 @@ class EnskogSystem(BaseSystem):
             fraction = area * moment(s.candidate.x, 0, axes=VELOCITY_AXES)
             return frequency * (1 - 7 * fraction / 16) / (1 - fraction) ** 2
 
-        stream = AdvectionInteraction('stream', target='gas', state='x', drift=_get_plane_streaming)
-        collide = EncounterInteraction('collide', candidate='gas', cross_section=_get_maxwell_molecules, factor=contact)
+        stream = AdvectionInteraction("stream", target="gas", state="x", drift=_get_plane_streaming)
+        collide = EncounterInteraction("collide", candidate="gas", cross_section=_get_maxwell_molecules, factor=contact)
         return System(self.label, elements=[gas], interactions=[stream, collide])
 
 
@@ -279,9 +280,9 @@ class BGKEquationSystem(BaseSystem):
         128
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'kinetic', 'phase space', 'shocks', 'pde')
-    references = ('Bhatnagar, Gross, and Krook 1954', 'Mieussens 2000', 'Sod 1978')
+    field = "physics/fluids"
+    topics = ("field", "kinetic", "phase space", "shocks", "pde")
+    references = ("Bhatnagar, Gross, and Krook 1954", "Mieussens 2000", "Sod 1978")
     until = 0.2
     dt = 0.05
     solver = StrangSplittingSolver(SSPRKSolver(), RK4Solver(0.005), 0.005)
@@ -293,7 +294,7 @@ class BGKEquationSystem(BaseSystem):
         *,
         knudsen: float = 1e-2,
         half_width: float = 6.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.positions = positions
@@ -318,29 +319,29 @@ class BGKEquationSystem(BaseSystem):
     @staticmethod
     def _get_streaming(_: SimpleNamespace) -> list[Expression]:
         """Return the drift of free streaming over one position and one velocity axis."""
-        return [coordinate('v'), 0]
+        return [coordinate("v"), 0]
 
     def _build_system(self) -> System:
         """Return the BGK equation of the Sod shock tube.
 
         The equation is over one position and one velocity axis.
         """
-        position = LatticeSpace((self.positions,), spacing=1.0 / self.positions, boundary='reflecting')
-        space = PhaseSpace(position, [AxisSpec('v', self.velocities, -self.half_width, self.half_width)]).prepare()
+        position = LatticeSpace((self.positions,), spacing=1.0 / self.positions, boundary="reflecting")
+        space = PhaseSpace(position, [AxisSpec("v", self.velocities, -self.half_width, self.half_width)]).prepare()
         left = np.arange(self.positions) < self.positions // 2
         density = np.where(left, 1.0, 0.125)
         temperature = np.where(left, 1.0, 0.8)
-        values = self._get_maxwellian(density, np.zeros(self.positions), temperature, space.coordinates_['v'])
+        values = self._get_maxwellian(density, np.zeros(self.positions), temperature, space.coordinates_["v"])
         gas = FieldElement(
-            'gas',
+            "gas",
             element=PhaseSpaceDensityElement,
             space=space,
-            values={'x': values},
-            discretization='finite-volume',
+            values={"x": values},
+            discretization="finite-volume",
             visual=VLASOV_VISUAL,
         )
-        stream = AdvectionInteraction('stream', target='gas', state='x', drift=self._get_streaming)
-        relax = BhatnagarGrossKrookInteraction('relax', target='gas', axes=('v',), time=self.knudsen)
+        stream = AdvectionInteraction("stream", target="gas", state="x", drift=self._get_streaming)
+        relax = BhatnagarGrossKrookInteraction("relax", target="gas", axes=("v",), time=self.knudsen)
         return System(self.label, elements=[gas], interactions=[stream, relax])
 
 
@@ -383,9 +384,9 @@ class VlasovEquationSystem(BaseSystem):
         128
     """
 
-    field = 'physics/fluids'
-    topics = ('field', 'kinetic', 'phase space', 'plasma', 'pde')
-    references = ('Bellomo et al. 2017', 'Cheng and Knorr 1976')
+    field = "physics/fluids"
+    topics = ("field", "kinetic", "phase space", "plasma", "pde")
+    references = ("Bellomo et al. 2017", "Cheng and Knorr 1976")
     until = 30.0
     dt = 0.25
     solver = SemiLagrangianSolver(0.25)
@@ -395,10 +396,10 @@ class VlasovEquationSystem(BaseSystem):
         positions: int = 32,
         velocities: int = 64,
         *,
-        setup: str = 'landau',
+        setup: str = "landau",
         amplitude: float = 0.01,
         half_width: float = 6.0,
-        label: str = 'system',
+        label: str = "system",
     ) -> None:
         super().__init__(label)
         self.positions = positions
@@ -413,35 +414,35 @@ class VlasovEquationSystem(BaseSystem):
 
         The potential is that of the density.
         """
-        density = moment(s.target.x, 0, axes=('v',))
-        return [coordinate('v'), -gradient(inverse_laplacian(1 - density), 1)[0]]
+        density = moment(s.target.x, 0, axes=("v",))
+        return [coordinate("v"), -gradient(inverse_laplacian(1 - density), 1)[0]]
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         if self.setup not in SETUPS:
-            error_msg = f'Unknown set-up {self.setup!r} of the Vlasov equation. Use one of {", ".join(SETUPS)}.'
+            error_msg = f"Unknown set-up {self.setup!r} of the Vlasov equation. Use one of {', '.join(SETUPS)}."
             raise ValidationError(error_msg)
         length = 4 * math.pi
         space = PhaseSpace(
             LatticeSpace((self.positions,), spacing=length / self.positions),
-            [AxisSpec('v', self.velocities, -self.half_width, self.half_width)],
+            [AxisSpec("v", self.velocities, -self.half_width, self.half_width)],
         )
         space.prepare()
         x = np.arange(self.positions) * length / self.positions
-        v = space.coordinates_['v']
+        v = space.coordinates_["v"]
         profile = np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi)
-        if self.setup == 'two-stream':
+        if self.setup == "two-stream":
             profile = (np.exp(-2 * (v - 1.5) ** 2) + np.exp(-2 * (v + 1.5) ** 2)) * np.sqrt(2 / np.pi) / 2
         gas = FieldElement(
-            'gas',
+            "gas",
             element=PhaseSpaceDensityElement,
             space=space,
-            values={'x': np.outer(1.0 + self.amplitude * np.cos(0.5 * x), profile)},
-            discretization='finite-volume',
+            values={"x": np.outer(1.0 + self.amplitude * np.cos(0.5 * x), profile)},
+            discretization="finite-volume",
             visual=VLASOV_VISUAL,
         )
         return System(
             self.label,
             elements=[gas],
-            interactions=[AdvectionInteraction('vlasov', target='gas', state='x', drift=self._get_poisson_drift)],
+            interactions=[AdvectionInteraction("vlasov", target="gas", state="x", drift=self._get_poisson_drift)],
         )
