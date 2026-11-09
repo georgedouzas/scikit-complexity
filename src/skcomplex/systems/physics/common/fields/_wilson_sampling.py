@@ -19,7 +19,7 @@ from sage.all__sagemath_symbolics import SR, Expression, cos, oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import SamplingInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw
+from .....core.components.laws import ArrayUpdateLaw, BaseLaw, SampleLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
@@ -150,7 +150,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
         3
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (SampleLaw, ArrayUpdateLaw)
 
     def __init__(
         self,
