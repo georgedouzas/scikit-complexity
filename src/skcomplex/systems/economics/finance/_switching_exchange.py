@@ -7,141 +7,22 @@ The traders switch between fundamentalism and chartism.
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, normal, uniform, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
-class SwitchingExchangeElement(Element):
-    """Foreign exchange market whose rate deviation follows the fundamentalists.
-
-    The deviation follows the share of fundamentalists of Kirman's recruitment chain. The deviation `x = s - s*` of the
-    exchange rate from its fundamental value follows Eq. 1.36 of Caiani et al. (2016),
-    `(1 + r) x_t = [1 - v n_t + g (1 - n_t)] x_t-1 - g (1 - n_t) x_t-2 + sigma eps_t`, with a standard normal shock
-    `eps_t` of the supply of foreign exchange. Of the `N` traders, `k` are fundamentalists, `n = k / N`. Every step one
-    trader meets another at random, after Kirman (1993): a chartist turns fundamentalist with probability
-    `(1 - k / N) (epsilon + (1 - delta) k / (N - 1))` and a fundamentalist turns chartist with probability
-    `(k / N) (epsilon + (1 - delta) (N - k) / (N - 1))`, by a spontaneous change `epsilon` or by recruitment.
-
-    Args:
-        label:
-            The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The deviation of the exchange rate from its fundamental value.
-
-        k:
-            The number of fundamentalists.
-
-        n_traders:
-            The number of traders `N`.
-
-        r:
-            The interest rate of the domestic currency.
-
-        v:
-            The share of the deviation that fundamentalists expect to close.
-
-        g:
-            The share of the last change that chartists expect to repeat.
-
-        sigma:
-            The standard deviation of the shocks of the deviation.
-
-        epsilon:
-            The probability of a spontaneous change of strategy.
-
-        delta:
-            One minus the probability that a trader recruits the trader it meets.
-
-    Examples:
-        >>> from skcomplex.systems.economics.finance import SwitchingExchangeElement
-        >>> SwitchingExchangeElement('market', g=1.2).g
-        1.2
-    """
-
-    draws = True
-
-    law_classes = (UpdateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(lags=1)] = 0.1,
-        k: Annotated[float, StateSpec(domain=NN)] = 50,
-        n_traders: Annotated[float, ParameterSpec(domain=RealSet.open(1, oo))] = 100.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        v: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.002,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.k = k
-        self.n_traders = n_traders
-        self.r = r
-        self.v = v
-        self.g = g
-        self.sigma = sigma
-        self.epsilon = epsilon
-        self.delta = delta
-
-    @staticmethod
-    def get_share(s: SimpleNamespace) -> Expression:
-        """Return the share of fundamentalists `n = k / N`.
-
-        Args:
-            s:
-                The namespace of the market.
-
-        Returns:
-            share:
-                The share of fundamentalists.
-        """
-        return s.k / s.n_traders
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the step of the deviation and the recruitment step.
-
-        The recruitment step is that of the fundamentalists.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        n = self.get_share(s)
-        chartists = 1 - n
-        deviation = ((1 - s.v * n + s.g * chartists) * s.x - s.g * chartists * lag(s.x, 1)) / (1 + s.r)
-        recruit = (1 - s.delta) / (s.n_traders - 1)
-        up = chartists * (s.epsilon + recruit * s.k)
-        down = n * (s.epsilon + recruit * (s.n_traders - s.k))
-        draw = uniform('meeting', 0, 1)
-        change = where(draw < up, 1, where(draw < up + down, -1, 0))
-        return [
-            UpdateLaw(s.x, deviation + s.sigma * normal('supply', 0, 1)),
-            UpdateLaw(s.k, s.k + change),
-        ]
+def _share(s: SimpleNamespace) -> Expression:
+    """Return the share of fundamentalists `n = k / N` of the market."""
+    return s.k / s.n_traders
 
 
-class KirmanExchangeRateSystem(BaseSystem):
+class KirmanExchangeRateSystem(DynamicalSystem):
     """Kirman's foreign exchange market.
 
     Its traders switch between fundamentalism and chartism like ants. Fundamentalists expect the exchange rate to revert
@@ -193,7 +74,7 @@ class KirmanExchangeRateSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.finance import KirmanExchangeRateSystem
-        >>> KirmanExchangeRateSystem(g=1.2).prepare().system_.elements[0].g
+        >>> KirmanExchangeRateSystem(g=1.2).prepare().system_.elements[0].get_value('g')
         1.2
     """
 
@@ -201,7 +82,8 @@ class KirmanExchangeRateSystem(BaseSystem):
     topics = ('exchange rate', 'fundamentalists', 'chartists', 'herding', 'ants', 'discrete map')
     references = ('Caiani et al. 2016 §1.3.2', 'Kirman 1993')
     until = 20000
-    observables = (ObservableSpec('fundamentalists', SwitchingExchangeElement.get_share, element='market'),)
+    draws = True
+    observables = (ObservableSpec('fundamentalists', _share, element='market'),)
 
     def __init__(
         self,
@@ -217,7 +99,7 @@ class KirmanExchangeRateSystem(BaseSystem):
         delta: float = 0.01,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.k = k
         self.n_traders = n_traders
@@ -228,18 +110,51 @@ class KirmanExchangeRateSystem(BaseSystem):
         self.epsilon = epsilon
         self.delta = delta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        market = SwitchingExchangeElement(
-            'market',
-            x=self.x,
-            k=self.k,
-            n_traders=self.n_traders,
-            r=self.r,
-            v=self.v,
-            g=self.g,
-            sigma=self.sigma,
-            epsilon=self.epsilon,
-            delta=self.delta,
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'market'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec(lags=1)),
+            'k': DeclaredVariableSpec(self.k, StateSpec(domain=NN)),
+            'n_traders': DeclaredVariableSpec(self.n_traders, ParameterSpec(domain=RealSet.open(1, oo))),
+            'r': DeclaredVariableSpec(self.r, ParameterSpec(domain=nonnegative)),
+            'v': DeclaredVariableSpec(self.v, ParameterSpec(domain=RealSet.closed(0, 1))),
+            'g': DeclaredVariableSpec(self.g, ParameterSpec(domain=nonnegative)),
+            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec(domain=nonnegative)),
+            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.closed(0, 1))),
+            'delta': DeclaredVariableSpec(self.delta, ParameterSpec(domain=RealSet.closed(0, 1))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the step of the deviation and the recruitment step of the fundamentalists."""
+        return {'x': self._deviation, 'k': self._recruitment}
+
+    @staticmethod
+    def _deviation(s: SimpleNamespace) -> Expression:
+        """Return the next deviation, which clears the market, with a shock of the supply."""
+        market = s.target
+        n = _share(market)
+        chartists = 1 - n
+        deviation = ((1 - market.v * n + market.g * chartists) * market.x - market.g * chartists * lag(market.x, 1)) / (
+            1 + market.r
         )
-        return CompositeSystem(self.label, elements=[market])
+        return deviation + market.sigma * normal('supply', 0, 1)
+
+    @staticmethod
+    def _recruitment(s: SimpleNamespace) -> Expression:
+        """Return the next number of fundamentalists after one trader meets another."""
+        market = s.target
+        n = _share(market)
+        recruit = (1 - market.delta) / (market.n_traders - 1)
+        up = (1 - n) * (market.epsilon + recruit * market.k)
+        down = n * (market.epsilon + recruit * (market.n_traders - market.k))
+        draw = uniform('meeting', 0, 1)
+        return market.k + where(draw < up, 1, where(draw < up + down, -1, 0))
