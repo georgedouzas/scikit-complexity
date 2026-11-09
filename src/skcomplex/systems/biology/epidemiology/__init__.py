@@ -8,7 +8,6 @@ from ._adaptive import (
     ActiveHostElement,
     ActivityDrivenEpidemicsSystem,
     AdaptiveSISSystem,
-    CarrierElement,
     QuenchedMeanFieldSISSystem,
 )
 from ._agents import (
@@ -37,7 +36,7 @@ from ._factories import (
     SISSystem,
     ZombieOutbreakSystem,
 )
-from ._networks import DegreeClassElement, HeterogeneousMeanFieldSISSystem, MetapopulationSystem, SubpopulationElement
+from ._networks import DegreeClassElement, HeterogeneousMeanFieldSISSystem, MetapopulationSystem
 from ._outbreaks import HeterogeneousMeanFieldSIRSystem, ImmunizingDegreeClassElement
 from ._records import PathogenElement, RecordDynamicsEpidemicSystem, ResidentElement, ResistanceInfectionInteraction
 from ._recurrent import DelayedSIRSSystem, EpidemicCenterElement
@@ -48,7 +47,6 @@ __all__: list[str] = [
     'ActivityDrivenEpidemicsSystem',
     'AdaptiveSISSystem',
     'AgentBasedSIRSystem',
-    'CarrierElement',
     'CaseCountElement',
     'CaseCountInteraction',
     'ColocationInteraction',
@@ -83,7 +81,6 @@ __all__: list[str] = [
     'SIRVaccinationSystem',
     'SISSystem',
     'SpreadingInteraction',
-    'SubpopulationElement',
     'TravellerElement',
     'WalkerElement',
     'WattsMayConcurrencySystem',
