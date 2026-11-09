@@ -1,5 +1,6 @@
 """Test the `_reductions` module of `skcomplex.core.components.laws.utils`."""
 
+import importlib
 import itertools
 import math
 from types import SimpleNamespace
@@ -17,21 +18,23 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import (
-    NEIGHBOR_REDUCTIONS,
     circular_mean,
     count,
     hyperedges,
-    hyperedges_in,
     log_sum_exp,
     maximum,
     mean,
     minimum,
-    neighborhoods_in,
     neighbors,
-    reductions_in,
     total,
     uniform,
     variance,
+)
+from skcomplex.core.components.laws.utils._reductions import (
+    NEIGHBOR_REDUCTIONS,
+    hyperedges_in,
+    neighborhoods_in,
+    reductions_in,
 )
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
@@ -1364,3 +1367,10 @@ def test_log_sum_exp_random_energy_system_entropy() -> None:
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)
     assert entropies[2] < 0.1
+
+
+def test_the_public_law_namespace_leaves_out_the_compiler_helpers():
+    """Test that importing a compiler helper from the public law namespace raises an `ImportError`."""
+    law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
+    assert 'reductions_in' not in law_utils.__all__
+    assert not hasattr(law_utils, 'reductions_in')

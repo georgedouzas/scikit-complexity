@@ -19,7 +19,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
-from ....components.laws.utils import neighborhoods_in
+from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
     BaseSpace,

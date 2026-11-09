@@ -19,7 +19,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import ConnectionInteraction
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import reductions_in
+from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import StaticTime
 from ....errors import ValidationError
 from ....specs import CallSpec, IssueSpec

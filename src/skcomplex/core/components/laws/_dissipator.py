@@ -11,7 +11,7 @@ from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
 from ._base import BaseLaw
-from .utils import has_operator
+from .utils._local_operators import has_operator
 
 
 class DissipatorLaw(BaseLaw):

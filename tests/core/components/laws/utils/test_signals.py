@@ -12,8 +12,9 @@ from skcomplex.core.components.laws.utils import periodic_guard, pulse_train, se
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 
 
 def _driven_by(data):
@@ -96,3 +97,37 @@ def test_periodic_guard_rejects_a_bad_period_or_count(period, count):
     """Test that a periodic guard rejects a period that is not positive and a count that is not a positive integer."""
     with pytest.raises(ValidationError, match='periodic guard'):
         periodic_guard(var('t'), period, count=count)
+
+
+def _fertility(s):
+    """Return the fertility, a table of food per person."""
+    return series(s.food, (0, 1, 2), (0.0, 2.0, 3.0))
+
+
+class FertilityElement(Element):
+    """Fertility element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        food: Annotated[object, StateSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.food = food
+
+    def _get_laws(self, s):
+        """Return the laws of the fertility element."""
+        return [RateLaw(s.food, 1.0)]
+
+
+def test_series_of_a_state_interpolates_and_stays_flat():
+    """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
+    fertility = ObservableSpec('fertility', _fertility, element='f')
+    trajectory = simulate(System(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
+    food = trajectory.values('f.food')
+    expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
+    assert trajectory.values('f.fertility') == pytest.approx(expected)
+    assert trajectory.values('f.fertility')[0] == 0.0
+    assert trajectory.values('f.fertility')[-1] == 3.0

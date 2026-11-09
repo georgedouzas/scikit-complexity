@@ -33,14 +33,9 @@ from ....components.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ....components.laws.utils import (
-    distribute_operators,
-    hyperedges_in,
-    laplacian,
-    neighborhoods_in,
-    reductions_in,
-    shifted,
-)
+from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....components.systems import System

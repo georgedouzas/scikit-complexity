@@ -81,8 +81,8 @@ def _double(t, value):
 def test_values_flatten_calls_vectors_and_mappings():
     """Test that the values of a law give the arguments of calls, the components of vectors, and keys and values."""
     x, y, k = var('x y k')
-    assert RateLaw(x, CallSpec(_double, (k * x,)))._get_values() == [x, k * x, None, None]
-    assert RateLaw(vector([x, y]), vector([y, -x]))._get_values() == [x, y, y, -x, None, None]
+    assert RateLaw(x, CallSpec(_double, (k * x,)))._get_values() == [x, k * x, None]
+    assert RateLaw(vector([x, y]), vector([y, -x]))._get_values() == [x, y, y, -x, None]
     assert JumpLaw(k * x, {x: -1, y: 1})._get_values() == [k * x, x, -1, y, 1, None, None]
 
 

@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
-from ....components.laws.utils import COORDINATE_PREFIX
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_term_spec import OPERATORS, LinearTermSpec

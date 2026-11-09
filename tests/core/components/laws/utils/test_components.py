@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import both, components, neighborhoods_in
+from skcomplex.core.components.laws.utils import both, components
+from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend

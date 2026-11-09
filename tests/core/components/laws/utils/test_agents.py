@@ -2,26 +2,17 @@
 
 from typing import Annotated
 
-import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.laws.utils import random_pairing, transfer
+from skcomplex.core.components.laws.utils import transfer
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-
-
-def test_random_pairing_within_one_group_avoids_self_pairs():
-    """Test that random pairing within one group never pairs a member with itself."""
-    members = list(range(9))
-    pairs = random_pairing(members, members, np.random.default_rng(0), 2)
-    assert all(first != second for first, second in pairs)
-    assert len({frozenset(pair) for pair in pairs}) == len(pairs)
 
 
 def _balance(agent):

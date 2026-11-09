@@ -106,7 +106,8 @@ def cell_operations_in(expression: object) -> list[Expression]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import cell_operations_in, codifferential, exterior_derivative
+        >>> from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
+        >>> from skcomplex.core.components.laws.utils._cells import cell_operations_in
         >>> cell_operations_in(1 + codifferential(exterior_derivative(var('flow'))))
         [codifferential(exterior_derivative(flow))]
     """

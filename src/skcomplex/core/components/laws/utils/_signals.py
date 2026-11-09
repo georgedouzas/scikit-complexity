@@ -229,32 +229,34 @@ def periodic_guard(t: Expression, period: float, start: float = 0.0, count: int 
     return where(t > start + last * period, sin(pi * last), guard)
 
 
-def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
-    """Return an input that follows data.
+def series(x: object, points: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
+    """Return a series of a value through given points.
 
-    It is interpolated linearly or held from each time to the next. Before the first time the input takes the first
-    value, and after the last time the last value.
+    It is interpolated linearly or held from each point to the next. Before the first point the series takes the first
+    value, and after the last point the last value. With the time `s.t` as the value, it is an input that follows
+    data. With a state or any expression as the value, it is a table function, such as the lookups of system
+    dynamics.
 
     Args:
-        t:
-            The time symbol, `s.t` in laws.
+        x:
+            The symbolic value the series reads, such as the time symbol `s.t` or a state.
 
-        times:
-            The increasing times of the data.
+        points:
+            The increasing points of the data.
 
         values:
-            The values at those times.
+            The values at those points.
 
         kind:
-            `'linear'` for linear interpolation, or `'previous'` to hold every value until the next time.
+            `'linear'` for linear interpolation, or `'previous'` to hold every value until the next point.
 
     Returns:
-        input:
-            The symbolic input, a balanced search of conditions on time that every backend lowers.
+        series:
+            The symbolic series, a balanced search of conditions on the value that every backend lowers.
 
     Raises:
         ValueError:
-            The times do not increase, the lengths differ, or the kind is unknown.
+            The points do not increase, the lengths differ, or the kind is unknown.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -263,12 +265,18 @@ def series(t: Expression, times: Sequence[float], values: Sequence[float], kind:
         >>> data = series(t, [0, 10, 20], [0.0, 5.0, 1.0])
         >>> [float(data.subs({t: time})) for time in (-5, 5, 15, 30)]
         [0.0, 2.5, 3.0, 1.0]
+        >>> food = var('food')
+        >>> fertility = series(food, (0, 1, 2), (0.0, 2.0, 3.0))
+        >>> [float(fertility.subs({food: value})) for value in (-1, 0.5, 1.5, 5)]
+        [0.0, 1.0, 2.5, 3.0]
     """
-    points, levels = [float(item) for item in times], [float(item) for item in values]
+    value = SR(x)
+    levels = [float(item) for item in values]
+    points = [float(item) for item in points]
     if len(points) != len(levels) or not points or any(b <= a for a, b in itertools.pairwise(points)):
-        error_msg = 'A series takes increasing times and as many values.'
+        error_msg = 'A series takes increasing points and as many values.'
         raise ValueError(error_msg)
     if kind not in {'linear', 'previous'}:
         error_msg = f"Unknown series kind {kind!r}. Use 'linear' or 'previous'."
         raise ValueError(error_msg)
-    return where(t < points[0], levels[0], _search(t, points, levels, kind, (0, len(points) - 1)))
+    return where(value < points[0], levels[0], _search(value, points, levels, kind, (0, len(points) - 1)))

@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 import scipy.fft
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, fast_callable
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
@@ -25,14 +25,9 @@ from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
 from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import (
-    COORDINATE_PREFIX,
-    INVERSION_BOUNDARIES,
-    coordinate,
-    displacement,
-    integration_variable,
-    where,
-)
+from ...components.laws.utils import coordinate, displacement, integration_variable, where
+from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
+from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -44,7 +39,7 @@ from ...components.spaces import (
 )
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
-from ...types import Indices, IntTuple
+from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
@@ -67,11 +62,11 @@ OPERATOR_NAMES = (
     'shifted',
     'reduce_axes',
     'maximum_entropy',
-    'collision',
+    'collision_integral',
     'integral_transform',
     'cumulative_integral',
 )
-PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision', 'integral_transform')
+PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision_integral', 'integral_transform')
 NEWTON_STEPS = 50
 NEWTON_TOLERANCE = 1e-14
 LARGEST_EXPONENT_CHANGE = 5.0
@@ -123,12 +118,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         solution_boundaries_:
             The boundary condition given to an inversion, by the symbol of its solution.
 
-        cross_section_:
-            The cross-section of the collision law being lowered, or `None`.
-
         applied_:
-            The lowered value of every operator call so far, by its name, its lowered operands, and the cross-section,
-            so an identical call shares one value.
+            The lowered value of every operator call so far, by its name and its lowered operands, so an identical call
+            shares one value.
     """
 
     fields_: Mapping[str, FieldElement]
@@ -140,7 +132,6 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
     solution_boundaries_: dict[Expression, tuple[str, object]]
-    cross_section_: Callable[..., object] | None
     applied_: dict[tuple[object, ...], Expression]
 
     def __init__(self, spec: KernelSpec) -> None:
@@ -167,7 +158,6 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.shifted_, self.derived_, self.tables_, self.solution_boundaries_, self.applied_ = {}, {}, {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
-        self.cross_section_ = None
 
     def _run(self, inputs: list[BaseLaw] | None) -> None:
         """Set laws whose differential operators are lowered.
@@ -188,7 +178,6 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 continue
             if isinstance(law, RateLaw):
                 self._note_limit(law.value)
-            self.cross_section_ = law.cross_section if isinstance(law, RateLaw) else None
             lowered = self._lower(law.value)
             if isinstance(law.value, Expression):
                 for reference in self.spec._target_references(law._get_targets()[0]):
@@ -563,7 +552,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         name = getattr(operator, 'name', lambda: '')()
         if name not in OPERATOR_NAMES:
             return operator(*operands)
-        key = (name, *operands, id(self.cross_section_))
+        key = (name, *operands)
         if key not in self.applied_:
             self.applied_[key] = self._lowered_call(name, operands)
         return self.applied_[key]
@@ -591,7 +580,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return self._equilibrium(operands[0], int(operands[1]), operands[2:], place)
         if name == 'integral_transform':
             return self._transformed(operands[0], operands[1], operands[2:], place)
-        return self._collision(operands[0], place)
+        return self._collision(operands[0], operands[1], place)
 
     def _phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
         """Return the phase space of a field whose class axes an operator reads.
@@ -717,20 +706,37 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
         return self._derived(place, read.prepare())
 
-    def _collision(self, operand: Expression, place: FieldElement) -> Expression:
-        """Return the symbol of the binary collision integral of a density.
+    def _collision_kernel(self, kernel: Expression) -> Callable[[Array, Array], Array]:
+        """Return the NumPy function of the arrays of speeds and cosines that a collision kernel gives.
+
+        A kernel that reads a state or a parameter raises an error, since the weights are assembled once.
+        """
+        arguments = [COLLISION_SPEED, COLLISION_COSINE]
+        references = self.spec.references
+        read = sorted(
+            references[item].entry.name if item in references else str(item)
+            for item in kernel.variables()
+            if item not in arguments
+        )
+        if read:
+            error_msg = (
+                f'The collision integral of a law of {self.spec.owner} has a kernel that reads {", ".join(read)}, but '
+                'its weights are assembled once. Write the kernel with the speed, the cosine, and numbers.'
+            )
+            raise ValidationError(error_msg)
+        if kernel.is_numeric():
+            value = float(kernel)
+            return lambda speed, cosine: np.full(np.shape(speed), value)
+        return np.vectorize(fast_callable(kernel, vars=arguments, domain=float), otypes=[float])
+
+    def _collision(self, operand: Expression, kernel: Expression, place: FieldElement) -> Expression:
+        """Return the symbol of the binary collision integral of a density with a kernel.
 
         The integral runs over the class axes of its phase space.
         """
         space = self._phase_space(operand, place)
-        if self.cross_section_ is None:
-            error_msg = (
-                f'A law of {self.spec.owner} reads a collision integral, which only a `RateLaw` with a cross-section '
-                'declares.'
-            )
-            raise ValidationError(error_msg)
         spacings = (space.spacings_[-PLANE], space.spacings_[-1])
-        kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).prepare()
+        kernel = CollisionKernel(space.shape_, spacings, self._collision_kernel(kernel)).prepare()
         empty = np.zeros(0)
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

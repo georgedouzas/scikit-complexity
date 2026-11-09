@@ -17,7 +17,6 @@ from ..spaces import DiscreteTime
 from ..types import AgentViewProtocol, Feasibility, Pairing, SystemViewProtocol
 from ._base import BaseLaw
 from ._rule import RuleLaw
-from .utils import random_pairing
 
 
 class MatchLaw(BaseLaw):
@@ -265,6 +264,50 @@ class MatchLaw(BaseLaw):
                     taken[agent.id] = taken.get(agent.id, 0) + 1
                 yield agent, target
 
+    def _get_random_pairs(
+        self,
+        left: Sequence[AgentViewProtocol],
+        right: Sequence[AgentViewProtocol],
+        rng: np.random.Generator,
+    ) -> list[tuple[object, object]]:
+        """Return pairs drawn uniformly at random.
+
+        Each member is in at most `capacity` pairs and never paired with itself.
+
+        Args:
+            left:
+                The members of the first group.
+
+            right:
+                The members of the second group, the same sequence as `left` for pairs within one group.
+
+            rng:
+                The random generator.
+
+        Returns:
+            pairs:
+                The pairs of members.
+        """
+        capacity = self.capacity
+        pairs: list[tuple[object, object]] = []
+        seen: set[tuple[int, int]] = set()
+        if left is right:
+            for _ in range(capacity):
+                order = rng.permutation(len(left))
+                for first, second in zip(order[::2], order[1::2], strict=False):
+                    key = (min(first, second), max(first, second))
+                    if key not in seen:
+                        seen.add(key)
+                        pairs.append((left[first], right[second]))
+            return pairs
+        firsts = rng.permutation(np.repeat(np.arange(len(left)), capacity))
+        seconds = rng.permutation(np.repeat(np.arange(len(right)), capacity))
+        for first, second in zip(firsts, seconds, strict=False):
+            if (first, second) not in seen:
+                seen.add((first, second))
+                pairs.append((left[first], right[second]))
+        return pairs
+
     def _run(self, inputs: object) -> None:
         """Store the pairs of the step in the storage of the system under `match:<label>`.
 
@@ -313,7 +356,9 @@ class MatchLaw(BaseLaw):
         """
         spec = self.pairing
         if not isinstance(spec, PartnerSpec):
-            return (spec or random_pairing)(left, right, rng, self.capacity)
+            if spec is None:
+                return self._get_random_pairs(left, right, rng)
+            return spec(left, right, rng, self.capacity)
         if (spec.candidates, spec.choice, spec.capacity, spec.fallback) == ('all', 'uniform', 1, None):
             return self._get_disjoint_pairs(left, right, rng)
         return list(self._get_partners(spec, left, right, rng))

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.laws.utils import distributed_delay, lookup, where
+from ....core.components.laws.utils import distributed_delay, series, where
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -152,7 +152,7 @@ class StandoffElement(Element):
 
 ACTORS = ('a', 'b', 'c')
 
-ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
+ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
 
 
 def _success(s: SimpleNamespace) -> Expression:
@@ -162,7 +162,7 @@ def _success(s: SimpleNamespace) -> Expression:
 
 def _allocation(s: SimpleNamespace) -> Expression:
     """Return the share of the budget the first competitor gets."""
-    return lookup(_success(s), ALLOCATION_TABLE)
+    return series(_success(s), *ALLOCATION_TABLE)
 
 
 def _symptom(s: SimpleNamespace) -> Expression:

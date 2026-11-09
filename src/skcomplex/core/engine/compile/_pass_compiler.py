@@ -37,14 +37,10 @@ from ...components.laws import (
     SampleLaw,
     UpdateLaw,
 )
-from ...components.laws.utils import (
-    COORDINATE_PREFIX,
-    cell_operations_in,
-    draws_in,
-    hyperedges_in,
-    neighborhoods_in,
-    reductions_in,
-)
+from ...components.laws.utils._cells import cell_operations_in
+from ...components.laws.utils._draws import draws_in
+from ...components.laws.utils._phase import COORDINATE_PREFIX
+from ...components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -1565,7 +1561,10 @@ class PassCompiler(BaseCompiler):
         The phase space must have two interval class axes.
         """
         space = record.space
-        if not (isinstance(record.law, RateLaw) and record.law.cross_section is not None):
+        reads = any(
+            BasePass._calls_of(value, 'collision_integral') for value in PassCompiler._law_values(record)
+        )
+        if not (isinstance(record.law, RateLaw) and reads):
             return None
         axes = space.axes if isinstance(space, PhaseSpace) else []
         if len(axes) == _COLLISION_AXES and not any(axis.periodic for axis in axes):

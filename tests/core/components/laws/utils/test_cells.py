@@ -9,13 +9,8 @@ from sage.all__sagemath_symbolics import cos, sin, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.laws.utils import (
-    cell_operations_in,
-    codifferential,
-    exterior_derivative,
-    hodge_star,
-    neighbors,
-)
+from skcomplex.core.components.laws.utils import codifferential, exterior_derivative, hodge_star, neighbors
+from skcomplex.core.components.laws.utils._cells import cell_operations_in
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend

@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
-from ....core.components.laws.utils import gradient, inverse_laplacian, laplacian
+from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
@@ -325,7 +325,7 @@ def _velocity(omega: Expression) -> tuple[Expression, Expression]:
 
     The velocity comes from its streamfunction `psi` with `laplacian(psi) = -omega`.
     """
-    slopes = gradient(inverse_laplacian(-omega), 2)
+    slopes = gradient(inverse_helmholtz(-omega), 2)
     return slopes[1], -slopes[0]
 
 

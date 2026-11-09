@@ -1,11 +1,13 @@
 """Test the `_draws` module of `skcomplex.core.components.laws.utils`."""
 
+import importlib
 from multiprocessing.reduction import ForkingPickler
 
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws.utils import bernoulli, categorical, draw, draws_in, normal, uniform
+from skcomplex.core.components.laws.utils import bernoulli, categorical, draw, normal, uniform
+from skcomplex.core.components.laws.utils._draws import draws_in
 from skcomplex.core.errors import ValidationError
 
 
@@ -74,3 +76,11 @@ def test_relaxed_draws_reject_invalid_relaxations(arguments, match):
     """Test that a relaxation needs a positive temperature, and `hard` needs a temperature."""
     with pytest.raises(ValidationError, match=match):
         categorical('k', [1, 2], **arguments)
+
+
+def test_draw_functions_have_one_import_path():
+    """Test that the law namespace defines the draw functions and no other public core package exports them."""
+    law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
+    specs = importlib.import_module('skcomplex.core.specs')
+    assert law_utils.uniform.__module__ == 'skcomplex.core.components.laws.utils._draws'
+    assert not any(hasattr(specs, name) for name in ('uniform', 'normal', 'bernoulli', 'categorical', 'draw'))

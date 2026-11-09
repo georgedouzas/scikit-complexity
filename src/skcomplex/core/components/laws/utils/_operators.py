@@ -8,7 +8,7 @@ field turns it into numbers.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from sage.all__sagemath_symbolics import SR, Expression, function, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -17,7 +17,9 @@ from ....errors import ValidationError
 
 laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
 partial = function('partial', nargs=2)
-collision = function('collision', nargs=1)
+COLLISION_INTEGRAL = function('collision_integral', nargs=2)
+COLLISION_SPEED = SR.symbol('collision_speed', domain='real')
+COLLISION_COSINE = SR.symbol('collision_cosine', domain='real')
 upwind = function('upwind', nargs=3)
 INVERSE_HELMHOLTZ = function('inverse_helmholtz')
 CONVOLVE = function('convolve', nargs=3)
@@ -99,17 +101,18 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
     return sum((upwind(SR(expression), SR(axis), SR(item)) for axis, item in enumerate(velocity)), SR(0))
 
 
-def inverse_helmholtz(expression: object, screening: object, boundary: object = None) -> Expression:
+def inverse_helmholtz(expression: object, screening: object = 0, boundary: object = None) -> Expression:
     """Return the solution `psi` of a modified-Helmholtz equation.
 
-    The equation is `(laplacian - screening**2) psi = expression`.
+    The equation is `(laplacian - screening**2) psi = expression`. Without screening it is the Poisson equation
+    `laplacian(psi) = expression`, the inverse Laplacian.
 
     Args:
         expression:
             An expression of the states and parameters of a field.
 
         screening:
-            The screening, a non-negative expression of the parameters.
+            The screening, a non-negative expression of the parameters, or 0 for the Poisson equation.
 
         boundary:
             The boundary condition of the solution, `'periodic'`, `'zero-flux'`, or `('fixed', value)`, or `None` for
@@ -129,6 +132,8 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
         >>> from skcomplex.core.components.laws.utils import inverse_helmholtz
         >>> inverse_helmholtz(var('q'), 2)
         inverse_helmholtz(q, 2)
+        >>> inverse_helmholtz(var('q'))
+        inverse_helmholtz(q, 0)
         >>> inverse_helmholtz(var('q'), 2, ('fixed', 0.5))
         inverse_helmholtz(q, 2, 2, 0.5)
     """
@@ -144,26 +149,34 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
     return INVERSE_HELMHOLTZ(SR(expression), SR(screening), code, SR(values[0] if values else 0))
 
 
-def inverse_laplacian(expression: object) -> Expression:
-    """Return the solution of the Poisson equation `laplacian(psi) = expression`.
+def collision_integral(density: object, kernel: Callable[[Expression, Expression], object]) -> Expression:
+    """Return the binary collision integral of a density with a collision kernel.
 
-    It is the unscreened inverse Helmholtz.
+    The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` over the two velocity
+    axes of the phase space of the density, with the relative speed `|g|` and the cosine `cos t` of the deflection
+    angle. The kernel is called once with two real symbols for the speed and the cosine, and the call keeps its
+    expression, so a rate law that reads the integral needs no other argument. The kernel returns an expression of the
+    speed, the cosine, and numbers, written with Sage functions rather than NumPy functions.
 
     Args:
-        expression:
-            An expression of the states and parameters of a field.
+        density:
+            The symbol of a density on a phase space with two interval velocity axes.
+
+        kernel:
+            The function `B(speed, cosine)` of the collision kernel, such as `lambda speed, cosine: 1 / (2 * pi)` for
+            Maxwell molecules.
 
     Returns:
-        solution:
-            The call `inverse_helmholtz(expression, 0)`.
+        integral:
+            The unevaluated call of the integral, which the compiler lowers to the fast spectral method.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import inverse_laplacian
-        >>> inverse_laplacian(var('q'))
-        inverse_helmholtz(q, 0)
+        >>> from sage.all__sagemath_symbolics import pi, var
+        >>> from skcomplex.core.components.laws.utils import collision_integral
+        >>> collision_integral(var('f'), lambda speed, cosine: 1 / (2 * pi))
+        collision_integral(f, 1/2/pi)
     """
-    return INVERSE_HELMHOLTZ(SR(expression), SR(0))
+    return COLLISION_INTEGRAL(SR(density), SR(kernel(COLLISION_SPEED, COLLISION_COSINE)))
 
 
 def displacement(axis: int) -> Expression:

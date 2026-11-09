@@ -79,66 +79,66 @@ when other agents run tests at the same time.
 
 ## 5. Collision integral
 
-- [ ] 5.1 Add `collision_integral(density, kernel)` to `laws/utils/_operators.py`, which calls the kernel with two
+- [x] 5.1 Add `collision_integral(density, kernel)` to `laws/utils/_operators.py`, which calls the kernel with two
   private real symbols and returns the unevaluated call, re-export it, and verify a doctest and a test
   in `tests/core/components/laws/utils/test_operators.py` show the call of a constant kernel
-- [ ] 5.2 In one step, remove `collision` and its re-export, remove `cross_section` from `RateLaw`, read the kernel
+- [x] 5.2 In one step, remove `collision` and its re-export, remove `cross_section` from `RateLaw`, read the kernel
   from the call in `FieldLowering._collision`, raise for a kernel that reads a state or a parameter, rename the
   operator in `PHASE_OPERATOR_NAMES`, make `PassCompiler._collision_issue` look for the call, and emit
   `RateLaw(candidate, factor * collision_integral(candidate, self.cross_section))` in `EncounterInteraction._get_laws`,
   and verify `pytest tests/core/engine/compile tests/core/engine/problems/test_collision_kernel.py
   tests/core/components/interactions/test_encounter.py tests/systems/physics/fluids` passes, including the BKW
   scenario within 1e-4 and the conservation within 1e-12
-- [ ] 5.3 Update `phase_space_fields.md`, and verify its markdown doctests pass and
+- [x] 5.3 Update `phase_space_fields.md`, and verify its markdown doctests pass and
   `grep -rnw "collision\|cross_section" src/skcomplex/core/components/laws` finds nothing
 
 ## 6. Series, distributed delay, and inverse Helmholtz
 
-- [ ] 6.1 Rename the first argument of `series` to `x` and its `times` to `points`, move the docstring example of
+- [x] 6.1 Rename the first argument of `series` to `x` and its `times` to `points`, move the docstring example of
   `lookup` into it, and fold `test_lookups.py` into `test_signals.py`, and verify
   `pytest tests/core/components/laws/utils/test_signals.py` passes
-- [ ] 6.2 Replace `lookup` with `series` in `social/organizations/_traps`, `economics/resources/_food`,
+- [x] 6.2 Replace `lookup` with `series` in `social/organizations/_traps`, `economics/resources/_food`,
   `_plantations`, `_extraction`, `economics/markets/_commodities`, `physics/climate/_pollution`,
   `engineering/processes/_systems`, and `biology/ecology/_factories`, with each table as a pair of tuples, and verify
   the tests of those systems pass with unchanged trajectories
-- [ ] 6.3 Replace `delay3` and `smooth` with `distributed_delay` in `engineering/processes/_systems`, and verify
+- [x] 6.3 Replace `delay3` and `smooth` with `distributed_delay` in `engineering/processes/_systems`, and verify
   `pytest tests/systems/engineering` passes with unchanged trajectories
-- [ ] 6.4 Make the translator write `series` for lookups and `distributed_delay` for delays and smoothings, and verify
+- [x] 6.4 Make the translator write `series` for lookups and `distributed_delay` for delays and smoothings, and verify
   `pytest tests/core/engine/translators/test_system_dynamics.py` passes, including `DELAY3` within 1e-6 of PySD
-- [ ] 6.5 Delete `laws/utils/_lookups.py`, `delay1`, `delay3`, and `smooth`, with their re-exports, move the delay
+- [x] 6.5 Delete `laws/utils/_lookups.py`, `delay1`, `delay3`, and `smooth`, with their re-exports, move the delay
   docstrings into `distributed_delay`, and update `test_delays.py`, and verify
   `pytest tests/core/components/laws/utils` passes
-- [ ] 6.6 Give `inverse_helmholtz` the default screening `0`, remove `inverse_laplacian`, use `inverse_helmholtz` in
+- [x] 6.6 Give `inverse_helmholtz` the default screening `0`, remove `inverse_laplacian`, use `inverse_helmholtz` in
   `leray_projection`, `physics/active_matter/_nematics`, `physics/fluids/_kinetic_equations`, and
   `physics/fluids/_flows`, and update the tests that name it, and verify `pytest tests/core/components/laws/utils
   tests/core/engine tests/systems/physics` passes
-- [ ] 6.7 Update `stocks_and_flows.md`, `fields.md`, `general_interactions.md`, and `phase_space_fields.md`, and verify
+- [x] 6.7 Update `stocks_and_flows.md`, `fields.md`, `general_interactions.md`, and `phase_space_fields.md`, and verify
   their markdown doctests pass and `grep -rnw "lookup\|delay1\|delay3\|smooth\|inverse_laplacian"` over the law
   utilities, the systems, and the user guide finds no call
 
 ## 7. Private helpers and draw functions
 
-- [ ] 7.1 Move `uniform`, `normal`, `bernoulli`, `categorical`, `draw`, `draws_in`, `DRAWS`, and `_call` from
+- [x] 7.1 Move `uniform`, `normal`, `bernoulli`, `categorical`, `draw`, `draws_in`, `DRAWS`, and `_call` from
   `specs/_draw_spec.py` to `laws/utils/_draws.py`, keep `DrawSpec` and `RELAXED_KINDS` in specs, and point every import
   at the new module, and verify `pytest tests/core/components/laws/utils/test_draws.py tests/core/engine` passes
-- [ ] 7.2 Drop `draws_in`, the `*_in` functions, `delay_parts`, `has_operator`, `distribute_operators`,
+- [x] 7.2 Drop `draws_in`, the `*_in` functions, `delay_parts`, `has_operator`, `distribute_operators`,
   `coordinates_of`, `COORDINATE_PREFIX`, `INVERSION_BOUNDARIES`, `MAX_NEIGHBOR_HYPEREDGE_SIZE`, and
   `NEIGHBOR_REDUCTIONS` from `laws/utils/__init__.py`, import them from their private modules in the laws, the
   interactions, the analysis, and the engine, and point the tests at the private modules, and verify `pytest tests/core`
   passes
-- [ ] 7.3 Make `random_pairing` the private method `MatchLaw._get_random_pairs`, move its test from `test_agents.py` to
+- [x] 7.3 Make `random_pairing` the private method `MatchLaw._get_random_pairs`, move its test from `test_agents.py` to
   `test_match.py`, and verify both pass
-- [ ] 7.4 Delete the empty `laws/utils/_tables.py`, and verify `python -c "import skcomplex.core.components.laws.utils"`
+- [x] 7.4 Delete the empty `laws/utils/_tables.py`, and verify `python -c "import skcomplex.core.components.laws.utils"`
   succeeds
-- [ ] 7.5 Update the module docstring of `laws/utils/__init__.py` and the user guide pages that list the utilities, and
+- [x] 7.5 Update the module docstring of `laws/utils/__init__.py` and the user guide pages that list the utilities, and
   verify `grep` finds no privatised name in `docs/overview`
 
 ## 8. Integration
 
-- [ ] 8.1 Run `grep -rnw` over `src`, `tests`, `docs`, and `README.md` for every removed name, `FractionalNoiseLaw`,
+- [x] 8.1 Run `grep -rnw` over `src`, `tests`, `docs`, and `README.md` for every removed name, `FractionalNoiseLaw`,
   `EmissionLaw`, `EncounterLaw`, `DriveLaw`, `KineticLaw`, `lookup`, `delay1`, `delay3`, `smooth`, `inverse_laplacian`,
   `random_pairing`, and `cross_section` on a law, and verify it finds no use
-- [ ] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, with ruff, mypy, and the import contracts, and fix every
+- [x] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, with ruff, mypy, and the import contracts, and fix every
   finding without a suppression
 - [ ] 8.3 Run `nox -s tests` with the doctests, and verify it passes
 - [ ] 8.4 Run `nox -s docs` and `nox -s gallery`, and verify the strict build and the inventory check pass with no

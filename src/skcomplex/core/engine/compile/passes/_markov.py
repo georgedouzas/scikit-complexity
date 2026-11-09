@@ -235,6 +235,9 @@ class MarkovPass(BasePass):
         The update law reads the next value of the source state.
         """
         description = f'emission law of {owner}.{law._get_targets()[0]}'
+        if isinstance(law.matrix, CallSpec) or callable(law.matrix):
+            error_msg = f'The {description} has a function as its matrix. Give a symbolic matrix.'
+            raise ValidationError(error_msg)
         columns = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
         rows = MarkovPass._alphabet_size(description, references.get(law.source))
         MarkovPass._check_shape(description, law.matrix, rows, columns)

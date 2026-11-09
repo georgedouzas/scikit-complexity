@@ -9,7 +9,7 @@ Every backend lowers them.
 from sage.all__sagemath_symbolics import SR, Expression, floor
 from sage.symbolic.function import BuiltinFunction
 
-from ....specs._draw_spec import draws_in
+from ._draws import draws_in
 
 
 def _is_number(argument: object) -> bool:

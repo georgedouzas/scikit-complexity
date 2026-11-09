@@ -11,7 +11,8 @@ from dataclasses import replace
 from sage.all__sagemath_symbolics import Expression
 
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import draws_in, hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._draws import draws_in
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS

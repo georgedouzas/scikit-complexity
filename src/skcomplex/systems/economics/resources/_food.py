@@ -16,13 +16,13 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
-from ....core.components.laws.utils import lookup
+from ....core.components.laws.utils import series
 from ....core.components.systems import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
-INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
-LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
+INPUT_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.5), (0.3, 0.45, 0.58, 0.68, 0.75, 0.8))
+LEARNING_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0), (0.0, 0.4, 0.7, 0.9, 1.0))
 TONNES_PER_KG = 1e-3
 
 
@@ -36,7 +36,7 @@ def _input_ratio(s: SimpleNamespace) -> Expression:
 
 def _productivity(s: SimpleNamespace) -> Expression:
     """Return the productivity of the rice land."""
-    return s.potential * lookup(_input_ratio(s), INPUT_EFFECT) * s.soil_quality * s.practice
+    return s.potential * series(_input_ratio(s), *INPUT_EFFECT) * s.soil_quality * s.practice
 
 
 def _production(s: SimpleNamespace) -> Expression:
@@ -64,7 +64,7 @@ def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
             (1 - s.soil_quality) / s.regeneration_time
             - s.degradation * chemical * _input_ratio(s) * s.cropping_intensity * s.soil_quality,
         ),
-        RateLaw(s.practice, lookup(s.training, LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
+        RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
     ]
 
 

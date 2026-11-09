@@ -10,8 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     antisymmetric_part,
-    distribute_operators,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     leray_projection,
     partial,
@@ -19,6 +18,7 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
     vector_gradient,
 )
+from skcomplex.core.components.laws.utils._tensors import distribute_operators
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumpyBackend
@@ -151,7 +151,7 @@ def test_leray_projection_gives_the_poiseuille_profile_between_symmetric_walls()
     forces[:, 0] = np.tile(force, cross)
     space = LatticeSpace((cross, width), spacing=spacing)
     rate = _rate_of_w(
-        lambda s: leray_projection(s.g.apply_map(lambda item: inverse_laplacian(-item))),
+        lambda s: leray_projection(s.g.apply_map(lambda item: inverse_helmholtz(-item))),
         space,
         {'g': forces},
         discretization='spectral',

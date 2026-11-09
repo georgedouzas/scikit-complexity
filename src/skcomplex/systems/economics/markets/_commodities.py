@@ -15,12 +15,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.laws.utils import distributed_delay, lookup, step
+from ....core.components.laws.utils import distributed_delay, series, step
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
-PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
-INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))
+PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
+INVESTMENT_TABLE = ((0.0, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0), (0.0, 0.1, 1.0, 2.5, 4.0, 5.0, 5.5))
 
 
 def _demand(s: SimpleNamespace) -> Expression:
@@ -35,7 +35,7 @@ def _coverage(s: SimpleNamespace) -> Expression:
 
 def _price(s: SimpleNamespace) -> Expression:
     """Return the price, which falls as the coverage rises above the desired coverage."""
-    return s.reference_price * lookup(_coverage(s) / s.desired_coverage, PRICE_TABLE)
+    return s.reference_price * series(_coverage(s) / s.desired_coverage, *PRICE_TABLE)
 
 
 def _expected_price(s: SimpleNamespace) -> Expression:
@@ -45,7 +45,7 @@ def _expected_price(s: SimpleNamespace) -> Expression:
 
 def _capacity_orders(s: SimpleNamespace) -> Expression:
     """Return the orders of capacity, which rise with the expected price."""
-    return s.capacity / s.lifetime * lookup(_expected_price(s) / s.reference_price, INVESTMENT_TABLE)
+    return s.capacity / s.lifetime * series(_expected_price(s) / s.reference_price, *INVESTMENT_TABLE)
 
 
 def _market(s: SimpleNamespace) -> SimpleNamespace:

@@ -65,7 +65,8 @@ def has_operator(expression: object) -> bool:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, var
-        >>> from skcomplex.core.components.laws.utils import has_operator, local_operator
+        >>> from skcomplex.core.components.laws.utils import local_operator
+        >>> from skcomplex.core.components.laws.utils._local_operators import has_operator
         >>> has_operator(2 * local_operator(SR.symbol('q'), 'z')), has_operator(var('J'))
         (True, False)
     """

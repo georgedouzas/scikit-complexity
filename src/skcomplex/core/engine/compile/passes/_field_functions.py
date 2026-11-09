@@ -17,7 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, FluxLaw
-from ....components.laws.utils import COORDINATE_PREFIX
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import LatticeSpace, MeshSpace, PhaseSpace, SimplexSpace
 from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec

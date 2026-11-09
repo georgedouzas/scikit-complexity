@@ -23,7 +23,7 @@ from ....components.interactions import (
     PairInteraction,
     TopologyInteraction,
 )
-from ....components.laws.utils import MAX_NEIGHBOR_HYPEREDGE_SIZE
+from ....components.laws.utils._reductions import MAX_NEIGHBOR_HYPEREDGE_SIZE
 from ....components.spaces import (
     BaseSpace,
     CayleySpace,

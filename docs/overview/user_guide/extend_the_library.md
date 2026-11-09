@@ -315,7 +315,8 @@ import order, so a module imports only the modules above it:
 - `base`: `BasePart`, the base of every part of a system, built on `BaseConfig`.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
-  `where`, reductions, draws, delays, and calls.
+  `where`, reductions, draws, delays, and calls. The helpers that only the compiler reads, such as `reductions_in`,
+  stay in its private modules, and the engine imports them from there.
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
   interactions built on them.

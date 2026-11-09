@@ -17,8 +17,8 @@ from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...base import BaseConfig
-from ...components.laws.utils import dagger, has_operator, operator_product
-from ...components.laws.utils._local_operators import LOCAL_OPERATOR
+from ...components.laws.utils import dagger, operator_product
+from ...components.laws.utils._local_operators import LOCAL_OPERATOR, has_operator
 from ...components.specs import SubsystemSpec
 from ...errors import ValidationError
 from ...specs import LocalOperatorSpec, OperatorSpec

@@ -13,12 +13,12 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.laws import RateLaw, RuleLaw
 from skcomplex.core.components.laws.utils import (
     advection,
+    collision_integral,
     convolve,
     displacement,
     divergence,
     gradient,
     inverse_helmholtz,
-    inverse_laplacian,
     laplacian,
     shifted,
 )
@@ -26,10 +26,11 @@ from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpa
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import AxisSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):
@@ -408,19 +409,19 @@ def test_inverse_helmholtz_converges_in_a_closed_basin():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_has_zero_mean_on_a_periodic_lattice():
+def test_inverse_helmholtz_has_zero_mean_on_a_periodic_lattice():
     """Test that an unscreened periodic inversion has zero mean and its Laplacian is the field minus its mean."""
     n, spacing = 32, 2 * np.pi / 32
     x, y = np.meshgrid(np.arange(n) * spacing, np.arange(n) * spacing, indexing='ij')
     field = 1 + np.sin(x) + np.cos(2 * y) * np.sin(x)
     space = LatticeSpace((n, n), spacing=spacing)
-    solution = _rate(lambda s: inverse_laplacian(s.u), space, {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), space, {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), space, {'u': np.reshape(solution, (n, n))})
     assert abs(solution.mean()) < 1e-10
     assert np.abs(curvature - np.ravel(field - field.mean())).max() < 1e-10
 
 
-def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
+def test_inverse_helmholtz_has_zero_mean_at_zero_flux_edges():
     """Test that an unscreened inversion at zero-flux edges recovers a cosine with zero mean at second order."""
     errors = []
     for n in (40, 80):
@@ -428,7 +429,7 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
         solution = np.cos(np.pi * x)
         space = LatticeSpace(n, spacing=1 / n)
         rate = _rate(
-            lambda s: inverse_laplacian(s.u),
+            lambda s: inverse_helmholtz(s.u),
             space,
             {'u': 3 - np.pi**2 * solution},
             boundary={'u': 'zero-flux'},
@@ -438,11 +439,11 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_on_a_network_has_zero_mean():
+def test_inverse_helmholtz_on_a_network_has_zero_mean():
     """Test that an unscreened inversion on a network has zero mean and inverts the graph Laplacian."""
     graph = nx.connected_watts_strogatz_graph(30, 4, 0.2, seed=1)
     field = np.random.default_rng(0).random(30)
-    solution = _rate(lambda s: inverse_laplacian(s.u), NetworkSpace(graph), {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), NetworkSpace(graph), {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), NetworkSpace(graph), {'u': solution})
     assert abs(solution.mean()) < 1e-12
     assert np.abs(curvature - (field - field.mean())).max() < 1e-12
@@ -693,8 +694,8 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     positions = np.arange(n) * spacing
 
     def law(s):
-        solution = inverse_laplacian(s.u)
-        return inverse_laplacian(s.u) ** 2 + solution + laplacian(solution**2)
+        solution = inverse_helmholtz(s.u)
+        return inverse_helmholtz(s.u) ** 2 + solution + laplacian(solution**2)
 
     field = FieldElement(
         'm',
@@ -714,3 +715,59 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), expected)
     assert np.array_equal(problem.drift(0.0, state, parameters), first)
     assert len(transforms) == 6
+
+
+def _colliding_gas(kernel):
+    """Return a system of a gas on two velocity axes whose rate is its collision integral with a kernel."""
+
+    class GasElement(Element):
+        """Gas element whose density relaxes by binary collisions."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            nu: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.nu = nu
+
+        def _get_laws(self, s):
+            """Return the collision rate of the gas."""
+            return [RateLaw(s.x, collision_integral(s.x, lambda speed, cosine: kernel(speed, cosine, s.nu)))]
+
+    axes = [AxisSpec('vx', 8, -4.0, 4.0), AxisSpec('vy', 8, -4.0, 4.0)]
+    space = PhaseSpace(LatticeSpace((1,)), axes).prepare()
+    vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
+    start = np.exp(-((vx - 1) ** 2 + vy**2) / 2) + np.exp(-((vx + 1) ** 2 + vy**2) / 2)
+    gas = FieldElement('gas', element=GasElement, space=space, values={'x': start[None]})
+    return System(elements=[gas]), start
+
+
+def test_collision_integral_of_maxwell_molecules_matches_the_fast_spectral_integral():
+    """Test that the kernel 1 / (2 pi) gives the fast spectral integral of the same constant within 1e-12."""
+    system, start = _colliding_gas(lambda speed, cosine, nu: 1 / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    kernel = CollisionKernel((1, 8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
+    expected = kernel.run(RunStateSpec(0.0, start.ravel(), np.zeros(0))).values_
+    np.testing.assert_allclose(rates, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_collision_integral_takes_a_kernel_of_the_speed():
+    """Test that a kernel of the speed lowers and keeps the total density within 1e-12."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: speed / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert np.abs(rates).max() > 0
+    assert abs(rates.sum()) < 1e-12
+
+
+def test_collision_integral_rejects_a_kernel_that_reads_a_parameter():
+    """Test that a kernel that reads a parameter raises an error that names the law and the parameter."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: nu / (2 * pi))
+    with pytest.raises(ValidationError, match=r'law of gas has a kernel that reads gas\.nu'):
+        PassCompiler(backend=NumpyBackend()).prepare(system).run()

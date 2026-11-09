@@ -16,7 +16,8 @@ from ...errors import ValidationError
 from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
+from ..laws.utils import both, count, maximum, mean, minimum, total, variance
+from ..laws.utils._reductions import reductions_in
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ._interaction import Interaction

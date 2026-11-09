@@ -13,13 +13,13 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
-    coordinates_of,
     gradient,
-    inverse_laplacian,
+    inverse_helmholtz,
     maximum_entropy,
     moment,
     reduce_axes,
 )
+from skcomplex.core.components.laws.utils._phase import coordinates_of
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -37,14 +37,14 @@ def density(namespace: SimpleNamespace) -> object:
 
 def electric_energy(namespace: SimpleNamespace) -> object:
     """Return the electric field squared solved from the density moment."""
-    return gradient(inverse_laplacian(1 - moment(namespace.x, 0, axes=('v',))), 1)[0] ** 2
+    return gradient(inverse_helmholtz(1 - moment(namespace.x, 0, axes=('v',))), 1)[0] ** 2
 
 
 def potential_force(namespace: SimpleNamespace) -> list[object]:
     """Return the drift of a Vlasov-Poisson field, the velocity along position and the force along velocity."""
     return [
         coordinate('v'),
-        -gradient(inverse_laplacian(1 - moment(namespace.target.x, 0, axes=("v",))), 1)[0],
+        -gradient(inverse_helmholtz(1 - moment(namespace.target.x, 0, axes=("v",))), 1)[0],
     ]
 
 
