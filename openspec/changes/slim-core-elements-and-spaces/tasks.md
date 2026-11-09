@@ -51,5 +51,5 @@ The old core classes stay until section 7, so each task below leaves the tree gr
 
 ## 9. Verification
 
-- [ ] 9.1 Run the conformance suite and check every library system keeps its trajectory on fixed seeds
-- [ ] 9.2 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
+- [x] 9.1 Run the conformance suite and check every library system keeps its trajectory on fixed seeds
+- [x] 9.2 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
