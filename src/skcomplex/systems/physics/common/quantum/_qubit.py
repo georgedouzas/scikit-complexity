@@ -17,13 +17,13 @@ from .....core.specs import HilbertSpec, StateSpec, VisualSpec
 QUBIT = HilbertSpec(
     2,
     {
-        "x": (qutip.sigmax().full(), True),
-        "y": (qutip.sigmay().full(), True),
-        "z": (qutip.sigmaz().full(), True),
-        "plus": (qutip.sigmap().full(), False),
-        "minus": (qutip.sigmam().full(), False),
+        'x': (qutip.sigmax().full(), True),
+        'y': (qutip.sigmay().full(), True),
+        'z': (qutip.sigmaz().full(), True),
+        'plus': (qutip.sigmap().full(), False),
+        'minus': (qutip.sigmam().full(), False),
     },
-    basis={"up": 0, "excited": 0, "down": 1, "ground": 1},
+    basis={'up': 0, 'excited': 0, 'down': 1, 'ground': 1},
 )
 
 
@@ -56,10 +56,10 @@ class QubitElement(Element):
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = "up",
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = VisualSpec("expectations"),
+        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
         super().__init__(label, visual=visual)
         self.psi = psi

@@ -85,8 +85,8 @@ class ReflectionInteraction(CrossingInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         guard: Callable[[SimpleNamespace], object],
-        positions: Sequence[str] = ("x",),
-        velocities: Sequence[str] = ("x_d1",),
+        positions: Sequence[str] = ('x',),
+        velocities: Sequence[str] = ('x_d1',),
         direction: int = 0,
         restitution: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         region: Callable[[SimpleNamespace], object] | None = None,
@@ -123,12 +123,12 @@ class ReflectionInteraction(CrossingInteraction):
         """
         super()._prepare(context)
         if self.region is not None and not callable(self.region):
-            error_msg = f"The region of reflection {self.label!r} must be a function of the namespace."
+            error_msg = f'The region of reflection {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
         if len(self.positions) != len(self.velocities):
             error_msg = (
-                f"Reflection {self.label!r} pairs the positions {self.positions!r} with the velocities "
-                f"{self.velocities!r}. Give one velocity per position."
+                f'Reflection {self.label!r} pairs the positions {self.positions!r} with the velocities '
+                f'{self.velocities!r}. Give one velocity per position.'
             )
             raise ValidationError(error_msg)
 

@@ -6,6 +6,7 @@ The module covers the Curie-Weiss magnet and the Sherrington-Kirkpatrick glass.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -22,19 +23,19 @@ from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
-SPIN_IMAGE = VisualSpec("image", {"states": ("spin",), "low": -1.0, "high": 1.0})
+SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 
 
 def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Generator | None) -> Array:
     """Return all spins up, or random spins, for `initial` set to `'up'` or `'random'`."""
-    if initial == "up":
+    if initial == 'up':
         return np.ones(n_spins)
     return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
 
 
 def _magnetization() -> ObservableSpec:
     """Return the observable of the mean spin of the group `spins`."""
-    return ObservableSpec("magnetization", group="spins", variable="spin")
+    return ObservableSpec('magnetization', group='spins', variable='spin')
 
 
 class FullyConnectedSpinElement(Element):
@@ -153,9 +154,9 @@ class CurieWeissSystem(BaseSystem):
         10
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("mean field", "phase transition", "spins", "jump process")
-    references = ("Bertin 2021", "Glauber 1963")
+    field = 'physics/statistical_mechanics'
+    topics = ('mean field', 'phase transition', 'spins', 'jump process')
+    references = ('Bertin 2021', 'Glauber 1963')
     until = 30.0
     dt = 0.1
     observables = (_magnetization(),)
@@ -167,9 +168,9 @@ class CurieWeissSystem(BaseSystem):
         temperature: float = 0.5,
         J: float = 1.0,
         h: float = 0.0,
-        initial: str = "random",
+        initial: str = 'random',
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_spins = n_spins
@@ -183,12 +184,12 @@ class CurieWeissSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         spins = _initial_spins(self.n_spins, self.initial, self.random_state)
         group = GroupElement(
-            "spins",
+            'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
-            values={"spin": spins, "J": self.J, "h": self.h, "temperature": self.temperature},
+            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
             visual=SPIN_IMAGE,
-            on="sites",
+            on='sites',
         )
         return System(self.label, elements=[group])
 
@@ -230,9 +231,9 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         (True, 0.0)
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("spin glass", "disorder", "mean field", "spins", "jump process")
-    references = ("Sherrington and Kirkpatrick 1975", "Bertin 2021", "Mezard, Parisi, and Virasoro 1987")
+    field = 'physics/statistical_mechanics'
+    topics = ('spin glass', 'disorder', 'mean field', 'spins', 'jump process')
+    references = ('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987')
     until = 50.0
     dt = 0.5
     observables = (_magnetization(),)
@@ -245,7 +246,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         J: float = 1.0,
         h: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_spins = n_spins
@@ -258,19 +259,19 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
-        spins = _initial_spins(self.n_spins, "random", rng)
+        spins = _initial_spins(self.n_spins, 'random', rng)
         group = GroupElement(
-            "spins",
+            'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
             values={
-                "spin": spins,
-                "J": self.J,
-                "h": self.h,
-                "temperature": self.temperature,
-                "couplings": upper + upper.T,
+                'spin': spins,
+                'J': self.J,
+                'h': self.h,
+                'temperature': self.temperature,
+                'couplings': upper + upper.T,
             },
             visual=SPIN_IMAGE,
-            on="sites",
+            on='sites',
         )
         return System(self.label, elements=[group])

@@ -112,9 +112,9 @@ class AvalancheInteraction(CascadeInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = "height",
+        state: str = 'height',
         threshold: int = 4,
-        mode: str = "redistribute",
+        mode: str = 'redistribute',
     ) -> None:
         super().__init__(
             label,
@@ -134,7 +134,7 @@ class AvalancheInteraction(CascadeInteraction):
         return following
 
 
-NEAREST = BallNeighborhood(metric="manhattan", center="first")
+NEAREST = BallNeighborhood(metric='manhattan', center='first')
 
 
 BURNING = 2
@@ -175,7 +175,7 @@ class FireInteraction(LocalRuleInteraction):
         super().__init__(
             label,
             target=target,
-            state="cover",
+            state='cover',
             rule=self._burn,
             neighborhood=neighborhood,
             stochastic=True,
@@ -192,8 +192,8 @@ class FireInteraction(LocalRuleInteraction):
 
 
 SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    "triangular": BallNeighborhood(metric="hexagonal", center="first"),
-    "graph": AdjacencyNeighborhood(center=True),
+    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
+    'graph': AdjacencyNeighborhood(center=True),
 }
 
 
@@ -224,9 +224,9 @@ class SandpileSystem(BaseSystem):
         100
     """
 
-    field = "physics/criticality"
-    topics = ("lattice", "avalanches", "power law")
-    references = ("Bak, Tang, and Wiesenfeld 1987", "Charbonneau 2017")
+    field = 'physics/criticality'
+    topics = ('lattice', 'avalanches', 'power law')
+    references = ('Bak, Tang, and Wiesenfeld 1987', 'Charbonneau 2017')
     until = 20000
     dt = 100
 
@@ -235,7 +235,7 @@ class SandpileSystem(BaseSystem):
         shape: Sequence[int] = (50, 50),
         *,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -247,13 +247,13 @@ class SandpileSystem(BaseSystem):
         The pile starts from random stable heights.
         """
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
-        space = LatticeSpace(tuple(self.shape), boundary="fixed")
+        space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
             elements=[
-                GroupElement("pile", element=SandpileCellElement, space=space, values={"height": heights}, on="sites"),
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
             ],
-            interactions=[AvalancheInteraction("avalanche", target="pile")],
+            interactions=[AvalancheInteraction('avalanche', target='pile')],
         )
 
 
@@ -281,9 +281,9 @@ class MannaSandpileSystem(BaseSystem):
         100
     """
 
-    field = "physics/criticality"
-    topics = ("lattice", "avalanches", "power law", "stochastic")
-    references = ("Manna 1991", "Jensen 2023")
+    field = 'physics/criticality'
+    topics = ('lattice', 'avalanches', 'power law', 'stochastic')
+    references = ('Manna 1991', 'Jensen 2023')
     until = 10000
     dt = 50
 
@@ -292,7 +292,7 @@ class MannaSandpileSystem(BaseSystem):
         shape: Sequence[int] = (32, 32),
         *,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -306,13 +306,13 @@ class MannaSandpileSystem(BaseSystem):
         heights = (
             np.random.default_rng(self.random_state).integers(0, MANNA_THRESHOLD, size=tuple(self.shape)).astype(float)
         )
-        space = LatticeSpace(tuple(self.shape), boundary="fixed")
+        space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
             elements=[
-                GroupElement("pile", element=SandpileCellElement, space=space, values={"height": heights}, on="sites"),
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
             ],
-            interactions=[AvalancheInteraction("avalanche", target="pile", threshold=MANNA_THRESHOLD, mode="random")],
+            interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
         )
 
 
@@ -348,9 +348,9 @@ class ForestFireSystem(BaseSystem):
         0.05
     """
 
-    field = "physics/criticality"
-    topics = ("lattice", "fire", "stochastic", "power law")
-    references = ("Drossel and Schwabl 1992", "Charbonneau 2017")
+    field = 'physics/criticality'
+    topics = ('lattice', 'fire', 'stochastic', 'power law')
+    references = ('Drossel and Schwabl 1992', 'Charbonneau 2017')
     until = 500
     dt = 1
 
@@ -362,7 +362,7 @@ class ForestFireSystem(BaseSystem):
         lightning: float = 1e-4,
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -382,14 +382,14 @@ class ForestFireSystem(BaseSystem):
             self.label,
             elements=[
                 GroupElement(
-                    "forest",
+                    'forest',
                     element=ForestElement,
                     space=space,
-                    values={"cover": cover, "growth": self.growth, "lightning": self.lightning},
-                    on="sites",
+                    values={'cover': cover, 'growth': self.growth, 'lightning': self.lightning},
+                    on='sites',
                 ),
             ],
-            interactions=[FireInteraction("fire", target="forest")],
+            interactions=[FireInteraction('fire', target='forest')],
         )
 
 
@@ -436,9 +436,9 @@ class HexagonalForestFireSystem(BaseSystem):
         12
     """
 
-    field = "physics/criticality"
-    topics = ("lattice", "network", "fire", "stochastic", "power law")
-    references = ("Drossel and Schwabl 1992", "Argun et al. 2021")
+    field = 'physics/criticality'
+    topics = ('lattice', 'network', 'fire', 'stochastic', 'power law')
+    references = ('Drossel and Schwabl 1992', 'Argun et al. 2021')
     until = 400
     dt = 2
 
@@ -452,7 +452,7 @@ class HexagonalForestFireSystem(BaseSystem):
         density: float = 0.5,
         cover: Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -466,7 +466,7 @@ class HexagonalForestFireSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         space = (
-            LatticeSpace(tuple(self.shape), geometry="triangular") if self.graph is None else NetworkSpace(self.graph)
+            LatticeSpace(tuple(self.shape), geometry='triangular') if self.graph is None else NetworkSpace(self.graph)
         ).prepare()
         size = int(space.size_ or 0)
         initial = (
@@ -475,15 +475,15 @@ class HexagonalForestFireSystem(BaseSystem):
             else np.ravel(np.asarray(self.cover, dtype=float))
         )
         forest = GroupElement(
-            "forest",
+            'forest',
             element=ForestElement,
             space=space,
-            values={"cover": initial, "growth": self.growth, "lightning": self.lightning},
-            on="sites",
+            values={'cover': initial, 'growth': self.growth, 'lightning': self.lightning},
+            on='sites',
         )
-        neighborhood = SITE_NEIGHBORHOODS["triangular" if self.graph is None else "graph"]
+        neighborhood = SITE_NEIGHBORHOODS['triangular' if self.graph is None else 'graph']
         return System(
             self.label,
             elements=[forest],
-            interactions=[FireInteraction("fire", target="forest", neighborhood=neighborhood)],
+            interactions=[FireInteraction('fire', target='forest', neighborhood=neighborhood)],
         )

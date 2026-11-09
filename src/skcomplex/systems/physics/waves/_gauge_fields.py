@@ -139,7 +139,7 @@ class StaticChargeElement(Element):
         self.q = q
 
 
-DYNAMICS = ("monte-carlo", "hamiltonian")
+DYNAMICS = ('monte-carlo', 'hamiltonian')
 SOLVER_TOLERANCE = 1e-15
 NEUTRAL_TOTAL = 1e-12
 
@@ -147,7 +147,7 @@ NEUTRAL_TOTAL = 1e-12
 def _mean_plaquette(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
     """Return the mean cosine of the oriented link angle sums around the plaquettes."""
     del t
-    return float(np.cos(faces @ np.ravel(np.asarray(values["links.theta"], dtype=float))).mean())
+    return float(np.cos(faces @ np.ravel(np.asarray(values['links.theta'], dtype=float))).mean())
 
 
 def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
@@ -156,8 +156,8 @@ def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str
     The residual is the largest absolute difference of the codifferential of the field and the site charge.
     """
     del t
-    electric = -np.ravel(np.asarray(values["links.A_d1"], dtype=float))
-    charges = np.ravel(np.asarray(values["charges.q"], dtype=float))
+    electric = -np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+    charges = np.ravel(np.asarray(values['charges.q'], dtype=float))
     return float(np.abs(-(edges.T @ electric) - charges).max())
 
 
@@ -167,8 +167,8 @@ def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, 
     The electric field lives on the links and the magnetic field on the plaquettes.
     """
     del t
-    velocity = np.ravel(np.asarray(values["links.A_d1"], dtype=float))
-    magnetic = faces @ np.ravel(np.asarray(values["links.A"], dtype=float))
+    velocity = np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+    magnetic = faces @ np.ravel(np.asarray(values['links.A'], dtype=float))
     return float((velocity @ velocity + magnetic @ magnetic) / 2)
 
 
@@ -250,9 +250,9 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         ['links', 'charges']
     """
 
-    field = "physics/waves"
-    topics = ("gauge", "lattice", "monte carlo", "maxwell", "cell complex")
-    references = ("Schwichtenberg 2020", "Wilson 1974")
+    field = 'physics/waves'
+    topics = ('gauge', 'lattice', 'monte carlo', 'maxwell', 'cell complex')
+    references = ('Schwichtenberg 2020', 'Wilson 1974')
     until = 5000
     dt = 1
 
@@ -263,12 +263,12 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         dimension: int = 2,
         n: int | None = None,
         beta: float = 2.0,
-        dynamics: str = "monte-carlo",
+        dynamics: str = 'monte-carlo',
         charges: Sequence[float] | None = None,
         angles: Sequence[float] | None = None,
         amplitude: float = 0.1,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -289,8 +289,8 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         density = np.zeros(space.size_) if self.charges is None else np.asarray(self.charges, dtype=float)
         if density.size != space.size_ or abs(density.sum()) > NEUTRAL_TOTAL:
             error_msg = (
-                f"The charges are {density.size} values of total {density.sum()}, but a periodic lattice takes one "
-                f"charge per site of its {space.size_} sites, of total 0."
+                f'The charges are {density.size} values of total {density.sum()}, but a periodic lattice takes one '
+                f'charge per site of its {space.size_} sites, of total 0.'
             )
             raise ValidationError(error_msg)
         place = space.space
@@ -299,15 +299,15 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         first = np.unravel_index(sources, place.shape_)[0]
         wave = self.amplitude * np.cos(2 * np.pi * first / place.shape_[0]) * along_last
         links = GroupElement(
-            "links",
+            'links',
             element=MaxwellLinkElement,
             space=space,
-            on="edges",
-            values={"A": wave, "A_d1": -_electric_field(space, density)},
-            visual=VisualSpec("cell", {"state": "A"}),
+            on='edges',
+            values={'A': wave, 'A_d1': -_electric_field(space, density)},
+            visual=VisualSpec('cell', {'state': 'A'}),
         )
-        sites = GroupElement("charges", element=StaticChargeElement, space=space, on="sites", values={"q": density})
-        rate = RateInteraction("maxwell", target="links", state="A", rate=_curl_of_curl)
+        sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
+        rate = RateInteraction('maxwell', target='links', state='A', rate=_curl_of_curl)
         return System(self.label, elements=[links, sites], interactions=[rate])
 
     def _monte_carlo_system(self, space: CellComplexSpace) -> System:
@@ -317,15 +317,15 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         values = () if self.n is None else tuple(2 * np.pi * np.arange(self.n) / self.n)
         drawn = rng.uniform(-np.pi, np.pi, size) if self.n is None else rng.choice(values, size)
         links = GroupElement(
-            "links",
+            'links',
             element=GaugeLinkElement,
             space=space,
-            on="edges",
-            values={"theta": drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
-            visual=VisualSpec("cell", {"state": "theta"}),
+            on='edges',
+            values={'theta': drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
+            visual=VisualSpec('cell', {'state': 'theta'}),
         )
-        move = {"move": "rotate"} if self.n is None else {"move": "random-value", "values": values, "rule": "heat-bath"}
-        sampling = WilsonSamplingInteraction("wilson", target="links", beta=self.beta, **move)
+        move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
+        sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
         return System(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
@@ -342,13 +342,13 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             observables:
                 The observables.
         """
-        links = next(element for element in system.elements if element.label == "links")
+        links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
         if links.element is GaugeLinkElement:
-            return [ObservableSpec("mean_plaquette", function=partial(_mean_plaquette, space.incidences_[1]))]
+            return [ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space.incidences_[1]))]
         return [
-            ObservableSpec("gauss_residual", function=partial(_gauss_residual, space.incidences_[0])),
-            ObservableSpec("field_energy", function=partial(_field_energy, space.incidences_[1])),
+            ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
+            ObservableSpec('field_energy', function=partial(_field_energy, space.incidences_[1])),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -357,11 +357,11 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The settings have the observables of the dynamics, and velocity Verlet for Maxwell.
         """
         settings = super().get_run_settings()
-        settings["observables"] = tuple(self._gauge_observables(self._build_system()))
-        if self.dynamics == "hamiltonian":
-            settings["until"] = 50.0
-            settings["dt"] = 0.5
-            settings["solver"] = VelocityVerletSolver(dt=0.02)
+        settings['observables'] = tuple(self._gauge_observables(self._build_system()))
+        if self.dynamics == 'hamiltonian':
+            settings['until'] = 50.0
+            settings['dt'] = 0.5
+            settings['solver'] = VelocityVerletSolver(dt=0.02)
         return settings
 
     def _build_system(self) -> System:
@@ -370,9 +370,9 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The variables are sampled or evolved in real time.
         """
         if self.dynamics not in DYNAMICS:
-            error_msg = f"Unknown dynamics {self.dynamics!r}. Use one of {', '.join(DYNAMICS)}."
+            error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
             raise ValidationError(error_msg)
         space = CellComplexSpace(LatticeSpace((self.size,) * self.dimension)).prepare()
-        if self.dynamics == "hamiltonian":
+        if self.dynamics == 'hamiltonian':
             return self._maxwell_system(space)
         return self._monte_carlo_system(space)

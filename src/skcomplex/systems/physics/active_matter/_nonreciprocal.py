@@ -24,7 +24,7 @@ from ....core.components.systems import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
-SPECIES = VisualSpec("points", {"position": "x", "radius": 0.04, "color_by": "species", "color_range": (0.0, 1.0)})
+SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 
 
 def _heading_a(member: SimpleNamespace) -> Expression:
@@ -102,8 +102,8 @@ class NonreciprocalMoverElement(Element):
         label: str,
         visual: VisualSpec | None = SPECIES,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role="direction")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         species: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         J_aa: Annotated[float, ParameterSpec()] = 1.0,
@@ -147,8 +147,8 @@ class NonreciprocalMoverElement(Element):
         """
         s = namespace
         over = RadiusNeighborhood(self.radius, center=True)
-        direction = neighbors(s.other.theta, over=over, reduce="circular-mean", weight=self._coupling(s))
-        return [UpdateLaw(s.theta, direction + uniform("noise", -s.eta / 2, s.eta / 2))]
+        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._coupling(s))
+        return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 
 class NonreciprocalVicsekSystem(BaseSystem):
@@ -190,14 +190,14 @@ class NonreciprocalVicsekSystem(BaseSystem):
         20
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "flocking", "nonreciprocal", "vicsek", "chiral phase")
-    references = ("Fruchart, Hanai, Littlewood, and Vitelli 2021", "te Vrugt and Wittkowski 2024")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'flocking', 'nonreciprocal', 'vicsek', 'chiral phase')
+    references = ('Fruchart, Hanai, Littlewood, and Vitelli 2021', 'te Vrugt and Wittkowski 2024')
     until = 300.0
     dt = 1.0
     observables = (
-        ObservableSpec("heading_a", _heading_a, group="movers"),
-        ObservableSpec("heading_b", _heading_b, group="movers"),
+        ObservableSpec('heading_a', _heading_a, group='movers'),
+        ObservableSpec('heading_b', _heading_b, group='movers'),
     )
 
     def __init__(
@@ -209,7 +209,7 @@ class NonreciprocalVicsekSystem(BaseSystem):
         J_ba: float = -1.0,
         eta: float = 0.3,
         random_state: int | np.random.Generator | None = 1,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_movers = n_movers
@@ -227,22 +227,22 @@ class NonreciprocalVicsekSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         species = (np.arange(self.n_movers) % 2).astype(float)
         movers = GroupElement(
-            "movers",
+            'movers',
             element=NonreciprocalMoverElement,
             size=self.n_movers,
             values={
-                "x": rng.uniform(0, self.size, (self.n_movers, 2)),
-                "theta": rng.uniform(-math.pi, math.pi, self.n_movers),
-                "species": species,
-                "J_ab": self.J_ab,
-                "J_ba": self.J_ba,
-                "eta": self.eta,
+                'x': rng.uniform(0, self.size, (self.n_movers, 2)),
+                'theta': rng.uniform(-math.pi, math.pi, self.n_movers),
+                'species': species,
+                'J_ab': self.J_ab,
+                'J_ba': self.J_ba,
+                'eta': self.eta,
             },
         )
         return System(
             self.label,
             elements=[movers],
-            interactions=[PropulsionStepInteraction("propulsion", target="movers", speed=0.05)],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary="periodic"),
+            interactions=[PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
             time=DiscreteTime(),
         )

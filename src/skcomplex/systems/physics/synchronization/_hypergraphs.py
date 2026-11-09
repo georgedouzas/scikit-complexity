@@ -126,12 +126,12 @@ class HypergraphKuramotoSystem(BaseSystem):
         35
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "hypergraph")
-    references = ("Skardal and Arenas 2019", "Majhi et al. 2022")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'hypergraph')
+    references = ('Skardal and Arenas 2019', 'Majhi et al. 2022')
     until = 40.0
     dt = 0.1
-    observables = tuple(order_parameter("order", "oscillators"))
+    observables = tuple(order_parameter('order', 'oscillators'))
 
     def __init__(
         self,
@@ -144,7 +144,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         triangles: float = 1.0,
         phases: Sequence[float] | None = None,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -179,16 +179,16 @@ class HypergraphKuramotoSystem(BaseSystem):
             else np.asarray(self.phases, dtype=float)
         )
         oscillators = GroupElement(
-            "oscillators",
+            'oscillators',
             element=PhaseOscillatorElement,
             space=space,
-            values={"theta": theta, "omega": omega},
-            visual=VisualSpec("sites", {"states": ["theta"], "low": 0.0, "high": 2 * math.pi}),
-            on="sites",
+            values={'theta': theta, 'omega': omega},
+            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
         coupling = SimplexCouplingInteraction(
-            "coupling",
-            target="oscillators",
+            'coupling',
+            target='oscillators',
             K1=self.K1 / mean_links,
             K2=self.K2 / mean_triangles,
         )

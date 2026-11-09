@@ -153,7 +153,7 @@ class CartPendulumElement(Element):
         5.0
     """
 
-    visual = VisualSpec("bodies", {"positions": _cart_and_bob, "rods": True, "traced": [1]})
+    visual = VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]})
 
     def __init__(
         self,
@@ -323,7 +323,7 @@ class DoublePendulumElement(Element):
         2.0
     """
 
-    visual = VisualSpec("bodies", {"positions": _double_bobs, "pivot": (0.0, 0.0), "rods": True, "traced": [1]})
+    visual = VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]})
 
     def __init__(
         self,
@@ -438,7 +438,7 @@ class CartPendulumInteraction(EulerLagrangeInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=("y", "theta"), forcing=self._get_forces_on_coordinates)
+        super().__init__(label, target=target, states=('y', 'theta'), forcing=self._get_forces_on_coordinates)
 
     @staticmethod
     def _get_forces_on_coordinates(namespace: SimpleNamespace) -> list[Expression]:
@@ -485,7 +485,7 @@ class ClockPendulumInteraction(EulerLagrangeInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=("theta", "x"), dissipation=self._get_escapement)
+        super().__init__(label, target=target, states=('theta', 'x'), dissipation=self._get_escapement)
 
     @staticmethod
     def _get_escapement(namespace: SimpleNamespace) -> Expression:
@@ -533,7 +533,7 @@ class DoublePendulumInteraction(EulerLagrangeInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states=("theta1", "theta2"))
+        super().__init__(label, target=target, states=('theta1', 'theta2'))
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
         """Return the Lagrangian of the double pendulum.
@@ -609,7 +609,7 @@ class MagnetInteraction(PotentialEnergyInteraction):
         return -s.gamma / sqrt(displacement.dot_product(displacement) + s.d**2)
 
 
-DIRECTIONS = ("vertical", "horizontal")
+DIRECTIONS = ('vertical', 'horizontal')
 
 
 class ParametricPendulumInteraction(EulerLagrangeInteraction):
@@ -644,8 +644,8 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
         'theta'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], direction: str = "vertical") -> None:
-        super().__init__(label, target=target, states="theta", dissipation=self._get_friction)
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], direction: str = 'vertical') -> None:
+        super().__init__(label, target=target, states='theta', dissipation=self._get_friction)
         self.direction = direction
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
@@ -661,7 +661,7 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
         """
         super()._prepare(context)
         if self.direction not in DIRECTIONS:
-            error_msg = f"Unknown direction {self.direction!r}. Use one of {', '.join(DIRECTIONS)}."
+            error_msg = f'Unknown direction {self.direction!r}. Use one of {", ".join(DIRECTIONS)}.'
             raise ValidationError(error_msg)
 
     @staticmethod
@@ -682,7 +682,7 @@ class ParametricPendulumInteraction(EulerLagrangeInteraction):
         """
         p = namespace.target
         drive = p.epsilon * cos(p.Omega * namespace.t)
-        if self.direction == "horizontal":
+        if self.direction == 'horizontal':
             return derivative(p.theta, 1) ** 2 / 2 + p.g / p.l * (cos(p.theta) - drive * sin(p.theta))
         return derivative(p.theta, 1) ** 2 / 2 + p.g / p.l * (1 + drive) * cos(p.theta)
 
@@ -723,7 +723,7 @@ class PendulumSpringInteraction(EulerLagrangeInteraction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states="theta")
+        super().__init__(label, target=first, states='theta')
         self.first = first
         self.second = second
         self.k = k
@@ -777,7 +777,7 @@ class SupportSpringInteraction(EulerLagrangeInteraction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, target=first, states="x")
+        super().__init__(label, target=first, states='x')
         self.first = first
         self.second = second
         self.k = k
@@ -843,9 +843,9 @@ class DoublePendulumSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "chaos", "lagrangian")
-    references = ("Ryzhov et al. 2021", "Argun et al. 2021")
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'chaos', 'lagrangian')
+    references = ('Ryzhov et al. 2021', 'Argun et al. 2021')
     until = 20.0
     dt = 0.02
 
@@ -861,7 +861,7 @@ class DoublePendulumSystem(BaseSystem):
         l1: float = 1.0,
         l2: float = 1.0,
         g: float = 9.81,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.theta1 = theta1
@@ -880,7 +880,7 @@ class DoublePendulumSystem(BaseSystem):
             self.label,
             elements=[
                 DoublePendulumElement(
-                    "pendulum",
+                    'pendulum',
                     theta1=self.theta1,
                     theta2=self.theta2,
                     theta1_d1=self.omega1,
@@ -892,7 +892,7 @@ class DoublePendulumSystem(BaseSystem):
                     g=self.g,
                 ),
             ],
-            interactions=[DoublePendulumInteraction("motion", target="pendulum")],
+            interactions=[DoublePendulumInteraction('motion', target='pendulum')],
         )
 
 
@@ -940,9 +940,9 @@ class CoupledPendulumsSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "oscillation", "normal modes")
-    references = ("Ryzhov et al. 2021",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation', 'normal modes')
+    references = ('Ryzhov et al. 2021',)
     until = 40.0
     dt = 0.05
 
@@ -957,7 +957,7 @@ class CoupledPendulumsSystem(BaseSystem):
         l1: float = 1.0,
         l2: float = 1.0,
         g: float = 9.81,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.theta1 = theta1
@@ -977,13 +977,13 @@ class CoupledPendulumsSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                PendulumElement("left", theta=self.theta1, m=self.m1, l=self.l1, g=self.g),
-                PendulumElement("right", theta=self.theta2, m=self.m2, l=self.l2, g=self.g),
+                PendulumElement('left', theta=self.theta1, m=self.m1, l=self.l1, g=self.g),
+                PendulumElement('right', theta=self.theta2, m=self.m2, l=self.l2, g=self.g),
             ],
             interactions=[
-                PendulumSpringInteraction("spring", first="left", second="right", k=self.k),
-                PendulumInteraction("left_swing", target="left"),
-                PendulumInteraction("right_swing", target="right"),
+                PendulumSpringInteraction('spring', first='left', second='right', k=self.k),
+                PendulumInteraction('left_swing', target='left'),
+                PendulumInteraction('right_swing', target='right'),
             ],
         )
 
@@ -1029,9 +1029,9 @@ class CartPendulumSystem(BaseSystem):
         5.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "lagrangian", "momentum")
-    references = ("Ryzhov et al. 2021",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'lagrangian', 'momentum')
+    references = ('Ryzhov et al. 2021',)
     until = 10.0
     dt = 0.02
 
@@ -1045,7 +1045,7 @@ class CartPendulumSystem(BaseSystem):
         l: float = 1.0,
         g: float = 9.81,
         F: float = 0.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.theta = theta
@@ -1065,7 +1065,7 @@ class CartPendulumSystem(BaseSystem):
             self.label,
             elements=[
                 CartPendulumElement(
-                    "cart",
+                    'cart',
                     y=self.y,
                     theta=self.theta,
                     m1=self.m1,
@@ -1075,7 +1075,7 @@ class CartPendulumSystem(BaseSystem):
                     F=self.F,
                 ),
             ],
-            interactions=[CartPendulumInteraction("motion", target="cart")],
+            interactions=[CartPendulumInteraction('motion', target='cart')],
         )
 
 
@@ -1125,9 +1125,9 @@ class ParametricPendulumSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "forcing", "parametric resonance")
-    references = ("Dilão 2023",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'forcing', 'parametric resonance')
+    references = ('Dilão 2023',)
     until = 30.0
     dt = 0.02
 
@@ -1141,8 +1141,8 @@ class ParametricPendulumSystem(BaseSystem):
         epsilon: float = 0.2,
         Omega: float = 2 * math.sqrt(9.81),
         c: float = 0.0,
-        direction: str = "vertical",
-        label: str = "system",
+        direction: str = 'vertical',
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.theta = theta
@@ -1160,7 +1160,7 @@ class ParametricPendulumSystem(BaseSystem):
             self.label,
             elements=[
                 ParametricPendulumElement(
-                    "swing",
+                    'swing',
                     theta=self.theta,
                     theta_d1=self.omega,
                     g=self.g,
@@ -1170,7 +1170,7 @@ class ParametricPendulumSystem(BaseSystem):
                     c=self.c,
                 ),
             ],
-            interactions=[ParametricPendulumInteraction("motion", target="swing", direction=self.direction)],
+            interactions=[ParametricPendulumInteraction('motion', target='swing', direction=self.direction)],
         )
 
 
@@ -1213,9 +1213,9 @@ class MagneticPendulumSystem(BaseSystem):
         6
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "multistability", "fractal basins")
-    references = ("Datseris and Parlitz 2022",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'multistability', 'fractal basins')
+    references = ('Datseris and Parlitz 2022',)
     until = 50.0
     dt = 0.05
 
@@ -1229,7 +1229,7 @@ class MagneticPendulumSystem(BaseSystem):
         q: float = 0.2,
         gamma: float = 1.0,
         d: float = 0.3,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -1248,8 +1248,8 @@ class MagneticPendulumSystem(BaseSystem):
         angles = 2 * np.pi * np.arange(self.n_magnets) / self.n_magnets
         magnets = [
             MagnetInteraction(
-                f"magnet_{index}",
-                target="bob",
+                f'magnet_{index}',
+                target='bob',
                 center=[round(float(np.cos(angle)), 12), round(float(np.sin(angle)), 12)],
                 gamma=self.gamma,
                 d=self.d,
@@ -1258,10 +1258,10 @@ class MagneticPendulumSystem(BaseSystem):
         ]
         return System(
             self.label,
-            elements=[MassPointElement("bob", x=[self.x, self.y], x_d1=[0.0, 0.0])],
+            elements=[MassPointElement('bob', x=[self.x, self.y], x_d1=[0.0, 0.0])],
             interactions=[
-                HarmonicPotentialInteraction("string", target="bob", k=self.omega**2),
-                DampingInteraction("friction", target="bob", gamma=self.q),
+                HarmonicPotentialInteraction('string', target='bob', k=self.omega**2),
+                DampingInteraction('friction', target='bob', gamma=self.q),
                 *magnets,
             ],
             space=ContinuousSpace(n_dim=2),
@@ -1306,9 +1306,9 @@ class BallisticPendulumSystem(BaseSystem):
         -2.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "events", "impacts", "momentum", "hybrid")
-    references = ("Ryzhov et al. 2021",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts', 'momentum', 'hybrid')
+    references = ('Ryzhov et al. 2021',)
     until = 3.0
     dt = 0.01
 
@@ -1321,7 +1321,7 @@ class BallisticPendulumSystem(BaseSystem):
         M: float = 1.0,
         l: float = 1.0,
         g: float = 9.81,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.speed = speed
@@ -1337,18 +1337,18 @@ class BallisticPendulumSystem(BaseSystem):
         The pendulum then swings up.
         """
         swing = EulerLagrangeInteraction(
-            "swing",
-            target="pendulum",
-            states="theta",
+            'swing',
+            target='pendulum',
+            states='theta',
             lagrangian=lambda s: s.target.l * derivative(s.target.theta, 1) ** 2 / 2 + s.target.g * cos(s.target.theta),
         )
         impact = CrossingInteraction(
-            "impact",
-            target="pendulum",
+            'impact',
+            target='pendulum',
             guard=lambda s: s.target.x,
             reset={
-                "x_d1": lambda s: 0,
-                "theta_d1": lambda s: s.target.m * s.target.x_d1 / ((s.target.m + s.target.M) * s.target.l),
+                'x_d1': lambda s: 0,
+                'theta_d1': lambda s: s.target.m * s.target.x_d1 / ((s.target.m + s.target.M) * s.target.l),
             },
             direction=1,
         )
@@ -1356,7 +1356,7 @@ class BallisticPendulumSystem(BaseSystem):
             self.label,
             elements=[
                 BallisticPendulumElement(
-                    "pendulum",
+                    'pendulum',
                     x=-self.distance,
                     x_d1=self.speed,
                     m=self.m,
@@ -1422,9 +1422,9 @@ class HuygensClocksSystem(BaseSystem):
         5
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "synchronization", "limit cycle")
-    references = ("Huygens 1673", "Dilão 2023", "Dilão 2023")
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'synchronization', 'limit cycle')
+    references = ('Huygens 1673', 'Dilão 2023', 'Dilão 2023')
     until = 20.0
     dt = 0.05
 
@@ -1441,7 +1441,7 @@ class HuygensClocksSystem(BaseSystem):
         rho: float = 0.1,
         lam: float = 0.1,
         theta_c: float = 0.1,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_clocks = n_clocks
@@ -1459,7 +1459,7 @@ class HuygensClocksSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         clocks = [
             ClockPendulumElement(
-                f"clock_{index}",
+                f'clock_{index}',
                 theta=self.theta if index == 0 else 0.0,
                 m=self.m,
                 l=self.l,
@@ -1472,10 +1472,10 @@ class HuygensClocksSystem(BaseSystem):
             for index in range(self.n_clocks)
         ]
         springs = [
-            SupportSpringInteraction(f"spring_{index}", first=f"clock_{index}", second=f"clock_{index + 1}", k=self.k)
+            SupportSpringInteraction(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=self.k)
             for index in range(self.n_clocks - 1)
         ]
         motions = [
-            ClockPendulumInteraction(f"motion_{index}", target=f"clock_{index}") for index in range(self.n_clocks)
+            ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(self.n_clocks)
         ]
         return System(self.label, elements=clocks, interactions=[*springs, *motions])

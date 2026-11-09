@@ -7,6 +7,6 @@ from ._phase_space_density import PhaseSpaceDensityElement
 from ._wilson_sampling import WilsonSamplingInteraction
 
 __all__: list[str] = [
-    "PhaseSpaceDensityElement",
-    "WilsonSamplingInteraction",
+    'PhaseSpaceDensityElement',
+    'WilsonSamplingInteraction',
 ]

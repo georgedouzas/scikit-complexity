@@ -87,9 +87,9 @@ class HeatDiffusionSystem(BaseSystem):
         100
     """
 
-    field = "physics/heat"
-    topics = ("field", "diffusion", "pde")
-    references = ("Fourier 1822", "Datseris and Parlitz 2022")
+    field = 'physics/heat'
+    topics = ('field', 'diffusion', 'pde')
+    references = ('Fourier 1822', 'Datseris and Parlitz 2022')
     until = 50.0
     dt = 1.0
 
@@ -99,8 +99,8 @@ class HeatDiffusionSystem(BaseSystem):
         *,
         D: float = 1.0,
         spacing: float = 1.0,
-        boundary: str = "zero-flux",
-        label: str = "system",
+        boundary: str = 'zero-flux',
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -117,21 +117,21 @@ class HeatDiffusionSystem(BaseSystem):
         u = np.zeros(shape)
         middle = tuple(slice(size // 2 - max(size // 8, 1), size // 2 + max(size // 8, 1)) for size in shape)
         u[middle] = 1.0
-        condition = ("fixed", 0.0) if self.boundary == "fixed" else self.boundary
+        condition = ('fixed', 0.0) if self.boundary == 'fixed' else self.boundary
         space = LatticeSpace(shape, spacing=self.spacing)
         return System(
             self.label,
             elements=[
                 FieldElement(
-                    "plate",
+                    'plate',
                     element=HeatElement,
                     space=space,
-                    boundary={"u": condition},
-                    values={"u": u, "D": self.D},
+                    boundary={'u': condition},
+                    values={'u': u, 'D': self.D},
                 ),
             ],
             interactions=[
-                DiffusionInteraction("conduction", target="plate", state="u", coefficient=lambda s: s.target.D),
+                DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
             ],
         )
 
@@ -188,9 +188,9 @@ class HeatLShapeSystem(BaseSystem):
         21
     """
 
-    field = "physics/heat"
-    topics = ("field", "diffusion", "finite element", "mesh", "pde")
-    references = ("Strang and Fix 1973", "Gustafsson and McBain 2020")
+    field = 'physics/heat'
+    topics = ('field', 'diffusion', 'finite element', 'mesh', 'pde')
+    references = ('Strang and Fix 1973', 'Gustafsson and McBain 2020')
     until = 2.0
     dt = 0.1
     solver = IMEXEulerSolver(dt=0.05)
@@ -201,7 +201,7 @@ class HeatLShapeSystem(BaseSystem):
         *,
         D: float = 1.0,
         temperature: Callable[[Array, Array], Array] | float = harmonic,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.refine = refine
@@ -216,15 +216,15 @@ class HeatLShapeSystem(BaseSystem):
             self.label,
             elements=[
                 FieldElement(
-                    "plate",
+                    'plate',
                     element=HeatElement,
                     space=mesh,
-                    boundary={"u": ("fixed", self.temperature)},
-                    values={"D": self.D},
-                    discretization="finite-element",
+                    boundary={'u': ('fixed', self.temperature)},
+                    values={'D': self.D},
+                    discretization='finite-element',
                 ),
             ],
             interactions=[
-                DiffusionInteraction("conduction", target="plate", state="u", coefficient=lambda s: s.target.D),
+                DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
             ],
         )

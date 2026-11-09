@@ -39,8 +39,8 @@ class ThermalNoiseInteraction(RateInteraction):
         'gamma'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = "x") -> None:
-        super().__init__(label, target=target, state=state, divisor="gamma")
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'x') -> None:
+        super().__init__(label, target=target, state=state, divisor='gamma')
 
     def _get_noise(self, namespace: SimpleNamespace) -> object:
         """Return the amplitude `sqrt(2 gamma temperature)` of the random force.

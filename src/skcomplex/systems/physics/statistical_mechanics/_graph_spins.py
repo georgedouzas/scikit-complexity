@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 import networkx as nx
 import numpy as np
 
@@ -55,9 +56,9 @@ class GraphIsingSystem(BaseSystem):
         10
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("network", "Monte Carlo", "phase transition", "spins")
-    references = ("Argun et al. 2021", "Dorogovtsev, Goltsev, and Mendes 2008")
+    field = 'physics/statistical_mechanics'
+    topics = ('network', 'Monte Carlo', 'phase transition', 'spins')
+    references = ('Argun et al. 2021', 'Dorogovtsev, Goltsev, and Mendes 2008')
     until = 200
     dt = 1
 
@@ -68,10 +69,10 @@ class GraphIsingSystem(BaseSystem):
         temperature: float = 2.0,
         J: float = 1.0,
         h: float = 0.0,
-        initial: str = "random",
-        sampler: str = "metropolis",
+        initial: str = 'random',
+        sampler: str = 'metropolis',
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.graph = graph
@@ -92,20 +93,20 @@ class GraphIsingSystem(BaseSystem):
         if graph is None:
             graph = nx.random_regular_graph(DEGREE, NODES, seed=int(rng.integers(2**31)))
         size = graph.number_of_nodes()
-        spins = np.ones(size) if self.initial == "up" else rng.choice([-1.0, 1.0], size=size)
+        spins = np.ones(size) if self.initial == 'up' else rng.choice([-1.0, 1.0], size=size)
         space = NetworkSpace(graph)
         group = GroupElement(
-            "spins",
+            'spins',
             element=IsingSpinElement,
             space=space,
-            values={"spin": spins, "J": self.J, "h": self.h, "temperature": self.temperature},
-            on="sites",
+            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
         sampling = IsingSamplingInteraction(
-            "sampling",
-            target="spins",
+            'sampling',
+            target='spins',
             rule=self.sampler,
-            schedule="colored",
+            schedule='colored',
             neighborhood=AdjacencyNeighborhood(),
         )
         return System(self.label, elements=[group], interactions=[sampling])

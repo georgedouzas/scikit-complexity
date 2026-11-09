@@ -130,11 +130,11 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
         super().__init__(
             label,
             target=target,
-            read="theta",
-            write="theta",
+            read='theta',
+            write='theta',
             function=self._response,
-            reduce="mean",
-            mode="group",
+            reduce='mean',
+            mode='group',
             include_self=True,
         )
         self.K = K
@@ -177,12 +177,12 @@ class WinfreeSystem(BaseSystem):
         1
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "oscillator death")
-    references = ("Winfree 1967", "Ariaratnam and Strogatz 2001", "Bick et al. 2020")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'oscillator death')
+    references = ('Winfree 1967', 'Ariaratnam and Strogatz 2001', 'Bick et al. 2020')
     until = 50.0
     dt = 0.5
-    observables = tuple(order_parameter("order", "oscillators"))
+    observables = tuple(order_parameter('order', 'oscillators'))
 
     def __init__(
         self,
@@ -191,7 +191,7 @@ class WinfreeSystem(BaseSystem):
         K: float = 0.5,
         spread: float = 0.1,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -202,18 +202,18 @@ class WinfreeSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         oscillators = GroupElement(
-            "oscillators",
+            'oscillators',
             element=PhaseOscillatorElement,
             size=self.n_oscillators,
             values={
-                "theta": np.random.default_rng(self.seed).uniform(0, 2 * np.pi, self.n_oscillators),
-                "omega": np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
+                'theta': np.random.default_rng(self.seed).uniform(0, 2 * np.pi, self.n_oscillators),
+                'omega': np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
             },
         )
         return System(
             self.label,
             elements=[oscillators],
-            interactions=[WinfreeMeanFieldInteraction("coupling", target="oscillators", K=self.K)],
+            interactions=[WinfreeMeanFieldInteraction('coupling', target='oscillators', K=self.K)],
         )
 
 
@@ -253,9 +253,9 @@ class MirolloStrogatzSystem(BaseSystem):
         3
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "events", "pulse coupling", "integrate and fire")
-    references = ("Mirollo and Strogatz 1990", "Arenas et al. 2008")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'events', 'pulse coupling', 'integrate and fire')
+    references = ('Mirollo and Strogatz 1990', 'Arenas et al. 2008')
     until = 20.0
     dt = 0.1
 
@@ -267,7 +267,7 @@ class MirolloStrogatzSystem(BaseSystem):
         gamma: float = 1.0,
         epsilon: float = 0.1,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -283,17 +283,17 @@ class MirolloStrogatzSystem(BaseSystem):
         """
         charges = np.random.default_rng(self.seed).uniform(0.0, 1.0, self.n_oscillators)
         oscillators = GroupElement(
-            "oscillators",
+            'oscillators',
             element=IntegrateAndFireOscillatorElement,
             size=self.n_oscillators,
-            values={"x": charges, "S": self.S, "gamma": self.gamma, "epsilon": self.epsilon},
+            values={'x': charges, 'S': self.S, 'gamma': self.gamma, 'epsilon': self.epsilon},
         )
         fire = CrossingInteraction(
-            "fire",
-            target="oscillators",
+            'fire',
+            target='oscillators',
             guard=lambda s: maximum(s.target.x) - 1,
             reset={
-                "x": lambda s: where(
+                'x': lambda s: where(
                     s.target.x >= maximum(s.target.x),
                     0,
                     where(s.target.x + s.target.epsilon >= 1, 0, s.target.x + s.target.epsilon),

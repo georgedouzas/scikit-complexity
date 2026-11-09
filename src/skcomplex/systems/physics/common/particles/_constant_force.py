@@ -50,8 +50,8 @@ class ConstantForceInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         F: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        state: str = "x",
-        divisor: str = "m",
+        state: str = 'x',
+        divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, state=state, divisor=divisor)
         self.F = F

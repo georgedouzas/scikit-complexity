@@ -38,7 +38,7 @@ class PendulumInteraction(EulerLagrangeInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, states="theta")
+        super().__init__(label, target=target, states='theta')
 
     def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
         """Return the Lagrangian `m l² θ'² / 2 + m g l cos θ` of the pendulum.

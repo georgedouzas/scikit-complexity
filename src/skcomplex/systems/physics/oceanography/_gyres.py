@@ -83,7 +83,7 @@ def _streamfunction(s: SimpleNamespace) -> Expression:
 
     It is the inversion of its relative potential vorticity with walls at rest.
     """
-    streamfunction: Expression = inverse_helmholtz(s.zeta, 1 / s.Rd, ("fixed", 0))
+    streamfunction: Expression = inverse_helmholtz(s.zeta, 1 / s.Rd, ('fixed', 0))
     return streamfunction
 
 
@@ -139,13 +139,13 @@ class DoubleGyreSystem(BaseSystem):
         1.0
     """
 
-    field = "physics/oceanography"
-    topics = ("quasi-geostrophic", "gyre", "western boundary current", "field", "inversion", "pde")
-    references = ("Munk 1950", "arXiv:1910.00583")
+    field = 'physics/oceanography'
+    topics = ('quasi-geostrophic', 'gyre', 'western boundary current', 'field', 'inversion', 'pde')
+    references = ('Munk 1950', 'arXiv:1910.00583')
     until = 400.0
     dt = 0.4
     solver = RK4Solver(dt=0.4)
-    observables = (ObservableSpec("psi", _streamfunction, group="basin", reduce=_sites),)
+    observables = (ObservableSpec('psi', _streamfunction, group='basin', reduce=_sites),)
 
     def __init__(
         self,
@@ -156,7 +156,7 @@ class DoubleGyreSystem(BaseSystem):
         Rd: float = 1.0,
         nu: float = 1.25e-4,
         tau0: float = 1e-5,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -199,28 +199,28 @@ class DoubleGyreSystem(BaseSystem):
         latitudes = (np.arange(self.n_sites) + 0.5) * spacing
         curl = -self.tau0 * (2 * np.pi / self.length) * np.sin(2 * np.pi * latitudes / self.length)
         values = {
-            "zeta": 0.0,
-            "beta": self.beta,
-            "Rd": self.Rd,
-            "nu": self.nu,
-            "curl": np.broadcast_to(curl, (self.n_sites, self.n_sites)).copy(),
+            'zeta': 0.0,
+            'beta': self.beta,
+            'Rd': self.Rd,
+            'nu': self.nu,
+            'curl': np.broadcast_to(curl, (self.n_sites, self.n_sites)).copy(),
         }
         basin = FieldElement(
-            "basin",
+            'basin',
             element=QuasiGeostrophicSiteElement,
-            space=LatticeSpace((self.n_sites, self.n_sites), spacing=spacing, boundary="fixed"),
-            boundary={"zeta": ("fixed", 0.0)},
+            space=LatticeSpace((self.n_sites, self.n_sites), spacing=spacing, boundary='fixed'),
+            boundary={'zeta': ('fixed', 0.0)},
             values=values,
         )
         transport = AdvectionInteraction(
-            "transport",
-            target="basin",
-            state="zeta",
+            'transport',
+            target='basin',
+            state='zeta',
             drift=self._velocity,
             source=self._beta_drift,
             limiter=None,
             riemann=None,
         )
-        wind = RateInteraction("wind", target="basin", state="zeta", rate=self._wind)
-        viscosity = DiffusionInteraction("viscosity", target="basin", state="zeta", coefficient=self._viscosity)
+        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._wind)
+        viscosity = DiffusionInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
         return System(self.label, elements=[basin], interactions=[transport, wind, viscosity])

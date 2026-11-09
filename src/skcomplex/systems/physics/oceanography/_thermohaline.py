@@ -124,9 +124,9 @@ class StommelSystem(BaseSystem):
         1.0
     """
 
-    field = "physics/oceanography"
-    topics = ("ode", "bistability", "thermohaline circulation", "tipping")
-    references = ("Stommel 1961", "Cessi 1994", "Ghil and Lucarini 2020")
+    field = 'physics/oceanography'
+    topics = ('ode', 'bistability', 'thermohaline circulation', 'tipping')
+    references = ('Stommel 1961', 'Cessi 1994', 'Ghil and Lucarini 2020')
     until = 50.0
     dt = 0.1
 
@@ -138,7 +138,7 @@ class StommelSystem(BaseSystem):
         eta1: float = 3.0,
         eta2: float = 1.2,
         eta3: float = 0.3,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.T = T
@@ -154,5 +154,5 @@ class StommelSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[StommelBoxesElement("ocean", T=self.T, S=self.S, eta1=self.eta1, eta2=self.eta2, eta3=self.eta3)],
+            elements=[StommelBoxesElement('ocean', T=self.T, S=self.S, eta1=self.eta1, eta2=self.eta2, eta3=self.eta3)],
         )

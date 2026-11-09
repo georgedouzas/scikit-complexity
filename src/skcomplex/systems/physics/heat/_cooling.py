@@ -87,9 +87,9 @@ class CoolingCoffeeSystem(BaseSystem):
         5.0
     """
 
-    field = "physics/heat"
-    topics = ("heat", "ode", "balancing feedback", "stocks and flows")
-    references = ("Newton 1701", "Meadows 2008")
+    field = 'physics/heat'
+    topics = ('heat', 'ode', 'balancing feedback', 'stocks and flows')
+    references = ('Newton 1701', 'Meadows 2008')
     until = 60.0
     dt = 0.5
 
@@ -99,7 +99,7 @@ class CoolingCoffeeSystem(BaseSystem):
         *,
         room: float = 20.0,
         k: float = 0.1,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.T = T
@@ -112,14 +112,14 @@ class CoolingCoffeeSystem(BaseSystem):
         The temperature follows `T' = -k (T - T_room)`.
         """
         cooling = RelaxationTimeInteraction(
-            "cooling",
-            target="coffee",
-            state="T",
+            'cooling',
+            target='coffee',
+            state='T',
             goal=lambda s: s.target.room,
             time=lambda s: 1 / s.target.k,
         )
         return System(
             self.label,
-            elements=[CoffeeCupElement("coffee", T=self.T, room=self.room, k=self.k)],
+            elements=[CoffeeCupElement('coffee', T=self.T, room=self.room, k=self.k)],
             interactions=[cooling],
         )

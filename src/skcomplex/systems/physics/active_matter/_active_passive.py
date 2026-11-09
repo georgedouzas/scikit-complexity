@@ -63,7 +63,7 @@ class FlockingAgentElement(PointElement):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
         visual: VisualSpec | None = None,
         *,
@@ -99,7 +99,7 @@ def _mean_distance(t: float, values: Mapping[str, object], *, mark: float, size:
     The distance is 0 for fewer than two agents.
     """
     del t
-    positions = np.asarray(values["agents.x"], dtype=float)[np.asarray(values["agents.active"]) == mark]
+    positions = np.asarray(values['agents.x'], dtype=float)[np.asarray(values['agents.active']) == mark]
     count = len(positions)
     if count < SMALLEST_GROUP:
         return 0.0
@@ -181,9 +181,9 @@ class ActivePassiveFlockingSystem(BaseSystem):
         ['agents']
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "sde", "flocking", "phase separation", "pair interaction")
-    references = ("Charbonneau 2017", "Silverberg et al. 2013")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'flocking', 'phase separation', 'pair interaction')
+    references = ('Charbonneau 2017', 'Silverberg et al. 2013')
     until = 50.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=TIME_STEP)
@@ -206,7 +206,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         time_step: float = TIME_STEP,
         initial_speed: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_agents = n_agents
@@ -273,18 +273,18 @@ class ActivePassiveFlockingSystem(BaseSystem):
         """
         if not isinstance(system.space, ContinuousSpace):
             error_msg = (
-                "The observables of `ActivePassiveFlockingSystem` read the periodic box of its continuous space."
+                'The observables of `ActivePassiveFlockingSystem` read the periodic box of its continuous space.'
             )
             raise ValidationError(error_msg)
         size = float(system.space.extent[0])
         return [
-            ObservableSpec("velocity_x", _velocity_x, group="agents"),
-            ObservableSpec("velocity_y", _velocity_y, group="agents"),
-            ObservableSpec("mean_speed", _speed, group="agents"),
-            ObservableSpec("polarization", _polarization),
-            ObservableSpec("active_distance", function=functools.partial(_mean_distance, mark=ACTIVE_AGENT, size=size)),
+            ObservableSpec('velocity_x', _velocity_x, group='agents'),
+            ObservableSpec('velocity_y', _velocity_y, group='agents'),
+            ObservableSpec('mean_speed', _speed, group='agents'),
+            ObservableSpec('polarization', _polarization),
+            ObservableSpec('active_distance', function=functools.partial(_mean_distance, mark=ACTIVE_AGENT, size=size)),
             ObservableSpec(
-                "passive_distance",
+                'passive_distance',
                 function=functools.partial(_mean_distance, mark=PASSIVE_AGENT, size=size),
             ),
         ]
@@ -295,7 +295,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings["observables"] = tuple(self._observables(self._build_system()))
+        settings['observables'] = tuple(self._observables(self._build_system()))
         return settings
 
     def _build_system(self) -> System:
@@ -305,23 +305,23 @@ class ActivePassiveFlockingSystem(BaseSystem):
         """
         if not 1 <= self.n_active <= self.n_agents:
             error_msg = (
-                f"The system has {self.n_active} active agents among {self.n_agents}. Give at least one, and at most "
-                "all."
+                f'The system has {self.n_active} active agents among {self.n_agents}. Give at least one, and at most '
+                'all.'
             )
             raise ValidationError(error_msg)
         rng = np.random.default_rng(self.random_state)
         agents = GroupElement(
-            "agents",
+            'agents',
             element=FlockingAgentElement,
             size=self.n_agents,
             values={
-                "x": rng.uniform(0.0, self.size, (self.n_agents, 2)),
-                "x_d1": rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
-                "active": np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
+                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
+                'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
+                'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
             },
             visual=VisualSpec(
-                "points",
-                {"position": "x", "radius": self.radius, "color_by": "active", "color_range": (0.0, 1.0)},
+                'points',
+                {'position': 'x', 'radius': self.radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
             ),
         )
         energy = functools.partial(
@@ -335,24 +335,24 @@ class ActivePassiveFlockingSystem(BaseSystem):
             elements=[agents],
             interactions=[
                 PairCouplingInteraction(
-                    "repulsion",
-                    "agents",
-                    "agents",
+                    'repulsion',
+                    'agents',
+                    'agents',
                     cutoff=2 * self.radius,
                     potential=energy,
                     period=self.size,
                 ),
                 RateInteraction(
-                    "propulsion",
-                    target="agents",
+                    'propulsion',
+                    target='agents',
                     rate=functools.partial(self._propulsion, mu=self.mu, v0=self.v0),
                     noise=functools.partial(self._random_force, amplitude=self.eta * math.sqrt(self.time_step / 3)),
                 ),
                 RateInteraction(
-                    "flocking",
-                    target="agents",
+                    'flocking',
+                    target='agents',
                     rate=functools.partial(self._flocking, alpha=self.alpha, reach=self.flocking_radius),
                 ),
             ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary="periodic"),
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )

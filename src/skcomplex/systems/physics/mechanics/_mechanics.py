@@ -120,7 +120,7 @@ class DiscBilliardElement(Element):
 
     law_classes = (RateLaw,)
 
-    visual = VisualSpec("bodies", {"positions": ("x", "y"), "trail": None, "outline": _disc_wall})
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
 
     def __init__(
         self,
@@ -306,9 +306,9 @@ class ProjectileSystem(BaseSystem):
         5.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode")
-    references = ("Newton 1687",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode')
+    references = ('Newton 1687',)
     until = 2.0
     dt = 0.01
 
@@ -319,7 +319,7 @@ class ProjectileSystem(BaseSystem):
         *,
         mass: float = 1.0,
         drag: float = 0.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.speed = speed
@@ -335,13 +335,13 @@ class ProjectileSystem(BaseSystem):
         radians = np.radians(self.angle)
         velocity = [round(float(self.speed * np.cos(radians)), 12), round(float(self.speed * np.sin(radians)), 12)]
         interactions: list[BaseInteraction] = [
-            ConstantForceInteraction("gravity", target="ball", F=[0.0, -GRAVITY * self.mass]),
+            ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * self.mass]),
         ]
         if self.drag:
-            interactions.append(DampingInteraction("drag", target="ball", gamma=self.drag))
+            interactions.append(DampingInteraction('drag', target='ball', gamma=self.drag))
         return System(
             self.label,
-            elements=[MassPointElement("ball", x=[0.0, 0.0], x_d1=velocity, m=self.mass)],
+            elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=self.mass)],
             interactions=interactions,
             space=ContinuousSpace(n_dim=2),
         )
@@ -377,9 +377,9 @@ class HarmonicOscillatorSystem(BaseSystem):
         4.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "oscillation")
-    references = ("Hooke 1678",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'oscillation')
+    references = ('Hooke 1678',)
     until = 20.0
     dt = 0.05
 
@@ -391,7 +391,7 @@ class HarmonicOscillatorSystem(BaseSystem):
         k: float = 1.0,
         mass: float = 1.0,
         damping: float = 0.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -402,12 +402,12 @@ class HarmonicOscillatorSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return a particle on a spring, optionally damped."""
-        interactions: list[BaseInteraction] = [HarmonicPotentialInteraction("spring", target="mass", k=self.k)]
+        interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=self.k)]
         if self.damping:
-            interactions.append(DampingInteraction("damping", target="mass", gamma=self.damping))
+            interactions.append(DampingInteraction('damping', target='mass', gamma=self.damping))
         return System(
             self.label,
-            elements=[MassPointElement("mass", x=self.x, x_d1=self.v, m=self.mass)],
+            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.mass)],
             interactions=interactions,
             space=ContinuousSpace(n_dim=1),
         )
@@ -443,9 +443,9 @@ class PendulumSystem(BaseSystem):
         0.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "oscillation")
-    references = ("Newton 1687",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation')
+    references = ('Newton 1687',)
     until = 10.0
     dt = 0.01
 
@@ -457,7 +457,7 @@ class PendulumSystem(BaseSystem):
         m: float = 1.0,
         g: float = 9.81,
         l: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.theta = theta
@@ -473,8 +473,8 @@ class PendulumSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[PendulumElement("bob", theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
-            interactions=[PendulumInteraction("swing", target="bob")],
+            elements=[PendulumElement('bob', theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
+            interactions=[PendulumInteraction('swing', target='bob')],
         )
 
 
@@ -516,9 +516,9 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "second order", "oscillation", "forcing")
-    references = ("Hooke 1678",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation', 'forcing')
+    references = ('Hooke 1678',)
     until = 50.0
     dt = 0.05
 
@@ -532,7 +532,7 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         c: float = 0.1,
         F: float = 0.0,
         omega: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -550,11 +550,11 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[MassPointElement("mass", x=self.x, x_d1=self.v, m=self.m)],
+            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.m)],
             interactions=[
-                HarmonicPotentialInteraction("spring", target="mass", k=self.k),
-                DampingInteraction("damping", target="mass", gamma=self.c),
-                HarmonicForceInteraction("drive", target="mass", F=self.F, omega=self.omega),
+                HarmonicPotentialInteraction('spring', target='mass', k=self.k),
+                DampingInteraction('damping', target='mass', gamma=self.c),
+                HarmonicForceInteraction('drive', target='mass', F=self.F, omega=self.omega),
             ],
             space=ContinuousSpace(n_dim=1),
         )
@@ -593,9 +593,9 @@ class BouncingBallSystem(BaseSystem):
         0.451524
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "events", "impacts")
-    references = ("Strogatz 2015", "Hairer, Nørsett, and Wanner 1993")
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts')
+    references = ('Strogatz 2015', 'Hairer, Nørsett, and Wanner 1993')
     until = 3.0
     dt = 0.01
 
@@ -606,7 +606,7 @@ class BouncingBallSystem(BaseSystem):
         *,
         g: float = 9.81,
         e: float = 0.8,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.h = h
@@ -618,15 +618,15 @@ class BouncingBallSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         return System(
             self.label,
-            elements=[BouncingBallElement("ball", h=self.h, h_d1=self.v, g=self.g)],
+            elements=[BouncingBallElement('ball', h=self.h, h_d1=self.v, g=self.g)],
             interactions=[
-                RateInteraction("gravity", target="ball", state="h", rate=lambda s: -s.target.g),
+                RateInteraction('gravity', target='ball', state='h', rate=lambda s: -s.target.g),
                 ReflectionInteraction(
-                    "impact",
-                    target="ball",
+                    'impact',
+                    target='ball',
                     guard=lambda s: s.target.h,
-                    positions=("h",),
-                    velocities=("h_d1",),
+                    positions=('h',),
+                    velocities=('h_d1',),
                     direction=-1,
                     restitution=self.e,
                 ),
@@ -671,9 +671,9 @@ class NewtonsCradleSystem(BaseSystem):
         5
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "events", "impacts", "momentum")
-    references = ("Hinch and Saint-Jean 1999",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts', 'momentum')
+    references = ('Hinch and Saint-Jean 1999',)
     until = 5.0
     dt = 0.01
 
@@ -686,7 +686,7 @@ class NewtonsCradleSystem(BaseSystem):
         gap: float = 0.001,
         length: float = 1.0,
         g: float = 9.81,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_balls = n_balls
@@ -704,7 +704,7 @@ class NewtonsCradleSystem(BaseSystem):
         spacing = self.diameter + self.gap
         elements = [
             HangingBallElement(
-                f"ball_{index}",
+                f'ball_{index}',
                 x=index * spacing,
                 x_d1=self.speed if index == 0 else 0.0,
                 rest=index * spacing,
@@ -715,17 +715,17 @@ class NewtonsCradleSystem(BaseSystem):
         ]
         swings: list[BaseInteraction] = [
             GradientInteraction(
-                f"swing_{index}",
-                target=f"ball_{index}",
+                f'swing_{index}',
+                target=f'ball_{index}',
                 potential=lambda s: s.target.g * (s.target.x - s.target.rest) ** 2 / (2 * s.target.length),
             )
             for index in range(self.n_balls)
         ]
         collisions: list[BaseInteraction] = [
             ElasticCollisionInteraction(
-                f"collision_{index}",
-                left=f"ball_{index}",
-                right=f"ball_{index + 1}",
+                f'collision_{index}',
+                left=f'ball_{index}',
+                right=f'ball_{index + 1}',
                 diameter=self.diameter,
             )
             for index in range(self.n_balls - 1)
@@ -764,9 +764,9 @@ class CircularBilliardSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "events", "billiard", "integrable")
-    references = ("Tabachnikov 2005", "Datseris and Parlitz 2022")
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'billiard', 'integrable')
+    references = ('Tabachnikov 2005', 'Datseris and Parlitz 2022')
     until = 20.0
     dt = 0.05
 
@@ -778,7 +778,7 @@ class CircularBilliardSystem(BaseSystem):
         vy: float = 1.0,
         *,
         radius: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -793,15 +793,15 @@ class CircularBilliardSystem(BaseSystem):
         The particle reflects specularly off the wall of the circle.
         """
         wall = ReflectionInteraction(
-            "bounce",
-            target="particle",
+            'bounce',
+            target='particle',
             guard=lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2,
-            positions=("x", "y"),
-            velocities=("vx", "vy"),
+            positions=('x', 'y'),
+            velocities=('vx', 'vy'),
             direction=1,
         )
         return System(
             self.label,
-            elements=[DiscBilliardElement("particle", x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)],
+            elements=[DiscBilliardElement('particle', x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)],
             interactions=[wall],
         )

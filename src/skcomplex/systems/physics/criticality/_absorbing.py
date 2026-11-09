@@ -188,9 +188,9 @@ class DirectedPercolationLangevinSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/criticality"
-    topics = ("field", "absorbing state", "directed percolation", "multiplicative noise", "spde")
-    references = ("Tian et al. 2022", "Henkel, Hinrichsen, and Lübeck 2008", "Bonachela and Muñoz 2009")
+    field = 'physics/criticality'
+    topics = ('field', 'absorbing state', 'directed percolation', 'multiplicative noise', 'spde')
+    references = ('Tian et al. 2022', 'Henkel, Hinrichsen, and Lübeck 2008', 'Bonachela and Muñoz 2009')
     until = 100.0
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -209,7 +209,7 @@ class DirectedPercolationLangevinSystem(BaseSystem):
         energy: float = 1.2,
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -229,17 +229,17 @@ class DirectedPercolationLangevinSystem(BaseSystem):
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {
-            "rho": rng.uniform(0.0, 2 * self.density, shape),
-            "nu": np.full(shape, self.energy),
-            "a": self.a,
-            "b": self.b,
-            "c": self.c,
-            "d": self.d,
-            "e": self.e,
-            "f": self.f,
-            "g": self.g,
+            'rho': rng.uniform(0.0, 2 * self.density, shape),
+            'nu': np.full(shape, self.energy),
+            'a': self.a,
+            'b': self.b,
+            'c': self.c,
+            'd': self.d,
+            'e': self.e,
+            'f': self.f,
+            'g': self.g,
         }
         return System(
             self.label,
-            elements=[FieldElement("neurons", element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
+            elements=[FieldElement('neurons', element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
         )

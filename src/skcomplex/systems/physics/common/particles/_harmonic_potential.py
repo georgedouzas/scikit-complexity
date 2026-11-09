@@ -51,8 +51,8 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         target: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        states: str = "x",
-        divisor: str = "m",
+        states: str = 'x',
+        divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, states=states, divisor=divisor)
         self.k = k

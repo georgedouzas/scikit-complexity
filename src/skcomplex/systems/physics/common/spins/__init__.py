@@ -9,8 +9,8 @@ from ._spin_sampling import SpinSamplingInteraction
 from ._thermal_sampling import ThermalSamplingInteraction
 
 __all__: list[str] = [
-    "IsingSamplingInteraction",
-    "IsingSpinElement",
-    "SpinSamplingInteraction",
-    "ThermalSamplingInteraction",
+    'IsingSamplingInteraction',
+    'IsingSpinElement',
+    'SpinSamplingInteraction',
+    'ThermalSamplingInteraction',
 ]

@@ -50,7 +50,7 @@ class DoubleWellElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(role="position")] = -1.0,
+        x: Annotated[float, StateSpec(role='position')] = -1.0,
         amplitude: Annotated[float, ParameterSpec()] = 0.1,
         frequency: Annotated[float, ParameterSpec()] = 0.01,
         D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,

@@ -157,8 +157,8 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         q: int = 3,
-        state: str = "color",
-        rule: str = "heat-bath",
+        state: str = 'color',
+        rule: str = 'heat-bath',
         neighborhood: BaseNeighborhood | None = None,
     ) -> None:
         super().__init__(
@@ -166,7 +166,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
             target=target,
             state=state,
             energy=self._energy,
-            move="random-value",
+            move='random-value',
             rule=rule,
             neighborhood=neighborhood,
             values=tuple(float(value) for value in range(q)),
@@ -215,7 +215,7 @@ class XYSamplingInteraction(SpinSamplingInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         width: float = 1.0,
-        state: str = "theta",
+        state: str = 'theta',
         neighborhood: BaseNeighborhood | None = None,
     ) -> None:
         super().__init__(
@@ -223,7 +223,7 @@ class XYSamplingInteraction(SpinSamplingInteraction):
             target=target,
             state=state,
             energy=self._energy,
-            move="rotate",
+            move='rotate',
             neighborhood=neighborhood,
             width=width,
         )
@@ -279,9 +279,9 @@ class IsingSystem(BaseSystem):
         1.5
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("lattice", "Monte Carlo", "phase transition", "spins")
-    references = ("Ising 1925", "Onsager 1944", "Jensen 2023")
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'Monte Carlo', 'phase transition', 'spins')
+    references = ('Ising 1925', 'Onsager 1944', 'Jensen 2023')
     until = 200
     dt = 1
 
@@ -292,10 +292,10 @@ class IsingSystem(BaseSystem):
         temperature: float = 2.0,
         J: float = 1.0,
         h: float = 0.0,
-        initial: str = "random",
-        sampler: str = "metropolis",
+        initial: str = 'random',
+        sampler: str = 'metropolis',
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -311,21 +311,21 @@ class IsingSystem(BaseSystem):
         shape = _square(self.size)
         spins = (
             np.ones(shape)
-            if self.initial == "up"
+            if self.initial == 'up'
             else np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=shape)
         )
         space = LatticeSpace(shape)
         group = GroupElement(
-            "spins",
+            'spins',
             element=IsingSpinElement,
             space=space,
-            values={"spin": spins, "J": self.J, "h": self.h, "temperature": self.temperature},
-            on="sites",
+            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,
             elements=[group],
-            interactions=[IsingSamplingInteraction("sampling", target="spins", rule=self.sampler)],
+            interactions=[IsingSamplingInteraction('sampling', target='spins', rule=self.sampler)],
         )
 
 
@@ -364,9 +364,9 @@ class PottsSystem(BaseSystem):
         4
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("lattice", "Monte Carlo", "phase transition", "spins")
-    references = ("Potts 1952", "Wu 1982")
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'Monte Carlo', 'phase transition', 'spins')
+    references = ('Potts 1952', 'Wu 1982')
     until = 200
     dt = 1
 
@@ -377,9 +377,9 @@ class PottsSystem(BaseSystem):
         q: int = 3,
         temperature: float = 1.0,
         J: float = 1.0,
-        sampler: str = "heat-bath",
+        sampler: str = 'heat-bath',
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -398,16 +398,16 @@ class PottsSystem(BaseSystem):
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
         space = LatticeSpace(shape)
         group = GroupElement(
-            "spins",
+            'spins',
             element=PottsSpinElement,
             space=space,
-            values={"color": colors, "J": self.J, "temperature": self.temperature},
-            on="sites",
+            values={'color': colors, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,
             elements=[group],
-            interactions=[PottsSamplingInteraction("sampling", target="spins", q=self.q, rule=self.sampler)],
+            interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q, rule=self.sampler)],
         )
 
 
@@ -443,9 +443,9 @@ class XYSystem(BaseSystem):
         1.0
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("lattice", "Monte Carlo", "vortices", "spins")
-    references = ("Kosterlitz and Thouless 1973", "Jensen 2023")
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'Monte Carlo', 'vortices', 'spins')
+    references = ('Kosterlitz and Thouless 1973', 'Jensen 2023')
     until = 200
     dt = 1
 
@@ -457,7 +457,7 @@ class XYSystem(BaseSystem):
         J: float = 1.0,
         width: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.size = size
@@ -472,14 +472,14 @@ class XYSystem(BaseSystem):
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
         space = LatticeSpace(shape)
         group = GroupElement(
-            "spins",
+            'spins',
             element=XYSpinElement,
             space=space,
-            values={"theta": angles, "J": self.J, "temperature": self.temperature},
-            on="sites",
+            values={'theta': angles, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
         return System(
             self.label,
             elements=[group],
-            interactions=[XYSamplingInteraction("sampling", target="spins", width=self.width)],
+            interactions=[XYSamplingInteraction('sampling', target='spins', width=self.width)],
         )

@@ -59,9 +59,9 @@ class IsingSamplingInteraction(SpinSamplingInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = "spin",
-        rule: str = "metropolis",
-        schedule: str = "checkerboard",
+        state: str = 'spin',
+        rule: str = 'metropolis',
+        schedule: str = 'checkerboard',
         neighborhood: BaseNeighborhood | None = None,
     ) -> None:
         super().__init__(

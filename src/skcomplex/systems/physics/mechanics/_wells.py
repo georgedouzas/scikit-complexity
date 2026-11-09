@@ -93,9 +93,9 @@ class ParticleInAWellSystem(BaseSystem):
         3.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "potential", "hamiltonian")
-    references = ("Starkovich 2021",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'potential', 'hamiltonian')
+    references = ('Starkovich 2021',)
     until = 20.0
     dt = 0.05
 
@@ -106,7 +106,7 @@ class ParticleInAWellSystem(BaseSystem):
         *,
         k: float = 2.0,
         m: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -118,7 +118,7 @@ class ParticleInAWellSystem(BaseSystem):
         """Return a particle moving without friction in the potential `U(x) = k x² e^-x`."""
         return System(
             self.label,
-            elements=[MassPointElement("particle", x=self.x, x_d1=self.v, m=self.m)],
-            interactions=[ExponentialWellInteraction("well", target="particle", k=self.k)],
+            elements=[MassPointElement('particle', x=self.x, x_d1=self.v, m=self.m)],
+            interactions=[ExponentialWellInteraction('well', target='particle', k=self.k)],
             space=ContinuousSpace(n_dim=1),
         )

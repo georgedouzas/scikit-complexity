@@ -33,7 +33,7 @@ class DiskElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -70,9 +70,9 @@ class ContinuumPercolationSystem(BaseSystem):
         32
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("percolation", "disorder", "clusters", "static")
-    references = ("Satz 2022", "Mertens and Moore 2012")
+    field = 'physics/statistical_mechanics'
+    topics = ('percolation', 'disorder', 'clusters', 'static')
+    references = ('Satz 2022', 'Mertens and Moore 2012')
 
     def __init__(
         self,
@@ -81,7 +81,7 @@ class ContinuumPercolationSystem(BaseSystem):
         side: float = 60.0,
         radius: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.filling = filling
@@ -93,8 +93,8 @@ class ContinuumPercolationSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
         positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
-        visual = VisualSpec("points", {"position": "x", "radius": self.radius, "states": ()})
-        disks = GroupElement("disks", element=DiskElement, size=size, values={"x": positions}, visual=visual)
+        visual = VisualSpec('points', {'position': 'x', 'radius': self.radius, 'states': ()})
+        disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions}, visual=visual)
         return System(
             self.label,
             elements=[disks],

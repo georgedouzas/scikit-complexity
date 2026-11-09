@@ -177,9 +177,9 @@ class AdaptiveKuramotoSystem(BaseSystem):
         20
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "adaptive network", "frequency clusters", "phase", "ode")
-    references = ("Berner et al. 2023", "Berner et al. 2019", "Kasatkin et al. 2017")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'adaptive network', 'frequency clusters', 'phase', 'ode')
+    references = ('Berner et al. 2023', 'Berner et al. 2019', 'Kasatkin et al. 2017')
     until = 2000.0
     dt = 1.0
 
@@ -192,7 +192,7 @@ class AdaptiveKuramotoSystem(BaseSystem):
         epsilon: float = 0.01,
         omega: float = 0.0,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -211,24 +211,24 @@ class AdaptiveKuramotoSystem(BaseSystem):
         graph = nx.complete_graph(self.n_oscillators, create_using=nx.DiGraph)
         space = NetworkSpace(graph)
         nodes = GroupElement(
-            "nodes",
+            'nodes',
             element=PhaseOscillatorElement,
             space=space,
-            on="sites",
-            values={"theta": rng.uniform(0.0, 2 * math.pi, self.n_oscillators), "omega": self.omega},
-            visual=VisualSpec("sites", {"states": ["theta"], "low": 0.0, "high": 2 * math.pi}),
+            on='sites',
+            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_oscillators), 'omega': self.omega},
+            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
         )
         links = GroupElement(
-            "links",
+            'links',
             element=AdaptiveLinkElement,
             space=space,
-            on="edges",
-            values={"kappa": rng.uniform(-1.0, 1.0, graph.number_of_edges())},
+            on='edges',
+            values={'kappa': rng.uniform(-1.0, 1.0, graph.number_of_edges())},
         )
         adaptation = AdaptiveCouplingInteraction(
-            "adaptation",
-            nodes="nodes",
-            links="links",
+            'adaptation',
+            nodes='nodes',
+            links='links',
             K=1 / self.n_oscillators,
             alpha=self.alpha,
             beta=self.beta,

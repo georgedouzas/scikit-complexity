@@ -87,7 +87,7 @@ class MicrostateElement(Element):
         return [
             LocalRuleLaw(
                 s.P,
-                BallNeighborhood(n_dim=1, center="inline"),
+                BallNeighborhood(n_dim=1, center='inline'),
                 MicrostateElement._master_step,
                 reads=(s.P, s.U),
             ),
@@ -301,9 +301,9 @@ class DiscreteMasterEquationSystem(BaseSystem):
         10
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("master equation", "probability", "detailed balance", "lattice")
-    references = ("Jensen 2023", "van Kampen 2007")
+    field = 'physics/statistical_mechanics'
+    topics = ('master equation', 'probability', 'detailed balance', 'lattice')
+    references = ('Jensen 2023', 'van Kampen 2007')
     until = 500
     dt = 10
 
@@ -314,7 +314,7 @@ class DiscreteMasterEquationSystem(BaseSystem):
         beta: float = 1.0,
         depth: float = 2.0,
         w: float = 0.5,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_states = n_states
@@ -335,11 +335,11 @@ class DiscreteMasterEquationSystem(BaseSystem):
             self.label,
             elements=[
                 GroupElement(
-                    "states",
+                    'states',
                     element=MicrostateElement,
                     space=space,
-                    values={"P": probability, "U": potential, "beta": self.beta, "w": self.w},
-                    on="sites",
+                    values={'P': probability, 'U': potential, 'beta': self.beta, 'w': self.w},
+                    on='sites',
                 ),
             ],
         )
@@ -375,9 +375,9 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
         5
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("jump process", "binomial", "fluctuations", "two-phase flow")
-    references = ("Barsky 2020",)
+    field = 'physics/statistical_mechanics'
+    topics = ('jump process', 'binomial', 'fluctuations', 'two-phase flow')
+    references = ('Barsky 2020',)
     until = 20.0
     dt = 0.5
 
@@ -388,7 +388,7 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
         Na: float = 100.0,
         p: float = 0.1,
         k: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_zones = n_zones
@@ -402,10 +402,10 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
             self.label,
             elements=[
                 GroupElement(
-                    "zones",
+                    'zones',
                     element=ZoneElement,
                     size=self.n_zones,
-                    values={"Na": self.Na, "p": self.p, "k": self.k},
+                    values={'Na': self.Na, 'p': self.p, 'k': self.k},
                 ),
             ],
         )
@@ -450,9 +450,9 @@ class LandauRelaxationSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("ode", "mean field", "phase transition", "critical slowing down")
-    references = ("Landau 1937", "Gros 2015")
+    field = 'physics/statistical_mechanics'
+    topics = ('ode', 'mean field', 'phase transition', 'critical slowing down')
+    references = ('Landau 1937', 'Gros 2015')
     until = 20.0
     dt = 0.1
 
@@ -466,7 +466,7 @@ class LandauRelaxationSystem(BaseSystem):
         b: float = 1.0,
         h: float = 0.0,
         Gamma: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.phi = phi
@@ -486,7 +486,7 @@ class LandauRelaxationSystem(BaseSystem):
             self.label,
             elements=[
                 OrderParameterElement(
-                    "magnet",
+                    'magnet',
                     phi=self.phi,
                     a=self.a,
                     b=self.b,

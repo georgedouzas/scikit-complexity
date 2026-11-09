@@ -118,9 +118,9 @@ class StochasticResonanceSystem(BaseSystem):
         0.2
     """
 
-    field = "physics/soft_matter"
-    topics = ("noise", "sde", "forcing", "resonance")
-    references = ("Benzi, Sutera, and Vulpiani 1981", "Gammaitoni et al. 1998")
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'forcing', 'resonance')
+    references = ('Benzi, Sutera, and Vulpiani 1981', 'Gammaitoni et al. 1998')
     until = 500.0
     dt = 0.5
 
@@ -131,7 +131,7 @@ class StochasticResonanceSystem(BaseSystem):
         amplitude: float = 0.1,
         frequency: float = 0.01,
         D: float = 0.12,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -146,9 +146,9 @@ class StochasticResonanceSystem(BaseSystem):
         They are the gradient of the well and the noisy forcing.
         """
         return [
-            GradientInteraction("well", target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
             RateInteraction(
-                "drive",
+                'drive',
                 target=target,
                 rate=_get_double_well_drive,
                 noise=lambda s: sqrt(2 * s.target.D),
@@ -163,9 +163,9 @@ class StochasticResonanceSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                DoubleWellElement("particle", x=self.x, amplitude=self.amplitude, frequency=self.frequency, D=self.D),
+                DoubleWellElement('particle', x=self.x, amplitude=self.amplitude, frequency=self.frequency, D=self.D),
             ],
-            interactions=self._get_double_well_interactions("particle"),
+            interactions=self._get_double_well_interactions('particle'),
         )
 
 
@@ -204,9 +204,9 @@ class BrownianNearWallSystem(BaseSystem):
         'ito'
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "sde", "multiplicative noise", "hydrodynamics")
-    references = ("Brenner 1961", "Volpe and Wehr 2016")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'multiplicative noise', 'hydrodynamics')
+    references = ('Brenner 1961', 'Volpe and Wehr 2016')
     until = 10.0
     dt = 0.1
 
@@ -217,8 +217,8 @@ class BrownianNearWallSystem(BaseSystem):
         D0: float = 1.0,
         a: float = 1.0,
         drift: float = 0.2,
-        convention: str = "anti-ito",
-        label: str = "system",
+        convention: str = 'anti-ito',
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.z = z
@@ -230,12 +230,12 @@ class BrownianNearWallSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         mobility = RateInteraction(
-            "mobility",
-            target="particle",
-            state="z",
+            'mobility',
+            target='particle',
+            state='z',
             rate=lambda s: -s.target.drift * s.target.z * abs(s.target.z) / (s.target.z**2 + s.target.a**2),
             noise=lambda s: sqrt(2 * s.target.D0) * s.target.z / sqrt(s.target.z**2 + s.target.a**2),
             convention=self.convention,
         )
-        particle = WallParticleElement("particle", z=self.z, D0=self.D0, a=self.a, drift=self.drift)
+        particle = WallParticleElement('particle', z=self.z, D0=self.D0, a=self.a, drift=self.drift)
         return System(self.label, elements=[particle], interactions=[mobility])

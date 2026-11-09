@@ -179,9 +179,9 @@ class RandomEnergySystem(BaseSystem):
         True
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("disorder", "glass transition", "static")
-    references = ("Derrida 1981", "Bertin 2021")
+    field = 'physics/statistical_mechanics'
+    topics = ('disorder', 'glass transition', 'static')
+    references = ('Derrida 1981', 'Bertin 2021')
 
     def __init__(
         self,
@@ -189,7 +189,7 @@ class RandomEnergySystem(BaseSystem):
         *,
         temperature: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_spins = n_spins
@@ -203,24 +203,24 @@ class RandomEnergySystem(BaseSystem):
         """
         size = 2**self.n_spins
         energies = np.random.default_rng(self.random_state).normal(0.0, np.sqrt(self.n_spins / 2), size)
-        visual = VisualSpec("histograms", {"color_by": "energy"})
+        visual = VisualSpec('histograms', {'color_by': 'energy'})
         levels = GroupElement(
-            "levels",
+            'levels',
             element=EnergyLevelElement,
             size=size,
-            values={"energy": energies},
+            values={'energy': energies},
             visual=visual,
         )
         sums = BoltzmannSumInteraction(
-            "sums",
-            target="ensemble",
-            levels="levels",
+            'sums',
+            target='ensemble',
+            levels='levels',
             temperature=self.temperature,
             n_spins=float(self.n_spins),
         )
         return System(
             self.label,
-            elements=[levels, BoltzmannAverageElement("ensemble")],
+            elements=[levels, BoltzmannAverageElement('ensemble')],
             interactions=[sums],
             time=StaticTime(),
         )

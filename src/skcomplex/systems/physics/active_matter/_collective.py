@@ -183,9 +183,9 @@ class SoftSphereInteraction(PairCouplingInteraction):
         first: str,
         second: str,
         cutoff: float = 1.0,
-        position: str = "x",
+        position: str = 'x',
         *,
-        write: str = "x",
+        write: str = 'x',
         divisor: str | None = None,
         period: float | None = None,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
@@ -257,7 +257,7 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
         first: str,
         second: str,
         cutoff: float = 1.0,
-        position: str = "x",
+        position: str = 'x',
         *,
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
@@ -285,7 +285,7 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
         """
         first, second = namespace.first, namespace.second
         separation = getattr(first, self.position) - getattr(second, self.position)
-        velocity = f"{self.position}_d1"
+        velocity = f'{self.position}_d1'
         weight = namespace.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-namespace.beta)
         return weight * (getattr(second, velocity) - getattr(first, velocity))
 
@@ -334,7 +334,7 @@ class PhoreticAttractionInteraction(PairCouplingInteraction):
         first: str,
         second: str,
         cutoff: float = 1.0,
-        position: str = "x",
+        position: str = 'x',
         *,
         v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -383,16 +383,16 @@ def _active_disks(
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
     group = GroupElement(
-        "swimmers",
+        'swimmers',
         element=ActiveParticleElement,
         size=n_particles,
-        values={"x": positions, "theta": angles, "D_t": 0.0, "D_r": D_r},
+        values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
     )
-    propulsion = SelfPropulsionInteraction("propulsion", target="swimmers", speed=speed)
+    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
     return System(
         elements=[group],
         interactions=[propulsion],
-        space=ContinuousSpace(extent=(size, size), boundary="periodic"),
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )
 
 
@@ -433,9 +433,9 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         50.0
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "sde", "phase separation", "pair interaction")
-    references = ("Cates and Tailleur 2015", "Bechinger et al. 2016", "Fily and Marchetti 2012")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'phase separation', 'pair interaction')
+    references = ('Cates and Tailleur 2015', 'Bechinger et al. 2016', 'Fily and Marchetti 2012')
     until = 20.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -449,7 +449,7 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         D_r: float = 0.01,
         k: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -467,9 +467,9 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         size = math.sqrt(self.n_particles * math.pi / 4 / self.packing_fraction)
         system = _active_disks(self.n_particles, size, self.speed, self.D_r, self.random_state)
         repulsion = SoftSphereInteraction(
-            "contact",
-            first="swimmers",
-            second="swimmers",
+            'contact',
+            first='swimmers',
+            second='swimmers',
             cutoff=1.0,
             period=size,
             k=self.k,
@@ -525,9 +525,9 @@ class LivingCrystalsSystem(BaseSystem):
         20.0
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "sde", "clusters", "phoresis", "pair interaction")
-    references = ("Argun et al. 2021", "Palacci et al. 2013")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'clusters', 'phoresis', 'pair interaction')
+    references = ('Argun et al. 2021', 'Palacci et al. 2013')
     until = 20.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.002)
@@ -543,7 +543,7 @@ class LivingCrystalsSystem(BaseSystem):
         cutoff: float = 10.0,
         k: float = 200.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -559,17 +559,17 @@ class LivingCrystalsSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         system = _active_disks(self.n_particles, self.size, self.speed, self.D_r, self.random_state)
         repulsion = SoftSphereInteraction(
-            "contact",
-            first="swimmers",
-            second="swimmers",
+            'contact',
+            first='swimmers',
+            second='swimmers',
             cutoff=2.0,
             period=self.size,
             k=self.k,
         )
         attraction = PhoreticAttractionInteraction(
-            "phoresis",
-            first="swimmers",
-            second="swimmers",
+            'phoresis',
+            first='swimmers',
+            second='swimmers',
             cutoff=self.cutoff,
             period=self.size,
             v0=self.v0,
@@ -612,9 +612,9 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         5
     """
 
-    field = "physics/active_matter"
-    topics = ("flocking", "ode", "alignment", "pair interaction")
-    references = ("Cucker and Smale 2007", "Vicsek and Zafeiris 2012", "Bellomo et al. 2017")
+    field = 'physics/active_matter'
+    topics = ('flocking', 'ode', 'alignment', 'pair interaction')
+    references = ('Cucker and Smale 2007', 'Vicsek and Zafeiris 2012', 'Bellomo et al. 2017')
     until = 20.0
     dt = 0.5
     solver = RK4Solver(dt=0.05)
@@ -627,7 +627,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         beta: float = 0.25,
         size: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_agents = n_agents
@@ -643,19 +643,19 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
-            "birds",
+            'birds',
             element=PointElement,
             size=self.n_agents,
             values={
-                "x": rng.uniform(0.0, self.size, (self.n_agents, 2)),
-                "x_d1": rng.normal(0.0, 1.0, (self.n_agents, 2)),
+                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
+                'x_d1': rng.normal(0.0, 1.0, (self.n_agents, 2)),
             },
-            visual=VisualSpec("points", {"position": "x", "color_by": "x_d1", "states": ()}),
+            visual=VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()}),
         )
         alignment = CuckerSmaleAlignmentInteraction(
-            "align",
-            first="birds",
-            second="birds",
+            'align',
+            first='birds',
+            second='birds',
             cutoff=1e6,
             K=self.K,
             beta=self.beta,
@@ -712,9 +712,9 @@ class TonerTuSystem(BaseSystem):
         64
     """
 
-    field = "physics/active_matter"
-    topics = ("field", "flocking", "hydrodynamics", "pde")
-    references = ("Toner and Tu 1995", "Marchetti et al. 2013")
+    field = 'physics/active_matter'
+    topics = ('field', 'flocking', 'hydrodynamics', 'pde')
+    references = ('Toner and Tu 1995', 'Marchetti et al. 2013')
     until = 20.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.02)
@@ -732,7 +732,7 @@ class TonerTuSystem(BaseSystem):
         D: float = 0.5,
         spacing: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -751,20 +751,20 @@ class TonerTuSystem(BaseSystem):
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {
-            "rho": np.full(shape, self.rho0),
-            "vx": rng.normal(0.0, 0.1, shape),
-            "vy": rng.normal(0.0, 0.1, shape) + 0.05,
+            'rho': np.full(shape, self.rho0),
+            'vx': rng.normal(0.0, 0.1, shape),
+            'vy': rng.normal(0.0, 0.1, shape) + 0.05,
         }
         parameters = {
-            "a": self.a,
-            "rho_c": self.rho_c,
-            "beta": self.beta,
-            "lam": self.lam,
-            "sigma": self.sigma,
-            "D": self.D,
+            'a': self.a,
+            'rho_c': self.rho_c,
+            'beta': self.beta,
+            'lam': self.lam,
+            'sigma': self.sigma,
+            'D': self.D,
         }
         space = LatticeSpace(shape, spacing=self.spacing)
         return System(
             self.label,
-            elements=[FieldElement("flock", element=PolarFluidElement, space=space, values={**values, **parameters})],
+            elements=[FieldElement('flock', element=PolarFluidElement, space=space, values={**values, **parameters})],
         )

@@ -83,18 +83,18 @@ class HPPSiteElement(Element):
 
 
 DIRECTIONS = 6
-CHANNELS = tuple(f"n{direction}" for direction in range(DIRECTIONS))
+CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
 SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = BallNeighborhood(metric="hexagonal")
+TRIANGULAR = BallNeighborhood(metric='hexagonal')
 VELOCITIES = np.column_stack(
     [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
 )
 HEAD_ON = (0b001001, 0b010010, 0b100100)
 TRIPLES = (0b010101, 0b101010)
 TURN_PROBABILITY = 0.5
-DENSITY_VISUAL = VisualSpec("sites", {"states": ("density",), "low": 0.0, "high": 3.0})
+DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
 SQUARE_DIRECTIONS = 4
-SQUARE_CHANNELS = tuple(f"n{direction}" for direction in range(SQUARE_DIRECTIONS))
+SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
 SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
 ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
 SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
@@ -232,9 +232,9 @@ class FHPLatticeGasSystem(BaseSystem):
         64
     """
 
-    field = "physics/fluids"
-    topics = ("lattice", "lattice gas", "stochastic", "conservation")
-    references = ("Frisch, Hasslacher, and Pomeau 1986", "Dilão 2023")
+    field = 'physics/fluids'
+    topics = ('lattice', 'lattice gas', 'stochastic', 'conservation')
+    references = ('Frisch, Hasslacher, and Pomeau 1986', 'Dilão 2023')
     until = 200
     dt = 1
 
@@ -246,7 +246,7 @@ class FHPLatticeGasSystem(BaseSystem):
         bump: float = 0.6,
         radius: float | None = None,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -272,7 +272,7 @@ class FHPLatticeGasSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        space = LatticeSpace(tuple(self.shape), geometry="triangular").prepare()
+        space = LatticeSpace(tuple(self.shape), geometry='triangular').prepare()
         positions = space.positions_
         centre = positions.mean(axis=0)
         size = min(space.shape_) / 6 if self.radius is None else self.radius
@@ -283,36 +283,36 @@ class FHPLatticeGasSystem(BaseSystem):
         )
         channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
         gas = GroupElement(
-            "gas",
+            'gas',
             element=FHPSiteElement,
             space=space,
-            values={"density": occupied.sum(axis=1), **channels},
+            values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
-            on="sites",
+            on='sites',
         )
         return System(
             self.label,
             elements=[gas],
             interactions=[
                 LocalRuleInteraction(
-                    "collision",
-                    target="gas",
+                    'collision',
+                    target='gas',
                     state=CHANNELS,
                     rule=self._collide,
                     neighborhood=SITE,
                     stochastic=True,
                 ),
                 LocalRuleInteraction(
-                    "propagation",
-                    target="gas",
+                    'propagation',
+                    target='gas',
                     state=CHANNELS,
                     rule=self._propagate,
                     neighborhood=TRIANGULAR,
                 ),
                 LocalRuleInteraction(
-                    "count",
-                    target="gas",
-                    state="density",
+                    'count',
+                    target='gas',
+                    state='density',
                     rule=_count,
                     neighborhood=SITE,
                     reads=CHANNELS,
@@ -363,9 +363,9 @@ class HPPLatticeGasSystem(BaseSystem):
         64
     """
 
-    field = "physics/fluids"
-    topics = ("lattice", "lattice gas", "deterministic", "conservation", "reversible")
-    references = ("Hardy, de Pazzis, and Pomeau 1976", "Lindgren 2024")
+    field = 'physics/fluids'
+    topics = ('lattice', 'lattice gas', 'deterministic', 'conservation', 'reversible')
+    references = ('Hardy, de Pazzis, and Pomeau 1976', 'Lindgren 2024')
     until = 200
     dt = 1
 
@@ -378,7 +378,7 @@ class HPPLatticeGasSystem(BaseSystem):
         radius: float | None = None,
         full: bool = False,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -413,7 +413,7 @@ class HPPLatticeGasSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        space = LatticeSpace(tuple(self.shape), boundary="periodic").prepare()
+        space = LatticeSpace(tuple(self.shape), boundary='periodic').prepare()
         rng = np.random.default_rng(self.random_state)
         if self.full:
             occupied = np.repeat((rng.random((space.size_, 1)) < self.density).astype(float), SQUARE_DIRECTIONS, axis=1)
@@ -426,35 +426,35 @@ class HPPLatticeGasSystem(BaseSystem):
             occupied = (rng.random((space.size_, SQUARE_DIRECTIONS)) < probability).astype(float)
         channels = {name: occupied[:, direction] for direction, name in enumerate(SQUARE_CHANNELS)}
         gas = GroupElement(
-            "gas",
+            'gas',
             element=HPPSiteElement,
             space=space,
-            values={"density": occupied.sum(axis=1), **channels},
+            values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
-            on="sites",
+            on='sites',
         )
         return System(
             self.label,
             elements=[gas],
             interactions=[
                 LocalRuleInteraction(
-                    "collision",
-                    target="gas",
+                    'collision',
+                    target='gas',
                     state=SQUARE_CHANNELS,
                     rule=self._collide_square,
                     neighborhood=SITE,
                 ),
                 LocalRuleInteraction(
-                    "propagation",
-                    target="gas",
+                    'propagation',
+                    target='gas',
                     state=SQUARE_CHANNELS,
                     rule=self._propagate_square,
                     neighborhood=ARRIVALS,
                 ),
                 LocalRuleInteraction(
-                    "count",
-                    target="gas",
-                    state="density",
+                    'count',
+                    target='gas',
+                    state='density',
                     rule=_count,
                     neighborhood=SITE,
                     reads=SQUARE_CHANNELS,

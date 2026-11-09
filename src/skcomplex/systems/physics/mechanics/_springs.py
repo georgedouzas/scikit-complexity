@@ -6,6 +6,7 @@ The module holds masses on springs and dampers between walls.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, System
 from ..common.particles import (
@@ -81,9 +82,9 @@ class TwoMassSpringDamperSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "oscillation", "normal modes", "forcing")
-    references = ("Ryzhov et al. 2021",)
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'oscillation', 'normal modes', 'forcing')
+    references = ('Ryzhov et al. 2021',)
     until = 30.0
     dt = 0.05
 
@@ -105,7 +106,7 @@ class TwoMassSpringDamperSystem(BaseSystem):
         F2: float = 0.0,
         omega1: float = 1.0,
         omega2: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x1 = x1
@@ -130,17 +131,17 @@ class TwoMassSpringDamperSystem(BaseSystem):
         return System(
             self.label,
             elements=[
-                MassPointElement("first", x=self.x1, x_d1=0.0, m=self.m1),
-                MassPointElement("second", x=self.x2, x_d1=0.0, m=self.m2),
+                MassPointElement('first', x=self.x1, x_d1=0.0, m=self.m1),
+                MassPointElement('second', x=self.x2, x_d1=0.0, m=self.m2),
             ],
             interactions=[
-                HarmonicPotentialInteraction("left_spring", target="first", k=self.k1, center=rest1),
-                HarmonicPotentialInteraction("right_spring", target="second", k=self.k2, center=rest2),
-                SpringInteraction("middle_spring", first="first", second="second", k=self.k, length=self.l2),
-                DampingInteraction("first_damper", target="first", gamma=self.b1),
-                DampingInteraction("second_damper", target="second", gamma=self.b2),
-                HarmonicForceInteraction("first_force", target="first", F=self.F1, omega=self.omega1),
-                HarmonicForceInteraction("second_force", target="second", F=self.F2, omega=self.omega2),
+                HarmonicPotentialInteraction('left_spring', target='first', k=self.k1, center=rest1),
+                HarmonicPotentialInteraction('right_spring', target='second', k=self.k2, center=rest2),
+                SpringInteraction('middle_spring', first='first', second='second', k=self.k, length=self.l2),
+                DampingInteraction('first_damper', target='first', gamma=self.b1),
+                DampingInteraction('second_damper', target='second', gamma=self.b2),
+                HarmonicForceInteraction('first_force', target='first', F=self.F1, omega=self.omega1),
+                HarmonicForceInteraction('second_force', target='second', F=self.F2, omega=self.omega2),
             ],
             space=ContinuousSpace(n_dim=1),
         )

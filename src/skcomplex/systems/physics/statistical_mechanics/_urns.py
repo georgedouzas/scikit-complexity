@@ -77,7 +77,7 @@ class EhrenfestUrnElement(Element):
                 The update of the count.
         """
         s = namespace
-        return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli("pick", s.n / s.N))]
+        return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))]
 
 
 class EhrenfestUrnSystem(BaseSystem):
@@ -108,9 +108,9 @@ class EhrenfestUrnSystem(BaseSystem):
         10
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("markov chain", "irreversibility", "entropy", "discrete map")
-    references = ("Ehrenfest and Ehrenfest 1907", "Barsky 2020", "Kac 1947")
+    field = 'physics/statistical_mechanics'
+    topics = ('markov chain', 'irreversibility', 'entropy', 'discrete map')
+    references = ('Ehrenfest and Ehrenfest 1907', 'Barsky 2020', 'Kac 1947')
     until = 200
     dt = 1
 
@@ -119,7 +119,7 @@ class EhrenfestUrnSystem(BaseSystem):
         n_balls: int = 40,
         *,
         in_first: int | None = None,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_balls = n_balls
@@ -128,4 +128,4 @@ class EhrenfestUrnSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         n = self.n_balls if self.in_first is None else self.in_first
-        return System(self.label, elements=[EhrenfestUrnElement("urn", n=n, N=self.n_balls)])
+        return System(self.label, elements=[EhrenfestUrnElement('urn', n=n, N=self.n_balls)])

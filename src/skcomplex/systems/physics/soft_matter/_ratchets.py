@@ -70,7 +70,7 @@ class FlashingSawtoothInteraction(RateInteraction):
         asymmetry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         switches: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label, target=target, state="x", divisor="gamma")
+        super().__init__(label, target=target, state='x', divisor='gamma')
         self.barrier = barrier
         self.L = L
         self.asymmetry = asymmetry
@@ -89,7 +89,7 @@ class FlashingSawtoothInteraction(RateInteraction):
         """
         s = namespace
         times = (0.0, *self.switches)
-        on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], "previous")
+        on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], 'previous')
         rise = s.asymmetry * s.L
         return on * where(mod(s.target.x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
 
@@ -132,7 +132,7 @@ class TiltedWashboardInteraction(GradientInteraction):
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         f: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label, target=target, states="x", divisor="gamma")
+        super().__init__(label, target=target, states='x', divisor='gamma')
         self.U0 = U0
         self.L = L
         self.f = f
@@ -190,9 +190,9 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "sde", "nonequilibrium steady state", "current")
-    references = ("Bertin 2021", "Risken 1996", "Reimann 2002")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'nonequilibrium steady state', 'current')
+    references = ('Bertin 2021', 'Risken 1996', 'Reimann 2002')
     until = 50.0
     dt = 0.25
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -206,7 +206,7 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         L: float = 1.0,
         gamma: float = 1.0,
         kT: float = 0.5,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -222,13 +222,13 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         The potential is `V(x) = U0 cos(2 pi x / L) - f x`.
         """
         particles = GroupElement(
-            "particles",
+            'particles',
             element=BrownianParticleElement,
             size=self.n_particles,
-            values={"x": np.zeros((self.n_particles, 1)), "gamma": self.gamma, "temperature": self.kT},
+            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma, 'temperature': self.kT},
         )
-        washboard = TiltedWashboardInteraction("washboard", target="particles", U0=self.U0, L=self.L, f=self.f)
-        bath = ThermalNoiseInteraction("bath", target="particles")
+        washboard = TiltedWashboardInteraction('washboard', target='particles', U0=self.U0, L=self.L, f=self.f)
+        bath = ThermalNoiseInteraction('bath', target='particles')
         return System(self.label, elements=[particles], interactions=[washboard, bath], space=ContinuousSpace(n_dim=1))
 
 
@@ -281,9 +281,9 @@ class FlashingRatchetSystem(BaseSystem):
         True
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "sde", "ratchet", "nonequilibrium steady state", "current")
-    references = ("Bertin 2021", "Ajdari and Prost 1992", "Reimann 2002")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'ratchet', 'nonequilibrium steady state', 'current')
+    references = ('Bertin 2021', 'Ajdari and Prost 1992', 'Reimann 2002')
     until = 100.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.002)
@@ -300,7 +300,7 @@ class FlashingRatchetSystem(BaseSystem):
         gamma: float = 1.0,
         kT: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -318,18 +318,18 @@ class FlashingRatchetSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         times = np.cumsum(rng.exponential(1 / self.rate, int(2 * self.rate * self.duration) + 10))
         particles = GroupElement(
-            "particles",
+            'particles',
             element=BrownianParticleElement,
             size=self.n_particles,
-            values={"x": np.zeros((self.n_particles, 1)), "gamma": self.gamma, "temperature": self.kT},
+            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma, 'temperature': self.kT},
         )
         sawtooth = FlashingSawtoothInteraction(
-            "sawtooth",
-            target="particles",
+            'sawtooth',
+            target='particles',
             barrier=self.barrier,
             L=self.L,
             asymmetry=self.asymmetry,
             switches=tuple(float(time) for time in times[times < self.duration]),
         )
-        bath = ThermalNoiseInteraction("bath", target="particles")
+        bath = ThermalNoiseInteraction('bath', target='particles')
         return System(self.label, elements=[particles], interactions=[sawtooth, bath], space=ContinuousSpace(n_dim=1))

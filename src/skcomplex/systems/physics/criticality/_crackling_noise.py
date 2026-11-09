@@ -131,9 +131,9 @@ def crackling_noise(
         1.55
     """
     if min_count < 1:
-        error_msg = f"crackling_noise has min_count={min_count!r}. Use a positive value."
+        error_msg = f'crackling_noise has min_count={min_count!r}. Use a positive value.'
         raise AnalysisError(error_msg)
-    found = events(source, kind="excursions", variables=variables, threshold=threshold)
+    found = events(source, kind='excursions', variables=variables, threshold=threshold)
     sizes = np.asarray(found.sizes, dtype=float)
     lasting = np.asarray(found.durations, dtype=float)
     shapes = list(found.shapes or [])
@@ -141,11 +141,12 @@ def crackling_noise(
     kept = distinct[(counts >= min_count) & (distinct >= max(min_duration, 1))]
     if kept.size < MIN_POINTS:
         error_msg = (
-            f"Fewer than {MIN_POINTS} durations have {min_count} avalanches. Give more avalanches or lower `min_count`."
+            f'Fewer than {MIN_POINTS} durations have {min_count} avalanches. Give more avalanches or lower '
+            '`min_count`.'
         )
         raise AnalysisError(error_msg)
     means = np.asarray([sizes[lasting == duration].mean() for duration in kept])
-    predicted = float("nan")
+    predicted = float('nan')
     if size_exponent is not None and duration_exponent is not None:
         predicted = float((duration_exponent - 1) / (size_exponent - 1))
     mean_shapes = {
@@ -153,7 +154,7 @@ def crackling_noise(
         for duration in durations
         if any(shape.size == duration for shape in shapes)
     }
-    shape_spread = float("nan")
+    shape_spread = float('nan')
     if len(mean_shapes) >= MIN_POINTS:
         stacked = np.asarray(list(mean_shapes.values()))
         inner = slice(SHAPE_GRID // 10, SHAPE_GRID - SHAPE_GRID // 10)

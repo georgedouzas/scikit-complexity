@@ -223,9 +223,9 @@ class BeamBeamMapSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/mechanics"
-    topics = ("discrete map", "hamiltonian", "area preserving", "accelerator", "chaos")
-    references = ("Dilão and Alves-Pires 1996", "Dilão 2023")
+    field = 'physics/mechanics'
+    topics = ('discrete map', 'hamiltonian', 'area preserving', 'accelerator', 'chaos')
+    references = ('Dilão and Alves-Pires 1996', 'Dilão 2023')
     until = 2000
     dt = 1
 
@@ -236,7 +236,7 @@ class BeamBeamMapSystem(BaseSystem):
         *,
         nu: float = 0.3,
         c: float = 0.05,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -256,11 +256,11 @@ class BeamBeamMapSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        rotation = MapInteraction("x_map", target="particle", state="x", function=lambda s: _rotate(s)[0])
-        kick = MapInteraction("y_map", target="particle", state="y", function=self._kick)
+        rotation = MapInteraction('x_map', target='particle', state='x', function=lambda s: _rotate(s)[0])
+        kick = MapInteraction('y_map', target='particle', state='y', function=self._kick)
         return System(
             self.label,
-            elements=[BeamElement("particle", x=self.x, y=self.y, nu=self.nu, c=self.c)],
+            elements=[BeamElement('particle', x=self.x, y=self.y, nu=self.nu, c=self.c)],
             interactions=[rotation, kick],
             time=DiscreteTime(),
         )
@@ -315,9 +315,9 @@ class FrictionOscillatorSystem(BaseSystem):
         0.1
     """
 
-    field = "physics/mechanics"
-    topics = ("mechanics", "ode", "friction", "stick-slip", "piecewise linear")
-    references = ("Khalil 2002", "Trzaska 2023")
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'friction', 'stick-slip', 'piecewise linear')
+    references = ('Khalil 2002', 'Trzaska 2023')
     until = 40.0
     dt = 0.01
     solver = RK4Solver(dt=0.005)
@@ -334,7 +334,7 @@ class FrictionOscillatorSystem(BaseSystem):
         mu_k: float = 0.05,
         g: float = 1.0,
         v_stick: float = 0.01,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -353,7 +353,7 @@ class FrictionOscillatorSystem(BaseSystem):
         The mass follows `m x'' + c x' + k x + f = 0`.
         """
         mass = FrictionOscillatorElement(
-            "mass",
+            'mass',
             x=self.x,
             v=self.v,
             m=self.m,

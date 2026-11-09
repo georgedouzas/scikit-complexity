@@ -22,7 +22,7 @@ from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
-POINTS = VisualSpec("points", {"position": "x"})
+POINTS = VisualSpec('points', {'position': 'x'})
 
 
 class ContinuousTimeWalkerElement(Element):
@@ -62,7 +62,7 @@ class ContinuousTimeWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -106,7 +106,7 @@ class FractionalWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         H: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.3,
     ) -> None:
@@ -148,7 +148,7 @@ class LevyFlierElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
         l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
@@ -199,8 +199,8 @@ class LevyWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role="velocity")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -249,9 +249,9 @@ class TransientWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec("points", {"position": "x", "color_by": "D", "color_range": (0.0, 1.0)}),
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -268,7 +268,7 @@ def _direction(name: str, size: int) -> list[Expression]:
 
     The vector is drawn from standard normal components.
     """
-    components = [normal(f"{name}{index}") for index in range(size)]
+    components = [normal(f'{name}{index}') for index in range(size)]
     length = sqrt(sum(component**2 for component in components))
     return [component / length for component in components]
 
@@ -307,9 +307,9 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         0.7
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "renewal process", "subdiffusion", "random walk")
-    references = ("Argun et al. 2021", "Metzler and Klafter 2000", "Montroll and Weiss 1965", "Bertin 2021")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'subdiffusion', 'random walk')
+    references = ('Argun et al. 2021', 'Metzler and Klafter 2000', 'Montroll and Weiss 1965', 'Bertin 2021')
     until = 1000.0
     dt = 5.0
 
@@ -321,7 +321,7 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         tau0: float = 1.0,
         sigma: float = 1.0,
         n_dim: int = 2,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -333,23 +333,23 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=ContinuousTimeWalkerElement,
             size=self.n_walkers,
             values={
-                "x": np.zeros((self.n_walkers, self.n_dim)),
-                "alpha": self.alpha,
-                "tau0": self.tau0,
-                "sigma": self.sigma,
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'alpha': self.alpha,
+                'tau0': self.tau0,
+                'sigma': self.sigma,
             },
         )
         jumps = JumpInteraction(
-            "jumps",
-            target="walkers",
-            waiting=lambda s: draw("wait", "pareto", b=s.target.alpha, scale=s.target.tau0),
+            'jumps',
+            target='walkers',
+            waiting=lambda s: draw('wait', 'pareto', b=s.target.alpha, scale=s.target.tau0),
             reset={
-                "x": lambda s: [
-                    item + normal(f"jump{index}", 0, s.target.sigma) for index, item in enumerate(s.target.x)
+                'x': lambda s: [
+                    item + normal(f'jump{index}', 0, s.target.sigma) for index, item in enumerate(s.target.x)
                 ],
             },
         )
@@ -393,9 +393,9 @@ class LevyWalkSystem(BaseSystem):
         1.2
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "renewal process", "superdiffusion", "random walk")
-    references = ("Argun et al. 2021", "Zaburdaev, Denisov, and Klafter 2015", "Shlesinger, West, and Klafter 1987")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'superdiffusion', 'random walk')
+    references = ('Argun et al. 2021', 'Zaburdaev, Denisov, and Klafter 2015', 'Shlesinger, West, and Klafter 1987')
     until = 500.0
     dt = 2.5
     solver = RK4Solver(dt=0.5)
@@ -409,7 +409,7 @@ class LevyWalkSystem(BaseSystem):
         speed: float = 1.0,
         n_dim: int = 2,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -424,23 +424,23 @@ class LevyWalkSystem(BaseSystem):
         directions = np.random.default_rng(self.random_state).standard_normal((self.n_walkers, self.n_dim))
         velocities = self.speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=LevyWalkerElement,
             size=self.n_walkers,
             values={
-                "x": np.zeros((self.n_walkers, self.n_dim)),
-                "v": velocities,
-                "sigma": self.sigma,
-                "tau0": self.tau0,
-                "speed": self.speed,
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'v': velocities,
+                'sigma': self.sigma,
+                'tau0': self.tau0,
+                'speed': self.speed,
             },
         )
-        flight = RateInteraction("flight", target="walkers", state="x", rate=lambda s: s.target.v)
+        flight = RateInteraction('flight', target='walkers', state='x', rate=lambda s: s.target.v)
         turns = JumpInteraction(
-            "turns",
-            target="walkers",
-            waiting=lambda s: draw("flight", "pareto", b=s.target.sigma, scale=s.target.tau0),
-            reset={"v": lambda s: [s.target.speed * item for item in _direction("direction", len(list(s.target.v)))]},
+            'turns',
+            target='walkers',
+            waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
+            reset={'v': lambda s: [s.target.speed * item for item in _direction('direction', len(list(s.target.v)))]},
         )
         return System(
             self.label,
@@ -485,9 +485,9 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "renewal process", "heterogeneity", "sde")
-    references = ("Argun et al. 2021", "Massignan et al. 2014")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'renewal process', 'heterogeneity', 'sde')
+    references = ('Argun et al. 2021', 'Massignan et al. 2014')
     until = 500.0
     dt = 2.5
     solver = EulerMaruyamaSolver(dt=0.5)
@@ -500,7 +500,7 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         gamma: float = 1.0,
         n_dim: int = 2,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -513,22 +513,22 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         coefficients = np.random.default_rng(self.random_state).beta(self.sigma, 1.0, self.n_walkers)
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=TransientWalkerElement,
             size=self.n_walkers,
             values={
-                "x": np.zeros((self.n_walkers, self.n_dim)),
-                "D": coefficients,
-                "sigma": self.sigma,
-                "gamma": self.gamma,
+                'x': np.zeros((self.n_walkers, self.n_dim)),
+                'D': coefficients,
+                'sigma': self.sigma,
+                'gamma': self.gamma,
             },
         )
-        noise = RateInteraction("noise", target="walkers", noise=lambda s: sqrt(2 * s.target.D))
+        noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D))
         changes = JumpInteraction(
-            "changes",
-            target="walkers",
-            waiting=lambda s: draw("wait", "expon", scale=s.target.D ** (-s.target.gamma)),
-            reset={"D": lambda s: draw("coefficient", "beta", a=s.target.sigma, b=1)},
+            'changes',
+            target='walkers',
+            waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
+            reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
         )
         return System(
             self.label,
@@ -569,9 +569,9 @@ class FractionalBrownianMotionSystem(BaseSystem):
         0.7
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "fractional noise", "long memory", "sde")
-    references = ("Argun et al. 2021", "Mandelbrot and Van Ness 1968")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'fractional noise', 'long memory', 'sde')
+    references = ('Argun et al. 2021', 'Mandelbrot and Van Ness 1968')
     until = 10.0
     dt = 0.05
     solver = FractionalEulerMaruyamaSolver(dt=0.01)
@@ -583,7 +583,7 @@ class FractionalBrownianMotionSystem(BaseSystem):
         H: float = 0.3,
         D: float = 1.0,
         n_dim: int = 2,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -597,14 +597,14 @@ class FractionalBrownianMotionSystem(BaseSystem):
         Along every axis `<x^2> = 2 D t^(2 H)`.
         """
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=FractionalWalkerElement,
             size=self.n_walkers,
-            values={"x": np.zeros((self.n_walkers, self.n_dim)), "D": self.D, "H": self.H},
+            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'D': self.D, 'H': self.H},
         )
         noise = RateInteraction(
-            "noise",
-            target="walkers",
+            'noise',
+            target='walkers',
             noise=lambda s: sqrt(2 * s.target.D),
             hurst=lambda s: s.target.H,
         )
@@ -644,9 +644,9 @@ class LevyFlightSystem(BaseSystem):
 
     draws = True
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "superdiffusion", "random walk", "stochastic map")
-    references = ("Bertin 2021", "Shlesinger, Zaslavsky, and Frisch 1995")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'superdiffusion', 'random walk', 'stochastic map')
+    references = ('Bertin 2021', 'Shlesinger, Zaslavsky, and Frisch 1995')
     until = 200.0
     dt = 1.0
 
@@ -657,7 +657,7 @@ class LevyFlightSystem(BaseSystem):
         mu: float = 1.2,
         l0: float = 1.0,
         n_dim: int = 2,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -671,8 +671,8 @@ class LevyFlightSystem(BaseSystem):
 
         The jump has the power-law length `l0 r^(-1 / mu)`.
         """
-        length = draw("length", "pareto", b=s.target.mu, scale=s.target.l0)
-        steps = _direction("direction", len(list(s.target.x)))
+        length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
+        steps = _direction('direction', len(list(s.target.x)))
         return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
 
     def _build_system(self) -> System:
@@ -681,10 +681,10 @@ class LevyFlightSystem(BaseSystem):
         The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
         """
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=LevyFlierElement,
             size=self.n_walkers,
-            values={"x": np.zeros((self.n_walkers, self.n_dim)), "mu": self.mu, "l0": self.l0},
+            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'mu': self.mu, 'l0': self.l0},
         )
-        flights = MapInteraction("flights", target="walkers", state="x", function=self._get_flight)
+        flights = MapInteraction('flights', target='walkers', state='x', function=self._get_flight)
         return System(self.label, elements=[walkers], interactions=[flights], space=ContinuousSpace(n_dim=self.n_dim))

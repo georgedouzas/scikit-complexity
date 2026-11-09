@@ -52,9 +52,9 @@ class IdealGasSystem(BaseSystem):
         ('gas', 'MassPointElement', 1000)
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("gas", "ode", "boundary")
-    references = ("Maxwell 1860",)
+    field = 'physics/statistical_mechanics'
+    topics = ('gas', 'ode', 'boundary')
+    references = ('Maxwell 1860',)
     until = 2.0
     dt = 0.01
 
@@ -67,7 +67,7 @@ class IdealGasSystem(BaseSystem):
         n_dim: int = 2,
         mass: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_molecules = n_molecules
@@ -82,22 +82,22 @@ class IdealGasSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         velocities = rng.normal(0.0, np.sqrt(self.kT / self.mass), size=(self.n_molecules, self.n_dim))
         velocities -= velocities.mean(axis=0)
-        visual = VisualSpec("points", {"position": "x", "radius": self.size / 200, "color_by": "x_d1", "states": ()})
+        visual = VisualSpec('points', {'position': 'x', 'radius': self.size / 200, 'color_by': 'x_d1', 'states': ()})
         molecules = GroupElement(
-            "gas",
+            'gas',
             element=MassPointElement,
             size=self.n_molecules,
             values={
-                "x": rng.uniform(0.0, self.size, size=(self.n_molecules, self.n_dim)),
-                "x_d1": velocities,
-                "m": self.mass,
+                'x': rng.uniform(0.0, self.size, size=(self.n_molecules, self.n_dim)),
+                'x_d1': velocities,
+                'm': self.mass,
             },
             visual=visual,
         )
         return System(
             self.label,
             elements=[molecules],
-            space=ContinuousSpace(extent=[self.size] * self.n_dim, boundary="reflecting"),
+            space=ContinuousSpace(extent=[self.size] * self.n_dim, boundary='reflecting'),
         )
 
 
@@ -134,9 +134,9 @@ class LennardJonesFluidSystem(BaseSystem):
         100
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("molecular dynamics", "pair potential", "ode")
-    references = ("Lennard-Jones 1924", "Verlet 1967")
+    field = 'physics/statistical_mechanics'
+    topics = ('molecular dynamics', 'pair potential', 'ode')
+    references = ('Lennard-Jones 1924', 'Verlet 1967')
     until = 0.5
     dt = 0.005
     solver = VelocityVerletSolver()
@@ -149,7 +149,7 @@ class LennardJonesFluidSystem(BaseSystem):
         temperature: float | None = None,
         cutoff: float = 2.5,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -172,22 +172,22 @@ class LennardJonesFluidSystem(BaseSystem):
         velocities = rng.normal(0, np.sqrt(self.temperature or 1.0), (self.n_particles, 2))
         velocities -= velocities.mean(axis=0)
         interactions: list[BaseInteraction] = [
-            LennardJonesInteraction("lj", first="fluid", second="fluid", cutoff=self.cutoff, divisor="m", period=size),
+            LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=self.cutoff, divisor='m', period=size),
         ]
         if self.temperature is not None:
             interactions.append(
-                LangevinThermostatInteraction("thermostat", target="fluid", temperature=self.temperature),
+                LangevinThermostatInteraction('thermostat', target='fluid', temperature=self.temperature),
             )
         return System(
             self.label,
             elements=[
                 GroupElement(
-                    "fluid",
+                    'fluid',
                     element=MassPointElement,
                     size=self.n_particles,
-                    values={"x": positions, "x_d1": velocities},
+                    values={'x': positions, 'x_d1': velocities},
                 ),
             ],
             interactions=interactions,
-            space=ContinuousSpace(extent=(size, size), boundary="periodic"),
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         )

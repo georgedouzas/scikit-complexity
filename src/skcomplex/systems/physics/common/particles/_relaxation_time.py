@@ -63,7 +63,7 @@ class RelaxationTimeInteraction(RateInteraction):
         label: str,
         *,
         target: str,
-        state: str = "x",
+        state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,
         noise: Callable[[SimpleNamespace], object] | float | None = None,
@@ -78,10 +78,10 @@ class RelaxationTimeInteraction(RateInteraction):
         A bad function is neither callable nor a number.
         """
         super()._check_functions()
-        for name in ("goal", "time"):
+        for name in ('goal', 'time'):
             value = getattr(self, name)
             if not (callable(value) or isinstance(value, int | float)):
-                error_msg = f"The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number."
+                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
 
     def _get_goal(self, namespace: SimpleNamespace) -> object:
@@ -106,6 +106,6 @@ class RelaxationTimeInteraction(RateInteraction):
             rate:
                 The rate of the state.
         """
-        state = getattr(self._get_member(namespace, "target"), self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         goal = self._broadcast(self._get_goal(namespace), state)
         return (goal - state) / self._get_time(namespace)

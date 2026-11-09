@@ -60,8 +60,8 @@ class LangevinThermostatInteraction(RelaxationTimeInteraction):
         target: Annotated[str, RoleSpec()],
         temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        state: str = "x",
-        divisor: str = "m",
+        state: str = 'x',
+        divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, state=state)
         self.temperature = temperature

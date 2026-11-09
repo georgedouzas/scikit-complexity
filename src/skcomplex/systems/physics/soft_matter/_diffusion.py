@@ -72,7 +72,7 @@ class ModulatedParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(role="position")] = 50.0,
+        x: Annotated[float, StateSpec(role='position')] = 50.0,
         s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ds: Annotated[float, ParameterSpec()] = 1.8,
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
@@ -132,7 +132,7 @@ class ScaledWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(role="position")] = 0.0,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
@@ -192,7 +192,7 @@ class OpticalTrapInteraction(GradientInteraction):
         blink_period: float | None = None,
         duty: float = 0.5,
     ) -> None:
-        super().__init__(label, target=target, states="x", divisor="gamma")
+        super().__init__(label, target=target, states='x', divisor='gamma')
         self.k = k
         self.amplitude = amplitude
         self.frequency = frequency
@@ -268,7 +268,7 @@ class SpeckleFieldInteraction(GradientInteraction):
         intensities: tuple[float, ...] = (),
         lengths: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label, target=target, states="x")
+        super().__init__(label, target=target, states='x')
         self.strength = strength
         self.centers = centers
         self.intensities = intensities
@@ -338,9 +338,9 @@ class BrownianMotionSystem(BaseSystem):
         'BrownianParticleElement'
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "sde", "diffusion", "inertia")
-    references = ("Argun et al. 2021", "Li et al. 2010", "Volpe and Volpe 2013")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'diffusion', 'inertia')
+    references = ('Argun et al. 2021', 'Li et al. 2010', 'Volpe and Volpe 2013')
     until = 10.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -355,7 +355,7 @@ class BrownianMotionSystem(BaseSystem):
         kT: float = 1.0,
         n_dim: int = 1,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -374,15 +374,15 @@ class BrownianMotionSystem(BaseSystem):
         space = ContinuousSpace(n_dim=self.n_dim)
         if not self.inertial:
             beads = GroupElement(
-                "beads",
+                'beads',
                 element=BrownianParticleElement,
                 size=self.n_particles,
-                values={"x": np.zeros((self.n_particles, self.n_dim)), "gamma": self.gamma, "temperature": self.kT},
+                values={'x': np.zeros((self.n_particles, self.n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
             )
             return System(
                 self.label,
                 elements=[beads],
-                interactions=[ThermalNoiseInteraction("bath", target="beads")],
+                interactions=[ThermalNoiseInteraction('bath', target='beads')],
                 space=space,
             )
         velocities = np.random.default_rng(self.random_state).normal(
@@ -391,13 +391,13 @@ class BrownianMotionSystem(BaseSystem):
             (self.n_particles, self.n_dim),
         )
         beads = GroupElement(
-            "beads",
+            'beads',
             element=MassPointElement,
             size=self.n_particles,
-            values={"x": np.zeros((self.n_particles, self.n_dim)), "x_d1": velocities, "m": self.m},
+            values={'x': np.zeros((self.n_particles, self.n_dim)), 'x_d1': velocities, 'm': self.m},
             visual=POINTS,
         )
-        bath = LangevinThermostatInteraction("bath", target="beads", temperature=self.kT, gamma=self.gamma)
+        bath = LangevinThermostatInteraction('bath', target='beads', temperature=self.kT, gamma=self.gamma)
         return System(self.label, elements=[beads], interactions=[bath], space=space)
 
 
@@ -443,9 +443,9 @@ class OpticalTrapSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "sde", "optical tweezers", "forcing")
-    references = ("Argun et al. 2021", "Ashkin et al. 1986", "Jones, Maragò, and Volpe 2015")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'optical tweezers', 'forcing')
+    references = ('Argun et al. 2021', 'Ashkin et al. 1986', 'Jones, Maragò, and Volpe 2015')
     until = 20.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -461,7 +461,7 @@ class OpticalTrapSystem(BaseSystem):
         frequency: float = 0.0,
         blink_period: float | None = None,
         duty: float = 0.5,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -480,21 +480,21 @@ class OpticalTrapSystem(BaseSystem):
         """
         n_dim = len(self.k)
         beads = GroupElement(
-            "beads",
+            'beads',
             element=BrownianParticleElement,
             size=self.n_particles,
-            values={"x": np.zeros((self.n_particles, n_dim)), "gamma": self.gamma, "temperature": self.kT},
+            values={'x': np.zeros((self.n_particles, n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
         )
         trap = OpticalTrapInteraction(
-            "tweezers",
-            target="beads",
+            'tweezers',
+            target='beads',
             k=list(self.k),
             amplitude=list(self.amplitude),
             frequency=self.frequency,
             blink_period=self.blink_period,
             duty=self.duty,
         )
-        bath = ThermalNoiseInteraction("bath", target="beads")
+        bath = ThermalNoiseInteraction('bath', target='beads')
         return System(self.label, elements=[beads], interactions=[trap, bath], space=ContinuousSpace(n_dim=n_dim))
 
 
@@ -525,9 +525,9 @@ class KramersEscapeSystem(BaseSystem):
         0.2
     """
 
-    field = "physics/soft_matter"
-    topics = ("noise", "sde", "escape", "double well", "rates")
-    references = ("Kramers 1940", "Hänggi, Talkner, and Borkovec 1990", "Gros 2015")
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'escape', 'double well', 'rates')
+    references = ('Kramers 1940', 'Hänggi, Talkner, and Borkovec 1990', 'Gros 2015')
     until = 100.0
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -538,7 +538,7 @@ class KramersEscapeSystem(BaseSystem):
         *,
         D: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -552,9 +552,9 @@ class KramersEscapeSystem(BaseSystem):
         They are the gradient of the well and the noisy forcing.
         """
         return [
-            GradientInteraction("well", target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
             RateInteraction(
-                "drive",
+                'drive',
                 target=target,
                 rate=_get_double_well_drive,
                 noise=lambda s: sqrt(2 * s.target.D),
@@ -565,12 +565,12 @@ class KramersEscapeSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         positions = -1.0 + np.random.default_rng(self.random_state).normal(0.0, 0.1, self.n_particles)
         group = GroupElement(
-            "particles",
+            'particles',
             element=DoubleWellElement,
             size=self.n_particles,
-            values={"x": positions, "amplitude": 0.0, "D": self.D},
+            values={'x': positions, 'amplitude': 0.0, 'D': self.D},
         )
-        return System(self.label, elements=[group], interactions=self._get_double_well_interactions("particles"))
+        return System(self.label, elements=[group], interactions=self._get_double_well_interactions('particles'))
 
 
 class MultiplicativeNoiseSystem(BaseSystem):
@@ -606,9 +606,9 @@ class MultiplicativeNoiseSystem(BaseSystem):
         'ito'
     """
 
-    field = "physics/soft_matter"
-    topics = ("noise", "sde", "multiplicative noise", "spurious drift")
-    references = ("Argun et al. 2021", "Volpe and Wehr 2016")
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'multiplicative noise', 'spurious drift')
+    references = ('Argun et al. 2021', 'Volpe and Wehr 2016')
     until = 100.0
     dt = 0.05
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -620,8 +620,8 @@ class MultiplicativeNoiseSystem(BaseSystem):
         s0: float = 1.0,
         ds: float = 1.8,
         L: float = 100.0,
-        convention: str = "anti-ito",
-        label: str = "system",
+        convention: str = 'anti-ito',
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -633,14 +633,14 @@ class MultiplicativeNoiseSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         group = GroupElement(
-            "particles",
+            'particles',
             element=ModulatedParticleElement,
             size=self.n_particles,
-            values={"x": self.L / 2, "s0": self.s0, "ds": self.ds, "L": self.L},
+            values={'x': self.L / 2, 's0': self.s0, 'ds': self.ds, 'L': self.L},
         )
         noise = RateInteraction(
-            "noise",
-            target="particles",
+            'noise',
+            target='particles',
             noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
             convention=self.convention,
         )
@@ -678,9 +678,9 @@ class ScaledBrownianMotionSystem(BaseSystem):
         1.5
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "sde", "non-ergodic")
-    references = ("Argun et al. 2021", "Lim and Muniandy 2002", "Jeon et al. 2014")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'sde', 'non-ergodic')
+    references = ('Argun et al. 2021', 'Lim and Muniandy 2002', 'Jeon et al. 2014')
     until = 10.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -692,7 +692,7 @@ class ScaledBrownianMotionSystem(BaseSystem):
         alpha: float = 0.5,
         K: float = 1.0,
         t0: float = 0.01,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -709,16 +709,16 @@ class ScaledBrownianMotionSystem(BaseSystem):
             self.label,
             elements=[
                 GroupElement(
-                    "walkers",
+                    'walkers',
                     element=ScaledWalkerElement,
                     size=self.n_particles,
-                    values={"K": self.K, "alpha": self.alpha, "t0": self.t0},
+                    values={'K': self.K, 'alpha': self.alpha, 't0': self.t0},
                 ),
             ],
             interactions=[
                 RateInteraction(
-                    "noise",
-                    target="walkers",
+                    'noise',
+                    target='walkers',
                     noise=lambda s: sqrt(2 * s.target.K * s.target.alpha * (s.t + s.target.t0) ** (s.target.alpha - 1)),
                 ),
             ],
@@ -769,9 +769,9 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         3
     """
 
-    field = "physics/soft_matter"
-    topics = ("anomalous diffusion", "sde", "optical forces", "disorder")
-    references = ("Argun et al. 2021", "Volpe, Volpe, and Gigan 2014")
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'sde', 'optical forces', 'disorder')
+    references = ('Argun et al. 2021', 'Volpe, Volpe, and Gigan 2014')
     until = 60.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -786,7 +786,7 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         length: float = 10.0,
         D: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -804,8 +804,8 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         intensities = (1 - rng.random(self.n_hotspots)) ** -0.5
         lengths = self.length * (1 - rng.random(self.n_hotspots)) ** -0.5
         speckle = SpeckleFieldInteraction(
-            "speckle",
-            target="beads",
+            'speckle',
+            target='beads',
             strength=self.strength,
             centers=tuple((float(x), float(y)) for x, y in centers),
             intensities=tuple(float(item) for item in intensities),
@@ -813,10 +813,10 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         )
         positions = rng.uniform(self.size / 4, 3 * self.size / 4, (self.n_particles, 2))
         beads = GroupElement(
-            "beads",
+            'beads',
             element=BrownianParticleElement,
             size=self.n_particles,
-            values={"x": positions, "gamma": 1.0, "temperature": self.D},
+            values={'x': positions, 'gamma': 1.0, 'temperature': self.D},
         )
-        bath = ThermalNoiseInteraction("bath", target="beads")
+        bath = ThermalNoiseInteraction('bath', target='beads')
         return System(self.label, elements=[beads], interactions=[speckle, bath], space=ContinuousSpace(n_dim=2))

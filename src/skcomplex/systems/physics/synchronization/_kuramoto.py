@@ -71,7 +71,7 @@ class DelayedCouplingInteraction(RateInteraction):
         K: Annotated[float, ParameterSpec()] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, target=target, state="theta")
+        super().__init__(label, target=target, state='theta')
         self.source = source
         self.K = K
         self.tau = tau
@@ -129,9 +129,9 @@ class DelayedKuramotoSystem(BaseSystem):
         6
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "delay", "oscillators")
-    references = ("Yeung and Strogatz 1999", "Kuramoto 1984")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'delay', 'oscillators')
+    references = ('Yeung and Strogatz 1999', 'Kuramoto 1984')
     until = 50.0
     dt = 0.1
 
@@ -143,7 +143,7 @@ class DelayedKuramotoSystem(BaseSystem):
         tau: float = 1.0,
         spread: float = 0.2,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -165,14 +165,14 @@ class DelayedKuramotoSystem(BaseSystem):
             1.0 + self.spread * (index / max(self.n_oscillators - 1, 1) - 0.5) for index in range(self.n_oscillators)
         ]
         elements = [
-            PhaseOscillatorElement(f"oscillator_{index}", theta=phases[index], omega=omegas[index])
+            PhaseOscillatorElement(f'oscillator_{index}', theta=phases[index], omega=omegas[index])
             for index in range(self.n_oscillators)
         ]
         interactions = [
             DelayedCouplingInteraction(
-                f"coupling_{source}_{target}",
-                source=f"oscillator_{source}",
-                target=f"oscillator_{target}",
+                f'coupling_{source}_{target}',
+                source=f'oscillator_{source}',
+                target=f'oscillator_{target}',
                 K=self.K / self.n_oscillators,
                 tau=self.tau,
             )
@@ -217,12 +217,12 @@ class KuramotoSystem(BaseSystem):
         (10, None)
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "mean field")
-    references = ("Kuramoto 1984", "Datseris and Parlitz 2022", "Gros 2015", "Jensen 2023")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'mean field')
+    references = ('Kuramoto 1984', 'Datseris and Parlitz 2022', 'Gros 2015', 'Jensen 2023')
     until = 50.0
     dt = 0.5
-    observables = tuple(order_parameter("order", "oscillators"))
+    observables = tuple(order_parameter('order', 'oscillators'))
 
     def __init__(
         self,
@@ -231,7 +231,7 @@ class KuramotoSystem(BaseSystem):
         K: float = 4.0,
         sigma: float = 1.0,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -243,20 +243,20 @@ class KuramotoSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         oscillators = GroupElement(
-            "oscillators",
+            'oscillators',
             element=PhaseOscillatorElement,
             size=self.n_oscillators,
             values={
-                "theta": _spread_phases(self.n_oscillators, self.seed),
-                "omega": rng.normal(0.0, self.sigma, self.n_oscillators),
+                'theta': _spread_phases(self.n_oscillators, self.seed),
+                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
         )
         coupling = KuramotoCouplingInteraction(
-            "coupling",
-            target="oscillators",
+            'coupling',
+            target='oscillators',
             K=self.K,
-            mode="group",
-            reduce="mean",
+            mode='group',
+            reduce='mean',
             include_self=True,
         )
         return System(
@@ -304,14 +304,14 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         4
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "chimera")
-    references = ("Abrams et al. 2008", "Jensen 2023")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'chimera')
+    references = ('Abrams et al. 2008', 'Jensen 2023')
     until = 100.0
     dt = 1.0
     observables = (
-        *order_parameter("first_order", "first"),
-        *order_parameter("second_order", "second"),
+        *order_parameter('first_order', 'first'),
+        *order_parameter('second_order', 'second'),
     )
 
     def __init__(
@@ -322,7 +322,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         beta: float = 0.1,
         spread: float = 0.1,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -337,33 +337,33 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
         populations = [
             GroupElement(
-                "first",
+                'first',
                 element=PhaseOscillatorElement,
                 size=self.n_oscillators,
-                values={"theta": rng.normal(0.0, self.spread, self.n_oscillators), "omega": 0.0},
-                visual=VisualSpec("phase_ring", {"phase": "theta"}),
+                values={'theta': rng.normal(0.0, self.spread, self.n_oscillators), 'omega': 0.0},
+                visual=VisualSpec('phase_ring', {'phase': 'theta'}),
             ),
             GroupElement(
-                "second",
+                'second',
                 element=PhaseOscillatorElement,
                 size=self.n_oscillators,
-                values={"theta": _spread_phases(self.n_oscillators, self.seed + 1), "omega": 0.0},
-                visual=VisualSpec("phase_ring", {"phase": "theta"}),
+                values={'theta': _spread_phases(self.n_oscillators, self.seed + 1), 'omega': 0.0},
+                visual=VisualSpec('phase_ring', {'phase': 'theta'}),
             ),
         ]
         interactions: list[BaseInteraction] = [
             KuramotoCouplingInteraction(
-                f"{target}_from_{source}",
+                f'{target}_from_{source}',
                 target=target,
                 source=source,
                 K=mu if target == source else nu,
                 alpha=alpha,
-                reduce="mean",
-                mode="group",
+                reduce='mean',
+                mode='group',
                 include_self=True,
             )
-            for target in ("first", "second")
-            for source in ("first", "second")
+            for target in ('first', 'second')
+            for source in ('first', 'second')
         ]
         return System(
             self.label,
@@ -407,12 +407,12 @@ class NonlocalRingChimeraSystem(BaseSystem):
         3.5
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "chimera", "nonlocal coupling")
-    references = ("Kuramoto and Battogtokh 2002", "Datseris and Parlitz 2022")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'chimera', 'nonlocal coupling')
+    references = ('Kuramoto and Battogtokh 2002', 'Datseris and Parlitz 2022')
     until = 100.0
     dt = 1.0
-    observables = tuple(order_parameter("order", "ring"))
+    observables = tuple(order_parameter('order', 'ring'))
 
     def __init__(
         self,
@@ -422,7 +422,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         alpha: float = 1.46,
         omega: float = 0.0,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -438,30 +438,30 @@ class NonlocalRingChimeraSystem(BaseSystem):
         """
         weight = 1 / (2 * self.R)
         ring = GroupElement(
-            "ring",
+            'ring',
             element=SitedOscillatorElement,
             size=self.n_oscillators,
             values={
-                "theta": _spread_phases(self.n_oscillators, self.seed),
-                "omega": self.omega,
-                "x": np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
+                'theta': _spread_phases(self.n_oscillators, self.seed),
+                'omega': self.omega,
+                'x': np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
             },
-            visual=VisualSpec("phase_ring", {"phase": "theta", "position": "x"}),
+            visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
         )
         return System(
             self.label,
             elements=[ring],
             interactions=[
                 KuramotoCouplingInteraction(
-                    "coupling",
-                    target="ring",
+                    'coupling',
+                    target='ring',
                     K=weight,
                     alpha=self.alpha,
                     include_self=True,
                     neighborhood=RadiusNeighborhood(self.R + 0.5),
                 ),
             ],
-            space=ContinuousSpace((float(self.n_oscillators),), boundary="periodic"),
+            space=ContinuousSpace((float(self.n_oscillators),), boundary='periodic'),
         )
 
 
@@ -498,9 +498,9 @@ class OttAntonsenSystem(BaseSystem):
         1.5
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "ode", "mean field", "dimension reduction")
-    references = ("Ott and Antonsen 2008", "Bick et al. 2020")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'ode', 'mean field', 'dimension reduction')
+    references = ('Ott and Antonsen 2008', 'Bick et al. 2020')
     until = 30.0
     dt = 0.1
 
@@ -511,7 +511,7 @@ class OttAntonsenSystem(BaseSystem):
         K: float = 2.0,
         Delta: float = 0.5,
         omega: float = 0.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.r = r
@@ -528,7 +528,7 @@ class OttAntonsenSystem(BaseSystem):
             self.label,
             elements=[
                 StuartLandauElement(
-                    "field",
+                    'field',
                     x=self.r,
                     y=0.0,
                     mu=self.K / 2 - self.Delta,

@@ -7,8 +7,8 @@ from ._mode import ModeElement, mode_space
 from ._qubit import QUBIT, QubitElement
 
 __all__: list[str] = [
-    "QUBIT",
-    "ModeElement",
-    "QubitElement",
-    "mode_space",
+    'QUBIT',
+    'ModeElement',
+    'QubitElement',
+    'mode_space',
 ]

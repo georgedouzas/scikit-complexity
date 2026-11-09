@@ -109,9 +109,9 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/soft_matter"
-    topics = ("noise", "sde", "colored noise", "langevin equation")
-    references = ("Bertin 2021", "Hänggi and Jung 1995")
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'colored noise', 'langevin equation')
+    references = ('Bertin 2021', 'Hänggi and Jung 1995')
     until = 50.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -124,7 +124,7 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         D: float = 1.0,
         tau: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -140,21 +140,21 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         """
         noise = np.random.default_rng(self.random_state).normal(0.0, math.sqrt(self.D / self.tau), self.n_particles)
         particles = GroupElement(
-            "particles",
+            'particles',
             element=ColoredNoiseParticleElement,
             size=self.n_particles,
-            values={"xi": noise, "gamma": self.gamma, "D": self.D, "tau": self.tau},
+            values={'xi': noise, 'gamma': self.gamma, 'D': self.D, 'tau': self.tau},
         )
         drag = RateInteraction(
-            "drag",
-            target="particles",
-            state="v",
+            'drag',
+            target='particles',
+            state='v',
             rate=lambda s: -s.target.gamma * s.target.v + s.target.xi,
         )
         noise = RelaxationTimeInteraction(
-            "noise",
-            target="particles",
-            state="xi",
+            'noise',
+            target='particles',
+            state='xi',
             time=lambda s: s.target.tau,
             noise=lambda s: sqrt(2 * s.target.D) / s.target.tau,
         )

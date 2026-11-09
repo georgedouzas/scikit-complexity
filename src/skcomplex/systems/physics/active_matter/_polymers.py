@@ -160,9 +160,9 @@ class ActivePolymerSystem(BaseSystem):
         5
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "sde", "polymer", "self-propulsion", "rouse chain")
-    references = ("Winkler and Gompper 2020", "Osmanović and Rabin 2017", "Eisenstecken et al. 2016")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'polymer', 'self-propulsion', 'rouse chain')
+    references = ('Winkler and Gompper 2020', 'Osmanović and Rabin 2017', 'Eisenstecken et al. 2016')
     until = 50.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.005)
@@ -176,7 +176,7 @@ class ActivePolymerSystem(BaseSystem):
         D_t: float = 0.1,
         D_r: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_beads = n_beads
@@ -190,18 +190,18 @@ class ActivePolymerSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, self.n_beads)
         chain = FieldElement(
-            "chain",
+            'chain',
             element=ActiveBeadElement,
-            space=LatticeSpace(self.n_beads, boundary="reflecting"),
-            boundary={"x": "zero-flux", "y": "zero-flux"},
+            space=LatticeSpace(self.n_beads, boundary='reflecting'),
+            boundary={'x': 'zero-flux', 'y': 'zero-flux'},
             values={
-                "x": np.arange(self.n_beads, dtype=float),
-                "y": np.zeros(self.n_beads),
-                "theta": angles,
-                "v0": self.v0,
-                "k": self.k,
-                "D_t": self.D_t,
-                "D_r": self.D_r,
+                'x': np.arange(self.n_beads, dtype=float),
+                'y': np.zeros(self.n_beads),
+                'theta': angles,
+                'v0': self.v0,
+                'k': self.k,
+                'D_t': self.D_t,
+                'D_r': self.D_r,
             },
         )
         return System(self.label, elements=[chain])

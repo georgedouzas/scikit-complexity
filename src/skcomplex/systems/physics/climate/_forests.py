@@ -231,9 +231,9 @@ class ForestDiebackSystem(BaseSystem):
         33.0
     """
 
-    field = "physics/climate"
-    topics = ("tipping points", "vegetation", "bistability", "hysteresis", "ode")
-    references = ("Van Nes et al. 2014", "Bury, Bauch, and Anand 2019", "Liu and Bauch 2023")
+    field = 'physics/climate'
+    topics = ('tipping points', 'vegetation', 'bistability', 'hysteresis', 'ode')
+    references = ('Van Nes et al. 2014', 'Bury, Bauch, and Anand 2019', 'Liu and Bauch 2023')
     until = 200.0
     dt = 0.5
 
@@ -247,7 +247,7 @@ class ForestDiebackSystem(BaseSystem):
         Topt: float = 28.0,
         a: float = 5.0,
         gamma: float = 0.2,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.v = v
@@ -261,7 +261,7 @@ class ForestDiebackSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         forest = ForestCoverElement(
-            "forest",
+            'forest',
             v=self.v,
             Tv=self.Tv,
             g0=self.g0,
@@ -270,7 +270,7 @@ class ForestDiebackSystem(BaseSystem):
             a=self.a,
             gamma=self.gamma,
         )
-        growth = RateInteraction("growth", target="forest", state="v", rate=lambda s: _logistic(s.target, 1))
+        growth = RateInteraction('growth', target='forest', state='v', rate=lambda s: _logistic(s.target, 1))
         return System(self.label, elements=[forest], interactions=[growth])
 
 
@@ -329,9 +329,9 @@ class SocialForestDiebackSystem(BaseSystem):
         2.5
     """
 
-    field = "physics/climate"
-    topics = ("tipping points", "vegetation", "social dynamics", "replicator", "delay", "dde")
-    references = ("Liu and Bauch 2023", "Bury, Bauch, and Anand 2019")
+    field = 'physics/climate'
+    topics = ('tipping points', 'vegetation', 'social dynamics', 'replicator', 'delay', 'dde')
+    references = ('Liu and Bauch 2023', 'Bury, Bauch, and Anand 2019')
     until = 200.0
     dt = 0.5
 
@@ -348,7 +348,7 @@ class SocialForestDiebackSystem(BaseSystem):
         w: float = 3.0,
         tp: float = 10.0,
         tf: float = 15.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.v = v
@@ -376,9 +376,9 @@ class SocialForestDiebackSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        forest = ForestCoverElement("forest", v=self.v, Tv=self.Tv)
+        forest = ForestCoverElement('forest', v=self.v, Tv=self.Tv)
         people = MitigatorsElement(
-            "people",
+            'people',
             x=self.x,
             alpha=self.alpha,
             delta=self.delta,
@@ -389,17 +389,17 @@ class SocialForestDiebackSystem(BaseSystem):
             tf=self.tf,
         )
         growth = RateInteraction(
-            "growth",
-            target="forest",
-            state="v",
-            sources=["people"],
+            'growth',
+            target='forest',
+            state='v',
+            sources=['people'],
             rate=lambda s: _logistic(s.target, 0.2 + 0.4 * s.sources[0].x),
         )
         mitigation = RateInteraction(
-            "mitigation",
-            target="people",
-            state="x",
-            sources=["forest"],
+            'mitigation',
+            target='people',
+            state='x',
+            sources=['forest'],
             rate=self._replicator,
         )
         return System(self.label, elements=[forest, people], interactions=[growth, mitigation])

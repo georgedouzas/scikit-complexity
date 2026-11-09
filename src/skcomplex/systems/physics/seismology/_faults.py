@@ -85,9 +85,9 @@ class EarthquakesSystem(BaseSystem):
         0.15
     """
 
-    field = "physics/seismology"
-    topics = ("lattice", "earthquakes", "power law")
-    references = ("Olami, Feder, and Christensen 1992", "Jensen 2023")
+    field = 'physics/seismology'
+    topics = ('lattice', 'earthquakes', 'power law')
+    references = ('Olami, Feder, and Christensen 1992', 'Jensen 2023')
     until = 5000
     dt = 100
 
@@ -97,7 +97,7 @@ class EarthquakesSystem(BaseSystem):
         *,
         alpha: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -120,20 +120,20 @@ class EarthquakesSystem(BaseSystem):
         The system starts from random forces.
         """
         forces = np.random.default_rng(self.random_state).random(tuple(self.shape))
-        space = LatticeSpace(tuple(self.shape), boundary="fixed")
+        space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
             self.label,
-            elements=[GroupElement("fault", element=FaultElement, space=space, values={"force": forces}, on="sites")],
+            elements=[GroupElement('fault', element=FaultElement, space=space, values={'force': forces}, on='sites')],
             interactions=[
                 CascadeInteraction(
-                    "earthquake",
-                    target="fault",
-                    state="force",
+                    'earthquake',
+                    target='fault',
+                    state='force',
                     threshold=THRESHOLD,
                     share=self.alpha,
-                    mode="reset",
+                    mode='reset',
                     drive=self._load,
-                    neighborhood=BallNeighborhood(metric="manhattan", center="first"),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                 ),
             ],
         )

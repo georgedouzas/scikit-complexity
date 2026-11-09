@@ -148,9 +148,9 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/pattern_formation"
-    topics = ("field", "conserved", "nonreciprocal", "traveling waves", "phase separation", "pde")
-    references = ("Brauns and Marchetti 2024", "Saha, Agudo-Canalejo, and Golestanian 2020", "Frohoff-Hülsmann 2021")
+    field = 'physics/pattern_formation'
+    topics = ('field', 'conserved', 'nonreciprocal', 'traveling waves', 'phase separation', 'pde')
+    references = ('Brauns and Marchetti 2024', 'Saha, Agudo-Canalejo, and Golestanian 2020', 'Frohoff-Hülsmann 2021')
     until = 400.0
     dt = 2.0
 
@@ -164,7 +164,7 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         D: float = 0.1,
         kappa: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -183,15 +183,15 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {
-            "phi": 0.01 * rng.uniform(-1.0, 1.0, shape),
-            "psi": 0.01 * rng.uniform(-1.0, 1.0, shape),
-            "chi": self.chi,
-            "alpha": self.alpha,
-            "D": self.D,
-            "kappa": self.kappa,
+            'phi': 0.01 * rng.uniform(-1.0, 1.0, shape),
+            'psi': 0.01 * rng.uniform(-1.0, 1.0, shape),
+            'chi': self.chi,
+            'alpha': self.alpha,
+            'D': self.D,
+            'kappa': self.kappa,
         }
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return System(
             self.label,
-            elements=[FieldElement("mixture", element=NonreciprocalMixtureElement, space=space, values=values)],
+            elements=[FieldElement('mixture', element=NonreciprocalMixtureElement, space=space, values=values)],
         )

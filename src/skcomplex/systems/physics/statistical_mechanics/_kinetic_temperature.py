@@ -67,9 +67,9 @@ def kinetic_temperature(source: Source, *, group: str | None = None, mass: float
         array([0.5])
     """
     if mass <= 0:
-        error_msg = f"kinetic_temperature has mass={mass!r}. Use a positive mass."
+        error_msg = f'kinetic_temperature has mass={mass!r}. Use a positive mass.'
         raise AnalysisError(error_msg)
-    velocities = _read_velocities(source, group, "kinetic_temperature")
+    velocities = _read_velocities(source, group, 'kinetic_temperature')
     return KineticTemperatureResult(velocities, _kinetic_temperature(velocities, mass))
 
 
@@ -79,14 +79,14 @@ def _read_velocities(source: Source, group: str | None, analysis: str) -> Array:
     The source is a trajectory, or an array of one snapshot or of frames.
     """
     if not isinstance(source, Trajectory | np.ndarray | list | tuple):
-        error_msg = f"{analysis} reads a trajectory or an array of velocities, not {source!r}."
+        error_msg = f'{analysis} reads a trajectory or an array of velocities, not {source!r}.'
         raise AnalysisError(error_msg)
     if not isinstance(source, Trajectory):
         array = np.asarray(source, dtype=float)
         return array[None] if array.ndim == SNAPSHOT_DIMENSIONS else array
     velocities = alignment(source, group=group).vectors
     if velocities is None:
-        error_msg = f"The agents of {group or 'the first group'} have no velocities. Use moving agents."
+        error_msg = f'The agents of {group or "the first group"} have no velocities. Use moving agents.'
         raise AnalysisError(error_msg)
     return velocities
 

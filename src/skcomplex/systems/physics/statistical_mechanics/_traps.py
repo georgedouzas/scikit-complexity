@@ -6,6 +6,7 @@ Walkers escape from traps of random depth after activated waiting times.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -60,9 +61,9 @@ class TrapWalkerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec("points", {"position": "x", "color_by": "E", "color_range": (0.0, 5.0)}),
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)}),
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.5,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.5,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -84,9 +85,9 @@ class TrapWalkerElement(Element):
             laws:
                 The laws of the component.
         """
-        reset = {item: uniform(f"place{index}") for index, item in enumerate(s.x)}
-        waiting = draw("escape", "expon", scale=s.tau0 * exp(s.E / s.T))
-        return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw("depth", "expon")}, label="escapes")]
+        reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
+        waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
+        return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
 
 
 class TrapSystem(BaseSystem):
@@ -121,9 +122,9 @@ class TrapSystem(BaseSystem):
         0.8
     """
 
-    field = "physics/statistical_mechanics"
-    topics = ("trap system", "renewal process", "aging", "glass")
-    references = ("Bouchaud 1992", "Monthus and Bouchaud 1996", "Bertin 2021")
+    field = 'physics/statistical_mechanics'
+    topics = ('trap system', 'renewal process', 'aging', 'glass')
+    references = ('Bouchaud 1992', 'Monthus and Bouchaud 1996', 'Bertin 2021')
     until = 10000.0
     dt = 50.0
 
@@ -134,7 +135,7 @@ class TrapSystem(BaseSystem):
         T: float = 0.5,
         tau0: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_walkers = n_walkers
@@ -149,14 +150,14 @@ class TrapSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         walkers = GroupElement(
-            "walkers",
+            'walkers',
             element=TrapWalkerElement,
             size=self.n_walkers,
             values={
-                "x": rng.random((self.n_walkers, 2)),
-                "E": rng.exponential(1.0, self.n_walkers),
-                "T": self.T,
-                "tau0": self.tau0,
+                'x': rng.random((self.n_walkers, 2)),
+                'E': rng.exponential(1.0, self.n_walkers),
+                'T': self.T,
+                'tau0': self.tau0,
             },
         )
         return System(self.label, elements=[walkers], space=ContinuousSpace(n_dim=2))

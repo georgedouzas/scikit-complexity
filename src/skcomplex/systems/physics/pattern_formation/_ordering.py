@@ -101,7 +101,7 @@ class LandauEnergyInteraction(GradientInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        state: str = "phi",
+        state: str = 'phi',
         kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         conserved: bool = False,
     ) -> None:
@@ -126,7 +126,7 @@ class LandauEnergyInteraction(GradientInteraction):
         return -(phi**2) / 2 + phi**4 / 4 - namespace.kappa * phi * laplacian(phi) / 2
 
 
-REFERENCES = ("Brauns and Marchetti 2024", "Allen and Cahn 1979", "Cahn and Hilliard 1958", "Bray 1994")
+REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
 
 def _ordering(
@@ -148,23 +148,23 @@ def _ordering(
     """
     shape = tuple(shape)
     rng = np.random.default_rng(random_state)
-    values = {"phi": mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
+    values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
     space = LatticeSpace(shape, spacing=length / shape[0])
     interactions: list[BaseInteraction] = [
-        LandauEnergyInteraction("energy", target="mixture", kappa=kappa, conserved=conserved),
+        LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
     ]
     if temperature:
         noise = RateInteraction(
-            "noise",
-            target="mixture",
-            state="phi",
+            'noise',
+            target='mixture',
+            state='phi',
             noise=math.sqrt(2 * temperature),
             conserved=True,
         )
         interactions.append(noise)
-    discretization = "finite-difference" if temperature else "spectral"
+    discretization = 'finite-difference' if temperature else 'spectral'
     field = FieldElement(
-        "mixture",
+        'mixture',
         element=PhaseFieldElement,
         space=space,
         values=values,
@@ -209,8 +209,8 @@ class AllenCahnSystem(BaseSystem):
         2.0
     """
 
-    field = "physics/pattern_formation"
-    topics = ("field", "phase ordering", "coarsening", "system a", "spectral", "pde")
+    field = 'physics/pattern_formation'
+    topics = ('field', 'phase ordering', 'coarsening', 'system a', 'spectral', 'pde')
     references = REFERENCES
     until = 100.0
     dt = 1.0
@@ -224,7 +224,7 @@ class AllenCahnSystem(BaseSystem):
         mean: float = 0.0,
         kappa: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -291,8 +291,8 @@ class CahnHilliardSystem(BaseSystem):
         ['energy', 'noise']
     """
 
-    field = "physics/pattern_formation"
-    topics = ("field", "phase separation", "coarsening", "conserved", "system b", "spectral", "pde", "conserved noise")
+    field = 'physics/pattern_formation'
+    topics = ('field', 'phase separation', 'coarsening', 'conserved', 'system b', 'spectral', 'pde', 'conserved noise')
     references = REFERENCES
     until = 1000.0
     dt = 10.0
@@ -307,7 +307,7 @@ class CahnHilliardSystem(BaseSystem):
         kappa: float = 1.0,
         temperature: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape

@@ -93,9 +93,9 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         source: Annotated[str | None, RoleSpec(optional=True)] = None,
         K: Annotated[float, ParameterSpec()] = 1.0,
         alpha: Annotated[float, ParameterSpec()] = 0.0,
-        state: str = "theta",
-        reduce: str = "sum",
-        mode: str = "edges",
+        state: str = 'theta',
+        reduce: str = 'sum',
+        mode: str = 'edges',
         weights: str | npt.ArrayLike | scipy.sparse.sparray | None = None,
         include_self: bool = False,
         delay: float = 0.0,
@@ -140,6 +140,6 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         reduction = namespace.K * (sines * cos(shifted) - cosines * sin(shifted))
         if self._excludes_self():
             reduction = reduction + namespace.K * sin(namespace.alpha)
-        if self.reduce == "mean":
+        if self.reduce == 'mean':
             reduction = reduction / (count(over=source) - (1 if self._excludes_self() else 0))
         return reduction

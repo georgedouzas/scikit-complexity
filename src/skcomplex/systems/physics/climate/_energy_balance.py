@@ -464,9 +464,9 @@ class EnergyBalanceSystem(BaseSystem):
         230.0
     """
 
-    field = "physics/climate"
-    topics = ("ode", "bistability", "ice-albedo feedback", "energy balance")
-    references = ("Budyko 1969", "Sellers 1969", "Datseris and Parlitz 2022", "Ghil and Lucarini 2020")
+    field = 'physics/climate'
+    topics = ('ode', 'bistability', 'ice-albedo feedback', 'energy balance')
+    references = ('Budyko 1969', 'Sellers 1969', 'Datseris and Parlitz 2022', 'Ghil and Lucarini 2020')
     until = 500.0
     dt = 5.0
 
@@ -481,7 +481,7 @@ class EnergyBalanceSystem(BaseSystem):
         contrast: float = 0.2,
         T_ice: float = 263.0,
         width: float = 4.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.T = T
@@ -499,7 +499,7 @@ class EnergyBalanceSystem(BaseSystem):
         The balance is bistable through the ice-albedo feedback.
         """
         climate = IceAlbedoClimateElement(
-            "earth",
+            'earth',
             T=self.T,
             s=self.s,
             epsilon=self.epsilon,
@@ -554,9 +554,9 @@ class BudykoSellersSystem(BaseSystem):
         10
     """
 
-    field = "physics/climate"
-    topics = ("field", "pde", "energy balance", "ice-albedo feedback", "snowball")
-    references = ("Budyko 1969", "Sellers 1969", "North 1975", "Ghil and Lucarini 2020")
+    field = 'physics/climate'
+    topics = ('field', 'pde', 'energy balance', 'ice-albedo feedback', 'snowball')
+    references = ('Budyko 1969', 'Sellers 1969', 'North 1975', 'Ghil and Lucarini 2020')
     until = 100.0
     dt = 2.0
 
@@ -570,7 +570,7 @@ class BudykoSellersSystem(BaseSystem):
         B: float = 2.09,
         D: float = 0.649,
         C: float = 10.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_bands = n_bands
@@ -588,18 +588,18 @@ class BudykoSellersSystem(BaseSystem):
         """
         x = (np.arange(self.n_bands) + 0.5) / self.n_bands
         bands = FieldElement(
-            "bands",
+            'bands',
             element=LatitudeBandElement,
             space=LatticeSpace(self.n_bands, spacing=1 / self.n_bands),
-            boundary={"T": "zero-flux"},
+            boundary={'T': 'zero-flux'},
             values={
-                "T": np.full(self.n_bands, float(self.T)),
-                "x": x,
-                "Q": self.Q,
-                "A": self.A,
-                "B": self.B,
-                "D": self.D,
-                "C": self.C,
+                'T': np.full(self.n_bands, float(self.T)),
+                'x': x,
+                'Q': self.Q,
+                'A': self.A,
+                'B': self.B,
+                'D': self.D,
+                'C': self.C,
             },
         )
         return System(self.label, elements=[bands])
@@ -637,12 +637,12 @@ class DaisyworldSystem(BaseSystem):
         1.2
     """
 
-    field = "physics/climate"
-    topics = ("ode", "regulation", "Gaia", "vegetation")
-    references = ("Watson and Lovelock 1983", "Jensen 2023")
+    field = 'physics/climate'
+    topics = ('ode', 'regulation', 'Gaia', 'vegetation')
+    references = ('Watson and Lovelock 1983', 'Jensen 2023')
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec("temperature", _daisyworld_temperature),)
+    observables = (ObservableSpec('temperature', _daisyworld_temperature),)
 
     def __init__(
         self,
@@ -651,7 +651,7 @@ class DaisyworldSystem(BaseSystem):
         *,
         L: float = 1.0,
         gamma: float = 0.3,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.white = white
@@ -663,5 +663,5 @@ class DaisyworldSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         return System(
             self.label,
-            elements=[DaisyworldElement("planet", white=self.white, black=self.black, L=self.L, gamma=self.gamma)],
+            elements=[DaisyworldElement('planet', white=self.white, black=self.black, L=self.L, gamma=self.gamma)],
         )

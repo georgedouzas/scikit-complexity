@@ -155,9 +155,9 @@ class HasselmannSystem(BaseSystem):
         0.1
     """
 
-    field = "physics/climate"
-    topics = ("sde", "Ornstein-Uhlenbeck", "red noise", "stochastic climate")
-    references = ("Hasselmann 1976", "Ghil and Lucarini 2020")
+    field = 'physics/climate'
+    topics = ('sde', 'Ornstein-Uhlenbeck', 'red noise', 'stochastic climate')
+    references = ('Hasselmann 1976', 'Ghil and Lucarini 2020')
     until = 100.0
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.01)
@@ -168,7 +168,7 @@ class HasselmannSystem(BaseSystem):
         *,
         lam: float = 0.5,
         sigma: float = 0.3,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.T = T
@@ -188,16 +188,16 @@ class HasselmannSystem(BaseSystem):
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
         feedback = RelaxationTimeInteraction(
-            "feedback",
-            target="ocean",
-            state="T",
+            'feedback',
+            target='ocean',
+            state='T',
             goal=0.0,
             time=self._get_damping_time,
             noise=self._get_weather,
         )
         return System(
             self.label,
-            elements=[ClimateAnomalyElement("ocean", T=self.T, lam=self.lam, sigma=self.sigma)],
+            elements=[ClimateAnomalyElement('ocean', T=self.T, lam=self.lam, sigma=self.sigma)],
             interactions=[feedback],
         )
 
@@ -231,9 +231,9 @@ class ENSOSystem(BaseSystem):
         4.0
     """
 
-    field = "physics/climate"
-    topics = ("delay", "oscillation", "El Niño", "ENSO")
-    references = ("Suarez and Schopf 1988", "Battisti and Hirst 1989", "Ghil and Lucarini 2020")
+    field = 'physics/climate'
+    topics = ('delay', 'oscillation', 'El Niño', 'ENSO')
+    references = ('Suarez and Schopf 1988', 'Battisti and Hirst 1989', 'Ghil and Lucarini 2020')
     until = 200.0
     dt = 0.5
 
@@ -243,7 +243,7 @@ class ENSOSystem(BaseSystem):
         *,
         alpha: float = 0.75,
         delta: float = 6.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.T = T
@@ -257,5 +257,5 @@ class ENSOSystem(BaseSystem):
         """
         return System(
             self.label,
-            elements=[DelayedOscillatorElement("pacific", T=self.T, alpha=self.alpha, delta=self.delta)],
+            elements=[DelayedOscillatorElement('pacific', T=self.T, alpha=self.alpha, delta=self.delta)],
         )

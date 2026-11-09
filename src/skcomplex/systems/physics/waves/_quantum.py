@@ -59,7 +59,7 @@ class SiteElement(Element):
         psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec("expectations"),
+        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
         super().__init__(label, visual=visual)
         self.psi = psi
@@ -176,7 +176,7 @@ class LatticeHamiltonianInteraction(Interaction):
                 The Hamiltonian.
         """
         psi = s.target.psi
-        return [GeneratorLaw(-s.D * local_operator(psi, "laplacian") + local_operator(psi, "potential"))]
+        return [GeneratorLaw(-s.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential'))]
 
 
 class PositionDephasingInteraction(Interaction):
@@ -227,10 +227,10 @@ class PositionDephasingInteraction(Interaction):
             laws:
                 The dissipators.
         """
-        return [DissipatorLaw(local_operator(s.target.psi, f"site_{site}"), s.gamma) for site in range(self.n_sites)]
+        return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
 
 
-FORMULATIONS = ("fields", "operators")
+FORMULATIONS = ('fields', 'operators')
 
 
 def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
@@ -289,7 +289,7 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
         -32.0
     """
     if not isinstance(space, LatticeSpace | NetworkSpace):
-        error_msg = f"A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}."
+        error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
         raise ValidationError(error_msg)
     prepared = space.prepare()
     size = int(prepared.size_)
@@ -301,11 +301,11 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
         if isinstance(prepared, LatticeSpace)
         else adjacency - np.diag(adjacency.sum(axis=1))
     )
-    operators = {"laplacian": (laplacian, True), "adjacency": (adjacency, True)}
+    operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency, True)}
     if potential is not None:
-        operators["potential"] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)
+        operators['potential'] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)
     for site in range(size if projectors else 0):
-        operators[f"site_{site}"] = (sp.csr_array(([1.0], ([site], [site])), shape=(size, size)), True)
+        operators[f'site_{site}'] = (sp.csr_array(([1.0], ([site], [site])), shape=(size, size)), True)
     return HilbertSpec(size, operators, display=None)
 
 
@@ -363,9 +363,9 @@ class SchrodingerSystem(BaseSystem):
         64
     """
 
-    field = "physics/waves"
-    topics = ("waves", "field", "pde", "quantum", "spectral")
-    references = ("Schrödinger 1926", "Schwichtenberg 2020")
+    field = 'physics/waves'
+    topics = ('waves', 'field', 'pde', 'quantum', 'spectral')
+    references = ('Schrödinger 1926', 'Schwichtenberg 2020')
     until = 4.0
     dt = 0.1
     solver = ETDRK4Solver(dt=0.01)
@@ -379,9 +379,9 @@ class SchrodingerSystem(BaseSystem):
         momentum: float = 2.0,
         width: float = 1.0,
         omega: float = 0.0,
-        formulation: str = "fields",
+        formulation: str = 'fields',
         gamma: float = 0.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_sites = n_sites
@@ -403,8 +403,8 @@ class SchrodingerSystem(BaseSystem):
                 The tuned run settings by name.
         """
         settings = super().get_run_settings()
-        if self.formulation == "operators":
-            settings["solver"] = None
+        if self.formulation == 'operators':
+            settings['solver'] = None
         return settings
 
     def _build_system(self) -> System:
@@ -418,33 +418,33 @@ class SchrodingerSystem(BaseSystem):
         psi = envelope * np.exp(1j * self.momentum * positions)
         potential = self.omega**2 * positions**2 / (4 * self.D)
         space = LatticeSpace(self.n_sites, spacing=spacing)
-        if self.formulation not in FORMULATIONS or (self.formulation == "fields" and self.gamma):
+        if self.formulation not in FORMULATIONS or (self.formulation == 'fields' and self.gamma):
             error_msg = (
-                f"Unknown formulation {self.formulation!r}, or dephasing in the field formulation. Use one of "
-                f"{', '.join(FORMULATIONS)}, and gamma > 0 only with the operator formulation."
+                f'Unknown formulation {self.formulation!r}, or dephasing in the field formulation. Use one of '
+                f'{", ".join(FORMULATIONS)}, and gamma > 0 only with the operator formulation.'
             )
             raise ValidationError(error_msg)
-        if self.formulation == "operators":
+        if self.formulation == 'operators':
             amplitudes = psi / np.linalg.norm(psi)
             interactions: list[BaseInteraction] = [
-                LatticeHamiltonianInteraction("kinetic", target="packet", D=self.D),
+                LatticeHamiltonianInteraction('kinetic', target='packet', D=self.D),
             ]
             if self.gamma > 0:
                 interactions.append(
-                    PositionDephasingInteraction("dephasing", target="packet", gamma=self.gamma, n_sites=self.n_sites),
+                    PositionDephasingInteraction('dephasing', target='packet', gamma=self.gamma, n_sites=self.n_sites),
                 )
             return System(
                 self.label,
                 elements=[
-                    SiteElement("packet", amplitudes, hilbert=site_space(space, potential, projectors=self.gamma > 0)),
+                    SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=self.gamma > 0)),
                 ],
                 interactions=interactions,
             )
         packet = FieldElement(
-            "packet",
+            'packet',
             element=WaveFunctionElement,
             space=space,
-            values={"u": psi.real, "w": psi.imag, "D": self.D, "V": potential},
-            discretization="spectral",
+            values={'u': psi.real, 'w': psi.imag, 'D': self.D, 'V': potential},
+            discretization='spectral',
         )
         return System(self.label, elements=[packet])

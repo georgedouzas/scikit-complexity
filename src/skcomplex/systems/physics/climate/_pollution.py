@@ -212,14 +212,14 @@ class PopulationPollutionSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/climate"
-    topics = ("pollution", "population", "stocks and flows", "system dynamics", "lookup tables", "ode")
-    references = ("Bala et al. 2017",)
+    field = 'physics/climate'
+    topics = ('pollution', 'population', 'stocks and flows', 'system dynamics', 'lookup tables', 'ode')
+    references = ('Bala et al. 2017',)
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec("food_per_capita", PollutedRegionElement._food_per_capita, element="region"),
-        ObservableSpec("quality_of_life", PollutedRegionElement._quality_of_life, element="region"),
+        ObservableSpec('food_per_capita', PollutedRegionElement._food_per_capita, element='region'),
+        ObservableSpec('quality_of_life', PollutedRegionElement._quality_of_life, element='region'),
     )
 
     def __init__(
@@ -231,7 +231,7 @@ class PopulationPollutionSystem(BaseSystem):
         pollution_standard: float = 1.5e7,
         birth_normal: float = 0.04,
         death_normal: float = 0.028,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.population = population
@@ -247,7 +247,7 @@ class PopulationPollutionSystem(BaseSystem):
         A population degrades its environment.
         """
         region = PollutedRegionElement(
-            "region",
+            'region',
             population=self.population,
             pollution=self.pollution,
             pollution_normal=self.pollution_normal,

@@ -26,7 +26,7 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 COUPLING = 8 * math.pi
 """The coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`."""
 
-COORDINATES = ("t", "r", "theta", "phi")
+COORDINATES = ('t', 'r', 'theta', 'phi')
 """The comoving coordinates of the spherical ansatzes."""
 
 
@@ -53,7 +53,7 @@ class RobertsonWalkerSpace(PseudoRiemannianSpace):
         -3*diff(a(t), t)^2/a(t)^2
     """
 
-    def __init__(self, k: float = 0.0, *, label: str = "space") -> None:
+    def __init__(self, k: float = 0.0, *, label: str = 'space') -> None:
         super().__init__(curvature=True, label=label)
         self.k = k
 
@@ -64,7 +64,7 @@ class RobertsonWalkerSpace(PseudoRiemannianSpace):
     def _get_metric(self) -> Matrix:
         """Return the Robertson-Walker metric of the scale factor `a(t)`."""
         t, r, theta, _ = self._get_coordinates()
-        a = function("a")(t)
+        a = function('a')(t)
         return diagonal_matrix(SR, [-1, a**2 / (1 - QQ(self.k) * r**2), a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
 
 
@@ -89,7 +89,7 @@ class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
         R(t, r)^2
     """
 
-    def __init__(self, *, label: str = "space") -> None:
+    def __init__(self, *, label: str = 'space') -> None:
         super().__init__(curvature=True, label=label)
 
     def _get_coordinates(self) -> tuple[Expression, ...]:
@@ -102,8 +102,8 @@ class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
         The metric is that of the areal radius `R(t, r)` and the energy `E(r)`.
         """
         t, r, theta, _ = self._get_coordinates()
-        radius = function("R")(t, r)
-        energy = function("energy")(r)
+        radius = function('R')(t, r)
+        energy = function('energy')(r)
         return diagonal_matrix(
             SR,
             [-1, radius.diff(r) ** 2 / (1 + 2 * energy), radius**2, radius**2 * sin(theta) ** 2],
@@ -254,12 +254,12 @@ class FLRWCosmologySystem(BaseSystem):
         1.0
     """
 
-    field = "physics/cosmology"
-    topics = ("cosmology", "general relativity", "ode", "second order", "gravity", "dark energy")
-    references = ("Schwichtenberg 2020", "Satz 2022", "Friedmann 1922", "Lemaître 1927", "Carroll 2004")
+    field = 'physics/cosmology'
+    topics = ('cosmology', 'general relativity', 'ode', 'second order', 'gravity', 'dark energy')
+    references = ('Schwichtenberg 2020', 'Satz 2022', 'Friedmann 1922', 'Lemaître 1927', 'Carroll 2004')
     until = 2.0
     dt = 0.02
-    solver = ScipyODESolver(method="DOP853", rtol=1e-10, atol=1e-12)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
     def __init__(
         self,
@@ -269,7 +269,7 @@ class FLRWCosmologySystem(BaseSystem):
         omega_matter: float = 0.3,
         omega_radiation: float = 0.0,
         omega_lambda: float = 0.7,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.a = a
@@ -300,12 +300,12 @@ class FLRWCosmologySystem(BaseSystem):
         )
         if square < 0:
             error_msg = (
-                f"The Friedmann constraint gives a negative squared expansion rate {square} at a = {self.a}. Choose a "
-                "and the density parameters for which it is positive."
+                f'The Friedmann constraint gives a negative squared expansion rate {square} at a = {self.a}. Choose a '
+                'and the density parameters for which it is positive.'
             )
             raise ValidationError(error_msg)
         universe = HomogeneousUniverseElement(
-            "universe",
+            'universe',
             a=self.a,
             a_d1=math.sqrt(square),
             H0=self.H0,
@@ -314,9 +314,9 @@ class FLRWCosmologySystem(BaseSystem):
             omega_lambda=self.omega_lambda,
         )
         einstein = EinsteinInteraction(
-            "einstein",
-            target="universe",
-            states="a",
+            'einstein',
+            target='universe',
+            states='a',
             space=RobertsonWalkerSpace(k=-curvature * self.H0**2),
             components=[(1, 1)],
             source=self._get_perfect_fluid,
@@ -363,12 +363,12 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         -0.1
     """
 
-    field = "physics/cosmology"
-    topics = ("cosmology", "general relativity", "pde", "second order", "gravity", "black holes")
-    references = ("Schwichtenberg 2020", "Satz 2022", "Oppenheimer and Snyder 1939", "Tolman 1934", "Bondi 1947")
+    field = 'physics/cosmology'
+    topics = ('cosmology', 'general relativity', 'pde', 'second order', 'gravity', 'black holes')
+    references = ('Schwichtenberg 2020', 'Satz 2022', 'Oppenheimer and Snyder 1939', 'Tolman 1934', 'Bondi 1947')
     until = 34.5
     dt = 0.1
-    solver = ScipyODESolver(method="DOP853", rtol=1e-10, atol=1e-12)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
     def __init__(
         self,
@@ -376,7 +376,7 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         *,
         radius: float = 10.0,
         mass: float = 1.0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_shells = n_shells
@@ -387,22 +387,22 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         if self.radius <= 2 * self.mass:
             error_msg = (
-                f"The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger "
-                "radius."
+                f'The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger '
+                'radius.'
             )
             raise ValidationError(error_msg)
         radii = self.radius * np.arange(1, self.n_shells + 1) / self.n_shells
         energies = -self.mass * radii**2 / self.radius**3
         ball = FieldElement(
-            "ball",
+            'ball',
             element=DustShellElement,
             space=LatticeSpace((self.n_shells,), spacing=self.radius / self.n_shells),
-            values={"R": radii, "energy": energies},
+            values={'R': radii, 'energy': energies},
         )
         einstein = EinsteinInteraction(
-            "einstein",
-            target="ball",
-            states="R",
+            'einstein',
+            target='ball',
+            states='R',
             space=LemaitreTolmanBondiSpace(),
             components=[(1, 1)],
             coupling=COUPLING,

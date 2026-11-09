@@ -55,7 +55,7 @@ class PotentialEnergyInteraction(GradientInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         potential: Callable[[SimpleNamespace], object] | None = None,
-        states: str | Sequence[str] = "x",
-        divisor: str = "m",
+        states: str | Sequence[str] = 'x',
+        divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, states=states, potential=potential, divisor=divisor)

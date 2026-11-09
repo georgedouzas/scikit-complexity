@@ -58,7 +58,7 @@ class SwarmalatorElement(SitedOscillatorElement):
         *,
         theta: float = 0.0,
         omega: float = 1.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual, theta=theta, omega=omega, x=x)
 
@@ -118,7 +118,7 @@ class SwarmalatorCouplingInteraction(PairCouplingInteraction):
         first: Annotated[str, RoleSpec()],
         second: Annotated[str, RoleSpec()],
         cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000000.0,
-        position: str = "x",
+        position: str = 'x',
         *,
         A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -133,7 +133,7 @@ class SwarmalatorCouplingInteraction(PairCouplingInteraction):
             second,
             cutoff=cutoff,
             position=position,
-            write=(position, "theta"),
+            write=(position, 'theta'),
             function=self._get_terms,
             period=period,
         )
@@ -192,9 +192,9 @@ class SwarmalatorsSystem(BaseSystem):
         -0.1
     """
 
-    field = "physics/synchronization"
-    topics = ("swarmalators", "synchronization", "swarming", "pair interaction", "ode")
-    references = ("O'Keeffe, Ceron, and Petersen 2017", "te Vrugt and Wittkowski 2024")
+    field = 'physics/synchronization'
+    topics = ('swarmalators', 'synchronization', 'swarming', 'pair interaction', 'ode')
+    references = ("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024')
     until = 100.0
     dt = 1.0
     solver = RK4Solver(dt=0.1)
@@ -208,7 +208,7 @@ class SwarmalatorsSystem(BaseSystem):
         A: float = 1.0,
         B: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_units = n_units
@@ -222,20 +222,20 @@ class SwarmalatorsSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         units = GroupElement(
-            "units",
+            'units',
             element=SwarmalatorElement,
             size=self.n_units,
             values={
-                "x": rng.uniform(-1.0, 1.0, (self.n_units, 2)),
-                "theta": rng.uniform(-np.pi, np.pi, self.n_units),
-                "omega": 0.0,
+                'x': rng.uniform(-1.0, 1.0, (self.n_units, 2)),
+                'theta': rng.uniform(-np.pi, np.pi, self.n_units),
+                'omega': 0.0,
             },
-            visual=VisualSpec("points", {"position": "x", "color_by": "theta", "radius": 0.03}),
+            visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
         )
         coupling = SwarmalatorCouplingInteraction(
-            "coupling",
-            first="units",
-            second="units",
+            'coupling',
+            first='units',
+            second='units',
             A=self.A,
             B=self.B,
             J=self.J,

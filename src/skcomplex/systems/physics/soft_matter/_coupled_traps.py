@@ -21,7 +21,7 @@ from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
-SPHERES = VisualSpec("points", {"position": "x", "radius": 1.0})
+SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
 
 class TrappedSphereElement(Element):
@@ -56,7 +56,7 @@ class TrappedSphereElement(Element):
         label: str,
         visual: VisualSpec | None = SPHERES,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="position")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -123,8 +123,8 @@ class BlinkingTrapsInteraction(MobilityInteraction):
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         on_time: float = 1.0,
         off_time: float = 0.0,
-        tensor: str = "rotne-prager-yamakawa",
-        root: str = "cholesky",
+        tensor: str = 'rotne-prager-yamakawa',
+        root: str = 'cholesky',
         radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -134,7 +134,7 @@ class BlinkingTrapsInteraction(MobilityInteraction):
             label,
             target=target,
             tensor=tensor,
-            form="map",
+            form='map',
             force=self._get_trap_force,
             root=root,
             radius=radius,
@@ -208,9 +208,9 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         [[-2.0, 0.0], [2.0, 0.0]]
     """
 
-    field = "physics/soft_matter"
-    topics = ("brownian motion", "hydrodynamics", "optical tweezers", "blinking traps", "correlated noise")
-    references = ("Argun et al. 2021", "Batchelor 1976", "Rotne and Prager 1969", "Magazzù et al. 2019")
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'hydrodynamics', 'optical tweezers', 'blinking traps', 'correlated noise')
+    references = ('Argun et al. 2021', 'Batchelor 1976', 'Rotne and Prager 1969', 'Magazzù et al. 2019')
     until = 20000
     dt = 1
 
@@ -218,8 +218,8 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         self,
         separation: float = 3.0,
         *,
-        tensor: str = "rotne-prager-yamakawa",
-        root: str = "cholesky",
+        tensor: str = 'rotne-prager-yamakawa',
+        root: str = 'cholesky',
         radius: float = 1.0,
         viscosity: float = 1e-3,
         kT: float = 4.1e-3,
@@ -227,7 +227,7 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         on_time: float = 0.3,
         off_time: float = 0.1,
         step: float = 5e-3,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.separation = separation
@@ -248,14 +248,14 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         """
         centers = [[-self.separation / 2, 0.0], [self.separation / 2, 0.0]]
         spheres = GroupElement(
-            "spheres",
+            'spheres',
             element=TrappedSphereElement,
             size=2,
-            values={"x": centers, "center": centers},
+            values={'x': centers, 'center': centers},
         )
         traps = BlinkingTrapsInteraction(
-            "tweezers",
-            target="spheres",
+            'tweezers',
+            target='spheres',
             k=self.k,
             on_time=self.on_time,
             off_time=self.off_time,

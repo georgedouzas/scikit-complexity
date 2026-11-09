@@ -152,9 +152,9 @@ class KellerSegelSystem(BaseSystem):
         0.5
     """
 
-    field = "physics/active_matter"
-    topics = ("field", "chemotaxis", "aggregation", "collapse", "pde")
-    references = ("te Vrugt and Wittkowski 2024", "Keller and Segel 1970", "Horstmann 2003")
+    field = 'physics/active_matter'
+    topics = ('field', 'chemotaxis', 'aggregation', 'collapse', 'pde')
+    references = ('te Vrugt and Wittkowski 2024', 'Keller and Segel 1970', 'Horstmann 2003')
     until = 10.5
     dt = 0.25
 
@@ -169,7 +169,7 @@ class KellerSegelSystem(BaseSystem):
         k: float = 1.0,
         density: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.shape = shape
@@ -189,15 +189,15 @@ class KellerSegelSystem(BaseSystem):
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         values = {
-            "rho": self.density * (1 + 0.01 * rng.uniform(-1.0, 1.0, shape)),
-            "c": np.full(shape, self.density / self.k),
-            "D": self.D,
-            "chi": self.chi,
-            "Dc": self.Dc,
-            "k": self.k,
+            'rho': self.density * (1 + 0.01 * rng.uniform(-1.0, 1.0, shape)),
+            'c': np.full(shape, self.density / self.k),
+            'D': self.D,
+            'chi': self.chi,
+            'Dc': self.Dc,
+            'k': self.k,
         }
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return System(
             self.label,
-            elements=[FieldElement("colony", element=ChemotaxisElement, space=space, values=values)],
+            elements=[FieldElement('colony', element=ChemotaxisElement, space=space, values=values)],
         )

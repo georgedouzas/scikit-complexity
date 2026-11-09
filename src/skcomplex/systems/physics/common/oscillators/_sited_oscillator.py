@@ -51,7 +51,7 @@ class SitedOscillatorElement(PhaseOscillatorElement):
         *,
         theta: float = 0.0,
         omega: float = 1.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role="site")] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='site')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual, theta=theta, omega=omega)
         self.x = x

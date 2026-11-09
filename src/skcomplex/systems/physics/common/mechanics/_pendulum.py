@@ -57,7 +57,7 @@ class PendulumElement(Element):
         2.0
     """
 
-    visual = VisualSpec("bodies", {"positions": _pendulum_bob, "pivot": (0.0, 0.0), "rods": True})
+    visual = VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True})
 
     def __init__(
         self,

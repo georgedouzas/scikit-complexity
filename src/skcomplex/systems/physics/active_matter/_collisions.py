@@ -61,9 +61,9 @@ class FlockerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec("agents", {"color_by": "theta", "color_range": (0.0, 2 * math.pi)}),
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
         *,
-        theta: Annotated[float, StateSpec(role="direction")] = 0.0,
+        theta: Annotated[float, StateSpec(role='direction')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta
@@ -161,8 +161,8 @@ class BinaryCollisionsInteraction(Interaction):
         size = np.asarray(system.dimensions, dtype=float)
         positions = np.array([agent.location for agent in agents], dtype=float)
         headings = np.array([agent.theta for agent in agents], dtype=float)
-        speed, lam, sigma, d0 = (system.parameter(name) for name in ("speed", "lam", "sigma", "d0"))
-        substeps = max(1, round(system.parameter("substeps")))
+        speed, lam, sigma, d0 = (system.parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
+        substeps = max(1, round(system.parameter('substeps')))
         tau, rng = 1.0 / substeps, system.rng
         touching = KDTree(positions, boxsize=size).query_pairs(d0)
         for _ in range(substeps):
@@ -252,15 +252,15 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         0.3
     """
 
-    field = "physics/active_matter"
-    topics = ("active matter", "agents", "flocking", "collisions", "boltzmann equation")
-    references = ("Bertin, Droz, and Grégoire 2006", "Bertin, Droz, and Grégoire 2009", "Bertin 2021")
+    field = 'physics/active_matter'
+    topics = ('active matter', 'agents', 'flocking', 'collisions', 'boltzmann equation')
+    references = ('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009', 'Bertin 2021')
     until = 200
     dt = 1
     observables = (
-        ObservableSpec("mean_cos", _cosine, group="birds"),
-        ObservableSpec("mean_sin", _sine, group="birds"),
-        ObservableSpec("polarization", _polarization),
+        ObservableSpec('mean_cos', _cosine, group='birds'),
+        ObservableSpec('mean_sin', _sine, group='birds'),
+        ObservableSpec('polarization', _polarization),
     )
 
     def __init__(
@@ -274,7 +274,7 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         d0: float = 0.5,
         substeps: int = 10,
         random_state: int | np.random.Generator | None = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_particles = n_particles
@@ -290,15 +290,15 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
-            "birds",
+            'birds',
             element=FlockerElement,
             size=self.n_particles,
-            values={"theta": rng.uniform(0.0, 2 * math.pi, self.n_particles)},
+            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_particles)},
             location=rng.uniform(0.0, self.size, (self.n_particles, 2)),
         )
         collisions = BinaryCollisionsInteraction(
-            "collisions",
-            target="birds",
+            'collisions',
+            target='birds',
             speed=self.speed,
             lam=self.lam,
             sigma=self.sigma,
@@ -309,5 +309,5 @@ class BinaryCollisionFlockingSystem(BaseSystem):
             self.label,
             elements=[birds],
             interactions=[collisions],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary="periodic"),
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )

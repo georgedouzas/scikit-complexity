@@ -112,7 +112,7 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
         K: float = 1.0,
         alpha: float = 0.0,
     ) -> None:
-        super().__init__(label, target=target, K=K, alpha=alpha, weights="w")
+        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
         self.links = links
 
 
@@ -155,15 +155,15 @@ class LogisticCouplingInteraction(CouplingInteraction):
         [0.875, 0.875]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = "x") -> None:
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'x') -> None:
         super().__init__(
             label,
             target=target,
             read=state,
             write=state,
             function=self._get_map,
-            reduce="mean",
-            form="map",
+            reduce='mean',
+            form='map',
             combine=self._get_mix,
         )
         self.state = state
@@ -184,19 +184,19 @@ class LogisticCouplingInteraction(CouplingInteraction):
         return (1 - member.epsilon) * own + member.epsilon * reduction
 
 
-NETWORKS = ("watts_strogatz", "erdos_renyi", "barabasi_albert")
+NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
 
 def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
     """Return a network of a generator with a mean degree near `degree`."""
     rng = np.random.default_rng(seed)
-    if name == "watts_strogatz":
+    if name == 'watts_strogatz':
         return NetworkSpace(nx.watts_strogatz_graph(n_nodes, degree, rewiring, seed=rng))
-    if name == "erdos_renyi":
+    if name == 'erdos_renyi':
         return NetworkSpace(nx.gnp_random_graph(n_nodes, degree / (n_nodes - 1), seed=rng))
-    if name == "barabasi_albert":
+    if name == 'barabasi_albert':
         return NetworkSpace(nx.barabasi_albert_graph(n_nodes, max(degree // 2, 1), seed=rng))
-    error_msg = f"Unknown network {name!r}. Use one of {', '.join(NETWORKS)}."
+    error_msg = f'Unknown network {name!r}. Use one of {", ".join(NETWORKS)}.'
     raise ValueError(error_msg)
 
 
@@ -248,24 +248,24 @@ class KuramotoOnNetworksSystem(BaseSystem):
         40
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "oscillators", "phase", "network")
-    references = ("Arenas et al. 2008", "Jensen 2023")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'phase', 'network')
+    references = ('Arenas et al. 2008', 'Jensen 2023')
     until = 40.0
     dt = 0.2
-    observables = tuple(order_parameter("order", "oscillators"))
+    observables = tuple(order_parameter('order', 'oscillators'))
 
     def __init__(
         self,
         n_oscillators: int = 200,
         *,
-        network: str = "watts_strogatz",
+        network: str = 'watts_strogatz',
         degree: int = 6,
         rewiring: float = 0.1,
         K: float = 1.0,
         sigma: float = 0.5,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_oscillators = n_oscillators
@@ -282,18 +282,18 @@ class KuramotoOnNetworksSystem(BaseSystem):
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
         oscillators = GroupElement(
-            "oscillators",
+            'oscillators',
             element=PhaseOscillatorElement,
             space=space,
             values={
-                "theta": rng.uniform(0, 2 * math.pi, self.n_oscillators),
-                "omega": rng.normal(0.0, self.sigma, self.n_oscillators),
+                'theta': rng.uniform(0, 2 * math.pi, self.n_oscillators),
+                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
-            visual=VisualSpec("sites", {"states": ["theta"], "low": 0.0, "high": 2 * math.pi}),
-            on="sites",
+            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
-        links = GroupElement("links", element=LinkElement, space=space, on="edges")
-        coupling = EdgeCouplingInteraction("coupling", target="oscillators", links="links", K=self.K / mean_degree)
+        links = GroupElement('links', element=LinkElement, space=space, on='edges')
+        coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
         return System(self.label, elements=[oscillators, links], interactions=[coupling])
 
 
@@ -343,24 +343,24 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         20
     """
 
-    field = "physics/synchronization"
-    topics = ("synchronization", "map", "chaos", "network")
-    references = ("Arenas et al. 2008", "Kaneko 1989")
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'map', 'chaos', 'network')
+    references = ('Arenas et al. 2008', 'Kaneko 1989')
     until = 100.0
     dt = 1.0
-    observables = (ObservableSpec("spread", group="maps", variable="x", reduce="var"),)
+    observables = (ObservableSpec('spread', group='maps', variable='x', reduce='var'),)
 
     def __init__(
         self,
         n_nodes: int = 100,
         *,
-        network: str = "erdos_renyi",
+        network: str = 'erdos_renyi',
         degree: int = 20,
         rewiring: float = 0.1,
         r: float = 4.0,
         epsilon: float = 0.9,
         seed: int = 0,
-        label: str = "system",
+        label: str = 'system',
     ) -> None:
         super().__init__(label)
         self.n_nodes = n_nodes
@@ -379,12 +379,12 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
         maps = GroupElement(
-            "maps",
+            'maps',
             element=LogisticNodeElement,
             space=space,
-            values={"x": rng.uniform(0.0, 1.0, self.n_nodes), "r": self.r, "epsilon": self.epsilon},
-            visual=VisualSpec("sites", {"states": ["x"], "low": 0.0, "high": 1.0}),
-            on="sites",
+            values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
+            visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
-        coupling = LogisticCouplingInteraction("coupling", target="maps")
+        coupling = LogisticCouplingInteraction('coupling', target='maps')
         return System(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())
