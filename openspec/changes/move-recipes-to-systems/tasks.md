@@ -135,8 +135,10 @@
   `einsteinpy` from the runtime dependencies of `pyproject.toml` to `[project.optional-dependencies]`, and skip the
   relativity tests without it as the other extras do. Repoint celestial mechanics and cosmology. Verify with
   `tests/systems/physics`, a core import without `einsteinpy` installed, and the test of task 3.3.
-- [x] 8.8 Delete `DialectSpec`, its module, its export from `core/specs`, and its test, since nothing in `src` reads it.
-  Verify with `grep -rn DialectSpec src tests` returning nothing and `tests/core/specs`.
+- [x] 8.8 Keep `DialectSpec` and its module as engine support, since the expression printer of the engine reads
+  `DIALECTS`, its table of instances, and remove only its re-export from `skcomplex.core.specs`, which nothing outside
+  the package used. Verify with `grep -rn DialectSpec src tests` naming only `core/specs/_dialect_spec.py`, and
+  `tests/core/specs`.
 
 ## 9. Documents and inventory
 
@@ -157,7 +159,7 @@
 ## 10. Integration
 
 - [ ] 10.1 Grep `src`, `tests`, `docs`, the README, and CONTRIBUTING for every moved name under its old import path and
-  for `PairCouplingInteraction`, `ConeNeighborhood`, `FeedbackInteraction`, `PseudoRiemannianSpace`, `DialectSpec`, and
+  for `PairCouplingInteraction`, `ConeNeighborhood`, `FeedbackInteraction`, `PseudoRiemannianSpace`, `DialectSpec` outside its module, and
   `PartnerSpec(` with `value`. Verify that only reviewed hits
   remain.
 - [ ] 10.2 Run the full test suite and the conformance suite with random state 0. Verify that every trajectory agrees

@@ -49,7 +49,8 @@ recipes and proves for each one how the primitives express it. This change moves
 - The core keeps its structural bases, its primitives, and its operators from one function: `GroupingInteraction`,
   `TrainingInteraction`, `GradientInteraction`, `HamiltonianInteraction`, `EulerLagrangeInteraction`,
   `BallNeighborhood`, `GeometrySpec`, and every law utility. The design gives the proof for each.
-- **BREAKING** `DialectSpec` is deleted, since nothing reads it.
+- **BREAKING** `skcomplex.core.specs` no longer re-exports `DialectSpec`. The class stays in its module as engine
+  support, since the expression printer reads its table of dialects.
 - One placement rule decides where any part goes, now and later: a structural base or a part the engine handles by type
   goes to the core, and every other part is a recipe placed by its users. It is a requirement of `package-layout`, it
   is written in the constitution, CONTRIBUTING, and the user guide, and source tests check it with no allowlist.

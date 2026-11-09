@@ -72,6 +72,11 @@ recipe, placed by its users: `skcomplex.systems.general.<concept>` for several f
 - **WHEN** a recipe needs an operation the engine cannot lower
 - **THEN** the operation enters the core as a new primitive by the second step, and the recipe keeps no engine code
 
+#### Scenario: Engine support keeps its place
+- **WHEN** the expression printer of the engine reads the dialects of `DialectSpec`
+- **THEN** `DialectSpec` stays in `core/specs/_dialect_spec.py` as engine support, and `skcomplex.core.specs` does not
+  re-export it, since nothing outside the package reads it
+
 #### Scenario: Source tests guard the rule
 - **WHEN** the source tests run
 - **THEN** every public class of `skcomplex.core.components` is a structural base, is named in the code of another core

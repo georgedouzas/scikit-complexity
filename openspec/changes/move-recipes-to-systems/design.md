@@ -143,7 +143,7 @@ subclass with the same state, so the core never imports the systems.
 | `DatasetSpec` | `GradientStepLaw` | stays |
 | `CascadeRecordSpec`, `ExtremalRecordSpec`, `TableValuesSpec` | the kernels of laws that stay | stay |
 | `GeometrySpec` | `WordElement`, the word kernel, which computes turtle segments from it every generation, and `viz/_geometry.py` | stays. The engine handles it by type (step 2 of the placement rule), and the turtle reading of a word is cross-domain in principle: plants, fractals, and words of automata |
-| `DialectSpec` | nothing in `src` reads it, only `core/specs/__init__.py` and its test | deleted with its test, as dead code |
+| `DialectSpec` | the expression printer of the engine, which reads `DIALECTS`, its table of instances | stays as engine support by step 2, and only its public re-export goes, see the implementation notes |
 | every other spec and kind | the engine or a primitive, as audit B lists | stay |
 
 ### The placement rule
