@@ -8,13 +8,14 @@ They read the class coordinates and the reductions over class axes.
 
 from collections.abc import Sequence
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
+from ._operators import _OperatorFunction
 
 COORDINATE_PREFIX = '_coordinate_'
-REDUCE_AXES = function('reduce_axes')
-MAXIMUM_ENTROPY = function('maximum_entropy')
+REDUCE_AXES = _OperatorFunction('reduce_axes')
+MAXIMUM_ENTROPY = _OperatorFunction('maximum_entropy')
 
 
 def coordinate(name: str) -> Expression:

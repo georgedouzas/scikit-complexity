@@ -12,7 +12,7 @@ from sage.symbolic.function import BuiltinFunction
 DELAY_ARGUMENTS = 2
 
 
-class _Derivative(BuiltinFunction):
+class _DerivativeFunction(BuiltinFunction):
     """Time derivative of a state of a given order, `derivative(x, j)`."""
 
     def __init__(self) -> None:
@@ -25,7 +25,7 @@ class _Derivative(BuiltinFunction):
         return None
 
 
-class _Lag(BuiltinFunction):
+class _LagFunction(BuiltinFunction):
     """Value of a state of a discrete map a given number of steps back, `lag(x, j)`."""
 
     def __init__(self) -> None:
@@ -38,7 +38,7 @@ class _Lag(BuiltinFunction):
         return None
 
 
-class _Delayed(BuiltinFunction):
+class _DelayedFunction(BuiltinFunction):
     """Value of a state a delay before the current time.
 
     It is written `delayed(x, tau)` or `delayed(x, tau, minimum)`.
@@ -54,7 +54,7 @@ class _Delayed(BuiltinFunction):
         return None
 
 
-derivative = _Derivative()
+derivative = _DerivativeFunction()
 
 
 derivative.__doc__ = """Return the time derivative of a state of a given order.
@@ -82,7 +82,7 @@ Examples:
 """
 
 
-lag = _Lag()
+lag = _LagFunction()
 
 
 lag.__doc__ = """Return the value of a state of a discrete map a given number of steps back.
@@ -109,7 +109,7 @@ Examples:
 """
 
 
-delayed = _Delayed()
+delayed = _DelayedFunction()
 
 
 delayed.__doc__ = """Return the value of a state a delay before the current time, for delay differential equations.
@@ -141,7 +141,7 @@ Examples:
 """
 
 
-class _Residence(BuiltinFunction):
+class _ResidenceFunction(BuiltinFunction):
     """Number of whole steps a state of a discrete map has held its current value.
 
     It is written `residence(x)`.
@@ -151,7 +151,7 @@ class _Residence(BuiltinFunction):
         super().__init__('residence', nargs=1)
 
 
-residence = _Residence()
+residence = _ResidenceFunction()
 
 
 residence.__doc__ = """Return the number of whole steps a state of a discrete map has held its current value.

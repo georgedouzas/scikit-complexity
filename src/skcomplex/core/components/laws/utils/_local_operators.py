@@ -1,7 +1,7 @@
 """Define the operators of subsystems as Sage symbolic functions.
 
 The compiler lowers them to matrices. Sage symbolic products commute, but operators do not, so each local operator, each
-ordered product of operators, and each adjoint is a Sage function made by `function`, kept unevaluated in expressions. A
+ordered product of operators, and each adjoint is a Sage `BuiltinFunction`, kept unevaluated in expressions. A
 local operator names its subsystem and the operator of the subsystem's `HilbertSpec`. Coefficients are ordinary Sage
 expressions, so an operator is a sum of numbers or parameter expressions times local operators, products, and adjoints,
 `J * operator_product(a, b)` rather than `J * a * b`.
@@ -18,11 +18,13 @@ Examples:
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
-LOCAL_OPERATOR = function('local_operator', nargs=2)
-operator_product = function('operator_product')
-dagger = function('dagger', nargs=1)
+from ._operators import _OperatorFunction
+
+LOCAL_OPERATOR = _OperatorFunction('local_operator', nargs=2)
+operator_product = _OperatorFunction('operator_product')
+dagger = _OperatorFunction('dagger', nargs=1)
 
 
 def local_operator(subsystem: object, name: object) -> Expression:

@@ -34,6 +34,7 @@ from ....components.laws import (
     UpdateLaw,
 )
 from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
@@ -690,11 +691,11 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _opaque_calls(expression: Expression) -> dict[Expression, Expression]:
-        """Return a symbol for every outermost call of a symbolic function.
+        """Return a symbol for every outermost call of an unknown function or a library operator.
 
         Such a call has no value at numbers.
         """
-        if isinstance(expression.operator(), SymbolicFunction):
+        if isinstance(expression.operator(), SymbolicFunction | _OperatorFunction):
             return {expression: SR.symbol(f'_call_{abs(hash(str(expression)))}')}
         found: dict[Expression, Expression] = {}
         for operand in expression.operands():

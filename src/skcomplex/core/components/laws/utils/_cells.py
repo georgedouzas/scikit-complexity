@@ -6,14 +6,15 @@ It is written as Sage symbolic functions the compiler lowers.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
+from ._operators import _OperatorFunction
 from ._reductions import _calls_in
 
-EXTERIOR_DERIVATIVE = function('exterior_derivative', nargs=1, latex_name=r'\mathrm{d}')
-CODIFFERENTIAL = function('codifferential', nargs=1, latex_name=r'\delta')
-HODGE_STAR = function('hodge_star', nargs=1, latex_name=r'\star')
 CELL_OPERATIONS = ('exterior_derivative', 'codifferential', 'hodge_star')
+EXTERIOR_DERIVATIVE = _OperatorFunction('exterior_derivative', nargs=1, latex_name=r'\mathrm{d}')
+CODIFFERENTIAL = _OperatorFunction('codifferential', nargs=1, latex_name=r'\delta')
+HODGE_STAR = _OperatorFunction('hodge_star', nargs=1, latex_name=r'\star')
 
 
 def exterior_derivative(expression: object) -> Expression:

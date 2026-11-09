@@ -13,7 +13,7 @@ from sage.symbolic.function import BuiltinFunction
 from ._conditions import where
 
 
-class _StopGradient(BuiltinFunction):
+class _StopGradientFunction(BuiltinFunction):
     """Identity whose gradient is zero, `stop_gradient(x)`."""
 
     def __init__(self) -> None:
@@ -215,4 +215,4 @@ def stop_gradient(x: object) -> Expression:
     return _STOP_GRADIENT(SR(x))
 
 
-_STOP_GRADIENT = _StopGradient()
+_STOP_GRADIENT = _StopGradientFunction()

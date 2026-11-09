@@ -7,13 +7,24 @@ import re
 from collections.abc import Sequence
 from dataclasses import replace
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....errors import ValidationError
 from ....specs import DrawSpec
+from ._operators import _OperatorFunction
 
 DRAWS: dict[str, DrawSpec] = {}
+DRAW_FUNCTIONS: dict[str, _OperatorFunction] = {}
+
+
+class _DrawFunction(_OperatorFunction):
+    """Value drawn at every step under a label, with a derivative of 0."""
+
+    def _derivative_(self, *arguments: Expression, diff_param: object = None) -> Expression:
+        """Return 0, since a draw does not change with what it is differentiated by."""
+        del arguments, diff_param
+        return SR(0)
 
 
 def _call(
@@ -39,8 +50,9 @@ def _call(
     if temperature is not None:
         label += '_relaxed' + re.sub(r'\W', '_', repr(float(temperature))) + ('_hard' if hard else '')
     DRAWS[label] = spec
-    draw_function = function(label, nargs=0, derivative_func=lambda *_, **__: SR(0))
-    return draw_function(*(SR(argument) for argument in arguments))
+    if label not in DRAW_FUNCTIONS:
+        DRAW_FUNCTIONS[label] = _DrawFunction(label)
+    return DRAW_FUNCTIONS[label](*(SR(argument) for argument in arguments))
 
 
 def uniform(name: str, low: object = 0, high: object = 1) -> Expression:

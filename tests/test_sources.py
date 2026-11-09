@@ -351,7 +351,7 @@ VERBS = frozenset(
         'write',
     ],
 )
-SYMBOLIC_CHECKED: tuple[str, ...] = ()
+SYMBOLIC_CHECKED = ('skcomplex',)
 CONSTANTS_CHECKED: tuple[str, ...] = ()
 HELPERS_CHECKED: tuple[str, ...] = ()
 VERBS_CHECKED: tuple[str, ...] = ()
@@ -602,6 +602,9 @@ def _assigned_name(node: ast.stmt) -> str | None:
 
 def _constant_name(node: ast.stmt) -> str | None:
     """Return the name a module constant binds, or nothing for another statement."""
+    if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Tuple):
+        names = [item.id if isinstance(item, ast.Name) else '' for item in node.targets[0].elts]
+        return ', '.join(names) if all(CONSTANT_NAME.fullmatch(name) for name in names) else None
     name = _assigned_name(node)
     return name if name is not None and CONSTANT_NAME.fullmatch(name) else None
 

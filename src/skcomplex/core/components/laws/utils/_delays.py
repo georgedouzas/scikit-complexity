@@ -1,7 +1,7 @@
 """Define the distributed delays of system dynamics as Sage symbolic functions.
 
 The compiler expands them into stages. Sage has no delay of an input through hidden stages, so every delay is a Sage
-function made by `function`, named after its kind and its order and kept unevaluated in expressions. The compiler adds
+`BuiltinFunction`, named after its kind and its order and kept unevaluated in expressions. The compiler adds
 its stages as hidden states.
 """
 
@@ -10,18 +10,24 @@ its stages as hidden states.
 
 import re
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
+
+from ._operators import _OperatorFunction
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
+DELAY_FUNCTIONS: dict[str, _OperatorFunction] = {}
 
 
-def _eval_delay(self: object, value: Expression, time: Expression) -> Expression | None:
-    """Return a constant input unchanged, or `None` otherwise.
+class _DelayFunction(_OperatorFunction):
+    """Distributed delay of an input, named after its kind and its order."""
 
-    Every delay of a constant is the constant.
-    """
-    del self, time
-    return SR(value) if SR(value).is_numeric() else None
+    def _eval_(self, value: Expression, time: Expression) -> Expression | None:
+        """Return a constant input unchanged, or `None` otherwise.
+
+        Every delay of a constant is the constant.
+        """
+        del time
+        return SR(value) if SR(value).is_numeric() else None
 
 
 def delay_parts(name: str) -> tuple[bool, int] | None:
@@ -98,5 +104,6 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
     if SR(time).is_numeric() and float(SR(time)) <= 0:
         error_msg = f'The delay time of {name} must be positive, but got {time}.'
         raise ValueError(error_msg)
-    return function(name, nargs=2, eval_func=_eval_delay)(value, time)
-
+    if name not in DELAY_FUNCTIONS:
+        DELAY_FUNCTIONS[name] = _DelayFunction(name, nargs=2)
+    return DELAY_FUNCTIONS[name](value, time)

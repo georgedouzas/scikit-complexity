@@ -30,9 +30,8 @@ from sage.rings.real_mpfr import RealNumber
 from sage.structure.element import Element
 from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
-from sage.symbolic.function import Function
-from sage.symbolic.function_factory import function as formal_function
 
+from ..components.laws.utils._operators import _OperatorFunction
 from ..engine._utils import components_of, domain_of
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.compile._rewriting_compiler import RewritingCompiler
@@ -65,7 +64,7 @@ PURPOSES = {
     'conservation': 'The conservation analysis',
 }
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
-CAPUTO = formal_function('caputo', nargs=3)
+CAPUTO = _OperatorFunction('caputo', nargs=3)
 ASYMPTOTIC_SCALE = 50.0
 LARGEST_SCALE = 2000.0
 GUARD_BITS = 64
@@ -75,29 +74,32 @@ SIGNS: dict[str, Expression] = {}
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
-def _evaluate_mittag_leffler(
-    self: Function,
-    alpha: Element | complex,
-    beta: Element | complex,
-    z: Element | complex,
-    *,
-    parent: Parent | None = None,
-    algorithm: str | None = None,
-) -> Element | complex | float:
-    """Return the numeric value of the symbolic Mittag-Leffler function.
+class _MittagLefflerFunction(_OperatorFunction):
+    """Symbolic Mittag-Leffler function `mittag_leffler(alpha, beta, z)`, with a numeric value at numbers."""
 
-    The value lies in the field of its arguments.
-    """
-    del self, algorithm
-    if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
-        error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
-        raise TypeError(error_msg)
-    value = complex(_mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
-    result = value.real if value.imag == 0 else value
-    return result if parent is None else parent(result)
+    def _evalf_(
+        self,
+        alpha: Element | complex,
+        beta: Element | complex,
+        z: Element | complex,
+        *,
+        parent: Parent | None = None,
+        algorithm: str | None = None,
+    ) -> Element | complex | float:
+        """Return the numeric value of the symbolic Mittag-Leffler function.
+
+        The value lies in the field of its arguments.
+        """
+        del algorithm
+        if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
+            error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
+            raise TypeError(error_msg)
+        value = complex(_mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
+        result = value.real if value.imag == 0 else value
+        return result if parent is None else parent(result)
 
 
-MITTAG_LEFFLER = formal_function('mittag_leffler', nargs=3, evalf_func=_evaluate_mittag_leffler)
+MITTAG_LEFFLER = _MittagLefflerFunction('mittag_leffler', nargs=3)
 
 
 @dataclass(frozen=True)

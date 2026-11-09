@@ -1,31 +1,51 @@
 """Define the differential operators of fields as Sage symbolic functions.
 
 The compiler lowers them. Sage differentiates with respect to symbols, not along the axes of a lattice or a mesh, so
-each operator is a Sage function made by `function`, kept unevaluated in expressions until the discretization of the
-field turns it into numbers.
+each operator is an instance of a Sage `BuiltinFunction` subclass, kept unevaluated in expressions until the
+discretization of the field turns it into numbers.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import Self
 
-from sage.all__sagemath_symbolics import SR, Expression, function, oo, vector
+from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.function import BuiltinFunction
 
 from ....errors import ValidationError
 
-laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
-partial = function('partial', nargs=2)
-COLLISION_INTEGRAL = function('collision_integral', nargs=2)
 COLLISION_SPEED = SR.symbol('collision_speed', domain='real')
 COLLISION_COSINE = SR.symbol('collision_cosine', domain='real')
-upwind = function('upwind', nargs=3)
-INVERSE_HELMHOLTZ = function('inverse_helmholtz')
-CONVOLVE = function('convolve', nargs=3)
-SHIFTED = function('shifted')
 INVERSION_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 ORDERS = (1, 3)
+
+
+class _OperatorFunction(BuiltinFunction):
+    """Operator kept unevaluated in expressions until the compiler lowers it.
+
+    The name, the number of operands, 0 for any number, and the LaTeX name are those of Sage's `BuiltinFunction`. Sage
+    pickles a `BuiltinFunction` by calling its class with no argument, so the operator pickles with the arguments it
+    was built with instead, which lets expressions that hold it reach other processes.
+    """
+
+    def __init__(self, name: str, nargs: int = 0, latex_name: str | None = None) -> None:
+        super().__init__(name, nargs=nargs, latex_name=latex_name)
+        self._arguments = (name, nargs, latex_name)
+
+    def __reduce__(self) -> tuple[type[Self], tuple[str, int, str | None]]:
+        return type(self), self._arguments
+
+
+laplacian = _OperatorFunction('laplacian', nargs=1, latex_name=r'\nabla^2')
+partial = _OperatorFunction('partial', nargs=2)
+upwind = _OperatorFunction('upwind', nargs=3)
+COLLISION_INTEGRAL = _OperatorFunction('collision_integral', nargs=2)
+INVERSE_HELMHOLTZ = _OperatorFunction('inverse_helmholtz')
+CONVOLVE = _OperatorFunction('convolve', nargs=3)
+SHIFTED = _OperatorFunction('shifted')
 
 
 def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:

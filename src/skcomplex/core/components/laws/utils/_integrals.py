@@ -8,14 +8,15 @@ The compiler lowers them.
 
 from collections.abc import Sequence
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
+from ._operators import _OperatorFunction
 from ._phase import coordinates_of
 
 INTEGRATION_PREFIX = '_integration_variable_'
-INTEGRAL_TRANSFORM = function('integral_transform')
-CUMULATIVE_INTEGRAL = function('cumulative_integral', nargs=3)
+INTEGRAL_TRANSFORM = _OperatorFunction('integral_transform')
+CUMULATIVE_INTEGRAL = _OperatorFunction('cumulative_integral', nargs=3)
 
 
 def integration_variable(name: str) -> Expression:

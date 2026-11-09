@@ -6,14 +6,15 @@ There is one expression of the members per index after the first.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
+from ._operators import _OperatorFunction
 from ._reductions import _calls_in
 
 MIN_FACTORS = 1
 
-CONTRACTION = function('contraction')
+CONTRACTION = _OperatorFunction('contraction')
 
 
 def contraction(tensor: object, *expressions: object) -> Expression:

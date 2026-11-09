@@ -23,23 +23,23 @@ site in the whole tree.
   `test_symbolic_functions_are_builtin_subclasses` to `tests/test_sources.py`, parametrised by an empty tuple of checked
   packages and folders, with the verb vocabulary built from the verbs the code uses. Verify each fails on a small source
   written to `tmp_path` that breaks its rule and passes on one that follows it, and names the file, line, and name.
-- [ ] 1.4 Write the constants, helpers, and names scripts of design.md decision 11. Verify each on one module by hand
+- [x] 1.4 Write the constants, helpers, and names scripts of design.md decision 11. Verify each on one module by hand
   before the groups below use them.
 
 ## 2. Symbolic functions
 
-- [ ] 2.1 Rename `_Where`, `_Either`, `_Both`, `_Mod`, `_Derivative`, `_Lag`, `_Delayed`, `_Residence`, and
+- [x] 2.1 Rename `_Where`, `_Either`, `_Both`, `_Mod`, `_Derivative`, `_Lag`, `_Delayed`, `_Residence`, and
   `_StopGradient` to `_<Name>Function`. Verify the law utility tests pass.
-- [ ] 2.2 Convert the factory functions of `laws/utils` to `BuiltinFunction` subclasses: the reductions, with one
+- [x] 2.2 Convert the factory functions of `laws/utils` to `BuiltinFunction` subclasses: the reductions, with one
   subclass for the kinds that share `_print_reduction`, the neighbour, hyperedge, component, path, and shift functions
   with their hooks as `_print_` and `_eval_`, the delays with one subclass by order and kind, and the hook-less
   operators of `_operators.py`, `_cells.py`, `_integrals.py`, `_contractions.py`, `_phase.py`, and
   `_local_operators.py`, keeping each name, `nargs`, and `latex_name`. Verify each on numeric and symbolic arguments,
   and that the printer, compile, Einstein, and metric tests pass.
-- [ ] 2.3 Convert `MITTAG_LEFFLER` and the Caputo derivative of `analysis/_symbolic.py`, with `_evalf_` for the
+- [x] 2.3 Convert `MITTAG_LEFFLER` and the Caputo derivative of `analysis/_symbolic.py`, with `_evalf_` for the
   Mittag-Leffler hook, and the draw functions of `specs/_draw_spec.py`, with a `_derivative_` method that returns zero
   and one instance kept per label. Verify the symbolic analysis and draw tests pass and each draw label registers once.
-- [ ] 2.4 Add the symbolic function test's packages to the checked list. Verify it passes over `src`.
+- [x] 2.4 Add the symbolic function test's packages to the checked list. Verify it passes over `src`.
 
 ## 3. Core components
 

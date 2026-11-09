@@ -7,7 +7,6 @@ They are transfers between agents and the pairings of match laws.
 # License: MIT
 
 
-
 from ....errors import ValidationError
 from ...types import SystemViewProtocol
 

@@ -25,7 +25,7 @@ from ._printed_spec import PrintedSpec
 from ._source_loader import SourceLoader
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
-_CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
+CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
 RELATIONS = {
     operator.lt: 'lt',
     operator.le: 'le',
@@ -34,11 +34,8 @@ RELATIONS = {
     operator.eq: 'eq',
     operator.ne: 'ne',
 }
-
-_CONDITION = 'np.where('
-_QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
-
-
+CONDITION = 'np.where('
+QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 IMPORTS = {
     'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
     'jax': 'import jax\nimport jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
@@ -232,9 +229,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         The function runs the printed assignments and returns the codes.
         """
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
-        conditions = any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes)
+        conditions = any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes)
         if self.dialect == 'numpy' and conditions:
-            body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
+            body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         loader = SourceLoader('skcomplex_functions').prepare()
@@ -266,7 +263,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         templates = {**self.dialect_.functions, **self.dialect_.relations}
         if name not in templates:
             raise self.dialect_.unknown(name)
-        call = _CALL.fullmatch(templates[name]) is not None
+        call = CALL.fullmatch(templates[name]) is not None
         codes = [
             self._print(argument).code if call else self._wrap(self._print(argument), ATOM) for argument in arguments
         ]
