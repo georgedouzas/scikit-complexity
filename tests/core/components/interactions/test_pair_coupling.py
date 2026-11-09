@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -99,7 +99,7 @@ def _rates(system, path):
 def _pair_accelerations(positions, masses, cutoff=3.0):
     """Return the compiled accelerations of a pair of points under the Morse potential."""
     group = GroupElement('pair', element=MassPointElement, size=2, values={'x': positions, 'm': masses})
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=[PairCouplingInteraction('morse', 'pair', 'pair', cutoff=cutoff, potential=_morse, divisor='m')],
         space=ContinuousSpace(n_dim=2),
@@ -132,7 +132,7 @@ def test_pair_coupling_vanishes_beyond_the_cutoff():
 def test_pair_coupling_holds_members_at_the_potential_minimum():
     """Test that two members at the minimum of the potential stay at rest."""
     group = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.0, 0.0]]})
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=[PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse)],
         space=ContinuousSpace(n_dim=2),
@@ -146,7 +146,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
     """Test that soft repulsion inside an isolated group keeps the sum of the first derivatives of the positions."""
     rng = np.random.default_rng(0)
     values = {'x': rng.uniform(0, 3, (200, 2)), 'x_d1': rng.normal(0, 1, (200, 2))}
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=PointElement, size=200, values=values)],
         interactions=[PairCouplingInteraction('soft', 'gas', 'gas', cutoff=0.2, potential=_soft)],
         space=ContinuousSpace(n_dim=2),
@@ -161,7 +161,10 @@ def test_pair_coupling_potential_moves_a_state_of_order_one():
     """Test that a potential on a state of order 1 gives its rate, minus the gradient, on the named state."""
     group = GroupElement('walkers', element=WalkerElement, size=2, values={'y': [[0.0, 0.0], [0.5, 0.0]]})
     coupling = PairCouplingInteraction('soft', 'walkers', 'walkers', position='y', write='y', potential=_soft)
-    rates = _rates(System(elements=[group], interactions=[coupling], space=ContinuousSpace(n_dim=2)), 'walkers.y')
+    rates = _rates(
+        CompositeSystem(elements=[group], interactions=[coupling], space=ContinuousSpace(n_dim=2)),
+        'walkers.y',
+    )
     np.testing.assert_allclose(rates, [[-0.5, 0.0], [0.5, 0.0]])
 
 
@@ -181,7 +184,7 @@ def test_pair_coupling_function_adds_its_value_to_both_members_with_the_roles_sw
         write='phase',
         function=lambda s: sin(s.second.phase - s.first.phase),
     )
-    system = System(elements=[group], interactions=[coupling], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[group], interactions=[coupling], space=ContinuousSpace(n_dim=2))
     np.testing.assert_allclose(_rates(system, 'walkers.phase').ravel(), [np.sin(1.0), -np.sin(1.0)])
 
 
@@ -267,7 +270,7 @@ def test_get_laws_reads_renamed_pair_members():
             ),
         ],
     ):
-        system = System(elements=[group, walkers], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        system = CompositeSystem(elements=[group, walkers], interactions=interactions, space=ContinuousSpace(n_dim=2))
         rates.append(np.concatenate([_rates(system, 'pair.x_d1').ravel(), _rates(system, 'walkers.phase').ravel()]))
     np.testing.assert_allclose(rates[1], rates[0])
     assert np.abs(rates[0]).sum() > 0

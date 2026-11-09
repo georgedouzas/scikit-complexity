@@ -11,7 +11,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import BaseObserver, simulate
 from skcomplex.core.engine.solvers import (
@@ -172,7 +172,7 @@ def test_hutchinson_settles_below_threshold():
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
-    trajectory = simulate(System(elements=[DelayedElement('d')]), until=2, dt=0.1, solver=solver())
+    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d')]), until=2, dt=0.1, solver=solver())
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
     assert trajectory.values('d.x') == pytest.approx(exact, abs=1e-6)
@@ -203,7 +203,7 @@ def test_declared_history_is_read_before_the_start():
             """Return the laws of the remembered element."""
             return _with_history(s)
 
-    trajectory = simulate(System(elements=[RememberedElement('d')]), until=1, dt=0.1)
+    trajectory = simulate(CompositeSystem(elements=[RememberedElement('d')]), until=1, dt=0.1)
     assert trajectory.values('d.x')[-1] == pytest.approx(1 - 0.5, abs=1e-5)
 
 
@@ -227,7 +227,9 @@ def test_history_is_keyed_by_state():
             """Return the laws of the remembered element."""
             return _with_history(s)
 
-    assert PassCompiler().prepare(System(elements=[RememberedElement('d')])).run().problem_.history == {'d.x': 2.0}
+    assert PassCompiler().prepare(CompositeSystem(elements=[RememberedElement('d')])).run().problem_.history == {
+        'd.x': 2.0,
+    }
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
@@ -244,7 +246,7 @@ def test_bouncing_ball_impact_times(solver):
 
 def test_terminal_event_ends_the_run():
     """Test that a terminal event at 3.2 ends the run there with the state at the crossing."""
-    trajectory = simulate(System(elements=[ClockElement('clock')]), until=10, dt=0.5)
+    trajectory = simulate(CompositeSystem(elements=[ClockElement('clock')]), until=10, dt=0.5)
     assert trajectory.times[-1] == pytest.approx(3.2)
     assert trajectory.values('clock.x')[-1] == pytest.approx(3.2)
     assert [event.label for event in trajectory.events] == ['clock']
@@ -270,7 +272,7 @@ def test_event_without_reset_fires_once():
             """Return the laws of the marker element."""
             return [RateLaw(s.x, -1), CrossingLaw(s.x, direction=-1)]
 
-    trajectory = simulate(System(elements=[MarkerElement('m')]), until=2, dt=0.5)
+    trajectory = simulate(CompositeSystem(elements=[MarkerElement('m')]), until=2, dt=0.5)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
     assert trajectory.values('m.x')[-1] == pytest.approx(-1.0)
 
@@ -297,13 +299,13 @@ def test_chattering_event_raises(solver):
             return [RateLaw(s.x, -1), CrossingLaw(s.x, {s.x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
-        simulate(System(elements=[StickyElement('c')]), until=2, dt=0.5, solver=solver())
+        simulate(CompositeSystem(elements=[StickyElement('c')]), until=2, dt=0.5, solver=solver())
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_step_response(solver):
     """Test that a first-order system is unforced before a step at 5 and follows the step response after it."""
-    trajectory = simulate(System(elements=[FirstOrderElement('f')]), until=10, dt=0.25, solver=solver())
+    trajectory = simulate(CompositeSystem(elements=[FirstOrderElement('f')]), until=10, dt=0.25, solver=solver())
     times, values = trajectory.times, trajectory.values('f.y')
     assert np.all(values[times < 5] == 0.0)
     assert values == pytest.approx(np.where(times >= 5, 1 - np.exp(-(times - 5)), 0.0), abs=1e-6)
@@ -331,7 +333,7 @@ def test_pulse_train_and_series_breakpoints():
                 RateLaw(s.y, pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous')),
             ]
 
-    system = System(elements=[DrivenElement('d')])
+    system = CompositeSystem(elements=[DrivenElement('d')])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.breakpoints.between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
     trajectory = simulate(system, until=5, dt=0.5)
@@ -341,7 +343,7 @@ def test_pulse_train_and_series_breakpoints():
 def test_schedule_ramps_a_parameter():
     """Test that a scheduled parameter takes the value of its function of time before every frame."""
     trajectory = simulate(
-        System(elements=[FirstOrderElement('f')]),
+        CompositeSystem(elements=[FirstOrderElement('f')]),
         until=3,
         dt=1.0,
         schedule={'f.k': lambda t: 1.0 + t},
@@ -352,7 +354,12 @@ def test_schedule_ramps_a_parameter():
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, MilsteinSolver, HeunSolver])
 def test_stratonovich_geometric_brownian_motion(stepper):
     """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 3 SE."""
-    system = PassCompiler().prepare(System(elements=[GeometricElement('g', convention='stratonovich')])).run().problem_
+    system = (
+        PassCompiler()
+        .prepare(CompositeSystem(elements=[GeometricElement('g', convention='stratonovich')]))
+        .run()
+        .problem_
+    )
     values = np.asarray(
         [
             stepper(dt=0.01, random_state=seed)
@@ -369,7 +376,9 @@ def test_stratonovich_geometric_brownian_motion(stepper):
 def test_noise_convention_adds_drift_correction():
     """Test that the Stratonovich and anti-Itô corrections add half and all of `g dg/dx` to the drift."""
     for noise, alpha in [('ito', 0.0), ('stratonovich', 0.5), ('anti-ito', 1.0)]:
-        problem = PassCompiler().prepare(System(elements=[GeometricElement('g', convention=noise)])).run().problem_
+        problem = (
+            PassCompiler().prepare(CompositeSystem(elements=[GeometricElement('g', convention=noise)])).run().problem_
+        )
         drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
         assert drift[0] == pytest.approx(0.5 * 2 + alpha * 0.8**2 * 2)
 
@@ -377,7 +386,7 @@ def test_noise_convention_adds_drift_correction():
 def test_unknown_noise_convention_is_rejected():
     """Test that a noise convention other than the three is rejected."""
     with pytest.raises(ValidationError, match='noise convention'):
-        PassCompiler().prepare(System(elements=[GeometricElement('g', convention='marcus')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[GeometricElement('g', convention='marcus')])).run()
 
 
 @pytest.mark.slow
@@ -403,7 +412,7 @@ def test_milstein_and_heun_converge_on_additive_noise():
 
     for stepper in (MilsteinSolver(dt=0.01), HeunSolver(dt=0.01)):
         trajectory = simulate(
-            System(elements=[OrnsteinElement('o')]),
+            CompositeSystem(elements=[OrnsteinElement('o')]),
             until=1000,
             solver=stepper,
             dt=1.0,
@@ -424,7 +433,7 @@ def test_steppers_without_hybrid_path_reject_events():
 def test_fixed_step_longer_than_delay_is_rejected():
     """Test that a fixed step longer than the smallest delay raises an error."""
     with pytest.raises(SolverError, match='smallest delay'):
-        simulate(System(elements=[DelayedElement('d')]), until=2, dt=2.0, solver=RK4Solver(dt=2.0))
+        simulate(CompositeSystem(elements=[DelayedElement('d')]), until=2, dt=2.0, solver=RK4Solver(dt=2.0))
 
 
 def test_events_are_attached_to_frames():
@@ -468,7 +477,7 @@ def test_very_short_delay_with_scipy(tau):
             """Return the laws of the short element."""
             return _short_delay(s)
 
-    system = System(elements=[ShortElement('d')])
+    system = CompositeSystem(elements=[ShortElement('d')])
     trajectory = simulate(system, until=0.2, solver=ScipyODESolver())
     assert trajectory.values('d.x')[-1] == pytest.approx(math.exp(-0.2), abs=1e-3)
 
@@ -500,7 +509,7 @@ def test_periodic_breakpoints_over_unbounded_runs():
             """Return the laws of the dosed element."""
             return _monthly_dose(s)
 
-    system = System(elements=[DosedElement('a')])
+    system = CompositeSystem(elements=[DosedElement('a')])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.breakpoints.next_after(1.0) == 21.0
     trajectory = simulate(system, until=10, dt=0.5)
@@ -535,7 +544,7 @@ def test_delay_of_parameter_expression():
             """Return the laws of the scaled element."""
             return _scaled_delay(s)
 
-    system = System(elements=[ScaledElement('d')])
+    system = CompositeSystem(elements=[ScaledElement('d')])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.delays[0].minimum == 1.0
     trajectory = simulate(system, until=3, dt=0.5)

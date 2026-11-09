@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import FieldElement, GroupElement, Nonne
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
@@ -43,7 +43,7 @@ class MeetingInteraction(EncounterInteraction):
 
 def _densities(encounter, until, initial=(0.2, 0.3, 0.5)):
     """Return the candidate densities over time, meeting a constant field of density 1."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'candidates',
@@ -140,7 +140,11 @@ def test_linear_encounter_erases_polarization_at_the_rate_of_the_noise() -> None
     noise /= noise.sum(axis=0, keepdims=True)
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
     diffusion = EncounterInteraction('noise', candidate='gas', rate=lambda _: 2.0, kernel=lambda _: noise.T)
-    trajectory = simulate(System(elements=[gas], interactions=[diffusion]), until=1.0, solver=RK4Solver(dt=0.01))
+    trajectory = simulate(
+        CompositeSystem(elements=[gas], interactions=[diffusion]),
+        until=1.0,
+        solver=RK4Solver(dt=0.01),
+    )
     values = np.asarray(trajectory.values('gas.x')).reshape(-1, 3, 32)
     assert np.abs(values[-1].sum(axis=1) / start.sum(axis=1) - 1.0).max() < 1e-12
     polarization = (values[-1] * np.cos(theta)).sum(axis=1) / (start * np.cos(theta)).sum(axis=1)
@@ -156,7 +160,7 @@ def test_encounter_pairs_classes_at_the_same_position() -> None:
     kernel = np.zeros((2, 2, 2))
     kernel[:, :, 1] = 1.0
     move = EncounterInteraction('move', candidate='gas', field='gas', rate=lambda _: 1.0, kernel=lambda _: kernel)
-    trajectory = simulate(System(elements=[gas], interactions=[move]), until=1.0, solver=RK4Solver(dt=0.01))
+    trajectory = simulate(CompositeSystem(elements=[gas], interactions=[move]), until=1.0, solver=RK4Solver(dt=0.01))
     final = trajectory.values('gas.x')[-1].reshape(2, 2)
     assert final.sum(axis=1) == pytest.approx([1.0, 1.0])
     assert final[1] == pytest.approx([0.0, 1.0])
@@ -175,7 +179,7 @@ def test_encounter_rate_reads_the_coordinate_of_the_candidate_class() -> None:
         rate=lambda _: coordinate('c'),
         outcome='destructive',
     )
-    system = System(elements=[gas, level], interactions=[remove])
+    system = CompositeSystem(elements=[gas, level], interactions=[remove])
     final = simulate(system, until=0.1, solver=RK4Solver(dt=0.01))
     expected = np.exp(-0.1 * 2.0 * np.array([1.0, 3.0]))
     assert final.values('gas.x')[-1] == pytest.approx(expected, rel=1e-6)
@@ -240,7 +244,7 @@ def test_bkw_solution_within_1e_4_and_density_constant() -> None:
     start = bkw(0.0, vx, vy)
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start[None]})
     collide = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
-    trajectory = simulate(System(elements=[gas], interactions=[collide]), until=5.0, solver=RK4Solver(dt=0.1))
+    trajectory = simulate(CompositeSystem(elements=[gas], interactions=[collide]), until=5.0, solver=RK4Solver(dt=0.1))
     final = trajectory.values('gas.x')[-1].reshape(SIZE, SIZE)
     assert np.abs(final - bkw(5.0, vx, vy)).max() < 1e-4
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -253,9 +257,9 @@ def test_density_factor_speeds_relaxation_twice() -> None:
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start[None]})
     plain = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
     faster = EncounterInteraction('c', candidate='gas', cross_section=maxwell, factor=lambda _: 2.0)
-    slow = simulate(System(elements=[gas], interactions=[plain]), until=2.0, solver=RK4Solver(dt=0.1))
+    slow = simulate(CompositeSystem(elements=[gas], interactions=[plain]), until=2.0, solver=RK4Solver(dt=0.1))
     first = slow.values('gas.x')[-1]
-    fast = simulate(System(elements=[gas], interactions=[faster]), until=1.0, solver=RK4Solver(dt=0.05))
+    fast = simulate(CompositeSystem(elements=[gas], interactions=[faster]), until=1.0, solver=RK4Solver(dt=0.05))
     second = fast.values('gas.x')[-1]
     assert np.abs(first - second).max() / np.abs(first - start.ravel()).max() < 0.01
 
@@ -264,7 +268,7 @@ def test_collision_without_velocity_axes_is_a_law_space_issue() -> None:
     """Report a collision on a lattice without class axes, with the fix of an interval `AxisSpec`."""
     gas = FieldElement('gas', element=NonnegativeElement, space=LatticeSpace((4,)))
     collide = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
-    report = PassCompiler().prepare(System(elements=[gas], interactions=[collide])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[gas], interactions=[collide])).report_
     issues = [issue for issue in report.issues if issue.code == 'law-space']
     assert issues
     assert 'AxisSpec' in issues[0].fix
@@ -275,5 +279,5 @@ def test_collision_on_periodic_axis_is_a_law_space_issue() -> None:
     axes = [AxisSpec('vx', 8, -1.0, 1.0), AxisSpec('vy', 8, 0.0, 6.0, periodic=True)]
     gas = FieldElement('gas', element=NonnegativeElement, space=PhaseSpace(LatticeSpace((1,)), axes))
     collide = EncounterInteraction('c', candidate='gas', cross_section=maxwell)
-    report = PassCompiler().prepare(System(elements=[gas], interactions=[collide])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[gas], interactions=[collide])).report_
     assert any(issue.code == 'law-space' for issue in report.issues)

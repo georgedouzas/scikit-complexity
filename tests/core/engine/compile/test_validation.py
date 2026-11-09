@@ -21,7 +21,7 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
@@ -139,7 +139,7 @@ def _codes(report):
 
 def test_valid_system_has_no_issues():
     """Test that a system of stocks with growth validates without issues."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
@@ -150,7 +150,7 @@ def test_valid_system_has_no_issues():
 
 def test_several_errors_are_reported_at_once():
     """Test that an unbound role and a vector state without a space are both reported."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('rabbits'), WalkerElement('walker')],
         interactions=[GrowthInteraction('growth', target='foxes')],
     )
@@ -162,7 +162,7 @@ def test_several_errors_are_reported_at_once():
 
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
-    system = System(elements=[GroupElement('ants', element=AntElement, size=3, variable=True)])
+    system = CompositeSystem(elements=[GroupElement('ants', element=AntElement, size=3, variable=True)])
     report = PassCompiler(solver=RK4Solver()).prepare(system).report_
     issue = next(issue for issue in report.errors if 'laws' in issue.message)
     assert issue.code == 'solver-unsupported'
@@ -172,7 +172,7 @@ def test_unsupported_solver_lists_capable_solvers():
 
 def test_mixed_laws_suggest_partitions():
     """Test that rates and updates in one system without children are reported with both components."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('rabbits'), CounterElement('clock')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
@@ -185,14 +185,14 @@ def test_mixed_laws_suggest_partitions():
 
 def test_mixed_laws_in_nested_systems_are_valid():
     """Test that rates and updates in sibling nested systems validate as coupled partitions."""
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System(
+            CompositeSystem(
                 'meadow',
                 elements=[StockElement('rabbits')],
                 interactions=[GrowthInteraction('growth', target='rabbits')],
             ),
-            System('clock', elements=[CounterElement('counter')]),
+            CompositeSystem('clock', elements=[CounterElement('counter')]),
         ],
     )
     assert PassCompiler().prepare(system).report_.ok
@@ -244,7 +244,7 @@ class NoisyPlantElement(PlantElement):
 
 def test_validate_control_outside_bounds():
     """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
-    (issue,) = PassCompiler().prepare(System(elements=[PlantElement('plant', u=2.0)])).report_.errors
+    (issue,) = PassCompiler().prepare(CompositeSystem(elements=[PlantElement('plant', u=2.0)])).report_.errors
     assert issue.path == 'plant.u'
     assert issue.code == 'parameter-bounds'
     # typing caches equal annotations, so the bounds print as those of the first equal spec: (0, 1) or (0.0, 1.0)
@@ -254,14 +254,14 @@ def test_validate_control_outside_bounds():
 def test_validate_controls_with_an_optimal_control_solver():
     """Test that a system with bounded controls is valid for an optimal control solver and for a stepper."""
     solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
-    assert PassCompiler(solver=solver).prepare(System(elements=[PlantElement('plant')])).report_.ok
-    assert PassCompiler(solver=RK4Solver()).prepare(System(elements=[PlantElement('plant')])).report_.ok
+    assert PassCompiler(solver=solver).prepare(CompositeSystem(elements=[PlantElement('plant')])).report_.ok
+    assert PassCompiler(solver=RK4Solver()).prepare(CompositeSystem(elements=[PlantElement('plant')])).report_.ok
 
 
 def test_validate_noise_with_an_optimal_control_solver():
     """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
     solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
-    issues = PassCompiler(solver=solver).prepare(System(elements=[NoisyPlantElement('plant')])).report_.errors
+    issues = PassCompiler(solver=solver).prepare(CompositeSystem(elements=[NoisyPlantElement('plant')])).report_.errors
     issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
     assert 'PontryaginSolver does not support the laws NoiseLaw' in issue.message
 
@@ -289,7 +289,7 @@ class GroupSpinElement(Element):
 def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
-    system = System(elements=[GroupElement('spins', element=GroupSpinElement, space=space, on='sites')])
+    system = CompositeSystem(elements=[GroupElement('spins', element=GroupSpinElement, space=space, on='sites')])
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     (issue,) = [issue for issue in issues if issue.code == 'schedule-unsupported']
@@ -302,7 +302,7 @@ def test_group_space_reports_an_image_visual():
     """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     group = GroupElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'), on='sites')
-    system = System(elements=[group])
+    system = CompositeSystem(elements=[group])
     report = PassCompiler().prepare(system).report_
     issue = next(issue for issue in report.issues if issue.code == 'visual-unsupported')
     assert "'cayley'" in issue.fix
@@ -311,7 +311,7 @@ def test_group_space_reports_an_image_visual():
 def test_group_space_reports_a_ball_above_the_site_limit():
     """Test that a ball of the free group of rank 3 with more sites than the limit is reported."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b', 'c']), ball=12, max_sites=100)
-    issues = PassCompiler().prepare(System(space=space)).report_.issues
+    issues = PassCompiler().prepare(CompositeSystem(space=space)).report_.issues
     assert [issue.code for issue in issues] == ['space-too-large']
     assert 'more than 100 sites' in issues[0].message
 
@@ -319,7 +319,7 @@ def test_group_space_reports_a_ball_above_the_site_limit():
 def test_lattice_with_a_bad_boundary_is_reported():
     """Test that a lattice whose boundary is not supported is a space-invalid error that lists the boundaries."""
     space = LatticeSpace((4, 4), boundary='spherical')
-    (issue,) = PassCompiler().prepare(System(elements=[StockElement('rabbits')], space=space)).report_.errors
+    (issue,) = PassCompiler().prepare(CompositeSystem(elements=[StockElement('rabbits')], space=space)).report_.errors
     assert issue.code == 'space-invalid'
     assert "'spherical'" in issue.message
     assert 'periodic, fixed, reflecting' in issue.message
@@ -327,7 +327,7 @@ def test_lattice_with_a_bad_boundary_is_reported():
 
 def test_invalid_space_among_other_errors_is_reported():
     """Test that an invalid lattice and an unbound role are both reported, and compiling raises the validation error."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='hares')],
         space=LatticeSpace((4, 4), boundary='spherical'),
@@ -339,7 +339,7 @@ def test_invalid_space_among_other_errors_is_reported():
 
 def test_validation_keeps_the_planned_compilation():
     """Test that validation returns the compilation state planned once, which holds the nodes and the plan."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
@@ -409,7 +409,7 @@ class SingleInteraction(Interaction):
 
 def test_validate_reports_mixed_conventions():
     """Test that laws of different conventions on one process are reported with both laws and the process."""
-    system = System(elements=[PairElement('pair', conventions=('ito', 'stratonovich'))])
+    system = CompositeSystem(elements=[PairElement('pair', conventions=('ito', 'stratonovich'))])
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
@@ -421,7 +421,7 @@ def test_validate_reports_mixed_conventions():
 
 def test_validate_reports_correction_out_of_scope():
     """Test that a Stratonovich law reading a state another component drives on its process is reported."""
-    system = System(
+    system = CompositeSystem(
         elements=[HoldingElement('a'), HoldingElement('b', n=1.0)],
         interactions=[
             CoupledInteraction('coupled', target='a', other='b', noise=WienerProcessSpec('market')),
@@ -456,7 +456,7 @@ def test_validate_reports_covariance_shape_and_symmetry(covariance):
 
 def test_validate_reports_handle_as_value():
     """Test that a Wiener handle used inside a rate law is reported with the law."""
-    system = System(
+    system = CompositeSystem(
         elements=[HoldingElement('a')],
         interactions=[MisuseInteraction('misuse', target='a', noise=WienerProcessSpec('market'))],
     )
@@ -486,7 +486,7 @@ def test_validate_reports_wiener_under_discrete_time():
             """Return the laws of the counter element."""
             return [UpdateLaw(s.n, 1)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[CounterElement('counter')],
         interactions=[SingleInteraction('single', target='counter', noise=WienerProcessSpec('market'))],
         time=DiscreteTime(),
@@ -498,7 +498,7 @@ def test_validate_reports_wiener_under_discrete_time():
 
 def test_validate_reports_milstein_with_shared_process():
     """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
-    system = System(elements=[PairElement('pair')])
+    system = CompositeSystem(elements=[PairElement('pair')])
     report = PassCompiler(solver=MilsteinSolver()).prepare(system).report_
     (issue,) = report.issues
     assert issue.code == 'noise-unsupported'
@@ -509,7 +509,7 @@ def test_validate_reports_milstein_with_shared_process():
 
 def test_validate_reports_lammps_with_shared_process():
     """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
-    issues = PassCompiler(solver=LammpsSolver()).prepare(System(elements=[PairElement('pair')])).report_.issues
+    issues = PassCompiler(solver=LammpsSolver()).prepare(CompositeSystem(elements=[PairElement('pair')])).report_.issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
     assert 'NoiseLaw of pair' in issue.message
     assert 'LammpsSolver' in issue.message
@@ -541,11 +541,11 @@ def test_observable_among_the_laws_is_rejected():
             """Return the laws of the mixed element."""
             return [RateLaw(s.a, -s.a), ObservableSpec('level', s.a)]
 
-    (issue,) = PassCompiler().prepare(System(elements=[MixedElement('tank')])).report_.errors
+    (issue,) = PassCompiler().prepare(CompositeSystem(elements=[MixedElement('tank')])).report_.errors
     assert issue.path == 'tank'
     assert '`_get_laws` of tank must return a list of' in issue.message
     with pytest.raises(ValidationError, match='tank'):
-        PassCompiler().prepare(System(elements=[MixedElement('tank')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[MixedElement('tank')])).run()
 
 
 class SpreadInteraction(NeighborInteraction):
@@ -586,7 +586,7 @@ class ConsensusInteraction(HyperedgeInteraction):
 def _bindings(interaction, space):
     """Return the binding issues of a group of four nodes on a space, coupled by an interaction."""
     nodes = GroupElement('nodes', element=NodeElement, size=4)
-    system = System(elements=[nodes], interactions=[interaction], space=space)
+    system = CompositeSystem(elements=[nodes], interactions=[interaction], space=space)
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     return [issue for issue in issues if issue.code == 'binding']
@@ -596,7 +596,7 @@ def test_neighbor_interaction_without_neighbours_takes_no_laws_per_edge():
     """Test that an interaction over neighbours of members on no lattice or network binds but has no laws per edge."""
     assert _bindings(SpreadInteraction('spread', nodes='nodes'), None) == []
     nodes = GroupElement('nodes', element=NodeElement, size=4)
-    system = System(elements=[nodes], interactions=[SpreadInteraction('spread', nodes='nodes')])
+    system = CompositeSystem(elements=[nodes], interactions=[SpreadInteraction('spread', nodes='nodes')])
     with pytest.raises(ValidationError, match='laws per edge'):
         PassCompiler().prepare(system).run()
 
@@ -672,14 +672,14 @@ class TankElement(Element):
         self.level = level
 
 
-def _role_issues(system: System) -> list[IssueSpec]:
+def _role_issues(system: CompositeSystem) -> list[IssueSpec]:
     """Return the `role-element` issues of a system."""
     return [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'role-element']
 
 
 def test_role_element_reports_a_missing_state_a_role_declares():
     """Test that a declared read of a state the element lacks is reported with its path, role, state, and fix."""
-    system = System(
+    system = CompositeSystem(
         elements=[TankElement('tank')],
         interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)],
     )
@@ -694,7 +694,7 @@ def test_role_element_reports_a_missing_state_a_role_declares():
 
 def test_role_element_reports_a_kind_the_role_does_not_accept():
     """Test that a role that acts on the agents of a group reports a single element."""
-    system = System(
+    system = CompositeSystem(
         elements=[TankElement('tank')],
         interactions=[MovementInteraction('walk', target='tank')],
         time=DiscreteTime(),
@@ -707,7 +707,7 @@ def test_role_element_reports_a_kind_the_role_does_not_accept():
 
 def test_role_element_reports_a_missing_state_no_role_declares():
     """Test that an undeclared read of a missing state gets the same issue, and no `AttributeError` reaches the user."""
-    system = System(elements=[TankElement('tank')], interactions=[ReadingInteraction('read', target='tank')])
+    system = CompositeSystem(elements=[TankElement('tank')], interactions=[ReadingInteraction('read', target='tank')])
     issues = _role_issues(system)
     assert len(issues) == 1
     assert "'target'" in issues[0].message
@@ -727,7 +727,7 @@ def test_role_element_names_a_variadic_role():
             super().__init__(label)
             self.x = x
 
-    system = System(
+    system = CompositeSystem(
         elements=[TwoStatesElement('first'), TankElement('tank')],
         interactions=[ReadingSourcesInteraction('read', target='first', sources=['tank'])],
     )
@@ -739,7 +739,7 @@ def test_role_element_names_a_variadic_role():
 
 def test_role_element_comes_with_the_other_problems():
     """Test that a role issue is one problem of the report, next to a problem of another component."""
-    system = System(
+    system = CompositeSystem(
         elements=[TankElement('tank')],
         interactions=[
             ReadingInteraction('read', target='tank'),
@@ -762,7 +762,7 @@ def test_role_element_keeps_a_missing_name_of_the_namespace():
             """Return a rate that reads a name of the namespace that does not exist."""
             return [RateLaw(s.target.level, s.undeclared)]
 
-    system = System(elements=[TankElement('tank')], interactions=[WrongNameInteraction('read', target='tank')])
+    system = CompositeSystem(elements=[TankElement('tank')], interactions=[WrongNameInteraction('read', target='tank')])
     with pytest.raises(AttributeError, match='undeclared'):
         PassCompiler().prepare(system)
 
@@ -778,7 +778,7 @@ def test_role_element_keeps_the_other_errors_of_a_law(error):
             """Raise the error of the test."""
             raise error
 
-    system = System(elements=[TankElement('tank')], interactions=[FailingInteraction('read', target='tank')])
+    system = CompositeSystem(elements=[TankElement('tank')], interactions=[FailingInteraction('read', target='tank')])
     with pytest.raises(type(error), match='own error') as caught:
         PassCompiler().prepare(system)
     assert caught.value is error
@@ -786,7 +786,7 @@ def test_role_element_keeps_the_other_errors_of_a_law(error):
 
 def test_role_element_leaves_a_valid_binding_alone():
     """Test that an element that carries what a role reads reports no role issue."""
-    system = System(
+    system = CompositeSystem(
         elements=[TankElement('tank')],
         interactions=[RateInteraction('growth', target='tank', state='level', rate=1.0)],
     )
@@ -796,7 +796,7 @@ def test_role_element_leaves_a_valid_binding_alone():
 def test_role_element_reports_a_state_that_a_function_reads():
     """Test that a function passed to a general interaction that reads a missing state gets the same issue."""
     growth = RateInteraction('growth', target='tank', state='level', rate=lambda s: s.target.missing)
-    issues = _role_issues(System(elements=[TankElement('tank')], interactions=[growth]))
+    issues = _role_issues(CompositeSystem(elements=[TankElement('tank')], interactions=[growth]))
     assert len(issues) == 1
     assert "'target'" in issues[0].message
     assert "'missing'" in issues[0].message

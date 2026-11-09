@@ -36,7 +36,7 @@ class L1Solver(ConvolutionSolver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import L1Solver
         >>> from skcomplex.core.specs import StepSpec
@@ -47,7 +47,7 @@ class L1Solver(ConvolutionSolver):
         ...
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = simulate(System(elements=[RelaxingElement('a')]), until=0).problem
+        >>> problem = simulate(CompositeSystem(elements=[RelaxingElement('a')]), until=0).problem
         >>> stepper = L1Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 2)

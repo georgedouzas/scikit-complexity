@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction, RateInteraction,
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -43,7 +43,7 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
         RateInteraction('u_diffusion', target='cells', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
         RateInteraction('v_diffusion', target='cells', state='v', rate=lambda s: s.target.Dv * laplacian(s.target.v)),
     ]
-    return System(elements=[cells], interactions=[*reactions, *diffusions])
+    return CompositeSystem(elements=[cells], interactions=[*reactions, *diffusions])
 
 
 def test_lotka_volterra_centre():
@@ -138,7 +138,7 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
                 ),
             ]
 
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('population', element=StrategyElement, size=size, values={'x': [1 / size] * size})],
         interactions=[ReplicationInteraction('replication', population='population')],
     )
@@ -174,7 +174,7 @@ def test_group_above_limit():
             """Return the laws of the member element."""
             return [RateLaw(s.x, total(s.x) - s.x)]
 
-    system = System(elements=[GroupElement('group', element=MemberElement, size=1000)])
+    system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         _stability(system)
 

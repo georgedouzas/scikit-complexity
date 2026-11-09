@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.components.laws.utils import count, mean, total, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
@@ -61,7 +61,7 @@ def _count(members, system):
         member.s = len(members)
 
 
-def _run(system: System, until: int) -> Trajectory:
+def _run(system: CompositeSystem, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
     return simulate(system, until=until, random_state=0)
 
@@ -85,7 +85,7 @@ def test_act_on_galam_groups_of_three_adopt_their_majority():
             member.s = majority
 
     galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt)
-    trajectory = _run(System(elements=[_voters({'s': opinions}, 300)], interactions=[galam]), 1)
+    trajectory = _run(CompositeSystem(elements=[_voters({'s': opinions}, 300)], interactions=[galam]), 1)
     assert len(snapshots) == 100
     assert all(size == 3 and majority == float(sum(before) >= 2) for size, before, majority in snapshots)
     assert trajectory.agents('voters', 1).values['s'].sum() == sum(3 * majority for _, _, majority in snapshots)
@@ -95,14 +95,14 @@ def test_act_on_a_subclass_drives_groups_to_consensus():
     """Test that repeated majority groups of three drive a large majority to consensus."""
     opinions = np.r_[np.ones(70), np.zeros(30)]
     galam = MajorityGroupingInteraction('galam', target='voters', groups='partition', size=3)
-    trajectory = _run(System(elements=[_voters({'s': opinions}, 100)], interactions=[galam]), 20)
+    trajectory = _run(CompositeSystem(elements=[_voters({'s': opinions}, 100)], interactions=[galam]), 20)
     assert trajectory.agents('voters', 20).values['s'].tolist() == [1.0] * 100
 
 
 def test_act_on_pairs_leaves_an_odd_member_out():
     """Test that pairs are disjoint and an odd member joins no pair."""
     pairing = GroupingInteraction('pairing', target='voters', groups='pairs', act=_count)
-    values = _run(System(elements=[_voters({}, 5)], interactions=[pairing]), 1).agents('voters', 1).values
+    values = _run(CompositeSystem(elements=[_voters({}, 5)], interactions=[pairing]), 1).agents('voters', 1).values
     assert sorted(values['seen'].tolist()) == [0.0, 1.0, 1.0, 1.0, 1.0]
     assert set(values['s'][values['seen'] == 1].tolist()) == {2.0}
 
@@ -110,7 +110,7 @@ def test_act_on_pairs_leaves_an_odd_member_out():
 def test_act_on_the_remainder_of_a_partition_forms_a_smaller_group():
     """Test that a partition of seven into threes leaves a group of one."""
     partition = GroupingInteraction('partition', target='voters', groups='partition', size=3, act=_count)
-    values = _run(System(elements=[_voters({}, 7)], interactions=[partition]), 1).agents('voters', 1).values
+    values = _run(CompositeSystem(elements=[_voters({}, 7)], interactions=[partition]), 1).agents('voters', 1).values
     assert sorted(values['s'].tolist()) == [1.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
 
 
@@ -120,7 +120,9 @@ def test_act_on_neighborhoods_groups_every_member_with_its_neighbors():
     voters = _voters({}, 9, location=cells)
     grouping = GroupingInteraction('local', target='voters', groups='neighborhood', act=_count)
     space = LatticeSpace((3, 3), metric='manhattan')
-    values = _run(System(elements=[voters], interactions=[grouping], space=space), 1).agents('voters', 1).values
+    values = (
+        _run(CompositeSystem(elements=[voters], interactions=[grouping], space=space), 1).agents('voters', 1).values
+    )
     assert values['seen'].tolist() == [5.0] * 9
 
 
@@ -128,7 +130,7 @@ def test_act_on_groups_by_state_take_at_most_the_capacity():
     """Test that members sharing a value form one group cut to the capacity."""
     sides = {'s': [0.0, 0.0, 0.0, 1.0, 1.0]}
     grouping = GroupingInteraction('sides', target='voters', groups='state', by='s', capacity=2, act=_count)
-    values = _run(System(elements=[_voters(sides, 5)], interactions=[grouping]), 1).agents('voters', 1).values
+    values = _run(CompositeSystem(elements=[_voters(sides, 5)], interactions=[grouping]), 1).agents('voters', 1).values
     assert sorted(values['seen'].tolist()) == [0.0, 1.0, 1.0, 1.0, 1.0]
 
 
@@ -230,7 +232,7 @@ def _stream(seed: int = 0) -> np.random.Generator:
     return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
 
 
-def _symbolic_run(system: System, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
+def _symbolic_run(system: CompositeSystem, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
     trajectory = simulate(system, until=until, random_state=seed, backend=backend)
     return trajectory.values('voters.s')
@@ -241,7 +243,7 @@ def test_get_laws_symbolic_partitions_set_every_group_to_its_majority(backend):
     """Test that after one step every group of the drawn partition holds the majority opinion it had."""
     opinions = np.random.default_rng(1).integers(0, 2, 30).astype(float)
     galam = _symbolic('partition', _majority, size=3)
-    values = _symbolic_run(System(elements=[_voters({'s': opinions}, 30)], interactions=[galam]), 1, backend)
+    values = _symbolic_run(CompositeSystem(elements=[_voters({'s': opinions}, 30)], interactions=[galam]), 1, backend)
     groups = _stream().permutation(30).reshape(10, 3)
     expected = np.repeat((opinions[groups].sum(axis=1) >= 2).astype(float), 3)
     assert values[1][groups.ravel()].tolist() == expected.tolist()
@@ -251,7 +253,10 @@ def test_get_laws_symbolic_partitions_set_every_group_to_its_majority(backend):
 def test_get_laws_symbolic_partitions_are_drawn_from_the_random_stream(backend):
     """Test that two runs with one seed draw the same partitions, and runs with two seeds draw different ones."""
     opinions = np.random.default_rng(2).integers(0, 2, 60).astype(float)
-    system = System(elements=[_voters({'s': opinions}, 60)], interactions=[_symbolic('partition', _majority, size=3)])
+    system = CompositeSystem(
+        elements=[_voters({'s': opinions}, 60)],
+        interactions=[_symbolic('partition', _majority, size=3)],
+    )
     first, second, third = (_symbolic_run(system, 3, backend, seed) for seed in (0, 0, 1))
     assert np.array_equal(first, second)
     assert not np.array_equal(first, third)
@@ -261,7 +266,7 @@ def test_get_laws_symbolic_partitions_are_drawn_from_the_random_stream(backend):
 def test_get_laws_symbolic_pairs_leave_an_odd_member_unchanged(backend):
     """Test that the members of a pair take the total of the pair and the odd member out keeps its value."""
     voters = _voters({'s': [1.0, 2.0, 3.0, 4.0, 5.0]}, 5)
-    values = _symbolic_run(System(elements=[voters], interactions=[_symbolic('pairs', _total)]), 1, backend)
+    values = _symbolic_run(CompositeSystem(elements=[voters], interactions=[_symbolic('pairs', _total)]), 1, backend)
     order = _stream().permutation(5)
     expected = np.arange(1.0, 6.0)
     for first, second in order[:4].reshape(2, 2):
@@ -272,7 +277,11 @@ def test_get_laws_symbolic_pairs_leave_an_odd_member_unchanged(backend):
 @BACKENDS
 def test_get_laws_symbolic_remainder_of_a_partition_forms_a_smaller_group(backend):
     """Test that a partition of seven into threes gives every member the size of its group."""
-    values = _symbolic_run(System(elements=[_voters({}, 7)], interactions=[_symbolic('partition', _size)]), 1, backend)
+    values = _symbolic_run(
+        CompositeSystem(elements=[_voters({}, 7)], interactions=[_symbolic('partition', _size)]),
+        1,
+        backend,
+    )
     assert sorted(values[1].tolist()) == [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
 
@@ -284,7 +293,7 @@ def test_get_laws_symbolic_neighborhoods_reduce_over_the_groups_of_a_member(back
     space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
     grid = GroupElement('voters', element=OpinionElement, space=space, values={'s': values}, on='sites')
     grouping = _symbolic('neighborhood', _weighted, reduce=reduce)
-    result = _symbolic_run(System(elements=[grid], interactions=[grouping]), 1, backend)[1]
+    result = _symbolic_run(CompositeSystem(elements=[grid], interactions=[grouping]), 1, backend)[1]
     rows, columns = np.divmod(np.arange(16), 4)
     groups = [
         [site, *np.flatnonzero(np.abs(rows - rows[site]) + np.abs(columns - columns[site]) == 1).tolist()]
@@ -300,7 +309,7 @@ def test_get_laws_symbolic_groups_by_state_reduce_over_the_members_sharing_it(ba
     """Test that groups by state give every member the total of the members that share its value of the state."""
     keyed = _symbolic('state', _total, by='seen')
     voters = _voters({'s': [1.0, 2.0, 3.0, 4.0, 5.0], 'seen': [0.0, 1.0, 0.0, 1.0, 1.0]}, 5)
-    values = _symbolic_run(System(elements=[voters], interactions=[keyed]), 1, backend)
+    values = _symbolic_run(CompositeSystem(elements=[voters], interactions=[keyed]), 1, backend)
     assert values[1].tolist() == [4.0, 11.0, 4.0, 11.0, 11.0]
 
 
@@ -350,7 +359,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
     )
     imitation = ImitationInteraction('imitation', target='players', rule='best', form='probability', phase='imitate')
     time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-    system = System(elements=[players], interactions=[payoffs, imitation], time=time)
+    system = CompositeSystem(elements=[players], interactions=[payoffs, imitation], time=time)
     trajectory = simulate(system, until=3, random_state=0, backend=backend)
     around = [
         np.array(
@@ -384,7 +393,8 @@ def test_get_laws_symbolic_reads_a_renamed_target(groups):
     plain = GroupingInteraction('groups', target='voters', **arguments)
     renamed = CouncilInteraction('groups', council='voters', **arguments)
     values = [
-        _symbolic_run(System(elements=[grid], interactions=[item]), 2, NumpyBackend()) for item in (plain, renamed)
+        _symbolic_run(CompositeSystem(elements=[grid], interactions=[item]), 2, NumpyBackend())
+        for item in (plain, renamed)
     ]
     np.testing.assert_allclose(values[1], values[0])
 
@@ -399,7 +409,7 @@ def _groups_after_one_step(groups: object, seed: int) -> list[list[float]]:
 
     voters = _voters({'s': [float(index) for index in range(7)]}, 7)
     grouping = GroupingInteraction('groups', target='voters', groups=groups, act=record)
-    system = System(elements=[voters], interactions=[grouping], time=DiscreteTime())
+    system = CompositeSystem(elements=[voters], interactions=[grouping], time=DiscreteTime())
     simulate(system, until=1, random_state=seed)
     return seen
 

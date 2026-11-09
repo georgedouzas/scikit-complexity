@@ -19,7 +19,7 @@ import numpy.typing as npt
 
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
-from ..components.systems import BaseSystem, System
+from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory
@@ -232,23 +232,23 @@ def _composite(source: Source) -> Source:
 
     Returns:
         source:
-            The prepared composite `System` of a system that builds its parts, or the source itself.
+            The prepared composite `CompositeSystem` of a system that builds its parts, or the source itself.
     """
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     return source
 
 
-def _get_problem(source: Trajectory | System | BaseProblemSpec) -> BaseProblemSpec:
+def _get_problem(source: Trajectory | CompositeSystem | BaseProblemSpec) -> BaseProblemSpec:
     """Return the compiled problem of a trajectory or a system."""
     if isinstance(source, Trajectory):
         return source.problem
-    if isinstance(source, System):
+    if isinstance(source, CompositeSystem):
         return PassCompiler().prepare(source).run().problem_
     return source
 
 
-def _compiled_problem(system: System | BaseProblemSpec, purpose: str) -> ProblemSpec:
+def _compiled_problem(system: CompositeSystem | BaseProblemSpec, purpose: str) -> ProblemSpec:
     """Return the general compiler's problem of a system, or the problem itself.
 
     It serves work that reads its fields.
@@ -372,7 +372,7 @@ def _get_scalar_series(trajectory: Trajectory) -> list[str]:
     return observed + reported or _get_series_states(trajectory.problem)
 
 
-def _has_series(source: Trajectory | System | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
+def _has_series(source: Trajectory | CompositeSystem | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
     """Check whether a source records scalar series.
 
     The series are observables, reporters, or states that count as series.
@@ -398,7 +398,7 @@ def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
     source = _composite(source) if not isinstance(source, BaseProblemSpec) else source
     if isinstance(source, nx.Graph | NetworkSnapshotSpec):
         return [DataKind.NETWORK]
-    if not isinstance(source, Trajectory | System | BaseProblemSpec):
+    if not isinstance(source, Trajectory | CompositeSystem | BaseProblemSpec):
         dimensions = np.ndim(source)
         return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
     problem = _get_problem(source)
@@ -822,7 +822,7 @@ def _import(name: str) -> ModuleType:
     return import_module(name)
 
 
-def _read_system(source: object) -> System | BaseProblemSpec:
+def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
     """Return the system or the problem of a source.
 
     It is the problem of a trajectory, or a system or problem as it is.
@@ -841,9 +841,9 @@ def _read_system(source: object) -> System | BaseProblemSpec:
     """
     if isinstance(source, Trajectory):
         return source.problem
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
-    if isinstance(source, System | BaseProblemSpec):
+    if isinstance(source, CompositeSystem | BaseProblemSpec):
         return source
     error_msg = (
         f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
@@ -901,7 +901,7 @@ def _runs_of(source: Runs) -> list[Run]:
     """
     if isinstance(source, Trajectory):
         return [source]
-    if isinstance(source, System | NetworkSnapshotSpec | nx.Graph):
+    if isinstance(source, CompositeSystem | NetworkSnapshotSpec | nx.Graph):
         error_msg = f'Runs are read from trajectories or arrays, not from {type(source).__name__}.'
         raise AnalysisError(error_msg)
     if isinstance(source, list):

@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction, TransferInteraction
 from skcomplex.core.components.laws import Sink
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -49,7 +49,7 @@ class SureWalkInteraction(MovementInteraction):
         super().__init__(label, target=target, probability=1.0)
 
 
-def _run(system: System, until: int) -> Trajectory:
+def _run(system: CompositeSystem, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
     return simulate(system, until=until, random_state=0)
 
@@ -58,7 +58,7 @@ def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Traje
     """Return the trajectory of walkers that start at the middle of a 9 by 9 lattice."""
     walkers = GroupElement('walkers', element=BudgetElement, size=size, location=[(4, 4)] * size)
     space = LatticeSpace((9, 9), metric='manhattan')
-    return _run(System(elements=[walkers], interactions=[walk], space=space), until)
+    return _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), until)
 
 
 def _cost(amount: float) -> TransferInteraction:
@@ -81,7 +81,7 @@ def test_move_gaussian_steps_spread_as_diffusion():
     walkers = GroupElement('walkers', element=Element, size=10_000, location=[middle] * 10_000)
     walk = MovementInteraction('walk', target='walkers', step='gaussian', scale=np.sqrt(2 * D))
     space = ContinuousSpace(extent=(size, size), boundary='periodic')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), until)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), until)
     displacements = np.asarray(trajectory.agents('walkers', until).locations, dtype=float) - middle
     assert (displacements**2).sum(axis=1).mean() == pytest.approx(4 * D * until, rel=0.05)
 
@@ -92,7 +92,7 @@ def test_move_levy_steps_are_at_least_the_scale():
     walkers = GroupElement('walkers', element=Element, size=200, location=[middle] * 200)
     walk = MovementInteraction('walk', target='walkers', step='levy', scale=0.5, exponent=1.5)
     space = ContinuousSpace(extent=(100.0, 100.0), boundary='periodic')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 1)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 1)
     lengths = np.linalg.norm(np.asarray(trajectory.agents('walkers', 1).locations, dtype=float) - middle, axis=1)
     assert lengths.min() >= 0.5
 
@@ -110,7 +110,7 @@ def test_move_neighbor_steps_follow_the_edges_of_a_network():
     graph = nx.path_graph(6)
     walkers = GroupElement('walkers', element=Element, size=3, location=[2, 3, 4])
     walk = MovementInteraction('walk', target='walkers')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=NetworkSpace(graph)), 10)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=NetworkSpace(graph)), 10)
     nodes = np.asarray([trajectory.agents('walkers', frame).locations for frame in range(11)], dtype=int)
     assert np.all(np.abs(np.diff(nodes, axis=0)) == 1)
 
@@ -144,7 +144,7 @@ def test_move_rate_draws_a_poisson_number_of_steps():
     walkers = GroupElement('walkers', element=BudgetElement, size=500, values={'level': 0.0}, location=[(4, 4)] * 500)
     walk = MovementInteraction('walk', target='walkers', rate=2.0, cost=_cost(1.0))
     space = LatticeSpace((9, 9), metric='manhattan')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 10)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 10)
     steps = -trajectory.agents('walkers', 10).values['level']
     assert steps.mean() == pytest.approx(20.0, rel=0.05)
     assert steps.var() == pytest.approx(20.0, rel=0.2)
@@ -161,7 +161,7 @@ def test_move_condition_moves_only_the_agents_where_it_holds():
     )
     walk = MovementInteraction('walk', target='walkers', condition=lambda walker, system: walker.level > 0)
     space = LatticeSpace((9, 9), metric='manhattan')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 1)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 1)
     locations = np.asarray(trajectory.agents('walkers', 1).locations)
     assert np.abs(locations - 4).sum(axis=1).tolist() == [1, 0]
 
@@ -186,7 +186,7 @@ def test_move_exclusive_steps_never_share_a_cell():
     walkers = GroupElement('walkers', element=Element, size=6, location=cells)
     walk = MovementInteraction('walk', target='walkers', exclusive=True)
     space = LatticeSpace((3, 3), metric='chebyshev')
-    trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 10)
+    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 10)
     for frame in range(11):
         locations = {tuple(cell) for cell in np.asarray(trajectory.agents('walkers', frame).locations).tolist()}
         assert len(locations) == 6

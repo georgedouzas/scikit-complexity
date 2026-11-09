@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import PontryaginSolver
 from skcomplex.core.errors import SolverError
@@ -70,7 +70,7 @@ def test_pontryagin_projects_the_control_onto_its_bounds(linear_quadratic, quadr
 def test_pontryagin_rejects_stationarity_without_unique_solution():
     """Test that a Hamiltonian with several stationary controls is rejected with a pointer to collocation."""
     with pytest.raises(SolverError, match='CollocationSolver'):
-        simulate(System(elements=[QuarticElement('plant')]), until=1.0, solver=PontryaginSolver(_quartic_cost))
+        simulate(CompositeSystem(elements=[QuarticElement('plant')]), until=1.0, solver=PontryaginSolver(_quartic_cost))
 
 
 def test_pontryagin_reports_a_sweep_that_does_not_converge(linear_quadratic, quadratic_cost):

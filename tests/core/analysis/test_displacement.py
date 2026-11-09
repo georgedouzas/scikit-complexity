@@ -13,7 +13,7 @@ from skcomplex.core.analysis import DisplacementResult, displacement
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import BaseLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import AnalysisError
@@ -123,11 +123,11 @@ def _active_brownian(rng: np.random.Generator, particles: int, speed: float, rot
 
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
-    continuous = System(
+    continuous = CompositeSystem(
         elements=[GroupElement('particles', element=DiffuserElement, size=300)],
         space=ContinuousSpace(extent=(20.0, 20.0), boundary='periodic'),
     )
-    grid = System(
+    grid = CompositeSystem(
         elements=[GroupElement('walkers', element=GridWalkerElement, size=300)],
         space=LatticeSpace((20, 20), boundary='periodic', metric='manhattan'),
     )

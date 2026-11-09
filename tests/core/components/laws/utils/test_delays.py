@@ -10,7 +10,7 @@ from scipy import stats
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, step
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -41,7 +41,7 @@ class DelayedElement(Element):
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = simulate(System(elements=[DelayedElement('d', kind='material_delay3')]), until=14, dt=0.01)
+    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d', kind='material_delay3')]), until=14, dt=0.01)
     times = np.asarray(trajectory.times)
     output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
@@ -51,7 +51,7 @@ def test_third_order_delay_follows_the_erlang_step_response():
 @pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden state per stage that tends to the step."""
-    trajectory = simulate(System(elements=[DelayedElement('d', kind=kind)]), until=80, dt=1)
+    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d', kind=kind)]), until=80, dt=1)
     hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'material_delay1' else 1.0
@@ -93,7 +93,7 @@ STEP_RESPONSES = {
 def test_stock_and_flow_delays_follow_their_step_responses(name, backend):
     """Test that the delays of a step rise as their step responses in NumPy and SciPy."""
     delay, response = STEP_RESPONSES[name]
-    system = System(elements=[StepResponseElement('d', delay=delay)])
+    system = CompositeSystem(elements=[StepResponseElement('d', delay=delay)])
     trajectory = simulate(system, until=9, dt=0.001, backend=backend)
     times = np.asarray(trajectory.times)
     rates = np.gradient(trajectory.values('d.out'), times)

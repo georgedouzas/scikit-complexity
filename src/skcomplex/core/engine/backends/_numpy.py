@@ -56,9 +56,10 @@ class NumpyBackend(BaseBackend):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.backends import NumpyBackend
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> simulate(System(elements=[PopulationElement('a')]), until=0, backend=NumpyBackend()).problem.backend
+        >>> system = CompositeSystem(elements=[PopulationElement('a')])
+        >>> simulate(system, until=0, backend=NumpyBackend()).problem.backend
         'numpy'
     """
 

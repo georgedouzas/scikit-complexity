@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ChoiceInteraction, FeedbackInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
@@ -57,7 +57,7 @@ class PayoffFeedback(FeedbackInteraction[SystemView]):
 def _run_choice(choice: ChoiceInteraction, initial: np.ndarray, until: int, seed: int = 0) -> Trajectory:
     """Return the trajectory of a group of choosers bound to a choice."""
     group = GroupElement('members', element=ChooserElement, size=len(initial), values={'option': initial})
-    system = System(elements=[group], interactions=[choice], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     return simulate(system, until=until, random_state=seed)
 
 
@@ -306,7 +306,7 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         phase='choice',
     )
     schedule = PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('report')])
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=[choice, PayoffFeedback('feedback', phase='report')],
         time=DiscreteTime(schedule=schedule),

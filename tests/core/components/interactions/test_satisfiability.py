@@ -10,7 +10,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -39,7 +39,7 @@ def _pattern_constraint(pattern: np.ndarray, output: int) -> CardinalitySpec:
     return CardinalitySpec(literals, (len(pattern) + 1) // 2)
 
 
-def _perceptron(size: int, count: int, seed: int) -> tuple[System, np.ndarray, np.ndarray]:
+def _perceptron(size: int, count: int, seed: int) -> tuple[CompositeSystem, np.ndarray, np.ndarray]:
     """Return a perceptron of Boolean weights that reveals random patterns, with the patterns and outputs."""
     rng = np.random.default_rng(seed)
     patterns = rng.choice([-1, 1], (count, size))
@@ -47,7 +47,7 @@ def _perceptron(size: int, count: int, seed: int) -> tuple[System, np.ndarray, n
     constraints = [_pattern_constraint(pattern, int(output)) for pattern, output in zip(patterns, outputs, strict=True)]
     group = GroupElement('weights', element=WeightElement, size=size)
     decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
-    return System(elements=[group], interactions=[decide], time=DiscreteTime()), patterns, outputs
+    return CompositeSystem(elements=[group], interactions=[decide], time=DiscreteTime()), patterns, outputs
 
 
 def _holds(weights: np.ndarray, patterns: np.ndarray, outputs: np.ndarray) -> np.ndarray:
@@ -70,7 +70,7 @@ def test_prepare_compiler_real_state() -> None:
     """Test that a state that is not Boolean is reported with the interaction and the state."""
     group = GroupElement('weights', element=RealWeightElement, size=3)
     decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[ClauseSpec((1,))])
-    system = System(elements=[group], interactions=[decide], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[decide], time=DiscreteTime())
     found = [item for item in PassCompiler().prepare(system).report_.issues if item.code == 'law-domain']
     assert len(found) == 1
     assert 'decide' in found[0].message

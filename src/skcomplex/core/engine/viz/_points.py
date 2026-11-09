@@ -266,11 +266,11 @@ class PointsVisual(BaseVisual):
         Examples:
             >>> from skcomplex.core.components.elements import GroupElement, PointElement
             >>> from skcomplex.core.components.spaces import ContinuousSpace
-            >>> from skcomplex.core.components.systems import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import PointsVisual
             >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
-            >>> problem = simulate(System(elements=[gas], space=ContinuousSpace(n_dim=3)), until=0).problem
+            >>> problem = simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=3)), until=0).problem
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
             >>> views = visual.prepare(problem).views_
             >>> [type(view).__name__ for view in views]

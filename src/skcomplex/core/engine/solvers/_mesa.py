@@ -31,7 +31,7 @@ from ...components.spaces import (
     NetworkSpace,
 )
 from ...components.specs import CompiledAgentsSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import (
     DEFAULT_PHASE,
@@ -1040,7 +1040,7 @@ class MesaSolver(ExternalSolver):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import RuleLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import MesaSolver
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CounterElement(Element):
@@ -1053,7 +1053,7 @@ class MesaSolver(ExternalSolver):
         ...
         ...     def tick(self, agent, system):
         ...         agent.count += 1
-        >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
+        >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
         >>> trajectory = simulate(system, until=4, solver=MesaSolver())
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
@@ -1881,7 +1881,7 @@ class MesaSolver(ExternalSolver):
         return rule.phase or DEFAULT_PHASE
 
     @staticmethod
-    def _declared_phases(system: System) -> list[PhaseSpec]:
+    def _declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems.
 
         The first phase of every name is kept.

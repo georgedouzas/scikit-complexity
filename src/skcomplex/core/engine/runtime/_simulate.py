@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.systems import BaseSystem, System
+from ...components.systems import BaseSystem, CompositeSystem
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend, NumpyBackend
@@ -211,10 +211,10 @@ def simulate(
             system, named in the message.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
@@ -248,7 +248,7 @@ def _prepare_runners(
     backend: BaseBackend | None,
     compiler: BaseCompiler | None,
     observables: Sequence[ObservableSpec],
-) -> tuple[System, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
+) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
     """Return the composite of a system with copies of its runners, and observables.
 
     The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
@@ -302,7 +302,7 @@ def _prepare_runners(
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
     form = Simulation._default_compiler(composite) if form is None else form
-    tuned_observables = () if isinstance(system, System) else settings['observables']
+    tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)
     return composite, stepper, runner, form, observables or tuned_observables
@@ -436,7 +436,7 @@ def _simulate(
         raise ValidationError(error_msg)
     if (record_draws or replay is not None) and backend is None:
         backend = NumpyBackend()
-    source: System | BaseProblemSpec
+    source: CompositeSystem | BaseProblemSpec
     if compiled is None:
         source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
     else:

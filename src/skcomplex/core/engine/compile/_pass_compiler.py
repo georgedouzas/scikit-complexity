@@ -60,7 +60,7 @@ from ...components.spaces import (
     StaticTime,
 )
 from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import (
     AlgebraicStateError,
     BackendError,
@@ -193,10 +193,10 @@ class PassCompiler(BaseCompiler):
             inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
@@ -223,7 +223,7 @@ class PassCompiler(BaseCompiler):
         self.passes = passes
         self.partition = partition
 
-    def _prepare(self, context: System | None) -> None:
+    def _prepare(self, context: CompositeSystem | None) -> None:
         """Raise an error for passes that are not passes or an unknown partition.
 
         The partition must be one of the choices.
@@ -244,7 +244,7 @@ class PassCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _issues(self, system: System) -> list[IssueSpec]:
+    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return every issue of a system, of its solver, and of its backend.
 
         The compilation is planned along the way.
@@ -341,7 +341,7 @@ class PassCompiler(BaseCompiler):
                 raise ValidationError(error_msg) from error
         return dataclasses.replace(problem, initial_state=state)
 
-    def _new_compilation(self, system: System, held: tuple[str, ...] = ()) -> Compilation:
+    def _new_compilation(self, system: CompositeSystem, held: tuple[str, ...] = ()) -> Compilation:
         """Return a new compilation of a system, with no pass run yet."""
         compilation = Compilation(system, self.backend, self.solver, held=held)
         compilation.done = set()
@@ -493,7 +493,7 @@ class PassCompiler(BaseCompiler):
         return self._partitioned(compilation, plan)
 
     @staticmethod
-    def _compiler_issue(system: System, compiler: str) -> IssueSpec:
+    def _compiler_issue(system: CompositeSystem, compiler: str) -> IssueSpec:
         """Return the issue of a system that another compiler compiles.
 
         The issue names that compiler.
@@ -501,7 +501,7 @@ class PassCompiler(BaseCompiler):
         message = f'The system {system.label} is compiled by {compiler}, not by PassCompiler.'
         return IssueSpec('compiler', system.label, message, f'Pass `compiler={compiler}()`.')
 
-    def _counted(self, system: System) -> tuple[Compilation | None, list[IssueSpec]]:
+    def _counted(self, system: CompositeSystem) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws.
 
         It returns the issues instead when they stop it before. The compilation stops after flattening for a system that
@@ -1097,7 +1097,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _space_issues(system: System, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _space_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the visuals that need options their space lacks and failing spaces.
 
         A space fails when its own check fails.
@@ -1736,7 +1736,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _solver_issues(solver: object, census: CensusSpec, system: System) -> list[IssueSpec]:
+    def _solver_issues(solver: object, census: CensusSpec, system: CompositeSystem) -> list[IssueSpec]:
         """Return the solver arguments rejected and the requirements it does not support.
 
         They are the arguments the solver passed rejects and the requirements of a system it does not support.
@@ -1800,7 +1800,7 @@ class PassCompiler(BaseCompiler):
         return PassCompiler._matrix_problem(matrix)
 
     @staticmethod
-    def _wiener_issues(system: System, nodes: list[NodeSpec]) -> list[IssueSpec]:
+    def _wiener_issues(system: CompositeSystem, nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the Wiener processes outside continuous time or with a bad covariance.
 
         A bad covariance is an invalid one.

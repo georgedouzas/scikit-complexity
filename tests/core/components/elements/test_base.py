@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import BaseElement, Element, GroupElemen
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -53,7 +53,7 @@ def test_elements_and_groups_derive_from_the_element_base_only():
     """Test that elements and groups derive from the element base, and interactions and systems do not."""
     for kind in (Element, GroupElement):
         assert issubclass(kind, BaseElement)
-    for kind in (BaseInteraction, System):
+    for kind in (BaseInteraction, CompositeSystem):
         assert not issubclass(kind, BaseElement)
 
 

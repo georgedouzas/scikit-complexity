@@ -64,10 +64,10 @@ class JumpInteraction(Interaction):
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import JumpInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
-        >>> system = System(elements=[NonnegativeElement('queue')], interactions=[arrivals])
+        >>> system = CompositeSystem(elements=[NonnegativeElement('queue')], interactions=[arrivals])
         >>> counts = simulate(system, until=5, dt=1.0, random_state=0).values('queue.x')
         >>> bool(all(count == round(count) for count in counts))
         True

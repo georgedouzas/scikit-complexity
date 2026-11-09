@@ -50,7 +50,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import JumpTrajectoriesSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
@@ -65,7 +65,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 1.0)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[TwoLevelElement('q')])
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> solver = JumpTrajectoriesSolver()
         >>> trajectory = simulate(system, until=20.0, solver=solver, dt=1.0, random_state=0, observables=z)
         >>> float(trajectory.values('q.z')[-1])

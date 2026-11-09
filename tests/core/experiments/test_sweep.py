@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
@@ -48,7 +48,7 @@ def test_sweep_of_one_parameter_gives_one_row_per_value():
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = System(elements=[LogisticMapElement('map')])
+    system = CompositeSystem(elements=[LogisticMapElement('map')])
     rates = np.linspace(2.8, 4.0, 200)
     result = sweep(system, {'map.r': rates}, until=400, warmup=301, outputs=['map.x'])
     assert len(result.rows) == 200

@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
@@ -55,7 +55,7 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     n = 100_000
     size = float(np.sqrt(n))
     rng = np.random.default_rng(0)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',

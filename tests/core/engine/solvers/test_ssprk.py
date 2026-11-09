@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import FluxLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     SSPRKSolver,
@@ -48,7 +48,7 @@ def test_numerical_fluxes_conserve(riemann):
         values={'u': initial},
         discretization='finite-volume',
     )
-    values = simulate(System(elements=[line]), until=2.0, dt=2.0, solver=SSPRKSolver()).states[-1]
+    values = simulate(CompositeSystem(elements=[line]), until=2.0, dt=2.0, solver=SSPRKSolver()).states[-1]
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
@@ -93,6 +93,6 @@ def test_viscous_burgers_respects_diffusive_limit():
     )
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        values = simulate(System(elements=[field]), until=0.5, solver=SSPRKSolver(), dt=0.05).values('line.u')
+        values = simulate(CompositeSystem(elements=[field]), until=0.5, solver=SSPRKSolver(), dt=0.05).values('line.u')
     assert values.min() >= initial.min() - 1e-12
     assert values.max() <= initial.max() + 1e-12

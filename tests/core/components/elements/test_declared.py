@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import DeclaredElement, Element, FieldEl
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import declared_variables
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -83,9 +83,9 @@ def _generated_classes(root):
 
 def test_declared_element_gives_the_trajectory_of_annotated_states():
     """Test that states and a parameter given as data run as the same annotated ones do, within 1e-12."""
-    annotated = _simulate(System(elements=[_AnnotatedDecayElement('cell')], time=ContinuousTime()))
+    annotated = _simulate(CompositeSystem(elements=[_AnnotatedDecayElement('cell')], time=ContinuousTime()))
     element = _DeclaredDecayElement('cell', variables=_variables())
-    declared = _simulate(System(elements=[element], time=ContinuousTime()))
+    declared = _simulate(CompositeSystem(elements=[element], time=ContinuousTime()))
     for path in ('cell.x', 'cell.y'):
         np.testing.assert_allclose(declared.values(path), annotated.values(path), rtol=1e-12, atol=1e-12)
 
@@ -132,16 +132,15 @@ def test_declared_element_runs_a_map_on_its_lags():
     specs = {'x': DeclaredVariableSpec(1.0, StateSpec(lags=1, initial=(0.0,)))}
     element = DeclaredElement('cell', variables=specs)
     fibonacci = MapInteraction('next', target='cell', state='x', mode='increment', function=lambda s: s.target.x_lag1)
-    assert simulate(System(elements=[element], interactions=[fibonacci], time=DiscreteTime()), until=5, dt=1).values(
-        'cell.x',
-    )[-1] == pytest.approx(8.0)
+    system = CompositeSystem(elements=[element], interactions=[fibonacci], time=DiscreteTime())
+    assert simulate(system, until=5, dt=1).values('cell.x')[-1] == pytest.approx(8.0)
 
 
 def test_declared_element_in_a_group_takes_values_per_member():
     """Test that a group of declared elements gives one value per member."""
     values = {'variables': _variables(), 'x': np.array([1.0, 2.0])}
     group = GroupElement('cells', element=_DeclaredDecayElement, size=2, values=values)
-    last = _simulate(System(elements=[group], time=ContinuousTime())).values('cells.x')[-1]
+    last = _simulate(CompositeSystem(elements=[group], time=ContinuousTime())).values('cells.x')[-1]
     assert last == pytest.approx(np.array([1.0, 2.0]) * np.exp(-0.5), rel=1e-4)
 
 
@@ -149,14 +148,14 @@ def test_declared_element_on_a_field_runs_its_laws():
     """Test that a field of declared elements runs a state over the sites of a lattice."""
     space = LatticeSpace((3,))
     field = FieldElement('cells', element=_DeclaredDecayElement, space=space, values={'variables': _variables()})
-    last = _simulate(System(elements=[field], space=space, time=ContinuousTime())).values('cells.x')[-1]
+    last = _simulate(CompositeSystem(elements=[field], space=space, time=ContinuousTime())).values('cells.x')[-1]
     assert np.ravel(last) == pytest.approx(np.full(3, np.exp(-0.5)), rel=1e-4)
 
 
 def test_declared_element_replicates_in_an_experiment():
     """Test that replicating a system keeps the declared variables and takes one value per member."""
     element = _DeclaredDecayElement('cell', variables=_variables())
-    system = System(elements=[element], time=ContinuousTime())
+    system = CompositeSystem(elements=[element], time=ContinuousTime())
     ensemble = _replicate(system, 2, {'cell.x': np.array([1.0, 3.0])})
     last = _simulate(ensemble).values('cell.x')[-1]
     assert last == pytest.approx(np.array([1.0, 3.0]) * np.exp(-0.5), rel=1e-4)
@@ -166,7 +165,7 @@ def test_declared_element_takes_a_rate_of_an_interaction():
     """Test that an interaction binds a declared state by its name."""
     element = DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, StateSpec())})
     rate = RateInteraction('growth', target='cell', state='x', rate=lambda s: s.target.x)
-    trajectory = _simulate(System(elements=[element], interactions=[rate], time=ContinuousTime()))
+    trajectory = _simulate(CompositeSystem(elements=[element], interactions=[rate], time=ContinuousTime()))
     assert trajectory.values('cell.x')[-1] == pytest.approx(np.e, rel=1e-4)
 
 

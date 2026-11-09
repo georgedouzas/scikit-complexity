@@ -18,7 +18,7 @@ from skcomplex.core.components.spaces import (
     DiscreteTime,
     LatticeSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -69,7 +69,7 @@ def _link_system(shape, sampling, values):
     """Return a system of a group on the edges of the complex of a lattice, sampled by an interaction."""
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges', values=values)
-    return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
+    return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 
 
 def _ising(namespace):
@@ -86,7 +86,7 @@ def _final(sampling, until, initial, seed=0):
         values={'s': initial},
         on='sites',
     )
-    system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[sites], interactions=[sampling], time=DiscreteTime())
     return simulate(system, until=until, random_state=seed).states[-1]
 
 
@@ -172,7 +172,7 @@ def _magnetization(move, temperature, seed):
         values={'s': _spins(seed)},
         on='sites',
     )
-    system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[sites], interactions=[sampling], time=DiscreteTime())
     states = simulate(system, until=300, random_state=seed).states
     return float(np.abs(states[100:].mean(axis=1)).mean())
 
@@ -246,7 +246,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         cooling=_geometric,
     )
     candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')
-    system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
+    system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())
     frames = simulate(system, until=500, random_state=0).values('candidates.x')
     accepted = np.mean(frames[1:] != frames[:-1], axis=1)
     assert accepted[:50].mean() > 0.8
@@ -413,7 +413,7 @@ def _matrix_system(shape, group, sampling, seed=0, element=IsospinLinkElement):
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
     initial = group.components_of(group.uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
     links = GroupElement('links', element=element, space=space, on='edges', values={'U': initial})
-    return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
+    return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 
 
 def _matrix_sampling(group, **arguments):
@@ -503,6 +503,6 @@ def test_holonomy_score_rejects_moves_rules_and_schedules_of_scalars(arguments, 
 def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     """Test that a matrix state on the sites of a lattice raises an error at the first sweep."""
     sites = GroupElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)), on='sites')
-    system = System(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
+    system = CompositeSystem(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
         simulate(system, until=1, random_state=0)

@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -37,7 +37,7 @@ from ...conftest import CallableGrowthInteraction, HoldingElement
 
 def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('p', x=10)],
         interactions=[LogisticGrowthInteraction('g', target='p')],
     )
@@ -52,7 +52,7 @@ def test_equations_of_logistic_growth():
 
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     equation = symbolic(system).equations['m.price']
     t = PassCompiler().prepare(system).run().problem_.time
     assert bool(equation.lhs() == function('price_m')(t + 1))
@@ -66,7 +66,7 @@ def test_equations_of_group_with_numeric_derivatives_raises_error():
 
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('I', x=1), NonnegativeElement('R')],
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
@@ -76,7 +76,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
+    system = CompositeSystem(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
     solution = symbolic(system, kind='solve').solutions['p.x[0]']
     t = PassCompiler().prepare(system).run().problem_.time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -88,7 +88,7 @@ def test_solve_symbolically_free_particle():
 
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
         space=ContinuousSpace(n_dim=1),
@@ -102,7 +102,7 @@ def test_solve_symbolically_constant_acceleration():
 
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p', x=1.0, x_d1=0.0)],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
@@ -121,7 +121,7 @@ def test_solve_symbolically_harmonic_oscillator():
 
 def test_solve_symbolically_not_ode_raises_error():
     """Test that only ODE systems are solved."""
-    system = System(
+    system = CompositeSystem(
         elements=[AssetElement('s')],
         interactions=[GeometricBrownianMotionInteraction('g', target='s')],
     )
@@ -131,7 +131,7 @@ def test_solve_symbolically_not_ode_raises_error():
 
 def test_solve_symbolically_callable_raises_error():
     """Test that callable laws cannot be solved."""
-    system = System(
+    system = CompositeSystem(
         elements=[HoldingElement('rabbits', n=1.0)],
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
@@ -142,7 +142,7 @@ def test_solve_symbolically_callable_raises_error():
 def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=float(force))],
         space=ContinuousSpace(n_dim=1),
@@ -164,7 +164,7 @@ def test_sage_expression_compiles_like_number():
             """Return a rate with a Sage value."""
             return [RateLaw(s.target.x, [force])]
 
-    sage_system = System(
+    sage_system = CompositeSystem(
         elements=[MassPointElement('p')],
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
@@ -290,7 +290,7 @@ class FibonacciElement(Element):
 
 def test_pendulum_equation_keeps_its_order():
     """Test that a pendulum of order 2 gives one second-order equation and no separate velocity equation."""
-    equations = symbolic(System(elements=[PendulumElement('bob')])).equations
+    equations = symbolic(CompositeSystem(elements=[PendulumElement('bob')])).equations
     assert list(equations) == ['bob.theta']
     theta = function('theta_bob')(SR.var('t'))
     g, l = SR.var('g_bob'), SR.var('l_bob')
@@ -301,7 +301,7 @@ def test_pendulum_equation_keeps_its_order():
 
 def test_lagged_equation_reads_past_values():
     """Test that a difference equation with a lag reads the value one step back."""
-    equation = symbolic(System(elements=[FibonacciElement('f')])).equations['f.x']
+    equation = symbolic(CompositeSystem(elements=[FibonacciElement('f')])).equations['f.x']
     t = SR.var('t')
     x = function('x_f')
     assert bool(equation.lhs() == x(t + 1))
@@ -310,9 +310,11 @@ def test_lagged_equation_reads_past_values():
 
 def test_small_angle_pendulum_solved_with_plain_numbers():
     """Test that `θ'' = -(g / l) θ` with plain positive numbers solves to `0.1 cos(sqrt(g / l) t)`."""
-    solution = symbolic(System(elements=[SmallAngleElement('bob')]), kind='solve', use_initial_state=True).solutions[
-        'bob.theta'
-    ]
+    solution = symbolic(
+        CompositeSystem(elements=[SmallAngleElement('bob')]),
+        kind='solve',
+        use_initial_state=True,
+    ).solutions['bob.theta']
     values = {SR.var('g_bob'): 9.81, SR.var('l_bob'): 2.0}
     for time in (0.3, 1.0, 2.5):
         expected = 0.1 * float(cos(sqrt(9.81 / 2.0) * time))
@@ -321,9 +323,11 @@ def test_small_angle_pendulum_solved_with_plain_numbers():
 
 def test_third_order_equation_solved():
     """Test that `x''' = -x'` from `x = 0`, `x' = 1`, `x'' = 0` solves to `sin(t)`."""
-    solution = symbolic(System(elements=[ThirdOrderElement('a')]), kind='solve', use_initial_state=True).solutions[
-        'a.x'
-    ]
+    solution = symbolic(
+        CompositeSystem(elements=[ThirdOrderElement('a')]),
+        kind='solve',
+        use_initial_state=True,
+    ).solutions['a.x']
     t = SR.var('t')
     for time in (0.3, 1.0, 2.5):
         assert float(solution.rhs().subs({t: time})) == pytest.approx(float(sin(time)))
@@ -337,7 +341,7 @@ def test_third_order_equation_solved():
 def test_nonlinear_pendulum_has_no_false_solution(element):
     """Test that the nonlinear pendulum raises the no-closed-form error instead of returning unevaluated transforms."""
     with pytest.raises(AnalysisError, match='No closed form was found'):
-        symbolic(System(elements=[element]), kind='solve', use_initial_state=True)
+        symbolic(CompositeSystem(elements=[element]), kind='solve', use_initial_state=True)
 
 
 def test_remaining_sign_question_names_parameter():
@@ -365,7 +369,7 @@ def test_remaining_sign_question_names_parameter():
             return [RateLaw(s.x, -s.k * s.x)]
 
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
-        symbolic(System(elements=[SpringElement('a')]), kind='solve', use_initial_state=True)
+        symbolic(CompositeSystem(elements=[SpringElement('a')]), kind='solve', use_initial_state=True)
 
 
 def test_symbolic_refuses_rewriting_systems_with_an_analysis_error():

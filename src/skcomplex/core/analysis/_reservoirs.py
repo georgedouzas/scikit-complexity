@@ -15,7 +15,7 @@ import numpy.typing as npt
 
 from ..components.laws import BaseLaw, UpdateLaw
 from ..components.spaces import DiscreteTime
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, CallSpec, SamplesSpec
@@ -197,7 +197,7 @@ class ReservoirResult:
     """
 
     samples: SamplesSpec
-    system: System
+    system: CompositeSystem
     labels: list[str]
     states: list[str]
     last_state: Array

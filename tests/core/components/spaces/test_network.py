@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
@@ -188,7 +188,9 @@ def test_reductions_read_the_edges_of_their_layer(backend):
             ]
 
     values = np.array([1.0, 10.0, 100.0, 1000.0])
-    system = System(elements=[GroupElement('g', element=LayeredElement, space=space, values={'y': values}, on='sites')])
+    system = CompositeSystem(
+        elements=[GroupElement('g', element=LayeredElement, space=space, values={'y': values}, on='sites')],
+    )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(after, 'g.contacts').tolist() == [10.0, 101.0, 1010.0, 100.0]

@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ArrayUpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -108,7 +108,11 @@ class StretchInteraction(Interaction):
 def test_shape_reads_a_lattice_state_of_a_trajectory():
     """Test that a lattice state whose last axis holds coordinates is read as frames by points by dimensions."""
     chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
-    system = System(elements=[chain], interactions=[StretchInteraction('s', target='chain')], time=DiscreteTime())
+    system = CompositeSystem(
+        elements=[chain],
+        interactions=[StretchInteraction('s', target='chain')],
+        time=DiscreteTime(),
+    )
     trajectory = simulate(system, until=2, random_state=0)
     values = chain_shape(trajectory, kind='end-to-end', group='chain.x').values
     assert values.tolist() == [0.0, 3.0, 6.0]
@@ -117,6 +121,6 @@ def test_shape_reads_a_lattice_state_of_a_trajectory():
 def test_shape_reports_a_group_it_cannot_find():
     """Test that a trajectory without the group raises an error."""
     chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
-    trajectory = simulate(System(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
+    trajectory = simulate(CompositeSystem(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
     with pytest.raises(AnalysisError):
         chain_shape(trajectory, group='nothing')

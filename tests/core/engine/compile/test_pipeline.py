@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import BasePass
 from skcomplex.core.engine.compile._compilation import Compilation
@@ -91,7 +91,7 @@ def test_passes_run_only_what_a_field_needs():
     ]
     compiler = PassCompiler(passes=passes)
     compiler.passes_ = tuple(passes)
-    compilation = compiler._new_compilation(System())
+    compilation = compiler._new_compilation(CompositeSystem())
     compiler._run_passes(compilation, until='lowered')
     assert log == ['Layout', 'Lower']
     compiler._run_passes(compilation)

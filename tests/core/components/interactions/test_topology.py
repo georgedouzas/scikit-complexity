@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import BaseInteraction, HyperedgeInt
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import MesaSolver
@@ -80,20 +80,25 @@ class WebInteraction(TopologyInteraction):
         return 'web' if role == 'target' else role
 
 
-def _triangles(*interactions: BaseInteraction, capacity: int = 60) -> System:
+def _triangles(*interactions: BaseInteraction, capacity: int = 60) -> CompositeSystem:
     """Return a network of one triangle whose groups on nodes, edges, and triangles are variable."""
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
     triangles = GroupElement('triangles', element=TriangleElement, on='hyperedges', variable=True, capacity=capacity)
     space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
-    return System(elements=[nodes, links, triangles], interactions=list(interactions), space=space, time=DiscreteTime())
+    return CompositeSystem(
+        elements=[nodes, links, triangles],
+        interactions=list(interactions),
+        space=space,
+        time=DiscreteTime(),
+    )
 
 
 def _run(graph: nx.Graph, change: TopologyInteraction, until: float, dt: float = 1.0, **values: object) -> Trajectory:
     """Return the trajectory of a network whose variable groups a topology change changes, one frame per step."""
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=500, values=values)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=500)
-    system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(graph))
+    system = CompositeSystem(elements=[nodes, links], interactions=[change], space=NetworkSpace(graph))
     return simulate(system, until=until, dt=dt, random_state=0)
 
 
@@ -230,7 +235,7 @@ def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size(
         simulate(_triangles(growth), until=0, random_state=0)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=8)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=24)
-    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.complete_graph(3)))
+    system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.complete_graph(3)))
     with pytest.raises(ValidationError, match='variable group on its hyperedges'):
         simulate(system, until=0, random_state=0)
 
@@ -322,7 +327,7 @@ def _grown(
     nodes = nodes.set_params(values={'mark': marks.tolist()})
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
     space = NetworkSpace(nx.empty_graph(seeds))
-    system = System(elements=[nodes, links], interactions=[change], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[nodes, links], interactions=[change], space=space, time=DiscreteTime())
     return simulate(system, until=until, random_state=0, **arguments)
 
 
@@ -456,7 +461,7 @@ def test_get_laws_rate_cannot_read_the_new_node():
     growth = TopologyInteraction('growth', action='add-node', edges=0, rate=lambda s: s.source.mark + 1)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
-    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.empty_graph(2)))
+    system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.empty_graph(2)))
     with pytest.raises(ValidationError, match=r'namespace\.source'):
         simulate(system, until=2, random_state=0)
 
@@ -471,7 +476,12 @@ def test_get_laws_reduction_cannot_read_the_new_node():
     links = nx.path_graph(4)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
     edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
-    system = System(elements=[nodes, edges], interactions=[growth], space=NetworkSpace(links), time=DiscreteTime())
+    system = CompositeSystem(
+        elements=[nodes, edges],
+        interactions=[growth],
+        space=NetworkSpace(links),
+        time=DiscreteTime(),
+    )
     with pytest.raises(ValidationError, match=r'neighbourhood reduction of nodes reads mark_nodes__source'):
         simulate(system, until=0, random_state=0)
 
@@ -481,18 +491,18 @@ def test_get_laws_add_node_runs_on_no_mesa_path():
     growth = TopologyInteraction('growth', action='add-node')
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
-    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
+    system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
     with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
         simulate(system, until=0, solver=MesaSolver(), random_state=0)
 
 
-def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: int = 80) -> System:
+def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: int = 80) -> CompositeSystem:
     """Return five nodes without hyperedges whose variable group on hyperedges holds every size up to four."""
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity * capacity)
     groups = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=capacity, rank=4)
     graph = nx.empty_graph(5, create_using=nx.DiGraph if directed else nx.Graph)
-    return System(
+    return CompositeSystem(
         elements=[nodes, links, groups],
         interactions=list(interactions),
         space=NetworkSpace(graph),
@@ -651,7 +661,7 @@ def test_get_laws_one_drawn_member_rejects_a_rate():
     change = TopologyInteraction('loss', target='nodes', action='remove-node', rate=1.0, one=True)
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=10)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=10)
-    system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(nx.cycle_graph(5)))
+    system = CompositeSystem(elements=[nodes, links], interactions=[change], space=NetworkSpace(nx.cycle_graph(5)))
     with pytest.raises(ValidationError, match='one drawn member'):
         simulate(system, until=0, random_state=0)
 

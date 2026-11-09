@@ -47,7 +47,7 @@ from skcomplex.core.components.spaces import (
     RadiusNeighborhood,
     StaticTime,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
@@ -244,7 +244,7 @@ def test_reduction_over_a_network_matches_its_definition(kind, backend):
     graph = nx.gnp_random_graph(12, 0.3, seed=1)
     graph.remove_edges_from(list(nx.selfloop_edges(graph)))
     values = np.random.default_rng(0).choice([-2.0, 0.0, 1.0, 3.5], 12)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=ReducingElement, size=12, values={'y': values, 'reduce': kind})],
         space=NetworkSpace(graph),
     )
@@ -277,7 +277,7 @@ def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
 
     weighted = WeightedElement
     values = np.array([1.0, 2.0, 3.0, 4.0])
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=weighted, size=4, values={'y': values})],
         space=NetworkSpace(nx.path_graph(4)),
     )
@@ -294,7 +294,9 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     values = np.arange(12.0).reshape(3, 4)
     space = LatticeSpace((3, 4), boundary='fixed')
     given = {'y': values, 'over': BallNeighborhood(metric='manhattan')}
-    system = System(elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')])
+    system = CompositeSystem(
+        elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')],
+    )
     padded = np.pad(values, 1)
     expected = padded[:-2, 1:-1] + padded[2:, 1:-1] + padded[1:-1, :-2] + padded[1:-1, 2:]
     assert np.allclose(_outputs(system, backend), expected.ravel(), atol=1e-12)
@@ -304,7 +306,7 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
 def test_reduction_without_a_neighbourhood_reads_the_lattice_neighbourhood(backend):
     """Test that a reduction without a neighbourhood on a periodic lattice reads the lattice's Moore neighbourhood."""
     values = np.random.default_rng(2).normal(size=(4, 5))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('g', element=ReducingElement, space=LatticeSpace((4, 5)), values={'y': values}, on='sites'),
         ],
@@ -328,7 +330,7 @@ def test_reduction_within_a_radius_matches_a_direct_search(boundary, center, bac
     positions, values, _ = _scattered(80, side, 3)
     given = {'x': positions, 'y': values, 'over': RadiusNeighborhood(radius, center=center)}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=PositionedReducingElement, size=80, values=given)],
         space=space,
     )
@@ -348,7 +350,7 @@ def test_reduction_over_the_nearest_members_matches_a_direct_search(boundary, ba
     positions, values, _ = _scattered(70, side, 4)
     given = {'x': positions, 'y': values, 'over': NearestNeighborhood(k), 'reduce': 'mean'}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=PositionedReducingElement, size=70, values=given)],
         space=space,
     )
@@ -369,7 +371,7 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     over = ConeNeighborhood(radius, angle, direction='phi')
     given = {'x': positions, 'y': values, 'phi': headings, 'over': over, 'reduce': 'count'}
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=HeadedReducingElement, size=90, values=given)],
         space=space,
     )
@@ -408,7 +410,10 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
     reading = ReadingElement
     positions = np.array([[0.2, 0.5], [9.9, 0.5]])
     space = ContinuousSpace(extent=(10.0, 10.0), boundary='periodic')
-    system = System(elements=[GroupElement('g', element=reading, size=2, values={'x': positions})], space=space)
+    system = CompositeSystem(
+        elements=[GroupElement('g', element=reading, size=2, values={'x': positions})],
+        space=space,
+    )
     assert np.allclose(_outputs(system, backend), [-0.3, 0.3], atol=1e-12)
 
 
@@ -434,7 +439,7 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
 
     group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
     with pytest.raises(ValidationError, match='position'):
-        PassCompiler().prepare(System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)))).run()
+        PassCompiler().prepare(CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)))).run()
 
 
 def test_interaction_reduces_over_the_neighbours_of_its_group():
@@ -472,7 +477,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
             self.y = y
 
     plain = PlainElement
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=plain, size=3, values={'y': [0.0, 1.0, 4.0]})],
         interactions=[diffusion('d', target='g')],
         space=NetworkSpace(nx.path_graph(3)),
@@ -502,14 +507,14 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
             return [RateLaw(s.y, s.other.y)]
 
     stray = StrayElement
-    system = System(elements=[GroupElement('g', element=stray, size=3)], space=NetworkSpace(nx.path_graph(3)))
+    system = CompositeSystem(elements=[GroupElement('g', element=stray, size=3)], space=NetworkSpace(nx.path_graph(3)))
     with pytest.raises(ValidationError, match='neighbors'):
         PassCompiler().prepare(system).run()
 
 
 def test_validate_reports_a_metric_neighbourhood_on_a_network():
     """Test that a law reducing over a radius in a system on a network space has a law-space issue."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=ReducingElement, size=5, values={'over': RadiusNeighborhood(1.0)})],
         space=NetworkSpace(nx.cycle_graph(5)),
         time=DiscreteTime(),
@@ -522,7 +527,7 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
 
 def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
     """Test that a reduction over the neighbours of the space in a continuous space has a law-space issue."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=PositionedReducingElement, size=5)],
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
@@ -533,7 +538,7 @@ def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
 def test_validate_reports_a_cone_without_a_heading():
     """Test that a cone over members without a velocity or heading state has a law-domain issue."""
     over = ConeNeighborhood(1.0, 1.0)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=PositionedReducingElement, size=5, values={'over': over})],
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
@@ -570,7 +575,10 @@ def test_validate_accepts_a_cone_along_the_velocity():
             return [RateLaw(s.out, neighbors(s.other.y, over=ConeNeighborhood(1.0, 1.0)))]
 
     moving = MovingElement
-    system = System(elements=[GroupElement('g', element=moving, size=5)], space=ContinuousSpace(extent=(2.0, 2.0)))
+    system = CompositeSystem(
+        elements=[GroupElement('g', element=moving, size=5)],
+        space=ContinuousSpace(extent=(2.0, 2.0)),
+    )
     assert PassCompiler().prepare(system).report_.ok
 
 
@@ -607,7 +615,7 @@ def _kuramoto(coupling, size=1000):
         size=size,
         values={'theta': theta, 'omega': omega, 'K': coupling},
     )
-    return System(elements=[oscillators], space=NetworkSpace(nx.complete_graph(size)))
+    return CompositeSystem(elements=[oscillators], space=NetworkSpace(nx.complete_graph(size)))
 
 
 def _order(phases):
@@ -683,7 +691,7 @@ def _vicsek(size=400, side=5.0):
         size=size,
         values={'x': rng.uniform(0, side, (size, 2)), 'theta': rng.uniform(-math.pi, math.pi, size)},
     )
-    return System(
+    return CompositeSystem(
         elements=[movers],
         space=ContinuousSpace(extent=(side, side), boundary='periodic'),
         time=DiscreteTime(),
@@ -767,7 +775,7 @@ def _pairwise_expected(name, values):
 
 def _pairwise_drift(values, reduction, backend):
     """Return the rate of every member of a group whose rate is a reduction over the group."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=PhaseElement, size=len(values), values={'x': values})],
         interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
     )
@@ -849,7 +857,7 @@ def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(sp
     rng = np.random.default_rng(4)
     strategies, payoffs = rng.integers(0, 5, 12).astype(float), rng.normal(size=12)
     values = {'strategy': strategies, 'payoff': payoffs}
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=ImitatingElement, space=space, values=values, on='sites')],
         time=DiscreteTime(),
     )
@@ -878,7 +886,7 @@ class KeyedElement(Element):
 
 def _keyed_drift(values, keys, reduction, backend):
     """Return the rate of every member of a group of keyed members whose rate is a reduction over the group."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=KeyedElement, size=len(values), values={'x': values, 'k': keys})],
         interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
     )
@@ -943,7 +951,7 @@ def test_circular_mean_over_network_neighbours_matches_its_definition(backend):
     graph = nx.gnp_random_graph(12, 0.3, seed=1)
     values = np.random.default_rng(0).uniform(-math.pi, math.pi, 12)
     given = {'y': values, 'reduce': 'circular-mean'}
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('g', element=ReducingElement, size=12, values=given)],
         space=NetworkSpace(graph),
     )
@@ -1004,7 +1012,7 @@ class AroundElement(Element):
 def _around_drift(term, values, backend):
     """Return the drift of the members of the network of the hyperedges under a reduction over hyperedges."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}, on='sites'),
         ],
@@ -1075,7 +1083,7 @@ def test_hyperedges_rejects_reads_its_hyperedges_do_not_have(term, match):
 def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
     """Test that a reduction over hyperedges of a size the network does not have gives a binding issue."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=AroundElement, space=space, values={'term': 'missing'}, on='sites')],
     )
     (issue,) = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
@@ -1085,7 +1093,7 @@ def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
 def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     """Test that a reduction over hyperedges in a lattice space has a law-space issue."""
     space = LatticeSpace((3, 3))
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('sites', element=AroundElement, space=space, values={'term': 'count'}, on='sites')],
     )
     issues = PassCompiler().prepare(system).report_.issues
@@ -1155,7 +1163,7 @@ def _neighbour_set_drift(positions, term, side, backend, radius=1.5):
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
     values = {'x': positions, 'term': term, 'radius': radius}
     group = GroupElement('g', element=NeighbourSetElement, size=len(positions), values=values)
-    problem = PassCompiler(backend=backend).prepare(System(elements=[group], space=space)).run().problem_
+    problem = PassCompiler(backend=backend).prepare(CompositeSystem(elements=[group], space=space)).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.y')
 
 
@@ -1223,7 +1231,7 @@ def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
     """Test that the three-body term of a member is 0 from the step after one of its two neighbours left."""
     values = {'x': np.array([[5.0, 5.0], [5.4, 5.0], [4.5, 5.0]]), 'speed': [0.0, 0.0, -0.2]}
     group = GroupElement('g', element=DriftingSetElement, size=3, values=values)
-    system = System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)), time=DiscreteTime())
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)), time=DiscreteTime())
     trajectory = simulate(system, until=6, dt=1.0, backend=backend)
     distance = 5.0 - trajectory.values('g.x')[:, 2, 0]
     left = int(np.argmax(distance > 1.0))
@@ -1236,7 +1244,7 @@ def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
 def test_validate_reports_neighbour_hyperedges_on_a_network():
     """Test that a reduction over neighbour hyperedges in a network space has a law-space issue."""
     group = GroupElement('g', element=NeighbourSetElement, size=5, values={'term': 'pairs'})
-    system = System(elements=[group], space=NetworkSpace(nx.cycle_graph(5)))
+    system = CompositeSystem(elements=[group], space=NetworkSpace(nx.cycle_graph(5)))
     issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].message
@@ -1246,7 +1254,7 @@ def test_validate_reports_neighbour_hyperedges_on_the_jax_backend():
     """Test that a reduction over neighbour hyperedges on the JAX backend names the backends that run it."""
     positions = np.array([[1.0, 1.0], [1.5, 1.0], [1.0, 1.5]])
     group = GroupElement('g', element=NeighbourSetElement, size=3, values={'x': positions, 'term': 'pairs'})
-    system = System(elements=[group], space=ContinuousSpace(extent=(4.0, 4.0)))
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(4.0, 4.0)))
     issues = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
     (issue,) = [issue for issue in issues if issue.code == 'backend-unsupported']
     assert 'NumpyBackend' in issue.fix
@@ -1294,7 +1302,7 @@ def test_log_sum_exp_large_values(backend: type) -> None:
     values = np.random.default_rng(0).uniform(1e4, 2e4, 1000)
     group = GroupElement('energies', element=QuenchedEnergyElement, size=1000, values={'energy': values})
     reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
-    system = System(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
+    system = CompositeSystem(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
     trajectory = simulate(system, until=1.0, backend=backend())
     result = trajectory.values('reduced.value')[0]
     assert np.isfinite(result)
@@ -1349,13 +1357,13 @@ class BoltzmannInteraction(Interaction):
         ]
 
 
-def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:
+def _random_levels(temperature: float = 1.0, random_state: int = 0) -> CompositeSystem:
     """Return 2^20 quenched Gaussian energies of variance N/2 and their Boltzmann sums at a temperature."""
     n_spins = 20
     energies = np.random.default_rng(random_state).normal(0.0, np.sqrt(n_spins / 2), 2**n_spins)
     levels = GroupElement('levels', element=QuenchedEnergyElement, size=2**n_spins, values={'energy': energies})
     reader = BoltzmannInteraction('reader', target='sums', levels='levels', n_spins=n_spins, temperature=temperature)
-    return System(elements=[levels, BoltzmannElement('sums')], interactions=[reader], time=StaticTime())
+    return CompositeSystem(elements=[levels, BoltzmannElement('sums')], interactions=[reader], time=StaticTime())
 
 
 @pytest.mark.slow

@@ -7,7 +7,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import BaseProblemSpec
 from skcomplex.core.engine.runtime import simulate
@@ -124,7 +124,10 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
             self.energy = energy
 
     blueprint = default_blueprint(
-        System(elements=[GroupElement('walkers', element=WalkerElement, size=3)], space=ContinuousSpace(n_dim=2)),
+        CompositeSystem(
+            elements=[GroupElement('walkers', element=WalkerElement, size=3)],
+            space=ContinuousSpace(n_dim=2),
+        ),
     )
     assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
     assert _whole_run_series(blueprint)
@@ -160,7 +163,7 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 def test_default_blueprint_splits_series_by_six():
     """Test that a type with more than six series is split over several views."""
-    system = System(elements=[PopulationElement(f'p{index}') for index in range(8)])
+    system = CompositeSystem(elements=[PopulationElement(f'p{index}') for index in range(8)])
     names = [str(view.name) for view in _views(default_blueprint(system))]
     assert names == ['PopulationElement 1', 'PopulationElement 2']
 
@@ -186,7 +189,7 @@ def test_primary_view_is_first_view(system_class, kind, origin):
 
 def test_views_are_empty_without_declared_views():
     """Test that a system with no declared views has no views and an empty default blueprint."""
-    observer = _prepared(System(), blueprint='default')
+    observer = _prepared(CompositeSystem(), blueprint='default')
     assert observer.views_ == []
     assert _views(observer.blueprint_) == []
 
@@ -276,4 +279,4 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
     field = FieldElement('plate', element=HeatElement, space=LatticeSpace((4, 4)), visual=VisualSpec('sites'))
-    assert PassCompiler().prepare(System(elements=[field])).run().problem_.elements[0].visual.kind == 'sites'
+    assert PassCompiler().prepare(CompositeSystem(elements=[field])).run().problem_.elements[0].visual.kind == 'sites'

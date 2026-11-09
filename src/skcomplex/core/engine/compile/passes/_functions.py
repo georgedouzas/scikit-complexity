@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.spaces import DelaunayNeighborhood, DiscreteTime
-from ....components.systems import System
+from ....components.systems import CompositeSystem
 from ....errors import BackendWarning, ValidationError
 from ....specs import (
     DEFAULT_PHASE,
@@ -444,7 +444,7 @@ class FunctionsPass(BasePass):
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
 
     @staticmethod
-    def _declared_phases(system: System) -> list[PhaseSpec]:
+    def _declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems.
 
         The first of every name is kept.

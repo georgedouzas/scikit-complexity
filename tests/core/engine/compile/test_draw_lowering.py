@@ -16,7 +16,7 @@ from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -266,21 +266,21 @@ def _run_lengths(series, symbol):
 
 def test_compiler_draws_uniform_values():
     """Test that a uniform draw has mean 0.5 and no lag-1 autocorrelation over 100000 steps."""
-    x = _run(System(elements=[UniformElement('a')]), 100000).values('a.x')[1:]
+    x = _run(CompositeSystem(elements=[UniformElement('a')]), 100000).values('a.x')[1:]
     assert abs(x.mean() - 0.5) < 0.005
     assert abs(np.corrcoef(x[:-1], x[1:])[0, 1]) < 0.01
 
 
 def test_compiler_draws_independently_for_members():
     """Test that 1000 normal walkers reach variance 100 after 100 steps with uncorrelated halves."""
-    final = _run(System(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).values('g.x')[-1]
+    final = _run(CompositeSystem(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).values('g.x')[-1]
     assert final.var() == pytest.approx(100, rel=0.15)
     assert abs(np.corrcoef(final[:500], final[500:])[0, 1]) < 0.1
 
 
 def test_compiler_reads_arguments_before_the_step():
     """Test that a draw's probability uses the state and parameter values before the step."""
-    y = _run(System(elements=[RampElement('r')]), 20).values('r.y')
+    y = _run(CompositeSystem(elements=[RampElement('r')]), 20).values('r.y')
     assert y[1] == 0
     assert np.all(y[3:] == 1)
 
@@ -306,13 +306,13 @@ def test_compiler_keeps_conditions_on_draws_undecided():
             return [UpdateLaw(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))]
 
     coin = CoinElement
-    x = _run(System(elements=[coin('c')]), 20000).values('c.x')[1:]
+    x = _run(CompositeSystem(elements=[coin('c')]), 20000).values('c.x')[1:]
     assert np.mean(x) == pytest.approx(0.5, abs=0.02)
 
 
 def test_compiler_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
-    trajectory = _run(System(elements=[FlipElement('f')]), 200)
+    trajectory = _run(CompositeSystem(elements=[FlipElement('f')]), 200)
     assert np.all((trajectory.values('f.a') + trajectory.values('f.b'))[1:] == 1)
 
 
@@ -338,7 +338,7 @@ def test_compiler_reads_the_draw_of_the_member_at_an_offset():
             """Return the laws of the paired element."""
             return [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, shift_member(uniform('u', 0, 1), -1))]
 
-    trajectory = _run(System(elements=[GroupElement('g', element=PairedElement, size=5)]), 20)
+    trajectory = _run(CompositeSystem(elements=[GroupElement('g', element=PairedElement, size=5)]), 20)
     a, b = trajectory.values('g.a')[1:], trajectory.values('g.b')[1:]
     assert np.array_equal(b, np.roll(a, 1, axis=1))
     assert len(np.unique(a)) == a.size
@@ -348,18 +348,18 @@ def test_compiler_rejects_conflicting_draws():
     """Test that one draw name with two argument lists raises an error naming both declarations."""
     declarations = r"c uses the draw name 'u' for uniform_u\(0, 1\) and for uniform_u\(0, 2\)"
     with pytest.raises(ValidationError, match=declarations):
-        PassCompiler().prepare(System(elements=[ConflictElement('c')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[ConflictElement('c')])).run()
 
 
 def test_compiler_rejects_draws_in_rate_laws():
     """Test that a draw in a rate law raises an error that suggests a noise law."""
     with pytest.raises(IncompatibleLawsError, match=r'RateLaw of d holds the random draw normal_kick.*Noise laws'):
-        PassCompiler().prepare(System(elements=[DriftingElement('d')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[DriftingElement('d')])).run()
 
 
 def test_transition_reaches_the_stationary_distribution():
     """Test that a two-symbol chain spends the stationary fraction of steps in its first symbol."""
-    x = _codes(_run(System(elements=[ChainElement('c')]), 100000).values('c.x'))
+    x = _codes(_run(CompositeSystem(elements=[ChainElement('c')]), 100000).values('c.x'))
     stationary = quantecon.MarkovChain(np.array(CHAIN)).stationary_distributions[0]
     assert np.mean(x == 0) == pytest.approx(stationary[0], abs=0.01)
 
@@ -367,7 +367,13 @@ def test_transition_reaches_the_stationary_distribution():
 def test_transition_follows_a_live_matrix_change():
     """Test that the run lengths of the first symbol fall from mean 10 to mean 2 after a live change."""
     schedule = {'c.stay': lambda t: 0.5 if t >= 50000 else 0.9}
-    trajectory = simulate(System(elements=[ChainElement('c')]), until=150000, dt=1.0, schedule=schedule, random_state=0)
+    trajectory = simulate(
+        CompositeSystem(elements=[ChainElement('c')]),
+        until=150000,
+        dt=1.0,
+        schedule=schedule,
+        random_state=0,
+    )
     x = _codes(trajectory.values('c.x'))
     assert _run_lengths(x[:50000], 0).mean() == pytest.approx(10, rel=0.1)
     assert _run_lengths(x[50002:], 0).mean() == pytest.approx(2, rel=0.1)
@@ -378,24 +384,24 @@ def test_transition_rejects_a_scheduled_probability_above_one():
     schedule = {'c.stay': lambda t: 1.5 if t >= 3 else 0.9}
     message = r'At t = 3\.0, the schedule sets c\.stay, which would make the entry \(0, 1\) of .* below 0'
     with pytest.raises(ParameterError, match=message):
-        simulate(System(elements=[ChainElement('c')]), until=10, dt=1.0, schedule=schedule, random_state=0)
+        simulate(CompositeSystem(elements=[ChainElement('c')]), until=10, dt=1.0, schedule=schedule, random_state=0)
 
 
 def test_transition_rejects_a_row_that_does_not_sum_to_one():
     """Test that compiling a matrix with a row that sums to 0.9 names the law, the row, and the sum."""
     with pytest.raises(ValidationError, match=r'row 0 of the transition law of b\.x.* sums to 0\.9'):
-        PassCompiler().prepare(System(elements=[BrokenElement('b')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[BrokenElement('b')])).run()
 
 
 def test_emission_aligns_with_the_hidden_state():
     """Test that an identity emission matrix copies the hidden sequence frame by frame."""
-    trajectory = _run(System(elements=[HiddenElement('s', emission=[[1, 0], [0, 1]])]), 2000)
+    trajectory = _run(CompositeSystem(elements=[HiddenElement('s', emission=[[1, 0], [0, 1]])]), 2000)
     assert np.array_equal(_codes(trajectory.values('s.h')), _codes(trajectory.values('s.o')))
 
 
 def test_emission_draws_from_the_selected_row():
     """Test that the observed frequencies given each hidden state match the emission rows."""
-    trajectory = _run(System(elements=[HiddenElement('s')]), 100000)
+    trajectory = _run(CompositeSystem(elements=[HiddenElement('s')]), 100000)
     hidden, observed = _codes(trajectory.values('s.h'))[1:], _codes(trajectory.values('s.o'))[1:]
     for row in (0, 1):
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
@@ -403,15 +409,15 @@ def test_emission_draws_from_the_selected_row():
 
 def test_compiler_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
-    first = _run(System(elements=[HiddenElement('s')]), 500)
-    second = _run(System(elements=[HiddenElement('s')]), 500)
+    first = _run(CompositeSystem(elements=[HiddenElement('s')]), 500)
+    second = _run(CompositeSystem(elements=[HiddenElement('s')]), 500)
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
 
 def test_compiler_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
-    first = _run(System(elements=[HiddenElement('s', order=1)]), 500)
-    second = _run(System(elements=[HiddenElement('s', order=2)]), 500)
+    first = _run(CompositeSystem(elements=[HiddenElement('s', order=1)]), 500)
+    second = _run(CompositeSystem(elements=[HiddenElement('s', order=2)]), 500)
     assert np.array_equal(_codes(first.values('s.h')), _codes(second.values('s.h')))
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
@@ -443,7 +449,7 @@ def test_compiler_draws_beside_reductions():
             ]
 
     spins = SpinsElement
-    trajectory = _run(System(elements=[GroupElement('g', element=spins, size=2)]), 3)
+    trajectory = _run(CompositeSystem(elements=[GroupElement('g', element=spins, size=2)]), 3)
     assert trajectory.values('g.h')[-1].tolist() == [1.0, -1.0]
 
 
@@ -476,7 +482,7 @@ def test_compiler_agrees_across_backends():
             ]
 
     mixed = MixedElement
-    system = System(elements=[GroupElement('m', element=mixed, size=50)])
+    system = CompositeSystem(elements=[GroupElement('m', element=mixed, size=50)])
     numpy, numba = _run(system, 300, NumpyBackend()), _run(system, 300, NumbaBackend())
     for name in ('m.x', 'm.k', 'm.b'):
         assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
@@ -487,7 +493,7 @@ def test_compiler_agrees_across_backends_on_draws_of_hyperedges_of_several_sizes
     """Test that a drawn increment over hyperedges of two sizes gives equal trajectories on NumPy and Numba."""
     hyperedges = [(0, 1, 4), (1, 2, 5), (2, 3, 0), (3, 4, 1), (4, 5, 0, 2), (5, 0, 1, 3)]
     space = NetworkSpace(nx.cycle_graph(6), hyperedges=hyperedges)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=RegulatedElement, space=space, values={'x': np.arange(1.0, 7.0)}, on='sites'),
             GroupElement('links', element=RegulatedElement, space=space, on='edges'),
@@ -521,14 +527,14 @@ def test_compiler_keeps_deterministic_maps_unchanged():
             return [UpdateLaw(s.x, 3.7 * s.x * (1 - s.x))]
 
     logistic = LogisticElement
-    problem = PassCompiler().prepare(System(elements=[logistic('l')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[logistic('l')])).run().problem_
     assert not problem.stochastic
     assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == pytest.approx([0.777])
 
 
 def test_compiler_writes_draws_into_equations():
     """Test that the equation of a component that draws reads the uniform value of the draw."""
-    problem = PassCompiler().prepare(System(elements=[RampElement('r')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[RampElement('r')])).run().problem_
     assert str(problem.equations['r.y']) == 'where(bernoulli_b_r < p_r*x_r, 1, 0)'
 
 
@@ -585,9 +591,9 @@ def test_compiler_runs_compiled_chains_fast():
             return [UpdateLaw(s.x, 1 - s.x)]
 
     flip = FlipperElement
-    system = System(elements=[GroupElement('c', element=two, size=100000)])
+    system = CompositeSystem(elements=[GroupElement('c', element=two, size=100000)])
     chains = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
-    system = System(elements=[GroupElement('c', element=flip, size=100000)])
+    system = CompositeSystem(elements=[GroupElement('c', element=flip, size=100000)])
     flips = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)
@@ -626,8 +632,8 @@ def test_compiler_draws_relaxed_draws_exactly(backend):
             """Return the laws of the exact element."""
             return [UpdateLaw(s.b, bernoulli('b', 0.3)), UpdateLaw(s.k, categorical('k', [1, 2, 3]))]
 
-    relaxed = _run(System(elements=[GroupElement('m', element=RelaxedElement, size=40)]), 50, backend)
-    exact = _run(System(elements=[GroupElement('m', element=ExactElement, size=40)]), 50, backend)
+    relaxed = _run(CompositeSystem(elements=[GroupElement('m', element=RelaxedElement, size=40)]), 50, backend)
+    exact = _run(CompositeSystem(elements=[GroupElement('m', element=ExactElement, size=40)]), 50, backend)
     assert set(np.unique(relaxed.values('m.b'))) == {0.0, 1.0}
     assert set(np.unique(relaxed.values('m.k'))) == {0.0, 1.0, 2.0}
     for name in ('m.b', 'm.k'):

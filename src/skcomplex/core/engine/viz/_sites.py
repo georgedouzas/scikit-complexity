@@ -191,7 +191,7 @@ class SiteVisual(BaseVisual):
             >>> from skcomplex.core.components.elements import Element, GroupElement
             >>> from skcomplex.core.components.spaces import NetworkSpace
             >>> from skcomplex.core.specs import StateSpec
-            >>> from skcomplex.core.components.systems import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import SiteVisual
             >>> class NodeElement(Element):
@@ -199,7 +199,7 @@ class SiteVisual(BaseVisual):
             ...         super().__init__(label)
             ...         self.value = value
             >>> nodes = GroupElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
-            >>> system = System(elements=[nodes])
+            >>> system = CompositeSystem(elements=[nodes])
             >>> problem = simulate(system, until=0).problem
             >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]

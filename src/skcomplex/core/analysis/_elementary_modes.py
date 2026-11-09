@@ -17,7 +17,7 @@ from cysignals.alarm import AlarmInterrupt, alarm, cancel_alarm
 from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
 from ..engine.problems._linear_program_kernel import LinearProgramKernel
@@ -151,7 +151,7 @@ def elementary_modes(
     if not timeout > 0:
         error_msg = f'The time limit must be positive, but it is {timeout!r}.'
         raise AnalysisError(error_msg)
-    if isinstance(source, System):
+    if isinstance(source, CompositeSystem):
         cone = _system_cone(source, exchanges)
     elif isinstance(source, np.ndarray):
         cone = _matrix_cone(np.asarray(source, dtype=float), exchanges, labels, irreversible)
@@ -183,7 +183,7 @@ def _kernel_of(problem: ProblemSpec) -> LinearProgramKernel:
     return problem.programs[0].prepare(state)
 
 
-def _system_cone(system: System, exchanges: Sequence[str] | None) -> _ConeSpec:
+def _system_cone(system: CompositeSystem, exchanges: Sequence[str] | None) -> _ConeSpec:
     """Return the cone of the program of a system at its initial values."""
     problem = PassCompiler().prepare(system).run().problem_
     if not isinstance(problem, ProblemSpec):

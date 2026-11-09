@@ -9,7 +9,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import OptimizationInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import (
@@ -34,7 +34,7 @@ def _rastrigin(values: np.ndarray) -> np.ndarray:
     return 20.0 + (values**2 - 10.0 * np.cos(2.0 * np.pi * values)).sum(axis=1)
 
 
-def _system(algorithm: object, count: int = 40) -> System:
+def _system(algorithm: object, count: int = 40) -> CompositeSystem:
     """Return a population on the Rastrigin function with an algorithm."""
     start = np.random.default_rng(0).uniform(-5.12, 5.12, (count, 2))
     group = GroupElement('swarm', element=CandidateElement, size=count, values={'x': start})
@@ -46,7 +46,7 @@ def _system(algorithm: object, count: int = 40) -> System:
         bounds=(-5.12, 5.12),
         algorithm=algorithm,
     )
-    return System(elements=[group], interactions=[search], time=DiscreteTime())
+    return CompositeSystem(elements=[group], interactions=[search], time=DiscreteTime())
 
 
 def test_run_differential_evolution_on_rastrigin() -> None:

@@ -14,7 +14,7 @@ from functools import partial
 import networkx as nx
 import numpy as np
 
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import DataKind
@@ -187,7 +187,7 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
     """
     source = _composite(source)
     kinds = [str(kind) for kind in _get_data_kinds(source)]
-    if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshotSpec):
+    if isinstance(source, Trajectory | CompositeSystem | nx.Graph | NetworkSnapshotSpec):
         readings = {kind: DataKind(kind).reading for kind in kinds}
     else:
         readings = {kind: _get_array_reading(DataKind(kind), np.ndim(source)) for kind in kinds}

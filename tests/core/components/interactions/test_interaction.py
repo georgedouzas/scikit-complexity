@@ -16,7 +16,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -145,7 +145,7 @@ class WeightedInteraction(Interaction):
 
 def _shocked(first, second):
     """Return two holdings, each shocked by an interaction that binds its own Wiener processes."""
-    return System(
+    return CompositeSystem(
         elements=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             ShockInteraction('first', target='a', noise=first),
@@ -169,7 +169,7 @@ def test_interaction_clones_and_pickles_with_its_values():
     """Test that an interaction clones and pickles with its roles and parameters."""
     growth = GrowthInteraction('g', target='a', r=0.7)
     assert clone(growth).get_params() == {'label': 'g', 'r': 0.7, 'target': 'a'}
-    data = ForkingPickler.dumps(System(elements=[StockElement('a', n=3.0)], interactions=[growth]))
+    data = ForkingPickler.dumps(CompositeSystem(elements=[StockElement('a', n=3.0)], interactions=[growth]))
     restored = ForkingPickler.loads(data)
     assert restored.elements[0].n == 3.0
     assert restored.interactions[0].r == 0.7
@@ -177,7 +177,7 @@ def test_interaction_clones_and_pickles_with_its_values():
 
 def test_role_binds_to_group_and_applies_to_every_member():
     """Test that an interaction bound to a group applies its law to every member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=StockElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
         interactions=[GrowthInteraction('growth', target='herds', r=2.0)],
     )
@@ -188,7 +188,7 @@ def test_role_binds_to_group_and_applies_to_every_member():
 
 def test_group_of_members_grows_like_one_member():
     """Test that a group of 100 members grows every member at the rate of the interaction bound to it."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herd', element=StockElement, size=100, values={'n': np.linspace(1, 2, 100)})],
         interactions=[GrowthInteraction('g', target='herd')],
     )
@@ -199,7 +199,7 @@ def test_group_of_members_grows_like_one_member():
 
 def test_single_element_bound_with_group_receives_sum():
     """Test that a single element bound next to a group receives the sum over the members."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('rabbits', element=StockElement, size=3, values={'n': [1.0, 2.0, 3.0]}),
             StockElement('fox', n=2.0),
@@ -215,7 +215,7 @@ def test_single_element_bound_with_group_receives_sum():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_interaction_reads_two_groups_member_by_member(backend):
     """Test that an interaction bound to two groups of equal size reads row `i` of both together."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('source', element=StockElement, size=5, values={'n': np.arange(5.0)}),
             GroupElement('sink', element=StockElement, size=5),
@@ -229,7 +229,7 @@ def test_interaction_reads_two_groups_member_by_member(backend):
 
 def test_interaction_reading_groups_of_different_sizes_raises_error():
     """Test that an interaction reading groups of different sizes member by member names both groups and sizes."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('source', element=StockElement, size=5),
             GroupElement('sink', element=StockElement, size=7),
@@ -277,7 +277,7 @@ def test_processes_of_one_label_must_agree():
 def test_edge_states_weigh_neighbourhood_reductions(backend):
     """Test that a reduction over a network weighs every neighbour with the state of the edge that joins them."""
     space = NetworkSpace(nx.path_graph(4))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=StockElement, space=space, values={'n': [1.0, 2.0, 3.0, 4.0]}, on='sites'),
             GroupElement('links', element=StockElement, space=space, on='edges', values={'n': [10.0, 100.0, 1000.0]}),

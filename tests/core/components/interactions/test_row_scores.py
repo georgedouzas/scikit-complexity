@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -79,7 +79,7 @@ def _bits(shape=(1, 20), objective=None, intensity=INFINITE, **settings):
         intensity=intensity,
         **settings,
     )
-    return System(elements=[bits], interactions=[sampling], time=DiscreteTime())
+    return CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
 
 
 def test_row_score_never_grows_and_reaches_zero_at_infinite_intensity():
@@ -151,7 +151,7 @@ def test_row_score_reads_the_parameters_it_names():
         on='sites',
     )
     sampling = SamplingInteraction('walk', target='bits', state='s', objective=RowScoreSpec(score), move=_flip_site)
-    system = System(elements=[bits], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
     simulate(system, until=1, random_state=0)
     assert set(seen) == {(4,)}
 
@@ -171,7 +171,7 @@ def test_row_score_takes_named_moves_at_one_site(move, settings):
         move=move,
         **settings,
     )
-    system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
     trajectory = simulate(system, until=4, random_state=0)
     assert np.all(np.sum(np.diff(trajectory.lattice('spins.s'), axis=0) != 0, axis=2) <= 1)
 
@@ -206,7 +206,7 @@ def test_row_score_samples_a_categorical_state_with_labels():
         objective=RowScoreSpec(lambda row: 0.0),
         move=_mutate,
     )
-    system = System(elements=[letters], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[letters], interactions=[sampling], time=DiscreteTime())
     trajectory = simulate(system, until=5, random_state=0)
     assert set(trajectory.values('letters.letter').ravel()) <= set(LETTERS)
 
@@ -254,7 +254,7 @@ def test_row_score_reports_a_target_off_a_lattice():
     space = NetworkSpace(nx.path_graph(4))
     spins = GroupElement('spins', element=SpinElement, space=space, on='sites')
     sampling = SamplingInteraction('walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=_flip_site)
-    system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
     report = PassCompiler().prepare(system).report_
     assert 'law-space' in {issue.code for issue in report.issues}
 
@@ -275,7 +275,7 @@ def _spins_at(sampling):
     """Return the lattice frames of random spins under a sampling."""
     values = {'s': np.random.default_rng(0).choice([-1.0, 1.0], size=(16, 16))}
     spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), values=values, on='sites')
-    system = System(elements=[spins], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
     return simulate(system, until=60, random_state=0).lattice('spins.s')
 
 
@@ -320,7 +320,7 @@ def test_thermal_sampling_takes_a_row_score_at_zero_temperature():
         move=_flip_site,
         temperature=0.0,
     )
-    system = System(elements=[bits], interactions=[sampling], time=DiscreteTime())
+    system = CompositeSystem(elements=[bits], interactions=[sampling], time=DiscreteTime())
     trajectory = simulate(system, until=100, random_state=0)
     assert np.all(np.diff(trajectory.values('walk.score')[:, 0]) <= 0)
 

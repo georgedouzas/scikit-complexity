@@ -9,7 +9,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RegionScoreSpec, RowScoreSpec, StateSpec
@@ -49,7 +49,7 @@ def _run(space, regions, score, *, until=200, intensity=1.0, neighborhood=None, 
         neighborhood=neighborhood,
     )
     sites = GroupElement('sites', element=SiteElement, space=space, values={'region': regions}, on='sites')
-    system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
+    system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
     values = simulate(system, until=until, random_state=seed).values('sites.region')
     return np.rint(values.reshape(values.shape[0], -1)).astype(int)
 

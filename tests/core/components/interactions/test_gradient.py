@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import gradient, laplacian
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -122,14 +122,14 @@ def _field(element, until, *interactions):
     space = LatticeSpace((16, 16), spacing=1.0, boundary='periodic')
     values = {'phi': 0.1 * rng.uniform(-1.0, 1.0, (16, 16))}
     field = FieldElement('mixture', element=element, space=space, values=values)
-    return simulate(System(elements=[field], interactions=list(interactions)), until=until, dt=0.05).values(
+    return simulate(CompositeSystem(elements=[field], interactions=list(interactions)), until=until, dt=0.05).values(
         'mixture.phi',
     )
 
 
 def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
     """Test that a harmonic gradient decays a state of order 1 and oscillates a state of order 2 with its period."""
-    system = System(
+    system = CompositeSystem(
         elements=[OverdampedElement('slow', x=[1.0], gamma=2.0), BodyElement('fast', x=[1.0], m=2.0)],
         interactions=[_harmonic('slow', 4.0, 'gamma'), _harmonic('fast', 4.0, 'm')],
         space=ContinuousSpace(n_dim=1),
@@ -143,7 +143,7 @@ def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
 
 def test_run_moves_every_role_of_a_subclass():
     """Test that a gradient of two members keeps their centre of mass and oscillates their gap."""
-    system = System(
+    system = CompositeSystem(
         elements=[BodyElement('a', x=[-1.0]), BodyElement('b', x=[1.0])],
         interactions=[PairWellInteraction('well', first='a', second='b', k=0.5)],
         space=ContinuousSpace(n_dim=1),
@@ -241,7 +241,7 @@ def test_run_divides_every_state_by_its_own_divisor():
         potential=lambda s: (s.target.a - s.target.b) ** 2 / 2,
         divisor={'a': 'ma', 'b': 'mb'},
     )
-    system = System(elements=[CoordinatesElement('body')], interactions=[spring])
+    system = CompositeSystem(elements=[CoordinatesElement('body')], interactions=[spring])
     trajectory = simulate(system, until=2.0, dt=0.1)
     momentum = trajectory.values('body.a_d1') + 3.0 * trajectory.values('body.b_d1')
     np.testing.assert_allclose(momentum, 0.0, atol=1e-9)
@@ -250,7 +250,11 @@ def test_run_divides_every_state_by_its_own_divisor():
 def test_run_divides_by_a_divisor_expression():
     """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
     well = _harmonic('body', 1.0, lambda member: 4 * member.m)
-    system = System(elements=[BodyElement('body', x=[1.0], m=1.0)], interactions=[well], space=ContinuousSpace(n_dim=1))
+    system = CompositeSystem(
+        elements=[BodyElement('body', x=[1.0], m=1.0)],
+        interactions=[well],
+        space=ContinuousSpace(n_dim=1),
+    )
     trajectory = simulate(system, until=np.pi, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi)
     assert float(trajectory.values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
 

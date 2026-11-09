@@ -15,7 +15,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
@@ -61,7 +61,7 @@ def _drop(values, *, random):
 
 def _run(space, heights, threshold, until, seed=0, **arguments):
     """Return the trajectory of a cascade over the sites of a space, run for some steps."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('sites', element=SiteElement, space=space, values={'height': heights}, on='sites')],
         interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
@@ -174,7 +174,7 @@ def test_get_laws_reads_a_renamed_target():
         CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1),
         PileInteraction('cascade', pile='sites', state='height', threshold=4, share=1),
     ):
-        system = System(elements=elements, interactions=[cascade], time=DiscreteTime())
+        system = CompositeSystem(elements=elements, interactions=[cascade], time=DiscreteTime())
         finals.append(simulate(system, until=1, dt=1, random_state=0).states[-1])
     np.testing.assert_array_equal(finals[1], finals[0])
     assert finals[0].max() < 4.0

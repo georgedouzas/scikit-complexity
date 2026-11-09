@@ -149,11 +149,11 @@ class ScipyODESolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )

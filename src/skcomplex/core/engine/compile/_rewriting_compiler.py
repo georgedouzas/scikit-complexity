@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import NN, Expression
 from ...components.elements import GroupElement, PatchElement, WordElement
 from ...components.laws import ProductionLaw, SubstitutionLaw
 from ...components.specs import CompiledElementSpec, NodeSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from ...specs import EntrySpec, IssueSpec, LayoutSpec, ParametersSpec
 from ...types import FormKind, VariableKind
@@ -45,14 +45,14 @@ class RewritingCompiler(BaseCompiler):
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> RewritingCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
-    def _issues(self, system: System) -> list[IssueSpec]:
+    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -91,7 +91,7 @@ class RewritingCompiler(BaseCompiler):
         return self._compile_rewriting(self.system_)
 
     @staticmethod
-    def _is_rewriting(system: System) -> bool:
+    def _is_rewriting(system: CompositeSystem) -> bool:
         """Check whether a system holds a word or a patch.
 
         Args:
@@ -209,7 +209,7 @@ class RewritingCompiler(BaseCompiler):
         return next((kind for base, kind in _STRUCTURES.items() if issubclass(element_type, base)), None)
 
     @staticmethod
-    def _compile_rewriting(system: System) -> 'RewritingProblemSpec':
+    def _compile_rewriting(system: CompositeSystem) -> 'RewritingProblemSpec':
         """Compile a system of words or patches.
 
         Each is rewritten by the rewriting laws it returns.
@@ -232,14 +232,14 @@ class RewritingCompiler(BaseCompiler):
 
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
-            >>> from skcomplex.core.components.systems import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.elements import WordElement
             >>> class AlgaeElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-            >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
+            >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
             >>> problem = RewritingCompiler().prepare(system).run().problem_
             >>> str(problem.form), problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])

@@ -25,7 +25,7 @@ from skcomplex.core.components.laws.utils import (
     where,
 )
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -93,7 +93,7 @@ def test_jacobian_against_finite_differences(laws):
             """Return the laws of the member element."""
             return laws(s)
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'group',
@@ -125,7 +125,7 @@ def _pair_ring(size):
         function=lambda s: sin(s.second.theta - s.first.theta),
         period=float(size),
     )
-    return System(elements=[ring], interactions=[coupling], space=ContinuousSpace(n_dim=1))
+    return CompositeSystem(elements=[ring], interactions=[coupling], space=ContinuousSpace(n_dim=1))
 
 
 def test_jacobian_of_pair_sums_is_not_derived():
@@ -156,7 +156,7 @@ def test_pattern_is_omitted_above_the_limit():
             return [RateLaw(s.x, total(s.x))]
 
     MemberElement = WideElement
-    system = System(elements=[GroupElement('group', element=MemberElement, size=3000)])
+    system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=3000)])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.jacobian.pattern() is None
 
@@ -193,13 +193,15 @@ def _reactive_mesh(refine=2):
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
-    return System(elements=[plate])
+    return CompositeSystem(elements=[plate])
 
 
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(elements=[FieldElement('line', element=FisherKPPElement, space=space, boundary={'u': boundary})])
+    return CompositeSystem(
+        elements=[FieldElement('line', element=FisherKPPElement, space=space, boundary={'u': boundary})],
+    )
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -313,7 +315,7 @@ def test_exact_jacobian_of_callable_law_raises():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    system = System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
+    system = CompositeSystem(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
     problem = PassCompiler().prepare(system).run().problem_
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.prepare(problem)
@@ -341,7 +343,7 @@ def _nonlocal_line(law, size=40, **settings):
             return [RateLaw(s.u, law(s))]
 
     space = LatticeSpace(size, spacing=1 / (size + 1), boundary='fixed')
-    return System(elements=[FieldElement('line', element=NonlocalElement, space=space, **settings)])
+    return CompositeSystem(elements=[FieldElement('line', element=NonlocalElement, space=space, **settings)])
 
 
 def test_pattern_marks_inversions_dense_and_convolutions_within_their_radius():

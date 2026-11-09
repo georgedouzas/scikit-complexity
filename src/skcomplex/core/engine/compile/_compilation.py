@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...components.specs import CensusSpec, NodeSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import PipelineError
 from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec
@@ -263,7 +263,7 @@ class Compilation:
 
     def __init__(
         self,
-        system: System,
+        system: CompositeSystem,
         backend: BaseBackend | None = None,
         solver: object = None,
         owners: frozenset[str] | None = None,

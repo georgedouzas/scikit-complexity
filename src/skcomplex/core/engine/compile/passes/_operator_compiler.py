@@ -24,7 +24,7 @@ from ....components.specs import (
     OperatorViewSpec,
     SubsystemSpec,
 )
-from ....components.systems import System
+from ....components.systems import CompositeSystem
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
 from ....types import Array, FormKind, VariableKind
@@ -75,10 +75,10 @@ class OperatorCompiler(BaseCompiler):
             The largest dimension of the Hilbert space, for a solver without a largest dimension of its own.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> OperatorCompiler().prepare(CompositeSystem(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -92,7 +92,7 @@ class OperatorCompiler(BaseCompiler):
         super().__init__(backend, solver, observables)
         self.max_dimension = max_dimension
 
-    def _prepare(self, context: System | None) -> None:
+    def _prepare(self, context: CompositeSystem | None) -> None:
         """Raise an error for a largest dimension that is not a positive integer.
 
         Args:
@@ -108,7 +108,7 @@ class OperatorCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _issues(self, system: System) -> list[IssueSpec]:
+    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -563,7 +563,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _system_initial(
-        system: System,
+        system: CompositeSystem,
         initial: object,
         product: npt.NDArray[np.complex128],
         ground: Callable[[], npt.NDArray[np.complex128]],
@@ -601,7 +601,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _namespaces(
-        system: System,
+        system: CompositeSystem,
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
     ) -> dict[str, SimpleNamespace]:
@@ -611,7 +611,7 @@ class OperatorCompiler(BaseCompiler):
         """
         namespaces: dict[str, SimpleNamespace] = {}
 
-        def build(current: System, scope: str) -> SimpleNamespace:
+        def build(current: CompositeSystem, scope: str) -> SimpleNamespace:
             names: dict[str, object] = {'t': symbol('t')}
             for element in current.elements:
                 path = f'{scope}{element.label}'
@@ -682,7 +682,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _stored_state(
-        system: System,
+        system: CompositeSystem,
         initial: object,
         *,
         subsystems: Mapping[str, SubsystemSpec],
@@ -733,7 +733,7 @@ class OperatorCompiler(BaseCompiler):
 
     @staticmethod
     def _compile_operator(
-        system: System,
+        system: CompositeSystem,
         *,
         initial: object = None,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
@@ -889,7 +889,7 @@ class OperatorCompiler(BaseCompiler):
         return entries, values, symbols
 
     @staticmethod
-    def _contains_operator(system: System) -> bool:
+    def _contains_operator(system: CompositeSystem) -> bool:
         """Check whether a system tree holds an operator element or group.
 
         Args:

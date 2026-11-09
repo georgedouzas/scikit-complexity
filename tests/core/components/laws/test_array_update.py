@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import ArrayUpdateLaw
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
@@ -66,7 +66,7 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
         on='sites',
     )
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
-    system = System(elements=[chain], interactions=[replay], time=DiscreteTime())
+    system = CompositeSystem(elements=[chain], interactions=[replay], time=DiscreteTime())
     frames = simulate(system, until=40, random_state=0).lattice('chain.x')
     assert frames[10] == pytest.approx(ensemble[10])
     assert frames[40] == pytest.approx(ensemble[37])
@@ -87,7 +87,7 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
         on='sites',
     )
     interaction = _DriveInteraction('drive', target='chain', function=drive)
-    system = System(elements=[chain], interactions=[interaction], time=DiscreteTime())
+    system = CompositeSystem(elements=[chain], interactions=[interaction], time=DiscreteTime())
     simulate(system, until=1, random_state=0)
     assert 'time' not in seen
     assert 'random' in seen
@@ -136,7 +136,11 @@ def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_
     """Test that a drive changes all components of every link, read with the space of the group."""
     space = CellComplexSpace(LatticeSpace((3, 3), boundary='fixed'))
     links = GroupElement('links', element=PairElement, space=space, on='edges')
-    system = System(elements=[links], interactions=[RotationInteraction('turn', target='links')], time=DiscreteTime())
+    system = CompositeSystem(
+        elements=[links],
+        interactions=[RotationInteraction('turn', target='links')],
+        time=DiscreteTime(),
+    )
     values = simulate(system, until=1, random_state=0).values('links.U')
     faces = (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1)
     assert values.shape == (2, 12, 2)
@@ -159,6 +163,10 @@ def test_drive_of_one_component_of_a_matrix_state_raises_an_error():
     """Test that a drive that targets one of the components of a matrix state names the whole state."""
     space = CellComplexSpace(LatticeSpace((3, 3)))
     links = GroupElement('links', element=PairElement, space=space, on='edges')
-    system = System(elements=[links], interactions=[PartialInteraction('part', target='links')], time=DiscreteTime())
+    system = CompositeSystem(
+        elements=[links],
+        interactions=[PartialInteraction('part', target='links')],
+        time=DiscreteTime(),
+    )
     with pytest.raises(ValidationError, match='Target the whole state'):
         simulate(system, until=0)

@@ -14,7 +14,7 @@ from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -73,7 +73,7 @@ def _shift(schedule):
             """Return the laws of the copy element."""
             return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left, schedule=schedule)]
 
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement(
                 'ring',
@@ -130,7 +130,7 @@ def test_fixed_and_reflecting_edges():
             """Return the laws of the edge element."""
             return [LocalRuleLaw(s.value, LatticeNeighborhood(((-1,),)), lambda left: left)]
 
-    fixed = System(
+    fixed = CompositeSystem(
         elements=[
             GroupElement(
                 'cells',
@@ -142,7 +142,7 @@ def test_fixed_and_reflecting_edges():
         ],
     )
     assert simulate(fixed, until=1, dt=1).states[-1].tolist() == [9, 1, 2]
-    mirror = System(
+    mirror = CompositeSystem(
         elements=[
             GroupElement(
                 'cells',
@@ -210,7 +210,7 @@ def test_table_and_totalistic_rules():
             """Return the laws of the parity element."""
             return [LocalRuleLaw(s.bit, BallNeighborhood(n_dim=1, center='inline'), TotalisticSpec({1: 1, 3: 1}))]
 
-    ring = System(
+    ring = CompositeSystem(
         elements=[
             GroupElement(
                 'ring',
@@ -240,7 +240,7 @@ def test_table_and_totalistic_rules():
             """Return the laws of the swap element."""
             return [LocalRuleLaw(s.bit, LatticeNeighborhood(((0,),)), TableSpec({(0,): 1, (1,): 0}))]
 
-    flip = System(
+    flip = CompositeSystem(
         elements=[
             GroupElement('ring', element=SwapElement, space=LatticeSpace(3), values={'bit': [0, 1, 0]}, on='sites'),
         ],
@@ -270,7 +270,7 @@ def test_table_and_totalistic_rules():
                 ),
             ]
 
-    count = System(
+    count = CompositeSystem(
         elements=[
             GroupElement('ring', element=CountElement, space=LatticeSpace(4), values={'bit': [1, 0, 0, 0]}, on='sites'),
         ],
@@ -320,7 +320,9 @@ def test_checkerboard_needs_bipartite_neighbourhood():
                 LocalRuleLaw(s.alive, BallNeighborhood(), lambda *values: values[0], schedule='checkerboard'),
             ]
 
-    system = System(elements=[GroupElement('cells', element=CellElement, space=LatticeSpace((4, 4)), on='sites')])
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=CellElement, space=LatticeSpace((4, 4)), on='sites')],
+    )
     with pytest.raises(ValidationError, match='random-sequential'):
         PassCompiler().prepare(system).run()
 
@@ -368,7 +370,7 @@ def test_rule_reads_parameters_by_keyword():
             return [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value, *, rate: value + rate)]
 
     trajectory = simulate(
-        System(elements=[GroupElement('cells', element=GrowthElement, space=LatticeSpace(2), on='sites')]),
+        CompositeSystem(elements=[GroupElement('cells', element=GrowthElement, space=LatticeSpace(2), on='sites')]),
         until=3,
         dt=1,
         schedule={'cells.rate': lambda t: 1.0 if t < 2 else 5.0},
@@ -413,7 +415,7 @@ def test_relaxation_records_avalanches():
 
     space = LatticeSpace(5, boundary='fixed')
     trajectory = simulate(
-        System(
+        CompositeSystem(
             elements=[
                 GroupElement('pile', element=PileElement, space=space, values={'height': [1, 1, 1, 1, 1]}, on='sites'),
             ],
@@ -456,7 +458,9 @@ def test_relaxation_without_end_raises():
 
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
         simulate(
-            System(elements=[GroupElement('cells', element=RestlessElement, space=LatticeSpace(2), on='sites')]),
+            CompositeSystem(
+                elements=[GroupElement('cells', element=RestlessElement, space=LatticeSpace(2), on='sites')],
+            ),
             until=1,
             dt=1,
         )
@@ -465,7 +469,7 @@ def test_relaxation_without_end_raises():
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
     with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a LatticeSpace'):
-        PassCompiler().prepare(System(elements=[GroupElement('cells', element=ShiftElement, size=3)])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('cells', element=ShiftElement, size=3)])).run()
 
 
 def test_monte_carlo_energy_change_is_symbolic():
@@ -498,7 +502,9 @@ def test_monte_carlo_energy_change_is_symbolic():
                 ),
             ]
 
-    system = System(elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((4, 4)), on='sites')])
+    system = CompositeSystem(
+        elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((4, 4)), on='sites')],
+    )
     problem = PassCompiler().prepare(system).run().problem_
     sampling = problem.lattice[0]
     change = sampling.delta(0.0, np.ones(3), *np.ones((4, 3)), -np.ones(3), 1.0, 1.0)[0]
@@ -585,7 +591,7 @@ def _pile(activity, evaluated):
 
     heights = np.random.default_rng(0).integers(0, 4, size=(32, 32)).astype(float)
     space = LatticeSpace((32, 32), boundary='fixed')
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('pile', element=PileElement, space=space, values={'height': heights}, on='sites')],
     )
 

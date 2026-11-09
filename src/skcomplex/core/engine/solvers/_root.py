@@ -49,7 +49,7 @@ class RootSolver(Solver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class FixedPointElement(Element):
@@ -59,7 +59,7 @@ class RootSolver(Solver):
         ...
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
-        >>> system = System(elements=[FixedPointElement('a')], time=StaticTime())
+        >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
         >>> trajectory = simulate(system, until=1.0)
         >>> round(float(trajectory.values('a.x')[0]), 7)
         0.7390851

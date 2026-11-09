@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MatchingInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import MatchingRule, SystemViewProtocol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
@@ -78,7 +78,7 @@ def _clear(
         records.append((requester.reserve, provider.reserve, provider.value, match.quantity, match.value))
 
     sizes = [len(np.atleast_1d(np.asarray(values['reserve']))) for values in (providers, requesters)]
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('providers', element=ParticipantElement, size=sizes[0], values=dict(providers)),
             GroupElement('requesters', element=ParticipantElement, size=sizes[1], values=dict(requesters)),

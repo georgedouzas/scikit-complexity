@@ -25,7 +25,7 @@ from skcomplex.core.analysis._base import (
 from skcomplex.core.analysis._discovery import ANALYSES
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError
 from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
@@ -125,7 +125,7 @@ def test_series_labels_of_every_scalar_series():
 
 def test_jump_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
-    system = System(elements=[BirthDeathElement('cells')])
+    system = CompositeSystem(elements=[BirthDeathElement('cells')])
     trajectory = simulate(system, until=20, dt=0.01, random_state=0)
     path = _read_path(trajectory)
     assert path.label == 'cells.n'
@@ -223,7 +223,7 @@ def test_series_leave_out_particles_and_jump_paths():
     for trajectory in (particles, paths):
         with pytest.raises(AnalysisError, match='no scalar series'):
             _read_series(trajectory)
-    single = simulate(System(elements=[BirthDeathElement('a')]), until=1.0)
+    single = simulate(CompositeSystem(elements=[BirthDeathElement('a')]), until=1.0)
     assert _read_series(single).labels == ['a.n']
 
 
@@ -302,7 +302,7 @@ def test_binding_rejects_unknown_settings_and_objects():
 def test_a_system_class_is_read_as_the_composite_of_its_parts():
     """Test that a system class that builds its parts is read as its prepared composite, other sources as they are."""
     composite = _composite(BrusselatorSystem((8,)))
-    assert isinstance(composite, System)
+    assert isinstance(composite, CompositeSystem)
     values = np.zeros(3)
     assert _composite(values) is values
 

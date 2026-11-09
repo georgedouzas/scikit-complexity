@@ -12,7 +12,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
@@ -139,14 +139,16 @@ def test_unknown_part_is_rejected():
 
 def test_group_with_invalid_size_is_reported_with_its_path():
     """Test that a group built with an invalid size is reported by validating the system, with the path of the group."""
-    system = System(systems=[System('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])])
+    system = CompositeSystem(
+        systems=[CompositeSystem('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])],
+    )
     (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.message.startswith("meadow/herds: Group 'herds' has size 0")
 
 
 def test_group_vector_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -156,7 +158,7 @@ def test_group_vector_state_has_member_shape():
 def test_group_takes_state_named_size():
     """Test that a state named size takes per-member values, since the group size is a constructor argument."""
     group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
-    problem = PassCompiler().prepare(System(elements=[group])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_
     assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
 
 
@@ -166,8 +168,8 @@ def test_clone_keeps_values_and_compiles_to_the_same_problem():
     cloned = clone(group)
     assert np.array_equal(cloned.values['n'], group.values['n'])
     first, second = (
-        PassCompiler().prepare(System(elements=[group])).run().problem_,
-        PassCompiler().prepare(System(elements=[cloned])).run().problem_,
+        PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_,
+        PassCompiler().prepare(CompositeSystem(elements=[cloned])).run().problem_,
     )
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations

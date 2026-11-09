@@ -27,7 +27,7 @@ BASE_IMPORTS = frozenset(
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
         ('skcomplex.core.components.systems', 'BaseSystem'),
-        ('skcomplex.core.components.systems', 'System'),
+        ('skcomplex.core.components.systems', 'CompositeSystem'),
         (SPECS_MODULE, 'ObservableSpec'),
         (SPECS_MODULE, 'StateSpec'),
         (SPECS_MODULE, 'VisualSpec'),
@@ -99,9 +99,9 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
         super().__init__(label)
 {assignments}
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the element of the stocks and the constants, and the interactions of the flows and the rates."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
 {element}

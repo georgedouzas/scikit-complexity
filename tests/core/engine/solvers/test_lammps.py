@@ -14,7 +14,7 @@ from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
@@ -117,7 +117,7 @@ def _lattice(n, spacing=1.2, offset=0.6):
 def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=n, values={'x': _lattice(n), 'x_d1': velocities})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
@@ -150,7 +150,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
 
 def test_lammps_rejects_population_system():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('rabbits', x=40), PopulationElement('foxes', x=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits'),
@@ -166,7 +166,7 @@ def test_lammps_rejects_population_system():
 
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=4, values={'x': _lattice(4)})],
         interactions=[PairCouplingInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
@@ -177,7 +177,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different values of the divisor is reported as unsupported."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': _lattice(2), 'm': [1.0, 2.0]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, divisor='m')],
         space=ContinuousSpace(n_dim=2),
@@ -188,7 +188,7 @@ def test_lammps_rejects_groups_with_different_masses():
 
 def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -207,7 +207,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
 
 def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -276,7 +276,7 @@ def test_lammps_forces_match_native(interaction):
 def test_lammps_thermostat_temperature_changes_live():
     """Test that raising the thermostat temperature during a LAMMPS run heats the gas towards it."""
     gas = IdealGasSystem(1000, kT=1.0, size=30.0, random_state=0).prepare().system_
-    system = System(
+    system = CompositeSystem(
         elements=gas.elements,
         interactions=[
             *gas.interactions,
@@ -302,7 +302,7 @@ def test_lammps_thermostat_temperature_changes_live():
 def test_lammps_runs_10000_atoms_in_real_time():
     """Test that 10000 Lennard-Jones atoms keep a real-time clock within 0.2 seconds on LAMMPS."""
     n = 10_000
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',

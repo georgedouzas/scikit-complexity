@@ -75,7 +75,7 @@ class ConservationInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
@@ -87,7 +87,7 @@ class ConservationInteraction(Interaction):
         >>> volumes = 'finite-volume'
         >>> field = FieldElement('wave', element=CellElement, space=space, values=values, discretization=volumes)
         >>> burgers = ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2)
-        >>> system = System(elements=[field], interactions=[burgers])
+        >>> system = CompositeSystem(elements=[field], interactions=[burgers])
         >>> trajectory = simulate(system, until=0.5, dt=0.01)
         >>> round(float(trajectory.values('wave.u')[-1].sum()), 6)
         50.0

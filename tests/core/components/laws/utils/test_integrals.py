@@ -19,7 +19,7 @@ from skcomplex.core.components.laws.utils import (
     integration_variable,
 )
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -51,7 +51,7 @@ def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleName
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
     field = FieldElement('g', element=NonnegativeElement, space=space, values={'x': values})
     observables = [ObservableSpec('value', function, group='g', reduce=np.asarray)]
-    trajectory = simulate(System(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     return np.asarray(trajectory.values('value'), dtype=float)[-1].ravel()
 
 
@@ -89,7 +89,7 @@ def test_integral_transform_with_an_antisymmetric_kernel_conserves_the_total() -
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)]).prepare()
     start = 1.0 + np.sin(3 * space.coordinates_['z'])[None, :]
     field = FieldElement('g', element=NonnegativeElement, space=space, values={'x': start})
-    system = System(elements=[field], interactions=[RateInteraction('r', target='g', state='x', rate=rate)])
+    system = CompositeSystem(elements=[field], interactions=[RateInteraction('r', target='g', state='x', rate=rate)])
     final = simulate(system, until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
     values = final.values('g.x')
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10

@@ -9,7 +9,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import CayleyVisual, RerunObserver
@@ -51,7 +51,7 @@ def _trajectory():
     cells = np.zeros(space.size_)
     cells[0] = 1.0
     return simulate(
-        System(
+        CompositeSystem(
             elements=[GroupElement('cells', element=ParityElement, space=space, values={'alive': cells}, on='sites')],
         ),
         until=2,

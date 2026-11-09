@@ -9,7 +9,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import MatrixGroupSpec, StateSpec
@@ -36,7 +36,7 @@ def _matrix_on(shape):
     """Return the matrix laws read of a symmetric traceless state and the size of the field."""
     _NematicElement.seen.clear()
     field = FieldElement('film', element=_NematicElement, space=LatticeSpace(shape))
-    compiler = PassCompiler().prepare(System(elements=[field]))
+    compiler = PassCompiler().prepare(CompositeSystem(elements=[field]))
     compiler.run(None)
     return _NematicElement.seen[-1], compiler.problem_.states
 
@@ -89,7 +89,7 @@ def test_matrix_group_state_stores_the_real_components_of_every_matrix():
     """Test that an SU(3) state on the 32 links of a 4 by 4 lattice stores 18 components per link, the identity."""
     space = CellComplexSpace(LatticeSpace((4, 4)))
     links = GroupElement('links', element=_ColorLinkElement, space=space, on='edges')
-    problem = PassCompiler().prepare(System(elements=[links])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[links])).run().problem_
     entry = problem.states.entries[0]
     assert (entry.rows, entry.columns) == (32, 18)
     matrices = COLOR.matrices_of(np.reshape(problem.initial_state, (32, 18)))

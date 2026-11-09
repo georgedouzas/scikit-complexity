@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ....components.spaces import ContinuousTime
 from ....components.specs import CensusRecordSpec, NodeSpec
-from ....components.systems import System
+from ....components.systems import CompositeSystem
 from ....errors import BackendError, SolverError
 from ....specs import FractionalStateSpec, IssueSpec
 from ....types import FormKind, OrderKind, VariableKind
@@ -42,7 +42,11 @@ class FractionalFormPass(BasePass):
             compilation.form = FormKind.FRACTIONAL
 
     @staticmethod
-    def _declared_times(system: System, scope: str = '', inherited: type | None = None) -> dict[str, type | None]:
+    def _declared_times(
+        system: CompositeSystem,
+        scope: str = '',
+        inherited: type | None = None,
+    ) -> dict[str, type | None]:
         """Return the class of the declared time of every system of a tree by path.
 
         A nested system without a time of its own inherits the time of its parent.

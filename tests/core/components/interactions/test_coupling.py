@@ -22,7 +22,7 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -135,7 +135,7 @@ def _oscillators(space, theta, omega, **arguments):
         on='sites',
     )
     coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', **arguments)
-    return System(elements=[oscillators], interactions=[coupling])
+    return CompositeSystem(elements=[oscillators], interactions=[coupling])
 
 
 def _phases(system, until, backend=None):
@@ -159,7 +159,7 @@ def _group(theta, **arguments):
     """Return oscillators in a group without a space, coupled by the sine of the phase difference."""
     group = GroupElement('oscillators', element=OscillatorElement, size=len(theta), values={'theta': theta})
     coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', **arguments)
-    return System(elements=[group], interactions=[coupling])
+    return CompositeSystem(elements=[group], interactions=[coupling])
 
 
 @BACKENDS
@@ -254,7 +254,7 @@ def _matrix_group(theta, matrix, **arguments):
     """Return oscillators in a group coupled through a shaped matrix parameter."""
     group = GroupElement('oscillators', element=OscillatorElement, size=len(theta), values={'theta': theta})
     coupling = MatrixCouplingInteraction('coupling', target='oscillators', a=matrix, **arguments)
-    return System(elements=[group], interactions=[coupling])
+    return CompositeSystem(elements=[group], interactions=[coupling])
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend(), JaxBackend()], ids=['numpy', 'numba', 'jax'])
@@ -303,7 +303,7 @@ def _two_groups(theta, phi, **arguments):
         mode='group',
         **arguments,
     )
-    return System(elements=[first, second], interactions=[coupling])
+    return CompositeSystem(elements=[first, second], interactions=[coupling])
 
 
 @BACKENDS
@@ -370,7 +370,7 @@ def test_coupling_map_form_combines_with_parameters_and_time():
         reduce='mean',
         combine=lambda s, reduction: (1 - s.lag) * s.member.u + s.lag * reduction + s.t,
     )
-    system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
+    system = CompositeSystem(elements=[cells], interactions=[coupling], time=DiscreteTime())
     levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
     np.testing.assert_allclose(levels, 0.5 * u + 0.25 * (np.roll(u, 1) + np.roll(u, -1)))
 
@@ -390,7 +390,7 @@ def test_coupling_weights_edges_by_a_state_of_the_edge_group(backend):
     space = NetworkSpace(graph)
     rng = np.random.default_rng(1)
     theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': weights}),
@@ -445,7 +445,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
         form='map',
         combine=lambda s, reduction: s.member.u + reduction,
     )
-    system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
+    system = CompositeSystem(elements=[cells], interactions=[coupling], time=DiscreteTime())
     levels = simulate(system, until=1, dt=1).values('cells.u')[-1]
     np.testing.assert_allclose(levels, (np.roll(u, 1) + np.roll(u, -1) + u) / 3)
 
@@ -476,7 +476,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         form='map',
         combine=lambda s, total: atan2(total[1], total[0]) + uniform('turn', -noise * pi, noise * pi),
     )
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('flock', element=MoverElement, size=300, values=values)],
         interactions=[alignment],
         space=ContinuousSpace(extent=(10.0, 10.0), boundary='periodic'),
@@ -537,7 +537,7 @@ def test_coupling_separate_elements_to_each_other():
         function=lambda s: sin(s.other.theta - s.member.theta),
         mode='group',
     )
-    system = System(elements=oscillators, interactions=[sine])
+    system = CompositeSystem(elements=oscillators, interactions=[sine])
     trajectory = simulate(system, until=1.0, dt=0.01)
     found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
     expected = scipy.integrate.solve_ivp(
@@ -563,7 +563,7 @@ def test_coupling_hub_by_largest_value_of_group():
         reduce='max',
         mode='group',
     )
-    system = System(elements=[cells, CellElement('hub')], interactions=[drive])
+    system = CompositeSystem(elements=[cells, CellElement('hub')], interactions=[drive])
     trajectory = simulate(system, until=1.0, dt=0.1)
     assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
 
@@ -580,7 +580,7 @@ def test_coupling_group_to_hub_element():
         function=lambda s: -s.other.u,
         mode='group',
     )
-    system = System(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
+    system = CompositeSystem(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
     trajectory = simulate(system, until=1.0, dt=0.1)
     np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
 
@@ -618,7 +618,7 @@ def _velocities(locations, velocities, **arguments):
     )
     coupling = CouplingInteraction('coupling', target='agents', write=('vx', 'vy'), form='agent', **arguments)
     space = ContinuousSpace(extent=(10.0, 10.0))
-    system = System(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
     snapshot = simulate(system, until=1, random_state=0).agents('agents', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
@@ -694,7 +694,10 @@ def _hyperedge_drift(coupling, theta, backend, space=None):
         on='sites',
     )
     problem = (
-        PassCompiler(backend=backend).prepare(System(elements=[oscillators], interactions=[coupling])).run().problem_
+        PassCompiler(backend=backend)
+        .prepare(CompositeSystem(elements=[oscillators], interactions=[coupling]))
+        .run()
+        .problem_
     )
     return problem.states.read(
         problem.drift(0.0, problem.initial_state, problem.initial_parameters),
@@ -797,7 +800,7 @@ def test_coupling_over_neighbour_hyperedges_aligns_flanked_members(sides, factor
         neighborhood=RadiusNeighborhood(1.0),
         function=_flank,
     )
-    system = System(elements=[gliders], interactions=[coupling], space=ContinuousSpace(extent=(10.0, 10.0)))
+    system = CompositeSystem(elements=[gliders], interactions=[coupling], space=ContinuousSpace(extent=(10.0, 10.0)))
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     drift = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gliders.u')
     np.testing.assert_allclose(drift[0], factor * (u[1] + u[2]) / 2, rtol=0.0, atol=1e-12)
@@ -827,7 +830,7 @@ def _bonded_drift(case: str, renamed: bool) -> np.ndarray:
         if renamed
         else CouplingInteraction('coupling', target=target, source=source, **arguments)
     )
-    system = System(elements=elements, interactions=[coupling])
+    system = CompositeSystem(elements=elements, interactions=[coupling])
     paths = [f'o{index}.theta' for index in range(3)] if case == 'separate' else ['a.theta']
     return np.concatenate([np.atleast_1d(_drift(system, path)) for path in paths])
 

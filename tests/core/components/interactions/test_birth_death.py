@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import BirthDeathInteraction, TransferInteraction
 from skcomplex.core.components.laws import Sink, Source
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
@@ -102,7 +102,7 @@ def _forage(
         location=[(0, 0)] * size,
         variable=True,
     )
-    system = System(elements=[cells, foragers], interactions=interactions, space=LatticeSpace((1, 1)))
+    system = CompositeSystem(elements=[cells, foragers], interactions=interactions, space=LatticeSpace((1, 1)))
     return simulate(system, until=until, random_state=0)
 
 
@@ -167,7 +167,7 @@ def test_live_feeds_foragers_on_the_nodes_of_a_network():
     """Test that foragers on a network take the resource of their own node."""
     cells = GroupElement('cells', element=ResourceElement, size=2, values={'resource': [1.0, 4.0]}, location=[0, 1])
     foragers = GroupElement('foragers', element=ReserveElement, size=1, location=[1])
-    system = System(
+    system = CompositeSystem(
         elements=[cells, foragers],
         interactions=[_feeding(uptake=10.0, gain=1.0)],
         space=NetworkSpace(nx.path_graph(2)),
@@ -181,7 +181,7 @@ def test_live_rate_draws_a_poisson_number_of_births():
     """Test that births at a rate follow a Poisson number of that mean, each with the offspring count."""
     parents = GroupElement('parents', element=ReserveElement, size=400, variable=True, capacity=4000)
     births = BirthDeathInteraction('births', target='parents', rate=1.5, offspring=2)
-    system = System(elements=[parents], interactions=[births])
+    system = CompositeSystem(elements=[parents], interactions=[births])
     trajectory = simulate(system, until=1, random_state=0)
     assert len(trajectory.agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
 
@@ -191,7 +191,7 @@ def test_live_places_offspring_in_free_neighboring_cells():
     parents = GroupElement('parents', element=ReserveElement, size=1, location=[(1, 1)], variable=True)
     births = BirthDeathInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
     space = LatticeSpace((3, 3), metric='chebyshev')
-    trajectory = simulate(System(elements=[parents], interactions=[births], space=space), until=1)
+    trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births], space=space), until=1)
     locations = {tuple(cell) for cell in np.asarray(trajectory.agents('parents', 1).locations).tolist()}
     assert len(locations) == 9
 
@@ -211,7 +211,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
         variable=True,
     )
     births = BirthDeathInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
-    trajectory = simulate(System(elements=[parents], interactions=[births]), until=1)
+    trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births]), until=1)
     values = trajectory.agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
@@ -219,7 +219,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
 
 def _cycle(life: BirthDeathInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
     """Return the trajectory of groups of reserve members under a life cycle on a lattice."""
-    system = System(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
+    system = CompositeSystem(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
     return simulate(system, until=until, random_state=0)
 
 
@@ -369,7 +369,7 @@ def test_live_culls_a_random_member_of_its_group_after_a_replacement():
         pick='random',
         schedule='member',
     )
-    system = System(
+    system = CompositeSystem(
         elements=[parents],
         interactions=[life],
         space=LatticeSpace((3, 3)),

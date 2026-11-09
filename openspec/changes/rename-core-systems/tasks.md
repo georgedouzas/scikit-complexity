@@ -17,9 +17,9 @@
 
 ## 4. Rest of the core
 
-- [ ] 4.1 Rename `System` in the imports, `isinstance` checks, type hints, error messages, and doctests of `core/analysis` (`_base.py`, `_automata.py`, `_stability.py`, `_invariants.py`, `_elementary_modes.py`), `core/engine/runtime/_simulate.py`, `core/engine/compile/_base.py`, `core/engine/compile/passes/_flatten.py`, and every other core module that imports it, and verify `pytest --doctest-modules src/skcomplex/core` and the core tests pass
-- [ ] 4.2 Make `core/engine/translators/_module_writer.py` import `CompositeSystem` and emit `CompositeSystem(` in the generated `_build_system`, update the docstrings of `_system_dynamics.py`, update the translator tests that compare generated source, and verify `pytest tests/core/engine/translators` passes
-- [ ] 4.3 Rewrite every "mass action" and "mass-action" in `src/skcomplex/core` as the product propensity, or keep it only as a named field example, and verify `grep -rniE "mass[ -]action" src/skcomplex/core` shows only such examples
+- [x] 4.1 Rename `System` in the imports, `isinstance` checks, type hints, error messages, and doctests of `core/analysis` (`_base.py`, `_automata.py`, `_stability.py`, `_invariants.py`, `_elementary_modes.py`), `core/engine/runtime/_simulate.py`, `core/engine/compile/_base.py`, `core/engine/compile/passes/_flatten.py`, and every other core module that imports it, and verify `pytest --doctest-modules src/skcomplex/core` and the core tests pass
+- [x] 4.2 Make `core/engine/translators/_module_writer.py` import `CompositeSystem` and emit `CompositeSystem(` in the generated `_build_system`, update the docstrings of `_system_dynamics.py`, update the translator tests that compare generated source, and verify `pytest tests/core/engine/translators` passes
+- [x] 4.3 Rewrite every "mass action" and "mass-action" in `src/skcomplex/core` as the product propensity, or keep it only as a named field example, and verify `grep -rniE "mass[ -]action" src/skcomplex/core` shows only such examples
 
 ## 5. Systems library
 

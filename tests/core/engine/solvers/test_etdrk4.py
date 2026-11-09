@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import FluxLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
@@ -67,7 +67,9 @@ def _diffused(discretization):
         values={'u': initial},
         discretization=discretization,
     )
-    values = simulate(System(elements=[rod]), until=0.1, dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).states[-1]
+    values = simulate(CompositeSystem(elements=[rod]), until=0.1, dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).states[
+        -1
+    ]
     return np.abs(values - exact).max()
 
 
@@ -122,7 +124,7 @@ def test_steppers_need_linear_terms():
         simulate(LogisticGrowthSystem().prepare().system_, until=1, solver=IMEXEulerSolver())
     with pytest.raises(SolverError, match='spectral'):
         simulate(
-            System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),
+            CompositeSystem(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),
             until=1,
             dt=1,
             solver=ETDRK4Solver(),
@@ -169,7 +171,7 @@ def test_fluxes_need_finite_volume_field():
             """Return the laws of the shock element."""
             return [FluxLaw(s.u, s.u**2 / 2)]
 
-    system = System(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))])
+    system = CompositeSystem(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))])
     with pytest.raises(ValidationError, match='finite-volume'):
         PassCompiler().prepare(system).run()
 
@@ -226,7 +228,7 @@ def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
-        PassCompiler().prepare(System(elements=[rod])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[rod])).run()
 
 
 def test_swift_hohenberg_rolls():

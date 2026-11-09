@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
@@ -150,10 +150,10 @@ class Simulation(BaseConfig[None, float]):
             The recorder of the draws of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
@@ -164,7 +164,7 @@ class Simulation(BaseConfig[None, float]):
 
     def __init__(
         self,
-        system: System | BaseProblemSpec,
+        system: CompositeSystem | BaseProblemSpec,
         *,
         compiler: BaseCompiler | None = None,
         solver: BaseSolver | None = None,
@@ -244,7 +244,7 @@ class Simulation(BaseConfig[None, float]):
                 The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
                 run, with every problem found.
         """
-        if not isinstance(self.system, System | BaseProblemSpec):
+        if not isinstance(self.system, CompositeSystem | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
                 'library from its class, such as `SIRSystem()`.'
@@ -489,14 +489,14 @@ class Simulation(BaseConfig[None, float]):
         """
         if self.compiler is not None:
             compiler = clone(self.compiler)
-        elif isinstance(self.system, System):
+        elif isinstance(self.system, CompositeSystem):
             compiler = self._default_compiler(self.system) or PassCompiler()
         else:
             compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
     @staticmethod
-    def _default_compiler(system: System) -> BaseCompiler | None:
+    def _default_compiler(system: CompositeSystem) -> BaseCompiler | None:
         """Return the compiler of the library's form that a system holds.
 
         It returns `None` for the pass compiler.
@@ -622,10 +622,10 @@ class Simulation(BaseConfig[None, float]):
                 The simulation has not run, ended at a terminal event, or `until` is not later than its time.
 
         Examples:
-            >>> from skcomplex.core.components.systems import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.core.engine.runtime._simulations import Simulation
-            >>> system = System(
+            >>> system = CompositeSystem(
             ...     elements=[PopulationElement('rabbits', x=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )

@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import periodic_guard, pulse_train, series
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -38,7 +38,7 @@ def _driven_by(data):
             return [RateLaw(s.y, data(s.t))]
 
     driven = DrivenElement
-    return System(elements=[driven('d')])
+    return CompositeSystem(elements=[driven('d')])
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -125,7 +125,7 @@ class FertilityElement(Element):
 def test_series_of_a_state_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
     fertility = ObservableSpec('fertility', _fertility, element='f')
-    trajectory = simulate(System(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
+    trajectory = simulate(CompositeSystem(elements=[FertilityElement('f')]), until=4, dt=0.5, observables=[fertility])
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
     assert trajectory.values('f.fertility') == pytest.approx(expected)

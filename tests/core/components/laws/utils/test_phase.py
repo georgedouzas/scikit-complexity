@@ -21,7 +21,7 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.laws.utils._phase import coordinates_of
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -63,7 +63,7 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     start = np.tile(np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi), (4, 1))
     field = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
     observables = [ObservableSpec('rho', density, group='gas')]
-    trajectory = simulate(System(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.values('rho'))
     assert np.abs(values - 1.0).max() < 1e-6
 
@@ -78,7 +78,7 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
         's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], riemann=None,
     )
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
-    system = System(elements=[gas], interactions=[stream, grow])
+    system = CompositeSystem(elements=[gas], interactions=[stream, grow])
     trajectory = simulate(system, until=0.1, backend=backend, solver=RK4Solver(dt=0.01))
     final = trajectory.values('gas.x')[-1].reshape(8, 4)
     grown = np.exp(0.1 * space.coordinates_['v'])
@@ -89,7 +89,7 @@ def test_coordinate_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a coordinate read by a law whose group lives on a lattice without class axes."""
     field = FieldElement('gas', element=NonnegativeElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda _: coordinate('v'))
-    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' and 'class axes v' in issue.message for issue in report.issues)
 
 
@@ -98,7 +98,7 @@ def test_coordinate_of_missing_axis_names_axes_held() -> None:
     space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 4, -1.0, 1.0)])
     field = FieldElement('gas', element=NonnegativeElement, space=space)
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda _: coordinate('w'))
-    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     issues = [issue for issue in report.issues if issue.code == 'law-space']
     assert issues
     assert "['v']" in issues[0].message
@@ -108,7 +108,7 @@ def test_moment_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a moment over axes in a law whose group lives on a lattice without class axes."""
     field = FieldElement('gas', element=NonnegativeElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda s: moment(s.target.x, 0, axes=('v',)))
-    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' for issue in report.issues)
 
 
@@ -138,7 +138,7 @@ def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -
         ObservableSpec('mean', mean_at, group='gas'),
         ObservableSpec('temperature', temperature_at, group='gas'),
     ]
-    trajectory = simulate(System(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     assert np.abs(np.asarray(trajectory.values('rho'))[-1] - 2.0).max() < 1e-8
     assert np.abs(np.asarray(trajectory.values('mean'))[-1] - 0.5).max() < 1e-8
     assert np.abs(np.asarray(trajectory.values('temperature'))[-1] - 1.5).max() < 1e-8
@@ -170,7 +170,7 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
     drift = ConservationInteraction(
         'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in potential_force(s)],
     )
-    system = System(elements=[field], interactions=[drift])
+    system = CompositeSystem(elements=[field], interactions=[drift])
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.05)).values('gas.x')[-1]
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 
@@ -191,7 +191,7 @@ def test_drift_reads_field_over_position_through_sources() -> None:
     drift = ConservationInteraction(
         'push', target='gas', state='x', flux=lambda s: [0, s.sources[0].x * s.target.x], sources=['force'],
     )
-    system = System(elements=[gas, force], interactions=[drift], space=space)
+    system = CompositeSystem(elements=[gas, force], interactions=[drift], space=space)
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.01))
     values = final.values('gas.x')[-1].reshape(2, 32)
     assert np.array_equal(values[1], start[1])
@@ -212,7 +212,7 @@ def test_rate_over_position_reads_moment_through_sources() -> None:
         rate=lambda s: moment(s.sources[0].x, 0, axes=('v',)),
         sources=['gas'],
     )
-    system = System(elements=[gas, level], interactions=[rate], space=space)
+    system = CompositeSystem(elements=[gas, level], interactions=[rate], space=space)
     final = simulate(system, until=1.0, solver=RK4Solver(dt=0.1))
     assert final.values('level.x')[-1] == pytest.approx([2.0, 4.0, 6.0])
 
@@ -236,7 +236,7 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
         state='x',
         rate=lambda s: maximum_entropy(s.target.x, axes=('v',)) - s.target.x,
     )
-    system = System(elements=[gas], interactions=[relax])
+    system = CompositeSystem(elements=[gas], interactions=[relax])
     trajectory = simulate(system, until=50.0, dt=1.0, solver=RK4Solver(dt=0.1))
     values = np.asarray(trajectory.values('gas.x'))
     moments = values @ np.stack([np.ones(v.size), v, v**2], axis=1) * width
@@ -263,7 +263,7 @@ def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> N
         state='x',
         rate=lambda s: maximum_entropy(s.target.x, axes=('a', 'b')) - s.target.x,
     )
-    trajectory = simulate(System(elements=[gas], interactions=[relax]), until=1.0, solver=RK4Solver(dt=0.2))
+    trajectory = simulate(CompositeSystem(elements=[gas], interactions=[relax]), until=1.0, solver=RK4Solver(dt=0.2))
     final = trajectory.values('gas.x')[-1].reshape(start.shape)
     for basis in (np.ones(a.shape), a, b, a**2 + b**2):
         assert np.sum(final * basis, axis=(1, 2)) == pytest.approx(np.sum(start * basis, axis=(1, 2)), rel=1e-11)
@@ -292,7 +292,7 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
         riemann=None,
     )
     observables = [ObservableSpec('energy', electric_energy, group='gas')]
-    system = System(elements=[field], interactions=[drift])
+    system = CompositeSystem(elements=[field], interactions=[drift])
     trajectory = simulate(system, until=30.0, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables)
     energy = np.asarray(trajectory.values('energy'), dtype=float)
     times = np.asarray(trajectory.times)

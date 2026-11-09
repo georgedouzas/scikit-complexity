@@ -10,7 +10,7 @@ from scipy.special import expit
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -74,7 +74,7 @@ def _grid_players() -> GroupElement:
 def _final(space, values, rule, until, seed=0, **arguments):
     """Return the strategies after imitation by a rule for some time, in continuous or in discrete time."""
     discrete = arguments.get('form') == 'probability'
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('players', element=PlayerElement, space=space, values=values, on='sites')],
         interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
         time=DiscreteTime() if discrete else ContinuousTime(),
@@ -159,7 +159,7 @@ def _fermi_switching(strategies, final):
 def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_state():
     """Test that in one step members of both states on a mixed lattice switch with the exact Fermi probability."""
     strategies = (np.random.default_rng(SEED).random((150, 150)) < 0.5).astype(float)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'players',
@@ -190,7 +190,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
         values={'state': strategies.ravel(), 'payoff': strategies.ravel()},
         location=cells,
     )
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='agent')],
         space=LatticeSpace((size, size), boundary='periodic', metric='manhattan'),
@@ -239,7 +239,7 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
         location=cells,
     )
     imitation = ImitationInteraction('imitation', target='players', rule=rule, form='agent')
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=[imitation],
         space=LatticeSpace((3, 3), boundary='periodic', metric='manhattan'),
@@ -278,7 +278,7 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
         ImitationInteraction('imitation', target='players', rule=rule, form=form, probability=0.5),
         PeerImitationInteraction('imitation', peers='players', rule=rule, form=form, openness=0.5),
     ):
-        system = System(
+        system = CompositeSystem(
             elements=[
                 GroupElement(
                     'players',
@@ -305,7 +305,7 @@ def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
         ImitationInteraction('imitation', target='players', rule=rule, form='agent', probability=0.5),
         PeerImitationInteraction('imitation', peers='players', rule=rule, form='agent', openness=0.5),
     ):
-        system = System(elements=[_grid_players()], interactions=[imitation], space=space, time=DiscreteTime())
+        system = CompositeSystem(elements=[_grid_players()], interactions=[imitation], space=space, time=DiscreteTime())
         trajectory = simulate(system, until=10, random_state=SEED)
         finals.append(trajectory.agents('players', 10).values['state'])
     np.testing.assert_array_equal(finals[1], finals[0])
@@ -329,7 +329,7 @@ def _chain(schedule: str, seed: int, ties: str = 'first', payoffs: tuple[float, 
         ties=ties,
     )
     space = LatticeSpace((len(payoffs),), boundary='fixed')
-    system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=seed)
     return trajectory.agents('players', 1).values['state'].tolist()
 
@@ -363,6 +363,6 @@ def test_agent_imitation_reads_the_neighbours_of_its_layer():
     )
     imitation = ImitationInteraction('imitation', target='players', form='agent', layer='work')
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', work)])
-    system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]

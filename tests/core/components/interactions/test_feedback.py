@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -71,7 +71,7 @@ def _report_total(system):
 
 def test_act_changes_a_parameter_only_above_the_target():
     """Test that the rate changes only at the rounds where the observable exceeds the target."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('counters', element=CounterElement, size=1)],
         interactions=[ControllerInteraction('controller')],
     )
@@ -84,7 +84,7 @@ def test_act_changes_a_parameter_only_above_the_target():
 
 def test_act_raises_for_an_undeclared_report():
     """Test that reporting a name the feedback does not declare raises an error."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('participants', element=ParticipantElement, size=1)],
         interactions=[FeedbackInteraction('reader', rule=_report_total)],
     )
@@ -94,7 +94,7 @@ def test_act_raises_for_an_undeclared_report():
 
 def test_act_raises_without_a_rule():
     """Test that a feedback with neither a rule nor its own `act` raises an error."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('participants', element=ParticipantElement, size=1)],
         interactions=[FeedbackInteraction('reader')],
     )

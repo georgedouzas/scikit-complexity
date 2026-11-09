@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, FieldElement, Nonnegativ
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
@@ -116,7 +116,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
         values=values,
         discretization='finite-volume',
     )
-    system = System(elements=[field])
+    system = CompositeSystem(elements=[field])
     _, volume = _volume(system)
     trajectory = simulate(system, until=0.5, dt=0.5, solver=SSPRKSolver())
     assert volume.closed_form is False
@@ -142,6 +142,6 @@ def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     flow = ConservationInteraction(
         'flow', target='groups', state='x', flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
     )
-    problem, volume = _volume(System(elements=[groups], interactions=[flow]))
+    problem, volume = _volume(CompositeSystem(elements=[groups], interactions=[flow]))
     speed = volume.max_speed(problem.initial_state, problem.initial_parameters)
     assert speed == pytest.approx(1.0 if space_type is SimplexSpace else 0.5)

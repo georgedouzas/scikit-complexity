@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import maximum, mean, minimum, total, variance
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -49,10 +49,10 @@ class ReducedInteraction(HyperedgeInteraction):
         return [RateLaw(s.member.x, REDUCTIONS[self.reduce][0](s))]
 
 
-def _system(reduce: str, values: np.ndarray) -> System:
+def _system(reduce: str, values: np.ndarray) -> CompositeSystem:
     """Return the nodes of a hypergraph whose rates are a reduction over their hyperedges."""
     space = NetworkSpace(nx.complete_graph(5), hyperedges=HYPEREDGES)
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites')],
         interactions=[ReducedInteraction('reduced', nodes='nodes', reduce=reduce)],
     )

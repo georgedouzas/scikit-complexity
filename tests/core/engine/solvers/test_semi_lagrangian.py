@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
@@ -40,7 +40,7 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     )
     stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = SemiLagrangianSolver(dt=5 * spacing)
-    system = System(elements=[gas], interactions=[stream])
+    system = CompositeSystem(elements=[gas], interactions=[stream])
     trajectory = simulate(system, until=4.0, dt=5 * spacing, solver=solver)
     final = trajectory.values('gas.x')[-1].reshape(size, 8)
     assert np.abs(final).max() < 1.01 * start.max()
@@ -59,7 +59,11 @@ def test_nonlinear_flux_raises_a_named_error() -> None:
     wave = FieldElement('wave', element=NonnegativeElement, space=space, values=values, discretization='finite-volume')
     burgers = ConservationInteraction('b', target='wave', state='x', flux=lambda s: s.target.x**2 / 2)
     with pytest.raises(SolverError, match='not a linear drift'):
-        simulate(System(elements=[wave], interactions=[burgers]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
+        simulate(
+            CompositeSystem(elements=[wave], interactions=[burgers]),
+            until=0.1,
+            solver=SemiLagrangianSolver(dt=0.1),
+        )
 
 
 def test_partial_cells_raise_a_named_error() -> None:
@@ -77,7 +81,11 @@ def test_partial_cells_raise_a_named_error() -> None:
         'flow', target='groups', state='x', flux=lambda s: [0, 1.0 * s.target.x, -1.0 * s.target.x],
     )
     with pytest.raises(SolverError, match='partial cells'):
-        simulate(System(elements=[groups], interactions=[flow]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
+        simulate(
+            CompositeSystem(elements=[groups], interactions=[flow]),
+            until=0.1,
+            solver=SemiLagrangianSolver(dt=0.1),
+        )
 
 
 def test_landau_damping_with_large_steps() -> None:
@@ -98,7 +106,7 @@ def test_landau_damping_with_large_steps() -> None:
     drift = ConservationInteraction(
         'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in poisson_drift(s)],
     )
-    system = System(elements=[gas], interactions=[drift])
+    system = CompositeSystem(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
     trajectory = simulate(system, until=30.0, dt=0.25, solver=solver)
     values = np.asarray(trajectory.values('gas.x')).reshape(-1, positions, velocities)

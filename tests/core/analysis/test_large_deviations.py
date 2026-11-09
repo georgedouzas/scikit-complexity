@@ -10,7 +10,7 @@ from scipy import special
 from skcomplex.core.analysis import LargeDeviationsResult, large_deviations
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -113,7 +113,7 @@ def test_cloning_estimates_the_poisson_generating_function():
     """Test that cloning a Poisson counter of rate 1 at s = 0.5 is within 2% of `exp(0.5) - 1`."""
     estimate = _deviations(
         'cloning',
-        System(elements=[CounterElement('counter')]),
+        CompositeSystem(elements=[CounterElement('counter')]),
         observable='counter.n',
         tilts=0.5,
         population=300,
@@ -126,7 +126,7 @@ def test_cloning_estimates_the_poisson_generating_function():
 
 def test_cloning_takes_a_function_of_the_segment():
     """Test that a function of each segment's trajectory gives the same estimate as the counter's name."""
-    system = System(elements=[CounterElement('counter')])
+    system = CompositeSystem(elements=[CounterElement('counter')])
     settings = {'tilts': -0.5, 'population': 50, 'until': 3.0, 'random_state': 1}
     by_name = _deviations('cloning', system, observable='counter.n', **settings)
     by_function = _deviations(
@@ -140,7 +140,7 @@ def test_cloning_takes_a_function_of_the_segment():
 
 def test_cloning_warns_of_a_collapsed_population_and_rejects_bad_settings():
     """Test that a strong tilt on few clones warns, and that a duration off the interval grid raises an error."""
-    system = System(elements=[CounterElement('counter')])
+    system = CompositeSystem(elements=[CounterElement('counter')])
     with pytest.warns(RuntimeWarning, match='effective population'):
         _deviations('cloning', system, observable='counter.n', tilts=4.0, population=5, until=2.0, random_state=0)
     with pytest.raises(AnalysisError, match='multiple of the interval'):

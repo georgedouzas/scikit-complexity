@@ -135,7 +135,7 @@ def linearization(
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> class CartElement(Element):
         ...     def __init__(
         ...         self,
@@ -151,7 +151,7 @@ def linearization(
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
-        >>> result = linearization(System(elements=[CartElement('cart')]))
+        >>> result = linearization(CompositeSystem(elements=[CartElement('cart')]))
         >>> result.B.tolist(), result.controllability
         ([[0.0], [1.0]], 2)
     """

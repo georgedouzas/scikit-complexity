@@ -47,7 +47,7 @@ class ConnectionInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
         >>> from skcomplex.core.components.laws import EquationLaw
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> PIN = ConnectorSpec('pin', potential='v', flow='i')
@@ -70,7 +70,7 @@ class ConnectionInteraction(Interaction):
         ...
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.a_i, s.g * (s.a_v - s.e))]
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )

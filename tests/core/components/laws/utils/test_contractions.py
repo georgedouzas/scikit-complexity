@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.laws.utils._contractions import contractions_in
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
@@ -44,7 +44,7 @@ class CubicInteraction(Interaction):
 
 def _cubic(tensor, x, target='species'):
     """Return a group whose rates contract a tensor with its states."""
-    return System(
+    return CompositeSystem(
         'community',
         elements=[GroupElement('species', element=NodeElement, size=len(x), values={'x': x}), NodeElement('single')],
         interactions=[CubicInteraction('cubic', target=target, T=tensor)],

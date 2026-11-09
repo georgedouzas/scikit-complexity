@@ -95,18 +95,18 @@ class CoSimulationSolver(Solver):
             The stepper of every partition by partition name.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     systems=[
-        ...         System(
+        ...         CompositeSystem(
         ...             'a',
         ...             elements=[PopulationElement('x', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
-        ...         System(
+        ...         CompositeSystem(
         ...             'b',
         ...             elements=[PopulationElement('y', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],

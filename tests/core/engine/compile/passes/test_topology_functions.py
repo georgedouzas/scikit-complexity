@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction, NeighborInteract
 from skcomplex.core.components.laws import JumpLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors, total
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -120,7 +120,7 @@ class RewiringInteraction(NeighborInteraction):
 def _growing(size, capacity, *, edges=2):
     """Return a network that starts complete on `size` nodes and grows by preferential attachment."""
     space = NetworkSpace(nx.complete_graph(size))
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=capacity),
             GroupElement(
@@ -222,7 +222,7 @@ def test_requests_remove_and_add_edges_and_nodes():
             """Return the laws of the leaving element."""
             return [UpdateLaw(TopologyRequestSpec('remove-node'), s.x)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'nodes',
@@ -260,7 +260,7 @@ def test_requests_remove_and_add_edges_and_nodes():
             return [UpdateLaw(TopologyRequestSpec('add-edge', values=(('w', 5.0),)), s.x)]
 
     space = NetworkSpace(nx.empty_graph(4))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'nodes',
@@ -305,7 +305,7 @@ def _prevalence(w, seed):
                 JumpLaw(s.nodes.gamma * s.nodes.i, {s.nodes.i: -1}),
             ]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'nodes',
@@ -368,7 +368,7 @@ def test_reductions_over_capacity_groups_count_present_members():
             return [UpdateLaw(s.counter.size, total(s.nodes.x))]
 
     space = NetworkSpace(nx.complete_graph(3))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=10),
             GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=30),
@@ -405,7 +405,7 @@ def test_validation_reports_a_request_on_a_fixed_group():
             """Return the laws of the joining element."""
             return [UpdateLaw(TopologyRequestSpec('add-edge'), 0.5)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=JoiningElement, space=space, on='sites', variable=True),
             GroupElement('links', element=LinkElement, space=space, on='edges'),
@@ -421,7 +421,7 @@ def test_validation_reports_a_request_on_a_fixed_group():
 def test_validation_reports_a_node_request_on_fixed_site_groups():
     """Test that a node request on a network whose site groups are fixed names the fixed groups."""
     space = NetworkSpace(nx.path_graph(4))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=NodeElement, space=space, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
@@ -454,7 +454,7 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
             """Return the laws of the reading element."""
             return [UpdateLaw(s.x, neighbors(s.other.x, over=RadiusNeighborhood(1.0)))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=ReadingElement, space=NetworkSpace(nx.path_graph(3)), on='sites')],
         time=DiscreteTime(),
     )
@@ -485,7 +485,7 @@ def test_validation_reports_a_reduction_over_a_missing_layer():
             return [UpdateLaw(s.x, neighbors(s.other.x, over=AdjacencyNeighborhood(layer='trade')))]
 
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.path_graph(3))])
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=ReadingElement, space=space, on='sites')],
         time=DiscreteTime(),
     )

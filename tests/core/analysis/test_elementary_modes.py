@@ -12,7 +12,7 @@ from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError, EnumerationLimitError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
 
@@ -75,7 +75,7 @@ class ToyElement(Element):
 
 def _toy(**values):
     """Return the system of the toy network."""
-    return System(elements=[ToyElement('net', **values)], time=StaticTime())
+    return CompositeSystem(elements=[ToyElement('net', **values)], time=StaticTime())
 
 
 def _column(analysis, name):

@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction, RateInteraction,
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -87,7 +87,7 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
         rtol=1e-12,
         atol=1e-12,
     )
-    system = System(
+    system = CompositeSystem(
         'lv',
         elements=[PairElement('pair', **{name: 1.3 * value for name, value in RATES.items()})],
         interactions=[
@@ -109,7 +109,7 @@ def _fitting(learning_rate=0.05, optimizer='adam'):
         learning_rate=learning_rate,
         batch_size=1,
     )
-    return System('fitting', systems=[system], interactions=[training], time=DiscreteTime())
+    return CompositeSystem('fitting', systems=[system], interactions=[training], time=DiscreteTime())
 
 
 def _trajectory(system, until, **arguments):
@@ -319,7 +319,7 @@ def test_tensor_trains():
     """Test that the gradient of an adaptive tensor of order 3 read through a contraction agrees with differences."""
     rng = np.random.default_rng(0)
     tensor = rng.normal(0.0, 0.3, (4, 4, 4))
-    inner = System(
+    inner = CompositeSystem(
         'community',
         elements=[GroupElement('species', element=TargetNodeElement, size=4)],
         interactions=[AdaptiveCubicInteraction('cubic', target='species', T=tensor)],
@@ -327,7 +327,7 @@ def test_tensor_trains():
     data = DatasetSpec({'species.target': rng.uniform(0.4, 0.8, (1, 5, 4))}, times=np.linspace(0.2, 1.0, 5))
     loss = ObservableSpec('error', group='species', reduce='sum', expression=_node_error)
     training = TrainingInteraction('training', system='community', trained=['cubic.T'], loss=loss, data=data)
-    system = System('fitting', systems=[inner], interactions=[training], time=DiscreteTime())
+    system = CompositeSystem('fitting', systems=[inner], interactions=[training], time=DiscreteTime())
     gradient = _gradient(system, rate=1e-6)['community/cubic.T']
     step = 1e-6
     for index in [(0, 0, 0), (1, 2, 3), (3, 1, 0)]:

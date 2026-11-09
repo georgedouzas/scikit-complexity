@@ -117,9 +117,9 @@ class NumbaBackend(BaseBackend):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [1.0, 2.0]})],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )

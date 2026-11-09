@@ -7,7 +7,7 @@ from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import (
@@ -66,7 +66,7 @@ def _auction(size, rng):
         transfers=(('money', -1), ('goods', 1)),
         phase='clear',
     )
-    system = System(
+    system = CompositeSystem(
         elements=[requesters, providers],
         interactions=[matching],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('clear')])),
@@ -91,7 +91,7 @@ def test_match_settles_transfers_and_realises_the_surplus():
 
 def test_match_reads_the_states_named_by_a_pair():
     """Test that a pair of names reads the requesters' reserve from its first state, the providers' from its second."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('providers', element=ParticipantElement, size=1, values={'reserve': 5.0}),
             GroupElement('requesters', element=ParticipantElement, size=1, values={'reserve': 1.0, 'value': 9.0}),
@@ -310,7 +310,7 @@ def test_match_partners_considers_local_cells_and_distances_only():
             rule=PartnerSpec(candidates),
         )
         space = LatticeSpace((5, 5), metric='chebyshev', boundary='fixed')
-        system = System(elements=[requesters, providers], interactions=[matching], space=space)
+        system = CompositeSystem(elements=[requesters, providers], interactions=[matching], space=space)
         trajectory = simulate(system, until=1, random_state=0)
         assert trajectory.values('matching.volume')[-1] == pytest.approx(expected)
 

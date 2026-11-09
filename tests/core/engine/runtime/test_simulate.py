@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import JumpInteraction, RateInteract
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import normal
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, Trajectory, _simulate, simulate
@@ -48,9 +48,9 @@ class DecaySystem(BaseSystem):
         super().__init__(label)
         self.k = k
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -self.k * s.target.x)
-        return System(self.label, elements=[TankElement('tank')], interactions=[decay])
+        return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
 
 
 def _level(namespace):
@@ -87,20 +87,20 @@ class LeakySystem(BaseSystem):
     schedule: ClassVar[Mapping[str, object]] = {'tank.k': lambda t: 0.0}
     compiler = PassCompiler()
 
-    def _build_system(self) -> System:
-        return System(self.label, elements=[LeakyTankElement('tank')])
+    def _build_system(self) -> CompositeSystem:
+        return CompositeSystem(self.label, elements=[LeakyTankElement('tank')])
 
 
-def _jump_system() -> System:
+def _jump_system() -> CompositeSystem:
     """Return a system of one jump interaction."""
     jump = JumpInteraction('drop', target='tank', changes={'x': -1.0}, rate=lambda s: s.target.x)
-    return System(elements=[TankElement('tank', x=5.0)], interactions=[jump])
+    return CompositeSystem(elements=[TankElement('tank', x=5.0)], interactions=[jump])
 
 
 def test_simulate_returns_the_trajectory_until_a_time():
     """Test that simulating a composite system returns its trajectory until the end time."""
     decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -s.target.x)
-    trajectory = simulate(System(elements=[TankElement('tank')], interactions=[decay]), until=1.0)
+    trajectory = simulate(CompositeSystem(elements=[TankElement('tank')], interactions=[decay]), until=1.0)
     assert isinstance(trajectory, Trajectory)
     assert trajectory.times[-1] == pytest.approx(1.0)
     assert trajectory.values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
@@ -126,7 +126,7 @@ def test_simulate_takes_the_time_between_frames_and_observers():
 def test_simulate_requires_an_end_time():
     """Test that a system without a tuned end time needs `until`."""
     with pytest.raises(ValidationError, match=r'has no tuned end time\. Pass `until`'):
-        simulate(System(elements=[TankElement('tank')]))
+        simulate(CompositeSystem(elements=[TankElement('tank')]))
 
 
 def test_simulate_rejects_what_is_no_system():
@@ -151,7 +151,7 @@ def test_simulate_rejects_a_backend_of_other_spaces():
     group = GroupElement('cells', element=TankElement, space=LatticeSpace((3,)))
     decay = RateInteraction('decay', target='cells', state='x', rate=lambda s: -s.target.x)
     with pytest.raises(TagError, match='The backend JaxBackend does not support the space lattice'):
-        simulate(System(elements=[group], interactions=[decay]), until=1.0, backend=JaxBackend())
+        simulate(CompositeSystem(elements=[group], interactions=[decay]), until=1.0, backend=JaxBackend())
 
 
 def test_simulate_runs_a_solver_that_supports_the_tags():
@@ -199,10 +199,10 @@ def test_simulate_rejects_a_tuned_backend_of_other_spaces():
 
         backend = JaxBackend()
 
-        def _build_system(self) -> System:
+        def _build_system(self) -> CompositeSystem:
             group = GroupElement('cells', element=TankElement, space=LatticeSpace((3,)))
             decay = RateInteraction('decay', target='cells', state='x', rate=lambda s: -s.target.x)
-            return System(self.label, elements=[group], interactions=[decay])
+            return CompositeSystem(self.label, elements=[group], interactions=[decay])
 
     with pytest.raises(TagError, match='The backend JaxBackend does not support the space lattice'):
         simulate(CellsSystem(), until=1.0)
@@ -216,7 +216,7 @@ def test_simulate_leaves_the_solver_of_nested_systems_to_the_compiled_form(monke
 
     monkeypatch.setattr(_simulate, '_choose_solver', fail)
     decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -s.target.x)
-    nested = System(systems=[System('left', elements=[TankElement('tank')], interactions=[decay])])
+    nested = CompositeSystem(systems=[CompositeSystem('left', elements=[TankElement('tank')], interactions=[decay])])
     assert simulate(nested, until=1.0).values('left/tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
 
 
@@ -239,9 +239,9 @@ class KickedElement(Element):
         return [UpdateLaw(s.x, s.x + normal('kick', 0, s.s))]
 
 
-def _kicked(deviation: float) -> System:
+def _kicked(deviation: float) -> CompositeSystem:
     """Return a system of one kicked element with a deviation."""
-    return System(elements=[KickedElement('walker', s=deviation)], time=DiscreteTime())
+    return CompositeSystem(elements=[KickedElement('walker', s=deviation)], time=DiscreteTime())
 
 
 def test_simulate_records_the_draws_of_a_law():
@@ -277,7 +277,7 @@ def test_replay_forces_the_recorded_draws_and_scores_them():
 def test_replay_rejects_a_system_whose_draws_have_other_names():
     """Test that a replay names the draws the system makes and the trajectory lacks."""
     recorded = simulate(_kicked(0.5), until=5, random_state=0, record_draws=True)
-    system = System(elements=[KickedElement('hopper')], time=DiscreteTime())
+    system = CompositeSystem(elements=[KickedElement('hopper')], time=DiscreteTime())
     with pytest.raises(ValidationError, match=r"draws 'hopper\.kick', which the replayed trajectory lacks"):
         simulate(system, until=5, random_state=0, replay=recorded)
 

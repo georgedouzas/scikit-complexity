@@ -12,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
@@ -171,7 +171,7 @@ def test_local_rule_free_group_majority():
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cells', element=CellElement, space=space, values={'alive': cells}, on='sites')],
     )
     alive = _run(system, 1).values('cells.alive')
@@ -188,7 +188,7 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     sites = {word: site for site, word in enumerate(space.words_)}
     cells = np.zeros(space.size_)
     cells[sites['b']] = 1.0
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
     alive = _run(system, 1).values('cells.alive')[1]
@@ -200,7 +200,7 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
     """Test that a rule on a ball of the Grigorchuk group of radius 4 steps on its 40 sites."""
     space = CayleySpace(_grigorchuk(), ball=4).prepare()
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
     assert space.level_ > 0
@@ -211,7 +211,7 @@ def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
     space = CayleySpace(_grigorchuk().PermGroupOnLevel(2)).prepare()
     cells = np.arange(space.size_) % 2.0
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
     )
     alive = _run(system, 3).values('cells.alive')

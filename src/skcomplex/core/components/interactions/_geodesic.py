@@ -61,13 +61,13 @@ class GeodesicInteraction(Interaction):
         >>> from skcomplex.core.components.elements import PointElement
         >>> from skcomplex.core.components.interactions import GeodesicInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> r, phi = SR.var('r phi')
         >>> plane = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
         >>> line = GeodesicInteraction('line', target='particle', space=plane)
         >>> particle = PointElement('particle', x=[1.0, 0.0], x_d1=[0.0, 1.0])
-        >>> system = System(elements=[particle], interactions=[line], space=plane)
+        >>> system = CompositeSystem(elements=[particle], interactions=[line], space=plane)
         >>> trajectory = simulate(system, until=1.0, dt=0.001)
         >>> [round(float(value), 3) for value in trajectory.values('particle.x')[-1]]
         [1.414, 0.785]

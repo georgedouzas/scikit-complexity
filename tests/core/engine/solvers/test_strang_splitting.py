@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.errors import SolverError
@@ -44,7 +44,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
     stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
-    system = System(elements=[gas], interactions=[stream, relax])
+    system = CompositeSystem(elements=[gas], interactions=[stream, relax])
     return simulate(system, until=1.0, dt=1.0, solver=solver).values('gas.x')[-1]
 
 
@@ -63,7 +63,7 @@ def test_prepare_rejects_a_problem_without_fluxes() -> None:
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': 1.0})
     relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     with pytest.raises(SolverError, match='no flux'):
-        simulate(System(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
+        simulate(CompositeSystem(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
 
 
 def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
@@ -79,4 +79,4 @@ def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
     stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = StrangSplittingSolver(EulerMaruyamaSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
     with pytest.raises(SolverError):
-        simulate(System(elements=[gas], interactions=[stream]), until=0.1, solver=solver)
+        simulate(CompositeSystem(elements=[gas], interactions=[stream]), until=0.1, solver=solver)

@@ -19,7 +19,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -283,7 +283,7 @@ class BondExchangeInteraction(NeighborInteraction):
 
 def _hebbian(space, activities):
     """Return a network of neurons with fixed activities and Hebbian synapses on its edges."""
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('neurons', element=NeuronElement, space=space, values={'a': activities}, on='sites'),
             GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
@@ -316,7 +316,7 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     """Test that the source and target of a directed edge follow its direction, and edge states weigh the flow."""
     graph = nx.DiGraph([(0, 1), (2, 1), (1, 3)])
     space = NetworkSpace(graph)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('people', element=PersonElement, space=space, on='sites'),
             GroupElement('jobs', element=JobElement, space=space, on='edges', values={'salary': [1.0, 2.0, 4.0]}),
@@ -349,7 +349,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         )
 
     jobs = GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work')
-    system = System(
+    system = CompositeSystem(
         elements=[people(), jobs],
         interactions=[
             ContagionInteraction('contagion', people='people'),
@@ -360,7 +360,7 @@ def test_two_layers_carry_infection_and_wages_apart():
     infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
-    isolated = System(
+    isolated = CompositeSystem(
         elements=[people(), jobs],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
@@ -375,7 +375,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     space = NetworkSpace(graph)
     rng = np.random.default_rng(1)
     theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}, on='sites'),
             GroupElement('links', element=SynapseElement, space=space, on='edges', values={'w': weights}),
@@ -396,7 +396,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
     """Test that a jump law of an edge changes the states at its ends and that its channels follow the edges."""
     space = NetworkSpace(nx.DiGraph([(0, 1), (1, 2), (2, 3)]))
     values = {'s': [0.0, 1.0, 1.0, 1.0], 'i': [1.0, 0.0, 0.0, 0.0]}
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=SISElement, space=space, values=values, on='sites')],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
@@ -413,7 +413,7 @@ def test_edge_interactions_run_on_lattice_bonds():
         values={'theta': [1.0, 0, 0, 0]},
         on='sites',
     )
-    system = System(elements=[cells], interactions=[BondExchangeInteraction('diffusion', cells='cells')])
+    system = CompositeSystem(elements=[cells], interactions=[BondExchangeInteraction('diffusion', cells='cells')])
     problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [-2.0, 1.0, 0.0, 1.0]
@@ -422,7 +422,7 @@ def test_edge_interactions_run_on_lattice_bonds():
 def test_update_laws_set_the_edge_member_only():
     """Test that an update law that sets an end of an edge raises an error."""
     space = NetworkSpace(nx.path_graph(3))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'people',
@@ -443,7 +443,7 @@ def test_update_laws_set_the_edge_member_only():
 def test_edge_group_of_another_layer_is_rejected():
     """Test that an interaction that names another layer than its edge group raises a role error."""
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('people', element=PersonElement, space=space, on='sites'),
             GroupElement('jobs', element=JobElement, space=space, on='edges'),
@@ -594,7 +594,7 @@ def _drift(system, backend, path):
 def test_recovery_runs_once_per_member_beside_spreading_over_the_degree(space, backend):
     """Test that recovery runs once per member and infection reads the fraction of neighbours through the degree."""
     infected = np.linspace(0.1, 0.8, 8)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=SISElement, space=space, values={'i': infected}, on='sites')],
         interactions=[RecoveryInteraction('sis', nodes='nodes')],
     )
@@ -610,7 +610,7 @@ def test_degrees_of_the_ends_count_the_edges_both_ways(backend):
     """Test that the degree of either end of a directed edge counts the edges that enter and leave the node."""
     graph = nx.DiGraph([(0, 1), (0, 2), (1, 2), (3, 2)])
     space = NetworkSpace(graph)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('people', element=PersonElement, space=space, on='sites')],
         interactions=[DegreeInteraction('degrees', people='people')],
     )
@@ -621,7 +621,7 @@ def test_degrees_of_the_ends_count_the_edges_both_ways(backend):
 @BACKENDS
 def test_degrees_on_a_lattice_count_the_bonds_of_every_site(backend):
     """Test that the degree of every site of a periodic square lattice is four, for the source and the target."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('people', element=PersonElement, space=LatticeSpace((3, 3)), on='sites')],
         interactions=[DegreeInteraction('degrees', people='people')],
     )
@@ -640,7 +640,7 @@ def test_degrees_on_a_lattice_count_the_bonds_of_every_site(backend):
 )
 def test_delayed_reads_either_end_of_an_edge(end, space, backend):
     """Test that `x' = -x(t - 1)` read through either end, or once per member, matches its method of steps solution."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0}, on='sites')],
         interactions=[DelayedPullInteraction('pull', nodes='nodes', end=end)],
     )
@@ -654,7 +654,7 @@ def test_delayed_reads_either_end_of_an_edge(end, space, backend):
 def test_reduction_of_one_end_reads_the_other_end_as_every_member(backend):
     """Test that the mean of `sin(source - target)` over the source is the mean over every member for the target."""
     theta = np.array([0.0, 1.0, 2.0])
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'cells',
@@ -679,11 +679,11 @@ def test_relaxation_of_the_members_records_avalanches(space, element):
     """Test that a sandpile over neighbours relaxes as the sandpile of the members and records its avalanche."""
     heights = {'height': [2.0, 2.0, 2.0, 1.0, 2.0]}
     runs = [
-        System(
+        CompositeSystem(
             elements=[GroupElement('piles', element=element, space=space, values=heights, on='sites')],
             time=DiscreteTime(),
         ),
-        System(
+        CompositeSystem(
             elements=[GroupElement('piles', element=GrainsElement, space=space, values=heights, on='sites')],
             interactions=[ToppleInteraction('topple', piles='piles', over=element.neighborhood)],
             time=DiscreteTime(),

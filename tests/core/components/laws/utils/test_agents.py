@@ -8,7 +8,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.laws.utils import transfer
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import ConservationError, ValidationError
@@ -95,7 +95,7 @@ class BorrowerElement(Element):
 
 def _credit_system(settles):
     """Return a lender and two bankrupt borrowers that each owe 5."""
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('lenders', element=LenderElement, size=1, values={'loans': 10.0, 'money': 4.0}),
             GroupElement(
@@ -139,7 +139,7 @@ def test_invariant_of_agents_names_the_observable_and_the_change():
     balance = ObservableSpec('balance', _balance, group='banks', reduce='sum')
     with pytest.raises(ConservationError, match='invariant balance changed from 0 to -1 at frame 1'):
         simulate(
-            System(elements=[GroupElement('banks', element=BankElement, size=1)]),
+            CompositeSystem(elements=[GroupElement('banks', element=BankElement, size=1)]),
             until=2,
             observables=[balance],
             invariants={'balance': 1e-9},
@@ -173,7 +173,7 @@ def test_transfer_moves_between_states_and_checks_names():
 @pytest.mark.parametrize(('creates', 'violated'), [(0.0, False), (0.5, True)])
 def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
     """Test that the total money of the agents holds under transfers and the run names it when money appears."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('holders', element=LenderElement, size=3, values={'money': 5.0}, variable=True)],
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )

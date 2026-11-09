@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
@@ -43,7 +43,7 @@ def _run(rule, until, values=None):
         values=values or {'c': initial},
         on='sites',
     )
-    system = System(elements=[cells], interactions=[rule], time=DiscreteTime())
+    system = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
     return simulate(system, until=until, random_state=0)
 
 

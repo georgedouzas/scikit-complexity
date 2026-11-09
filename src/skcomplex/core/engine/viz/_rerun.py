@@ -138,11 +138,11 @@ class RerunObserver(BaseObserver):
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import RerunObserver
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )

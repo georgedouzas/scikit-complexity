@@ -16,7 +16,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     StateTranslationNeighborhood,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec, TotalisticSpec
@@ -36,7 +36,7 @@ class GroupValuedElement(Element):
 
 def _translated(space, values, schedule='synchronous', rule=lambda value: value):
     """Return the system of a rule over the memory translated by the values of the cells."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('cells', element=GroupValuedElement, space=space, values={'value': values}, on='sites')],
         interactions=[
             LocalRuleInteraction(
@@ -115,7 +115,7 @@ def test_function_rule_updates_a_power_series_state():
     def difference(here, right):
         return here - ring.multiply(ring.coefficients_of('t'), right)
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'cells',
@@ -137,7 +137,7 @@ def test_function_rule_updates_a_power_series_state():
 
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5), on='sites')],
         interactions=[
             LocalRuleInteraction(

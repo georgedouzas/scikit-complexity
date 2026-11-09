@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ...specs._base_spec import BaseSpec
-from ..systems import System
+from ..systems import CompositeSystem
 
 
 @dataclass(frozen=True)
@@ -43,4 +43,4 @@ class ScenarioSpec(BaseSpec):
     name: str = 'baseline'
     overrides: Mapping[str, object] | None = None
     schedule: Sequence[tuple[float, str, object]] = ()
-    system: System | None = None
+    system: CompositeSystem | None = None

@@ -17,7 +17,7 @@ from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -221,7 +221,7 @@ def test_element_runs_into_its_laws():
 
 def test_parts_derive_from_the_part_base():
     """Test that every part of a system is a part, and a part cannot be made without its hooks."""
-    parts = (BaseElement, BaseInteraction, BaseLaw, System, BaseSpace, BaseTime, BaseNeighborhood)
+    parts = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
     assert all(issubclass(part, BasePart) for part in parts)
     with pytest.raises(TypeError, match='abstract'):
         BasePart('part')

@@ -116,7 +116,7 @@ class GroupingInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import GroupingInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
@@ -129,7 +129,7 @@ class GroupingInteraction(Interaction):
         ...         member.s = majority
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1)
+        >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1)
         >>> trajectory.agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
@@ -145,7 +145,7 @@ class GroupingInteraction(Interaction):
         ...     write='s',
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
-        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1, random_state=0)
+        >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1, random_state=0)
         >>> trajectory.values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """

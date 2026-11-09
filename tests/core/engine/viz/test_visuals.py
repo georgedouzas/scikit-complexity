@@ -8,7 +8,7 @@ from shapely import Polygon
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import BaseObserver, simulate
@@ -123,7 +123,7 @@ def test_image_visual_logs_one_row_as_rgb_image():
 
 def test_points_visual_radius_scales_with_extent():
     """Test that points without a given radius take a share of the extent of the positions."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -142,7 +142,7 @@ def test_points_visual_radius_scales_with_extent():
 
 def test_points_visual_logs_trail_of_small_groups():
     """Test that a small group logs one line strip per point with its recent positions."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [0.0, 1.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -163,7 +163,7 @@ def test_points_visual_logs_trail_of_small_groups():
 @pytest.mark.parametrize(('count', 'trail'), [(11, 256), (2, 0)])
 def test_points_visual_leaves_out_trail(count, trail):
     """Test that large groups and a trail of 0 positions log no trail."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=count)],
         space=ContinuousSpace(n_dim=3),
     )
@@ -192,7 +192,7 @@ def test_agents_visual_radius_scales_with_continuous_space(log_agents):
 
 def test_points_visual_trail_width_follows_extent():
     """Test that the trail is a quarter as wide as the extent share, even when a tiny radius is given."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -209,7 +209,7 @@ def test_points_visual_trail_width_follows_extent():
 def test_image_visual_colors_angles_cyclically():
     """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
     space = LatticeSpace((2, 2))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'spins',
@@ -261,7 +261,7 @@ def test_scalars_visual_colors_elements_apart():
 
 def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=1, values={'x': [[1.0, 2.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -288,7 +288,7 @@ def test_agents_visual_widens_color_range_of_equal_start(log_agents):
 
 def test_points_visual_keeps_given_color_range():
     """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [3.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
@@ -357,7 +357,7 @@ def test_agents_visual_draws_boids_in_three_dimensions(log_agents):
 def test_agents_visual_has_a_three_dimensional_view():
     """Test that the view of agents in a three-dimensional space is a 3D spatial view with their path as origin."""
     flock = GroupElement('flock', element=RestingElement, size=2)
-    system = System(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+    system = CompositeSystem(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
     problem = PassCompiler().prepare(system).run().problem_
     view = AgentsVisual(path='flock').prepare(problem).views_[0]
     assert type(view).__name__ == 'Spatial3DView'
@@ -387,7 +387,7 @@ def test_agents_visual_draws_regions_once_under_the_agents(log_agents):
 def test_colors_start_bright_enough_to_see_on_black():
     """Test that the lowest color of the point scale is not the near-black purple of viridis."""
     problem, frame = _first_frame(
-        System(
+        CompositeSystem(
             elements=[
                 GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[0.0, 0.0], [1.0, 0.0]]}),
             ],
@@ -448,7 +448,7 @@ def test_points_visual_joins_the_points_by_one_strip(dimension):
     positions = np.arange(4.0 * dimension).reshape(4, dimension)
     state = 'x' if dimension == 3 else 'x_d1'
     group = GroupElement('chain', element=PointElement, size=4, values={state: positions})
-    system = System(elements=[group], space=ContinuousSpace(n_dim=dimension))
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(n_dim=dimension))
     problem, frame = _first_frame(system)
     logs = Logs()
     (
@@ -465,7 +465,7 @@ def test_points_visual_joins_the_points_by_one_strip(dimension):
 def test_points_visual_logs_no_strip_by_default():
     """Test that points log no strip without the setting."""
     group = GroupElement('chain', element=PointElement, size=4, values={'x': np.zeros((4, 3))})
-    problem, frame = _first_frame(System(elements=[group], space=ContinuousSpace(n_dim=3)))
+    problem, frame = _first_frame(CompositeSystem(elements=[group], space=ContinuousSpace(n_dim=3)))
     logs = Logs()
     PointsVisual(position='x', states=(), trail=0, path='chain', recording=logs).prepare(problem).run(frame)
     assert logs.of('chain/strip') == []

@@ -23,7 +23,7 @@ from skcomplex.core.components.laws.utils import (
     shifted,
 )
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
@@ -116,7 +116,13 @@ def _heat_kernel(backend):
     initial = np.zeros(n)
     initial[n // 2] = 1 / spacing
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(n, spacing=spacing), values={'u': initial})
-    values = simulate(System(elements=[rod]), until=0.5, dt=0.5, solver=RK4Solver(dt=0.001), backend=backend).states[-1]
+    values = simulate(
+        CompositeSystem(elements=[rod]),
+        until=0.5,
+        dt=0.5,
+        solver=RK4Solver(dt=0.001),
+        backend=backend,
+    ).states[-1]
     kernel = np.exp(-((positions - positions[n // 2]) ** 2) / 2) / np.sqrt(2 * np.pi)
     return values, kernel
 
@@ -124,7 +130,7 @@ def _heat_kernel(backend):
 def test_uniform_decay():
     """Test that every site of a 50 x 50 field follows the exponential decay of the single-site equation."""
     trajectory = simulate(
-        System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
+        CompositeSystem(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
         until=2,
         dt=0.5,
     )
@@ -143,7 +149,7 @@ def test_diffusion_on_network():
     """Test that a field diffusing on a connected network keeps its sum and converges to the mean."""
     graph = nx.connected_watts_strogatz_graph(50, 4, 0.2, seed=1)
     initial = np.random.default_rng(0).random(50)
-    system = System(
+    system = CompositeSystem(
         elements=[FieldElement('net', element=HeatElement, space=NetworkSpace(graph), values={'u': initial})],
     )
     values = simulate(system, until=60, dt=1).values('net.u')
@@ -154,7 +160,7 @@ def test_diffusion_on_network():
 def test_diffusion_on_network_without_edges():
     """Test that a field on nodes without edges compiles, with no diffusive step limit, and stays put."""
     initial = np.array([0.2, 0.7])
-    system = System(
+    system = CompositeSystem(
         elements=[
             FieldElement('net', element=HeatElement, space=NetworkSpace(nx.empty_graph(2)), values={'u': initial}),
         ],
@@ -174,7 +180,7 @@ def test_zero_flux_conserves_mass(backend):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    totals = simulate(System(elements=[plate]), until=30, dt=1, backend=backend()).values('plate.u').sum(1)
+    totals = simulate(CompositeSystem(elements=[plate]), until=30, dt=1, backend=backend()).values('plate.u').sum(1)
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
 
@@ -182,7 +188,7 @@ def test_zero_flux_conserves_mass(backend):
 def test_fixed_boundary_holds_edge_value():
     """Test that a fixed boundary drives a line towards the linear profile between its two edge values."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(20), boundary={'u': ('fixed', 1.0)})
-    values = simulate(System(elements=[rod]), until=500, dt=50).states[-1]
+    values = simulate(CompositeSystem(elements=[rod]), until=500, dt=50).states[-1]
     assert values == pytest.approx(np.ones(20), abs=1e-3)
 
 
@@ -192,14 +198,14 @@ def test_advection_and_divergence():
     profile = np.exp(-((positions - 3) ** 2))
     space = LatticeSpace(200, spacing=0.05)
     moved = simulate(
-        System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
+        CompositeSystem(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
         until=2,
         dt=1,
     ).states[-1]
     assert positions[np.argmax(moved)] == pytest.approx(5.0)
     assert moved.sum() == pytest.approx(profile.sum())
     spread = simulate(
-        System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
+        CompositeSystem(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
         until=1,
         dt=1,
     ).states[-1]
@@ -209,7 +215,7 @@ def test_advection_and_divergence():
 
 def test_equations_keep_operators():
     """Test that the equations of a field show its operators, not the stencils they lower to."""
-    system = System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))])
+    system = CompositeSystem(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))])
     problem = PassCompiler().prepare(system).run().problem_
     assert str(problem.equations['rod.u[i]']) == 'D_rod*laplacian(u_rod)'
 
@@ -217,19 +223,19 @@ def test_equations_keep_operators():
 def test_operator_outside_field_is_rejected():
     """Test that an operator on a group that is not a field is rejected."""
     with pytest.raises(ValidationError, match='Create the group with `FieldElement`'):
-        PassCompiler().prepare(System(elements=[GroupElement('rod', element=HeatElement, size=5)])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('rod', element=HeatElement, size=5)])).run()
 
 
 def test_unknown_boundary_is_rejected():
     """Test that an unknown boundary condition names the known ones."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(10), boundary={'u': 'open'})
     with pytest.raises(ValidationError, match='zero-flux'):
-        PassCompiler().prepare(System(elements=[rod])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[rod])).run()
 
 
 def test_too_large_step_warns():
     """Test that RK4 with four times the diffusive stability limit warns with the limit before the run."""
-    system = System(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))])
+    system = CompositeSystem(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
@@ -282,14 +288,17 @@ def test_agents_read_and_deposit_fields():
             """Return the laws of the still element."""
             return [RateLaw(s.u, 0 * laplacian(s.u))]
 
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System(
+            CompositeSystem(
                 'walkers',
                 elements=[GroupElement('markers', element=MarkerElement, size=1, location=(1, 2))],
                 space=LatticeSpace((4, 3), boundary='fixed'),
             ),
-            System('ground', elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))]),
+            CompositeSystem(
+                'ground',
+                elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))],
+            ),
         ],
     )
     trajectory = simulate(system, until=5, dt=1)
@@ -330,7 +339,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         discretization=discretization,
     )
     final = np.asarray(
-        simulate(System(elements=[field]), until=0.5, dt=0.01).values('m.u'),
+        simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.01).values('m.u'),
     )[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)
@@ -372,7 +381,7 @@ def _operator_element(law):
 def _rate(law, space, values, backend=None, **settings):
     """Return the rate of the first state of a field at its initial values, at every site."""
     field = FieldElement('m', element=_operator_element(law), space=space, values=values, **settings)
-    problem = PassCompiler(backend=backend or NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=backend or NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.ravel(problem.states.read(drift, 'm.u'))
 
@@ -704,7 +713,7 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
         values={'u': np.sin(positions)},
         discretization='spectral',
     )
-    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     state, parameters = problem.initial_state, problem.initial_parameters
     transforms.clear()
     first = problem.drift(0.0, state, parameters)
@@ -744,7 +753,7 @@ def _colliding_gas(kernel):
     vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
     start = np.exp(-((vx - 1) ** 2 + vy**2) / 2) + np.exp(-((vx + 1) ** 2 + vy**2) / 2)
     gas = FieldElement('gas', element=GasElement, space=space, values={'x': start[None]})
-    return System(elements=[gas]), start
+    return CompositeSystem(elements=[gas]), start
 
 
 def test_collision_integral_of_maxwell_molecules_matches_the_fast_spectral_integral():

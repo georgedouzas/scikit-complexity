@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import pi
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
@@ -55,7 +55,10 @@ def _system(space, element=AngleElement, part='edges', values=None, visual=None)
     """Return a system of a group on a part of a complex, one of whose states grows at a constant rate."""
     group = GroupElement('cells', element=element, space=space, on=part, values=values or {}, visual=visual)
     state = 'theta' if element is AngleElement else 'u'
-    return System(elements=[group], interactions=[RateInteraction('rate', target='cells', state=state, rate=0.1)])
+    return CompositeSystem(
+        elements=[group],
+        interactions=[RateInteraction('rate', target='cells', state=state, rate=0.1)],
+    )
 
 
 def _logged(system, visual, until=2.0):

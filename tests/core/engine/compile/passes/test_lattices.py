@@ -20,7 +20,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
@@ -172,7 +172,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
     """Test that a fire on a periodic 40 x 40 triangular lattice covers the 3k(k + 1) + 1 sites within k steps."""
     fire = np.zeros((40, 40))
     fire[20, 20] = 1
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'forest',
@@ -205,12 +205,12 @@ def test_grid_graph_matches_square_lattice():
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    on_lattice = System(
+    on_lattice = CompositeSystem(
         elements=[
             GroupElement('cells', element=LifeElement, space=lattice, values={'alive': glider}, on='sites'),
         ],
     )
-    on_graph = System(
+    on_graph = CompositeSystem(
         elements=[
             GroupElement(
                 'cells',
@@ -248,7 +248,7 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), TotalisticSpec(lambda total: total))]
 
     values = {0: 1.0, 1: 1.0, 2: 1.0, 3: 0.0, 4: 0.0, 5: 0.0}
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'star',
@@ -282,7 +282,7 @@ def test_function_rule_reads_degrees_on_star():
             """Return the laws of the degree element."""
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(center=True), lambda *values, degree: degree)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('star', element=DegreeElement, space=NetworkSpace(nx.star_graph(5)), on='sites')],
     )
     assert simulate(system, until=1, dt=1).states[-1].tolist() == [5, 1, 1, 1, 1, 1]
@@ -308,12 +308,12 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
             """Return the laws of the ordered element."""
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), TableSpec({(1, 1): 1}))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('nodes', element=OrderedElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')],
     )
     with pytest.raises(ValidationError, match='totalistic'):
         PassCompiler().prepare(system).run()
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'nodes',
@@ -362,7 +362,7 @@ def test_neighbor_sum_ignores_padding():
 
     graph = nx.star_graph(4)
     angles = np.random.default_rng(0).uniform(0, 2 * np.pi, 5)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('xy', element=XYElement, space=NetworkSpace(graph), values={'theta': angles}, on='sites'),
         ],
@@ -431,13 +431,17 @@ def test_colored_schedule_partitions_triangular_lattice():
             ]
 
     space = LatticeSpace((12, 12), geometry='triangular')
-    system = System(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')])
+    system = CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')])
     (sampling,) = PassCompiler().prepare(system).run().problem_.lattice
     sites = np.concatenate(sampling.classes)
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
         assert not np.isin(sampling.table[members], members).any()
-    simulate(System(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')]), until=2, dt=1)
+    simulate(
+        CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=space, on='sites')]),
+        until=2,
+        dt=1,
+    )
 
 
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
@@ -464,7 +468,7 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
 
     with pytest.raises(ValidationError, match=r"LocalRuleLaw of spins.*'colored'"):
         PassCompiler().prepare(
-            System(elements=[GroupElement('spins', element=FlipElement, space=space, on='sites')]),
+            CompositeSystem(elements=[GroupElement('spins', element=FlipElement, space=space, on='sites')]),
         ).run()
 
 
@@ -490,7 +494,7 @@ def test_extremal_changes_only_the_neighbourhood():
 
     values = np.random.default_rng(0).random(100)
     trajectory = simulate(
-        System(
+        CompositeSystem(
             elements=[
                 GroupElement(
                     'ring',
@@ -531,7 +535,7 @@ def test_extremal_maximum_and_ties():
             """Return the laws of the top element."""
             return [ExtremalLaw(s.value, AdjacencyNeighborhood(), _renew, extremum='max', repeat=20)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'nodes',
@@ -554,7 +558,7 @@ def test_extremal_runs_are_reproducible_across_backends():
     values = np.random.default_rng(1).random(50)
     runs = []
     for backend in (NumpyBackend, NumpyBackend, NumbaBackend, NumbaBackend):
-        system = System(
+        system = CompositeSystem(
             elements=[
                 GroupElement(
                     'ring',
@@ -567,7 +571,7 @@ def test_extremal_runs_are_reproducible_across_backends():
         )
         trajectory = simulate(system, until=20, dt=1, backend=backend(), random_state=7)
         runs.append((trajectory.values('ring.value'), trajectory.events))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}, on='sites'),
         ],
@@ -631,7 +635,7 @@ def test_linear_rule_runs_as_its_law_steps():
         rule=LinearRuleSpec((1, 1), 'GF(2)'),
         neighborhood=LatticeNeighborhood(((-1,), (1,))),
     )
-    trajectory = simulate(System(elements=[cells], interactions=[rule90]), until=2, dt=1)
+    trajectory = simulate(CompositeSystem(elements=[cells], interactions=[rule90]), until=2, dt=1)
     values = trajectory.values('cells.alive')
     assert values[1].astype(int).tolist() == [0, 1, 0, 1, 0, 0]
     assert values[2].astype(int).tolist() == [1, 0, 0, 0, 1, 0]
@@ -645,7 +649,7 @@ def test_life_simulation_agrees_with_the_run_of_its_law():
     space = LatticeSpace((5, 5))
     cells = GroupElement('cells', element=OnOffElement, space=space, values={'alive': start}, on='sites')
     life = LocalRuleInteraction('life', target='cells', state='alive', rule=rule, neighborhood=BallNeighborhood())
-    trajectory = simulate(System(elements=[cells], interactions=[life]), until=1, dt=1)
+    trajectory = simulate(CompositeSystem(elements=[cells], interactions=[life]), until=1, dt=1)
     law = LocalRuleLaw(var('alive'), BallNeighborhood(), rule).prepare()
     image = law.run({'space': space, 'alive': start.astype(int)}).value_
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), image)

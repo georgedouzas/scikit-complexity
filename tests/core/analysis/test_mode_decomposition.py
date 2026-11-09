@@ -12,7 +12,7 @@ from skcomplex.core.analysis import bind_analysis, mode_decomposition
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -88,7 +88,7 @@ def _driven_runs():
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return [
         simulate(
-            System(elements=[DrivenElement('driven', x=start)]),
+            CompositeSystem(elements=[DrivenElement('driven', x=start)]),
             until=20.0,
             solver=solver,
             dt=STEP,
@@ -110,7 +110,7 @@ def _one_sample_map():
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return simulate(System(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
+    return simulate(CompositeSystem(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
 
 
 NAMES = ['linear.x', 'linear.y', 'linear.z']

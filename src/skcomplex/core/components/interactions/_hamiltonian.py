@@ -62,7 +62,7 @@ class HamiltonianInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import HamiltonianInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class OscillatorElement(Element):
@@ -72,7 +72,7 @@ class HamiltonianInteraction(Interaction):
         ...         self.p = p
         >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
         >>> spring = HamiltonianInteraction('spring', target='mass', hamiltonian=energy)
-        >>> system = System(elements=[OscillatorElement('mass')], interactions=[spring])
+        >>> system = CompositeSystem(elements=[OscillatorElement('mass')], interactions=[spring])
         >>> trajectory = simulate(system, until=3.14159, dt=0.01)
         >>> round(float(trajectory.values('mass.q')[-1]), 3)
         -1.0

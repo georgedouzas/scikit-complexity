@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...base import BaseConfig
 from ...components.laws import BaseLaw
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import (
     LabelError,
     ParameterError,
@@ -55,7 +55,7 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 }
 
 
-class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
+class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
     """Compiler of a system into a problem of one mathematical form.
 
     `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
@@ -90,7 +90,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             the default solver of the problem's form.
     """
 
-    system_: System
+    system_: CompositeSystem
     report_: ValidationReportSpec
     problem_: BaseProblemSpec
     solver_: object
@@ -105,7 +105,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         self.solver = solver
         self.observables = observables
 
-    def _prepare(self, context: System | None) -> None:
+    def _prepare(self, context: CompositeSystem | None) -> None:
         """Attach the observables to a system and set the issues it finds.
 
         It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
@@ -126,7 +126,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
-        if not isinstance(context, System):
+        if not isinstance(context, CompositeSystem):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
@@ -140,7 +140,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             return
         self.report_ = ValidationReportSpec(tuple(self._issues(self.system_)))
 
-    def _issues(self, system: System) -> list[IssueSpec]:
+    def _issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -310,7 +310,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         )
 
     @staticmethod
-    def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+    def _observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
         """Yield every observable of a system tree.
 
         Each comes with the path of the system that declares it.
@@ -332,7 +332,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             yield from BaseCompiler._observables_of(child, f'{scope}/{child.label}' if scope else child.label)
 
     @staticmethod
-    def _system_paths(system: System, scope: str = '') -> Iterator[str]:
+    def _system_paths(system: CompositeSystem, scope: str = '') -> Iterator[str]:
         """Yield the path of every nested system."""
         for child in system.systems:
             path = f'{scope}/{child.label}' if scope else child.label
@@ -340,7 +340,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             yield from BaseCompiler._system_paths(child, path)
 
     @staticmethod
-    def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
+    def _attached(system: CompositeSystem, by_scope: dict[str, list[ObservableSpec]], scope: str) -> CompositeSystem:
         """Return a copy of a system that holds the observables of its scope.
 
         The copy has its nested systems attached.
@@ -354,7 +354,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         return copied
 
     @staticmethod
-    def _with_observables(system: System, observables: Sequence[ObservableSpec]) -> System:
+    def _with_observables(system: CompositeSystem, observables: Sequence[ObservableSpec]) -> CompositeSystem:
         """Return a copy of a system tree with observables in the systems they name.
 
         Every observable is declared in the system its label names.

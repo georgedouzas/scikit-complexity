@@ -12,7 +12,7 @@ from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ProductionLaw, SubstitutionLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, simulate
@@ -108,14 +108,14 @@ class RuledPatchElement(PatchElement):
 
 def _fibonacci():
     """Return the L-system of the algae of Lindenmayer."""
-    return System(
+    return CompositeSystem(
         elements=[RuledWordElement('word', axiom='A', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
     )
 
 
 def _run_word(word, until, **settings):
     """Return the trajectory of a word run for a number of generations."""
-    return simulate(System(elements=[word]), until=until, **settings)
+    return simulate(CompositeSystem(elements=[word]), until=until, **settings)
 
 
 def test_generations_as_steps():
@@ -144,7 +144,7 @@ def test_parikh_vector():
 
 def test_stochastic_choice():
     """Test that stochastic productions are chosen by their probabilities and reproduced by the seed."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'word',
@@ -163,7 +163,7 @@ def test_stochastic_choice():
 
 def test_probabilities_that_do_not_sum_to_one():
     """Test that stochastic probabilities that sum to 0.9 are refused with the symbol and the sum."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'word',
@@ -178,7 +178,7 @@ def test_probabilities_that_do_not_sum_to_one():
 
 def test_context_with_ignored_symbols():
     """Test a left context that skips an ignored symbol."""
-    system = System(
+    system = CompositeSystem(
         elements=[RuledWordElement('word', axiom='BAA+A', ignore='+', rules=[ProductionLaw('A', 'B', left='B')])],
     )
     trajectory = simulate(system, until=3)
@@ -187,7 +187,7 @@ def test_context_with_ignored_symbols():
 
 def test_bracketed_contexts():
     """Test that contexts follow branches: a branch sees its parent on the left, and the right skips branches."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'word',
@@ -207,7 +207,7 @@ def test_bracketed_contexts():
 
 def test_context_takes_precedence():
     """Test that a context-sensitive production wins over a context-free one of the same symbol."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement('word', axiom='BAA', rules=[ProductionLaw('A', 'C'), ProductionLaw('A', 'B', left='B')]),
         ],
@@ -218,7 +218,7 @@ def test_context_takes_precedence():
 def test_parametric_growth():
     """Test parametric productions with a condition and successor parameters of a system parameter."""
     word = GrowthElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})
-    system = System(elements=[word])
+    system = CompositeSystem(elements=[word])
     trajectory = simulate(system, until=6)
     assert trajectory.structure('plant', 5).text == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
     assert trajectory.structure('plant', 6).text == trajectory.structure('plant', 5).text
@@ -229,13 +229,13 @@ def test_parametric_growth():
 def test_parameter_change_between_generations():
     """Test that a production parameter changed by a schedule applies from the next generation."""
     word = GrowthElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})
-    trajectory = simulate(System(elements=[word]), until=1, schedule={'plant.R': lambda t: 0.25})
+    trajectory = simulate(CompositeSystem(elements=[word]), until=1, schedule={'plant.R': lambda t: 0.25})
     assert trajectory.structure('plant', 1).text == 'F(1) A(0.25)'
 
 
 def test_exponential_growth_stopped():
     """Test that the size guard raises before the generation that exceeds it and keeps the earlier frames."""
-    system = System(
+    system = CompositeSystem(
         elements=[RuledWordElement('koch', axiom='F', max_size=10**5, rules=[ProductionLaw('F', 'F+F--F+F')])],
     )
     recorder = RecorderObserver()
@@ -247,7 +247,7 @@ def test_exponential_growth_stopped():
 @pytest.mark.benchmark
 def test_benchmark_of_a_large_word():
     """Test that one generation of a word of a million symbols takes under 0.1 s."""
-    system = System(
+    system = CompositeSystem(
         elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])],
     )
     problem = RewritingCompiler().prepare(system).run().problem_
@@ -261,10 +261,12 @@ def test_benchmark_of_a_large_word():
 
 def test_malformed_systems():
     """Test the errors of unknown symbols, non-symbol predecessor parameters, mixed laws, and wrong targets."""
-    system = System(elements=[RuledWordElement('word', axiom='A', alphabet='A', rules=[ProductionLaw('A', 'AB')])])
+    system = CompositeSystem(
+        elements=[RuledWordElement('word', axiom='A', alphabet='A', rules=[ProductionLaw('A', 'AB')])],
+    )
     with pytest.raises(RewritingError, match='not in its alphabet'):
         RewritingCompiler().prepare(system).run()
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'word',
@@ -275,7 +277,7 @@ def test_malformed_systems():
     )
     with pytest.raises(RewritingError, match='distinct symbols'):
         RewritingCompiler().prepare(system).run()
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'word',
@@ -286,20 +288,20 @@ def test_malformed_systems():
     )
     with pytest.raises(RewritingError, match='neither a parameter'):
         RewritingCompiler().prepare(system).run()
-    system = System(elements=[WordElement('word', axiom='A'), PopulationElement('rabbits')])
+    system = CompositeSystem(elements=[WordElement('word', axiom='A'), PopulationElement('rabbits')])
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
         RewritingCompiler().prepare(system).run()
-    system = System(elements=[WordElement('word', axiom='A')], interactions=[Interaction('rules')])
+    system = CompositeSystem(elements=[WordElement('word', axiom='A')], interactions=[Interaction('rules')])
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
         RewritingCompiler().prepare(system).run()
-    system = System(elements=[RuledWordElement('word', axiom='A', rules=[SubstitutionLaw('A', [])])])
+    system = CompositeSystem(elements=[RuledWordElement('word', axiom='A', rules=[SubstitutionLaw('A', [])])])
     with pytest.raises(RewritingError, match='rewritten by ProductionLaws'):
         RewritingCompiler().prepare(system).run()
 
 
 def test_koch_curve_length():
     """Test the word geometry of the Koch L-system at generation 4."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             RuledWordElement(
                 'koch',
@@ -321,7 +323,7 @@ def test_koch_curve_length():
 
 def test_branches_return():
     """Test that a popped branch returns the cursor to where the branch began."""
-    curve = simulate(System(elements=[WordElement('plant', axiom='F[+F]F', geometry=GeometrySpec())]), until=0)
+    curve = simulate(CompositeSystem(elements=[WordElement('plant', axiom='F[+F]F', geometry=GeometrySpec())]), until=0)
     segments = curve.structure('plant', 0).segments()
     assert len(segments) == 3
     assert np.allclose(segments[2, 0], segments[1, 0])
@@ -332,7 +334,7 @@ def test_branches_return():
 def test_three_dimensional_word_geometry():
     """Test that pitching up and rolling move the cursor out of the plane."""
     geometry = GeometrySpec(angle=90.0, dimension=3)
-    curve = simulate(System(elements=[WordElement('plant', axiom='F&F/+F', geometry=geometry)]), until=0)
+    curve = simulate(CompositeSystem(elements=[WordElement('plant', axiom='F&F/+F', geometry=geometry)]), until=0)
     segments = curve.structure('plant', 0).segments()
     assert segments.shape == (3, 2, 3)
     assert np.allclose(segments[1, 1], [1, 0, -1])
@@ -346,7 +348,7 @@ def test_module_parameters_override_the_word_geometry():
         axiom=[ModuleSpec('F', (2.0,)), ModuleSpec('+', (90.0,)), ModuleSpec('F', (1.0,))],
         geometry=GeometrySpec(angle=10.0),
     )
-    segments = simulate(System(elements=[word]), until=0).structure('plant', 0).segments()
+    segments = simulate(CompositeSystem(elements=[word]), until=0).structure('plant', 0).segments()
     assert np.allclose(segments[1], [[2, 0], [2, 1]])
 
 
@@ -366,7 +368,7 @@ def _cantor(generations):
         [('interval', AffineSpec(scale=1 / 3)), ('interval', AffineSpec(scale=1 / 3, translation=(2 / 3, 0)))],
     )
     return simulate(
-        System(elements=[RuledPatchElement('cantor', prototiles=[interval], rules=[rule])]),
+        CompositeSystem(elements=[RuledPatchElement('cantor', prototiles=[interval], rules=[rule])]),
         until=generations,
     )
 
@@ -406,7 +408,7 @@ def _sierpinski(generations):
     corners = [(0, 0), (0.5, 0), (0.25, height / 2)]
     rule = SubstitutionLaw('triangle', [('triangle', AffineSpec(scale=0.5, translation=corner)) for corner in corners])
     return simulate(
-        System(elements=[RuledPatchElement('gasket', prototiles=[triangle], rules=[rule])]),
+        CompositeSystem(elements=[RuledPatchElement('gasket', prototiles=[triangle], rules=[rule])]),
         until=generations,
     )
 
@@ -446,7 +448,7 @@ def test_chair_tiling_covers_its_chair():
         ('chair', AffineSpec(scale=0.5, rotation=-90, translation=(0, 2))),
     ]
     trajectory = simulate(
-        System(
+        CompositeSystem(
             elements=[RuledPatchElement('chairs', prototiles=[chair], rules=[SubstitutionLaw('chair', pieces)])],
         ),
         until=3,
@@ -464,43 +466,43 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
     dot = PrototileSpec('dot', [(0, 0), (0.1, 0)])
     rule = SubstitutionLaw('square', [('square', AffineSpec(scale=0.5)), ('dot', AffineSpec())])
     patch = RuledPatchElement('patch', prototiles=[square, dot], rules=[rule])
-    trajectory = simulate(System(elements=[patch]), until=2)
+    trajectory = simulate(CompositeSystem(elements=[patch]), until=2)
     assert trajectory.values('patch.dot').tolist() == [0, 1, 2]
-    system = System(
+    system = CompositeSystem(
         elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[SubstitutionLaw('circle', [])])],
     )
     with pytest.raises(RewritingError, match='not one of'):
         RewritingCompiler().prepare(system).run()
-    system = System(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])])
+    system = CompositeSystem(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])])
     with pytest.raises(RewritingError, match='two substitutions'):
         RewritingCompiler().prepare(system).run()
     with pytest.raises(RewritingError, match='at least one prototile'):
-        RewritingCompiler().prepare(System(elements=[RuledPatchElement('empty')])).run()
+        RewritingCompiler().prepare(CompositeSystem(elements=[RuledPatchElement('empty')])).run()
 
 
 def test_rewriting_compiler_reports_a_classical_system():
     """Test that the rewriting compiler accepts a system of words and reports a classical one."""
     compiler = RewritingCompiler()
-    assert compiler.prepare(System(elements=[WordElement('algae', axiom='A')])).report_.ok
-    assert not compiler.prepare(System(elements=[PopulationElement('rabbits', x=10)])).report_.ok
+    assert compiler.prepare(CompositeSystem(elements=[WordElement('algae', axiom='A')])).report_.ok
+    assert not compiler.prepare(CompositeSystem(elements=[PopulationElement('rabbits', x=10)])).report_.ok
 
 
 def test_rewriting_compiler_runs_the_problem():
     """Test that the prepared rewriting compiler sets the rewriting problem when run."""
-    words = System(elements=[WordElement('algae', axiom='A')])
+    words = CompositeSystem(elements=[WordElement('algae', axiom='A')])
     problem = RewritingCompiler().prepare(words).run().problem_
     assert problem.form == FormKind.REWRITING
 
 
 def test_snapshot_reaches_the_trajectory_as_structures():
     """Test that the rewriter hands its structures to the run, which records them in the trajectory."""
-    trajectory = simulate(System(elements=[AlgaeElement('algae', axiom='A')]), until=2)
+    trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=2)
     assert trajectory.structure('algae', 2).parts == 3
 
 
 def test_rule_of_a_word():
     """Test that a word rewrites itself by the productions it returns."""
-    trajectory = simulate(System(elements=[AlgaeElement('algae', axiom='A')]), until=5)
+    trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
     assert trajectory.structure('algae', 5).text == 'ABAABABAABAAB'
 
 

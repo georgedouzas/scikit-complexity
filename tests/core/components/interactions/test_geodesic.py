@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, PseudoRiemannianSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
@@ -24,7 +24,7 @@ def _run(space: PseudoRiemannianSpace, x: list[float], x_d1: list[float], until:
     """Return the positions and tangents of a point that follows the geodesics of a space."""
     point = PointElement('point', x=x, x_d1=x_d1)
     geodesic = GeodesicInteraction('geodesic', target='point', space=space)
-    system = System(elements=[point], interactions=[geodesic], space=space)
+    system = CompositeSystem(elements=[point], interactions=[geodesic], space=space)
     trajectory = simulate(system, until=until, dt=until / 50, solver=ACCURATE)
     return np.hstack([trajectory.values('point.x'), trajectory.values('point.x_d1')])
 
@@ -84,6 +84,6 @@ def test_geodesic_interaction_rejects_a_position_of_another_dimension():
     plane = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
     point = PointElement('point', x=[1.0, 0.0, 0.0], x_d1=0.0)
     geodesic = GeodesicInteraction('geodesic', target='point', space=plane)
-    system = System(elements=[point], interactions=[geodesic], space=ContinuousSpace(n_dim=3))
+    system = CompositeSystem(elements=[point], interactions=[geodesic], space=ContinuousSpace(n_dim=3))
     with pytest.raises(ValidationError, match='3 components for the 2 coordinates'):
         simulate(system, until=0, dt=0.1)

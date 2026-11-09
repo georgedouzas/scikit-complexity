@@ -8,7 +8,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 
@@ -27,7 +27,7 @@ def test_nonnegative_state_has_a_nonnegative_domain():
 
 def test_nonnegative_keeps_its_value_without_laws():
     """Test that declared elements keep their amounts and fractions, since the element has no laws."""
-    system = System(elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=0.25)])
+    system = CompositeSystem(elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=0.25)])
     trajectory = simulate(system, until=3, dt=1.0)
     assert trajectory.values('S.x').tolist() == [990.0] * 4
     assert trajectory.values('I.x').tolist() == [0.25] * 4
@@ -40,7 +40,7 @@ def test_nonnegative_runs_into_no_laws():
 
 def test_nonnegative_rejects_a_negative_value():
     """Test that a run rejects an element whose value is outside the nonnegative numbers."""
-    system = System(elements=[NonnegativeElement('S', x=-1.0)])
+    system = CompositeSystem(elements=[NonnegativeElement('S', x=-1.0)])
     with pytest.raises(ValidationError):
         simulate(system, until=1, dt=1.0)
 

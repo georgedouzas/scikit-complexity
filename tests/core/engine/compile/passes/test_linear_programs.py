@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import LinearProgramLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import either
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -197,7 +197,7 @@ def _toy_values(system):
 
 def test_lowered_toy_network_reaches_the_optimum_of_raman():
     """Test that the toy network of Raman reaches growth 50 with every balance zero."""
-    system = System(elements=[ToyNetworkElement('net')], time=StaticTime())
+    system = CompositeSystem(elements=[ToyNetworkElement('net')], time=StaticTime())
     fluxes, _ = _toy_values(system)
     assert fluxes['vbio'] == pytest.approx(50, abs=1e-9)
     assert fluxes['v1'] + fluxes['v3'] - fluxes['v4'] - fluxes['v5'] == pytest.approx(0, abs=1e-9)
@@ -228,15 +228,17 @@ def test_lowered_flow_network_equals_the_maximum_flow_of_networkx():
             ]
             return [LinearProgramLaw([s.sa, s.ab, s.sb], constraints, [LinearObjectiveSpec(s.ab + s.sb)])]
 
-    trajectory = simulate(System(elements=[RoutesElement('n')], time=StaticTime()), until=1.0)
+    trajectory = simulate(CompositeSystem(elements=[RoutesElement('n')], time=StaticTime()), until=1.0)
     expected, _ = nx.maximum_flow(graph, 's', 'b')
     assert float(trajectory.values('n.objective_0')[0]) == pytest.approx(expected)
 
 
 def test_lowered_lexicographic_objectives_keep_the_first_optimum():
     """Test that the total flux falls under the second objective, and the first optimum stays."""
-    single, _ = _toy_values(System(elements=[ToyNetworkElement('net')], time=StaticTime()))
-    lexicographic, trajectory = _toy_values(System(elements=[ToyNetworkElement('net', total=True)], time=StaticTime()))
+    single, _ = _toy_values(CompositeSystem(elements=[ToyNetworkElement('net')], time=StaticTime()))
+    lexicographic, trajectory = _toy_values(
+        CompositeSystem(elements=[ToyNetworkElement('net', total=True)], time=StaticTime()),
+    )
     assert lexicographic['vbio'] == pytest.approx(single['vbio'], abs=1e-9)
     assert sum(map(abs, lexicographic.values())) <= sum(map(abs, single.values())) + 1e-6
     assert float(trajectory.values('net.objective_1')[0]) == pytest.approx(sum(map(abs, lexicographic.values())))
@@ -254,7 +256,7 @@ def test_issues_name_a_variable_that_is_not_algebraic():
             return [LinearProgramLaw([s.x], [s.x <= 1], [LinearObjectiveSpec(s.x)])]
 
     with pytest.raises(ValidationError, match=r'p\.x.*StateSpec\(algebraic=True\)'):
-        PassCompiler().prepare(System(elements=[PlainElement('p')], time=StaticTime())).run()
+        PassCompiler().prepare(CompositeSystem(elements=[PlainElement('p')], time=StaticTime())).run()
 
 
 def test_issues_report_a_nonlinear_relation_with_both_variables():
@@ -268,7 +270,7 @@ def test_issues_report_a_nonlinear_relation_with_both_variables():
         def _get_laws(self, s):
             return [LinearProgramLaw([s.v, s.w], [s.v * s.w <= 1], [LinearObjectiveSpec(s.v)])]
 
-    system = System(elements=[ProductElement('p')], time=StaticTime())
+    system = CompositeSystem(elements=[ProductElement('p')], time=StaticTime())
     report = PassCompiler().prepare(system).report_
     issues = [issue for issue in report.issues if issue.code == 'linear-program-form']
     assert len(issues) == 1
@@ -289,7 +291,7 @@ def test_issues_report_a_coefficient_that_reads_a_state():
             return [LinearProgramLaw([s.v], [s.x * s.v <= 1], [LinearObjectiveSpec(s.v)])]
 
     with pytest.raises(ValidationError, match='linear-program-form'):
-        PassCompiler().prepare(System(elements=[ReadingElement('p')], time=StaticTime())).run()
+        PassCompiler().prepare(CompositeSystem(elements=[ReadingElement('p')], time=StaticTime())).run()
 
 
 def test_issues_report_two_laws_that_hold_objectives():
@@ -303,7 +305,11 @@ def test_issues_report_two_laws_that_hold_objectives():
         def _get_laws(self, s):
             return [LinearProgramLaw([s.target.v], [s.target.v <= 1], [LinearObjectiveSpec(s.target.v)])]
 
-    system = System(elements=[FlowElement('flows')], interactions=[HoldingInteraction('second')], time=StaticTime())
+    system = CompositeSystem(
+        elements=[FlowElement('flows')],
+        interactions=[HoldingInteraction('second')],
+        time=StaticTime(),
+    )
     report = PassCompiler().prepare(system).report_
     issues = [issue for issue in report.issues if issue.code == 'linear-program-objectives']
     assert len(issues) == 1
@@ -313,7 +319,7 @@ def test_issues_report_two_laws_that_hold_objectives():
 
 def test_merged_laws_use_the_smaller_of_two_upper_bounds():
     """Test that two interactions that bound one variable by 8 and 6 leave the bound 6."""
-    system = System(
+    system = CompositeSystem(
         elements=[FlowElement('flows', capacity=100.0)],
         interactions=[UpperBoundInteraction('a', bound=8.0), UpperBoundInteraction('b', bound=6.0)],
         time=StaticTime(),
@@ -324,7 +330,7 @@ def test_merged_laws_use_the_smaller_of_two_upper_bounds():
 
 def test_merged_laws_bound_uptake_by_michaelis_menten():
     """Test that an uptake of 10 S / (0.015 + S) at S = 0.015 is bounded by 5 at that solve."""
-    system = System(
+    system = CompositeSystem(
         elements=[CellElement('cell'), MediumElement('medium', glucose=0.015)],
         interactions=[UptakeInteraction('u')],
     )
@@ -336,8 +342,8 @@ def test_merged_laws_bound_uptake_by_michaelis_menten():
 def test_switches_keep_a_reaction_with_one_isozyme():
     """Test that a reaction bounded through two genes keeps its bound with one off, and is zero with both off."""
     time = StaticTime()
-    one_off = System(elements=[FlowElement('flows', capacity=20.0, g1=0.0)], time=time)
-    both_off = System(elements=[FlowElement('flows', capacity=20.0, g1=0.0, g2=0.0)], time=time)
+    one_off = CompositeSystem(elements=[FlowElement('flows', capacity=20.0, g1=0.0)], time=time)
+    both_off = CompositeSystem(elements=[FlowElement('flows', capacity=20.0, g1=0.0, g2=0.0)], time=time)
     kept = simulate(one_off, until=1.0).values('flows.v')[0]
     gone = simulate(both_off, until=1.0).values('flows.v')[0]
     assert float(kept) == pytest.approx(20)
@@ -347,9 +353,13 @@ def test_switches_keep_a_reaction_with_one_isozyme():
 def test_switches_set_between_two_runs_change_the_objective():
     """Test that switching off an essential reaction between two runs makes the second objective zero."""
     flows = FlowElement('flows')
-    first = float(simulate(System(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0])
+    first = float(
+        simulate(CompositeSystem(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0],
+    )
     flows.set_params(g1=0.0, g2=0.0)
-    second = float(simulate(System(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0])
+    second = float(
+        simulate(CompositeSystem(elements=[flows], time=StaticTime()), until=1.0).values('flows.objective_0')[0],
+    )
     assert first == pytest.approx(10)
     assert second == pytest.approx(0, abs=1e-9)
 
@@ -392,7 +402,7 @@ def test_switches_follow_a_repressing_node_through_an_update_law():
         def _get_laws(self, s):
             return [UpdateLaw(s.target.switch, 1 - s.node.on)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[SwitchedElement('cell', switch=0.0), NodeElement('node')],
         interactions=[RepressionInteraction('r')],
         time=DiscreteTime(),
@@ -422,10 +432,10 @@ def test_infeasible_program_raises_with_the_program_time_and_subset():
                 ),
             ]
 
-    system = System(elements=[MaintenanceElement('cell')], time=StaticTime())
+    system = CompositeSystem(elements=[MaintenanceElement('cell')], time=StaticTime())
     with pytest.raises(InfeasibleError, match=r'cell.*time 0\.0.*cell\.maintenance.*cell\.uptake'):
         simulate(system, until=1.0)
-    zero = System(elements=[MaintenanceElement('cell', infeasible='zero')], time=StaticTime())
+    zero = CompositeSystem(elements=[MaintenanceElement('cell', infeasible='zero')], time=StaticTime())
     trajectory = simulate(zero, until=1.0)
     assert float(trajectory.values('cell.maintenance')[0]) == 0.0
     assert float(trajectory.values('cell.objective_0')[0]) == 0.0
@@ -433,7 +443,7 @@ def test_infeasible_program_raises_with_the_program_time_and_subset():
 
 def test_infeasible_program_with_the_hold_policy_keeps_the_last_values():
     """Test that the hold policy keeps the last values through an infeasible solve."""
-    system = System(elements=[FlowElement('flows', infeasible='hold', minimum=0.0)], time=StaticTime())
+    system = CompositeSystem(elements=[FlowElement('flows', infeasible='hold', minimum=0.0)], time=StaticTime())
     problem = PassCompiler().prepare(system).run().problem_
     kernel = problem.programs[0]
     position = problem.parameters.names.index('flows.capacity')
@@ -446,7 +456,7 @@ def test_infeasible_program_with_the_hold_policy_keeps_the_last_values():
 
 def test_recorded_duals_give_the_change_of_the_objective():
     """Test that the dual of the binding constraint is the change of the optimum with its right side."""
-    system = System(elements=[ToyNetworkElement('net', duals=True)], time=StaticTime())
+    system = CompositeSystem(elements=[ToyNetworkElement('net', duals=True)], time=StaticTime())
     trajectory = simulate(system, until=1.0)
     relations = list(PassCompiler().prepare(system).run().problem_.programs[0].program.relations)
     shared = [relations.index(f'{name}_net <= 1000') for name in ('v6', 'b2')]
@@ -455,19 +465,22 @@ def test_recorded_duals_give_the_change_of_the_objective():
 
 def test_form_of_programs_keeps_the_form_of_the_laws_beside_them():
     """Test the forms of a program beside rate laws, alone in discrete time, and beside an ODE system."""
-    beside = System(elements=[CellElement('cell'), MediumElement('medium')], interactions=[UptakeInteraction('u')])
+    beside = CompositeSystem(
+        elements=[CellElement('cell'), MediumElement('medium')],
+        interactions=[UptakeInteraction('u')],
+    )
     assert PassCompiler().prepare(beside).run().problem_.form == FormKind.ODE
-    alone = System(elements=[FlowElement('flows')], time=DiscreteTime())
+    alone = CompositeSystem(elements=[FlowElement('flows')], time=DiscreteTime())
     assert PassCompiler().prepare(alone).run().problem_.form == FormKind.DISCRETE
     assert (
-        PassCompiler().prepare(System(elements=[FlowElement('flows')], time=StaticTime())).run().problem_.form
+        PassCompiler().prepare(CompositeSystem(elements=[FlowElement('flows')], time=StaticTime())).run().problem_.form
         == FormKind.STATIC
     )
 
 
 def test_discrete_program_solves_once_per_step_before_the_updates():
     """Test that a program alone under discrete time solves once per step."""
-    system = System(elements=[FlowElement('flows')], time=DiscreteTime())
+    system = CompositeSystem(elements=[FlowElement('flows')], time=DiscreteTime())
     problem = PassCompiler().prepare(system).run().problem_
     kernel = problem.programs[0]
     x, p = problem.initial_state, problem.initial_parameters
@@ -494,7 +507,7 @@ def test_drift_solves_the_program_once_per_evaluation(backend):
                 RateLaw(s.c, 2 * s.v),
             ]
 
-    problem = PassCompiler(backend=backend()).prepare(System(elements=[ThreeRatesElement('e')])).run().problem_
+    problem = PassCompiler(backend=backend()).prepare(CompositeSystem(elements=[ThreeRatesElement('e')])).run().problem_
     derivative = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.programs[0].solves_ == 1
     assert problem.states.read(derivative, 'e.c') == pytest.approx(2)
@@ -502,7 +515,7 @@ def test_drift_solves_the_program_once_per_evaluation(backend):
 
 def test_static_program_solves_once_per_frame():
     """Test that a program alone under static time solves once for its one frame."""
-    trajectory = simulate(System(elements=[FlowElement('flows')], time=StaticTime()), until=1.0)
+    trajectory = simulate(CompositeSystem(elements=[FlowElement('flows')], time=StaticTime()), until=1.0)
     assert trajectory.problem.programs[0].solves_ == 1
 
 
@@ -561,14 +574,14 @@ def _culture(*, nested: bool, biomass: float = 0.01, glucose: float = 10.0):
             ]
 
     if not nested:
-        return System(
+        return CompositeSystem(
             elements=[FluxesElement('fluxes'), CultureElement('culture')],
             interactions=[BoundInteraction('bound'), GrowthInteraction('growth')],
         )
-    return System(
+    return CompositeSystem(
         systems=[
-            System('fba', elements=[FluxesElement('fluxes')], time=DiscreteTime()),
-            System('medium', elements=[CultureElement('culture')]),
+            CompositeSystem('fba', elements=[FluxesElement('fluxes')], time=DiscreteTime()),
+            CompositeSystem('medium', elements=[CultureElement('culture')]),
         ],
         interactions=[
             BoundInteraction('bound', fluxes='fba/fluxes', culture='medium/culture'),
@@ -618,7 +631,7 @@ def _lattice_system(sites, active_at):
     """Return a lattice of cells whose program is active above a biomass threshold."""
     initial = np.zeros(sites * sites)
     initial[active_at] = 1.0
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('cells', element=ActiveCellElement, on='sites', values={'biomass': initial}),
             GroupElement('medium', element=MediumElement, on='sites', values={'glucose': 5.0}),
@@ -641,7 +654,7 @@ def test_group_program_solves_only_the_active_sites():
 
 def test_group_program_on_a_single_site_matches_the_well_mixed_culture():
     """Test that a lattice of one site without diffusion matches the well-mixed culture."""
-    mixed = System(
+    mixed = CompositeSystem(
         elements=[CellElement('cell', biomass=1.0), MediumElement('medium', glucose=5.0)],
         interactions=[UptakeInteraction('u')],
     )

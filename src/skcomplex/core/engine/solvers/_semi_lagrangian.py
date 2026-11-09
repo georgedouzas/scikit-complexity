@@ -51,7 +51,7 @@ class SemiLagrangianSolver(Solver):
         >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
         >>> from skcomplex.core.specs import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
@@ -63,7 +63,7 @@ class SemiLagrangianSolver(Solver):
         >>> stream = ConservationInteraction(
         ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
         ... )
-        >>> system = System(elements=[gas], interactions=[stream])
+        >>> system = CompositeSystem(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
         >>> final = simulate(system, until=2.0, solver=solver).values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12

@@ -29,10 +29,10 @@ class InvariantObserver(BaseObserver):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')

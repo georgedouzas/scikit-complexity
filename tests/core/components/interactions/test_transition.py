@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -38,14 +38,14 @@ class HolderElement(Element):
 
 def _values(element, interactions, until, *, time=None, state='s', dt=1.0, backend=None):
     """Return the values of a state of the members at every unit of time."""
-    system = System(elements=[element], interactions=interactions, time=time)
+    system = CompositeSystem(elements=[element], interactions=interactions, time=time)
     trajectory = simulate(system, until=until, dt=dt, random_state=0, backend=backend)
     return trajectory.values(f'members.{state}')
 
 
 def _agent_values(element, interactions, until, state='s'):
     """Return the values of a state of the agents at the last step."""
-    system = System(elements=[element], interactions=interactions, time=DiscreteTime())
+    system = CompositeSystem(elements=[element], interactions=interactions, time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
     return trajectory.agents('members', until).values[state]
 
@@ -345,7 +345,7 @@ def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
         over='cell',
         form='agent',
     )
-    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
@@ -365,7 +365,7 @@ def test_agent_transition_over_the_cell_moves_members_of_every_source_value(sour
         over='cell',
         form='agent',
     )
-    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 

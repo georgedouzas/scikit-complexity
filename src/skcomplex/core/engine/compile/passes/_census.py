@@ -38,7 +38,7 @@ from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_i
 from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ....components.systems import System
+from ....components.systems import CompositeSystem
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind
@@ -222,7 +222,7 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _census_of(system: System, nodes: list[NodeSpec]) -> CensusSpec:
+    def _census_of(system: CompositeSystem, nodes: list[NodeSpec]) -> CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws

@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, GroupElement, Nonnegativ
 from skcomplex.core.components.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import vector
 from skcomplex.core.engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -183,7 +183,7 @@ def _lennard_jones_gas(n=400, period=None):
     side = int(np.ceil(np.sqrt(n)))
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2 + 0.5
     size = side * 1.2 + 1.0
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -201,7 +201,7 @@ def _lennard_jones_gas(n=400, period=None):
 
 def _herds(interaction, n=5):
     """Return a group of populations with one interaction."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=n, values={'x': np.linspace(1.0, 50.0, n)})],
         interactions=[interaction],
     )
@@ -209,7 +209,7 @@ def _herds(interaction, n=5):
 
 def _epidemic():
     """Return a stochastic epidemic over a group of towns."""
-    return System(
+    return CompositeSystem(
         elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
@@ -229,8 +229,11 @@ def test_backend_runs_the_kernels_of_a_form(backend):
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(elements=[GroupElement('gas', element=MassPointElement, size=1000)], space=ContinuousSpace(n_dim=2))
-    small = System(elements=[PopulationElement('a'), PopulationElement('b')])
+    large = CompositeSystem(
+        elements=[GroupElement('gas', element=MassPointElement, size=1000)],
+        space=ContinuousSpace(n_dim=2),
+    )
+    small = CompositeSystem(elements=[PopulationElement('a'), PopulationElement('b')])
     assert PassCompiler().prepare(large).run().problem_.backend == 'numba'
     assert PassCompiler().prepare(small).run().problem_.backend == 'numpy'
 
@@ -259,7 +262,7 @@ def test_backends_agree_on_gas_with_pair_interactions(numba_backend, period):
 def test_backends_agree_on_two_groups(numba_backend):
     """Test that pair forces between two groups agree between backends."""
     rng = np.random.default_rng(1)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('a', element=MassPointElement, size=150, values={'x': rng.uniform(0, 12, (150, 2))}),
             GroupElement('b', element=MassPointElement, size=100, values={'x': rng.uniform(3, 15, (100, 2))}),
@@ -288,7 +291,7 @@ def test_backends_agree_on_discrete_update(numba_backend):
 
 def test_numba_pair_forces_conserve_momentum(numba_backend):
     """Test that compiled pair forces keep the total momentum of an isolated group."""
-    system = System(
+    system = CompositeSystem(
         elements=[_lennard_jones_gas().elements[0]],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -340,7 +343,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             """Return the laws of the pair element."""
             return [UpdateLaw(vector([s.x, s.y]), CallSpec(rotate, (s.x, s.y)))]
 
-    trajectory = simulate(System(elements=[PairElement('pair')]), until=4, backend=NumpyBackend())
+    trajectory = simulate(CompositeSystem(elements=[PairElement('pair')]), until=4, backend=NumpyBackend())
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
@@ -383,7 +386,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
             """Return the rate `x`."""
             return [RateLaw(s.target.x, s.target.x)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('a', element=PopulationElement, size=2, values={'x': 1.0})],
         interactions=[GrowthInteraction('g', target='a')],
     )
@@ -448,7 +451,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('p', element=MassPointElement, size=1, values={'x': [[1.0]], 'x_d1': [[0.0]]})],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),

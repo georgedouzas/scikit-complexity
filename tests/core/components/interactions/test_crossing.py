@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CrossingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import periodic_guard
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -38,7 +38,7 @@ class LeakyElement(Element):
 
 def _events(crossing, until, **values):
     """Return the times and labels of the events of a leaky integrator with a crossing."""
-    system = System(elements=[LeakyElement('cell', **values)], interactions=[crossing])
+    system = CompositeSystem(elements=[LeakyElement('cell', **values)], interactions=[crossing])
     trajectory = simulate(system, until=until, dt=0.1)
     return trajectory, [event.time for event in trajectory.events]
 
@@ -71,7 +71,7 @@ def test_integrate_and_fire_group_fires_every_member_with_its_own_period():
         reset={'v': lambda s: 0.0},
         direction=1,
     )
-    trajectory = simulate(System(elements=[cells], interactions=[fire]), until=8.0, dt=0.05)
+    trajectory = simulate(CompositeSystem(elements=[cells], interactions=[fire]), until=8.0, dt=0.05)
     events = trajectory.events
     for member, drive in enumerate(drives):
         times = [event.time for event in events if event.member == member]
@@ -128,7 +128,7 @@ def test_periodic_impulses_by_a_guard():
         guard=lambda s: periodic_guard(s.t, 2.0, start=1.0, count=3),
         reset={'c': lambda s: s.target.c + 1.0},
     )
-    trajectory = simulate(System(elements=[DecayElement('body')], interactions=[dose]), until=10.0, dt=0.25)
+    trajectory = simulate(CompositeSystem(elements=[DecayElement('body')], interactions=[dose]), until=10.0, dt=0.25)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0, 3.0, 5.0], abs=1e-6)
 
 
@@ -144,7 +144,7 @@ def test_impulses_at_given_times():
         )
         for index, time in enumerate((1.0, 2.5))
     ]
-    trajectory = simulate(System(elements=[DecayElement('body')], interactions=doses), until=4.0, dt=0.25)
+    trajectory = simulate(CompositeSystem(elements=[DecayElement('body')], interactions=doses), until=4.0, dt=0.25)
     assert [event.time for event in trajectory.events] == pytest.approx([1.0, 2.5], abs=1e-6)
     expected = np.exp(-(4.0 - 2.5)) * (1 + np.exp(-1.5))
     assert trajectory.values('body.c')[-1] == pytest.approx(expected, rel=1e-3)
@@ -160,7 +160,7 @@ def test_a_guard_that_reads_no_member_sets_every_member_of_a_group_at_once():
         reset={'c': lambda s: s.target.c + 1.0},
         direction=1,
     )
-    trajectory = simulate(System(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
+    trajectory = simulate(CompositeSystem(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
     assert len(trajectory.events) == 1
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
     np.testing.assert_allclose(trajectory.values('bodies.c')[-1], expected, rtol=1e-3)

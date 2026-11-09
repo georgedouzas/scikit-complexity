@@ -15,7 +15,7 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine.compile.passes._operator_compiler import DENSE_LIMIT, OperatorCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
@@ -148,7 +148,7 @@ def operator_measures(
         >>> from skcomplex.core.components.laws import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
@@ -162,11 +162,11 @@ def operator_measures(
         ...
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> system = System(elements=[TwoLevelElement('q')])
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> operator_measures(system, n_states=2).energies.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> pair = System(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
+        >>> pair = CompositeSystem(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
         >>> trajectory = simulate(pair, until=1.0, dt=1.0, initial_state={'system.state': singlet})
         >>> result = operator_measures(trajectory, kind='entanglement', subsystems=['pair[0]'])
         >>> bool(np.allclose(result.entropy, np.log(2)))
@@ -213,7 +213,7 @@ def operator_measures(
     return OperatorMeasuresResult(problem, energies=energies, states=states)
 
 
-def _operator_problem(system: System | BaseProblemSpec) -> OperatorProblemSpec:
+def _operator_problem(system: CompositeSystem | BaseProblemSpec) -> OperatorProblemSpec:
     """Return the operator problem of a system, compiling it when needed."""
     problem = system if isinstance(system, BaseProblemSpec) else OperatorCompiler().prepare(system).run().problem_
     if not isinstance(problem, OperatorProblemSpec):

@@ -25,7 +25,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
 
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.laws import ProductionLaw
         >>> from skcomplex.core.engine.solvers import RewritingSolver
@@ -33,7 +33,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> trajectory = simulate(system, until=5, solver=RewritingSolver())
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]

@@ -45,7 +45,7 @@ from skcomplex.core.components.spaces import (
     DiscreteTime,
     LatticeSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
@@ -167,7 +167,12 @@ def _run_agents(interaction):
         location=[(0, 0), (0, 1), (1, 0), (1, 1)],
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
     )
-    system = System(elements=[agents], interactions=[interaction], space=LatticeSpace((2, 2)), time=DiscreteTime())
+    system = CompositeSystem(
+        elements=[agents],
+        interactions=[interaction],
+        space=LatticeSpace((2, 2)),
+        time=DiscreteTime(),
+    )
     return simulate(system, until=5, random_state=0).agents('nodes', 5).values['x']
 
 
@@ -197,7 +202,7 @@ def _run_nodes(interaction, discrete):
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
         on='sites',
     )
-    system = System(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
+    system = CompositeSystem(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
     return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).values('nodes.x')
 
 
@@ -394,7 +399,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         rule=FixedSpec(2.0),
         form='agent',
     )
-    system = System(elements=[group], interactions=[choice], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
     assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
 
@@ -402,7 +407,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
 def _run_variant(*interactions, space=None, time=None):
     """Run three members under interactions, on a lattice of three sites when a space is not given."""
     group = GroupElement('nodes', element=NodeElement, size=3)
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=list(interactions),
         space=LatticeSpace((3,)) if space is None else space,

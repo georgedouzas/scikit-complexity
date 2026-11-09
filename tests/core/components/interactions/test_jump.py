@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.laws.utils import draw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -36,7 +36,7 @@ class CounterElement(Element):
 def _final(interactions, until, *, time=None, size=MEMBERS, dt=1.0, state='x'):
     """Return the final values of a state of every member of a group of counters."""
     group = GroupElement('counters', element=CounterElement, size=size)
-    system = System(elements=[group], interactions=interactions, time=time)
+    system = CompositeSystem(elements=[group], interactions=interactions, time=time)
     trajectory = simulate(system, until=until, dt=dt, random_state=0)
     return np.atleast_1d(trajectory.values(f'counters.{state}')[-1])
 
@@ -128,7 +128,7 @@ def test_jumps_after_waits_reset_every_component_of_a_vector_state():
         waiting=lambda s: 1.0,
         reset={'x': lambda s: [item + 1 for item in s.target.x]},
     )
-    system = System(
+    system = CompositeSystem(
         elements=[PositionElement('walker', x=[0.0, 0.0])],
         interactions=[steps],
         space=ContinuousSpace(n_dim=2),

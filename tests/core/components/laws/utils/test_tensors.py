@@ -20,7 +20,7 @@ from skcomplex.core.components.laws.utils import (
 )
 from skcomplex.core.components.laws.utils._tensors import distribute_operators
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import TensorShapeError
@@ -52,7 +52,7 @@ def _vector_element(rate):
 def _rate_of_w(rate, space, values, **settings):
     """Return the rate of the state `w` at its initial values, with one row per site."""
     field = FieldElement('m', element=_vector_element(rate), space=space, values=values, **settings)
-    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.reshape(problem.states.read(drift, 'm.w'), (np.prod(space.shape), -1))
 

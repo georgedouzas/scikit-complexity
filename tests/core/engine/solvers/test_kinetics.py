@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
@@ -99,7 +99,7 @@ def _profile():
 
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -151,7 +151,7 @@ def test_particles_keep_the_density_of_conservative_encounters():
 
 def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()}),
             GroupElement('field', element=NonnegativeElement, on='sites', values={'x': np.full(CLASSES, 1 / CLASSES)}),

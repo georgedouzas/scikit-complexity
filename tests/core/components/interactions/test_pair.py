@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement, PointEleme
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import BoundaryLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -76,7 +76,7 @@ def test_pair_interaction_needs_a_positive_cutoff():
 
 def test_pair_interaction_rejects_other_law_kinds():
     """Test that pair interactions take rate laws only."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=PointElement, size=3)],
         interactions=[AttractionInteraction('pull', first='gas', second='gas')],
         space=ContinuousSpace(n_dim=2),
@@ -87,7 +87,7 @@ def test_pair_interaction_rejects_other_law_kinds():
 
 def test_pair_interaction_needs_vector_position():
     """Test that pair interactions need a vector position state."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=3)],
         interactions=[ContactInteraction('contact', first='herds', second='herds')],
     )

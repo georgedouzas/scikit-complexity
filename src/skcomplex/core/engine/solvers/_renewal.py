@@ -29,7 +29,7 @@ class RenewalSolver(Solver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import JumpLaw
         >>> from skcomplex.core.components.laws.utils import draw
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RenewalSolver
         >>> from skcomplex.core.specs import StepSpec
         >>> class CounterElement(Element):
@@ -39,7 +39,7 @@ class RenewalSolver(Solver):
         ...
         ...     def _get_laws(self, s):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
-        >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
+        >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
         >>> problem = simulate(system, until=0).problem
         >>> stepper = RenewalSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_

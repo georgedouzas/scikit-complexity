@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative, step, where
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -205,14 +205,17 @@ def test_equation_takes_two_sides_or_a_relation():
 
 def test_pendulum_as_written_matches_solved_form():
     """Test that `m l theta'' = -m g sin theta` runs exactly like the rate law `theta'' = -(g / l) sin theta`."""
-    written = simulate(System(elements=[WrittenElement('bob')]), until=5, solver=PRECISE, dt=0.1)
-    solved = simulate(System(elements=[SolvedElement('bob')]), until=5, solver=PRECISE, dt=0.1)
+    written = simulate(CompositeSystem(elements=[WrittenElement('bob')]), until=5, solver=PRECISE, dt=0.1)
+    solved = simulate(CompositeSystem(elements=[SolvedElement('bob')]), until=5, solver=PRECISE, dt=0.1)
     assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
 
 
 def test_rates_add_to_equation():
     """Test that a rate law on a state with an equation adds to the solved highest derivative."""
-    pushed = System(elements=[WrittenElement('bob', theta=0.0)], interactions=[PushInteraction('push', target='bob')])
+    pushed = CompositeSystem(
+        elements=[WrittenElement('bob', theta=0.0)],
+        interactions=[PushInteraction('push', target='bob')],
+    )
     trajectory = simulate(pushed, until=0.1, solver=PRECISE, dt=0.01)
     assert trajectory.values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
 
@@ -220,12 +223,12 @@ def test_rates_add_to_equation():
 def test_nonlinear_highest_derivative_is_rejected():
     """Test that an equation with the square of a highest derivative names the equation and the derivative."""
     with pytest.raises(ValidationError, match=r'equation .* of s is not linear in the highest derivative x_d1'):
-        simulate(System(elements=[SquaredElement('s')]), until=1)
+        simulate(CompositeSystem(elements=[SquaredElement('s')]), until=1)
 
 
 def test_many_equations_are_solved_numerically():
     """Test that seven equations, above the symbolic size, are solved per evaluation with the same result."""
-    trajectory = simulate(System(elements=[OscillatorsElement('o')]), until=3, solver=PRECISE, dt=0.1)
+    trajectory = simulate(CompositeSystem(elements=[OscillatorsElement('o')]), until=3, solver=PRECISE, dt=0.1)
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):
         assert np.allclose(trajectory.values(f'o.x{index}'), expected, atol=1e-7)
@@ -238,8 +241,8 @@ def test_many_equations_are_solved_numerically():
 )
 def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     """Test that equations with a driver or a condition on the right side run like their rate laws."""
-    first = simulate(System(elements=[equation('mass')]), until=3, solver=PRECISE, dt=0.1)
-    second = simulate(System(elements=[rate('mass')]), until=3, solver=PRECISE, dt=0.1)
+    first = simulate(CompositeSystem(elements=[equation('mass')]), until=3, solver=PRECISE, dt=0.1)
+    second = simulate(CompositeSystem(elements=[rate('mass')]), until=3, solver=PRECISE, dt=0.1)
     assert first.values('mass.x') == pytest.approx(second.values('mass.x'), abs=1e-8)
 
 

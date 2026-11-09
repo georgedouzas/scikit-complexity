@@ -48,12 +48,12 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
     whose parameters are the constants of the file, one private function per auxiliary and lookup, the constants
     `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class on `BaseSystem`, named after the element in CamelCase
     with the suffix `System`. The system class takes the constants as keyword arguments, with the values of the file as
-    defaults, builds its element and its interactions in `_build_system`, and holds as tuned run settings `until`, the
-    length of the run, `dt`, the saving interval of the file, and `observables`, one per auxiliary and per goal-seeking
-    stock. A flow variable of two stocks becomes a `TransferInteraction` between them, a flow variable of one stock a
-    `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a stock a `RateInteraction`, with
-    the rate `(goal - stock) / time` for a goal-seeking stock. A system whose stocks are all subscripted over one range
-    becomes a `GroupElement` with one member per subscript.
+    defaults, builds the `CompositeSystem` of its element and its interactions in `_build_system`, and holds as tuned
+    run settings `until`, the length of the run, `dt`, the saving interval of the file, and `observables`, one per
+    auxiliary and per goal-seeking stock. A flow variable of two stocks becomes a `TransferInteraction` between them, a
+    flow variable of one stock a `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a
+    stock a `RateInteraction`, with the rate `(goal - stock) / time` for a goal-seeking stock. A system whose stocks are
+    all subscripted over one range becomes a `GroupElement` with one member per subscript.
 
     Args:
         path:

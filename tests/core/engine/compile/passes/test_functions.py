@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -60,14 +60,14 @@ class CountThenCopyInteraction(Interaction):
         ]
 
 
-def _system(*phases: PhaseSpec, count: str | None = 'count', copy: str | None = 'copy') -> System:
+def _system(*phases: PhaseSpec, count: str | None = 'count', copy: str | None = 'copy') -> CompositeSystem:
     """Return a counter whose count and copy run in phases of a schedule."""
     time = DiscreteTime(schedule=PhasesScheduleSpec(phases)) if phases else DiscreteTime()
     interaction = CountThenCopyInteraction('steps', counter='c', count=count, copy=copy)
-    return System(elements=[CounterElement('c')], interactions=[interaction], time=time)
+    return CompositeSystem(elements=[CounterElement('c')], interactions=[interaction], time=time)
 
 
-def _run(system: System, until: int, backend: NumpyBackend | NumbaBackend) -> np.ndarray:
+def _run(system: CompositeSystem, until: int, backend: NumpyBackend | NumbaBackend) -> np.ndarray:
     """Return the count and the copy at every frame of a run."""
     trajectory = simulate(system, until=until, backend=backend)
     return np.stack([trajectory.values('c.count'), trajectory.values('c.copy')], axis=1)
@@ -125,5 +125,5 @@ def test_lower_reads_the_phases_of_a_nested_system():
     """Test that the phases of the schedule of a nested system order its update laws in a system without one."""
     nested = _system(PhaseSpec('count'), PhaseSpec('copy'))
     nested.label = 'counter'
-    trajectory = simulate(System(systems=[nested]), until=1)
+    trajectory = simulate(CompositeSystem(systems=[nested]), until=1)
     assert trajectory.values('counter/c.copy')[1] == 1.0

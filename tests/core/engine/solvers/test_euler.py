@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import delayed, step
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
@@ -17,7 +17,7 @@ from skcomplex.core.specs import StepSpec
 def _relaxing_system():
     """Return a state that relaxes towards a goal."""
     relaxation = RateInteraction('relaxation', target='tank', state='x', rate=lambda s: (10.0 - s.target.x) / 2.0)
-    return System(elements=[NonnegativeElement('tank', x=0.0)], interactions=[relaxation])
+    return CompositeSystem(elements=[NonnegativeElement('tank', x=0.0)], interactions=[relaxation])
 
 
 def test_run_takes_explicit_steps():
@@ -57,7 +57,7 @@ def _stepped_rate(s):
 
 def test_run_reads_delays_from_the_steps_of_the_run():
     """Test that a delayed value reads the state of the step that the delay names, the first state before the start."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('tank', x=1.0)],
         interactions=[RateInteraction('rate', target='tank', state='x', rate=_delayed_rate)],
     )
@@ -68,7 +68,7 @@ def test_run_reads_delays_from_the_steps_of_the_run():
 
 def test_run_steps_over_a_signal():
     """Test that a signal of time takes its new value at the step that starts at its time."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('tank', x=0.0)],
         interactions=[RateInteraction('rate', target='tank', state='x', rate=_stepped_rate)],
     )

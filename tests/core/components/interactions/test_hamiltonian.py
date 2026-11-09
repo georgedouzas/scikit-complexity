@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import cos, var, vector
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -118,7 +118,7 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
         )
         for label in ('left', 'right')
     ]
-    system = System(
+    system = CompositeSystem(
         elements=[OscillatorElement('left', q=1.0), OscillatorElement('right', q=1.0)],
         interactions=[*free, CouplingInteraction('spring', first='left', second='right')],
     )
@@ -130,7 +130,7 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
 def test_run_wraps_an_angle_coordinate():
     """Test that an angle coordinate of a rotor wraps around its period."""
     rotor = HamiltonianInteraction('rotor', target='wheel', hamiltonian=lambda s: s.target.p**2 / 2 - cos(s.target.q))
-    system = System(elements=[RotorElement('wheel')], interactions=[rotor])
+    system = CompositeSystem(elements=[RotorElement('wheel')], interactions=[rotor])
     trajectory = simulate(system, until=20.0, dt=0.01)
     values = trajectory.values('wheel.q')
     assert np.abs(values).max() <= np.pi
@@ -162,7 +162,7 @@ def test_run_rejects_a_momentum_of_another_size():
 def test_prepare_reports_a_coordinate_of_order_2():
     """Test that a coordinate of order 2 is one error at the path of the interaction with the fixes."""
     energy = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: s.target.p**2 + s.target.q**2)
-    system = System(elements=[SecondOrderElement('mass')], interactions=[energy])
+    system = CompositeSystem(elements=[SecondOrderElement('mass')], interactions=[energy])
     errors = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.severity == 'error']
     assert len(errors) == 1
     assert errors[0].path == 'energy'

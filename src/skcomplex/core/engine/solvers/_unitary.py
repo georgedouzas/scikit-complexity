@@ -38,7 +38,7 @@ class UnitarySolver(OperatorSolver):
         >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import UnitarySolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
@@ -53,7 +53,7 @@ class UnitarySolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[TwoLevelElement('q')])
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> trajectory = simulate(system, until=np.pi, solver=UnitarySolver(), dt=np.pi, observables=z)
         >>> float(round(trajectory.values('q.z')[-1], 6))
         -1.0

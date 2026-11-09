@@ -23,11 +23,11 @@ class IterationSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[MarketElement('m', price=1)],
         ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ... )

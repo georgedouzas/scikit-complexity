@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
@@ -28,7 +28,7 @@ def test_prepare_holds_one_value_per_point_of_the_product() -> None:
     assert space.class_axes_ == {'v': 1}
     assert space.position_axes_ == (0,)
     assert space.spacings_ == (1.0, 12.0 / 128)
-    problem = simulate(System(elements=[field]), until=0, dt=0.1).problem
+    problem = simulate(CompositeSystem(elements=[field]), until=0, dt=0.1).problem
     assert problem.initial_state[3 * 128 + 5] == 2.0
 
 
@@ -60,7 +60,7 @@ def test_check_reports_space_size_issue_with_size() -> None:
     """Report a phase space above its limit through the compile report, with the size it would take."""
     space = PhaseSpace(LatticeSpace((10,)), [AxisSpec('v', 10, -1.0, 1.0)], limit=50)
     field = FieldElement('gas', element=NonnegativeElement, space=space)
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     issues = [issue for issue in report.issues if issue.code == 'space-size']
     assert issues
     assert '100 sites' in issues[0].message
@@ -96,7 +96,11 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
         discretization=discretization,
     )
     drift = ConservationInteraction('turn', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x], **options)
-    trajectory = simulate(System(elements=[field], interactions=[drift]), until=2 * np.pi, solver=RK4Solver(dt=0.02))
+    trajectory = simulate(
+        CompositeSystem(elements=[field], interactions=[drift]),
+        until=2 * np.pi,
+        solver=RK4Solver(dt=0.02),
+    )
     final = trajectory.values('gas.x')[-1]
     assert np.abs(final - start).max() < 0.05
 
@@ -126,7 +130,7 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
     drift = ConservationInteraction(
         'stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], **options,
     )
-    trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
+    trajectory = simulate(CompositeSystem(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
     final = trajectory.values('gas.x')[-1].reshape(size, 16)
     exact = np.stack([(2.0 + np.sin(x - speed)) * np.exp(-(speed**2)) for speed in v], axis=1)
     assert np.abs(final - exact).max() < 0.02
@@ -145,7 +149,7 @@ def test_zero_drift_leaves_classes_unchanged() -> None:
         discretization='finite-volume',
     )
     drift = ConservationInteraction('still', target='gas', state='x', flux=lambda s: [0, 0])
-    trajectory = simulate(System(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.1))
+    trajectory = simulate(CompositeSystem(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.1))
     final = trajectory.values('gas.x')[-1].reshape(4, 16)
     assert np.array_equal(final, start)
 
@@ -161,7 +165,11 @@ def test_transport_conserves_total_through_interval_edges() -> None:
         discretization='finite-volume',
     )
     drift = ConservationInteraction('push', target='gas', state='x', flux=lambda s: [0, 1.0 * s.target.x])
-    trajectory = simulate(System(elements=[field], interactions=[drift]), until=0.5, solver=RK4Solver(dt=0.005))
+    trajectory = simulate(
+        CompositeSystem(elements=[field], interactions=[drift]),
+        until=0.5,
+        solver=RK4Solver(dt=0.005),
+    )
     final = trajectory.values('gas.x')[-1]
     assert abs(final.sum() / 32 - 1.0) < 1e-12
     assert final[-1] > 1.5

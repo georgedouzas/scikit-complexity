@@ -20,7 +20,7 @@ from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, mean, total
 from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime
 from skcomplex.core.components.specs import ScenarioSpec
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
@@ -217,7 +217,7 @@ class SmoothedElement(Element):
         return [RateLaw(s.n, 2.0 - _perceived(s))]
 
 
-def _harvesting() -> System:
+def _harvesting() -> CompositeSystem:
     """Return the parts of the harvesting system, the factory of the scenario experiments."""
     return HarvestingSystem().prepare().system_
 
@@ -292,7 +292,7 @@ ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order'
 
 def _oscillators():
     """Return oscillators whose order parameter `ORDER` builds from a complex mean."""
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement(
                 'osc',
@@ -306,12 +306,14 @@ def _oscillators():
 
 def _two_populations():
     """Return two populations, the first growing at rate 1."""
-    return System(elements=[PopulationElement('a', n=2.0, r=1.0), PopulationElement('b', n=6.0)])
+    return CompositeSystem(elements=[PopulationElement('a', n=2.0, r=1.0), PopulationElement('b', n=6.0)])
 
 
 def _decaying_group(*observables, until=0.0):
     """Return the trajectory of a decaying group of 4 members with observables until a time."""
-    system = System(elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})])
+    system = CompositeSystem(
+        elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})],
+    )
     return simulate(system, until=until, dt=0.5, observables=list(observables))
 
 
@@ -522,7 +524,7 @@ def test_topology_request_spec_checks_its_kind_end_and_edges(spec, message):
 
 def test_categorical_values_round_trip_as_labels():
     """Test that categorical states take labels as values and return them as labels."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
@@ -533,12 +535,12 @@ def test_categorical_values_round_trip_as_labels():
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
-        simulate(System(elements=[PersonElement('ann', health='dead')]), until=1)
+        simulate(CompositeSystem(elements=[PersonElement('ann', health='dead')]), until=1)
 
 
 def test_simulate_does_not_check_values_outside_alphabet():
     """Test that a run leaves a state that a law moves outside its alphabet unchecked."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
@@ -548,7 +550,7 @@ def test_simulate_does_not_check_values_outside_alphabet():
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past pi lies in (-pi, pi] after every step."""
-    system = System(elements=[RotorElement('r', theta=6.0, omega=1.0)])
+    system = CompositeSystem(elements=[RotorElement('r', theta=6.0, omega=1.0)])
     values = simulate(system, until=3, dt=0.5).values('r.theta')
     assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
@@ -556,7 +558,7 @@ def test_angle_wraps_into_one_turn():
 
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
-    system = System(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
+    system = CompositeSystem(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
     values = simulate(system, until=1, dt=0.1).values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
@@ -582,17 +584,17 @@ def test_expression_observable_of_elements():
 
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
-    system = System(systems=[System('market', elements=[PopulationElement('a', n=3.0)])])
+    system = CompositeSystem(systems=[CompositeSystem('market', elements=[PopulationElement('a', n=3.0)])])
     trajectory = simulate(system, until=2, dt=1, observables=[ObservableSpec('market/volume', _volume)])
     assert trajectory.values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
 def test_agent_reduction_read_by_other_partition():
     """Test that the mean wealth of agents is recorded and read by an ODE in another partition."""
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System('village', elements=[GroupElement('savers', element=SaverElement, size=4)]),
-            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            CompositeSystem('village', elements=[GroupElement('savers', element=SaverElement, size=4)]),
+            CompositeSystem('land', elements=[PopulationElement('soil', n=0.0)]),
         ],
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
@@ -604,7 +606,7 @@ def test_agent_reduction_read_by_other_partition():
 
 def test_observable_read_in_one_form_is_lowered():
     """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 6.0]}),
             PopulationElement('soil'),
@@ -618,7 +620,7 @@ def test_observable_read_in_one_form_is_lowered():
 
 def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
-    system = System(elements=[GroupElement('herd', element=PopulationElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('herd', element=PopulationElement, size=3)])
     with pytest.raises(AttributeError, match='herd'):
         simulate(system, until=1, observables=[ObservableSpec('bad', _herd)])
 
@@ -633,7 +635,7 @@ def test_observable_lambda_is_rejected():
 
 def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
-    system = System(elements=[PopulationElement('a')])
+    system = CompositeSystem(elements=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
         simulate(system, until=1, observables=[ObservableSpec('total', lambda s: s.a.n)])
 
@@ -649,7 +651,7 @@ def test_observable_module_function_pickles():
 
 def test_observables_read_time():
     """Test that system observables and member expressions of reductions read the time as `s.t`."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             PopulationElement('a', n=2.0),
             GroupElement('herd', element=PopulationElement, size=2, values={'n': [1.0, 3.0]}),
@@ -687,7 +689,7 @@ def test_observable_rejects_reduction_over_another_group():
 def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
     observed = ObservableSpec('perceived', _perceived, element='tank')
-    trajectory = simulate(System(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
+    trajectory = simulate(CompositeSystem(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
     perceived = trajectory.values('tank.perceived')
     np.testing.assert_allclose(perceived, trajectory.values('tank.smoothing_delay1_0')[:, 0])
     assert perceived[0] == pytest.approx(1.0)
@@ -698,7 +700,7 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
     """Test that observing a delay that no law of the system reads raises an error that names the observable."""
     observed = ObservableSpec('smoothed', _smoothed_population, element='rabbits')
     with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
-        simulate(System(elements=[PopulationElement('rabbits', n=2.0)]), until=1, observables=[observed])
+        simulate(CompositeSystem(elements=[PopulationElement('rabbits', n=2.0)]), until=1, observables=[observed])
 
 
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():

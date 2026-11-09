@@ -84,10 +84,10 @@ class GradientInteraction(Interaction):
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import GradientInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
-        >>> system = System(elements=[NonnegativeElement('walker', x=1.0)], interactions=[well])
+        >>> system = CompositeSystem(elements=[NonnegativeElement('walker', x=1.0)], interactions=[well])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> round(float(trajectory.values('walker.x')[-1]), 4)
         0.3679

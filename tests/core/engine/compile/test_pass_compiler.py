@@ -46,7 +46,7 @@ from skcomplex.core.components.spaces import (
     PhaseSpace,
     SimplexSpace,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -96,7 +96,7 @@ from .conftest import PairElement
 
 def _growth():
     """Return a system of one growing population."""
-    return System(
+    return CompositeSystem(
         elements=[PopulationElement('rabbits', x=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
     )
@@ -138,7 +138,7 @@ def test_compiler_rejects_a_target_that_is_not_a_system():
 
 def test_general_compiler_names_the_compiler_of_a_operator_system():
     """Test that the general compiler reports an operator system with the compiler it needs, which compiles it."""
-    system = System(elements=[QubitElement('q')])
+    system = CompositeSystem(elements=[QubitElement('q')])
     assert OperatorCompiler().prepare(system).report_.ok
     assert not RewritingCompiler().prepare(system).report_.ok
     compiler = PassCompiler().prepare(system)
@@ -187,7 +187,7 @@ def test_compiler_reports_a_negative_screening():
             lambda s, screening=screening: inverse_helmholtz(s.u, screening(s)),
             LatticeSpace(8),
         )
-        report = PassCompiler().prepare(System(elements=[field])).report_
+        report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
         assert [(issue.code, issue.path) for issue in report.errors] == [('screening', 'm')]
         assert 'screening' in report.errors[0].message
 
@@ -195,7 +195,7 @@ def test_compiler_reports_a_negative_screening():
 def test_compiler_reports_a_kernel_that_reads_a_state():
     """Test that a convolution kernel that reads a state is a `kernel-state` issue naming the state."""
     field = _nonlocal_field('m', lambda s: convolve(s.u, s.u * displacement(0)), LatticeSpace(8))
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
     assert 'u_m' in report.errors[0].message
 
@@ -204,7 +204,7 @@ def test_compiler_reports_a_two_point_kernel_that_reads_a_state():
     """Test that a two-point kernel that reads a state is a `kernel-state` issue naming the state."""
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 8, 0.0, 1.0)])
     field = _nonlocal_field('m', lambda s: integral_transform(s.u, s.u * integration_variable('z'), ('z',)), space)
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
     assert 'u_m' in report.errors[0].message
 
@@ -212,7 +212,7 @@ def test_compiler_reports_a_two_point_kernel_that_reads_a_state():
 def test_compiler_reports_a_two_point_integral_without_class_axes():
     """Test that an integral over class axes of a field on a lattice is a `law-space` issue."""
     field = _nonlocal_field('m', lambda s: integral_transform(s.u, integration_variable('z'), ('z',)), LatticeSpace(8))
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert {(issue.code, issue.path) for issue in report.errors} == {('law-space', 'm')}
     assert any('two-point kernel' in issue.message for issue in report.errors)
 
@@ -220,7 +220,7 @@ def test_compiler_reports_a_two_point_integral_without_class_axes():
 def test_compiler_reports_a_cumulative_integral_on_a_network():
     """Test that a cumulative integral on a network is a `law-space` issue saying it needs a lattice space."""
     field = _nonlocal_field('net', lambda s: cumulative_integral(s.u, 0), NetworkSpace(nx.path_graph(4)))
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'net')]
     assert 'cumulative integral' in report.errors[0].message
 
@@ -229,7 +229,7 @@ def test_compiler_reports_a_local_operator_on_a_simplex():
     """Test that a Laplacian of a field on a simplex is a `law-space` issue asking for finite-volume fluxes."""
     space = SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 6, 0.0, 1.0), AxisSpec('y', 6, 0.0, 1.0)])
     field = _nonlocal_field('m', lambda s: laplacian(s.u) * coordinate('x'), space)
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'm')]
     assert 'finite-volume' in report.errors[0].message
 
@@ -237,7 +237,7 @@ def test_compiler_reports_a_local_operator_on_a_simplex():
 def test_compiler_reports_a_convolution_on_a_network():
     """Test that a convolution on a network is a `law-space` issue saying it needs a lattice space."""
     field = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'net')]
     assert 'lattice space' in report.errors[0].message
 
@@ -250,7 +250,7 @@ def test_compiler_reports_spectral_operators_on_edges_that_are_not_periodic():
         LatticeSpace(8, boundary='fixed'),
         discretization='spectral',
     )
-    report = PassCompiler().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     assert [issue.code for issue in report.errors] == ['law-space']
 
 
@@ -277,7 +277,7 @@ def test_compiler_reports_an_operand_over_two_spaces():
     """Test that an operand reading fields of two spaces is an `operator-spaces` issue."""
     other = _nonlocal_field('b', lambda s: 0 * s.u, LatticeSpace(8))
     field = _nonlocal_field('a', lambda s: 0 * s.u, LatticeSpace(8))
-    system = System(elements=[field, other], interactions=[_CrossInteraction('cross', first='a', second='b')])
+    system = CompositeSystem(elements=[field, other], interactions=[_CrossInteraction('cross', first='a', second='b')])
     report = PassCompiler().prepare(system).report_
     assert [issue.code for issue in report.errors] == ['operator-spaces']
 
@@ -286,7 +286,7 @@ def test_compiler_raises_every_nonlocal_issue_at_once():
     """Test that a convolution on a network and a negative screening raise one error that lists both laws."""
     network = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
     lattice = _nonlocal_field('grid', lambda s: inverse_helmholtz(s.u, sqrt(s.k)), LatticeSpace(8))
-    compiler = PassCompiler().prepare(System(elements=[network, lattice]))
+    compiler = PassCompiler().prepare(CompositeSystem(elements=[network, lattice]))
     with pytest.raises(ValidationError, match=r'(?s)net: .*law-space.*grid: .*screening'):
         compiler.run()
 
@@ -313,7 +313,7 @@ def _tensor_issues(rate):
 
     RatedElement.rate = staticmethod(rate)
     field = FieldElement('film', element=RatedElement, space=LatticeSpace((4, 4)))
-    return PassCompiler().prepare(System(elements=[field])).report_.issues
+    return PassCompiler().prepare(CompositeSystem(elements=[field])).report_.issues
 
 
 def test_prepare_reports_a_rate_with_a_trace_on_a_traceless_state():
@@ -348,7 +348,7 @@ def test_prepare_reports_the_tensor_divergence_of_a_scalar():
             return [RateLaw(namespace.u, tensor_divergence(namespace.u)[0])]
 
     field = FieldElement('film', element=ScalarElement, space=LatticeSpace((4, 4)))
-    issues = PassCompiler().prepare(System(elements=[field])).report_.issues
+    issues = PassCompiler().prepare(CompositeSystem(elements=[field])).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'tensor_divergence' in issues[0].message
     assert 'u_film' in issues[0].message
@@ -406,7 +406,7 @@ def test_report_holds_one_degree_issue_per_law_with_its_own_path_and_fix():
             schedule='colored',
         ),
     ]
-    system = System(elements=_cell_groups(), interactions=interactions, time=ContinuousTime())
+    system = CompositeSystem(elements=_cell_groups(), interactions=interactions, time=ContinuousTime())
     issues = [issue for issue in _report_of(system).issues if issue.code == 'law-degree']
     assert sorted(issue.path for issue in issues) == ['down', 'sample']
     assert 'exterior_derivative' in issues[0].fix
@@ -416,7 +416,7 @@ def test_report_holds_one_degree_issue_per_law_with_its_own_path_and_fix():
 def test_report_holds_a_degree_issue_for_an_exterior_derivative_of_the_highest_degree():
     """Test that an exterior derivative of a hyperedge state on a complex of dimension 2 is reported."""
     rate = RateInteraction('up', target='faces', state='f', rate=lambda n: exterior_derivative(n.target.f))
-    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    issues = _report_of(CompositeSystem(elements=_cell_groups(), interactions=[rate])).issues
     assert [issue.code for issue in issues if issue.path == 'up'] == ['law-degree']
     assert 'codifferential' in next(issue.fix for issue in issues if issue.path == 'up')
 
@@ -438,7 +438,7 @@ def test_report_holds_a_degree_issue_for_a_value_of_another_degree():
         rate=lambda n: hodge_star(n.sources[0].a),
     )
     for interaction in (twice, bare, wrong):
-        issues = _report_of(System(elements=_cell_groups(), interactions=[interaction])).issues
+        issues = _report_of(CompositeSystem(elements=_cell_groups(), interactions=[interaction])).issues
         assert [issue.path for issue in issues if issue.code == 'law-degree'] == [interaction.label]
 
 
@@ -459,7 +459,7 @@ def test_report_holds_no_degree_issue_for_operations_of_the_right_degree():
             rate=lambda n: exterior_derivative(n.sources[0].u),
         ),
     ]
-    issues = _report_of(System(elements=_cell_groups(), interactions=interactions)).issues
+    issues = _report_of(CompositeSystem(elements=_cell_groups(), interactions=interactions)).issues
     assert not [issue for issue in issues if issue.code == 'law-degree']
 
 
@@ -472,7 +472,7 @@ def test_report_holds_no_degree_issue_for_a_group_mean_of_another_degree():
         sources=['faces'],
         rate=lambda n: mean(cos(exterior_derivative(n.target.a)), over=n.sources[0]) * n.target.a,
     )
-    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    issues = _report_of(CompositeSystem(elements=_cell_groups(), interactions=[rate])).issues
     assert not [issue for issue in issues if issue.code == 'law-degree']
 
 
@@ -484,7 +484,7 @@ def test_report_holds_a_degree_issue_for_a_misapplied_operation_inside_a_group_m
         state='u',
         rate=lambda n: mean(codifferential(n.target.u)) * n.target.u,
     )
-    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    issues = _report_of(CompositeSystem(elements=_cell_groups(), interactions=[rate])).issues
     assert [issue.path for issue in issues if issue.code == 'law-degree'] == ['scaled']
 
 
@@ -506,9 +506,9 @@ def test_report_holds_a_space_issue_for_cofaces_outside_a_cell_complex():
         move='gaussian',
         schedule='colored',
     )
-    issues = _report_of(System(elements=[sites], interactions=[rate])).issues
+    issues = _report_of(CompositeSystem(elements=[sites], interactions=[rate])).issues
     assert [issue.code for issue in issues if issue.path == 'rate'] == ['law-space']
-    issues = _report_of(System(elements=[sites], interactions=[sampling], time=DiscreteTime())).issues
+    issues = _report_of(CompositeSystem(elements=[sites], interactions=[sampling], time=DiscreteTime())).issues
     assert [issue.code for issue in issues if issue.path == 'sample'] == ['law-space']
 
 
@@ -516,7 +516,7 @@ def test_report_holds_a_space_issue_for_the_exterior_calculus_outside_a_cell_com
     """Test that an exterior derivative of a state of a plain network is reported as a law-space issue."""
     sites = GroupElement('sites', element=_CellSiteElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
     rate = RateInteraction('rate', target='sites', state='u', rate=lambda n: exterior_derivative(n.target.u))
-    issues = _report_of(System(elements=[sites], interactions=[rate])).issues
+    issues = _report_of(CompositeSystem(elements=[sites], interactions=[rate])).issues
     assert [issue.code for issue in issues if issue.path == 'rate'] == ['law-space']
 
 
@@ -562,7 +562,7 @@ class DoubleUpdateInteraction(Interaction):
 
 def _ecology(growth):
     """Return a system of one population under a growth interaction."""
-    return System(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
+    return CompositeSystem(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
 
 
 class HubElement(Element):
@@ -619,7 +619,7 @@ class SitesDriveInteraction(Interaction):
 
 def _hub_and_sites(interaction):
     """Return a hub and a group of five sites with states 0 to 4, coupled by an interaction."""
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('sites', element=NodeElement, size=5, values={'x': np.arange(5.0)}),
             HubElement('hub'),
@@ -641,7 +641,7 @@ def _compile_time(n_links):
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
         for index in range(n_links)
     ]
-    system = System(elements=[sites], interactions=links)
+    system = CompositeSystem(elements=[sites], interactions=links)
     durations = []
     for _ in range(2):
         start = time.perf_counter()
@@ -780,7 +780,7 @@ def _lennard_jones_gas(n, seed=0):
     rng = np.random.default_rng(seed)
     side = int(np.ceil(np.sqrt(n)))
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -820,21 +820,24 @@ class RecorderInteraction(Interaction):
     [
         (_ecology(LogisticGrowthInteraction('growth', target='rabbits')), FormKind.ODE),
         (
-            System(
+            CompositeSystem(
                 elements=[AssetElement('stock', price=100)],
                 interactions=[GeometricBrownianMotionInteraction('gbm', target='stock')],
             ),
             FormKind.SDE,
         ),
         (
-            System(
+            CompositeSystem(
                 elements=[NonnegativeElement('I', x=5), NonnegativeElement('R')],
                 interactions=[RecoveryInteraction('rec', infected='I', recovered='R', stochastic=True)],
             ),
             FormKind.JUMP,
         ),
-        (System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]), FormKind.DISCRETE),
-        (System(elements=[PopulationElement('a')]), FormKind.ODE),
+        (
+            CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]),
+            FormKind.DISCRETE,
+        ),
+        (CompositeSystem(elements=[PopulationElement('a')]), FormKind.ODE),
     ],
 )
 def test_compiler_infers_form(system, form):
@@ -844,7 +847,7 @@ def test_compiler_infers_form(system, form):
 
 def test_compiler_mixed_kinds_raises_error():
     """Test that updates and rates in one system are rejected."""
-    system = System(
+    system = CompositeSystem(
         elements=[MarketElement('m'), PopulationElement('a')],
         interactions=[CobwebInteraction('c', target='m'), ExponentialGrowthInteraction('g', target='a')],
     )
@@ -854,7 +857,7 @@ def test_compiler_mixed_kinds_raises_error():
 
 def test_compiler_names_nested_states_by_path():
     """Test that nested states are named by their path."""
-    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits', x=3)])])
+    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[PopulationElement('rabbits', x=3)])])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.names == ['meadow/rabbits.x']
     assert problem.initial_state.tolist() == [3.0]
@@ -862,10 +865,10 @@ def test_compiler_names_nested_states_by_path():
 
 def test_compiler_couples_subsystems():
     """Test that an interaction couples elements of two subsystems."""
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System('forest', elements=[PopulationElement('foxes', x=2)]),
-            System('meadow', elements=[PopulationElement('rabbits', x=5)]),
+            CompositeSystem('forest', elements=[PopulationElement('foxes', x=2)]),
+            CompositeSystem('meadow', elements=[PopulationElement('rabbits', x=5)]),
         ],
         interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=1.0, b=0.5)],
     )
@@ -886,7 +889,7 @@ def test_compiler_drift_takes_parameters():
 def test_compiler_callable_law_is_evaluated():
     """Test that a callable rate is added to the drift and left out of the equations."""
     growth = CallableGrowthInteraction('growth', target='rabbits', r=3.0)
-    system = System(elements=[HoldingElement('rabbits', n=10.0)], interactions=[growth])
+    system = CompositeSystem(elements=[HoldingElement('rabbits', n=10.0)], interactions=[growth])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [30.0]
     assert problem.has_callables
@@ -895,7 +898,7 @@ def test_compiler_callable_law_is_evaluated():
 
 def test_compiler_rates_add_up():
     """Test that two forces on one particle add up."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p', x=1.0, m=2.0)],
         interactions=[
             ConstantForceInteraction('push', target='p', F=4.0),
@@ -909,7 +912,7 @@ def test_compiler_rates_add_up():
 
 def test_compiler_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p')],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
@@ -925,7 +928,7 @@ def test_compiler_keeps_oscillator_equations():
 
 def test_compiler_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=2))
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.x_d1[0]', 'p.x_d1[1]']
 
@@ -933,20 +936,20 @@ def test_compiler_vector_state_takes_space_dimension():
 def test_compiler_vector_state_without_space_raises_error():
     """Test that a vector state needs a space."""
     with pytest.raises(SpaceError, match='must have a space'):
-        PassCompiler().prepare(System(elements=[MassPointElement('p')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[MassPointElement('p')])).run()
 
 
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compiler_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = System(elements=[MassPointElement('p', m=m)], space=ContinuousSpace(n_dim=1))
+    system = CompositeSystem(elements=[MassPointElement('p', m=m)], space=ContinuousSpace(n_dim=1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         PassCompiler().prepare(system).run()
 
 
 def test_compiler_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = System(elements=[MassPointElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[MassPointElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='shape'):
         PassCompiler().prepare(system).run()
 
@@ -960,7 +963,7 @@ def test_compiler_unknown_role_raises_error():
 
 def test_compiler_duplicate_label_raises_error():
     """Test that siblings must have distinct labels."""
-    system = System(elements=[PopulationElement('a'), PopulationElement('a')])
+    system = CompositeSystem(elements=[PopulationElement('a'), PopulationElement('a')])
     with pytest.raises(LabelError, match="'a'"):
         PassCompiler().prepare(system).run()
 
@@ -968,7 +971,7 @@ def test_compiler_duplicate_label_raises_error():
 def test_compiler_invalid_label_raises_error():
     """Test that labels must be words."""
     with pytest.raises(LabelError, match='not valid'):
-        PassCompiler().prepare(System(elements=[PopulationElement('a.b')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[PopulationElement('a.b')])).run()
 
 
 def test_compiler_undeclared_symbol_raises_error():
@@ -979,14 +982,14 @@ def test_compiler_undeclared_symbol_raises_error():
 
 def test_compiler_double_update_raises_error():
     """Test that a state takes one update law."""
-    system = System(elements=[MarketElement('m')], interactions=[DoubleUpdateInteraction('bad', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[DoubleUpdateInteraction('bad', target='m')])
     with pytest.raises(ValidationError, match='second time'):
         PassCompiler().prepare(system).run()
 
 
 def test_compiler_jump_stoichiometry():
     """Test that jump changes become rows of the stoichiometry matrix."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('S', x=9), NonnegativeElement('I', x=1)],
         interactions=[InfectionInteraction('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
     )
@@ -1074,7 +1077,7 @@ def test_compile_group_time_does_not_grow_with_size():
 
     def compile_time(n):
         start = time.perf_counter()
-        system = System(
+        system = CompositeSystem(
             elements=[GroupElement('gas', element=MassPointElement, size=n)],
             space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
         )
@@ -1087,7 +1090,10 @@ def test_compile_group_time_does_not_grow_with_size():
 
 def test_compile_group_names_states_by_group_path():
     """Test that a group state is named by its group path with the group shape."""
-    system = System(elements=[GroupElement('gas', element=MassPointElement, size=500)], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(
+        elements=[GroupElement('gas', element=MassPointElement, size=500)],
+        space=ContinuousSpace(n_dim=2),
+    )
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.entry('gas.x').shape == (500, 2)
     assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.x_d1'][0]
@@ -1111,7 +1117,7 @@ def test_compile_pair_forces_match_brute_force_sum():
 
 def test_compile_pair_forces_between_two_groups():
     """Test that a pair interaction between two groups attracts both beyond the potential minimum."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('a', element=MassPointElement, size=1, values={'x': [[0.0, 0.0]]}),
             GroupElement('b', element=MassPointElement, size=1, values={'x': [[1.5, 0.0]]}),
@@ -1128,7 +1134,7 @@ def test_compile_pair_forces_between_two_groups():
 
 def test_compile_pair_forces_use_minimum_image():
     """Test that periodic pair interactions use minimum image distances."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': [[0.1, 0.5], [9.6, 0.5]]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
         space=ContinuousSpace(n_dim=2),
@@ -1144,7 +1150,7 @@ def test_compile_pair_forces_use_minimum_image():
 
 def test_compile_reflecting_box_keeps_ode_form():
     """Test that a reflecting box adds boundary laws without changing the form."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=4)],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
     )
@@ -1168,7 +1174,7 @@ def test_compile_periodic_box_wraps_places_by_their_role(role, wrapped):
             """Return the rest of the state."""
             return [RateLaw(s.x, 0.0 * s.x)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=PlacedElement, size=1, values={'x': [[1.25, 0.5]]})],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
@@ -1181,7 +1187,7 @@ def test_compile_periodic_box_wraps_places_by_their_role(role, wrapped):
 
 def test_compile_periodic_box_wraps_positions():
     """Test that a periodic box wraps a position that left the box."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -1200,7 +1206,7 @@ def test_compile_periodic_box_wraps_positions():
 
 def test_compile_group_callable_rate():
     """Test that a callable law over a group returns one value per member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[DoublingInteraction('d', target='herds')],
     )
@@ -1211,7 +1217,7 @@ def test_compile_group_callable_rate():
 
 def test_compile_group_jumps_have_one_channel_per_member():
     """Test that a jump law over a group has one channel per member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[BirthInteraction('birth', target='herds')],
     )
@@ -1222,7 +1228,7 @@ def test_compile_group_jumps_have_one_channel_per_member():
 
 def test_compile_group_noise_has_one_process_per_member():
     """Test that a noise law over a group drives every member with its own process."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[VolatilityInteraction('vol', target='herds')],
     )
@@ -1233,7 +1239,7 @@ def test_compile_group_noise_has_one_process_per_member():
 
 def test_compile_group_updates_every_member():
     """Test that a discrete update over a group updates every member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [4.0, 8.0]})],
         interactions=[HalvingInteraction('half', target='herds')],
     )
@@ -1244,7 +1250,7 @@ def test_compile_group_updates_every_member():
 
 def test_compile_update_of_single_element_from_group_raises_error():
     """Test that an update cannot set a single element from a group."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herds', element=PopulationElement, size=2), PopulationElement('total')],
         interactions=[SingleUpdateFromGroupInteraction('sum', target='herds', total='total')],
     )
@@ -1271,7 +1277,7 @@ def test_compile_boundary_twice_raises_error():
             """Return the laws of the wrap interaction."""
             return [BoundaryLaw(s.target.x[0], mod(s.target.x[0], 1))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=2)],
         interactions=[WrapInteraction('wrap', target='gas')],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
@@ -1300,7 +1306,7 @@ def test_compiler_without_processes_keeps_identity_columns():
             """Return the laws of the walker element."""
             return [NoiseLaw(s.x, 1.0), NoiseLaw(s.x, 2.0)]
 
-    system = System(elements=[GroupElement('walkers', element=WalkerElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=3)])
     problem = PassCompiler().prepare(system).run().problem_
     np.testing.assert_array_equal(problem.noise_columns, np.arange(6))
     assert problem.n_processes == 6
@@ -1309,14 +1315,14 @@ def test_compiler_without_processes_keeps_identity_columns():
 
 def test_compiler_shares_local_process():
     """Test that two laws of one element on one local process share one column."""
-    problem = PassCompiler().prepare(System(elements=[PairElement('pair')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[PairElement('pair')])).run().problem_
     np.testing.assert_array_equal(problem.noise_columns, [0, 0])
     assert problem.n_processes == 1
 
 
 def test_compiler_gives_members_their_own_local_process():
     """Test that a local process of a group law gives every member its own process."""
-    system = System(elements=[GroupElement('pairs', element=PairElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('pairs', element=PairElement, size=3)])
     problem = PassCompiler().prepare(system).run().problem_
     np.testing.assert_array_equal(problem.noise_columns, [0, 1, 2, 0, 1, 2])
 
@@ -1337,7 +1343,7 @@ def test_compiler_factors_singular_covariance():
 
 def test_stratonovich_correction_covers_cross_terms():
     """Test that a shared Stratonovich process adds the cross terms `C G_kl dG_ij/dx_k` to the drift."""
-    system = System(elements=[PairElement('pair', conventions=('stratonovich', 'stratonovich'))])
+    system = CompositeSystem(elements=[PairElement('pair', conventions=('stratonovich', 'stratonovich'))])
     problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, np.asarray([2.0, 3.0]), problem.initial_parameters)
     np.testing.assert_allclose(drift, [0.5 * 0.5 * 0.5 * 2.0, 0.5 * 0.5 * 0.5 * 3.0])
@@ -1366,7 +1372,7 @@ def test_stratonovich_correction_of_several_laws_adds_up():
                 NoiseLaw(s.x, 2 * s.x, convention='stratonovich'),
             ]
 
-    problem = PassCompiler().prepare(System(elements=[TwiceElement('twice')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[TwiceElement('twice')])).run().problem_
     drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
     assert drift[0] == pytest.approx(0.5 * 2.0 + 0.5 * 4 * 2.0)
 
@@ -1386,12 +1392,12 @@ def test_stratonovich_callable_amplitude_raises_an_error_naming_the_drift_correc
             return [NoiseLaw(s.x, lambda t, values: values['noisy.x'], convention='stratonovich')]
 
     with pytest.raises(ValidationError, match='drift correction'):
-        PassCompiler().prepare(System(elements=[CallableNoiseElement('noisy')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[CallableNoiseElement('noisy')])).run()
 
 
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p')],
         interactions=[RecorderInteraction('record', target='p')],
         space=ContinuousSpace(n_dim=3),
@@ -1407,7 +1413,7 @@ def test_components_receive_sage_symbols_and_vectors():
 @pytest.mark.benchmark
 def test_small_system_drift_is_fast():
     """Test that the NumPy drift of 20 logistic populations takes at most 250 microseconds and is correct."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement(f'p{index}', x=1.0 + index) for index in range(20)],
         interactions=[LogisticGrowthInteraction(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
     )

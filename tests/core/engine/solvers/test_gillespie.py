@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import NonnegativeElement
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -17,7 +17,7 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('I', x=50), NonnegativeElement('R')],
         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
@@ -32,7 +32,7 @@ def test_gillespie_conserves_individuals():
 
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
-    return System(
+    return CompositeSystem(
         elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),

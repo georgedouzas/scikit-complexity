@@ -22,7 +22,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     MemoryNeighborhood,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import (
@@ -62,14 +62,14 @@ def _automaton_system(space, neighborhood, rule, **settings):
         neighborhood=neighborhood,
         **settings,
     )
-    return System(elements=[cells], interactions=[interaction])
+    return CompositeSystem(elements=[cells], interactions=[interaction])
 
 
 def _subshift_system(space, neighborhood, forbidden, states=2):
     """Return the system of a group of cells whose state has a subshift as its domain."""
     domain = SubshiftSpec(neighborhood, forbidden, states)
     variables = {'alive': DeclaredVariableSpec(0, StateSpec(domain=domain))}
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('cells', element=DeclaredElement, space=space, values={'variables': variables}, on='sites'),
         ],
@@ -458,7 +458,7 @@ def test_composition_runs_in_a_simulation():
         values={'alive': start},
         on='sites',
     )
-    system = System(elements=[cells], interactions=composition.interactions)
+    system = CompositeSystem(elements=[cells], interactions=composition.interactions)
     trajectory = simulate(system, until=1, dt=1)
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), start)
 

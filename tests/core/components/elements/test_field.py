@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver
@@ -114,7 +114,7 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
         boundary={'rho': boundary},
     )
     trajectory = simulate(
-        System(elements=[field]),
+        CompositeSystem(elements=[field]),
         until=10,
         backend=backend,
         solver=stepper(dt=0.01),
@@ -130,7 +130,7 @@ def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldElement('f', element=ConservedElement, space=LatticeSpace((16, 16), spacing=0.5))
     trajectory = simulate(
-        System(elements=[field]),
+        CompositeSystem(elements=[field]),
         until=4,
         solver=EulerMaruyamaSolver(dt=0.05),
         random_state=0,
@@ -145,7 +145,7 @@ def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
     field = FieldElement('f', element=DiffusingElement, space=LatticeSpace((16, 16)))
     trajectory = simulate(
-        System(elements=[field]),
+        CompositeSystem(elements=[field]),
         until=1000,
         solver=EulerMaruyamaSolver(dt=0.01),
         random_state=0,
@@ -190,7 +190,7 @@ def test_rate_law_relaxes_a_tensor_state(backend):
         space=LatticeSpace((3, 3)),
         values={'Q': np.tile([1.0, 0.5], (9, 1))},
     )
-    trajectory = simulate(System(elements=[field]), until=1.0, dt=0.01, backend=backend())
+    trajectory = simulate(CompositeSystem(elements=[field]), until=1.0, dt=0.01, backend=backend())
     final = trajectory.values('film.Q')[-1]
     assert np.allclose(final, np.tile([1.0, 0.5], (9, 1)) * np.exp(-1.0), rtol=1e-4)
 
@@ -207,7 +207,7 @@ def test_boundary_relaxes_a_tensor_to_its_fixed_matrix():
     field.prepare()
     assert field._get_boundary('Q', 0) == ('fixed', 0.4)
     assert field._get_boundary('Q', 1) == ('fixed', 0.3)
-    trajectory = simulate(System(elements=[field]), until=60.0, dt=0.05)
+    trajectory = simulate(CompositeSystem(elements=[field]), until=60.0, dt=0.05)
     final = trajectory.values('film.Q')[-1]
     assert np.allclose(final, np.tile([0.4, 0.3], (25, 1)), atol=1e-6)
 

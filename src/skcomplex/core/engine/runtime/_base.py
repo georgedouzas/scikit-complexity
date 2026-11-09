@@ -22,7 +22,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
     and `_release`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):
@@ -32,7 +32,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver()
-        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
+        >>> _ = simulate(CompositeSystem(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
         >>> observer.count_
         4
     """

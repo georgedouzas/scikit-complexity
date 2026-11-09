@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
@@ -39,7 +39,7 @@ def _walkers(hurst, members=1000, fractional=True):
             return [NoiseLaw(s.x, 1, hurst=hurst if fractional else None)]
 
     walker = WalkerElement
-    return System(elements=[GroupElement('w', element=walker, size=members)])
+    return CompositeSystem(elements=[GroupElement('w', element=walker, size=members)])
 
 
 @pytest.mark.parametrize('hurst', [0.2, 0.5, 0.8])
@@ -124,7 +124,7 @@ class TaggedWalkerElement(Element):
 
 @pytest.mark.parametrize(
     'system',
-    [_walkers(0.75, members=2), System(elements=[GroupElement('w', element=TaggedWalkerElement, size=2)])],
+    [_walkers(0.75, members=2), CompositeSystem(elements=[GroupElement('w', element=TaggedWalkerElement, size=2)])],
 )
 def test_fractional_noise_runs_with_the_fractional_euler_maruyama_by_default(system):
     """Test that a system of fractional noise runs without a solver, whether or not its tags name its laws."""
@@ -178,7 +178,7 @@ def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
     solver = FractionalEulerMaruyamaSolver(dt=0.1, horizon=10)
     with pytest.raises(SolverError, match=r'Hurst index changed'):
         simulate(
-            System(elements=[walker('w')]),
+            CompositeSystem(elements=[walker('w')]),
             until=6,
             solver=solver,
             dt=1,

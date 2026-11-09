@@ -12,7 +12,7 @@ from sklearn.base import clone
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import LabelError, ValidationError
@@ -233,7 +233,7 @@ def test_element_clones_and_pickles_with_its_values():
 
 def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
     """Test that validating a system reports a nested element whose label is not a string."""
-    system = System(systems=[System('meadow', elements=[TallyElement(1)])])
+    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[TallyElement(1)])])
     report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
     assert issue.code == 'label'
@@ -242,13 +242,13 @@ def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
 
 def test_element_decays_at_its_own_rate():
     """Test that the laws of an element run with its own parameters."""
-    trajectory = simulate(System(elements=[DecayingElement('a', n=1.0)]), until=1, dt=1)
+    trajectory = simulate(CompositeSystem(elements=[DecayingElement('a', n=1.0)]), until=1, dt=1)
     assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
 def test_expression_of_states_is_an_observable_of_the_laws():
     """Test that a law computes the leverage as an expression and the run records an observable of the same one."""
-    system = System(elements=[FirmElement('firm')])
+    system = CompositeSystem(elements=[FirmElement('firm')])
     assert (
         str(PassCompiler().prepare(system).run().problem_.equations['firm.debt'])
         == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
@@ -262,12 +262,14 @@ def test_expression_of_states_is_an_observable_of_the_laws():
 def test_agent_state_named_like_view_raises_error():
     """Test that an agent with a state named like an attribute of the agent view raises a label error."""
     with pytest.raises(LabelError, match=r'settlers declare the variables alive,.*reserved'):
-        PassCompiler().prepare(System(elements=[GroupElement('settlers', element=SettlerElement, size=2)])).run()
+        PassCompiler().prepare(
+            CompositeSystem(elements=[GroupElement('settlers', element=SettlerElement, size=2)]),
+        ).run()
 
 
 def test_numpy_scalar_times_vector_is_rejected():
     """Test that a law value that NumPy built as an array raises a named error that names the state."""
-    system = System(elements=[MovingElement('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[MovingElement('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='NumPy array'):
         PassCompiler().prepare(system).run()
 
@@ -275,7 +277,7 @@ def test_numpy_scalar_times_vector_is_rejected():
 def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     first, second = (
-        simulate(System(elements=[element('d')]), until=2, dt=0.5).values('d.x')
+        simulate(CompositeSystem(elements=[element('d')]), until=2, dt=0.5).values('d.x')
         for element in (NumpyDecayElement, FloatDecayElement)
     )
     assert np.array_equal(first, second)
@@ -284,4 +286,4 @@ def test_numpy_scalar_values_match_floats():
 def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
-        PassCompiler().prepare(System(elements=[CounterElement('c')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[CounterElement('c')])).run()

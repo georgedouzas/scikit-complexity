@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
 from skcomplex.core.errors import SimulationError, ValidationError
@@ -82,7 +82,7 @@ class WorkerElement(Element):
 
 def test_offer_before_acceptance():
     """Every acceptance refers to an offer made earlier in the same step."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('workers', element=WorkerElement, size=5),
             GroupElement('employers', element=EmployerElement, size=3),
@@ -97,19 +97,19 @@ def test_offer_before_acceptance():
 
 def test_undeclared_phase_raises():
     """A rule in a phase that the system does not declare raises an error."""
-    system = System(elements=[GroupElement('employers', element=EmployerElement, size=2)])
+    system = CompositeSystem(elements=[GroupElement('employers', element=EmployerElement, size=2)])
     with pytest.raises(SimulationError, match='offers'):
         simulate(system, until=1)
 
 
 def test_run_reads_the_phases_of_a_nested_system():
     """Test that rules run in a phase that the schedule of a nested system declares."""
-    nested = System(
+    nested = CompositeSystem(
         label='market',
         elements=[GroupElement('employers', element=EmployerElement, size=2)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers')])),
     )
-    trajectory = simulate(System(systems=[nested]), until=3, random_state=0)
+    trajectory = simulate(CompositeSystem(systems=[nested]), until=3, random_state=0)
     assert np.all(trajectory.agents('market/employers', 3).values['offer'] == 4.0)
 
 
@@ -133,7 +133,7 @@ def test_phases_keep_unphased_systems():
         def tick(self, agent, system):
             agent.count += 1
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('counters', element=CounterElement, size=3)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('extra', repeat=2)])),
     )
@@ -153,7 +153,7 @@ def test_sequential_and_by_type_order():
         def _get_laws(self, s):
             return [RuleLaw(lambda agent, system: seen.append(('second', agent.id)), phase='go')]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('first', element=FirstElement, size=3),
             GroupElement('second', element=SecondElement, size=3),
@@ -165,7 +165,7 @@ def test_sequential_and_by_type_order():
     simulate(system, until=1, random_state=0)
     assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
     seen.clear()
-    sequential = System(
+    sequential = CompositeSystem(
         elements=[
             GroupElement('first', element=FirstElement, size=3),
             GroupElement('second', element=SecondElement, size=3),

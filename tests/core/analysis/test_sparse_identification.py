@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.analysis import sparse_identification
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -82,7 +82,7 @@ def test_sparse_identification_run_continues_lotka_volterra():
     names = ['prey.x', 'predators.x']
     values = np.column_stack([trajectory.values(name) for name in names])
     system = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
-    assert isinstance(system.system, System)
+    assert isinstance(system.system, CompositeSystem)
     assert isinstance(system.training_error, float)
     assert system.forecast.shape == (50, 2)
     assert np.allclose(system.forecast, values[1001:1051], rtol=0.01)

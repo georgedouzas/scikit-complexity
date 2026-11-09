@@ -86,7 +86,7 @@ class CollocationSolver(OptimalControlSolver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CollocationSolver
         >>> class PlantElement(Element):
@@ -104,7 +104,7 @@ class CollocationSolver(OptimalControlSolver):
         ...         return [RateLaw(s.x, s.u)]
         >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
         >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
-        >>> trajectory = simulate(System(elements=[PlantElement('plant')]), until=1.0, solver=solver)
+        >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
         >>> float(round(trajectory.values('plant.u')[0], 3))
         -0.762
     """

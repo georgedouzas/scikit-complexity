@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -100,7 +100,7 @@ def _profile(size=CLASSES):
 
 def _wealth_system(table=None, time=None, space=None):
     """Return a system of one density on an activity lattice with conservative encounters."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
         interactions=[
             ExchangeInteraction(
@@ -135,7 +135,7 @@ def test_encounter_rates_follow_gain_and_loss():
 
 def test_conserved_bilinear_law_without_a_second_density_redistributes_linearly():
     """Test that a linear redistribution at rate one empties the first class as exp(-t) and keeps the total."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('mass', element=NonnegativeElement, on='sites', values={'x': [1.0, 0.0]})],
         interactions=[RedistributionInteraction('move', population='mass')],
         space=LatticeSpace(2, boundary='fixed'),
@@ -190,7 +190,7 @@ def test_parameter_in_transition_table_is_evaluated():
                 table[candidate, :, candidate] += 1 - s.q
             return [BilinearLaw(s.population.x, s.population.x, s.population.x, 1.0, table, conserved=True)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
         interactions=[BiasedInteraction('bias', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -208,7 +208,7 @@ def test_parameter_in_transition_table_is_evaluated():
 
 def test_proliferation_and_destruction_change_the_density():
     """Test that proliferation adds and destruction removes density at the declared rates."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('cells', element=NonnegativeElement, on='sites', values={'x': _profile()}),
             GroupElement('signal', element=NonnegativeElement, on='sites', values={'x': np.full(CLASSES, 0.1)}),
@@ -228,7 +228,7 @@ def test_proliferation_and_destruction_change_the_density():
 
 def test_encounter_reads_a_field_on_a_grid_of_another_size():
     """Test that a candidate density reads a field density on an activity grid of another size."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('cells', element=NonnegativeElement, on='sites', size=CLASSES, values={'x': _profile()}),
             GroupElement(
@@ -277,7 +277,7 @@ def test_rk4_runs_encounters():
 
 def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, size=CLASSES, values={'x': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth', table=_exchange_table(CLASSES))],
         time=ContinuousTime(),

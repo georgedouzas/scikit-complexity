@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction, RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -35,7 +35,7 @@ class PlaneElement(Element):
         self.py = py
 
 
-def _oscillator() -> System:
+def _oscillator() -> CompositeSystem:
     """Return a harmonic oscillator in the plane written with a Hamiltonian."""
     energy = HamiltonianInteraction(
         'energy',
@@ -44,7 +44,7 @@ def _oscillator() -> System:
         momenta=('px', 'py'),
         hamiltonian=lambda s: (s.target.px**2 + s.target.py**2 + s.target.x**2 + s.target.y**2) / 2,
     )
-    return System(elements=[PlaneElement('mass')], interactions=[energy])
+    return CompositeSystem(elements=[PlaneElement('mass')], interactions=[energy])
 
 
 def _final_error(backend: type, dt: float) -> float:
@@ -82,7 +82,7 @@ def test_prepare_rejects_a_hamiltonian_that_couples_momenta():
         momenta=('px', 'py'),
         hamiltonian=_rotating_energy,
     )
-    system = System(elements=[PlaneElement('mass')], interactions=[rotating])
+    system = CompositeSystem(elements=[PlaneElement('mass')], interactions=[rotating])
     with pytest.raises(SolverError, match=r'rate of mass\.p[xy] reads .*mass\.p[xy].*RK4Solver'):
         Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)
 
@@ -91,6 +91,6 @@ def test_prepare_rejects_a_state_that_reads_itself():
     """Test that a damping rate, which reads its own state, admits no split."""
     damping = RateInteraction('damping', target='mass', state='px', rate=lambda s: -s.target.px)
     system = _oscillator()
-    system = System(elements=system.elements, interactions=[*system.interactions, damping])
+    system = CompositeSystem(elements=system.elements, interactions=[*system.interactions, damping])
     with pytest.raises(SolverError, match=r'rate of mass\.px reads mass\.px'):
         Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)

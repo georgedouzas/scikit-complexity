@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.spaces import BaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...specs._base_spec import BaseSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._observable_spec import ObservableSpec
@@ -113,7 +113,7 @@ class BaseProblemSpec(BaseSpec):
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)
     elements: tuple[CompiledElementSpec, ...] = ()
     interactions: tuple[CompiledInteractionSpec, ...] = ()
-    system: System | None = field(default=None, repr=False)
+    system: CompositeSystem | None = field(default=None, repr=False)
     agents: tuple[CompiledAgentsSpec, ...] = ()
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)

@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, NonnegativeElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
 from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
@@ -62,7 +62,7 @@ def test_analyses_of_stochastic_sir_replicates():
 
 def test_ensemble_of_ornstein_uhlenbeck_replicates():
     """Test that the ensemble of 200 Ornstein-Uhlenbeck replicates has one row per replicate carrying its seed."""
-    system = System(elements=[OrnsteinUhlenbeckElement('ou')])
+    system = CompositeSystem(elements=[OrnsteinUhlenbeckElement('ou')])
     result = ensemble(system, replicates=200, until=2, dt=0.1, outputs=['ou.x'], random_state=0)
     times, values, seeds = result.ensemble('ou.x')
     assert values.shape == (200, times.size)
@@ -87,7 +87,7 @@ def test_ensemble_of_a_deterministic_system_names_the_randomness():
 
 def test_ensemble_of_a_deterministic_system_with_a_solver_that_draws():
     """Test that a solver decides an ensemble of a deterministic system by whether it draws, as KineticSolver does."""
-    system = System(elements=[NonnegativeElement('stock', x=1.0)])
+    system = CompositeSystem(elements=[NonnegativeElement('stock', x=1.0)])
     assert not ScipyODESolver.draws
     assert KineticSolver.draws
     with pytest.raises(TagError, match='randomness'):

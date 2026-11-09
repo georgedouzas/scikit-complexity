@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, RateLaw
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -103,7 +103,7 @@ OBSERVABLES = [
 
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE})],
         interactions=[UpwardInteraction('upward', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -145,7 +145,7 @@ def test_mean_activity_is_recorded_at_every_frame():
 
 def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE}),
             RecorderElement('recorder'),
@@ -179,7 +179,7 @@ def test_moment_inside_a_group_law_is_shared():
             """Return the rate."""
             return [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE})],
         interactions=[RelaxInteraction('relax', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),

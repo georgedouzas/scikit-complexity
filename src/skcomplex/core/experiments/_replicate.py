@@ -24,7 +24,7 @@ from ..components.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables
 from ..engine.compile._probe import probe_laws
 from ..engine.runtime import Trajectory, simulate
@@ -55,7 +55,7 @@ def _has_formalism_laws(element: Element) -> bool:
     return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
-def _check_plain(system: System) -> None:
+def _check_plain(system: CompositeSystem) -> None:
     """Raise an error for a system that is not only plain elements and interactions.
 
     The elements must be plain single elements.
@@ -102,7 +102,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
 def _member_values(
     values: Mapping[str, npt.ArrayLike],
-    system: System,
+    system: CompositeSystem,
     size: int,
 ) -> dict[str, dict[str, object]]:
     """Return the per-member values of every element by its label.
@@ -143,7 +143,11 @@ def _member_values(
     return by_label
 
 
-def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+def _replicate(
+    system: CompositeSystem,
+    size: int,
+    values: Mapping[str, npt.ArrayLike] | None = None,
+) -> CompositeSystem:
     """Return a system whose single elements become groups of members.
 
     The members are of the same types and labels. Every member starts from the values of its element, except the dotted
@@ -194,7 +198,7 @@ def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | 
         )
         for element in system.elements
     ]
-    return System(
+    return CompositeSystem(
         system.label,
         elements=groups,
         interactions=[copy.copy(interaction) for interaction in system.interactions],
@@ -209,7 +213,7 @@ def _run_replicated(
     until: float | None,
     dt: float | None,
     random_state: int | None,
-) -> tuple[Trajectory, System]:
+) -> tuple[Trajectory, CompositeSystem]:
     """Return one run of a replicated system, and the composite of the system.
 
     The system is replicated once per value of every path.

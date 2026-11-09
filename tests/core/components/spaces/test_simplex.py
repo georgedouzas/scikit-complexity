@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
@@ -83,7 +83,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement('groups', element=NonnegativeElement, space=space, values={'x': start})
     observables = [ObservableSpec('total', total, group='groups')]
-    trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+    trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12
 
@@ -107,7 +107,7 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
         flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
         limiter=None,
     )
-    trajectory = simulate(System(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
+    trajectory = simulate(CompositeSystem(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
     final = trajectory.values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10

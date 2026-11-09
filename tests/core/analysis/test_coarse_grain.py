@@ -9,7 +9,7 @@ from skcomplex.core.analysis import coarse_grain, spectrum
 from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
@@ -84,7 +84,7 @@ def test_density_over_a_state_starts_a_distribution():
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
     densities = coarse_grain(wealth, over=CLASSES).field
     distribution = GroupElement('wealth', element=NonnegativeElement, size=9, on='sites', values={'x': densities})
-    system = System(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
+    system = CompositeSystem(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
         ObservableSpec('density', density, group='wealth'),
         ObservableSpec('mean', mean_class, group='wealth'),
@@ -98,7 +98,7 @@ def test_density_over_a_state_of_a_trajectory():
     """Test that the members of a group of a trajectory give one density per frame over the values of a state."""
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
     traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
-    trajectory = simulate(System(elements=[traders]), until=2, dt=1.0)
+    trajectory = simulate(CompositeSystem(elements=[traders]), until=2, dt=1.0)
     analysis = coarse_grain(trajectory, over=CLASSES, state='traders.wealth')
     assert analysis.field.shape == (3, 9)
     np.testing.assert_allclose(analysis.field.sum(axis=1), 1.0)

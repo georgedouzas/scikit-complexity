@@ -15,7 +15,7 @@ from sklearn.base import TransformerMixin, clone
 
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import ContinuousTime
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SamplesSpec
@@ -98,7 +98,7 @@ class ModeDecompositionResult:
     """
 
     samples: SamplesSpec
-    system: System
+    system: CompositeSystem
     labels: list[str]
     states: list[str]
     last_state: Array

@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BaseLaw, RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 HORIZON = 1.0
@@ -88,9 +88,9 @@ def riccati_control() -> Control:
 
 
 @pytest.fixture
-def linear_quadratic() -> System:
+def linear_quadratic() -> CompositeSystem:
     """Return the scalar linear-quadratic problem `x' = u`, `x(0) = 1`, with cost `∫ (x^2 + u^2) / 2 dt`."""
-    return System(elements=[IntegratorElement('plant')])
+    return CompositeSystem(elements=[IntegratorElement('plant')])
 
 
 @pytest.fixture
@@ -106,6 +106,6 @@ def profit() -> Cost:
 
 
 @pytest.fixture
-def harvesting() -> System:
+def harvesting() -> CompositeSystem:
     """Return the discounted harvest of a logistic resource with bounded effort."""
-    return System(elements=[FisheryElement('fishery')])
+    return CompositeSystem(elements=[FisheryElement('fishery')])

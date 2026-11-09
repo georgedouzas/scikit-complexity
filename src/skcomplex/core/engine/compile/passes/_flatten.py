@@ -15,7 +15,7 @@ from ....components.elements import DeclaredElement, Element, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....components.specs import NodeSpec
-from ....components.systems import System
+from ....components.systems import CompositeSystem
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
 from ....types import VariableKind
@@ -156,7 +156,7 @@ class FlattenPass(BasePass):
         return processes
 
     @staticmethod
-    def _check_processes(system: System, scope: str, labels: set[str]) -> None:
+    def _check_processes(system: CompositeSystem, scope: str, labels: set[str]) -> None:
         """Raise an error for conflicting Wiener processes of one label.
 
         The processes differ, or another child of a system takes the label.
@@ -182,15 +182,15 @@ class FlattenPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _check_children(system: System, scope: str, places: dict[int, BaseSpace | None]) -> None:
+    def _check_children(system: CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
         """Raise an error for a child of the wrong type or a duplicated label.
 
         Every element and interaction is prepared on its place, by the identity of the part, which checks it.
         """
-        children: list[tuple[Element | GroupElement | BaseInteraction | System, type | tuple[type, ...]]] = [
+        children: list[tuple[Element | GroupElement | BaseInteraction | CompositeSystem, type | tuple[type, ...]]] = [
             *((element, (Element, GroupElement)) for element in system.elements),
             *((interaction, BaseInteraction) for interaction in system.interactions),
-            *((child, System) for child in system.systems),
+            *((child, CompositeSystem) for child in system.systems),
         ]
         labels: set[str] = set()
         for child, expected_type in children:
@@ -201,7 +201,7 @@ class FlattenPass(BasePass):
                 error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
-            if not isinstance(child, System):
+            if not isinstance(child, CompositeSystem):
                 FlattenPass._prepare_part(child, places.get(id(child)), scope)
             if isinstance(child, GroupElement):
                 FlattenPass._check_group(child, scope)
@@ -303,14 +303,14 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _flatten(
-        system: System,
+        system: CompositeSystem,
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
     ) -> list[NodeSpec]:
         """Return the nodes of a system tree in tree order."""
-        if not isinstance(system, System):
-            error_msg = f'{system!r} is not an instance of System.'
+        if not isinstance(system, CompositeSystem):
+            error_msg = f'{system!r} is not an instance of CompositeSystem.'
             raise ValidationError(error_msg)
         seen = [] if seen is None else seen
         space = FlattenPass._canonical(system.space if system.space is not None else space, seen)
@@ -346,7 +346,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
+    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

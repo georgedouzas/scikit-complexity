@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -87,7 +87,7 @@ class RingInteraction(Interaction):
 
 def _ahead(backend, **settings):
     """Return the read positions of a group of four cars after one update."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cars', element=CarElement, size=4, values={'x': [10.0, 11.0, 12.0, 13.0]})],
         interactions=[LookAheadInteraction('look', cars='cars', **settings)],
     )
@@ -116,7 +116,7 @@ def test_shift_member_runs_the_same_on_both_backends():
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        system = System(
+        system = CompositeSystem(
             elements=[GroupElement('cars', element=CarElement, size=1000, values={'x': x})],
             interactions=[RingInteraction('ring', cars='cars')],
         )
@@ -128,7 +128,10 @@ def test_shift_member_runs_the_same_on_both_backends():
 
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
-    system = System(elements=[CarElement('car', x=1.0)], interactions=[LookAheadInteraction('look', cars='car')])
+    system = CompositeSystem(
+        elements=[CarElement('car', x=1.0)],
+        interactions=[LookAheadInteraction('look', cars='car')],
+    )
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
         PassCompiler().prepare(system).run()
 
@@ -154,7 +157,7 @@ class ShiftedGapInteraction(Interaction):
 
 def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
     """Test that a parameter of an interaction read at a member offset is the same at every member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cars', element=CarElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[ShiftedGapInteraction('gap', cars='cars', gap=0.5)],
     )
@@ -211,7 +214,7 @@ def _hopping(occupations, boundary='periodic'):
         size=len(occupations),
         values={'n': np.asarray(occupations, dtype=float)},
     )
-    return System(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
+    return CompositeSystem(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -254,8 +257,8 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
         for index in range(20)
     ]
     systems = [
-        System(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
-        System(elements=[sites], interactions=links),
+        CompositeSystem(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
+        CompositeSystem(elements=[sites], interactions=links),
     ]
     profiles = []
     for system in systems:

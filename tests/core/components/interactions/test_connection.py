@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -73,7 +73,7 @@ def _run(system):
 
 def test_connection_balances_the_currents_of_three_resistors():
     """Test Kirchhoff's current law at a node where three resistors meet."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             SourceResistorElement('r1', R=1.0, e=3.0),
             SourceResistorElement('r2', R=2.0, e=0.0),
@@ -92,7 +92,7 @@ def test_connection_balances_the_currents_of_three_resistors():
 
 def test_connection_reads_a_connector_the_user_defines():
     """Test that a connection reads the potential and the flow of a connector the user defines."""
-    system = System(
+    system = CompositeSystem(
         elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
         interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
     )

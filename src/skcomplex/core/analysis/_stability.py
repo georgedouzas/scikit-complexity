@@ -21,7 +21,7 @@ from ..components.elements import BaseElement, FieldElement
 from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
@@ -114,7 +114,7 @@ class StabilityResult:
     fixed_points: list[dict[str, Expression | float]] | None = None
     eigenvalues: list[npt.NDArray[np.complex128]] | None = None
     classifications: list[str] | None = None
-    system: System | None = None
+    system: CompositeSystem | None = None
     wavenumbers: Array | None = None
     magnitudes: Array | None = None
     growth_rates: Array | None = None
@@ -190,7 +190,7 @@ def stability(
     _check_choice('stability', 'kind', kind, KINDS)
     _check_settings(stability, 'kind', SETTINGS[kind], kind=kind, parameters=parameters, points=points, at=at)
     if kind == 'dispersion':
-        if not isinstance(source, System):
+        if not isinstance(source, CompositeSystem):
             error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
             raise AnalysisError(error_msg)
         waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(source, at)
@@ -339,7 +339,10 @@ def _expand_groups(
     return names, symbols, rates, expansion.values_
 
 
-def _dynamics_of(system: System | BaseProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
+def _dynamics_of(
+    system: CompositeSystem | BaseProblemSpec,
+    parameters: Mapping[str, float] | None = None,
+) -> _DynamicsSpec:
     """Return the first-order equations of a system.
 
     The parameters are at their current values.
@@ -476,7 +479,7 @@ def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Ar
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
 
-def _bound_interactions(system: System, field: FieldElement) -> list[BaseInteraction]:
+def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[BaseInteraction]:
     """Return the interactions of a system whose every role binds one field.
 
     An error is raised for another.
@@ -495,7 +498,7 @@ def _bound_interactions(system: System, field: FieldElement) -> list[BaseInterac
     return bound
 
 
-def _single_field(system: System) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
+def _single_field(system: CompositeSystem) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
     """Return the one field of a system, its periodic lattice, and its interactions.
 
     The interactions are those bound to the field. An error is raised when there is none.
@@ -591,7 +594,7 @@ def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
 
 
 def _dispersion_relation(
-    system: System,
+    system: CompositeSystem,
     at: Mapping[str, float] | None = None,
 ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
     """Return the wave vectors, lengths, growth rates, frequencies, and uniform state.

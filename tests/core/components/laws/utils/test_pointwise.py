@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR, cosh, log, pi, sin, var
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import clip, hill, logistic, sign, stop_gradient
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
@@ -50,7 +50,7 @@ def _rates(function, backend):
             return [RateLaw(s.x, function(s.x))]
 
     group = GroupElement('g', element=ValueElement, size=VALUES.size, values={'x': VALUES})
-    problem = PassCompiler(backend=backend).prepare(System(elements=[group])).run().problem_
+    problem = PassCompiler(backend=backend).prepare(CompositeSystem(elements=[group])).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
 

@@ -27,12 +27,12 @@ class GillespieSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import ReactionInteraction
         >>> from skcomplex.core.engine.solvers import GillespieSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[NonnegativeElement('I', x=10), NonnegativeElement('R', x=0)],
         ...     interactions=[
         ...         ReactionInteraction('rec', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=1.0, mode='jump')

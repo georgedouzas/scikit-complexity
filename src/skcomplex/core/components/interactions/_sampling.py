@@ -233,7 +233,7 @@ class SamplingInteraction(Interaction):
         >>> from skcomplex.core.components.interactions import SamplingInteraction
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from typing import Annotated
         >>> from skcomplex.core.engine.runtime import simulate
@@ -244,7 +244,7 @@ class SamplingInteraction(Interaction):
         >>> objective = lambda n: -n.target.s * neighbors(n.target.other.s)
         >>> ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
         >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
-        >>> system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[spins], interactions=[ising], time=DiscreteTime())
         >>> states = simulate(system, until=20, random_state=0).states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
@@ -262,7 +262,7 @@ class SamplingInteraction(Interaction):
         ...     'wilson', target='links', state='theta', objective=wilson, move='rotate', schedule='colored'
         ... )
         >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
-        >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[links], interactions=[gauge], time=DiscreteTime())
         >>> simulate(system, until=2, random_state=0).states.shape
         (3, 32)
         >>> import numpy as np
@@ -275,7 +275,7 @@ class SamplingInteraction(Interaction):
         ...     'walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
         ... )
         >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((2, 8)), on='sites')
-        >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[spins], interactions=[walk], time=DiscreteTime())
         >>> simulate(system, until=3, random_state=0).values('walk.score').shape
         (4, 2)
         >>> from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec
@@ -292,7 +292,7 @@ class SamplingInteraction(Interaction):
         ... )
         >>> space = CellComplexSpace(LatticeSpace((4, 4)))
         >>> links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
-        >>> system = System(elements=[links], interactions=[wilson], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[links], interactions=[wilson], time=DiscreteTime())
         >>> simulate(system, until=2, random_state=0).values('links.U').shape
         (3, 32, 8)
         >>> from skcomplex.core.specs import RegionScoreSpec
@@ -309,7 +309,7 @@ class SamplingInteraction(Interaction):
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
         >>> space = LatticeSpace((8, 8))
         >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
-        >>> system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
         >>> final = simulate(system, until=20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]

@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
 from skcomplex.core.errors import SolverError, ValidationError
@@ -50,7 +50,7 @@ def test_optimal_control_rejects_an_unknown_sense(linear_quadratic, quadratic_co
 def test_optimal_control_needs_bounded_controls(quadratic_cost):
     """Test that a system without a bounded adaptive parameter has nothing to control."""
     with pytest.raises(SolverError, match='no bounded adaptive parameter'):
-        simulate(System(elements=[FreeElement('plant')]), until=1.0, solver=PontryaginSolver(quadratic_cost))
+        simulate(CompositeSystem(elements=[FreeElement('plant')]), until=1.0, solver=PontryaginSolver(quadratic_cost))
 
 
 def test_optimal_control_maximises_the_negated_cost(linear_quadratic, quadratic_cost, riccati_control):

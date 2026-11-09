@@ -20,7 +20,7 @@ from sage.all__sagemath_symbolics import Expression
 from ..components.elements import DeclaredElement
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
-from ..components.systems import System
+from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
@@ -99,7 +99,7 @@ class SparseIdentificationResult:
     """
 
     samples: SamplesSpec
-    system: System
+    system: CompositeSystem
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -211,7 +211,15 @@ def sparse_identification(
     )
 
 
-def _forecast(system: System, label: str, states: list[str], last_state: Array, *, dt: float, horizon: int) -> Array:
+def _forecast(
+    system: CompositeSystem,
+    label: str,
+    states: list[str],
+    last_state: Array,
+    *,
+    dt: float,
+    horizon: int,
+) -> Array:
     """Return the variables of the fitted system simulated from the last sample.
 
     There is one row per sample.
@@ -388,7 +396,7 @@ def _surrogate_system(
     time: BaseTime,
     *,
     inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
-) -> System:
+) -> CompositeSystem:
     """Return a system of one surrogate element.
 
     It has the given states, laws, time, and control inputs.
@@ -416,7 +424,7 @@ def _surrogate_system(
     variables = {name: DeclaredVariableSpec(value, StateSpec()) for name, value in initial.items()}
     for name, (value, bounds) in (inputs or {}).items():
         variables[name] = DeclaredVariableSpec(value, ParameterSpec(adaptive=True, bounds=bounds))
-    return System(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
+    return CompositeSystem(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
 
 
 def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:

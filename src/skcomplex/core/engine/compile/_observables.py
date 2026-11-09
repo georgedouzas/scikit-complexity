@@ -19,7 +19,7 @@ from ...components.elements import Element
 from ...components.laws.utils import local_operator
 from ...components.laws.utils._local_operators import has_operator
 from ...components.specs import NodeSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import ValidationError
 from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
@@ -44,7 +44,7 @@ from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
 
 
-def _role_paths(system: System, scope: str = '') -> set[str]:
+def _role_paths(system: CompositeSystem, scope: str = '') -> set[str]:
     """Return the paths from the root of everything roles of a system tree bind to."""
     paths = set()
     for interaction in system.interactions:
@@ -83,7 +83,11 @@ def _held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
     return label
 
 
-def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSpec'], scope: str = '') -> System:
+def _with_held_reductions(
+    system: CompositeSystem,
+    reductions: Sequence['_HeldReductionSpec'],
+    scope: str = '',
+) -> CompositeSystem:
     """Return a system tree that holds every reduction of agents in an element.
 
     The element is in the system of the group.
@@ -121,7 +125,11 @@ def _with_held_reductions(system: System, reductions: Sequence['_HeldReductionSp
     return copied
 
 
-def _with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
+def _with_held_observables(
+    system: CompositeSystem,
+    read: set[str],
+    scope: str = '',
+) -> tuple[CompositeSystem, list[str]]:
     """Return a system tree that also holds every observable in `read` in an element.
 
     It also returns their paths.
@@ -156,7 +164,7 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
     return copied, held
 
 
-def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
+def _held_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> set[str]:
     """Return the paths of the observables read only at synchronisation points.
 
     They are the observables that roles bind to and laws read only at those points.
@@ -237,9 +245,9 @@ class ObservableEvaluator:
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')
@@ -953,9 +961,10 @@ class ObservableEvaluator:
         Examples:
             >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
             >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-            >>> from skcomplex.core.components.systems import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
-            >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
+            >>> system = CompositeSystem(elements=[PopulationElement('rabbits')])
+            >>> problem = PassCompiler().prepare(system).run().problem_
             >>> ObservableEvaluator._namespace_of(problem).rabbits.x
             x_rabbits
         """
@@ -986,7 +995,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _lowerable_observables(system: System, nodes: list[NodeSpec]) -> Declared:
+    def _lowerable_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

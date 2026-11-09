@@ -15,7 +15,7 @@ from skcomplex.core.components.elements import Element, GroupElement, Nonnegativ
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
 from skcomplex.core.engine.runtime._simulations import Simulation
@@ -44,7 +44,7 @@ from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weight
 
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=n)],
         interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
@@ -71,7 +71,7 @@ class FrameCounterObserver(BaseObserver):
 
 def _growth(r=1.0):
     """Return a system of exponential growth."""
-    return System(
+    return CompositeSystem(
         elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=r)],
     )
@@ -79,7 +79,7 @@ def _growth(r=1.0):
 
 def _epidemic():
     """Return a stochastic SIR system."""
-    return System(
+    return CompositeSystem(
         elements=[NonnegativeElement('S', x=95), NonnegativeElement('I', x=5), NonnegativeElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
@@ -90,7 +90,7 @@ def _epidemic():
 
 def _logistic():
     """Return a logistic population."""
-    return System(
+    return CompositeSystem(
         elements=[PopulationElement('rabbits', x=10)],
         interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
     )
@@ -243,14 +243,14 @@ def test_simulation_hands_frames_to_observers():
 
 def test_simulation_discrete_frames_are_integer_times():
     """Test that discrete maps produce frames at integer times."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     trajectory = simulate(system, until=10)
     assert trajectory.times.tolist() == list(map(float, range(11)))
 
 
 def test_simulation_discrete_noninteger_dt_raises_error():
     """Test that a discrete map needs an integer dt."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     with pytest.raises(ValidationError, match='positive integer'):
         Simulation(system, dt=0.5).prepare().run(until=1)
 
@@ -278,7 +278,7 @@ def test_simulation_schedule_unknown_parameter_raises_error():
 
 def test_simulation_schedule_invalid_value_raises_error():
     """Test that scheduled values are checked against their domain, with the parameter and the time named."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     schedule = {'c.b': lambda t: 1.0 if t < 3 else -1.0}
     message = r'At t = 3\.0, the schedule sets c\.b = -1\.0, which is not a value .* in the domain \(0, \+oo\)'
     with pytest.raises(ValidationError, match=message):
@@ -320,7 +320,7 @@ def test_simulation_same_random_state_is_reproducible():
 
 def test_simulation_agent_parameters_follow_the_schedule():
     """Test that a scheduled agent group parameter is read by the rules of the run."""
-    system = System(elements=[GroupElement('savers', element=SaverElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('savers', element=SaverElement, size=3)])
     trajectory = simulate(system, until=2, schedule={'savers.rate': lambda t: 5.0})
     assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
 
@@ -378,7 +378,7 @@ def test_trajectory_gives_agent_locations_over_frames():
 
 def test_initial_state_replaces_the_values_of_components():
     """Test that a simulation starts from given initial values by state name and rejects unknown names."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('rabbits', x=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
@@ -391,7 +391,7 @@ def test_initial_state_replaces_the_values_of_components():
 def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-    trajectory = simulate(System(elements=[HeaterElement('heater')]), until=3.0, dt=0.5, schedule=schedule)
+    trajectory = simulate(CompositeSystem(elements=[HeaterElement('heater')]), until=3.0, dt=0.5, schedule=schedule)
     np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
     assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
     assert trajectory.values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
@@ -529,7 +529,7 @@ class ProgressionInteraction(Interaction):
 
 def test_checked_mode_catches_values_outside_alphabet():
     """Test that checked mode names the state when a law leaves the alphabet."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
@@ -584,7 +584,7 @@ class ChainElement(Element):
 
 def test_simulation_without_a_solver_runs_the_default_solver():
     """Test that a simulation without a solver runs the default solver of the system's form."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
@@ -594,7 +594,7 @@ def test_simulation_without_a_solver_runs_the_default_solver():
 
 def test_simulation_runs_the_solver_instance_passed():
     """Test that a simulation runs the solver instance it is given."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )

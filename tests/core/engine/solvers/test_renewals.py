@@ -10,7 +10,7 @@ import rerun as rr
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
@@ -163,7 +163,11 @@ def _member_times(trajectory, label, member):
 
 def test_renewal_stepper_draws_reset_values_from_scipy():
     """Test that 100000 reset values of a SciPy normal draw have mean 2 and scale 3."""
-    trajectory = _trajectory(System(elements=[GroupElement('r', element=ResettingElement, size=1000)]), 100, 100)
+    trajectory = _trajectory(
+        CompositeSystem(elements=[GroupElement('r', element=ResettingElement, size=1000)]),
+        100,
+        100,
+    )
     values = np.concatenate([record.after[:, 0] for record in trajectory.events])
     assert values.size > 99000
     assert abs(values.mean() - 2) < 0.05
@@ -172,7 +176,7 @@ def test_renewal_stepper_draws_reset_values_from_scipy():
 
 def test_renewal_stepper_shares_a_draw_within_a_renewal():
     """Test that two uses of one draw name in a reset read the same value at every renewal."""
-    trajectory = _trajectory(System(elements=[GroupElement('k', element=KickedElement, size=20)]), 50, 1)
+    trajectory = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 50, 1)
     after = np.concatenate([record.after for record in trajectory.events])
     assert after.shape[0] > 500
     assert np.all(after[:, 0] + after[:, 1] == 0)
@@ -180,15 +184,15 @@ def test_renewal_stepper_shares_a_draw_within_a_renewal():
 
 def test_renewal_stepper_reproduces_runs_with_one_seed():
     """Test that two runs with random state 0 give equal trajectories and records."""
-    first = _trajectory(System(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
-    second = _trajectory(System(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
+    first = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
+    second = _trajectory(CompositeSystem(elements=[GroupElement('k', element=KickedElement, size=20)]), 20, 1)
     assert np.array_equal(first.states, second.states)
     assert all(np.array_equal(a.times, b.times) for a, b in zip(first.events, second.events, strict=True))
 
 
 def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
-    problem = PassCompiler().prepare(System(elements=[CounterElement('c')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[CounterElement('c')])).run().problem_
     step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1000.0)
     counts = [
         float(
@@ -201,14 +205,18 @@ def test_renewal_stepper_counts_exponential_renewals():
 
 def test_renewal_stepper_counts_power_law_renewals():
     """Test that Pareto waits of tail exponent 0.5 for 10000 members give a mean count growing as t^0.5."""
-    trajectory = _trajectory(System(elements=[GroupElement('w', element=WaitingElement, size=10000)]), 10000, 100)
+    trajectory = _trajectory(
+        CompositeSystem(elements=[GroupElement('w', element=WaitingElement, size=10000)]),
+        10000,
+        100,
+    )
     times, counts = trajectory.times[10:], trajectory.values('w.n')[10:].mean(axis=1)
     assert np.polyfit(np.log(times), np.log(counts), 1)[0] == pytest.approx(0.5, abs=0.05)
 
 
 def test_renewal_stepper_holds_states_between_renewals():
     """Test that every frame holds the states the last renewal at or before its time set."""
-    trajectory = _trajectory(System(elements=[CounterElement('c')]), 20, 0.1)
+    trajectory = _trajectory(CompositeSystem(elements=[CounterElement('c')]), 20, 0.1)
     times = np.concatenate([record.times for record in trajectory.events])
     expected = np.searchsorted(times, trajectory.times, side='right')
     assert np.array_equal(trajectory.values('c.n'), expected)
@@ -216,7 +224,7 @@ def test_renewal_stepper_holds_states_between_renewals():
 
 def test_renewal_stepper_exposes_the_renewal_count_observable():
     """Test that the observable of a renewal law counts the renewals recorded up to every frame."""
-    trajectory = _trajectory(System(elements=[GroupElement('c', element=CounterElement, size=5)]), 10, 0.5)
+    trajectory = _trajectory(CompositeSystem(elements=[GroupElement('c', element=CounterElement, size=5)]), 10, 0.5)
     times = np.concatenate([record.times for record in trajectory.events])
     assert np.array_equal(
         trajectory.values('ticks.renewals'),
@@ -236,7 +244,7 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('renewals', save_path=tmp_path / 'run.rrd')
     simulate(
-        System(elements=[GroupElement('c', element=CounterElement, size=5)]),
+        CompositeSystem(elements=[GroupElement('c', element=CounterElement, size=5)]),
         until=5,
         dt=1,
         observers=[observer],
@@ -252,7 +260,7 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
 )
 def test_rk4_renews_members_on_their_own_clocks(system):
     """Test that members renew at their own times, with independent and interacting members."""
-    trajectory = _trajectory(System(elements=[system]), 10, 1, solver=RK4Solver(dt=0.1))
+    trajectory = _trajectory(CompositeSystem(elements=[system]), 10, 1, solver=RK4Solver(dt=0.1))
     clocks = [tuple(_member_times(trajectory, 'f', member)) for member in range(1000)]
     renewing = [clock for clock in clocks if clock]
     assert len(renewing) > 950
@@ -262,7 +270,7 @@ def test_rk4_renews_members_on_their_own_clocks(system):
 def test_rk4_moves_ballistically_between_renewals():
     """Test that the position at every renewal is the previous one plus the velocity times the waiting time."""
     trajectory = _trajectory(
-        System(elements=[GroupElement('f', element=FlierElement, size=50)]),
+        CompositeSystem(elements=[GroupElement('f', element=FlierElement, size=50)]),
         50,
         1,
         solver=RK4Solver(dt=0.25),
@@ -287,7 +295,7 @@ def test_rk4_moves_ballistically_between_renewals():
 def test_renewal_records_name_their_states():
     """Test that a renewal record holds the time, the member, and the member's states before and after it."""
     record = _trajectory(
-        System(elements=[GroupElement('f', element=FlierElement, size=3)]),
+        CompositeSystem(elements=[GroupElement('f', element=FlierElement, size=3)]),
         5,
         5,
         solver=RK4Solver(dt=0.5),
@@ -299,13 +307,13 @@ def test_renewal_records_name_their_states():
 
 def test_stepper_rejects_renewals_it_does_not_fire():
     """Test that a stepper without renewals names the steppers that fire them."""
-    problem = PassCompiler().prepare(System(elements=[FlierElement('f')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[FlierElement('f')])).run().problem_
     with pytest.raises(SolverError, match=r'ScipyODESolver does not fire renewal laws. Use RK4Solver'):
         ScipyODESolver(random_state=0).prepare(problem)
 
 
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
-    trajectory = simulate(System(elements=[CounterElement('c')]), until=1, random_state=0)
+    trajectory = simulate(CompositeSystem(elements=[CounterElement('c')]), until=1, random_state=0)
     assert trajectory.problem.form == FormKind.RENEWAL
     assert DEFAULT_SOLVERS[FormKind.RENEWAL] is RenewalSolver

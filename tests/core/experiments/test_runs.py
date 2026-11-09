@@ -12,7 +12,7 @@ from skcomplex.core.analysis import bind_analysis
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -101,7 +101,7 @@ def test_a_sweep_leaves_the_system_unchanged():
 
 def test_paths_of_states_and_parameters_change_one_run():
     """Test that a dotted state path changes the initial value and a parameter path the value for the whole run."""
-    system = System(elements=[LogisticMapElement('map')])
+    system = CompositeSystem(elements=[LogisticMapElement('map')])
     result = sweep(system, [{'map.x': 0.5, 'map.r': 2.0}], until=3, outputs=['map.x'])
     assert result.series('map.x')[0].tolist() == [0.5, 0.5, 0.5, 0.5]
 

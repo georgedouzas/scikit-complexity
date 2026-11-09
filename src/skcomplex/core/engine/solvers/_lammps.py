@@ -27,7 +27,7 @@ from ...components.interactions import BaseInteraction, PairCouplingInteraction
 from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...components.specs import CompiledElementSpec, CompiledInteractionSpec
-from ...components.systems import System
+from ...components.systems import CompositeSystem
 from ...errors import BackendError, SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
@@ -113,11 +113,11 @@ class LammpsSolver(ExternalSolver):
         >>> from skcomplex.core.components.elements import GroupElement, PointElement
         >>> from skcomplex.core.components.interactions import PairCouplingInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import LammpsSolver
         >>> from skcomplex.core.engine.runtime import simulate
         >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[
         ...         GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
         ...     ],
@@ -664,7 +664,11 @@ class LammpsSolver(ExternalSolver):
         return name
 
     @staticmethod
-    def _compile_external(system: System | None, keep: set[str], backend: NumpyBackend | None = None) -> ProblemSpec:
+    def _compile_external(
+        system: CompositeSystem | None,
+        keep: set[str],
+        backend: NumpyBackend | None = None,
+    ) -> ProblemSpec:
         """Return the problem of the interactions of a system that LAMMPS calls back.
 
         The problem only evaluates forces.
@@ -697,7 +701,7 @@ class LammpsSolver(ExternalSolver):
         return problem
 
     @staticmethod
-    def _filter_system(system: System, keep: set[str], scope: str = '') -> System:
+    def _filter_system(system: CompositeSystem, keep: set[str], scope: str = '') -> CompositeSystem:
         """Return a copy of a system tree that keeps only some interactions.
 
         The interactions kept are those whose paths are in `keep`. A box becomes an unbounded continuous space of its
@@ -706,7 +710,7 @@ class LammpsSolver(ExternalSolver):
         space = system.space
         if isinstance(space, ContinuousSpace):
             space = ContinuousSpace(n_dim=space.n_dim or len(space.extent))
-        return System(
+        return CompositeSystem(
             system.label,
             elements=system.elements,
             interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],

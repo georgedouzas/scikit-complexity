@@ -143,7 +143,7 @@ class BirthDeathInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import BirthDeathInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
@@ -152,7 +152,7 @@ class BirthDeathInteraction(Interaction):
         ...         self.size = size
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
         >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
-        >>> system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
+        >>> system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
         >>> trajectory = simulate(system, until=2, random_state=0)
         >>> trajectory.agents('cells', 2).values['size'].tolist()
         [2.0, 2.0, 2.0, 2.0]

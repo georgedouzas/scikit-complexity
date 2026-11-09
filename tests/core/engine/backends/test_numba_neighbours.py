@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import ParameterSpec
@@ -68,7 +68,7 @@ def _accelerations(system, numba_backend):
 
 def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
         ],
@@ -84,7 +84,7 @@ def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
 def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend, period):
     """Test that periodic boxes of one, two, and three cells per side count every pair once on both backends."""
     rng = np.random.default_rng(0)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('gas', element=PointElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
         ],

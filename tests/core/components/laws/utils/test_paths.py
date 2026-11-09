@@ -14,7 +14,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import shortest_paths
 from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
@@ -71,7 +71,7 @@ def test_shortest_paths_agrees_with_networkx_on_the_open_links(reduce):
     graph = nx.gnp_random_graph(30, 0.15, seed=1)
     weights = (rng.uniform(size=graph.number_of_edges()) < 0.8).astype(float)
     space = NetworkSpace(graph)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': weights}),
@@ -107,7 +107,7 @@ def test_shortest_paths_follow_a_network_whose_nodes_are_removed(backend):
     load = MapInteraction('load', target='nodes', state='a', function=lambda s: shortest_paths(1))
     removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=0.05)
     space = NetworkSpace(graph)
-    system = System(elements=[nodes, links], interactions=[load, removal], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[nodes, links], interactions=[load, removal], space=space, time=DiscreteTime())
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BackendWarning)
         trajectory = simulate(system, until=6, backend=backend, random_state=0)
@@ -121,7 +121,7 @@ def test_shortest_paths_follow_a_network_whose_nodes_are_removed(backend):
 def test_numba_runs_shortest_paths_in_python_with_a_warning():
     """Test that the Numba backend warns that it runs the laws of a shortest paths reduction in Python."""
     space = NetworkSpace(nx.path_graph(4))
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': 1.0}),

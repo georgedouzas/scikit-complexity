@@ -7,7 +7,7 @@ from sklearn.base import clone
 
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
@@ -98,7 +98,7 @@ def test_continuous_space_keeps_regions_in_two_dimensions():
 
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
-    system = System(
+    system = CompositeSystem(
         elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
@@ -109,7 +109,7 @@ def test_reflecting_box_reverses_crossing_particle():
 
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
-    system = System(
+    system = CompositeSystem(
         elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
@@ -121,7 +121,7 @@ def test_periodic_box_wraps_leaving_particle():
 @pytest.mark.parametrize('solver', [RK4Solver(), ScipyODESolver()], ids=['rk4', 'scipy'])
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
-    system = System(
+    system = CompositeSystem(
         elements=[PointElement('p', x=[0.5], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )

@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver
 from skcomplex.core.errors import ValidationError
@@ -40,7 +40,7 @@ class InertialElement(Element):
 
 def _final(interactions, n=1.0, until=1.0, size=MEMBERS, solver=None):
     """Return the final values of the state `n` of a group of holding elements driven by interactions."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('walkers', element=HoldingElement, size=size, values={'n': n})],
         interactions=interactions,
     )
@@ -50,7 +50,7 @@ def _final(interactions, n=1.0, until=1.0, size=MEMBERS, solver=None):
 
 def test_run_divides_a_constant_rate_on_a_state_of_order_two():
     """Test that a constant rate `F` with the divisor `m` on a state of order 2 gives `x = F t**2 / (2 m)`."""
-    system = System(
+    system = CompositeSystem(
         elements=[InertialElement('body', m=2.0)],
         interactions=[RateInteraction('push', target='body', state='x', rate=4.0, divisor='m')],
         space=ContinuousSpace(n_dim=2),
@@ -62,7 +62,7 @@ def test_run_divides_a_constant_rate_on_a_state_of_order_two():
 
 def test_run_reads_the_sources():
     """Test that a rate reading a source grows the target by the value of the source."""
-    system = System(
+    system = CompositeSystem(
         elements=[HoldingElement('stock', n=0.0), HoldingElement('inflow', n=3.0)],
         interactions=[
             RateInteraction('feed', target='stock', state='n', rate=lambda s: s.sources[0].n, sources=['inflow']),
@@ -104,7 +104,7 @@ def test_run_shares_the_processes_of_a_wiener_spec():
     """Test that two states driven by one process move together, and two correlated processes keep their covariance."""
     common = WienerProcessSpec('common')
     pair = WienerProcessSpec('pair', dimension=2, covariance=((1.0, 0.6), (0.6, 1.0)))
-    system = System(
+    system = CompositeSystem(
         elements=[HoldingElement(label) for label in ('a', 'b', 'c', 'd')],
         interactions=[
             RateInteraction('first', target='a', state='n', noise=1.0, process=common),
@@ -140,7 +140,11 @@ def test_check_rejects_invalid_arguments(arguments, message):
 def test_run_divides_by_a_divisor_expression():
     """Test that a constant rate `F` divided by the expression `2 m` gives `x = F t**2 / (4 m)`."""
     push = RateInteraction('push', target='body', state='x', rate=4.0, divisor=lambda member: 2 * member.m)
-    system = System(elements=[InertialElement('body', m=2.0)], interactions=[push], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(
+        elements=[InertialElement('body', m=2.0)],
+        interactions=[push],
+        space=ContinuousSpace(n_dim=2),
+    )
     trajectory = simulate(system, until=2.0, dt=0.5)
     np.testing.assert_allclose(trajectory.values('body.x')[-1], [2.0, 2.0])
 
@@ -163,7 +167,7 @@ class FractionalElement(Element):
 def test_run_reads_the_hurst_index_from_a_parameter():
     """Test that a Hurst index read from a parameter gives the variance `t**(2 H)` within 5 percent."""
     noise = RateInteraction('walk', target='walkers', state='n', noise=1.0, hurst=lambda s: s.target.H)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('walkers', element=FractionalElement, size=5_000, values={'n': 0.0, 'H': 0.7})],
         interactions=[noise],
     )
@@ -202,7 +206,7 @@ def _oja(first, second):
 
 def test_run_oja_rule_as_rate_laws():
     """Test that Oja's rule as rate laws on weight states converges to the principal direction of the inputs."""
-    system = System(
+    system = CompositeSystem(
         elements=[SynapsesElement('neuron')],
         interactions=[
             RateInteraction('first', target='neuron', state='w1', rate=_oja(0, 0)),
