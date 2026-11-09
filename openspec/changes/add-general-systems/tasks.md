@@ -119,15 +119,15 @@ Same procedure as group 3.
 
 Same procedure as group 3.
 
-- [ ] 8.1 biology: `ecology/_fronts.py`, `physiology/_cardiac.py` (Aliev-Panfilov, Barkley), `physiology/_physiology.py`
+- [x] 8.1 biology: `ecology/_fronts.py`, `physiology/_cardiac.py` (Aliev-Panfilov, Barkley), `physiology/_physiology.py`
   `FitzhughNagumoSystem`, `systems_biology/_min_proteins.py`
-  Left to do.
+  Rebased: `FisherKPPSystem`, `BarkleySystem`, `FitzhughNagumoSystem` (its FitzHugh-Nagumo kinetics through `_get_equation_interactions`), `MinProteinSkeletonSystem` (its reactions through `_get_equation_interactions`). Kept: `AlievPanfilovSystem` (trajectory differs in the last bits). The core tests of Jacobians and of the SciPy solver that composed `FisherKPPElement` define the logistic site they need.
 - [x] 8.2 chemistry: `pattern_formation/_reaction_diffusion.py` (Gray-Scott, Brusselator, Schnakenberg, keeping their
   reactions through `_get_equation_interactions`)
   Rebased: `GrayScottSystem`, `SchnakenbergSystem`. Kept: `BrusselatorSystem`, whose element extends the shared `BrusselatorReactionElement`.
-- [ ] 8.3 physics: `heat/_heat.py` `HeatDiffusionSystem`, `criticality/_absorbing.py`
+- [x] 8.3 physics: `heat/_heat.py` `HeatDiffusionSystem`, `criticality/_absorbing.py`
   `DirectedPercolationLangevinSystem`
-  Left to do.
+  Kept: `HeatDiffusionSystem` (its element also serves `HeatLShapeSystem`, and its conduction is a `DiffusivityInteraction`), `DirectedPercolationLangevinSystem` (its element bounds both fields with boundary laws).
 
 ## 9. StockFlowSystem
 
@@ -142,14 +142,14 @@ Same procedure as group 3.
 
 Same procedure as group 3.
 
-- [ ] 10.1 economics: `innovation/_bass.py`, `markets/_commodities.py`, `markets/_inventory.py`,
+- [x] 10.1 economics: `innovation/_bass.py`, `markets/_commodities.py`, `markets/_inventory.py`,
   `resources/_extraction.py` (oil economy, fishery capital), `resources/_fisheries.py`, `resources/_food_balance.py`
-  Rebased: `BassDiffusionSystem`. Left to do: the other economics systems, several with transfers of several legs or labelled sources.
-- [ ] 10.2 engineering: `processes/_grain_storage.py`, `processes/_processes.py` `BathtubSystem`,
+  Rebased: `BassDiffusionSystem`, `OilEconomySystem`. Kept: `CommodityCycleSystem`, `CarDealerSystem`, `FisheryCapitalSystem`, `HilsaFisherySystem`, and `RiceFoodBalanceSystem` (their transfers have several legs).
+- [x] 10.2 engineering: `processes/_grain_storage.py`, `processes/_processes.py` `BathtubSystem`,
   `processes/_systems.py` `FoodReliefSystem`
-  Rebased: `BathtubSystem`. Left to do: `GrainStorageSystem`, `FoodReliefSystem`.
-- [ ] 10.3 social: `opinion_dynamics/_undecided.py`, `organizations/_traps.py` (five systems)
-  Left to do: their transfers have several legs and a labelled `Source`, which the flow table does not express.
+  Rebased: `BathtubSystem`, `GrainStorageSystem`, whose flows name the labelled `Source('suppliers')` and `Sink('consumers')`. Kept: `FoodReliefSystem` (its distributed delay names its stages after the element, `relief.material_delay3_0`, and a flow would name them after itself).
+- [x] 10.3 social: `opinion_dynamics/_undecided.py`, `organizations/_traps.py` (five systems)
+  Kept: `UndecidedFlowsSystem`, `SuccessToTheSuccessfulSystem`, `ShiftingTheBurdenSystem`, `EscalationSystem`, `PolicyResistanceSystem`, and `DriftToLowPerformanceSystem` (their transfers have several legs).
 - [x] 10.4 For `CascadeClassifierSystem`, `RiceMillingSystem`, `SolidWasteSystem`, `IrrigationSystem`, `CocoaSystem`,
   and `EnergyReturnSystem`, try the rates outside their flows as named flows and compare with the script of 1.3. Keep
   each system on its base unless names and values are equal, and record the result in this task.
