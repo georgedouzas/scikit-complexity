@@ -11,7 +11,7 @@ from ._commons import (
     QuotaRegulatorInteraction,
     TragedyOfTheCommonsSystem,
 )
-from ._crop_livestock import CropLivestockElement, CropLivestockHouseholdSystem
+from ._crop_livestock import CropLivestockHouseholdSystem
 from ._extraction import FisheryCapitalSystem, FisheryElement, OilEconomyElement, OilEconomySystem
 from ._fisheries import HilsaElement, HilsaFisherySystem
 from ._food import FoodSecuritySystem, PartialAdjustmentInteraction, RiceSectorElement
@@ -26,7 +26,6 @@ __all__: list[str] = [
     'BidRentInteraction',
     'CocoaSystem',
     'CowElement',
-    'CropLivestockElement',
     'CropLivestockHouseholdSystem',
     'FarmerElement',
     'FisheryCapitalSystem',
