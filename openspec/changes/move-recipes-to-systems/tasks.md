@@ -147,7 +147,7 @@
   `docs/overview/user_guide/core_components/general.md` on `skcomplex.systems.general` (create it, it is listed in the
   navigation, and `rewrite-docstrings-and-docs` later rewrites it), and write the core pages with the primitives. Update `docs/generate_parts.py`. Verify with
   `nox -s docs -- build` and the doc tests of the guide.
-- [ ] 9.2 Make the inventory follow the core: drop the primitives that name a moved recipe, such as `markets`,
+- [x] 9.2 Make the inventory follow the core: drop the primitives that name a moved recipe, such as `markets`,
   `satisfiability`, `population-search`, and `label-copies`, rewrite `matrix-groups` without the holonomy sampling,
   and let the inventory check recompute the priority of the affected entries. Verify with the inventory test.
 

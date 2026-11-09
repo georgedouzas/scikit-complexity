@@ -10,7 +10,7 @@ import functools
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import networkx as nx
 import numpy as np
@@ -149,6 +149,8 @@ class WilsonSamplingInteraction(SamplingInteraction):
         >>> color.objective.group.degree
         3
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
 
     def __init__(
         self,
