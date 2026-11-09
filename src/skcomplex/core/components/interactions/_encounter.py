@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ...types import ElementKind
-from ..laws import BaseLaw, BilinearLaw, EncounterLaw, RateLaw
+from ..laws import BaseLaw, BilinearLaw, RateLaw
 from ..laws.utils import collision
 from ..spaces import BaseSpace
 from ._interaction import Interaction
@@ -98,7 +98,7 @@ class EncounterInteraction(Interaction):
         True
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, EncounterLaw, RateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, RateLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of a collision rate, or of a linear or bilinear encounter.
@@ -107,10 +107,7 @@ class EncounterInteraction(Interaction):
         """
         if self._get_argument('cross_section') is not None:
             return self._get_variant_tags((RateLaw,))
-        bilinear = self._get_argument('outcome') in ('destructive', 'proliferative')
-        if self._get_argument('field') is not None and bilinear:
-            return self._get_variant_tags((BilinearLaw,))
-        return self._get_variant_tags((EncounterLaw,))
+        return self._get_variant_tags((BilinearLaw,))
 
     def __init__(
         self,
@@ -190,7 +187,7 @@ class EncounterInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _linear_laws(self, candidate: Expression, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter law of a redistribution without a field.
+        """Return the conserved bilinear law of a redistribution without a field.
 
         It uses one field class of value one.
         """
@@ -198,7 +195,8 @@ class EncounterInteraction(Interaction):
         rate = np.asarray(self.rate(namespace), dtype=object)
         rates = rate if rate.ndim == 0 else rate.reshape(-1, 1)
         kernel = np.asarray(self.kernel(namespace) if self.kernel is not None else (), dtype=object)
-        return [EncounterLaw(candidate, None, rates[()], np.expand_dims(kernel, axis=1), label=self.label)]
+        outcomes = np.expand_dims(kernel, axis=1)
+        return [BilinearLaw(candidate, candidate, None, rates[()], outcomes, conserved=True, label=self.label)]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter, bilinear, or collision law of the candidate density.
@@ -228,4 +226,4 @@ class EncounterInteraction(Interaction):
             return [BilinearLaw(candidate, candidate, field, loss, label=self.label)]
         if self.outcome == 'proliferative':
             return [BilinearLaw(candidate, candidate, field, rate, kernel, label=self.label)]
-        return [EncounterLaw(candidate, field, rate, kernel, label=self.label)]
+        return [BilinearLaw(candidate, candidate, field, rate, kernel, conserved=True, label=self.label)]

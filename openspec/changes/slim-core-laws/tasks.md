@@ -53,7 +53,7 @@ when other agents run tests at the same time.
   `law.conserved` and the linear case from `law.second is None`, and list `BilinearLaw` in `StrangSplittingSolver`,
   and verify new cases of `tests/core/engine/compile/passes/test_compile_encounters.py` for conserved bilinear laws
   match the encounter cases
-- [ ] 3.3 Emit conserved `BilinearLaw`s in `interactions/_encounter.py`, update the law in
+- [x] 3.3 Emit conserved `BilinearLaw`s in `interactions/_encounter.py`, update the law in
   `tests/core/components/elements/test_density.py`, `tests/core/components/laws/utils/test_moments.py`, and
   `tests/core/engine/solvers/test_kinetics.py`, and verify `pytest tests/core tests/systems` passes for the kinetic
   systems with the trajectories they had
