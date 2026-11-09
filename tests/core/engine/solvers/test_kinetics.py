@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw, EncounterLaw, RateLaw
+from skcomplex.core.components.laws import BilinearLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -48,7 +48,7 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [EncounterLaw(s.population.x, s.population.x, s.eta, _table())]
+        return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, _table(), conserved=True)]
 
 
 class TurnoverInteraction(Interaction):

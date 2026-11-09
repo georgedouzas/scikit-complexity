@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
+from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -32,7 +32,7 @@ def _exchange_table(size, share=0.5):
 
 
 class ExchangeInteraction(Interaction):
-    """Conservative encounters of a population with itself, with a transition table."""
+    """Conservative encounters of a population with itself, as a conserved bilinear law with an outcome table."""
 
     def __init__(
         self,
@@ -49,7 +49,20 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [EncounterLaw(s.population.x, s.population.x, s.eta, self.table)]
+        return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, self.table, conserved=True)]
+
+
+class RedistributionInteraction(Interaction):
+    """Linear redistribution of a population from its first class to its second at rate one."""
+
+    def __init__(self, label: str, *, population: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.population = population
+
+    def _get_laws(self, s):
+        """Return the conserved bilinear law without a second density."""
+        outcomes = np.asarray([[[0.0, 1.0]], [[0.0, 1.0]]])
+        return [BilinearLaw(s.population.x, s.population.x, None, 1.0, outcomes, conserved=True)]
 
 
 class GrowthInteraction(Interaction):
@@ -120,6 +133,20 @@ def test_encounter_rates_follow_gain_and_loss():
     assert problem.encounters[0].kind == 'transition'
 
 
+def test_conserved_bilinear_law_without_a_second_density_redistributes_linearly():
+    """Test that a linear redistribution at rate one empties the first class as exp(-t) and keeps the total."""
+    system = System(
+        elements=[GroupElement('mass', element=NonnegativeElement, on='sites', values={'x': [1.0, 0.0]})],
+        interactions=[RedistributionInteraction('move', population='mass')],
+        space=LatticeSpace(2, boundary='fixed'),
+        time=ContinuousTime(),
+    )
+    trajectory = simulate(system, until=3, dt=0.5, solver=RK4Solver(dt=1e-3))
+    values = np.asarray(trajectory.values('mass.x'))
+    np.testing.assert_allclose(values[:, 0], np.exp(-np.asarray(trajectory.times)), atol=1e-6)
+    np.testing.assert_allclose(values.sum(axis=1), 1.0, atol=1e-12)
+
+
 def test_numba_backend_fuses_the_gain():
     """Test that the Numba backend runs the gain in a fused loop that agrees with NumPy."""
     numpy_problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
@@ -161,7 +188,7 @@ def test_parameter_in_transition_table_is_evaluated():
             for candidate in range(CLASSES):
                 table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
                 table[candidate, :, candidate] += 1 - s.q
-            return [EncounterLaw(s.population.x, s.population.x, 1.0, table)]
+            return [BilinearLaw(s.population.x, s.population.x, s.population.x, 1.0, table, conserved=True)]
 
     system = System(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],

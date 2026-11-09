@@ -72,7 +72,7 @@ np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), ax
   `'random-site'`, `'checkerboard'`, or `'colored'` update cells one at a time, or one class of sites at a time.
 - One unit of time is one application of every rule, so `dt` is an integer. `trajectory.lattice(name)` returns the
   states in lattice shape.
-- `DriveLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
+- `ArrayUpdateLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
 
 ## Cascades
 

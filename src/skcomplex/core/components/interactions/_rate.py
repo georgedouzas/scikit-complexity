@@ -18,7 +18,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec, Tags, WienerProcessSpec
 from ...types import ElementKind
 from ..base import BasePart
-from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
+from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..spaces import BaseSpace
 from ._base import RATE_DOMAINS
 from ._interaction import Interaction
@@ -98,7 +98,7 @@ class RateInteraction(Interaction):
         2.943
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the rate law, with a noise law for a noise.
@@ -107,8 +107,6 @@ class RateInteraction(Interaction):
         """
         given = self._get_argument('noise') is not None or type(self)._get_noise is not RateInteraction._get_noise
         noise: tuple[type[BaseLaw], ...] = (NoiseLaw,) if given else ()
-        if noise and self._get_argument('hurst') is not None:
-            noise = (FractionalNoiseLaw,)
         return self._get_variant_tags((RateLaw, *noise))
 
     def __init__(
@@ -261,7 +259,7 @@ class RateInteraction(Interaction):
         """
         if self.hurst is not None:
             hurst = self._evaluate(self.hurst, namespace)
-            return FractionalNoiseLaw(state, amplitude, hurst=hurst, convention=self.convention)
+            return NoiseLaw(state, amplitude, hurst=hurst, convention=self.convention)
         process = None
         if self.process is not None:
             handle = self._get_member(namespace, 'process').dW

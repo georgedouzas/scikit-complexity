@@ -1,6 +1,6 @@
 """Pass that adds the fractional noise rows and the state orders to the problem.
 
-The noise rows are those of fractional noise laws.
+The noise rows are those of noise laws with a Hurst index.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -14,7 +14,7 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....components.laws import FractionalNoiseLaw, NoiseLaw
+from ....components.laws import NoiseLaw
 from ....specs import FractionalRowsSpec, FractionalStateSpec, LayoutSpec
 from ....types import Array, FormKind
 from ...problems._kernel_spec import KernelSpec
@@ -29,7 +29,7 @@ from ._fractional_form import FractionalFormPass
 class FractionalProblemPass(BasePass):
     """Pass that adds the fractional noise rows and the state orders to the problem.
 
-    The noise rows are those of fractional noise laws.
+    The noise rows are those of noise laws with a Hurst index.
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -71,7 +71,7 @@ class FractionalProblemPass(BasePass):
 
     @staticmethod
     def _fractional_rows(lowered: LoweredKernelsSpec) -> tuple[FractionalRowsSpec, ...]:
-        """Return the noise rows that fractional noise laws drive.
+        """Return the noise rows that noise laws with a Hurst index drive.
 
         They are in the order of the noise rows.
         """
@@ -79,7 +79,7 @@ class FractionalProblemPass(BasePass):
         for kernel in lowered.kernels[NoiseLaw]:
             for item in kernel.outputs:
                 spec, law = lowered.laws[id(item)]
-                if isinstance(law, FractionalNoiseLaw):
+                if isinstance(law, NoiseLaw) and law.hurst is not None:
                     if not isinstance(spec, KernelSpec):
                         error_msg = f'The fractional noise law of output {id(item)} has no kernel spec.'
                         raise TypeError(error_msg)

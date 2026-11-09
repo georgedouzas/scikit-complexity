@@ -1,4 +1,4 @@
-"""Define noise laws, amplitudes of the Wiener processes that drive states."""
+"""Define noise laws, amplitudes of the noise processes that drive states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +18,9 @@ NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
 class NoiseLaw(BaseLaw):
-    """Amplitude of a Wiener process that drives a state's highest time derivative.
+    """Amplitude of a noise process that drives a state's highest time derivative.
+
+    The process is a Wiener process, or a fractional Brownian motion of a Hurst index.
 
     Without a process, every component of the target and every member of a group gets its own independent Wiener
     process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
@@ -27,6 +29,11 @@ class NoiseLaw(BaseLaw):
     A conserved noise on a state of a field on a lattice adds `div(value eta)` instead, the finite-difference divergence
     of a random flux with one Wiener process per link between neighbouring sites, so the total of the field changes
     only by its rate laws.
+
+    A Hurst index makes the process a fractional Brownian motion. Its increments are fractional Gaussian noise,
+    correlated over the whole run. A Hurst index of 1/2 gives the Wiener process, below 1/2 the increments
+    anticorrelate, and above 1/2 they correlate. For other indices than 1/2 the amplitude must not depend on any state,
+    and the law takes neither a process nor a conserved noise.
 
     Args:
         target:
@@ -51,6 +58,10 @@ class NoiseLaw(BaseLaw):
         conserved:
             Whether the noise is the divergence of a random flux on the links of the lattice of a field.
 
+        hurst:
+            The Hurst index `0 < H < 1` of a fractional Brownian motion, a number or a parameter, or `None` for a
+            Wiener process.
+
         label:
             The name of the law, or the empty string for a law without one.
 
@@ -60,6 +71,9 @@ class NoiseLaw(BaseLaw):
         >>> x = var('x')
         >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().run({'x': 10.0}).value_
         2.0
+        >>> D = var('D')
+        >>> NoiseLaw(x, 2 * D, hurst=0.7).hurst
+        0.7
     """
 
     law_tag: ClassVar[str] = 'noise'
@@ -73,6 +87,7 @@ class NoiseLaw(BaseLaw):
         convention: str = 'ito',
         process: Process = None,
         conserved: bool = False,
+        hurst: object = None,
         label: str = '',
     ) -> None:
         super().__init__(label)
@@ -82,6 +97,7 @@ class NoiseLaw(BaseLaw):
         self.convention = convention
         self.process = process
         self.conserved = conserved
+        self.hurst = hurst
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the noise drives."""
@@ -114,8 +130,28 @@ class NoiseLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
 
+    def _check_hurst(self) -> None:
+        """Raise an error for a Hurst index outside `(0, 1)`, with a process, or on a conserved noise."""
+        if self.hurst is None:
+            return
+        if isinstance(self.hurst, int | float) and not 0 < self.hurst < 1:
+            error_msg = f'The Hurst index of the noise of {self.target} is {self.hurst}. Give a number in (0, 1).'
+            raise ValidationError(error_msg)
+        if self.process is not None:
+            error_msg = (
+                f'The noise law of {self.target} has a Hurst index and names the process {self.process!r}, but a '
+                'fractional Brownian motion is drawn for the law alone. Remove the process.'
+            )
+            raise ValidationError(error_msg)
+        if self.conserved:
+            error_msg = (
+                f'The conserved noise law of {self.target} has a Hurst index, but a conserved noise is Brownian. '
+                'Remove the Hurst index.'
+            )
+            raise ValidationError(error_msg)
+
     def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an array value, an unknown convention, or an invalid process.
+        """Raise an error for an array value, an unknown convention, an invalid process, or Hurst index.
 
         The array is a NumPy array.
 
@@ -129,6 +165,7 @@ class NoiseLaw(BaseLaw):
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
             raise ValidationError(error_msg)
         self._check_process()
+        self._check_hurst()
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the amplitude at given values of the symbols it reads.

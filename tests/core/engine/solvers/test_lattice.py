@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import CascadeLaw, DriveLaw, LocalRuleLaw, SampleLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw, CascadeLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
     BallNeighborhood,
@@ -398,7 +398,7 @@ def test_relaxation_records_avalanches():
             """Return the laws of the pile element."""
             return [
                 CascadeLaw(
-                    drive=[DriveLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
+                    drive=[ArrayUpdateLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
                     relax=[
                         LocalRuleLaw(
                             s.height,
@@ -575,7 +575,7 @@ def _pile(activity, evaluated):
             """Return the laws of the pile element."""
             return [
                 CascadeLaw(
-                    drive=[DriveLaw(s.height, drop)],
+                    drive=[ArrayUpdateLaw(s.height, drop)],
                     relax=[LocalRuleLaw(s.height, BallNeighborhood(metric='manhattan', center='first'), topple)],
                     stable=lambda heights: bool((heights < 4).all()),
                     activity=activity,

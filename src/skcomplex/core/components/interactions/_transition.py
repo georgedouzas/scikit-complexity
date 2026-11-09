@@ -16,7 +16,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
-from ..laws import BaseLaw, EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
+from ..laws import BaseLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
 from ..spaces import BaseNeighborhood, BaseSpace
 from ..types import AgentViewProtocol, SystemViewProtocol
@@ -143,7 +143,7 @@ class TransitionInteraction(Interaction):
         -1
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw, RuleLaw, TransitionLaw, EmissionLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw, RuleLaw, TransitionLaw)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the laws the arguments choose.
@@ -153,8 +153,7 @@ class TransitionInteraction(Interaction):
         if self._get_argument('form') == 'agent':
             return self._get_variant_tags((RuleLaw,))
         if self._get_argument('matrix') is not None:
-            observed = self._get_argument('emission') is not None and self._get_argument('observed') is not None
-            return self._get_variant_tags((TransitionLaw, *((EmissionLaw,) if observed else ())))
+            return self._get_variant_tags((TransitionLaw,))
         if self._get_argument('rate') is not None:
             return self._get_variant_tags((JumpLaw,))
         return self._get_variant_tags((UpdateLaw,), stochastic=self._get_argument('probability') is not None)
@@ -345,7 +344,7 @@ class TransitionInteraction(Interaction):
             laws.append(TransitionLaw(value, self.matrix(namespace), label=self.label))
         if self.emission is not None and self.observed is not None:
             observed = getattr(self._get_member(namespace, 'target'), self.observed)
-            laws.append(EmissionLaw(observed, value, self.emission(namespace), label=self.label))
+            laws.append(TransitionLaw(observed, self.emission(namespace), source=value, label=self.label))
         return laws
 
     def _get_held(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> int:

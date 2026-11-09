@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
+from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -34,7 +34,7 @@ class RoughElement(Element):
 
     def _get_laws(self, s):
         """Return the noise on the state."""
-        return [FractionalNoiseLaw(s.x, 1, hurst=1.0)]
+        return [NoiseLaw(s.x, 1, hurst=1.0)]
 
 
 class MultiplicativeElement(Element):
@@ -54,7 +54,7 @@ class MultiplicativeElement(Element):
 
     def _get_laws(self, s):
         """Return the noise on the state."""
-        return [FractionalNoiseLaw(s.x, s.x, hurst=0.7)]
+        return [NoiseLaw(s.x, s.x, hurst=0.7)]
 
 
 class BrownianElement(Element):
@@ -74,7 +74,7 @@ class BrownianElement(Element):
 
     def _get_laws(self, s):
         """Return the noise on the state."""
-        return [FractionalNoiseLaw(s.x, s.x, hurst=0.5)]
+        return [NoiseLaw(s.x, s.x, hurst=0.5)]
 
 
 class PlainElement(Element):
@@ -114,7 +114,7 @@ class PersistentElement(Element):
 
     def _get_laws(self, s):
         """Return the noise on the state."""
-        return [FractionalNoiseLaw(s.x, (2 * s.D) ** 0.5, hurst=0.3)]
+        return [NoiseLaw(s.x, (2 * s.D) ** 0.5, hurst=0.3)]
 
 
 class RelaxingElement(Element):

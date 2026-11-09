@@ -8,7 +8,7 @@ The laws are local rules, drives, cascades, and extremal laws.
 
 import math
 
-from ...components.laws import BoundaryLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
@@ -41,7 +41,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

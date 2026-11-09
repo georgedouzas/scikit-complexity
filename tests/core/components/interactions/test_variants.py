@@ -1,10 +1,8 @@
 """Test the variants of the general interactions that take names and functions, or names alone."""
 
 import pytest
-from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.components.interactions import LifeCycleInteraction, MovementInteraction, SamplingInteraction
-from skcomplex.core.components.laws import EmissionLaw
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PartnerSpec
 
@@ -26,9 +24,3 @@ def test_variant_refuses_a_spec_and_lists_what_it_takes(interaction, message):
     with pytest.raises(ValidationError, match=message):
         interaction.prepare()
 
-
-def test_emission_law_says_its_matrix_is_symbolic_only():
-    """Test that an emission refuses a function, and names the laws that take one."""
-    x, y = SR.var('x'), SR.var('y')
-    with pytest.raises(ValidationError, match=r'symbolic only.*TransitionLaw'):
-        EmissionLaw(x, y, lambda t, values: [[1.0]]).prepare()

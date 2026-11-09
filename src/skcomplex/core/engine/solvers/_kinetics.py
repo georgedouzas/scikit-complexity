@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...components.laws import BilinearLaw, EncounterLaw
+from ...components.laws import BilinearLaw
 from ...components.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
@@ -45,8 +45,8 @@ class KineticSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.engine.solvers import KineticSolver
-        >>> from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
-        >>> KineticSolver(n=1000)._get_support().laws == {EncounterLaw, BilinearLaw}
+        >>> from skcomplex.core.components.laws import BilinearLaw
+        >>> KineticSolver(n=1000)._get_support().laws == {BilinearLaw}
         True
     """
 
@@ -58,7 +58,7 @@ class KineticSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={LatticeSpace},
-            laws={EncounterLaw, BilinearLaw},
+            laws={BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
