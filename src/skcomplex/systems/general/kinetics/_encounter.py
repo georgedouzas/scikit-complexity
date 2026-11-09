@@ -14,13 +14,13 @@ from typing import Annotated, ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ...errors import ValidationError
-from ...specs import RoleSpec, Tags
-from ...types import ElementKind
-from ..laws import BaseLaw, BilinearLaw, RateLaw
-from ..laws.utils import collision_integral
-from ..spaces import BaseSpace
-from ._interaction import Interaction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, BilinearLaw, RateLaw
+from ....core.components.laws.utils import collision_integral
+from ....core.components.spaces import BaseSpace
+from ....core.errors import ValidationError
+from ....core.specs import RoleSpec, Tags
+from ....core.types import ElementKind
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
@@ -88,7 +88,7 @@ class EncounterInteraction(Interaction):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.interactions import EncounterInteraction
+        >>> from skcomplex.systems.general.kinetics import EncounterInteraction
         >>> kernel = np.full((3, 3, 3), 1 / 3)
         >>> mixing = EncounterInteraction(
         ...     'mixing', candidate='population', field='population', rate=lambda s: 1.0, kernel=lambda s: kernel

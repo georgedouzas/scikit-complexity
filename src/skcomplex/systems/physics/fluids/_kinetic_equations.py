@@ -16,13 +16,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import FieldElement
-from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
 from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, RoleSpec, VisualSpec
+from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 from ..common.particles import RelaxationTimeInteraction
 

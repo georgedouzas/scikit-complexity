@@ -16,12 +16,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import BaseInteraction, EncounterInteraction
+from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.elements import NonnegativeElement
+from ...general.kinetics import EncounterInteraction
 
 
 class WealthDensityElement(NonnegativeElement):

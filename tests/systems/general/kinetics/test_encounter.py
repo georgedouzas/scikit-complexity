@@ -1,4 +1,4 @@
-"""Test the `_encounter` module of `skcomplex.core.components.interactions`."""
+"""Test the `_encounter` module of `skcomplex.systems.general.kinetics`."""
 
 from typing import Annotated
 
@@ -7,7 +7,6 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, GroupElement
-from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -17,6 +16,7 @@ from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, RoleSpec
 from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.kinetics import EncounterInteraction
 
 CLASSES = 3
 SIZE, HALF_WIDTH = 32, 8.0

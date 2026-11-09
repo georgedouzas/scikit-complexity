@@ -12,7 +12,6 @@ from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
-from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
 from ._feedback import FeedbackInteraction
 from ._geodesic import GeodesicInteraction
@@ -44,7 +43,6 @@ __all__: list[str] = [
     'ConservationInteraction',
     'CouplingInteraction',
     'CrossingInteraction',
-    'EncounterInteraction',
     'EulerLagrangeInteraction',
     'FeedbackInteraction',
     'GeodesicInteraction',

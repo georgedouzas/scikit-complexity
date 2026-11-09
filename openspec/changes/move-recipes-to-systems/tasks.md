@@ -102,7 +102,7 @@
 - [x] 7.2 Repoint the matchings of economics and engineering, and replace `PartnerSpec(..., value=...)` by
   `PartnerMatchingSpec` in commons, shops, barter networks, and Metaphoria. Verify with `tests/systems/economics` and
   `tests/systems/engineering/traffic`, and the scenario "Partners with a clearing value".
-- [ ] 7.3 Move `EncounterInteraction` to `systems/general/kinetics`, with its tests, and repoint its users in biology,
+- [x] 7.3 Move `EncounterInteraction` to `systems/general/kinetics`, with its tests, and repoint its users in biology,
   economics, physics, and social. Verify that the encounter passes still key on `BilinearLaw` with
   `grep -rn EncounterInteraction src/skcomplex/core` returning nothing, and with the tests of the kinetic systems.
 

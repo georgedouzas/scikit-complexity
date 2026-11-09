@@ -14,11 +14,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec
+from ...general.kinetics import EncounterInteraction
 from ..common.populations import PopulationDensityElement
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')

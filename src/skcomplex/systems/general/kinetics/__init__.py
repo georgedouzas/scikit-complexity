@@ -3,4 +3,8 @@
 Densities over class axes meet in binary encounters.
 """
 
-__all__: list[str] = []
+from ._encounter import EncounterInteraction
+
+__all__: list[str] = [
+    'EncounterInteraction',
+]

@@ -715,7 +715,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.systems.general.elements import NonnegativeElement
-from skcomplex.core.components.interactions import EncounterInteraction
+from skcomplex.systems.general.kinetics import EncounterInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
