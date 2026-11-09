@@ -11,14 +11,14 @@ site in the whole tree.
 
 ## 1. Measure and add the checks
 
-- [ ] 1.1 Confirm that `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, and
+- [x] 1.1 Confirm that `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, and
   `slim-core-laws` are applied, then run the scratchpad scan over `src`, `tests`, and `docs` and record per package
   the private module functions by kind of reader, the private and misplaced constants, the gaps, the unexported public
   functions, the Sage factory calls, and the methods that begin with a noun. Verify the scan lists the cases named in
   design.md that still exist.
-- [ ] 1.2 Record the union of every `__all__` of `src/skcomplex` in the scratchpad, to compare at the end. Verify it
+- [x] 1.2 Record the union of every `__all__` of `src/skcomplex` in the scratchpad, to compare at the end. Verify it
   imports cleanly.
-- [ ] 1.3 Add `test_module_constants_lead_their_module`, `test_constant_blocks_hold_no_gap`,
+- [x] 1.3 Add `test_module_constants_lead_their_module`, `test_constant_blocks_hold_no_gap`,
   `test_classes_own_the_functions_they_read`, `test_methods_begin_with_a_verb`, and
   `test_symbolic_functions_are_builtin_subclasses` to `tests/test_sources.py`, parametrised by an empty tuple of checked
   packages and folders, with the verb vocabulary built from the verbs the code uses. Verify each fails on a small source
