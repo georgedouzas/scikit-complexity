@@ -32,9 +32,6 @@ Their claims were checked against the code, and the corrections are noted below.
 
 - The engine values of `core/specs` (about forty compiler and kernel records). They are not recipes. Making them
   private to the engine is a package move, which needs the user's approval in its own change.
-- `DialectSpec`, which nothing reads. Removing dead code is not a recipe move.
-- `GeometrySpec`. The word kernel reads it to draw turtle segments, so it stays until a change gives the word kernel a
-  general drawing hook.
 - Writing the general systems that `add-general-systems` drafts. The user decided that general systems are recipes, so
   they will live in `skcomplex.systems.general`. This change lists the edits that change needs, and does not make them.
 
@@ -53,13 +50,14 @@ Their claims were checked against the code, and the corrections are noted below.
 | `EncounterInteraction` | `BilinearLaw` and `RateLaw` with `collision_integral`. The encounter passes (`_compile_encounters.py`, `_encounter_problem.py`, the encounter kernel, `TableValuesSpec`) key on `BilinearLaw`, not on the class | biology, economics, physics, social | leaves, `systems/general/kinetics/_encounter.py`. `BilinearLaw`, its kernel, and `collision_integral` stay |
 | `ReactionInteraction` | A `JumpInteraction` whose `changes` are the stoichiometric vector and whose rate is `k` times the product of the reactant amounts. Rate mode is one `RateLaw` per species, Langevin mode adds `NoiseLaw`, agent mode is `RuleLaw`. The Gillespie solver reads `JumpLaw` and names the class only in a doctest | biology, chemistry, and the core `ReactionNetworkSystem` | leaves, `systems/general/reactions/_reaction.py` |
 | `CascadeInteraction` | A `NeighborInteraction` that returns `CascadeLaw(drive=[ArrayUpdateLaw], relax=[LocalRuleLaw or ArrayUpdateLaw], stable, activity)` with threshold rules. The lattice solver and the cascade kernel key on `CascadeLaw` | physics (criticality, seismology) | leaves as the physics `TopplingInteraction`, `systems/physics/common/avalanches/_toppling.py`. `CascadeLaw` stays |
-| `FeedbackInteraction` | `Interaction` whose `_get_laws` returns `RuleLaw(self.act, phase=self.phase)`, with `system.set_parameter`. No engine file names it | economics (econophysics, finance, innovation, macroeconomics, markets, resources) | leaves, `systems/economics/common/policy/_feedback.py` |
+| `FeedbackInteraction` | `Interaction` whose `_get_laws` returns `RuleLaw(self.act, phase=self.phase)`, with `system.set_parameter`. No engine file names it | economics (econophysics, finance, innovation, macroeconomics, markets, resources) | leaves as the economics `PolicyRuleInteraction`, `systems/economics/common/policy/_policy_rule.py` |
 | `OptimizationInteraction` | `RuleLaw(self._advance)` that runs one pymoo generation. No engine file names it | computer science (`evolutionary_computation/_optimisers.py`) | leaves into that module with its four algorithm specs |
 | `SatisfiabilityInteraction` | `RuleLaw(self._decide)` around one PySAT solver. The compiler names it only in `_satisfiability_issues`, a check that the general role domain check already makes, since its role declares `domains=('boolean',)` | computer science (`neural_networks/_perceptron.py`) | leaves into that module with `ClauseSpec` and `CardinalitySpec`. The compiler check goes |
 | `PairCouplingInteraction` | The only concrete subclass of `PairInteraction`. The LAMMPS solver lowers it by type when it has a potential (`_lammps.py`) | biology, physics, social | merges into `PairInteraction` in the core. The LAMMPS lowering keys on `PairInteraction` with a potential |
 | `GroupingInteraction` | Engine support by type: `SpecsPass._grouping_specs` lowers its symbolic form to hyperedge kernels over random groups redrawn every step, with a reduction over the groups that hold a member | economics, social | stays, a primitive: random hypergraphs redrawn each step |
 | `TrainingInteraction` | Engine support by type: the learning compiler finds it, unrolls the nested system its role binds, and differentiates it. `GradientStepLaw` holds the optimizer but not the binding of the nested system | computer science | stays, a primitive. The class is exactly the binding and the law, with no strategy of its own |
-| `GradientInteraction`, `HamiltonianInteraction`, `EulerLagrangeInteraction`, `GeodesicInteraction` | Operators generated from one function, a potential, a Hamiltonian, a Lagrangian, or a metric, by symbolic differentiation. `core/analysis/_invariants.py` keys on the Hamiltonian and Euler-Lagrange classes | physics, engineering, social | stay, operators from one function |
+| `GradientInteraction`, `HamiltonianInteraction`, `EulerLagrangeInteraction` | Operators generated from one function, a potential, a Hamiltonian, or a Lagrangian, by symbolic differentiation. `core/analysis/_invariants.py` keys on the Hamiltonian and Euler-Lagrange classes | physics, engineering, social | stay, operators from one function |
+| `GeodesicInteraction` | The rate law `x'' = -Γ(x)(x', x')` with the Christoffel symbols that its space derives. The operator comes from the space, not from a function the interaction takes, and the space is a recipe (see below). No engine file names either | physics (celestial mechanics, cosmology) | leaves with the space, `systems/physics/common/relativity/_geodesic.py` |
 | `RateInteraction`, `ConservationInteraction`, `CrossingInteraction`, `JumpInteraction`, `MapInteraction`, `LocalRuleInteraction`, `TransitionInteraction`, `TransferInteraction`, `SamplingInteraction`, `TopologyInteraction`, `ConnectionInteraction`, `CouplingInteraction` | Each is the interaction form of one law the engine lowers (`RateLaw`, `FluxLaw`, `CrossingLaw`, `JumpLaw`, `UpdateLaw`, `LocalRuleLaw`, `TransitionLaw`, `TransferLaw`, `SampleLaw`), or is keyed by type in the specs pass (topology growth, connections with zero port flows, edge coupling) | many fields | stay. `CouplingInteraction` and `SamplingInteraction` lose their strategy branches, see below |
 | `BaseInteraction`, `Interaction`, `NeighborInteraction`, `HyperedgeInteraction`, `PairInteraction` | Structural bases where laws run per member, edge, hyperedge, or pair. The specs pass dispatches on them | all | stay |
 
@@ -125,7 +123,7 @@ recipe, so all stay.
 | `ReactionNetworkSystem` (today `MassActionSystem`) | `BaseSystem` whose `_build_system` returns `CompositeSystem(elements=[NonnegativeElement(...)], interactions=[ReactionInteraction(...)])`. No engine file checks it. The user decided that general systems are recipes, and the core keeps only `BaseSystem` and `CompositeSystem` | biology, chemistry | leaves with `ReactionTable`, `systems/general/reactions/_reaction_network.py` |
 | `ConeNeighborhood` | A radius search filtered by the angle to a direction. `RadiusNeighborhood(r)` equals `ConeNeighborhood(r, pi)`. The filter in `_metric_search.py` and `_neighborhood_kernel.py` stays | physics | merges into `RadiusNeighborhood(radius, *, angle=pi, direction=None, center=False)` |
 | `BallNeighborhood` | Audit A called it a convenience. The code says otherwise: `LatticeSpace._default_neighborhood` and `LatticeSpace._ball` build it for the metric of the lattice, hexagonal ring order included | biology, chemistry, computer science, physics, social | stays, the metric ball the lattice uses |
-| `PseudoRiemannianSpace` | No engine file reads it. It holds the metric from which `GeodesicInteraction` derives the Christoffel symbols | physics | stays with `GeodesicInteraction` as an operator from one function, as the user decided in `slim-core-interactions` |
+| `PseudoRiemannianSpace` | A `ContinuousSpace` with symbolic data that EinsteinPy derives in `_prepare` (metric, Christoffel symbols, curvature). No engine file reads it, the engine sees a plain `ContinuousSpace` | physics (celestial mechanics, cosmology) | leaves as the physics `SpacetimeSpace`, `systems/physics/common/relativity/_spacetime.py`. `einsteinpy` becomes the model-only extra `relativity`, loaded through `import_extra` |
 | every other element, space, neighbourhood, time, and `CompositeSystem`, `BaseSystem` | each triggers its own pass, kernel, or solver, as audit A lists | all | stay |
 
 The core doctests and docstrings that build a `NonnegativeElement` or a `PointElement` define a local `Element`
@@ -144,7 +142,56 @@ subclass with the same state, so the core never imports the systems.
 | `PartnerSpec`, `Pairing`, `Feasibility`, `Preference` | `MatchLaw`, transfers, groupings | stay. Audit B moved `Feasibility` with `MatchLaw`, which stays |
 | `DatasetSpec` | `GradientStepLaw` | stays |
 | `CascadeRecordSpec`, `ExtremalRecordSpec`, `TableValuesSpec` | the kernels of laws that stay | stay |
+| `GeometrySpec` | `WordElement`, the word kernel, which computes turtle segments from it every generation, and `viz/_geometry.py` | stays. The engine handles it by type (step 2 of the placement rule), and the turtle reading of a word is cross-domain in principle: plants, fractals, and words of automata |
+| `DialectSpec` | nothing in `src` reads it, only `core/specs/__init__.py` and its test | deleted with its test, as dead code |
 | every other spec and kind | the engine or a primitive, as audit B lists | stay |
+
+### The placement rule
+
+One ordered test decides where any part goes, now and in the future. It is the single source of truth. The
+`package-layout` spec states it as a requirement, and `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension
+page of the user guide repeat it word for word.
+
+1. A structural base, such as a `Base` class, the composite system, or a base where laws run per member, edge,
+   hyperedge, or pair, goes to the core.
+2. A part that the engine handles by type, through a compile pass, a kernel, a solver, a backend lowering, or an
+   analysis that checks the class or its spec, goes to the core, and so does an operator generated from one function.
+   It is named by its mathematics and must be cross-domain in principle.
+3. Every other part is a recipe, expressible with core parts. Its users place it. Several fields:
+   `skcomplex.systems.general.<concept>`. One field with several systems: `systems/<field>/common/<family>`. One system:
+   that system's module. A field with its own term names it, and `general` uses neutral names.
+4. A recipe that needs something the core cannot express reveals a missing core primitive, which enters by step 2.
+   Engine support never lives inside a recipe.
+5. The core never imports `skcomplex.systems`.
+
+`tests/test_sources.py` checks the rule mechanically.
+
+- Every public class of `skcomplex.core.components` passes one of three proxies of steps 1 and 2. A structural base is
+  a class whose name starts with `Base`, or a class that another public class of `skcomplex.core.components`
+  subclasses. A class handled by type is named in the code of a core module other than its own and other than the
+  modules of its subclasses. Names count in code only, read from the syntax tree, never in docstrings or doctests.
+  The general form of a law is an interaction that, for some law in its `law_classes` other than `RuleLaw`, lists the
+  fewest law classes among the public interactions of its structural base that list that law. `RuleLaw` is excluded
+  because a law of arbitrary code is never a mathematical operation the engine lowers.
+- No module under `src/skcomplex/core` imports `skcomplex.systems`.
+- The roots of `systems/general` and of every `systems/<field>/common` hold only `__init__.py` and subpackages.
+
+The third test needs the loose modules at the roots of four field `common` packages to move into families named by
+concept: `economics/common/assets`, `banking`, and `exchange`, the existing `engineering/common/traffic`,
+`mathematics/common/networks`, and the approved `physics/common/avalanches`. The task list names every module.
+
+The proxies were checked against the core this change leaves, by reading the code with `ast`. Every class that stays
+passes, with no allowlist. Engine and analysis references cover the laws, the spaces, the neighbourhoods but one, the
+elements, `GroupingInteraction`, `TrainingInteraction`, `TopologyInteraction`, `ConnectionInteraction`,
+`LocalRuleInteraction`, `PairInteraction`, `HamiltonianInteraction`, and `EulerLagrangeInteraction`. `LatticeSpace`
+names `BallNeighborhood`. The general form of a law covers `RateInteraction` (`NoiseLaw`), `ConservationInteraction`
+(`FluxLaw`), `CrossingInteraction`, `TransitionInteraction`, `TransferInteraction`, `SamplingInteraction`,
+`GradientInteraction` (`RateLaw` alone), `MapInteraction` (`UpdateLaw`), `JumpInteraction` (`JumpLaw`), and
+`CouplingInteraction`, the one subclass of `NeighborInteraction` that returns `RateLaw`. On the core before the change,
+the same check fails for `MovementInteraction`, `BirthDeathInteraction`, `ImitationInteraction`,
+`EvolutionInteraction`, `FeedbackInteraction`, `OptimizationInteraction`, and `PointElement`, which is the guard the
+moves need. It passes `SatisfiabilityInteraction` only through the compiler check this change removes, and
+`ChoiceInteraction` because it ties with `MapInteraction`, so the proxy is necessary, not sufficient, see the risks.
 
 ### The new package and its subpackages
 
@@ -251,8 +298,14 @@ Other drafted changes name a moved class and need artifact updates before they s
   returns no laws, as the base does today, so subclasses that override `_get_laws` keep working.
 - [`systems/general` grows into a second core.] → A module enters only with users in two fields, the catalog test
   checks it, and no engine code may key on anything in it.
-- [Moving `NonnegativeElement` and `PointElement` reverses `slim-core-elements-and-spaces`.] → That change found them
-  the general elements. This test finds them recipes. The user decides, see the questions below.
+- [Moving `NonnegativeElement` and `PointElement` reverses `slim-core-elements-and-spaces`.] → The user decided it, by
+  the placement rule. The engine reads their state specs, so no solver changes.
+- [`einsteinpy` becomes an extra.] → `SpacetimeSpace` loads it through `import_extra`, which names the extra
+  `relativity` in its error, and the relativity tests skip without it as the other extras do.
+- [The reference proxy of the placement rule is a necessary test, not a sufficient one.] → It catches a class with no
+  engine counterpart, such as an agent rule. A parametrised copy of a general form, such as a choice that fixes the
+  function of a map, passes it, and the existing requirement that core interactions are distinct operations catches
+  it in review.
 
 ## Migration Plan
 
@@ -262,14 +315,17 @@ Users replace imports. `from skcomplex.core.components.interactions import Match
 `PairCouplingInteraction` subclasses `PairInteraction`. `ConeNeighborhood(r, a, direction='theta')` becomes
 `RadiusNeighborhood(r, angle=a, direction='theta')`. There is no rollback beyond reverting the commits.
 
-## Open Questions
+## Decisions by the user
 
-These need the user before apply starts, since each changes a path in the tasks.
+These are final.
 
-- New field families: `physics/common/avalanches`, `economics/common/policy`, and `biology/common/sequences`. The rule
-  on packages asks for approval of each. The subpackages of `skcomplex.systems.general` follow the user's split.
-- Whether `NonnegativeElement` and `PointElement` leave, as the test says, or stay as the general elements that
-  `slim-core-elements-and-spaces` chose.
-- Whether `FeedbackInteraction` takes the economics term `PolicyRuleInteraction`.
-- Whether `PseudoRiemannianSpace` and `GeodesicInteraction` stay, as decided before, though no engine file reads the
-  space. If they leave, `einsteinpy` becomes a model-only dependency.
+- `NonnegativeElement` and `PointElement` leave to `systems/general/elements`.
+- `PseudoRiemannianSpace` leaves to physics as `SpacetimeSpace` in `physics/common/relativity`, with
+  `GeodesicInteraction`. `einsteinpy` becomes a model-only dependency, the extra `relativity`.
+- `FeedbackInteraction` becomes the economics `PolicyRuleInteraction` in `economics/common/policy`.
+- The field families `physics/common/avalanches`, `economics/common/policy`, and `biology/common/sequences` are
+  approved.
+- The cross-domain package is `skcomplex.systems.general`, with one subpackage per concept.
+- General systems are recipes. The core keeps `BaseSystem` and `CompositeSystem` only.
+- `DialectSpec` is deleted in this change, and `GeometrySpec` is placed by the placement rule.
+- The placement rule below is the single source of truth for where any new part goes.

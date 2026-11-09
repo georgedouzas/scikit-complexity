@@ -57,10 +57,9 @@ no field.
 
 ### Requirement: Recipes of one field live in that field
 A recipe that leaves the core and serves one field SHALL live in that field with its arguments, checks, reports, and
-tests: toppling on `CascadeLaw` in `physics.common.avalanches`, feedback on parameters in `economics.common.policy`,
-population search in `computer_science.evolutionary_computation`, incremental satisfiability in
-`computer_science.neural_networks`, zone flocking in `biology.collective_behaviour`, and the region and holonomy
-scores in the cellular Potts and Wilson sampling modules.
+tests: toppling in `physics.common.avalanches`, the policy rule in `economics.common.policy`, spacetimes and geodesics
+in `physics.common.relativity`, population search and satisfiability in their computer science packages, zone flocking
+in `biology.collective_behaviour`, and the region and holonomy scores in their sampling modules.
 
 #### Scenario: Sandpile and fault from one physics family
 - **WHEN** the sandpile, criticality, and fault systems build their avalanches
@@ -75,3 +74,8 @@ scores in the cellular Potts and Wilson sampling modules.
 #### Scenario: Search and satisfiability in computer science
 - **WHEN** `EvolutionaryOptimisersSystem` and `perceptron_satisfiability` run with the same seeds as before the move
 - **THEN** their reports are the same, and `skcomplex.core.specs` holds no algorithm or constraint spec of either
+
+#### Scenario: Policy rules in economics
+- **WHEN** the banking, Mark-0, and commons systems set parameters from what they read every round
+- **THEN** each uses `PolicyRuleInteraction` of `skcomplex.systems.economics.common.policy`, and its trajectory equals
+  the one with the former `FeedbackInteraction`

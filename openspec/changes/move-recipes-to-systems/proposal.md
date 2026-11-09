@@ -26,7 +26,9 @@ recipes and proves for each one how the primitives express it. This change moves
   `elements`). Each is `Element` with one declared state, and the engine reads the state spec, never the
   class.
 - **BREAKING** Recipes of one field move into that field. `CascadeInteraction` becomes the physics
-  `TopplingInteraction` in `physics/common/avalanches`. `FeedbackInteraction` moves to `economics/common/policy`.
+  `TopplingInteraction` in `physics/common/avalanches`. `FeedbackInteraction` becomes the economics
+  `PolicyRuleInteraction` in `economics/common/policy`. `PseudoRiemannianSpace` becomes the physics `SpacetimeSpace` in
+  `physics/common/relativity`, with `GeodesicInteraction`, and `einsteinpy` becomes the model-only extra `relativity`.
   `OptimizationInteraction` and its four algorithm specs move into `computer_science/evolutionary_computation`.
   `SatisfiabilityInteraction`, `ClauseSpec`, and `CardinalitySpec` move into `computer_science/neural_networks`.
 - **BREAKING** Strategy branches of kept classes move to their users. The zone terms of `CouplingInteraction`
@@ -46,8 +48,12 @@ recipes and proves for each one how the primitives express it. This change moves
   kernels write.
 - The core keeps its structural bases, its primitives, and its operators from one function: `GroupingInteraction`,
   `TrainingInteraction`, `GradientInteraction`, `HamiltonianInteraction`, `EulerLagrangeInteraction`,
-  `GeodesicInteraction` with `PseudoRiemannianSpace`, `BallNeighborhood`, and every law utility. The design gives the
-  proof for each.
+  `BallNeighborhood`, `GeometrySpec`, and every law utility. The design gives the proof for each.
+- **BREAKING** `DialectSpec` is deleted, since nothing reads it.
+- One placement rule decides where any part goes, now and later: a structural base or a part the engine handles by type
+  goes to the core, and every other part is a recipe placed by its users. It is a requirement of `package-layout`, it
+  is written in the constitution, CONTRIBUTING, and the user guide, and source tests check it with no allowlist.
+- The loose modules at the roots of the field `common` packages move into families, as the source tests require.
 - Nothing is deleted. Code moves to the systems or into the surviving primitive, and tests move with it. No alias and
   no shim remain, as the project makes breaking changes in 0.x.
 
@@ -65,8 +71,9 @@ recipes and proves for each one how the primitives express it. This change moves
   clearing value, and the general elements and reactions are realizations of `skcomplex.systems.general`.
 - `base-interfaces`: the core keeps `BaseSystem` and `CompositeSystem` only, and general systems live in
   `skcomplex.systems.general`.
-- `package-layout`: the systems package of the core re-exports no general system, and cones are radius neighbourhoods
-  with an angle.
+- `package-layout`: the placement rule, the systems package of the core re-exports no general system, and cones are
+  radius neighbourhoods with an angle.
+- `curved-spacetimes`: spacetimes and geodesics are physics realizations, and EinsteinPy is the extra `relativity`.
 - `model-library`: realizations shared by several fields live in `skcomplex.systems.general`, and field recipes such as
   toppling, feedback, zone coupling, search, and satisfiability live in their field.
 - `molecular-structures`: row scores belong to the biology sequence sampling.
