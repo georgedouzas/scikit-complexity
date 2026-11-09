@@ -21,6 +21,9 @@ from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.specs import LAWS, SPACES, TIMES, AnalysisTags, RoleSpec, StateSpec
+from skcomplex.systems import all_systems
+from skcomplex.systems.general import dynamics
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 PARTS = 'parts'
 EXPERIMENT_NEEDS = {
@@ -645,6 +648,33 @@ def _core_systems() -> list[type[BaseSystem]]:
     return sorted(found, key=lambda system: (system is not CompositeSystem, system.__name__))
 
 
+def _general_systems() -> list[str]:
+    """Return the Markdown lines of the table of the general systems and the catalog systems on each.
+
+    A catalog system is listed under the nearest general system it subclasses.
+    """
+    general = [*(getattr(dynamics, name) for name in dynamics.__all__), ReactionNetworkSystem]
+    rows = []
+    for system in general:
+        users = [
+            name
+            for name, item in all_systems()
+            if next((base for base in item.__mro__[1:] if base in general), None) is system
+        ]
+        rows.append(
+            [
+                f'`{system.__name__}`',
+                f'`from {system.__module__.rsplit(".", 1)[0]} import {system.__name__}`',
+                ', '.join(f'`{name}`' for name in users) or 'none yet',
+            ],
+        )
+    intro = (
+        'General systems are recipes of `skcomplex.systems.general` that systems of several fields share. The table '
+        'lists each with the catalog systems that subclass it.'
+    )
+    return ['## General systems', '', intro, '', *_table(['General system', 'Import', 'Catalog systems'], rows), '']
+
+
 def _systems_page() -> str:
     """Return the page of systems.
 
@@ -664,7 +694,7 @@ composite you build from parts. A general system that several fields share, such
 field and by topic, with their import paths, their model parameters, and their capability tags, and `all_systems` of
 `skcomplex.systems` lists them by field, topic, or tag. The table lists the system classes of the core.
 """
-    examples = """
+    examples = '\n'.join(_general_systems()) + """
 ## A compatible system
 
 A composite of random arrivals has jump laws, which `GillespieSolver` draws.
