@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -33,7 +33,7 @@ def test_evaporation_decays_every_cell_at_its_own_rate():
     rates = np.array([0.1, 0.5, 1.0, 2.0])
     marks = FieldElement('marks', element=MarkElement, space=LatticeSpace((4,)), values={'rate': rates})
     evaporation = EvaporationInteraction('evaporation', target='marks', state='level', evaporation='rate')
-    system = System(elements=[marks], interactions=[evaporation])
+    system = CompositeSystem(elements=[marks], interactions=[evaporation])
     trajectory = simulate(system, dt=0.001, until=1.0)
     np.testing.assert_allclose(np.asarray(trajectory.values('marks.level'))[-1], np.exp(-rates), rtol=1e-3)
 

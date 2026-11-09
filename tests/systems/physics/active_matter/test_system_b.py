@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.active_matter import ActiveScalarElement, ActiveSystemBSystem
 
@@ -14,7 +14,7 @@ def _bubble_areas(zeta):
     rows, columns = np.indices((24, 48))
     bubbles = (np.hypot(rows - 12, columns - 12) < 4) | (np.hypot(rows - 12, columns - 36) < 7)
     values = {'phi': np.where(bubbles, -1.0, 1.0), 'zeta': zeta, 'D': 0.0}
-    system = System(
+    system = CompositeSystem(
         elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
     )
     trajectory = simulate(system, until=300, dt=50.0)

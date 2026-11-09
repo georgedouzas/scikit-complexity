@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import (
     ConfidenceCouplingInteraction,
@@ -66,7 +66,7 @@ def test_confidence_coupling_takes_the_mean_of_the_trusted_neighbours():
         values={'opinion': opinions, 'confidence': 0.2},
         on='sites',
     )
-    system = System(
+    system = CompositeSystem(
         elements=[people],
         interactions=[ConfidenceCouplingInteraction('compromise', target='people')],
         time=DiscreteTime(),

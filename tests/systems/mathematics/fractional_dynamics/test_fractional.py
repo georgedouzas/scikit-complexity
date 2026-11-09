@@ -5,7 +5,7 @@ import importlib
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.types import FormKind
@@ -75,21 +75,21 @@ def test_element_types_of_orders_pickle_by_reference():
 
 def test_oscillator_element_follows_the_cosine_without_damping():
     """Test that the undamped oscillator of order 1 follows `cos(omega t)`."""
-    system = System(elements=[OscillatorElement('oscillator', omega=2.0)])
+    system = CompositeSystem(elements=[OscillatorElement('oscillator', omega=2.0)])
     trajectory = simulate(system, until=5.0, dt=0.5)
     np.testing.assert_allclose(trajectory.values('oscillator.x'), np.cos(2.0 * trajectory.times), atol=1e-4)
 
 
 def test_relaxation_element_decays_exponentially():
     """Test that relaxation of order 1 decays as `exp(-lam t)`."""
-    system = System(elements=[RelaxationElement('relaxation', x=2.0, lam=0.5)])
+    system = CompositeSystem(elements=[RelaxationElement('relaxation', x=2.0, lam=0.5)])
     trajectory = simulate(system, until=4.0, dt=1.0)
     np.testing.assert_allclose(trajectory.values('relaxation.x'), 2.0 * np.exp(-0.5 * trajectory.times), rtol=1e-4)
 
 
 def test_van_der_pol_element_reaches_a_cycle_of_amplitude_two():
     """Test that the Van der Pol oscillator of order 1 started near rest grows to its cycle of amplitude near 2."""
-    system = System(elements=[VanDerPolElement('oscillator', x=0.1, mu=1.0)])
+    system = CompositeSystem(elements=[VanDerPolElement('oscillator', x=0.1, mu=1.0)])
     trajectory = simulate(system, until=60.0, dt=0.1)
     late = trajectory.values('oscillator.x')[-200:]
     assert np.max(np.abs(late)) == pytest.approx(2.0, abs=0.1)

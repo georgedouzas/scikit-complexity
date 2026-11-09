@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -35,7 +35,7 @@ class BiomassElement(Element):
 
 def _run(until=10.0, dt=0.05, **arguments):
     """Return the times and the population of one compartment that grows by the given arguments."""
-    system = System(
+    system = CompositeSystem(
         elements=[CompartmentElement('population', x=N0)],
         interactions=[GrowthInteraction('growth', target='population', **arguments)],
     )
@@ -72,7 +72,7 @@ def test_growth_follows_the_closed_solution_of_its_form(arguments, solution):
 
 def test_growth_logistic_inflects_at_half_the_capacity():
     """Test that logistic growth from 1 approaches the capacity 100, and grows fastest at 50."""
-    system = System(
+    system = CompositeSystem(
         elements=[CompartmentElement('population', x=1.0)],
         interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
     )
@@ -104,7 +104,7 @@ def test_growth_long_delay_sustains_oscillations():
 
 def test_growth_reads_the_named_state():
     """Test that growth changes the state its argument names."""
-    system = System(
+    system = CompositeSystem(
         elements=[BiomassElement('cells', x=1.0)],
         interactions=[GrowthInteraction('growth', target='cells', r=0.5, state='x')],
     )

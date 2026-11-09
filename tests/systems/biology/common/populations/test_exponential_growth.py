@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
@@ -10,7 +10,7 @@ from skcomplex.systems.biology.common.populations import ExponentialGrowthIntera
 
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
-    system = System(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
+    system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
 

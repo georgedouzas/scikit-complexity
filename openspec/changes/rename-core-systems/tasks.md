@@ -29,7 +29,7 @@
 
 ## 6. Tests
 
-- [ ] 6.1 Apply the same rewrite to every test module that imports `System`, update tests that match an error message naming `System`, review the remaining hits of the bare word by hand, and verify `pytest tests` passes
+- [x] 6.1 Apply the same rewrite to every test module that imports `System`, update tests that match an error message naming `System`, review the remaining hits of the bare word by hand, and verify `pytest tests` passes
 
 ## 7. Documentation and configuration
 

@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -33,7 +33,7 @@ class DecayElement(Element):
 
 def _run(pulse, until):
     """Return the trajectory of a decaying amount with pulses."""
-    system = System(elements=[DecayElement('body')], interactions=[pulse])
+    system = CompositeSystem(elements=[DecayElement('body')], interactions=[pulse])
     return simulate(system, until=until, dt=0.25)
 
 
@@ -67,7 +67,7 @@ def test_pulses_on_a_group_set_every_member_from_its_own_state():
     """Test that pulses on a group set the state of every member from that member's own state."""
     bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
     dose = PulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
-    trajectory = simulate(System(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
+    trajectory = simulate(CompositeSystem(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
     np.testing.assert_allclose(trajectory.values('bodies.c')[-1], expected, rtol=1e-3)
 

@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.core.types import AnyArray
@@ -33,7 +33,7 @@ def _levels(*, relative: bool) -> AnyArray:
     """Return the levels of two stocks over three steps of regrowth, one row per frame."""
     stocks = GroupElement('stocks', element=StockElement, size=2, values={'level': [0.0, 3.0]})
     regrowth = RegrowthInteraction('regrowth', target='stocks', state='level', growth='growth', relative=relative)
-    system = System(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
+    system = CompositeSystem(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
     trajectory = simulate(system, until=3, random_state=0)
     return np.array([trajectory.agents('stocks', frame).values['level'] for frame in range(4)])
 

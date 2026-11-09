@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
 from skcomplex.systems.biology.systems_biology import (
@@ -91,7 +91,7 @@ SECOND_TRACER = (TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}), ASPARTATE)
 
 def _system():
     """Return the system of the TCA example of Antoniewicz et al. (2007)."""
-    return System(elements=[metabolic_network_type('TcaElement', REACTIONS)('net')], time=StaticTime())
+    return CompositeSystem(elements=[metabolic_network_type('TcaElement', REACTIONS)('net')], time=StaticTime())
 
 
 def _simulated(tracers):
@@ -218,7 +218,7 @@ def test_simulation_scrambles_a_symmetric_metabolite():
         AtomMapSpec('on', [('Suc', 'abcd')], [('Fum', 'abcd')]),
     ]
     fragments = [FragmentSpec('Fum', (atom,), f'atom{atom}') for atom in (1, 2, 3, 4)]
-    system = System(elements=[metabolic_network_type('SymmetricElement', reactions)('net')], time=StaticTime())
+    system = CompositeSystem(elements=[metabolic_network_type('SymmetricElement', reactions)('net')], time=StaticTime())
     found = labelling(
         system,
         atoms=atoms,

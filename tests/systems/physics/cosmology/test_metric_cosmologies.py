@@ -12,7 +12,7 @@ from scipy.optimize import brentq
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws.utils import partial
 from skcomplex.core.components.spaces import LatticeSpace, PseudoRiemannianSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
@@ -159,7 +159,7 @@ def test_dust_universe_follows_the_einstein_de_sitter_solution():
         components=[(1, 1)],
         source=lambda s: diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0]),
     )
-    system = System(elements=[universe], interactions=[einstein])
+    system = CompositeSystem(elements=[universe], interactions=[einstein])
     trajectory = simulate(system, until=2.0, dt=0.1, solver=ACCURATE)
     expected = (1.5 * np.asarray(trajectory.times) + 1) ** (2 / 3)
     assert np.ravel(trajectory.values('universe.a')) == pytest.approx(expected, rel=1e-8)
@@ -185,7 +185,7 @@ def test_warped_plane_reduces_to_the_wave_equation_of_a_field():
         values={'u': 2 + 0.1 * np.sin(positions)},
         discretization='spectral',
     )
-    system = System(elements=[plane], interactions=[einstein])
+    system = CompositeSystem(elements=[plane], interactions=[einstein])
     trajectory = simulate(system, until=1.0, dt=0.1, solver=ACCURATE)
     expected = 2 + 0.1 * np.sin(positions) * np.cos(1.0)
     assert np.asarray(trajectory.values('plane.u'))[-1] == pytest.approx(expected, abs=1e-6)

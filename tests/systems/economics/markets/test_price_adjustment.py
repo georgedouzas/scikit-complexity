@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
@@ -32,7 +32,7 @@ class QuoteElement(Element):
 
 def _run(element: Element, adjustment: PriceAdjustmentInteraction, until: int) -> Trajectory:
     """Return the trajectory of an element whose quote a price adjustment steps."""
-    system = System(elements=[element], interactions=[adjustment], time=DiscreteTime())
+    system = CompositeSystem(elements=[element], interactions=[adjustment], time=DiscreteTime())
     return simulate(system, until=until, random_state=0)
 
 

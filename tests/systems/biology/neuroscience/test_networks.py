@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.neuroscience import (
@@ -86,7 +86,7 @@ def _previous_legion():
         boundary=field.boundary,
         values=field.values,
     )
-    return System(elements=[oscillators, inhibitor], interactions=system.interactions[1:])
+    return CompositeSystem(elements=[oscillators, inhibitor], interactions=system.interactions[1:])
 
 
 def test_legion_rates_equal_the_coupling_written_in_the_element():
@@ -115,6 +115,6 @@ def test_inhibitor_drive_interaction_follows_most_active_oscillator():
     values = {'x': np.array([[2.0, -2.0]]), 'm': np.array([[1.0, 1.0]]), 'epsilon': 1e-9}
     oscillators = FieldElement('oscillators', element=TermanWangElement, space=LatticeSpace((1, 2)), values=values)
     drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
-    system = System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
+    system = CompositeSystem(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
     trajectory = simulate(system, dt=0.01, until=0.1)
     assert trajectory.values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)

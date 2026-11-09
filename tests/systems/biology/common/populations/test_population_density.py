@@ -6,7 +6,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.populations import PopulationDensityElement
@@ -35,4 +35,4 @@ def test_population_density_group_has_one_member_per_class():
 def test_population_density_rejects_a_negative_value():
     """Test that a run rejects a negative value."""
     with pytest.raises(ValidationError):
-        simulate(System(elements=[PopulationDensityElement('a', x=-1.0)]), until=1, dt=1.0)
+        simulate(CompositeSystem(elements=[PopulationDensityElement('a', x=-1.0)]), until=1, dt=1.0)

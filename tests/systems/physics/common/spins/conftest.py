@@ -8,7 +8,7 @@ import numpy.typing as npt
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -39,6 +39,6 @@ class SiteElement(Element):
 def _run(interaction: BaseInteraction, state: str, values: dict[str, object]) -> npt.NDArray[np.float64]:
     """Return the values of a state of a 12 by 12 lattice of sites after 100 sweeps of a sampling interaction."""
     sites = GroupElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values=values, on='sites')
-    system = System(elements=[sites], interactions=[interaction], time=DiscreteTime())
+    system = CompositeSystem(elements=[sites], interactions=[interaction], time=DiscreteTime())
     trajectory = simulate(system, until=100, random_state=0)
     return np.asarray(trajectory.values(f'sites.{state}'))

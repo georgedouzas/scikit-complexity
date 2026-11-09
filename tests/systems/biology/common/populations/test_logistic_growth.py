@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
@@ -11,7 +11,7 @@ from skcomplex.systems.biology.common.populations import LogisticGrowthInteracti
 
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
-    system = System(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
+    system = CompositeSystem(elements=[CompartmentElement('population', x=n0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.x'))
 
@@ -32,7 +32,7 @@ def test_logistic_growth_has_no_exponent_parameter():
 
 def test_logistic_growth_saturates():
     """Test that logistic growth approaches the carrying capacity."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('p', x=5)],
         interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
     )

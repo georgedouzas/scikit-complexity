@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -32,7 +32,7 @@ class MembraneElement(Element):
 def _run(current: float) -> np.ndarray:
     """Return the potential of a membrane under a current."""
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='r', I=current)
-    system = System(elements=[MembraneElement('membrane')], interactions=[kinetics])
+    system = CompositeSystem(elements=[MembraneElement('membrane')], interactions=[kinetics])
     trajectory = simulate(system, dt=0.1, until=200.0)
     return trajectory.values('membrane.u')[trajectory.times > 100.0]
 

@@ -6,7 +6,7 @@ from shapely import Point
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.organizations import (
     KauaiPopulationSystem,
@@ -74,7 +74,7 @@ def _pair(first, second, **parameters):
         values=values,
         location=[(500.0, 500.0), (500.0, 500.0)],
     )
-    return System(
+    return CompositeSystem(
         elements=[residents],
         interactions=[SentimentInteraction('sentiment', target='residents')],
         space=ContinuousSpace(extent=(1000.0, 1000.0)),
@@ -91,7 +91,7 @@ def test_kauai_event_follows_equation_five_of_the_chapter():
         location=[(500.0, 500.0)],
     )
     event = [(1, 0, 0.8), (1, 1, -0.1), (1, 2, 0.4), (1, 3, 0.1)]
-    system = System(
+    system = CompositeSystem(
         elements=[residents],
         interactions=[SentimentInteraction('sentiment', target='residents', events=event)],
         space=ContinuousSpace(extent=(1000.0, 1000.0)),
@@ -131,7 +131,7 @@ def test_kauai_interaction_stops_at_the_grid_cell():
         values={'sentiment': np.array([0.5, -0.5])},
         location=[(990.0, 500.0), (1010.0, 500.0)],
     )
-    system = System(
+    system = CompositeSystem(
         elements=[residents],
         interactions=[SentimentInteraction('sentiment', target='residents')],
         space=ContinuousSpace(extent=(2000.0, 1000.0)),

@@ -8,7 +8,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.systems.economics.markets import ShopsSystem
@@ -67,7 +67,7 @@ class CentralBankInteraction(FeedbackInteraction):
 
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('shops', element=ShopElement, size=20)],
         interactions=[CentralBankInteraction('bank', phase='policy')],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),

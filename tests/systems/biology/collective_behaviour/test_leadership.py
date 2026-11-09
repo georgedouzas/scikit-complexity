@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.biology.collective_behaviour import (
@@ -46,7 +46,7 @@ def test_swimming_interaction_turns_by_deviation_and_swims():
     """Test that a fish turns its heading by its deviation and swims `speed` along the new heading."""
     values = {'vx': 1.0, 'vy': 0.0, 'deviation': 0.5, 'speed': 2.0}
     shoal = GroupElement('shoal', element=ShoalMemberElement, size=1, values=values, location=[(99.0, 1.0)])
-    system = System(
+    system = CompositeSystem(
         elements=[shoal],
         interactions=[SwimmingInteraction('swimming', target='shoal')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
@@ -66,7 +66,7 @@ def _headings(locations):
         values={'vx': 1.0, 'vy': 0.0, 'max_turn': 0.4},
         location=locations,
     )
-    system = System(
+    system = CompositeSystem(
         elements=[shoal],
         interactions=[SchoolingInteraction('schooling', target='shoal', phase='turn')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -14,7 +14,7 @@ from .....conftest import NodeElement
 
 def test_speed_adapts_towards_a_moving_desired_speed():
     """Test that adapting towards the desired speed `t` follows `t - time (1 - exp(-t / time))`."""
-    system = System(
+    system = CompositeSystem(
         elements=[NodeElement('car', x=0.0)],
         interactions=[SpeedAdaptationInteraction('adaptation', target='car', goal=lambda s: s.t, time=2.0)],
     )

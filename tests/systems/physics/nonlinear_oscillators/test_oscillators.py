@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.nonlinear_oscillators import (
@@ -25,7 +25,7 @@ from ..conftest import _run, _series, _upward_crossings
 
 def _run_van_der_pol(**parameters):
     """Return the trajectory of one Van der Pol oscillator over a long run."""
-    system = System(elements=[VanDerPolElement('oscillator', **parameters)])
+    system = CompositeSystem(elements=[VanDerPolElement('oscillator', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
     return simulate(system, until=100.0, dt=0.05, solver=solver)
 

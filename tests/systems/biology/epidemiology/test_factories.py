@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.types import FormKind
@@ -47,7 +47,7 @@ def test_zombies_overrun_humans_and_conserve_the_total(stochastic):
 
 def test_epidemic_stochastic_mode_is_jump_process():
     """Test that stochastic infection and recovery give integer counts of a jump process."""
-    system = System(
+    system = CompositeSystem(
         elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
@@ -63,7 +63,7 @@ def test_epidemic_stochastic_mode_is_jump_process():
 
 def test_epidemic_deterministic_mode_conserves_population():
     """Test that the deterministic SIR system keeps the total population."""
-    system = System(
+    system = CompositeSystem(
         elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005),

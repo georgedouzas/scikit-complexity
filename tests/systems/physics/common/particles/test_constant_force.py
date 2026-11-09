@@ -3,14 +3,14 @@
 import numpy as np
 
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 
 
 def test_particle_constant_acceleration():
     """Test that a constant force displaces a particle by `F * t**2 / (2 * m)`."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p', m=2.0)],
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),

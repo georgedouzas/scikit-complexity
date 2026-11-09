@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.synchronization import (
@@ -31,7 +31,7 @@ def test_logistic_coupling_mixes_the_map_with_the_mean_map_of_the_neighbours():
         values={'x': x, 'r': 3.7, 'epsilon': 0.3},
         on='sites',
     )
-    system = System(
+    system = CompositeSystem(
         elements=[maps],
         interactions=[LogisticCouplingInteraction('coupling', target='maps')],
         time=DiscreteTime(),

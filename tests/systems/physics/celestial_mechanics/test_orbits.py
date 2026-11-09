@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver, Yoshida4Solver
@@ -25,7 +25,7 @@ from ..conftest import _relative_spread, _run, _series, _upward_crossings
 
 def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             MassPointElement('sun', m=1000.0),
             MassPointElement('planet', x=[10.0, 0.0], x_d1=[0.0, 10.0], m=1e-6),

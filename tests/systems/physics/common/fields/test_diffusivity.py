@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -47,7 +47,7 @@ def test_run_conserves_the_total_and_spreads_as_the_heat_kernel():
     space = LatticeSpace((CELLS,), spacing=SPACING, boundary='periodic')
     field = FieldElement('rod', element=CellElement, space=space, values={'u': _gaussian(positions, WIDTH**2)})
     heat = DiffusivityInteraction('heat', target='rod', state='u', coefficient=lambda s: COEFFICIENT)
-    values = simulate(System(elements=[field], interactions=[heat]), until=UNTIL, dt=0.5).values('rod.u')
+    values = simulate(CompositeSystem(elements=[field], interactions=[heat]), until=UNTIL, dt=0.5).values('rod.u')
     np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-10)
     expected = _gaussian(positions, WIDTH**2 + 2 * COEFFICIENT * UNTIL)
     np.testing.assert_allclose(values[-1], expected, atol=1e-4)
@@ -69,5 +69,7 @@ def test_get_laws_reads_a_renamed_target():
         DiffusivityInteraction('heat', target='bar', state='u', coefficient=lambda s: COEFFICIENT),
         RodDiffusivityInteraction('heat', rod='bar', state='u', coefficient=lambda s: COEFFICIENT),
     ):
-        values.append(simulate(System(elements=[field], interactions=[heat]), until=1.0, dt=0.5).values('bar.u'))
+        values.append(
+            simulate(CompositeSystem(elements=[field], interactions=[heat]), until=1.0, dt=0.5).values('bar.u'),
+        )
     np.testing.assert_allclose(values[1], values[0])

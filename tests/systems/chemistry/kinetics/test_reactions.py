@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import ReactionInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
@@ -53,7 +53,7 @@ def test_langevin_binding_conserves_difference():
     """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
     species = [NonnegativeElement('A', x=200.0), NonnegativeElement('B', x=150.0), NonnegativeElement('C')]
     reactants, products = {('A', 'x'): 1, ('B', 'x'): 1}, {('C', 'x'): 1}
-    system = System(
+    system = CompositeSystem(
         elements=species,
         interactions=[
             ReactionInteraction('binding', reactants=reactants, products=products, k=0.001, mode='langevin'),
@@ -63,7 +63,7 @@ def test_langevin_binding_conserves_difference():
     difference = trajectory.values('A.x') - trajectory.values('B.x')
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
-        System(
+        CompositeSystem(
             elements=species,
             interactions=[ReactionInteraction('binding', reactants=reactants, products=products, k=0.001)],
         ),
@@ -75,7 +75,7 @@ def test_langevin_binding_conserves_difference():
 
 def test_reaction_of_unknown_mode_is_rejected():
     """Test that a reaction of an unknown mode raises an error that names it."""
-    system = System(
+    system = CompositeSystem(
         elements=[NonnegativeElement('A', x=10.0), NonnegativeElement('B', x=10.0), NonnegativeElement('C')],
         interactions=[
             ReactionInteraction(

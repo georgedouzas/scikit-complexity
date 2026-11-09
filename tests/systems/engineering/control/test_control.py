@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import ConnectorSpec
@@ -88,7 +88,7 @@ def test_thermal_connector_is_a_connector():
 
 def test_body_cools_through_a_conductor_and_convection_in_closed_form():
     """Test that a body cools towards a fluid at the rate of the conductance in series with the convection."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             HeatCapacityElement('body', T=80.0, C=4.0),
             ThermalConductorElement('wall', G=2.0),

@@ -4,13 +4,13 @@ from collections.abc import Callable
 
 import numpy as np
 
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.problems import BaseProblemSpec, FrameSpec
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, Trajectory, simulate
 from skcomplex.core.specs import ObservableSpec
 
 
-def _run(system: System, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:
+def _run(system: CompositeSystem, until: float, dt: float = 1, random_state: int = 0) -> Trajectory:
     """Return the trajectory of a system run with a frame duration and a random state."""
     return simulate(system, until=until, dt=dt, random_state=random_state)
 
@@ -20,7 +20,7 @@ def _observables(observed: BaseSystem | None) -> list[ObservableSpec]:
     return [] if observed is None else list(observed.get_run_settings()['observables'])
 
 
-def _run_monitored(system: System, dt: float, until: float, observed: BaseSystem | None = None) -> Trajectory:
+def _run_monitored(system: CompositeSystem, dt: float, until: float, observed: BaseSystem | None = None) -> Trajectory:
     """Return the trajectory of a system under a conservation monitor, which raises on any leak.
 
     The observables are the standard observables of the ready-made system `observed`, or none without one.
@@ -40,7 +40,7 @@ def _series(system: BaseSystem, until: float) -> Trajectory:
     return simulate(system.prepare().system_, until=until, dt=1, random_state=0, observables=observables)
 
 
-def _run_seeded(system: System, until: float, dt: float, observed: BaseSystem | None = None) -> Trajectory:
+def _run_seeded(system: CompositeSystem, until: float, dt: float, observed: BaseSystem | None = None) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state.
 
     The observables are the standard observables of the ready-made system `observed`, or none without one.

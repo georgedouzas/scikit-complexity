@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -33,7 +33,7 @@ class CellElement(Element):
 
 def _run(interaction, until=1.0, dt=0.1, **values):
     """Return the times and the substrate of one cell under one reaction."""
-    system = System(elements=[CellElement('cell', **values)], interactions=[interaction])
+    system = CompositeSystem(elements=[CellElement('cell', **values)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('cell.S'))
 

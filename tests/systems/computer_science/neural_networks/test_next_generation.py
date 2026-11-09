@@ -6,7 +6,7 @@ from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
 from skcomplex.core.analysis import reservoir
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem
@@ -117,7 +117,7 @@ def test_next_generation_reservoir_fits_the_lorenz_flow_by_default():
     trajectory = simulate(NextGenerationReservoirSystem(), random_state=0)
     assert np.ptp(trajectory.values('reservoir.z')) > 20.0
     assert np.abs(trajectory.values('reservoir.x')).max() < 40.0
-    assert isinstance(NextGenerationReservoirSystem(samples=400).prepare().system_, System)
+    assert isinstance(NextGenerationReservoirSystem(samples=400).prepare().system_, CompositeSystem)
 
 
 def test_next_generation_reservoir_rejects_echo_state_analysis():

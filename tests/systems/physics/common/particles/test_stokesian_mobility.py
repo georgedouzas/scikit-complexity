@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import matrix, vector
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -53,7 +53,12 @@ def _system(interaction, positions, *, orientations=None, forces=None, centers=N
     }
     spheres = GroupElement('spheres', element=SphereElement, size=size, values=values)
     extra = {} if time is None else {'time': time}
-    return System(elements=[spheres], interactions=[interaction], space=ContinuousSpace(n_dim=dimension), **extra)
+    return CompositeSystem(
+        elements=[spheres],
+        interactions=[interaction],
+        space=ContinuousSpace(n_dim=dimension),
+        **extra,
+    )
 
 
 def _velocities(interaction, positions, **kwargs):

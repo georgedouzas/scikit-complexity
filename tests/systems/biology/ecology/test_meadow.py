@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.systems.biology.ecology import MeadowCapacitySystem
 
 from ..conftest import _run_until
@@ -13,7 +13,7 @@ def test_meadow_runs_nested_in_a_farm(growth):
     """Test that the meadow placed as the subsystem `farm` runs as the meadow at the root."""
     root = _run_until(MeadowCapacitySystem(growth=growth, random_state=0), 25, random_state=0)
     nested = MeadowCapacitySystem(growth=growth, random_state=0).prepare().system_.set_params(label='farm')
-    farm = _run_until(System(systems=[nested]), 25, random_state=0)
+    farm = _run_until(CompositeSystem(systems=[nested]), 25, random_state=0)
     assert farm.values('farm/cows.count').tolist() == root.values('cows.count').tolist()
     assert {interaction.pasture for interaction in nested.interactions} == {'pasture'}
 

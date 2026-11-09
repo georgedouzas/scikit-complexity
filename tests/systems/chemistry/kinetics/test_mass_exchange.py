@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -14,7 +14,7 @@ from ....conftest import NodeElement
 
 def test_state_follows_a_moving_goal():
     """Test that a mass exchange towards the goal `t` follows `t - time (1 - exp(-t / time))`."""
-    system = System(
+    system = CompositeSystem(
         elements=[NodeElement('cell', x=0.0)],
         interactions=[MassExchangeInteraction('relaxation', target='cell', goal=lambda s: s.t, time=2.0)],
     )

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import simulate
@@ -31,7 +31,7 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
 
-def _undeclared_laws(system: System) -> list[str]:
+def _undeclared_laws(system: CompositeSystem) -> list[str]:
     """Return the laws an interaction of a compiled system returned that its class does not list."""
     found = [
         f'{interaction.label}: {type(law).__name__}'
@@ -178,7 +178,7 @@ def test_all_systems_filters_by_topic():
 
 def test_system_class_matches_components():
     """Test that a system class runs like the same system built from its components."""
-    built = System(
+    built = CompositeSystem(
         elements=[PopulationElement('prey', x=40.0), PopulationElement('predators', x=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),

@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -44,7 +44,7 @@ def test_random_affine_map_with_one_map_applies_it():
     """Test that a single contraction toward the origin halves every position at every step."""
     points = GroupElement('points', element=ChaosPointElement, size=3, values={'p': np.ones((3, 2))})
     game = RandomAffineMapInteraction('game', target='points', maps=[(0.5, 0.0, 0.0, 0.5, 0.0, 0.0)], weights=[1.0])
-    system = System(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
     trajectory = simulate(system, until=2, dt=1, random_state=0)
     np.testing.assert_allclose(trajectory.values('points.p')[-1], 0.25)
 

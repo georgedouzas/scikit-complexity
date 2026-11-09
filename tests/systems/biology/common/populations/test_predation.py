@@ -1,6 +1,6 @@
 """Test the `_predation` module of `skcomplex.systems.biology.common.populations`."""
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.populations import (
     LogisticGrowthInteraction,
@@ -12,7 +12,7 @@ from skcomplex.systems.biology.ecology import PredationInteraction
 
 def test_lotka_volterra_oscillates():
     """Test that predators and prey cycle without dying out."""
-    system = System(
+    system = CompositeSystem(
         elements=[PopulationElement('rabbits', x=40), PopulationElement('foxes', x=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1e6),

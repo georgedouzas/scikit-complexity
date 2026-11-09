@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.analysis import bind_analysis, clusters
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
 
@@ -11,7 +11,7 @@ FILLINGS = [0.8, 1.0, 1.25, 1.5]
 SEEDS = list(range(40))
 
 
-def _disks(**parameters: object) -> System:
+def _disks(**parameters: object) -> CompositeSystem:
     """Return the disks of a continuum percolation system for its model parameters, as an experiment runs them."""
     return ContinuumPercolationSystem(**parameters).prepare().system_
 

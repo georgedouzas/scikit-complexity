@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
@@ -12,7 +12,7 @@ from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
 
 def _run(interaction, until=40.0, dt=0.5):
     """Return the times and the drug of one compartment under one dosing."""
-    system = System(elements=[CompartmentElement('patient', x=0.0)], interactions=[interaction])
+    system = CompositeSystem(elements=[CompartmentElement('patient', x=0.0)], interactions=[interaction])
     trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('patient.x'))
 

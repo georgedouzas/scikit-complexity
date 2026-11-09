@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import (
     BirdSwarmSystem,
@@ -64,7 +64,11 @@ def _velocities(values, locations, interactions, until=1):
     """Return the group of boids at the last frame of a run in a periodic cube of side 10."""
     flock = GroupElement('flock', element=SpatialBoidElement, size=len(locations), values=values, location=locations)
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
-    trajectory = simulate(System(elements=[flock], interactions=interactions, space=space), until=until, random_state=0)
+    trajectory = simulate(
+        CompositeSystem(elements=[flock], interactions=interactions, space=space),
+        until=until,
+        random_state=0,
+    )
     return trajectory.agents('flock', until)
 
 
@@ -117,7 +121,7 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
     """Test that two boids steer toward and away from each other across the edge of the torus, at least `min_speed`."""
     values = {'vx': [0.5, 0.0], 'vy': [0.0, 0.5], 'cohesion': 0.1, 'separation': 0.5, 'alignment': 0.0}
     flock = GroupElement('flock', element=BoidElement, size=2, values=values, location=[(29.6, 1.0), (0.4, 1.0)])
-    system = System(
+    system = CompositeSystem(
         elements=[flock],
         interactions=[FlockingInteraction('flocking', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
@@ -134,7 +138,7 @@ def test_flight_interaction_moves_boids_by_velocity_on_torus():
     """Test that every boid moves by its velocity in one step, wrapping around the torus."""
     values = {'vx': [1.0, -2.0], 'vy': [0.5, 0.0]}
     flock = GroupElement('flock', element=BoidElement, size=2, values=values, location=[(29.5, 1.0), (1.0, 2.0)])
-    system = System(
+    system = CompositeSystem(
         elements=[flock],
         interactions=[FlightInteraction('flight', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),

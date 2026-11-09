@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.common.particles import MassPointElement, PotentialEnergyInteraction
@@ -16,7 +16,7 @@ def test_potential_energy_changes_the_velocity_by_the_force_over_the_mass():
         target='ball',
         potential=lambda s: 2.0 * s.target.x.dot_product(s.target.x),
     )
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('ball', x=[1.0], m=4.0)],
         interactions=[trap],
         space=ContinuousSpace(n_dim=1),

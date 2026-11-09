@@ -7,7 +7,7 @@ import pytest
 from scipy.special import comb
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -112,7 +112,10 @@ def test_triplet_interaction_sums_over_the_pairs_of_other_species():
     species = GroupElement('species', element=PopulationElement, size=size, values={'x': x})
     triplets = TripletInteraction('triplets', target='species', a=tensor, state='x')
     problem = (
-        PassCompiler(backend=NumpyBackend()).prepare(System(elements=[species], interactions=[triplets])).run().problem_
+        PassCompiler(backend=NumpyBackend())
+        .prepare(CompositeSystem(elements=[species], interactions=[triplets]))
+        .run()
+        .problem_
     )
     rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'species.x')
     expected = [

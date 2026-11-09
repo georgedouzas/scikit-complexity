@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.systems.biology.oncology import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,
@@ -70,7 +70,7 @@ def test_drug_resistance_switching_resensitizes_after_the_dose():
         u=0.0,
         **switching,
     )
-    after = _run(System(elements=[tumour]), until=400.0, dt=1.0)
+    after = _run(CompositeSystem(elements=[tumour]), until=400.0, dt=1.0)
     assert after.values('tumour.S')[-1] > 0.9
 
 

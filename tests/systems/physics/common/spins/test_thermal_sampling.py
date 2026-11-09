@@ -8,7 +8,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 from skcomplex.systems.physics.common.spins import ThermalSamplingInteraction
@@ -30,7 +30,7 @@ def _energy(namespace):
 def _system(sampling):
     """Return a square lattice of spins sampled by an interaction."""
     spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((16, 16)), on='sites')
-    return System(elements=[spins], interactions=[sampling], time=DiscreteTime())
+    return CompositeSystem(elements=[spins], interactions=[sampling], time=DiscreteTime())
 
 
 def test_thermal_sampling_gives_the_core_one_over_the_temperature():

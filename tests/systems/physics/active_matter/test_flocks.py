@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.physics.active_matter import (
@@ -25,7 +25,7 @@ def test_heading_alignment_takes_the_circular_mean_within_the_unit_distance(nema
     x = np.array([[1.0, 1.0], [1.5, 1.0], [1.2, 1.6], [4.0, 4.0]])
     theta = np.array([0.1, 2.9, -0.4, 1.0])
     flock = GroupElement('flock', element=VicsekParticleElement, size=4, values={'x': x, 'theta': theta, 'eta': 0.0})
-    system = System(
+    system = CompositeSystem(
         elements=[flock],
         interactions=[HeadingAlignmentInteraction('alignment', target='flock', nematic=nematic)],
         space=ContinuousSpace(extent=(5.0, 5.0), boundary='periodic'),

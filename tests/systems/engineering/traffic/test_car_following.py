@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -152,7 +152,7 @@ def _per_car(system, interaction):
         )
         for index in range(n_cars)
     ]
-    return System(elements=elements, interactions=interactions)
+    return CompositeSystem(elements=elements, interactions=interactions)
 
 
 def test_optimal_velocity_jams_move_backwards():

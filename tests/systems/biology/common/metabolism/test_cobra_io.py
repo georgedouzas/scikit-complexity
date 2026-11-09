@@ -5,7 +5,7 @@ import multiprocessing
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
@@ -31,7 +31,7 @@ sys.meta_path.insert(0, Blocker())
 
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return System(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
 
 
 def _objective(system):
@@ -62,7 +62,7 @@ def test_round_trip_keeps_the_network(tmp_path, suffix):
         )
         for metabolite, value in spec.coefficients.items():
             assert other.coefficients[metabolite] == pytest.approx(value)
-    optimum = _objective(System(elements=[copy], time=StaticTime()))
+    optimum = _objective(CompositeSystem(elements=[copy], time=StaticTime()))
     assert optimum == pytest.approx(AEROBIC, abs=1e-6)
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -19,7 +19,7 @@ def test_run_reaches_the_ornstein_uhlenbeck_variance():
     """Test that goal 0, time `1 / theta`, and noise `sigma` give the variance `sigma**2 / (2 theta)` within 5%."""
     theta, sigma = 2.0, 0.6
     process = RelaxationTimeInteraction('ou', target='walkers', state='n', goal=0.0, time=1 / theta, noise=sigma)
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('walkers', element=HoldingElement, size=MEMBERS, values={'n': 0.0})],
         interactions=[process],
     )
@@ -32,7 +32,7 @@ def test_run_reaches_the_ornstein_uhlenbeck_variance():
 
 def test_run_relaxes_towards_a_goal_of_the_namespace():
     """Test that a relaxation towards the moving goal `t` follows `t - time (1 - exp(-t / time))`."""
-    system = System(
+    system = CompositeSystem(
         elements=[NodeElement('belief', x=0.0)],
         interactions=[RelaxationTimeInteraction('adaptation', target='belief', goal=lambda s: s.t, time=2.0)],
     )

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.common.particles import DampingInteraction, MassPointElement
@@ -12,7 +12,7 @@ from skcomplex.systems.physics.common.particles import DampingInteraction, MassP
 
 def test_linear_drag_slows_particle():
     """Test that drag decays the velocity exponentially."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p', x_d1=1.0)],
         interactions=[DampingInteraction('air', target='p', gamma=0.5)],
         space=ContinuousSpace(n_dim=1),
@@ -23,7 +23,7 @@ def test_linear_drag_slows_particle():
 
 def test_damping_decays_velocity_at_rate_gamma_over_mass():
     """Test that damping decays the velocity of a heavy particle as `exp(-gamma * t / m)`."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('p', x_d1=[2.0, -1.0], m=4.0)],
         interactions=[DampingInteraction('air', target='p', gamma=2.0)],
         space=ContinuousSpace(n_dim=2),

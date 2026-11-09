@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver, VelocityVerletSolver
@@ -14,7 +14,7 @@ from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIR
 
 def _pair(interaction, distance):
     """Return a system of two particles at a distance with one pair interaction."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [distance, 0.0]]})],
         interactions=[interaction],
         space=ContinuousSpace(n_dim=2),

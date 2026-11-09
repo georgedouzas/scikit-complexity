@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
 
-def _ensemble(**parameters: object) -> System:
+def _ensemble(**parameters: object) -> CompositeSystem:
     """Return the parts of a random energy system for its model parameters, as an experiment runs them."""
     return RandomEnergySystem(**parameters).prepare().system_
 

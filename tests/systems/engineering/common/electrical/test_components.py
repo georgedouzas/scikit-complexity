@@ -10,7 +10,7 @@ from scipy.optimize import brentq
 from scipy.signal import find_peaks
 
 from skcomplex.core.components.interactions import ConnectionInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
@@ -44,7 +44,7 @@ def _nodes(*nodes):
 
 def _series_rlc(R=0.05, L=0.5, C=0.2, u=1.0):
     """Return a series RLC circuit that runs from a charged capacitor."""
-    return System(
+    return CompositeSystem(
         elements=[
             ResistorElement('resistor', R=R),
             InductorElement('coil', L=L),
@@ -61,7 +61,7 @@ def _series_rlc(R=0.05, L=0.5, C=0.2, u=1.0):
 
 def _component_chua():
     """Return Chua's circuit assembled from components with the values of `chua`."""
-    return System(
+    return CompositeSystem(
         elements=[
             CapacitorElement('first', C=1 / 15.6, u=0.1),
             CapacitorElement('second', C=1.0, u=0.0),
@@ -105,7 +105,7 @@ def test_series_rlc_runs_on_the_numba_backend():
 
 def test_diode_current_solves_the_diode_equation():
     """Test that a resistor in series with an exponential diode carries the solution of the diode equation."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             VoltageSourceElement('source', V=1.0),
             ResistorElement('resistor', R=100.0),
@@ -129,7 +129,7 @@ def test_diode_current_solves_the_diode_equation():
 
 def test_current_source_drives_a_resistor():
     """Test that a current source sets the voltage of the resistor it drives."""
-    system = System(
+    system = CompositeSystem(
         elements=[CurrentSourceElement('source', current=0.5), ResistorElement('load', R=4.0), GroundElement('ground')],
         interactions=_nodes(
             [('source', 'p'), ('load', 'p')],
@@ -142,7 +142,7 @@ def test_current_source_drives_a_resistor():
 
 def test_operational_amplifier_inverts_with_the_ratio_of_its_resistors():
     """Test that an inverting amplifier has the gain `-R2 / R1`."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             VoltageSourceElement('source', V=0.5),
             ResistorElement('input', R=1.0),

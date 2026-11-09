@@ -5,12 +5,12 @@ import math
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import ProblemSpec
 
 
-def _random_drift(system: System) -> tuple[ProblemSpec, npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+def _random_drift(system: CompositeSystem) -> tuple[ProblemSpec, npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """Return the phases at a random state and the drift of a phase system there."""
     problem = PassCompiler().prepare(system).run().problem_
     assert isinstance(problem, ProblemSpec)

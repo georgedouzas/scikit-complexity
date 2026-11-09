@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -51,7 +51,7 @@ def test_run_keeps_the_momentum_and_damps_the_relative_motion():
         damping='c',
         divisor={'a': 'ma', 'b': 'mb'},
     )
-    system = System(elements=[TwoMassElement('body')], interactions=[joint])
+    system = CompositeSystem(elements=[TwoMassElement('body')], interactions=[joint])
     simulation = simulate(system, until=30.0, solver=ScipyODESolver(rtol=1e-9, atol=1e-11), dt=1.0)
     trajectory = simulation
     momentum = trajectory.values('body.a_d1') + 2.0 * trajectory.values('body.b_d1')

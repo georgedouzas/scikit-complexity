@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.physics.common.oscillators import StuartLandauElement
@@ -13,7 +13,7 @@ from skcomplex.systems.physics.common.oscillators import StuartLandauElement
 
 def _run(**parameters):
     """Return the trajectory of one Stuart-Landau oscillator."""
-    system = System(elements=[StuartLandauElement('z', **parameters)])
+    system = CompositeSystem(elements=[StuartLandauElement('z', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
     return simulate(system, until=40.0, dt=0.1, solver=solver)
 
