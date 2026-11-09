@@ -1,6 +1,6 @@
 """Define reactions.
 
-Reactions are jumps that move units between states by mass action or a given propensity.
+Reactions are jumps that move units between states by a product propensity or a given propensity.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -33,23 +33,25 @@ ENTRY_SIZE = 2
 class ReactionInteraction(JumpInteraction):
     """Reaction that moves units from its reactants to its products.
 
-    It moves them at a mass-action or a given propensity. A reactant, a product, or a modifier is a pair of the path of
-    an element, or of a member of a group such as `cells[0]`, and the name of its state that holds the units, mapped to
-    its stoichiometric coefficient. A coefficient is a positive number, or a function of the namespace of the reaction
-    that returns an expression of its parameters, such as `lambda s: 1 / s.target.epsilon`. So `S + I -> 2 I` has the
-    reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`, and two states of one element are
-    `('cell', 'u')` and `('cell', 'v')`. A species may also be the name of a state of the `target` alone, such as `{'u':
-    1, 'v': 2}`. A target that is a group or a field reacts in every member, with the species of every member its own
-    states, as the reactions at every site of a reaction-diffusion field.
+    It moves them at a product propensity or a given propensity. A reactant, a product, or a modifier is a pair of the
+    path of an element, or of a member of a group such as `cells[0]`, and the name of its state that holds the units,
+    mapped to its stoichiometric coefficient. A coefficient is a positive number, or a function of the namespace of the
+    reaction that returns an expression of its parameters, such as `lambda s: 1 / s.target.epsilon`. So `S + I -> 2 I`
+    has the reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`, and two states of one element
+    are `('cell', 'u')` and `('cell', 'v')`. A species may also be the name of a state of the `target` alone, such as
+    `{'u': 1, 'v': 2}`. A target that is a group or a field reacts in every member, with the species of every member its
+    own states, as the reactions at every site of a reaction-diffusion field.
 
     A subclass may bind its species under roles of its own names, such as `susceptible` and `infected`: it returns its
     entries from `_get_reactants`, `_get_products`, and `_get_modifiers`, pairs of the path a role binds and a state
     name, and the reaction reads every pair from the namespace of the role that binds its path.
 
-    The propensity is `k` times the product of every reactant and modifier state to the power of its coefficient, or the
-    expression the `propensity` function returns. The reaction changes every state by its coefficient among the products
-    minus its coefficient among the reactants, so it conserves the total of the states whose changes sum to zero, and
-    modifiers enter the propensity but do not change.
+    The default propensity is the rate constant `k` times the product of the reactant and modifier amounts, each raised
+    to its coefficient, or else the expression the `propensity` function returns. Fields name this product propensity in
+    their own words, such as the law of mass action in chemistry, homogeneous mixing in epidemiology, and the encounter
+    term of Lotka-Volterra in ecology. The reaction changes every state by its coefficient among the products minus its
+    coefficient among the reactants, so it conserves the total of the states whose changes sum to zero, and modifiers
+    enter the propensity but do not change.
 
     In the mode `'rate'` the reaction is a rate equation. In the mode `'jump'` it is the random event of a
     `JumpInteraction` at the propensity that moves the units of the coefficients. In the mode `'langevin'` it is the
@@ -83,10 +85,11 @@ class ReactionInteraction(JumpInteraction):
             The rate constant.
 
         propensity:
-            A function of the namespace of the reaction that returns the propensity, or `None` for mass action. The
-            namespace holds the tuples `reactants`, `products`, and `modifiers` of the namespaces of the elements their
-            pairs bind, in the order of their entries, `target`, the namespace of the target or of one of its members,
-            and the symbol `k`. In the agent form, a function `propensity(agent, system)` that returns a number.
+            A function of the namespace of the reaction that returns the propensity, or `None` for the product
+            propensity. The namespace holds the tuples `reactants`, `products`, and `modifiers` of the namespaces of the
+            elements their pairs bind, in the order of their entries, `target`, the namespace of the target or of one of
+            its members, and the symbol `k`. In the agent form, a function `propensity(agent, system)` that returns a
+            number.
 
         modifiers:
             The coefficients of the modifiers, whose states the propensity reads but the reaction does not change, or
@@ -116,13 +119,13 @@ class ReactionInteraction(JumpInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
         >>> from skcomplex.core.components.interactions import ReactionInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> infection = ReactionInteraction(
         ...     'infection', reactants={('S', 'x'): 1, ('I', 'x'): 1}, products={('I', 'x'): 2}, k=0.0005
         ... )
         >>> recovery = ReactionInteraction('recovery', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=0.1)
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
         ...     interactions=[infection, recovery],
         ... )
@@ -138,7 +141,7 @@ class ReactionInteraction(JumpInteraction):
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=1.0)
         >>> values = {'x': np.arange(3.0)}
         >>> cells = FieldElement('cells', element=NonnegativeElement, space=LatticeSpace((3,)), values=values)
-        >>> trajectory = simulate(System(elements=[cells], interactions=[decay]), until=1, dt=1.0)
+        >>> trajectory = simulate(CompositeSystem(elements=[cells], interactions=[decay]), until=1, dt=1.0)
         >>> np.round(trajectory.lattice('cells.x')[-1], 3).tolist()
         [0.0, 0.368, 0.736]
 
@@ -160,7 +163,8 @@ class ReactionInteraction(JumpInteraction):
         >>> scaled = ReactionInteraction(
         ...     'decay', target='box', reactants={'x': lambda s: 1 / s.target.epsilon}, propensity=lambda s: s.target.x
         ... )
-        >>> trajectory = simulate(System(elements=[ScaledElement('box')], interactions=[scaled]), until=0.5, dt=0.01)
+        >>> system = CompositeSystem(elements=[ScaledElement('box')], interactions=[scaled])
+        >>> trajectory = simulate(system, until=0.5, dt=0.01)
         >>> round(float(trajectory.values('box.x')[-1]), 3)
         0.368
 
@@ -175,7 +179,7 @@ class ReactionInteraction(JumpInteraction):
         ...         self.n = n
         >>> cells = GroupElement('cells', element=CellElement, size=2)
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent')
-        >>> system = System(elements=[cells], interactions=[decay], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[cells], interactions=[decay], time=DiscreteTime())
         >>> trajectory = simulate(system, until=2)
         >>> np.round(trajectory.agents('cells', 2).values['n'], 6).tolist()
         [2.43, 2.43]
@@ -316,10 +320,10 @@ class ReactionInteraction(JumpInteraction):
                 changes[state] = changes.get(state, 0) + sign * coefficient
         return {state: change for state, change in changes.items() if change}
 
-    def _get_mass_action(self, namespace: SimpleNamespace, constant: Expression) -> Expression:
-        """Return the mass action of a rate constant.
+    def _get_product_propensity(self, namespace: SimpleNamespace, constant: Expression) -> Expression:
+        """Return the product propensity of a rate constant.
 
-        It is the rate constant times every reactant and modifier to its coefficient.
+        It is the rate constant times the product of the reactant and modifier amounts, each raised to its coefficient.
         """
         propensity = SR(constant)
         for entries, name in ((self._get_reactants(), 'reactants'), (self._get_modifiers(), 'modifiers')):
@@ -330,11 +334,11 @@ class ReactionInteraction(JumpInteraction):
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the propensity of the reaction.
 
-        It is given by the user's function or by mass action at the rate constant `k`.
+        It is given by the user's function or by the product propensity at the rate constant `k`.
         """
         if self.propensity is not None:
             return SR(self.propensity(namespace))
-        return self._get_mass_action(namespace, self._get_parameter_symbol('k', namespace))
+        return self._get_product_propensity(namespace, self._get_parameter_symbol('k', namespace))
 
     def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BasePart]:
         """Return the drift of the reaction and the noise of its Wiener process.
@@ -462,7 +466,7 @@ class ReactionInteraction(JumpInteraction):
     def _get_agent_propensity(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the propensity of an agent.
 
-        It is given by the user's function or by mass action at the rate constant `k`.
+        It is given by the user's function or by the product propensity at the rate constant `k`.
         """
         if self.propensity is not None:
             return self._get_number(self.propensity, agent, system)

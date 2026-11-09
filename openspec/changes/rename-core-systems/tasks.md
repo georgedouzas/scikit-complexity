@@ -12,8 +12,8 @@
 
 ## 3. Product propensity of reactions
 
-- [ ] 3.1 In `core/components/interactions/_reaction.py` rename `_get_mass_action` to `_get_product_propensity`, and rewrite the module, class, argument, and method docstrings to describe the default propensity as the rate constant times the product of the reactant and modifier amounts, each raised to its coefficient, with the field terms only as examples, and verify its doctests pass
-- [ ] 3.2 Rename the calls of `_get_mass_action` in `systems/biology/epidemiology/_factories.py` and `tests/core/components/interactions/test_reaction.py`, add a test in `test_reaction.py` that the default propensity of `2 A -> B` at the rate constant `k` is `k A^2`, and verify `grep -rn "_get_mass_action" src tests docs` finds nothing and `pytest tests/core/components/interactions/test_reaction.py tests/systems/biology/epidemiology` passes
+- [x] 3.1 In `core/components/interactions/_reaction.py` rename `_get_mass_action` to `_get_product_propensity`, and rewrite the module, class, argument, and method docstrings to describe the default propensity as the rate constant times the product of the reactant and modifier amounts, each raised to its coefficient, with the field terms only as examples, and verify its doctests pass
+- [x] 3.2 Rename the calls of `_get_mass_action` in `systems/biology/epidemiology/_factories.py` and `tests/core/components/interactions/test_reaction.py`, add a test in `test_reaction.py` that the default propensity of `2 A -> B` at the rate constant `k` is `k A^2`, and verify `grep -rn "_get_mass_action" src tests docs` finds nothing and `pytest tests/core/components/interactions/test_reaction.py tests/systems/biology/epidemiology` passes
 
 ## 4. Rest of the core
 

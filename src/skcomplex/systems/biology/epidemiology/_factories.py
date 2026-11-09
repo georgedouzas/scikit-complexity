@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import MassActionSystem
+from ....core.components.systems import ReactionNetworkSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Stoichiometry
 
@@ -43,10 +43,10 @@ class InfectionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('S', x=99.0), CompartmentElement('I', x=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
@@ -96,7 +96,7 @@ class InfectionInteraction(ReactionInteraction):
             rate:
                 The propensity of the reaction.
         """
-        return self._get_mass_action(namespace, namespace.beta)
+        return self._get_product_propensity(namespace, namespace.beta)
 
 
 class ImmunityLossInteraction(ReactionInteraction):
@@ -170,7 +170,7 @@ class ImmunityLossInteraction(ReactionInteraction):
             rate:
                 The propensity of the reaction.
         """
-        return self._get_mass_action(namespace, namespace.xi)
+        return self._get_product_propensity(namespace, namespace.xi)
 
 
 class RecoveryInteraction(ReactionInteraction):
@@ -199,10 +199,10 @@ class RecoveryInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('I', x=10.0), CompartmentElement('R')],
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
@@ -252,10 +252,10 @@ class RecoveryInteraction(ReactionInteraction):
             rate:
                 The propensity of the reaction.
         """
-        return self._get_mass_action(namespace, namespace.gamma)
+        return self._get_product_propensity(namespace, namespace.gamma)
 
 
-class SIRSystem(MassActionSystem):
+class SIRSystem(ReactionNetworkSystem):
     """An epidemic that moves individuals from susceptible to infected to recovered.
 
     The system has the compartments `S`, `I`, and `R`.
@@ -336,7 +336,7 @@ class SIRSystem(MassActionSystem):
         ]
 
 
-class SISSystem(MassActionSystem):
+class SISSystem(ReactionNetworkSystem):
     """An infection without immunity, where the recovered become susceptible again.
 
     The disease is endemic.
@@ -417,7 +417,7 @@ class SISSystem(MassActionSystem):
         ]
 
 
-class SIRSSystem(MassActionSystem):
+class SIRSSystem(ReactionNetworkSystem):
     """An epidemic whose immunity wanes.
 
     The epidemic returns in damped waves to an endemic equilibrium.
@@ -509,7 +509,7 @@ class SIRSSystem(MassActionSystem):
         ]
 
 
-class ZombieOutbreakSystem(MassActionSystem):
+class ZombieOutbreakSystem(ReactionNetworkSystem):
     """The outbreak of zombies of Munz et al.
 
     The dead rise again and humans are eventually overrun.
