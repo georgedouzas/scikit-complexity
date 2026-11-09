@@ -260,7 +260,7 @@ class SpreadInteraction(NeighborInteraction):
         return [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})]
 
 
-class DiffusionInteraction(NeighborInteraction):
+class BondExchangeInteraction(NeighborInteraction):
     """Diffusion between the ends of every bond."""
 
     def __init__(
@@ -413,7 +413,7 @@ def test_edge_interactions_run_on_lattice_bonds():
         values={'theta': [1.0, 0, 0, 0]},
         on='sites',
     )
-    system = System(elements=[cells], interactions=[DiffusionInteraction('diffusion', cells='cells')])
+    system = System(elements=[cells], interactions=[BondExchangeInteraction('diffusion', cells='cells')])
     problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [-2.0, 1.0, 0.0, 1.0]

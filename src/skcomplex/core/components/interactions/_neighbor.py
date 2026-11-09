@@ -55,7 +55,7 @@ class NeighborInteraction(BaseInteraction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.interactions import NeighborInteraction
         >>> from skcomplex.core.specs import ParameterSpec, RoleSpec
-        >>> class DiffusionInteraction(NeighborInteraction):
+        >>> class BondExchangeInteraction(NeighborInteraction):
         ...     def __init__(
         ...         self,
         ...         label,
@@ -66,7 +66,7 @@ class NeighborInteraction(BaseInteraction):
         ...         super().__init__(label, layer=layer)
         ...         self.nodes = nodes
         ...         self.D = D
-        >>> DiffusionInteraction('diffusion', nodes='cells', layer='roads').layer
+        >>> BondExchangeInteraction('diffusion', nodes='cells', layer='roads').layer
         'roads'
     """
 

@@ -440,7 +440,7 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
 def test_interaction_reduces_over_the_neighbours_of_its_group():
     """Test that an interaction reads the neighbours of the group bound to its role through `s.target.other`."""
 
-    class DiffusionInteraction(Interaction):
+    class BondExchangeInteraction(Interaction):
         """Diffusion interaction."""
 
         def __init__(
@@ -456,7 +456,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
             """Return the laws of the diffusion interaction."""
             return [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
 
-    diffusion = DiffusionInteraction
+    diffusion = BondExchangeInteraction
 
     class PlainElement(Element):
         """Plain element."""

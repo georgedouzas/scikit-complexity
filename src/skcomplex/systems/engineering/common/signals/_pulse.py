@@ -109,7 +109,9 @@ class PulseInteraction(CrossingInteraction):
         super()._prepare(context)
 
     def _get_guard(self, namespace: SimpleNamespace) -> Expression:
-        """Return the guard that crosses zero at every periodic pulse."""
+        """Return the guard that crosses zero at every periodic pulse, and never without a period."""
+        if self.period is None:
+            return SR(-1)
         return periodic_guard(namespace.t, self.period, self.start, self.count)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
@@ -123,9 +125,8 @@ class PulseInteraction(CrossingInteraction):
             laws:
                 One crossing law per given time and one for the periodic pulses.
         """
-        reset = {
-            getattr(self._get_member(namespace, 'target'), name): SR(f(namespace)) for name, f in self.reset.items()
-        }
+        member = self._get_member(namespace, 'target')
+        reset = {getattr(member, name): SR(f(namespace)) for name, f in (self.reset or {}).items()}
         laws: list[BaseLaw] = [CrossingLaw(namespace.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
             laws.extend(super()._get_laws(namespace))

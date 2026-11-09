@@ -549,7 +549,7 @@ class LinkElement(Element):
         self.w = w
 
 
-class DiffusionInteraction(Interaction):
+class BondExchangeInteraction(Interaction):
     def __init__(self, label, *, nodes: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]):
         super().__init__(label)
         self.nodes = nodes
@@ -565,7 +565,7 @@ system = System(
         GroupElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}, on='sites'),
         GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': [1.0, 10.0]}),
     ],
-    interactions=[DiffusionInteraction('diffusion', nodes='nodes', links='links')],
+    interactions=[BondExchangeInteraction('diffusion', nodes='nodes', links='links')],
 )
 problem = simulate(system, until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
