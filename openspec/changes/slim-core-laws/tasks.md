@@ -39,7 +39,7 @@ when other agents run tests at the same time.
   hidden Markov systems of `tests/systems/mathematics/stochastic_processes` pass
 - [x] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
   verify the markdown doctests and the test pass
-- [ ] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
+- [x] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
   backends, and `experiments/_replicate.py`, delete `laws/_emission.py` and its re-export, and verify
   `grep -rn EmissionLaw src tests docs` finds nothing and `pytest tests/core` passes
 

@@ -10,7 +10,6 @@ from ._cascade import CascadeLaw
 from ._crossing import CrossingLaw
 from ._dissipator import DissipatorLaw
 from ._drive import DriveLaw
-from ._emission import EmissionLaw
 from ._encounter import EncounterLaw
 from ._equation import EquationLaw
 from ._extremal import ExtremalLaw
@@ -39,7 +38,6 @@ __all__: list[str] = [
     'CrossingLaw',
     'DissipatorLaw',
     'DriveLaw',
-    'EmissionLaw',
     'EncounterLaw',
     'EquationLaw',
     'ExtremalLaw',
