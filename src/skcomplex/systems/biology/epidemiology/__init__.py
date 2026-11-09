@@ -41,7 +41,7 @@ from ._networks import DegreeClassElement, HeterogeneousMeanFieldSISSystem, Meta
 from ._outbreaks import HeterogeneousMeanFieldSIRSystem, ImmunizingDegreeClassElement
 from ._records import PathogenElement, RecordDynamicsEpidemicSystem, ResidentElement, ResistanceInfectionInteraction
 from ._recurrent import DelayedSIRSSystem, EpidemicCenterElement
-from ._vaccination import SIRVaccinationSystem, VaccinatedPopulationElement
+from ._vaccination import SIRVaccinationSystem
 
 __all__: list[str] = [
     'ActiveHostElement',
@@ -85,7 +85,6 @@ __all__: list[str] = [
     'SpreadingInteraction',
     'SubpopulationElement',
     'TravellerElement',
-    'VaccinatedPopulationElement',
     'WalkerElement',
     'WattsMayConcurrencySystem',
     'ZombieOutbreakSystem',
