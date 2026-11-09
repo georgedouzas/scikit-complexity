@@ -7,6 +7,7 @@ The neighbourhoods are those of their members, and the time is that of a system.
 # License: MIT
 
 from ._adjacency import AdjacencyNeighborhood
+from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace, BaseTime
 from ._box import BoxNeighborhood
 from ._cayley import CayleySpace
@@ -36,6 +37,7 @@ from ._von_neumann import VonNeumannNeighborhood
 
 __all__: list[str] = [
     'AdjacencyNeighborhood',
+    'BallNeighborhood',
     'BaseNeighborhood',
     'BaseSpace',
     'BaseTime',

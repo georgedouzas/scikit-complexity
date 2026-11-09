@@ -25,10 +25,10 @@ class ObjectiveSpec(BaseSpec):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.spaces import VonNeumannNeighborhood
+        >>> from skcomplex.core.components.spaces import BallNeighborhood
         >>> from skcomplex.core.specs import ObjectiveSpec
         >>> spin, J = var('spin J')
-        >>> ObjectiveSpec(-J * spin, VonNeumannNeighborhood()).expression
+        >>> ObjectiveSpec(-J * spin, BallNeighborhood(metric='manhattan')).expression
         -J*spin
     """
 

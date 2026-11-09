@@ -309,7 +309,7 @@ def test_match_partners_considers_local_cells_and_distances_only():
             providers='providers',
             rule=PartnerSpec(candidates),
         )
-        space = LatticeSpace((5, 5), neighborhood='moore', boundary='fixed')
+        space = LatticeSpace((5, 5), metric='chebyshev', boundary='fixed')
         system = System(elements=[requesters, providers], interactions=[matching], space=space)
         trajectory = simulate(system, until=1, random_state=0)
         assert trajectory.values('matching.volume')[-1] == pytest.approx(expected)

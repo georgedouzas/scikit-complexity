@@ -129,7 +129,7 @@ def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     )
     grid = System(
         elements=[GroupElement('walkers', element=GridWalkerElement, size=300)],
-        space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
+        space=LatticeSpace((20, 20), boundary='periodic', metric='manhattan'),
     )
     for system in (continuous, grid):
         trajectory = simulate(system, until=600, dt=1, random_state=0)

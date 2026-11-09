@@ -337,7 +337,7 @@ def automaton(
         >>> from skcomplex.core.analysis import automaton
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.components.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec, SubshiftSpec, TableSpec, TotalisticSpec
         >>> class CellElement(Element):
@@ -353,7 +353,7 @@ def automaton(
         >>> shift = build(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
         >>> automaton(shift).injective
         True
-        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), BoxNeighborhood())
+        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), BallNeighborhood(n_dim=1, center='inline'))
         >>> automaton(majority, kind='garden-of-eden').pattern.tolist()
         [0, 0, 1, 0, 1]
         >>> class GoldenCellElement(Element):

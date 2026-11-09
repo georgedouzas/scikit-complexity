@@ -11,9 +11,9 @@
 
 ## 3. Core ball neighbourhood
 
-- [ ] 3.1 Add `src/skcomplex/core/components/spaces/_ball.py` with `BallNeighborhood(radius=1, *, metric='chebyshev', n_dim=2, center=None, label='neighborhood')`, one private method per metric, and a private check raising `ValidationError`, export it, and add `tests/core/components/spaces/test_ball.py` that checks each former class's offsets for its default and `center` settings, the hexagonal rings for radius 2, and every error
-- [ ] 3.2 Replace `neighborhood` of `LatticeSpace` with `metric=None`, add its check, and make `_default_neighborhood` and `_ball` return `BallNeighborhood`, keeping the inline Chebyshev ball for `_ball`, and update `tests/core/components/spaces/test_lattice.py`
-- [ ] 3.3 Replace the defaults in `interactions/_sampling.py` and `interactions/_cascade.py` and every core docstring that names `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `TriangularNeighborhood`, or passes `neighborhood=` to `LatticeSpace`, including `specs/_objective_spec.py`, `interactions/_local_rule.py`, `interactions/_movement.py`, `laws/_sample.py`, `laws/_cascade.py`, `laws/_local_rule.py`, `laws/_extremal.py`, and `laws/utils/_reductions.py`, and verify the core tests and doctests pass
+- [x] 3.1 Add `src/skcomplex/core/components/spaces/_ball.py` with `BallNeighborhood(radius=1, *, metric='chebyshev', n_dim=2, center=None, label='neighborhood')`, one private method per metric, and a private check raising `ValidationError`, export it, and add `tests/core/components/spaces/test_ball.py` that checks each former class's offsets for its default and `center` settings, the hexagonal rings for radius 2, and every error
+- [x] 3.2 Replace `neighborhood` of `LatticeSpace` with `metric=None`, add its check, and make `_default_neighborhood` and `_ball` return `BallNeighborhood`, keeping the inline Chebyshev ball for `_ball`, and update `tests/core/components/spaces/test_lattice.py`
+- [x] 3.3 Replace the defaults in `interactions/_sampling.py` and `interactions/_cascade.py` and every core docstring that names `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `TriangularNeighborhood`, or passes `neighborhood=` to `LatticeSpace`, including `specs/_objective_spec.py`, `interactions/_local_rule.py`, `interactions/_movement.py`, `laws/_sample.py`, `laws/_cascade.py`, `laws/_local_rule.py`, `laws/_extremal.py`, and `laws/utils/_reductions.py`, and verify the core tests and doctests pass
 
 ## 4. Core spec
 

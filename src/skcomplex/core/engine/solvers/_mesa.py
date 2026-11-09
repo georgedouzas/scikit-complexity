@@ -1857,7 +1857,7 @@ class MesaSolver(ExternalSolver):
     def _build_space(space: BaseSpace | None, system: mesa.Model, n_agents: int) -> MesaSpace | None:
         """Return the Mesa space of a framework space."""
         if isinstance(space, LatticeSpace):
-            grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
+            grid = OrthogonalVonNeumannGrid if space.metric_ == 'manhattan' else OrthogonalMooreGrid
             return grid(space.shape_[:2], torus=space.periodic_, capacity=space.capacity, random=system.random)
         if isinstance(space, NetworkSpace):
             return Network(space.graph, capacity=space.capacity, random=system.random, layout=None)

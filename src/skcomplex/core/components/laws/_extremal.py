@@ -52,8 +52,9 @@ class ExtremalLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import ExtremalLaw
-        >>> from skcomplex.core.components.spaces import BoxNeighborhood
-        >>> law = ExtremalLaw(var('fitness'), BoxNeighborhood(), lambda values, *, random: random)
+        >>> from skcomplex.core.components.spaces import BallNeighborhood
+        >>> box = BallNeighborhood(n_dim=1, center='inline')
+        >>> law = ExtremalLaw(var('fitness'), box, lambda values, *, random: random)
         >>> law.extremum, law.repeat
         ('min', 1)
     """

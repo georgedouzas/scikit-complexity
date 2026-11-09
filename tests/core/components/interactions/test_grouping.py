@@ -119,7 +119,7 @@ def test_act_on_neighborhoods_groups_every_member_with_its_neighbors():
     cells = [(row, column) for row in range(3) for column in range(3)]
     voters = _voters({}, 9, location=cells)
     grouping = GroupingInteraction('local', target='voters', groups='neighborhood', act=_count)
-    space = LatticeSpace((3, 3), neighborhood='von_neumann')
+    space = LatticeSpace((3, 3), metric='manhattan')
     values = _run(System(elements=[voters], interactions=[grouping], space=space), 1).agents('voters', 1).values
     assert values['seen'].tolist() == [5.0] * 9
 
@@ -281,7 +281,7 @@ def test_get_laws_symbolic_remainder_of_a_partition_forms_a_smaller_group(backen
 def test_get_laws_symbolic_neighborhoods_reduce_over_the_groups_of_a_member(backend, reduce):
     """Test that a member takes the sum or the mean over its neighbourhood groups of a function of each group."""
     values = np.arange(16.0)
-    space = LatticeSpace((4, 4), neighborhood='von_neumann', boundary='fixed')
+    space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
     grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': values})
     grouping = _symbolic('neighborhood', _weighted, reduce=reduce)
     result = _symbolic_run(System(elements=[grid], interactions=[grouping]), 1, backend)[1]
@@ -331,7 +331,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
     """Test that a payoff phase and an imitation phase in one step equal a loop of the payoffs and then the copies."""
     rng = np.random.default_rng(3)
     strategies, bias = rng.integers(0, 2, 36).astype(float), rng.uniform(0, 0.01, 36)
-    space = LatticeSpace((6, 6), neighborhood='von_neumann', boundary='periodic')
+    space = LatticeSpace((6, 6), metric='manhattan', boundary='periodic')
     players = LatticeElement('players', element=PlayerElement, space=space, values={'state': strategies, 'bias': bias})
     payoffs = GroupingInteraction(
         'goods',
@@ -372,7 +372,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
 @pytest.mark.parametrize('groups', ['partition', 'neighborhood'])
 def test_get_laws_symbolic_reads_a_renamed_target(groups):
     """Test that a symbolic grouping that binds its members as `council` writes the values of the plain grouping."""
-    space = LatticeSpace((4, 4), neighborhood='von_neumann', boundary='fixed')
+    space = LatticeSpace((4, 4), metric='manhattan', boundary='fixed')
     grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': np.arange(16.0) % 3})
     arguments = {'groups': groups, 'size': 2, 'form': 'symbolic', 'write': 's', 'function': _weighted}
     plain = GroupingInteraction('groups', target='voters', **arguments)

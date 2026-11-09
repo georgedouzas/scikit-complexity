@@ -15,15 +15,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
+from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
-from ._box import BoxNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
-from ._moore import MooreNeighborhood
-from ._triangular import TriangularNeighborhood
-from ._von_neumann import VonNeumannNeighborhood
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')
+SQUARE_METRICS = ('chebyshev', 'manhattan')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
 TRIANGULAR_DIMENSIONS = 2
 
@@ -52,9 +50,11 @@ class LatticeSpace(BaseSpace):
         spacing:
             The distance between neighbouring sites, or one distance per dimension.
 
-        neighborhood:
-            The neighbourhood agents on a two-dimensional square lattice query, `'moore'` for the 8 surrounding cells
-            or `'von_neumann'` for the 4 adjacent ones.
+        metric:
+            The metric of the ball of radius 1 that agents query. It is `'chebyshev'` for the 8 surrounding cells of a
+            two-dimensional square lattice or `'manhattan'` for the 4 adjacent ones, and `'hexagonal'` for the six
+            neighbours on a triangular lattice. `None` means `'chebyshev'` on a square lattice and `'hexagonal'` on a
+            triangular one.
 
         capacity:
             The largest number of agents in a cell, or `None` for no limit.
@@ -65,6 +65,9 @@ class LatticeSpace(BaseSpace):
     Attributes:
         spacings_:
             The distance between neighbouring sites along every dimension.
+
+        metric_:
+            The metric of the ball agents query.
 
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeSpace
@@ -85,7 +88,7 @@ class LatticeSpace(BaseSpace):
         boundary: str = 'periodic',
         fill: float = 0.0,
         spacing: float | Sequence[float] = 1.0,
-        neighborhood: str = 'moore',
+        metric: str | None = None,
         capacity: int | None = None,
         label: str = 'space',
     ) -> None:
@@ -95,7 +98,7 @@ class LatticeSpace(BaseSpace):
         self.boundary = boundary
         self.fill = fill
         self.spacing = spacing
-        self.neighborhood = neighborhood
+        self.metric = metric
         self.capacity = capacity
 
     def _prepare(self, context: None = None) -> None:
@@ -119,6 +122,7 @@ class LatticeSpace(BaseSpace):
         if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
+        self._check_metric()
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
         self.size_ = int(np.prod(self.shape_))
@@ -133,6 +137,22 @@ class LatticeSpace(BaseSpace):
         self.positions_ = coordinates * np.asarray(self.spacings_)
         self.periodic_ = self.boundary == 'periodic'
         self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
+        if self.metric is not None:
+            self.metric_ = self.metric
+        else:
+            self.metric_ = 'chebyshev' if self.geometry == 'square' else 'hexagonal'
+
+    def _check_metric(self) -> None:
+        """Raise an error for a metric the geometry of the lattice does not take.
+
+        A square lattice takes the Chebyshev or the Manhattan metric, and a triangular one the hexagonal metric.
+        """
+        metrics = SQUARE_METRICS if self.geometry == 'square' else ('hexagonal',)
+        if self.metric is not None and self.metric not in metrics:
+            error_msg = (
+                f'A {self.geometry} lattice has the metric {self.metric!r}. Use one of {", ".join(metrics)}, or None.'
+            )
+            raise ValidationError(error_msg)
 
     def _axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis, the one boundary of the lattice."""
@@ -146,15 +166,8 @@ class LatticeSpace(BaseSpace):
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
     def _default_neighborhood(self) -> LatticeNeighborhood:
-        """Return the neighbourhood agents query.
-
-        It is the triangular, von Neumann, or Moore neighbourhood of radius 1.
-        """
-        if self.geometry == 'triangular':
-            return TriangularNeighborhood()
-        if self.neighborhood == 'von_neumann':
-            return VonNeumannNeighborhood(n_dim=self.n_dim_)
-        return MooreNeighborhood(n_dim=self.n_dim_)
+        """Return the neighbourhood agents query, the ball of radius 1 under the metric of the lattice."""
+        return BallNeighborhood(metric=self.metric_, n_dim=self.n_dim_)
 
     def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the member index of every neighbour of every site.
@@ -193,9 +206,9 @@ class LatticeSpace(BaseSpace):
     def _ball(self, radius: int) -> LatticeNeighborhood:
         """Return the box of offsets within a radius along every dimension.
 
-        The site itself is included.
+        It is the Chebyshev ball with the site itself in its lexicographic place, on both geometries.
         """
-        return BoxNeighborhood(radius, n_dim=self.n_dim_)
+        return BallNeighborhood(radius, n_dim=self.n_dim_, center='inline')
 
     def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites one step apart along a dimension.

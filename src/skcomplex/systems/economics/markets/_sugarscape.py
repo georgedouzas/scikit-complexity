@@ -407,6 +407,6 @@ class SugarscapeSystem(BaseSystem):
                 *self._get_foraging(),
                 RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann'),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
             time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
         )

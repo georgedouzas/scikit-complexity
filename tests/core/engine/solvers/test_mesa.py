@@ -296,12 +296,12 @@ def test_system_rules_remove_agents():
     assert 1 not in trajectory.agents('walkers', 1).ids.tolist()
 
 
-@pytest.mark.parametrize(('neighborhood', 'expected'), [('moore', 8), ('von_neumann', 4)])
-def test_grid_neighbours(neighborhood, expected):
+@pytest.mark.parametrize(('metric', 'expected'), [('chebyshev', 8), ('manhattan', 4)])
+def test_grid_neighbours(metric, expected):
     """Test that an agent in the middle of a 10 by 10 grid has 8 Moore or 4 von Neumann neighbouring cells."""
     system = System(
         elements=[GroupElement('probe', element=ProbeElement, size=1, location=(5, 5))],
-        space=LatticeSpace((10, 10), boundary='fixed', neighborhood=neighborhood),
+        space=LatticeSpace((10, 10), boundary='fixed', metric=metric),
     )
     snapshot = simulate(system, until=1).agents('probe', 1)
     assert snapshot.values['cells'].tolist() == [expected]
@@ -532,7 +532,7 @@ def test_displacement_across_torus_seam():
 
 def test_location_key_matches_the_cells_around_an_agent():
     """Test that the key of a grid location equals the neighbouring cell another agent stands on."""
-    first, second = _views(LatticeSpace((5, 5), neighborhood='moore', boundary='fixed'), [(1, 1), (2, 2)])
+    first, second = _views(LatticeSpace((5, 5), metric='chebyshev', boundary='fixed'), [(1, 1), (2, 2)])
     assert first.location_key == (1, 1)
     assert second.location_key in first.neighbor_cells()
 

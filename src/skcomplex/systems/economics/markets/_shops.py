@@ -519,6 +519,6 @@ class ShopsSystem(BaseSystem):
             self.label,
             elements=[shoppers, stores],
             interactions=[*plan, shopping, *settlement],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='chebyshev'),
             time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
         )

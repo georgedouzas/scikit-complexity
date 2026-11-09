@@ -36,12 +36,12 @@ from ...types import Array, ComplexArray, ElementKind, Indices
 from ..laws import BaseLaw, DriveLaw, SampleLaw
 from ..spaces import (
     AdjacencyNeighborhood,
+    BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
     CellComplexSpace,
     LatticeSpace,
     NetworkSpace,
-    VonNeumannNeighborhood,
 )
 from ._interaction import Interaction
 
@@ -840,7 +840,7 @@ class SamplingInteraction(Interaction):
             return [DriveLaw(target, self._sample_holonomies, label=self.label)]
         if isinstance(declared, RegionScoreSpec):
             return [DriveLaw(target, self._sample_regions, label=self.label)]
-        over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
+        over = BallNeighborhood(metric='manhattan') if self.neighborhood is None else self.neighborhood
         objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)
         if self.cooling is not None:

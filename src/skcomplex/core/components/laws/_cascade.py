@@ -46,9 +46,10 @@ class CascadeLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import CascadeLaw, LocalRuleLaw
-        >>> from skcomplex.core.components.spaces import VonNeumannNeighborhood
+        >>> from skcomplex.core.components.spaces import BallNeighborhood
         >>> height = var('height')
-        >>> topple = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z - 4 * (z >= 4))
+        >>> cross = BallNeighborhood(metric='manhattan', center='first')
+        >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4))
         >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
         (height,)
     """

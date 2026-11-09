@@ -714,12 +714,12 @@ def neighbors(
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood, VonNeumannNeighborhood
+        >>> from skcomplex.core.components.spaces import BallNeighborhood, RadiusNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
         >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
         neighbors(strategy_other, reduce='argmax', weight=payoff_other)
-        >>> values = neighbors(var('spin'), VonNeumannNeighborhood(), reduce='each')
+        >>> values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
         >>> len(values), values[0]
         (4, neighbor(spin, 0))
     """

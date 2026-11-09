@@ -211,6 +211,6 @@ class GoodsTradersSystem(BaseSystem):
                     quantity=self.quantity,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
             time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
         )

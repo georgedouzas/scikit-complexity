@@ -765,5 +765,5 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         return System(
             self.label,
             elements=[walkers],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )

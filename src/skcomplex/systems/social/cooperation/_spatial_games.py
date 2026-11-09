@@ -609,7 +609,7 @@ class PublicGoodsGameSystem(BaseSystem):
         players = LatticeElement(
             'players',
             element=ContributorElement,
-            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            space=LatticeSpace(tuple(self.shape), metric='manhattan'),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
         )
         imitation = ImitationInteraction(
@@ -724,7 +724,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         players = LatticeElement(
             'players',
             element=IteratedPrisonerElement,
-            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            space=LatticeSpace(tuple(self.shape), metric='manhattan'),
             values={
                 'strategy': strategies,
                 'rounds': self.rounds,

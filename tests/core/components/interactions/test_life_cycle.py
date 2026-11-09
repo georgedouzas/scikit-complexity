@@ -190,7 +190,7 @@ def test_live_places_offspring_in_free_neighboring_cells():
     """Test that offspring placed in neighbouring cells take free cells only, and fewer are born when none is free."""
     parents = GroupElement('parents', element=ReserveElement, size=1, location=[(1, 1)], variable=True)
     births = LifeCycleInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
-    space = LatticeSpace((3, 3), neighborhood='moore')
+    space = LatticeSpace((3, 3), metric='chebyshev')
     trajectory = simulate(System(elements=[parents], interactions=[births], space=space), until=1)
     locations = {tuple(cell) for cell in np.asarray(trajectory.agents('parents', 1).locations).tolist()}
     assert len(locations) == 9

@@ -164,7 +164,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
             LatticeElement(
                 'players',
                 element=PlayerElement,
-                space=LatticeSpace((150, 150), neighborhood='von_neumann'),
+                space=LatticeSpace((150, 150), metric='manhattan'),
                 values={'state': strategies.ravel(), 'payoff': strategies.ravel()},
             ),
         ],
@@ -192,7 +192,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
     system = System(
         elements=[group],
         interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='agent')],
-        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
+        space=LatticeSpace((size, size), boundary='periodic', metric='manhattan'),
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, random_state=SEED)
@@ -241,7 +241,7 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
     system = System(
         elements=[group],
         interactions=[imitation],
-        space=LatticeSpace((3, 3), boundary='periodic', neighborhood='von_neumann'),
+        space=LatticeSpace((3, 3), boundary='periodic', metric='manhattan'),
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=30, random_state=0)
@@ -292,7 +292,7 @@ def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
 @pytest.mark.parametrize('rule', ['random', 'best', 'fermi'])
 def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
     """Test that agent imitation that binds `peers` and names its probability `openness` runs as the plain one."""
-    space = LatticeSpace((3, 3), boundary='periodic', neighborhood='von_neumann')
+    space = LatticeSpace((3, 3), boundary='periodic', metric='manhattan')
     finals = []
     for imitation in (
         ImitationInteraction('imitation', target='players', rule=rule, form='agent', probability=0.5),

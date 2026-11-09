@@ -57,7 +57,7 @@ def _run(system: System, until: int) -> Trajectory:
 def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Trajectory:
     """Return the trajectory of walkers that start at the middle of a 9 by 9 lattice."""
     walkers = GroupElement('walkers', element=BudgetElement, size=size, location=[(4, 4)] * size)
-    space = LatticeSpace((9, 9), neighborhood='von_neumann')
+    space = LatticeSpace((9, 9), metric='manhattan')
     return _run(System(elements=[walkers], interactions=[walk], space=space), until)
 
 
@@ -143,7 +143,7 @@ def test_move_rate_draws_a_poisson_number_of_steps():
     """Test that walkers with a rate take a Poisson number of steps of that mean, as their spent level counts."""
     walkers = GroupElement('walkers', element=BudgetElement, size=500, values={'level': 0.0}, location=[(4, 4)] * 500)
     walk = MovementInteraction('walk', target='walkers', rate=2.0, cost=_cost(1.0))
-    space = LatticeSpace((9, 9), neighborhood='von_neumann')
+    space = LatticeSpace((9, 9), metric='manhattan')
     trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 10)
     steps = -trajectory.agents('walkers', 10).values['level']
     assert steps.mean() == pytest.approx(20.0, rel=0.05)
@@ -160,7 +160,7 @@ def test_move_condition_moves_only_the_agents_where_it_holds():
         location=[(4, 4)] * 2,
     )
     walk = MovementInteraction('walk', target='walkers', condition=lambda walker, system: walker.level > 0)
-    space = LatticeSpace((9, 9), neighborhood='von_neumann')
+    space = LatticeSpace((9, 9), metric='manhattan')
     trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 1)
     locations = np.asarray(trajectory.agents('walkers', 1).locations)
     assert np.abs(locations - 4).sum(axis=1).tolist() == [1, 0]
@@ -185,7 +185,7 @@ def test_move_exclusive_steps_never_share_a_cell():
     cells = [(row, column) for row in range(3) for column in range(3)][:6]
     walkers = GroupElement('walkers', element=Element, size=6, location=cells)
     walk = MovementInteraction('walk', target='walkers', exclusive=True)
-    space = LatticeSpace((3, 3), neighborhood='moore')
+    space = LatticeSpace((3, 3), metric='chebyshev')
     trajectory = _run(System(elements=[walkers], interactions=[walk], space=space), 10)
     for frame in range(11):
         locations = {tuple(cell) for cell in np.asarray(trajectory.agents('walkers', frame).locations).tolist()}

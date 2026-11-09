@@ -545,7 +545,7 @@ class AgentBasedSIRSystem(BaseSystem):
             condition=self._is_living_person,
             accept=self._get_person_step,
         )
-        space = LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann')
+        space = LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan')
         return System(
             self.label,
             elements=[group],
@@ -659,7 +659,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
             space: LatticeSpace | NetworkSpace = LatticeSpace(
                 (self.width, self.height),
                 boundary='fixed',
-                neighborhood='von_neumann',
+                metric='manhattan',
             )
         else:
             nodes = list(nx.nodes(self.graph))

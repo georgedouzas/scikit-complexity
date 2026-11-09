@@ -83,11 +83,12 @@ class LocalRuleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import LocalRuleLaw
         >>> from skcomplex.core.specs import LinearRuleSpec, TotalisticSpec
-        >>> from skcomplex.core.components.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> cell = var('cell')
-        >>> LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_
+        >>> box = BallNeighborhood(n_dim=1, center='inline')
+        >>> LocalRuleLaw(cell, box, TotalisticSpec({2: 1})).prepare().targets_
         (cell,)
-        >>> parity = LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec(lambda total: total % 2)).prepare()
+        >>> parity = LocalRuleLaw(cell, box, TotalisticSpec(lambda total: total % 2)).prepare()
         >>> parity.run({'space': LatticeSpace(5), 'cell': [0, 0, 1, 0, 0]}).value_.tolist()
         [0, 1, 1, 1, 0]
         >>> around = LatticeNeighborhood(((-1,), (1,)))

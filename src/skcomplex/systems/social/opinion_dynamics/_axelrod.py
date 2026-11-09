@@ -320,7 +320,7 @@ class AxelrodSystem(BaseSystem):
             self.label,
             elements=[villages],
             interactions=[CulturalInfluenceInteraction('influence', target='villages')],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann', capacity=1),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan', capacity=1),
         )
 
     def get_run_settings(self) -> RunSettings:

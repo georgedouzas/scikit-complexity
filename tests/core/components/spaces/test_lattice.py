@@ -2,12 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.spaces import (
-    AdjacencyNeighborhood,
-    BoxNeighborhood,
-    LatticeSpace,
-    TriangularNeighborhood,
-)
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, BallNeighborhood, LatticeSpace
 from skcomplex.core.errors import ValidationError
 
 
@@ -27,6 +22,9 @@ def test_lattice_space_prepares_its_facts():
         (LatticeSpace(4, boundary='open'), 'Unknown lattice boundary'),
         (LatticeSpace(4, geometry='hexagonal'), 'Unknown lattice geometry'),
         (LatticeSpace((2, 2, 2), geometry='triangular'), 'two dimensions'),
+        (LatticeSpace(4, metric='hexagonal'), 'square lattice has the metric'),
+        (LatticeSpace((3, 3), geometry='triangular', metric='manhattan'), 'triangular lattice has the metric'),
+        (LatticeSpace(4, metric='euclidean'), 'Use one of chebyshev, manhattan'),
     ],
 )
 def test_invalid_lattice_space_is_checked_not_built(space, message):
@@ -36,20 +34,34 @@ def test_invalid_lattice_space_is_checked_not_built(space, message):
 
 
 def test_lattice_space_reads_the_neighbours_of_its_own_neighbourhood():
-    """Test that a site reads the von Neumann or the Moore neighbourhood of the space, or the one it is given."""
-    fixed = LatticeSpace(5, boundary='fixed', neighborhood='von_neumann').prepare()
+    """Test that a site reads the ball of radius 1 under the metric of the space, or the neighbourhood it is given."""
+    fixed = LatticeSpace(5, boundary='fixed', metric='manhattan').prepare()
     triangular = LatticeSpace((3, 3), geometry='triangular').prepare()
     assert fixed._get_neighbors(0).tolist() == [1]
     assert len(LatticeSpace((3, 3)).prepare()._get_neighbors(4)) == 8
-    assert LatticeSpace(5).prepare()._get_neighbors(0, BoxNeighborhood()).tolist() == [4, 0, 1]
-    assert isinstance(triangular._default_neighborhood(), TriangularNeighborhood)
+    box = BallNeighborhood(n_dim=1, center='inline')
+    assert LatticeSpace(5).prepare()._get_neighbors(0, box).tolist() == [4, 0, 1]
+    assert triangular._default_neighborhood().prepare().offsets_ == (
+        BallNeighborhood(metric='hexagonal').prepare().offsets_
+    )
+    assert (triangular.metric_, fixed.metric_, LatticeSpace(5).prepare().metric_) == (
+        'hexagonal',
+        'manhattan',
+        'chebyshev',
+    )
+
+
+def test_lattice_space_ball_keeps_the_site_inline():
+    """Test that the ball an analysis reads is the Chebyshev ball with the site in its lexicographic place."""
+    ball = LatticeSpace((3, 3), geometry='triangular').prepare()._ball(1).prepare()
+    assert ball.offsets_ == BallNeighborhood(center='inline').prepare().offsets_
 
 
 def test_lattice_space_reflects_at_reflecting_edges():
     """Test that a reflecting lattice reads the mirror image of the box outside it."""
     space = LatticeSpace(4, boundary='reflecting').prepare()
-    assert space._index_table(BoxNeighborhood())[:, 0].tolist() == [0, 0, 1, 2]
-    assert space._index_table(BoxNeighborhood())[:, 2].tolist() == [1, 2, 3, 3]
+    assert space._index_table(BallNeighborhood(n_dim=1, center='inline'))[:, 0].tolist() == [0, 0, 1, 2]
+    assert space._index_table(BallNeighborhood(n_dim=1, center='inline'))[:, 2].tolist() == [1, 2, 3, 3]
 
 
 def test_lattice_space_rejects_neighbourhoods_it_cannot_read():
@@ -58,7 +70,7 @@ def test_lattice_space_rejects_neighbourhoods_it_cannot_read():
     with pytest.raises(ValidationError, match='lattice neighbourhood'):
         space._index_table(AdjacencyNeighborhood())
     with pytest.raises(ValidationError, match='dimension'):
-        space._index_table(BoxNeighborhood())
+        space._index_table(BallNeighborhood(n_dim=1, center='inline'))
 
 
 def test_lattice_space_balls_and_neighbour_pairs():

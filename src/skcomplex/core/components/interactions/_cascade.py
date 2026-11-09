@@ -17,7 +17,7 @@ from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
-from ..spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, VonNeumannNeighborhood
+from ..spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
 from ._neighbor import NeighborInteraction
 
 MODES = ('redistribute', 'reset', 'random')
@@ -207,7 +207,9 @@ class CascadeInteraction(NeighborInteraction):
         value = getattr(self._get_member(namespace, 'target'), self.state)
         threshold, share = self.threshold, self.share
         drive = [] if self.drive is None else [DriveLaw(value, self.drive)]
-        neighborhood = VonNeumannNeighborhood(center=True) if self.neighborhood is None else self.neighborhood
+        neighborhood = self.neighborhood
+        if neighborhood is None:
+            neighborhood = BallNeighborhood(metric='manhattan', center='first')
         if self.mode == 'random' and isinstance(neighborhood, LatticeNeighborhood):
             relax: list[BaseLaw] = [DriveLaw(value, self._scatter(neighborhood, threshold, share))]
         else:

@@ -433,5 +433,5 @@ class InsiderSabotageSystem(BaseSystem):
             self.label,
             elements=[employees, supervisors],
             interactions=[wandering, *work],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )

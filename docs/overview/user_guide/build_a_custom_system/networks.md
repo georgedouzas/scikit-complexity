@@ -245,7 +245,7 @@ run.values('voters.s').mean(axis=1).round(2).tolist()
 players = LatticeElement(
     'players',
     element=PlayerElement,
-    space=LatticeSpace((10, 10), neighborhood='von_neumann'),
+    space=LatticeSpace((10, 10), metric='manhattan'),
     values={'s': (np.random.default_rng(1).random(100) < 0.5).astype(float)},
 )
 goods = GroupingInteraction(
@@ -476,7 +476,7 @@ class PlayerElement(Element):
 players = LatticeElement(
     'players',
     element=PlayerElement,
-    space=LatticeSpace((20, 20), neighborhood='von_neumann'),
+    space=LatticeSpace((20, 20), metric='manhattan'),
     values={'s': (np.random.default_rng(0).random(400) < 0.5).astype(float)},
 )
 play = GroupingInteraction(

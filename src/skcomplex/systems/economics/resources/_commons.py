@@ -679,7 +679,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             self.label,
             elements=[meadow, herd, herders],
             interactions=[grazing, *self._get_investment(), regulator],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
             ),

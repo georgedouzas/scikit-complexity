@@ -181,7 +181,7 @@ def test_transfer_agent_pairings_conserve_the_total(pairing):
         form='agent',
         guard=lambda source, target, system: source.level >= 1,
     )
-    space = LatticeSpace((4, 4), neighborhood='von_neumann')
+    space = LatticeSpace((4, 4), metric='manhattan')
     trajectory = _run(System(elements=[traders], interactions=[give], space=space), 30)
     levels = np.asarray(_levels(trajectory, 30, 'traders'))
     assert levels.sum() == pytest.approx(80.0)
@@ -225,7 +225,7 @@ def test_transfer_neighbor_pairs_are_disjoint_neighbours():
         pairing='neighbor-pairs',
         form='agent',
     )
-    space = LatticeSpace((6, 1), neighborhood='von_neumann')
+    space = LatticeSpace((6, 1), metric='manhattan')
     trajectory = _run(System(elements=[traders], interactions=[give], space=space), 1)
     levels = trajectory.agents('traders', 1).values['level'].tolist()
     clocks = trajectory.agents('traders', 1).values['clock'].tolist()

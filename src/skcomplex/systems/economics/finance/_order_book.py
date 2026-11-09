@@ -493,7 +493,7 @@ class OrderBookSystem(BaseSystem):
                     phase='imitation',
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='manhattan'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec(
                     [

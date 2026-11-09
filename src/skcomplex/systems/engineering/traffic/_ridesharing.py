@@ -548,7 +548,7 @@ class RidesharingSystem(BaseSystem):
                     on_match=self._dispatch,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann'),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
             ),
