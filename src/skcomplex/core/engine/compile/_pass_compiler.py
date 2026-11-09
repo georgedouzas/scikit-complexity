@@ -29,7 +29,6 @@ from ...components.interactions import (
 )
 from ...components.laws import (
     BilinearLaw,
-    EncounterLaw,
     EquationLaw,
     JumpLaw,
     LinearProgramLaw,
@@ -1587,7 +1586,7 @@ class PassCompiler(BaseCompiler):
         for record in records:
             names = {
                 str(item).removeprefix(COORDINATE_PREFIX)
-                for value in record.law._get_values(include=('value', 'flux', 'rate', 'transition', 'outcomes'))
+                for value in record.law._get_values(include=('value', 'flux', 'rate', 'outcomes'))
                 if isinstance(value, Expression)
                 for item in value.variables()
                 if str(item).startswith(COORDINATE_PREFIX)
@@ -2087,12 +2086,12 @@ class PassCompiler(BaseCompiler):
         return float(value) if value.is_numeric() else None
 
     @staticmethod
-    def _unnormalized(law: EncounterLaw | BilinearLaw) -> list[tuple[int, int, float]]:
+    def _unnormalized(law: BilinearLaw) -> list[tuple[int, int, float]]:
         """Return the activities of the encounters whose probabilities do not sum to one.
 
         The activities are candidate and field activities, and the probabilities are those of the outcomes.
         """
-        value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
+        value = law.outcomes
         if value is None:
             return []
         sums = CompileEncountersPass._kinetic_table(value).sum(axis=2)
@@ -2124,7 +2123,7 @@ class PassCompiler(BaseCompiler):
         issues = []
         for record in Compilation._required(compilation.census, 'census').records:
             law = record.law
-            if not isinstance(law, EncounterLaw | BilinearLaw):
+            if not isinstance(law, BilinearLaw):
                 continue
             found = PassCompiler._unnormalized(law)
             if not found:

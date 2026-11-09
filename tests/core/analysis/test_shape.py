@@ -9,7 +9,7 @@ from scipy.spatial.transform import Rotation
 from skcomplex.core.analysis import chain_shape
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import DriveLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -102,7 +102,7 @@ class StretchInteraction(Interaction):
             """Return points on a line, spaced by the time."""
             return np.outer(np.arange(values.shape[0]), [time, 0.0, 0.0])
 
-        return [DriveLaw(self._get_member(namespace, 'target').x, stretch)]
+        return [ArrayUpdateLaw(self._get_member(namespace, 'target').x, stretch)]
 
 
 def test_shape_reads_a_lattice_state_of_a_trajectory():

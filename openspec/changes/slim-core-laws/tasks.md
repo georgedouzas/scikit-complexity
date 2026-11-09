@@ -39,27 +39,27 @@ when other agents run tests at the same time.
   hidden Markov systems of `tests/systems/mathematics/stochastic_processes` pass
 - [x] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
   verify the markdown doctests and the test pass
-- [ ] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
+- [x] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
   backends, and `experiments/_replicate.py`, delete `laws/_emission.py` and its re-export, and verify
   `grep -rn EmissionLaw src tests docs` finds nothing and `pytest tests/core` passes
 
 ## 3. Bilinear law with a conserved loss
 
-- [ ] 3.1 Add `conserved=False` to `BilinearLaw`, allow `second=None`, raise for a conserved law without outcomes,
+- [x] 3.1 Add `conserved=False` to `BilinearLaw`, allow `second=None`, raise for a conserved law without outcomes,
   and move the docstring of the gain and loss equation of `EncounterLaw` into it, and verify
   `tests/core/components/laws/test_bilinear.py` holds the law tests of `test_encounter.py` for conserved laws and
   passes
-- [ ] 3.2 In `CompileEncountersPass` and `PassCompiler._unnormalized`, read the kind of a `BilinearLaw` from
+- [x] 3.2 In `CompileEncountersPass` and `PassCompiler._unnormalized`, read the kind of a `BilinearLaw` from
   `law.conserved` and the linear case from `law.second is None`, and list `BilinearLaw` in `StrangSplittingSolver`,
   and verify new cases of `tests/core/engine/compile/passes/test_compile_encounters.py` for conserved bilinear laws
   match the encounter cases
-- [ ] 3.3 Emit conserved `BilinearLaw`s in `interactions/_encounter.py`, update the law in
+- [x] 3.3 Emit conserved `BilinearLaw`s in `interactions/_encounter.py`, update the law in
   `tests/core/components/elements/test_density.py`, `tests/core/components/laws/utils/test_moments.py`, and
   `tests/core/engine/solvers/test_kinetics.py`, and verify `pytest tests/core tests/systems` passes for the kinetic
   systems with the trajectories they had
-- [ ] 3.4 Update `kinetic_systems_of_active_particles.md` and `kinds_of_dynamics.md`, and verify their markdown
+- [x] 3.4 Update `kinetic_systems_of_active_particles.md` and `kinds_of_dynamics.md`, and verify their markdown
   doctests pass
-- [ ] 3.5 Remove `KineticLaw` from `engine/types.py`, `_KINETIC_LAWS` and the `EncounterLaw` branches from the compile
+- [x] 3.5 Remove `KineticLaw` from `engine/types.py`, `_KINETIC_LAWS` and the `EncounterLaw` branches from the compile
   passes and `compile/_laws.py`, and `EncounterLaw` from the supports of `KineticSolver`, `RK4Solver`,
   `ScipyODESolver`, `StrangSplittingSolver`, and the numpy and numba backends, delete `laws/_encounter.py`, its
   re-export, and `tests/core/components/laws/test_encounter.py`, and verify `grep -rn EncounterLaw src tests docs`
@@ -67,14 +67,14 @@ when other agents run tests at the same time.
 
 ## 4. Array update law
 
-- [ ] 4.1 Rename `DriveLaw` to `ArrayUpdateLaw` in `laws/_array_update.py`, with its docstring and doctest, and rename
+- [x] 4.1 Rename `DriveLaw` to `ArrayUpdateLaw` in `laws/_array_update.py`, with its docstring and doctest, and rename
   `tests/core/components/laws/test_drive.py` to `test_array_update.py`, and verify it passes
-- [ ] 4.2 Rename every use in `laws/_base.py`, `interactions/_sampling.py`, `_cascade.py`, `compile/_forms.py`,
+- [x] 4.2 Rename every use in `laws/_base.py`, `interactions/_sampling.py`, `_cascade.py`, `compile/_forms.py`,
   `compile/_laws.py`, `compile/passes/_lattices.py`, `solvers/_lattice.py`, and the numpy and numba backends, and
   verify `pytest tests/core` passes
-- [ ] 4.3 Rename the uses in `physics/common/spins/_spin_sampling.py` and `biology/systems_biology/_fuzzy_oil_drop.py`,
+- [x] 4.3 Rename the uses in `physics/common/spins/_spin_sampling.py` and `biology/systems_biology/_fuzzy_oil_drop.py`,
   and verify their system tests pass
-- [ ] 4.4 Update `general_interactions.md`, `kinds_of_dynamics.md`, and `lattice_systems.md`, and verify their markdown
+- [x] 4.4 Update `general_interactions.md`, `kinds_of_dynamics.md`, and `lattice_systems.md`, and verify their markdown
   doctests pass and `grep -rn DriveLaw src tests docs` finds nothing
 
 ## 5. Collision integral

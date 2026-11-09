@@ -43,7 +43,7 @@ cooperation and competition move them one class up or down:
 
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EncounterLaw
+from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -69,7 +69,8 @@ class ExchangeInteraction(Interaction):
         self.eta = eta
 
     def _get_laws(self, s):
-        return [EncounterLaw(s.population.f, s.population.f, s.eta, exchange_table(0.2, 0.3))]
+        table = exchange_table(0.2, 0.3)
+        return [BilinearLaw(s.population.f, s.population.f, s.population.f, s.eta, table, conserved=True)]
 
 
 economy = System(
@@ -82,22 +83,22 @@ densities = simulate(economy, until=100, dt=10.0).values('wealth.f')
 densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist()
 ```
 
-`EncounterLaw(candidate, field, rate, transition, test=None)` declares that a candidate particle at activity `h` meets a
-field particle at activity `k` at the rate `eta[h, k]`, and ends at activity `i` with the probability `A[h, k, i]`. An
-interaction returns it with roles bound to the candidate and field groups. The compiler derives the gain and loss
-equations
+`BilinearLaw(target, first, second, rate, outcomes, conserved=True)` declares that a candidate particle of the first
+density at activity `h` meets a particle of the second density at activity `k` at the rate `eta[h, k]`, and ends at
+activity `i` with the probability `A[h, k, i]`. An interaction returns it with roles bound to the candidate and field
+groups. The compiler derives the gain and loss equations
 
 `df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`
 
-without any derivation by hand. When `test` is given, the candidate moves into the `test` group, such as a cell that
-mutates into another subsystem.
+without any derivation by hand. When the target is another density than the first, the candidate moves into the
+target group, such as a cell that mutates into another subsystem.
 
-- `BilinearLaw(target, first, second, rate, outcomes=None)` changes the target at the signed rate `r[h, k]`. A positive
-  rate creates a particle without removing the first density, at its activity or at an activity drawn from `outcomes`.
-  A negative rate with the first density as the target removes it.
+- `BilinearLaw(target, first, second, rate, outcomes=None)` without `conserved` changes the target at the signed rate
+  `r[h, k]`. A positive rate creates a particle without removing the first density, at its activity or at an activity
+  drawn from `outcomes`. A negative rate with the first density as the target removes it.
 - Rates and probabilities are numbers or parameter expressions, scalars or arrays. Only the nonzero probabilities enter
   the lowering, as sparse contractions on NumPy and one fused loop on Numba.
-- The two laws need continuous time, a lattice space, and real states. Validation reports a law whose system lacks
+- Bilinear laws need continuous time, a lattice space, and real states. Validation reports a law whose system lacks
   them, with the fix to declare them.
 - Before compilation, validation reports the encounters whose probabilities do not sum to one over the outcomes, with
   the candidate and field activities and the sum.
@@ -135,7 +136,7 @@ class PolicyInteraction(Interaction):
             outcome = candidate + 1 if candidate < 3 else candidate - 1 if candidate >= 6 else candidate
             rates[candidate, 0] = float(outcome != candidate)
             table[candidate, 0, outcome] = 1.0
-        return [EncounterLaw(s.population.f, s.government.f, rates * s.tax, table)]
+        return [BilinearLaw(s.population.f, s.population.f, s.government.f, rates * s.tax, table, conserved=True)]
 
 
 welfare = System(
@@ -209,7 +210,7 @@ particles of one mass, with `n` particles for the largest initial density. In ev
 
 The state holds the empirical densities, so trajectories match the ODE form, and the error against the ODE solution
 falls as one over the square root of `n`. The welfare system, whose policy is an encounter too, runs on it as well, as
-the last line shows. The solver supports continuous time, lattice spaces, site groups, and encounter laws only.
+the last line shows. The solver supports continuous time, lattice spaces, site groups, and bilinear laws only.
 Validation reports a rate law with it and lists the solvers that run it.
 
 ## Levels

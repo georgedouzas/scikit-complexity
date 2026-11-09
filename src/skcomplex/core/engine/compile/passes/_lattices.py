@@ -18,7 +18,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
+from ....components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
 from ....components.laws.utils import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
@@ -205,7 +205,7 @@ class LatticeProblemPass(BasePass):
         """Return the step of a lattice law, or `None` for a law of another kind."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
-        if isinstance(law, DriveLaw):
+        if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
         if isinstance(law, CascadeLaw):
             return LatticeProblemPass._compile_cascade(law, context)
@@ -625,7 +625,7 @@ class LatticeProblemPass(BasePass):
         return space.cofaces_[degree], space.orientations_[degree], space.incidences_[degree]
 
     @staticmethod
-    def _compile_drive(law: DriveLaw, context: LatticeContextSpec) -> DriveKernel:
+    def _compile_drive(law: ArrayUpdateLaw, context: LatticeContextSpec) -> DriveKernel:
         """Return a drive compiled for its lattice state.
 
         Args:
@@ -807,7 +807,7 @@ class LatticeProblemPass(BasePass):
         """Return a law of a cascade compiled."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
-        if isinstance(law, DriveLaw):
+        if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
         error_msg = f'A cascade of {context.owner} holds {law!r}, which is not a local rule or a drive.'
         raise ValidationError(error_msg)

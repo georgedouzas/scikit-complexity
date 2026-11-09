@@ -98,7 +98,7 @@ class BaseLaw(BasePart[str, object]):
         Returns:
             requirements:
                 The classes of time and of space the laws run in, where an empty field accepts any class. A law whose
-                arguments narrow them, such as `DriveLaw`, returns the widest it can run in.
+                arguments narrow them, such as `ArrayUpdateLaw`, returns the widest it can run in.
 
         Examples:
             >>> from skcomplex.core.components.laws import RuleLaw

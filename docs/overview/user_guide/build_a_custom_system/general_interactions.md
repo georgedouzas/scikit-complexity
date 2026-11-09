@@ -42,8 +42,8 @@ list, then follow the link to its subsection.
   [Crossings and impulses](#crossings-and-impulses).
 - Sample configurations by Monte Carlo: `SamplingInteraction`, in [Monte Carlo sampling](#monte-carlo-sampling) and
   [Row scores and zero temperature](#row-scores-and-zero-temperature).
-- Set a state from the time or the random stream of the step: `DriveLaw`, in
-  [Drives that read the step](#drives-that-read-the-step).
+- Set a state from the time or the random stream of the step: `ArrayUpdateLaw`, in
+  [Array updates that read the step](#array-updates-that-read-the-step).
 - Run an operation as symbolic laws or as agent rules: the `form` and `schedule` arguments, in
   [Agent and symbolic forms](#agent-and-symbolic-forms).
 - Choose, imitate, learn, or evolve: `ChoiceInteraction`, `ImitationInteraction`, `ReinforcementInteraction`, and
@@ -936,24 +936,24 @@ one row of a state on a `LatticeSpace`, its last axis, and the parameters that t
 The intensity may be infinite, which is the zero temperature of the thin subclass in physics. The Metropolis rule then
 accepts a move only when the objective does not grow, for local objectives and row scores alike.
 
-## Drives that read the step
+## Array updates that read the step
 
-Use a `DriveLaw` when a state is set from outside, by the time of the step or by a random draw, such as replaying an
-ensemble of recorded configurations:
+Use an `ArrayUpdateLaw` when a state is set from outside, by the time of the step or by a random draw, such as
+replaying an ensemble of recorded configurations:
 
 ```python
 import numpy as np
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import DriveLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw
 
 ensemble = np.zeros((38, 20, 3))
-replay = DriveLaw(var('x'), lambda values, *, time: ensemble[min(int(time), 37)])
+replay = ArrayUpdateLaw(var('x'), lambda values, *, time: ensemble[min(int(time), 37)])
 replay.prepare().targets_
 ```
 
-`DriveLaw` passes the time of the step to a function that names `time`, and the random generator to a function that
-names `random`. A function can then set a lattice state to one member of an ensemble per step, as
+`ArrayUpdateLaw` passes the time of the step to a function that names `time`, and the random generator to a function
+that names `random`. A function can then set a lattice state to one member of an ensemble per step, as
 `FuzzyOilDropSystem` of `skcomplex.systems.biology.systems_biology` does, and hold the last member after the end.
 
 ## Agent and symbolic forms

@@ -16,7 +16,6 @@ from sklearn.base import clone
 from ...components.laws import (
     BoundaryLaw,
     CrossingLaw,
-    EmissionLaw,
     EquationLaw,
     FluxLaw,
     JumpLaw,
@@ -135,7 +134,6 @@ class CoSimulationSolver(Solver):
                 CrossingLaw,
                 UpdateLaw,
                 TransitionLaw,
-                EmissionLaw,
                 RuleLaw,
                 LocalRuleLaw,
                 SampleLaw,

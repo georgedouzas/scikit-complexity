@@ -16,7 +16,6 @@ from ..components.elements import DeclaredElement, Element, GroupElement
 from ..components.laws import (
     BoundaryLaw,
     CrossingLaw,
-    EmissionLaw,
     EquationLaw,
     JumpLaw,
     NoiseLaw,
@@ -42,7 +41,6 @@ PLAIN_LAWS = (
     BoundaryLaw,
     CrossingLaw,
     TransitionLaw,
-    EmissionLaw,
     TransferLaw,
     EquationLaw,
 )
