@@ -71,9 +71,9 @@ class StrangSplittingSolver(Solver):
         >>> stream = ConservationInteraction(
         ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
         ... )
-        >>> relax = RateInteraction(
-        ...     'r', target='gas', state='x', rate=lambda s: (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
-        ... )
+        >>> def relaxation(s):
+        ...     return (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
+        >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
         >>> final = simulate(system, until=0.2, solver=solver).values('gas.x')[-1]
