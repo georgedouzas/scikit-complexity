@@ -583,7 +583,7 @@ class NeighborhoodKernel(BaseKernel):
 
         Args:
             cone:
-                The cone neighbourhood.
+                The radius neighbourhood whose angle is below pi.
 
             states:
                 The state declarations of the element type of the members.

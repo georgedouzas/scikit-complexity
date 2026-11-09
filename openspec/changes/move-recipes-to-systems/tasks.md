@@ -158,7 +158,7 @@
 
 ## 10. Integration
 
-- [ ] 10.1 Grep `src`, `tests`, `docs`, the README, and CONTRIBUTING for every moved name under its old import path and
+- [x] 10.1 Grep `src`, `tests`, `docs`, the README, and CONTRIBUTING for every moved name under its old import path and
   for `PairCouplingInteraction`, `ConeNeighborhood`, `FeedbackInteraction`, `PseudoRiemannianSpace`, `DialectSpec` outside its module, and
   `PartnerSpec(` with `value`. Verify that only reviewed hits
   remain.
