@@ -451,8 +451,8 @@ another backend the code `backend-unsupported`.
 ### Ordered phases of update laws
 
 Let a later rule of a step read what an earlier rule of the same step wrote, such as an imitation that reads the
-payoff just played. The public goods game of a lattice plays in the phase `play` and copies a random neighbour by the
-Fermi rule in the phase `imitate`:
+payoff just played. The public goods game of a lattice plays in the phase `play`. In the phase `imitate`, a player
+whose payoff is below the mean payoff of its neighbours adopts the strategy of their majority:
 
 ```python
 from typing import Annotated
@@ -460,9 +460,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction
-from skcomplex.systems.general.agents import ImitationInteraction
-from skcomplex.core.components.laws.utils import mean
+from skcomplex.core.components.interactions import GroupingInteraction, MapInteraction
+from skcomplex.core.components.laws.utils import mean, neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -497,21 +496,27 @@ play = GroupingInteraction(
     function=lambda g: 5.5 * mean(g.members.s, over=g.members) - g.member.s,
     phase='play',
 )
-imitation = ImitationInteraction(
-    'imitation', target='players', state='s', rule='fermi', form='probability', intensity=2.0, phase='imitate'
-)
+
+
+def adopt(s):
+    behind = s.target.payoff < neighbors(s.target.other.payoff, reduce='mean')
+    majority = where(neighbors(s.target.other.s, reduce='mean') > 0.5, 1, 0)
+    return where(behind, majority, s.target.s)
+
+
+imitation = MapInteraction('imitation', target='players', state='s', function=adopt, phase='imitate')
 time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
 system = CompositeSystem(elements=[players], interactions=[play, imitation], time=time)
 run = simulate(system, until=30, random_state=0)
-round(float(run.values('players.s')[-1].mean()), 2) > 0.5
+round(float(run.values('players.s')[0].mean()), 2), round(float(run.values('players.s')[-1].mean()), 2)
 ```
 
 By default every update law of a step reads the states at the start of the step, so a payoff and an imitation that
 reads it would need two steps. Phases fix this.
 
 - `UpdateLaw(state, value, phase=...)` names a phase. The interactions with update laws pass a `phase` to theirs:
-  `GroupingInteraction` in its symbolic form, `ImitationInteraction` in its probability form, and `CouplingInteraction`
-  in its map form.
+  `MapInteraction`, `GroupingInteraction` in its symbolic form, and `CouplingInteraction` in its map form. So does the
+  general realization `ImitationInteraction` in its probability form.
 - The phases of the `PhasesScheduleSpec` of the `DiscreteTime` run one after the other within a step, on the NumPy and
   Numba backends. Each reads the states the phases before it set.
 - Laws without a phase run in the default phase, first unless the schedule places it.

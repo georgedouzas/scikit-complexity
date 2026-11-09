@@ -208,15 +208,23 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import PairInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver
-from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec
+
+
+class AtomElement(Element):
+    def __init__(
+        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
+    ):
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
 
 
 class LennardJonesInteraction(PairInteraction):
@@ -261,7 +269,7 @@ def get_drag_fix(fix):
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 atoms = CompositeSystem(
-    elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': grid})],
+    elements=[GroupElement('atoms', element=AtomElement, size=100, values={'x': grid})],
     interactions=[
         LennardJonesInteraction('lj', 'atoms', 'atoms', cutoff=2.5),
         DragInteraction('air', target='atoms', gamma=1.0),
@@ -287,7 +295,7 @@ You write both maps for your own classes, as above, and the prebuilt particle sy
 Before the first frame the backend checks the system. It raises one error that lists every element, interaction, and
 law it cannot run. The library translates a system to LAMMPS as follows:
 
-- Elements and groups with a vector position of order 2, such as `PointElement`, become one atom type per element or
+- Elements and groups with a vector position of order 2, such as `AtomElement`, become one atom type per element or
   group. The velocities of the atoms are the first derivatives of the positions. Their mass is the parameter that the
   `divisor` of their interactions names, or 1 without one.
 - Two or three dimensions become `dimension 2` with `fix enforce2d`, or `dimension 3`.

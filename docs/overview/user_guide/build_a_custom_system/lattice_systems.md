@@ -251,68 +251,12 @@ values are arrays in node order, or mappings from node to value.
 
 ## Label copies and regions
 
-Use label copies when the sites of one label form a region whose total size matters, such as the cells of the cellular
-Potts model. The example grows one region of 9 sites in a medium to a volume of 30:
-
-```python
-from typing import Annotated
-
-import numpy as np
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.systems.biology.physiology import RegionScoreSpec
-
-
-class SiteElement(Element):
-    def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.region = region
-
-
-def contact(first, second):
-    return np.ones(np.broadcast(first, second).shape)
-
-
-def volume(labels):
-    return np.where(labels == 0, 0.0, 1.0), np.full(labels.shape, 30.0)
-
-
-regions = np.zeros((12, 12))
-regions[4:7, 4:7] = 1
-copies = SamplingInteraction(
-    'copies', target='sites', state='region', objective=RegionScoreSpec(contact, volume), move='copy'
-)
-sites = GroupElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions}, on='sites')
-system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
-labels = simulate(system, until=200, random_state=0).values('sites.region')
-abs((labels[50:].reshape(-1, 144) == 1).sum(axis=1).mean() - 30) < 2
-```
-
-`SamplingInteraction` takes a `RegionScoreSpec(contact, volume=None, surface=None, hits=1)` as its objective, with the
-move `'copy'`. The state holds integer labels from 0, and the objective is
-`sum_<i,j> w_ij contact(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l - A_l)^2 + b_l (S_l - B_l)^2`.
-
-- `contact(first, second)` is the energy per unit contact between two labels, evaluated once per sweep on all pairs
-  of labels.
-- `volume(labels)` and `surface(labels)` return the strength and the target of the constraint of every label. A
-  strength of 0 leaves a label free, such as the medium.
-- The volume of a region sums the volumes of its sites, and its surface the weights of its contacts with other labels.
-  The sampler keeps both per label and updates them on every accepted copy, so a copy costs the size of the
-  neighbourhood, whatever the number of regions.
-- Every sweep proposes `hits` copies per site, each of the label of a random neighbour into a random site, accepted by
-  the Metropolis or Glauber rule.
-- The neighbourhood is that of the interaction, or the default of the space: the Moore neighbourhood of a square
-  lattice, the six neighbours of a triangular one, or the edges of a network. On a `NetworkSpace` the edge attribute
-  `'weight'` weighs a contact and the node attribute `'volume'` the volume of a site, so a Voronoi tessellation of
-  irregular points is a disordered lattice.
-
-The ready-made `CellularPottsSystem` of `skcomplex.systems.biology.physiology` sorts cells of two kinds by differential
-adhesion on square, triangular, and disordered lattices.
+Copying labels between sites, so that the sites of one label form a region whose total size matters, is the recipe of
+the cellular Potts model of biology. `RegionSamplingInteraction` subclasses `SamplingInteraction` with the objective
+`sum_<i,j> w_ij contact(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l - A_l)^2 + b_l (S_l - B_l)^2` over integer labels, and
+keeps the volume and the surface of every region up to date on every accepted copy. The ready-made
+`CellularPottsSystem` of `skcomplex.systems.biology.physiology` sorts cells of two kinds by differential adhesion on
+square, triangular, and disordered lattices.
 
 ## Reads that follow the state, and series in the cells
 

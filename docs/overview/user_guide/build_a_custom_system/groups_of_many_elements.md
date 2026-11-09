@@ -4,18 +4,30 @@ Use a group when your system has many identical elements, such as the molecules 
 neurons of a network. You write the laws once for one member, and they run over all members at array speed.
 
 ```python
+from typing import Annotated
+
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class AtomElement(Element):
+    def __init__(
+        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
+    ):
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
+
 
 rng = np.random.default_rng(0)
 values = {'x': rng.uniform(0, 1, (1_000, 2)), 'x_d1': rng.normal(0, 1, (1_000, 2))}
 gas = CompositeSystem(
-    elements=[GroupElement('gas', element=PointElement, size=1_000, values=values)],
+    elements=[GroupElement('gas', element=AtomElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
 trajectory = simulate(gas, until=0.5, dt=0.01)
@@ -365,14 +377,25 @@ replicator dynamics are therefore derived symbolically. A larger group raises an
 Use a pair interaction for forces between members that depend on their distance, such as the atoms of a liquid:
 
 ```python
+from typing import Annotated
+
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class AtomElement(Element):
+    def __init__(
+        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
+    ):
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
 
 
 def lennard_jones(s, r):
@@ -382,7 +405,7 @@ def lennard_jones(s, r):
 side = np.arange(10) * 1.2
 positions = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 liquid = CompositeSystem(
-    elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': positions})],
+    elements=[GroupElement('atoms', element=AtomElement, size=100, values={'x': positions})],
     interactions=[PairInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
@@ -392,7 +415,7 @@ simulate(liquid, until=1, dt=0.05).values('atoms.x').shape
 A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
 group or between two groups. `PairInteraction` adds to the rate of a state of both members a function of the
 pair, or minus the gradient of a pair potential of their distance, divided by an optional `divisor`. On a state of
-order 2, such as the position of a `PointElement`, the rate is its second derivative.
+order 2, such as the position of an `AtomElement`, the rate is its second derivative.
 
 `period` gives the side of a periodic box, so pair distances use the nearest periodic image.
 

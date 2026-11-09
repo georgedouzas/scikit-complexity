@@ -170,64 +170,12 @@ plaquettes.shape, bool(np.allclose(np.linalg.det(plaquettes), 1.0))
 - The matrices do not commute, so the holonomy depends on the order of the links, and its trace on the start of the
   loop only up to a cyclic shift, which leaves it unchanged.
 
-Sample matrix links with a `HolonomyScoreSpec`, a class function of the holonomy of every face, such as the real part of
-the trace for the Wilson action:
-
-```python
-from typing import Annotated
-
-import numpy as np
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
-from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import MatrixGroupSpec, StateSpec
-from skcomplex.systems.physics.common.fields import HolonomyScoreSpec
-
-group = MatrixGroupSpec('SU', 2)
-
-
-class MatrixLinkElement(Element):
-    def __init__(self, label, visual=None, *, U: Annotated[object, StateSpec(group=group)] = tuple(group.identity)):
-        super().__init__(label, visual=visual)
-        self.U = U
-
-
-def wilson(holonomies):
-    return -np.trace(holonomies, axis1=-2, axis2=-1).real
-
-
-space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
-links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
-sampling = SamplingInteraction(
-    'wilson',
-    target='links',
-    state='U',
-    objective=HolonomyScoreSpec(wilson, group, hits=4),
-    move='rotate',
-    width=0.6,
-    schedule='colored',
-)
-system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = simulate(system, until=100, random_state=0).values('links.U')
-loops = group.holonomy_of(group.matrices_of(states[-1]), space.boundaries_, space.boundary_signs_)
-round(float(np.trace(loops, axis1=1, axis2=2).real.mean() / 2), 1)
-```
-
-The last line is the mean plaquette at `beta = 2`, close to `I_2(2) / I_1(2) = 0.43`.
-
-- The move `'rotate'` multiplies a link by a random matrix of the group near the identity of spread `width`, and
-  `'random-value'` draws a new one from the Haar measure. Every sweep proposes `hits` Metropolis or Glauber moves per
-  link and projects the links back onto the group.
-- The function receives the holonomies of the faces around a link, each started at the link, and the parameters it
-  names, so it must be a class function such as a trace.
-- A drive changes a matrix state as a whole, with the components of every link on a last axis, and receives the
-  complex by the keyword `space` when it names it.
-
-`LatticeYangMillsSystem` and the analysis `gauge_observables` with a `group`, both of `skcomplex.systems.physics.waves`,
-realize SU(2) and SU(3) lattice gauge theory with its average plaquette, Wilson loops, and Polyakov loop.
+Sampling matrix links by a class function of the holonomy of every face, such as the real part of the trace for the
+Wilson action, is a recipe of physics. `WilsonSamplingInteraction` subclasses `SamplingInteraction`, reads the holonomies
+of the faces around a link with `holonomy_of`, and proposes Metropolis or Glauber moves that rotate a link by a random
+matrix of the group near the identity, or draw a new one from the Haar measure. `LatticeYangMillsSystem` and the
+analysis `gauge_observables` with a `group`, both of `skcomplex.systems.physics.waves`, realize SU(2) and SU(3) lattice
+gauge theory with its average plaquette, Wilson loops, and Polyakov loop.
 
 ## Analysing complexes
 

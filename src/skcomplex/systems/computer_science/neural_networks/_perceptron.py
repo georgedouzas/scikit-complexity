@@ -117,7 +117,7 @@ class SatisfiabilityInteraction(Interaction):
     The constraints come step by step, and one incremental solver decides them. Every step adds the next `reveal`
     constraints to one PySAT solver, which keeps what it learned, and sets the states of the members to a satisfying
     assignment when one exists. The interaction reports `satisfiable`, 1 or 0, and `revealed`, the number of active
-    constraints, every step. A state that is not Boolean is reported by the compiler with the code `law-domain`.
+    constraints, every step. Its role accepts Boolean states only, so a real state raises `RoleElementError`.
 
     Args:
         label:

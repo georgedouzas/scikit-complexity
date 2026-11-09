@@ -17,22 +17,30 @@ the adapters and the assembly of the collision weights.
 Build a phase space from a position lattice and a velocity axis, and let a gas stream freely through it:
 
 ```python
+from typing import Annotated
+
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement
-from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec
+
+
+class DensityElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
 
 space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 64, -6.0, 6.0)]).prepare()
 x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
-gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume')
+gas = FieldElement('gas', element=DensityElement, space=space, values={'x': start}, discretization='finite-volume')
 stream = ConservationInteraction('stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
 system = CompositeSystem(elements=[gas], interactions=[stream])
 final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.x')[-1]
@@ -89,24 +97,32 @@ a fraction `z` of punishers win pairwise conflicts against groups with a fractio
 the density changes at the rate `f(z)` times the integral of `rho(z, u) - rho(u, z)` against `f(u)`:
 
 ```python
+from typing import Annotated
+
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.components.elements import FieldElement
-from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec
+
+
+class DensityElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
 
 z, u = coordinate('z'), integration_variable('z')
 rho = (1 + tanh(2 * (z - u))) / 2
 gain = rho - rho.subs({z: u, u: z}, hold=False)
 space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)])
-groups = FieldElement('groups', element=NonnegativeElement, space=space, values={'x': np.ones((1, 50))})
+groups = FieldElement('groups', element=DensityElement, space=space, values={'x': np.ones((1, 50))})
 conflict = RateInteraction(
     'conflict', target='groups', state='x', rate=lambda s: s.target.x * integral_transform(s.target.x, gain, ('z',))
 )
@@ -137,15 +153,22 @@ axes are the free frequencies of a simplex, each on `[0, 1]` with the same numbe
 on the 2-simplex has the integral one:
 
 ```python
+from typing import Annotated
+
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement
-from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AxisSpec, ObservableSpec
+from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec
+
+
+class DensityElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
 
 
 def total(s):
@@ -154,7 +177,7 @@ def total(s):
 
 axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
 simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
-groups = FieldElement('groups', element=NonnegativeElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
+groups = FieldElement('groups', element=DensityElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
 observables = [ObservableSpec('total', total, group='groups')]
 trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
 round(float(np.asarray(trajectory.values('total'))[-1]), 10)
@@ -182,9 +205,9 @@ relax = RateInteraction('r', target='gas', state='x', rate=lambda s: maximum_ent
 relax.state
 ```
 
-`EncounterInteraction` on a phase space pairs classes at the same position. Without `field` it is a linear
-redistribution: a candidate at class `h` moves to class `i` at the rate `eta[h]` with the probability `kernel[h, i]`. A
-rate that is one expression may read the `coordinate` of the class of the candidate.
+The encounters of the classes at one position are the recipe `EncounterInteraction` of
+[General realizations](../core_components/general.md#encounters-of-a-kinetic-system), which writes them as bilinear
+laws of the core.
 
 `maximum_entropy(expression, axes, order=2)` is the density `exp(a + b c + d |c|^2)` whose discrete moments equal those
 of the expression at every position. Newton steps find it, so a relaxation towards it conserves the moments to
@@ -193,18 +216,20 @@ round-off.
 ## Collisions
 
 Add binary collisions between particles of different velocities, as in the Boltzmann equation.
-`EncounterInteraction(label, candidate=..., state='x', cross_section=..., factor=None)` is the binary collision
-integral over two interval class axes.
+`collision_integral(f, kernel)` of `skcomplex.core.components.laws.utils` is the binary collision integral over two
+interval class axes, and a `RateInteraction` adds it to the rate of a density. The general realization
+`EncounterInteraction` with a `cross_section` and a `factor` writes the same rate.
 
 - The cross-section is the kernel `B(speed, cosine)` of the relative speed and of the cosine of the deflection angle.
   It returns an expression of the two and numbers, written with Sage functions.
-- The interaction returns `RateLaw(f, collision_integral(f, kernel))`. A law of your own can read the same integral,
-  since the call carries its kernel. A kernel that reads a state or a parameter raises a `ValidationError`.
+- The rate is `RateLaw(f, collision_integral(f, kernel))`, and the call carries its kernel. A kernel that reads a
+  state or a parameter raises a `ValidationError`.
 - It enters the fast spectral method of Mouhot and Pareschi through a singular value decomposition, a single term for
   Maxwell molecules.
 - The method uses FFT products on a grid padded by `(3 + sqrt(2)) / 2`. It conserves the density exactly, and the
   momentum and the energy within its spectral accuracy.
-- `factor` scales the collision frequency, such as a function of the density moment for the local Enskog equation.
+- A factor that multiplies the integral scales the collision frequency, such as a function of the density moment for
+  the local Enskog equation.
 - `simulate` rejects a collision without two interval class axes with the issue `law-space`.
 
 ## Solvers

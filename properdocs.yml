@@ -52,6 +52,8 @@ nav:
         - Constraints and search: overview/user_guide/build_a_custom_system/constraints_and_search.md
         - Control: overview/user_guide/build_a_custom_system/control.md
         - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
+      - Core components:
+        - General realizations: overview/user_guide/core_components/general.md
       - Simulate: overview/user_guide/simulate.md
       - Observe: overview/user_guide/observe.md
       - Analyse: overview/user_guide/analyse.md

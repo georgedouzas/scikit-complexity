@@ -1,45 +1,53 @@
 # Constraints and search
 
-Let a system search for a solution, step by step: satisfy logical constraints, optimise an objective with a population
-of candidates, or anneal. Each search is an interaction on a group, so a run records its progress like any other
+Let a system search for a solution, step by step: anneal an objective, optimise it with a population of candidates, or
+satisfy logical constraints. Each search is an interaction on a group, so a run records its progress like any other
 dynamics.
 
 ```python
 from typing import Annotated
 
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.systems.computer_science.neural_networks import SatisfiabilityInteraction
-from skcomplex.core.components.spaces import DiscreteTime
+from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
-from skcomplex.systems.computer_science.neural_networks import CardinalitySpec, ClauseSpec
 
 
-class BitElement(Element):
-    def __init__(self, label: str, on: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0) -> None:
+class CandidateElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
         super().__init__(label)
-        self.on = on
+        self.x = x
 
 
-constraints = [CardinalitySpec((1, 2, 3), 2, 'at-least'), ClauseSpec((-1,)), ClauseSpec((-2,))]
-decide = SatisfiabilityInteraction('decide', target='bits', state='on', constraints=constraints)
-bits = GroupElement('bits', element=BitElement, size=3)
-system = CompositeSystem(elements=[bits], interactions=[decide], time=DiscreteTime())
-simulate(system, until=3).values('decide.satisfiable')[1:]
+anneal = SamplingInteraction(
+    'anneal',
+    target='candidates',
+    state='x',
+    objective=lambda s: (s.target.x - 2) ** 2,
+    move='gaussian',
+    cooling=lambda t: 1 / (1 + t),
+    neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
+)
+candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace(20), on='sites')
+system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())
+values = simulate(system, until=200, random_state=0).values('candidates.x')
+round(float(abs(values[0] - 2).mean()), 2), round(float(abs(values[-1] - 2).mean()), 2)
 ```
 
-`SatisfiabilityInteraction` binds a group of Boolean states and reveals its constraints step by step. Each constraint is
-a `ClauseSpec` or a `CardinalitySpec` over literals. A literal is a member index counted from 1, negative for its
-negation. One PySAT solver keeps what it learned. It sets the members to a solution when one exists, and reports
-`satisfiable` and `revealed` at every step. Above, the steps reveal that at least two of the three bits are on, then
-that bit 1 is off, then that bit 2 is off. The first two constraints hold together, and the third makes the set
-unsatisfiable.
+Twenty candidates anneal towards the minimum of `(x - 2)^2`. Each proposes a Gaussian move, and a Metropolis
+acceptance keeps it with a probability that falls as the intensity rises with the cooling. The objective reads no
+neighbours, so every candidate searches alone.
 
-`OptimizationInteraction` moves a group of candidates through pymoo, one generation per step. Each candidate is a vector
-state in the box `bounds`.
+A search that needs a solver of its own is a recipe of the field that uses it. `SatisfiabilityInteraction` reveals
+logical constraints step by step to one PySAT solver, which keeps what it learned, as in
+`PerceptronSatisfiabilitySystem` of `skcomplex.systems.computer_science.neural_networks`. Each constraint is a clause
+or a cardinality over literals, and the interaction reports at every step whether the constraints so far are
+satisfiable.
+
+`OptimizationInteraction` of `EvolutionaryOptimisersSystem` moves a group of candidates through pymoo, one generation per
+step. Each candidate is a vector state in the box `bounds`.
 
 ```python
 from skcomplex.core.engine.runtime import simulate

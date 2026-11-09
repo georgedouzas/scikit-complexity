@@ -11,8 +11,10 @@ Every system derives from `BaseSystem`, and comes in one of four kinds, from the
   from its model parameters.
 - **`CompositeSystem`** is the composite of elements, interactions, and nested systems, on a space and in a time. It
   plays the role of `Pipeline` in scikit-learn: it holds parts and adds no model of its own.
-- **General systems of the core**, such as `ReactionNetworkSystem`, name a mathematical structure that several fields share,
-  such as a reaction network, whose reactions fire at a rate constant times the product of the reactant amounts.
+- **General realizations**, such as `ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, name a structure
+  that several fields share, such as a reaction network, whose reactions fire at a rate constant times the product of
+  the reactant amounts. They are recipes written with the core, in
+  [General realizations](core_components/general.md#reaction-networks).
 - **Field realizations**, such as `SIRSystem`, give a general system or `BaseSystem` the parameters and the words of one
   field. Every ready-made system of the catalog is one.
 
@@ -83,45 +85,12 @@ The class attributes `until` and `dt` above are tuned run settings. `simulate` r
 `observables`, `initial_state`, `invariants`, `schedule`, `compiler`, and `backend`, for every argument a call leaves
 out. A system whose settings depend on its parameters overrides `get_run_settings` instead.
 
-## General systems of the core
-
-Write a compartment model of any field without writing an element or an interaction. `ReactionNetworkSystem` takes the
-initial amount of every species and a table of reactions. Every reaction maps its label to its reactants and products,
-as coefficients by species name, and to its rate constant.
-
-```python
-from skcomplex.systems.general.reactions import ReactionNetworkSystem
-from skcomplex.core.engine.runtime import simulate
-
-isomerization = ReactionNetworkSystem(
-    species={'A': 10.0, 'B': 0.0},
-    reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
-)
-round(float(simulate(isomerization, until=50.0, dt=1.0).values('A.x')[-1]), 3)
-isomerization.set_params(mode='jump').get_tags().randomness
-```
-
-Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount, and every reaction is a
-`ReactionInteraction`. The `mode` writes the reactions as rate equations, `'rate'`, as random events of single
-molecules, `'jump'`, or as chemical Langevin equations, `'langevin'`. The amount of `A` relaxes to
-`0.1 / (0.3 + 0.1)` of the total.
-
 ## Field realizations
 
-A field realization takes the parameters of its model under its own names, and gives the general system its parts
-through hooks. `SIRSystem` subclasses `ReactionNetworkSystem`. It takes `susceptible`, `infected`, `beta`, and `gamma`,
-returns its compartments from `_get_species`, and its infection and recovery from `_get_interactions`. Epidemics of
-susceptible, infected, and recovered individuals and enzyme kinetics are both reaction networks with a product
-propensity, which epidemiology calls homogeneous mixing and chemistry the law of mass action, so they share the general
-system and differ in their realizations.
-
-The hooks of `ReactionNetworkSystem` are these:
-
-- `_get_species` returns the initial amount of every species by name,
-- `_get_reactions` returns the reaction table,
-- `_get_mode` returns the mode,
-- `_get_interactions` returns the reactions as interactions, for a realization whose reactions have roles of their own
-  names, such as the `susceptible` and `infected` roles of an infection.
+A field realization takes the parameters of its model under its own names, and gives a general system or `BaseSystem`
+its parts through hooks. `SIRSystem` subclasses `ReactionNetworkSystem`, returns its compartments from `_get_species`,
+and its infection and recovery from `_get_interactions`. Epidemics and enzyme kinetics are both reaction networks with
+a product propensity, so they share the general realization and differ in their own.
 
 ## Changing a ready-made system by subclassing it
 

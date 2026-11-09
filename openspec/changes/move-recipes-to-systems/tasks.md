@@ -140,7 +140,7 @@
 
 ## 9. Documents and inventory
 
-- [ ] 9.1 Move the sections that teach a moved class out of the core pages of the user guide
+- [x] 9.1 Move the sections that teach a moved class out of the core pages of the user guide
   (`general_interactions.md`, `agent_based_systems.md`, `groups_of_many_elements.md`, `networks.md`,
   `constraints_and_search.md`, `kinds_of_dynamics.md`, `phase_space_fields.md`, `choosing_compatible_components.md`,
   `simulate.md`, `system_classes.md`, `extend_the_library.md`) into the new page

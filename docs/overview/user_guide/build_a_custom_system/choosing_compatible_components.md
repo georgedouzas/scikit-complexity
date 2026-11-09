@@ -21,7 +21,6 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
-from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import StateSpec
@@ -81,14 +80,32 @@ assert target.accepts(ElementKind.ELEMENT)
 assert all(state in rabbits.get_states() for state in target.states)
 ```
 
-The two agree, so the interaction fits the element. Some roles accept only some kinds. `MovementInteraction` moves the
-agents of a group, so its `target` accepts a group and not a single element.
+The two agree, so the interaction fits the element. Some roles accept only some kinds. A census that counts the agents
+of a group declares in its `RoleSpec` that its `target` accepts a group and not a single element.
 
 ```python continuation
-walk = MovementInteraction('walk', target='rabbits').get_requirements().roles['target']
-walk.elements
-assert walk.accepts(ElementKind.GROUP)
-assert not walk.accepts(ElementKind.ELEMENT)
+from typing import ClassVar
+
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.specs import RoleSpec
+
+
+class CensusInteraction(Interaction):
+    law_classes: ClassVar[tuple[type, ...]] = (RuleLaw,)
+
+    def __init__(self, label, *, target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP,))]):
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s):
+        return [RuleLaw(lambda agent, system: None)]
+
+
+census = CensusInteraction('census', target='rabbits').get_requirements().roles['target']
+census.elements
+assert census.accepts(ElementKind.GROUP)
+assert not census.accepts(ElementKind.ELEMENT)
 ```
 
 ## When a part does not fit
@@ -123,7 +140,7 @@ A role filled by an unsuitable element raises `RoleElementError` with the code `
 kind of its element gets the same code, and a law in the wrong time gets `law-time`.
 
 ```python continuation
-kinds = CompositeSystem(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
+kinds = CompositeSystem(elements=[TankElement('tank')], interactions=[CensusInteraction('census', target='tank')])
 times = CompositeSystem(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('grow', target='tank', state='level', rate=1.0)],

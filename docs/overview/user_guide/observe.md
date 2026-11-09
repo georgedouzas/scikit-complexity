@@ -130,18 +130,31 @@ Watch a run live in the [Rerun](https://rerun.io) viewer, or save it to a file t
 frames to a spawned viewer, a running viewer, or a `.rrd` file. Pass it to `simulate` with `observers`.
 
 ```python
+from typing import Annotated
+
 import tempfile
 from pathlib import Path
 
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import StateSpec
+
+
+class AtomElement(Element):
+    def __init__(
+        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
+    ):
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
+
 
 molecule = CompositeSystem(
-    elements=[PointElement('a', x=[0.0, 0.0, 0.0]), PointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
+    elements=[AtomElement('a', x=[0.0, 0.0, 0.0]), AtomElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
     interactions=[
         RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
         RateInteraction('push', target='b', sources=['a'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),

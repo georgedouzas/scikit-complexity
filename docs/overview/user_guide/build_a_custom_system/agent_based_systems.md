@@ -159,11 +159,10 @@ _ = simulate(road, until=5, random_state=0)
 counts
 ```
 
-## Phases, markets, institutions, and learning
+## Phases, institutions, and learning
 
-Order each step into phases, match buyers with sellers in a market, let an institution set policy, and let agents learn
-from their past. Traders quote prices in one phase and trade in a batch auction in the next, while a clerk sets a fee
-from the volume traded:
+Order each step into phases, let an institution set policy, and let agents learn from their past. Traders quote bids in
+one phase, and in the next a clerk reads the best bid and sets a fee from it:
 
 ```python
 from typing import Annotated, ClassVar
@@ -171,14 +170,12 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
-from skcomplex.systems.general.matching import MatchingInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
-from skcomplex.systems.general.matching import BatchMatchingSpec
 
 
 class TraderElement(Element):
@@ -188,70 +185,43 @@ class TraderElement(Element):
         *,
         value: Annotated[float, StateSpec()] = 0.0,
         bid: Annotated[float, StateSpec()] = 0.0,
-        ask: Annotated[float, StateSpec()] = 0.0,
-        demand: Annotated[float, StateSpec()] = 0.0,
-        supply: Annotated[float, StateSpec()] = 0.0,
-        money: Annotated[float, StateSpec()] = 0.0,
-        goods: Annotated[float, StateSpec()] = 0.0,
     ):
         super().__init__(label)
         self.value = value
         self.bid = bid
-        self.ask = ask
-        self.demand = demand
-        self.supply = supply
-        self.money = money
-        self.goods = goods
 
     def _get_laws(self, s):
         return [RuleLaw(self.quote, phase='quote')]
 
     def quote(self, agent, system):
-        agent.bid = system.rng.uniform(0, agent.value) if agent.demand else 0.0
-        agent.ask = system.rng.uniform(agent.value, 2.0) if agent.supply else 2.0
+        agent.bid = system.rng.uniform(0, agent.value)
 
 
-class ClerkInteraction(PolicyRuleInteraction):
-    reports: ClassVar[tuple[str, ...]] = ('traded',)
+class ClerkInteraction(Interaction):
+    law_classes: ClassVar[tuple[type, ...]] = (RuleLaw,)
+    reports: ClassVar[tuple[str, ...]] = ('best',)
 
-    def __init__(self, label, *, rule=None, phase=None, fee: Annotated[float, ParameterSpec()] = 0.0):
-        super().__init__(label, rule=rule, phase=phase)
+    def __init__(self, label, *, fee: Annotated[float, ParameterSpec()] = 0.0):
+        super().__init__(label)
         self.fee = fee
 
+    def _get_laws(self, s):
+        return [RuleLaw(self.act, phase='settle')]
+
     def act(self, system):
-        traded = sum(agent.goods for agent in system.agents('buyers'))
-        system.report('traded', traded)
-        system.set_parameter('fee', 0.01 * traded)
+        best = max(agent.bid for agent in system.agents('traders'))
+        system.report('best', best)
+        system.set_parameter('fee', 0.01 * best)
 
 
-rng = np.random.default_rng(0)
-buyers = {'value': rng.uniform(0.5, 2, 20), 'demand': 1.0, 'money': 2.0}
-sellers = {'value': rng.uniform(0, 1.5, 20), 'supply': 1.0}
-auction = CompositeSystem(
-    elements=[
-        GroupElement('buyers', element=TraderElement, size=20, values=buyers),
-        GroupElement('sellers', element=TraderElement, size=20, values=sellers),
-    ],
-    interactions=[
-        MatchingInteraction(
-            'auction',
-            requesters='buyers',
-            providers='sellers',
-            rule=BatchMatchingSpec(),
-            reserve=('bid', 'ask'),
-            quantity=('demand', 'supply'),
-            cap='money',
-            transfers=(('money', -1), ('goods', 1)),
-            phase='trade',
-        ),
-        ClerkInteraction('clerk', phase='trade'),
-    ],
-    time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
+values = {'value': np.random.default_rng(0).uniform(0.5, 2, 20)}
+market = CompositeSystem(
+    elements=[GroupElement('traders', element=TraderElement, size=20, values=values)],
+    interactions=[ClerkInteraction('clerk')],
+    time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('settle')])),
 )
-trajectory = simulate(auction, until=5, random_state=0)
-prices = [round(float(price), 3) for price in trajectory.values('auction.value')[1:]]
-prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3)
-trajectory.values('auction.volume').tolist()
+trajectory = simulate(market, until=3, random_state=0)
+[round(float(best), 3) for best in trajectory.values('clerk.best')[1:]], round(float(trajectory.values('clerk.fee')[-1]), 4)
 ```
 
 **Phases.** `DiscreteTime(schedule=PhasesScheduleSpec([...]))` lists the phases of a step.
@@ -265,57 +235,28 @@ trajectory.values('auction.volume').tolist()
 - `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the phase `'default'`, which runs
   first unless the system lists it. So systems without phases keep one random activation per step.
 
-**Markets.** `MatchingInteraction(label, requesters=..., providers=..., rule=...)`, from
-`skcomplex.core.components.interactions`, matches two groups.
-
-- Requesters state the highest clearing value they accept in their `reserve` state, the quantity they want in
-  `quantity`, and the most value they can give in `cap`. Providers state their lowest clearing value and the
-  quantity they offer. A missing state counts as no reserve, one unit, and no cap.
-- A name given as a pair, such as `reserve=('bid', 'ask')`, names the state of the requesters and of the providers.
-- The rule is a frozen spec of `skcomplex.core.specs` that names the matching algorithm and holds only its settings:
-  - `RandomSearchSpec(tries, value)`, the default,
-  - `PartnerSwitchSpec(sample, intensity, partner)`, partner choice with switching,
-  - `QueueSpec(order)`,
-  - `IterativeMatchingSpec(adjustment, iterations, tolerance)`, a clearing value adjusted until requests and offers
-    balance,
-  - `ContinuousMatchingSpec(arrival)`, where arriving offers match resting ones by limit and arrival,
-  - `BatchMatchingSpec()`, one clearing value for all offers,
-  - `StableMatchingSpec(requester_preference, provider_preference, value)`, stable matching by the `matching`
-    library,
-  - `PartnerSpec(candidates, choice, fallback, capacity, score, value)`, where requesters in random order pick among
-    the candidates that still offer a quantity at a limit they accept.
-- The rule may also be a function `rule(requesters, providers, rng, capacity)` that returns pairs, which match at the
-  midpoint of both limits.
-- The matching runs the algorithm of its rule on the offers of every round. Each match is a `MatchSpec`, whose `value`
-  is the clearing value per unit.
-- Every match lowers the quantities of both sides and moves the states of `transfers`. With `('money', -1)` the value
-  times the quantity moves from the requester to the provider, and with `('goods', 1)` the quantity moves back, so the
-  totals stay the same. `on_match(match, system)` adds any other effect.
-- The matching reports `<label>.value`, the quantity-weighted clearing value, `<label>.volume`, and
-  `<label>.unmatched`.
+**Markets.** A market that matches buyers with sellers is the recipe `MatchingInteraction` of
+[General realizations](../core_components/general.md#matching), which runs a batch auction with phases and a clerk.
 
 **Agent operations.** These interactions of `skcomplex.core.components.interactions` run as agent rules:
 
-- `MovementInteraction` moves agents by neighbour, Gaussian, Lévy, best-cell, or user steps, with a condition, an
-  acceptance, exclusion, and a cost.
 - `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`.
   It runs as transfer laws with `form='symbolic'`, or between paired agents with `form='agent'`.
-- `BirthDeathInteraction` creates offspring by probability or rate, with inherited, split, and mutated states, and
-  removes agents, the first or a random member of a group with `cull` and `pick`.
 - `system.composition(group, state)` counts the agents of a group by the value of a state, kept up to date as agents
   change, so a birth probability can read the composition of the population.
 - `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step, and acts on each.
 - `TopologyInteraction` adds and removes nodes and edges of a network, and rewires edges towards a weight.
+- The movement of agents and their birth and death are the recipes `MovementInteraction` and `BirthDeathInteraction`
+  of [General realizations](../core_components/general.md#agents).
 
-**Institutions.** A `PolicyRuleInteraction`, from `skcomplex.core.components.interactions`, acts once per round of its
-phase with its method `act`.
+**Institutions.** An `Interaction` whose law is `RuleLaw(self.act, phase=...)` acts once per round of its phase, as
+the clerk above does. Economics names such an institution `PolicyRuleInteraction`.
 
 - It reads `system.observable(name)`, the reporters and the observables of the run at the end of earlier steps through
   `system.history(name, window)`, and the agents.
 - It sets parameters of any element or interaction with `system.set_parameter(name, value)`. Rules see the change at
   once, and the trajectory records it.
-- A subclass that declares its own parameters takes them as annotated arguments of its `__init__`, next to `rule` and
-  `phase`.
+- It declares its own parameters as annotated arguments of its `__init__`, as the clerk declares `fee`.
 - Elements and interactions declare the values they publish in the class variable `reports`, and publish them with
   `system.report(name, value)`. `system.storage` keeps private values of an element or an interaction across the steps
   of a run.
@@ -325,14 +266,11 @@ phase with its method `act`.
 - `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a state declared
   with lags, `StateSpec(lags=m)`. A rule writes adaptive, trend-following, anchoring, and fundamentalist forecasts from
   these values.
-- In `skcomplex.core.components.interactions`, `ChoiceInteraction(form='agent')` draws an option by the logit,
-  Metropolis, Fermi, or best rule, from a utility `utility(agent, system, option)` that can read `system.history` and
-  `system.storage`.
-- The economics `PayoffLearningInteraction` moves the scores of options towards their realized payoffs, or with
-  `chosen` only the score of the option a member chose.
-- Both run with `schedule='member'` in the activation of every member, such as one visit.
-- `EvolutionInteraction` replaces strategies by selection, crossover, and mutation, with the system's random stream.
-- `ImitationInteraction(rule='best')` copies the best neighbour.
+- A `MapInteraction(form='agent', schedule='member')` moves a score towards a realized payoff in the activation of
+  every member, such as one visit. The economics `PayoffLearningInteraction` names this learning.
+- Choosing an option by its utility, copying the best neighbour, and evolving strategies are the recipes
+  `ChoiceInteraction`, `ImitationInteraction`, and `EvolutionInteraction` of
+  [General realizations](../core_components/general.md#choice-and-imitation).
 
 ## Porting Mesa systems
 

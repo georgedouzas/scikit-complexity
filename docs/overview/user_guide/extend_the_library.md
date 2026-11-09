@@ -17,8 +17,8 @@ Rename a role or a parameter of a general interaction, or fix a parameter to a v
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.systems.general.agents import MovementInteraction
+from skcomplex.core.components.interactions import RateInteraction, SamplingInteraction
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -49,44 +49,43 @@ renames a parameter in the same way. An argument that the class does not declare
 subclass fixes a parameter by setting it, as `InflowInteraction` fixes the rate to 1.
 
 ```python continuation
-class BoldWalkInteraction(MovementInteraction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], boldness: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label, target=target)
-        self.boldness = boldness
+class SpinElement(Element):
+    def __init__(self, label, visual=None, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.s = s
+
+
+class ThermalSamplingInteraction(SamplingInteraction):
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()], beta: Annotated[float, ParameterSpec()] = 1.0):
+        energy = lambda s: -s.target.s * neighbors(s.target.other.s)
+        super().__init__(label, target=target, state='s', objective=energy)
+        self.beta = beta
 
     def _get_parameter(self, name):
-        return {'probability': 'boldness'}.get(name, name)
+        return {'intensity': 'beta'}.get(name, name)
 
 
-class WalkerElement(StockElement):
-    def _get_laws(self, s):
-        return []
-
-
-walkers = GroupElement('walkers', element=WalkerElement, size=2, location=[(2, 2)] * 2)
-walk = CompositeSystem(
-    elements=[walkers],
-    interactions=[BoldWalkInteraction('walk', target='walkers')],
-    space=LatticeSpace((5, 5)),
+spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
+magnet = CompositeSystem(
+    elements=[spins],
+    interactions=[ThermalSamplingInteraction('thermal', target='spins')],
     time=DiscreteTime(),
 )
-len(simulate(walk, until=2, random_state=0).agent_locations('walkers'))
+abs(simulate(magnet, until=20, random_state=0).states[-1].mean()) > 0.9
 ```
 
-Here the movement probability of `MovementInteraction` becomes the `boldness` of a walker.
+Here the intensity of `SamplingInteraction` becomes the inverse temperature `beta` of a magnet.
 
 ### Variants
 
 Choose the variant of a general interaction with a named value, a spec, or a function. Each argument takes some of
 these:
 
-- The pairing of a transfer, a matching, or a grouping takes a `PartnerSpec` or a function.
-- The rule of a choice or an imitation, the groups of a grouping, the selection and the replacement of an evolution,
-  the action of a topology, and the mode of a cascade, a coupling, or a map take their named values or a spec of a
-  subclass.
-- A step, a placement, and a move take their named values or a function, and a pick takes its named values. None of
-  them takes a spec, because a function already says what a spec would. A spec given to one of them raises an error
-  that lists what the argument takes.
+- The pairing of a transfer or a grouping takes a `PartnerSpec` or a function.
+- The groups of a grouping, the action of a topology, and the mode of a coupling or a map take their named values or
+  a spec of a subclass.
+- The move of a sampling takes its named values or a function. It takes no spec, because a function already says what
+  a spec would. A spec given to it raises an error that lists what the argument takes.
 
 Every other value raises the same error, so the checks of the parent keep working.
 
@@ -147,7 +146,7 @@ trajectory = simulate(system, until=1, random_state=0)
 trajectory.agents('eaters', 1).values['level'].tolist()
 ```
 
-`PartnerSpec(candidates, choice, fallback, capacity, score, clearing)` says whom an agent pairs with:
+`PartnerSpec(candidates, choice, fallback, capacity, score)` says whom an agent pairs with:
 
 - The candidates are `'all'`, `'neighbors'`, `'cell'`, `'local'` for both of these, a distance, or the name of a state
   that holds a distance per agent. So it works in continuous space too.
@@ -312,7 +311,7 @@ Every package of the core shares the root modules:
 `skcomplex.core.components` defines what a system is, and nothing about how it runs. Its modules are listed in their
 import order, so a module imports only the modules above it:
 
-- `types`: the types of the components, such as the targets of laws and the pairings and rules of matches.
+- `types`: the types of the components, such as the targets of laws and the pairings of transfers.
 - `base`: `BasePart`, the base of every part of a system, built on `BaseConfig`.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
@@ -321,8 +320,7 @@ import order, so a module imports only the modules above it:
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
   interactions built on them.
-- `systems`: `BaseSystem` and its `RunSettings`, the composite `CompositeSystem`, and `ReactionNetworkSystem`, the
-  first general system of the core.
+- `systems`: `BaseSystem` and its `RunSettings`, and the composite `CompositeSystem`.
 - `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
 
 ### The engine
@@ -356,7 +354,9 @@ package. The systems are organised by field, `biology`, `chemistry`, `computer_s
 `physics.mechanics` or `biology.ecology`.
 
 - A subfield package is self-contained, and imports no other subfield.
-- A realization that several subfields of one field share lives in the `common` package of that field, such as
-  `physics.common`.
+- A realization that several subfields of one field share lives in a family of the `common` package of that field,
+  such as `physics.common.avalanches`.
+- A realization that several fields share lives in a concept subpackage of `skcomplex.systems.general`, such as its
+  `agents` or `reactions`, described in [General realizations](core_components/general.md).
 - Every system is written with the same public classes of the core as a custom system, so its source also works as a
   pattern.

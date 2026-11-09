@@ -8,14 +8,27 @@ Read the equations a system stands for, and solve them exactly where a closed fo
 symbolic laws, so it needs no run.
 
 ```python
+from typing import Annotated
+
 from skcomplex.core.analysis import symbolic
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.specs import StateSpec
+
+
+class AtomElement(Element):
+    def __init__(
+        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
+    ):
+        super().__init__(label)
+        self.x = x
+        self.x_d1 = x_d1
+
 
 oscillator = CompositeSystem(
-    elements=[PointElement('p', x=1.0)],
+    elements=[AtomElement('p', x=1.0)],
     interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
     space=ContinuousSpace(n_dim=1),
 )

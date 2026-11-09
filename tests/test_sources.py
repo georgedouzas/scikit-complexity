@@ -22,6 +22,7 @@ GENERAL = f'{SYSTEMS}.general'
 SUBFIELD_PACKAGE = re.compile(rf'{re.escape(SYSTEMS)}\.[a-z]\w*\.[a-z]\w*')
 SYSTEMS_PATH = re.compile(rf'{re.escape(SYSTEMS)}\.[\w<>.]*[\w>]')
 SUBFIELD_PLACEHOLDER = f'{SYSTEMS}.<field>.<subfield>'
+CONCEPT_PLACEHOLDER = f'{GENERAL}.<concept>'
 GENERATED = Path('docs') / 'generated'
 FORBIDDEN = (
     'TYPE' + '_CHECKING',
@@ -99,8 +100,8 @@ def _disallowed_imports(root: Path) -> list[str]:
 
 
 def _is_allowed_path(path: str) -> bool:
-    """Return whether a dotted path below the systems names a subfield package, the one place to import a system."""
-    return path == SUBFIELD_PLACEHOLDER or SUBFIELD_PACKAGE.fullmatch(path) is not None
+    """Return whether a dotted path below the systems names a subfield, the general package, or a concept of it."""
+    return path in (SUBFIELD_PLACEHOLDER, GENERAL, CONCEPT_PLACEHOLDER) or SUBFIELD_PACKAGE.fullmatch(path) is not None
 
 
 def _disallowed_paths(root: Path) -> list[str]:
