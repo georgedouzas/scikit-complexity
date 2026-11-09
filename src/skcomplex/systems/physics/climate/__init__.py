@@ -6,7 +6,6 @@ The package covers energy balance, variability, glacial cycles, low-order atmosp
 from ._early_warning import EarlyWarningResult, early_warning
 from ._energy_balance import (
     BudykoSellersSystem,
-    DaisyworldElement,
     DaisyworldSystem,
     EnergyBalanceSystem,
     LatitudeBandElement,
@@ -26,7 +25,7 @@ from ._low_order import (
     Lorenz96System,
 )
 from ._net_energy import EnergyReturnSystem, EnergySectorElement
-from ._pollution import PollutedRegionElement, PopulationPollutionSystem
+from ._pollution import PopulationPollutionSystem
 from ._soil import SoilTemperatureSystem
 from ._tipping import TippingCascadeNetworkSystem, TippingElementElement
 from ._tipping_types import (
@@ -44,7 +43,6 @@ __all__: list[str] = [
     'BudykoSellersSystem',
     'CarbonCycleSystem',
     'ClimateAnomalyElement',
-    'DaisyworldElement',
     'DaisyworldSystem',
     'ENSOSystem',
     'EarlyWarningResult',
@@ -64,7 +62,6 @@ __all__: list[str] = [
     'Lorenz96Element',
     'Lorenz96System',
     'MitigatorsElement',
-    'PollutedRegionElement',
     'PopulationPollutionSystem',
     'RampedFoldElement',
     'RampedStochasticFoldSystem',

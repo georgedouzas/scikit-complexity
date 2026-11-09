@@ -23,158 +23,6 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
 
-class DaisyworldElement(Element):
-    """Planet of Daisyworld.
-
-    Its white and black daisies regulate its temperature through its albedo.
-
-    The areas covered by white and black daisies grow on the bare ground at a rate parabolic in their local
-    temperature, with an optimum at `optimum`, and die at the rate `gamma`. The effective temperature follows the
-    planetary albedo, `sigma T^4 = S L (1 - A)`, and the local temperature of a daisy is warmer or cooler than it by
-    `q` times the difference of their albedos.
-
-    Args:
-        label:
-            The label of the planet.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        white:
-            The initial area fraction of white daisies.
-
-        black:
-            The initial area fraction of black daisies.
-
-        L:
-            The luminosity of the sun relative to its present value.
-
-        S:
-            The flux of the present sun in W m⁻².
-
-        sigma:
-            The Stefan-Boltzmann constant in W m⁻² K⁻⁴.
-
-        q:
-            The transfer of heat between areas of different albedo, in K⁴.
-
-        p:
-            The fraction of the planet fertile for daisies.
-
-        gamma:
-            The death rate of daisies.
-
-        k:
-            The curvature of the parabola of growth in K⁻².
-
-        optimum:
-            The local temperature of the fastest growth in kelvin.
-
-        albedo_ground:
-            The albedo of the bare ground.
-
-        albedo_white:
-            The albedo of white daisies.
-
-        albedo_black:
-            The albedo of black daisies.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import DaisyworldElement
-        >>> DaisyworldElement('planet').albedo_white
-        0.75
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        white: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        black: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        L: Annotated[float, ParameterSpec()] = 1.0,
-        S: Annotated[float, ParameterSpec()] = 917.0,
-        sigma: Annotated[float, ParameterSpec()] = 5.67e-08,
-        q: Annotated[float, ParameterSpec()] = 2060000000.0,
-        p: Annotated[float, ParameterSpec()] = 1.0,
-        gamma: Annotated[float, ParameterSpec()] = 0.3,
-        k: Annotated[float, ParameterSpec()] = 0.003265,
-        optimum: Annotated[float, ParameterSpec()] = 295.5,
-        albedo_ground: Annotated[float, ParameterSpec()] = 0.5,
-        albedo_white: Annotated[float, ParameterSpec()] = 0.75,
-        albedo_black: Annotated[float, ParameterSpec()] = 0.25,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.white = white
-        self.black = black
-        self.L = L
-        self.S = S
-        self.sigma = sigma
-        self.q = q
-        self.p = p
-        self.gamma = gamma
-        self.k = k
-        self.optimum = optimum
-        self.albedo_ground = albedo_ground
-        self.albedo_white = albedo_white
-        self.albedo_black = albedo_black
-
-    def _get_growth(self, s: SimpleNamespace, albedo: Expression) -> Expression:
-        """Return the growth rate of daisies of an albedo.
-
-        The rate is parabolic in their local temperature and zero outside it.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-            albedo:
-                The albedo of the daisies.
-
-        Returns:
-            growth:
-                The growth rate of the daisies.
-        """
-        local = (
-            s.q * (DaisyworldElement._daisyworld_albedo(s) - albedo) + DaisyworldElement._daisyworld_emission(s)
-        ) ** (1 / 4)
-        growth = 1 - s.k * (s.optimum - local) ** 2
-        return where(growth > 0, growth, 0)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and death of white and black daisies on the bare ground.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the areas of white and black daisies.
-        """
-        bare = s.p - s.white - s.black
-        return [
-            RateLaw(s.white, s.white * (bare * self._get_growth(s, s.albedo_white) - s.gamma)),
-            RateLaw(s.black, s.black * (bare * self._get_growth(s, s.albedo_black) - s.gamma)),
-        ]
-
-    @staticmethod
-    def _daisyworld_albedo(s: SimpleNamespace) -> Expression:
-        """Return the planetary albedo.
-
-        The albedo is the area average of the albedos of bare ground and of both daisies.
-        """
-        bare = s.p - s.white - s.black
-        return bare * s.albedo_ground + s.white * s.albedo_white + s.black * s.albedo_black
-
-    @staticmethod
-    def _daisyworld_emission(s: SimpleNamespace) -> Expression:
-        """Return the fourth power of the effective temperature of the planet."""
-        return s.S * s.L * (1 - DaisyworldElement._daisyworld_albedo(s)) / s.sigma
-
-
 class LatitudeBandElement(Element):
     """Latitude band of the Budyko-Sellers energy balance.
 
@@ -327,7 +175,7 @@ class LatitudeBandElement(Element):
 
 def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
     """Return the effective temperature of Daisyworld."""
-    return DaisyworldElement._daisyworld_emission(s.planet) ** (1 / 4)
+    return DaisyworldSystem._daisyworld_emission(s.planet) ** (1 / 4)
 
 
 class EnergyBalanceSystem(DynamicalSystem):
@@ -524,7 +372,7 @@ class BudykoSellersSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[bands])
 
 
-class DaisyworldSystem(BaseSystem):
+class DaisyworldSystem(DynamicalSystem):
     """Daisyworld.
 
     White and black daisies regulate the temperature of their planet through its albedo.
@@ -552,7 +400,7 @@ class DaisyworldSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import DaisyworldSystem
-        >>> DaisyworldSystem(L=1.2).prepare().system_.elements[0].L
+        >>> DaisyworldSystem(L=1.2).prepare().system_.elements[0].get_value('L')
         1.2
     """
 
@@ -572,15 +420,73 @@ class DaisyworldSystem(BaseSystem):
         gamma: float = 0.3,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.white = white
         self.black = black
         self.L = L
         self.gamma = gamma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[DaisyworldElement('planet', white=self.white, black=self.black, L=self.L, gamma=self.gamma)],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'planet'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'white': DeclaredVariableSpec(self.white, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'black': DeclaredVariableSpec(self.black, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'L': DeclaredVariableSpec(self.L, ParameterSpec()),
+            'S': DeclaredVariableSpec(917.0, ParameterSpec()),
+            'sigma': DeclaredVariableSpec(5.67e-08, ParameterSpec()),
+            'q': DeclaredVariableSpec(2060000000.0, ParameterSpec()),
+            'p': DeclaredVariableSpec(1.0, ParameterSpec()),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
+            'k': DeclaredVariableSpec(0.003265, ParameterSpec()),
+            'optimum': DeclaredVariableSpec(295.5, ParameterSpec()),
+            'albedo_ground': DeclaredVariableSpec(0.5, ParameterSpec()),
+            'albedo_white': DeclaredVariableSpec(0.75, ParameterSpec()),
+            'albedo_black': DeclaredVariableSpec(0.25, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the growth and death of white and black daisies on the bare ground."""
+        return {
+            'white': lambda s: (
+                s.target.white * (self._bare(s.target) * self._growth(s.target, s.target.albedo_white) - s.target.gamma)
+            ),
+            'black': lambda s: (
+                s.target.black * (self._bare(s.target) * self._growth(s.target, s.target.albedo_black) - s.target.gamma)
+            ),
+        }
+
+    @staticmethod
+    def _bare(planet: SimpleNamespace) -> Expression:
+        """Return the area fraction of bare fertile ground."""
+        return planet.p - planet.white - planet.black
+
+    @staticmethod
+    def _growth(planet: SimpleNamespace, albedo: Expression) -> Expression:
+        """Return the growth rate of daisies of an albedo.
+
+        The rate is parabolic in their local temperature and zero outside it.
+        """
+        local = (
+            planet.q * (DaisyworldSystem._daisyworld_albedo(planet) - albedo)
+            + DaisyworldSystem._daisyworld_emission(planet)
+        ) ** (1 / 4)
+        growth = 1 - planet.k * (planet.optimum - local) ** 2
+        return where(growth > 0, growth, 0)
+
+    @staticmethod
+    def _daisyworld_albedo(planet: SimpleNamespace) -> Expression:
+        """Return the planetary albedo.
+
+        The albedo is the area average of the albedos of bare ground and of both daisies.
+        """
+        bare = planet.p - planet.white - planet.black
+        return bare * planet.albedo_ground + planet.white * planet.albedo_white + planet.black * planet.albedo_black
+
+    @staticmethod
+    def _daisyworld_emission(planet: SimpleNamespace) -> Expression:
+        """Return the fourth power of the effective temperature of the planet."""
+        return planet.S * planet.L * (1 - DaisyworldSystem._daisyworld_albedo(planet)) / planet.sigma
