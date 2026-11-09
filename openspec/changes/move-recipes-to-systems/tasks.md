@@ -13,7 +13,7 @@
   concept subpackages `elements`, `agents`, `matching`, `kinetics`, and `reactions`, each with an `__init__.py`.
   Mirror them under `tests/systems/general/`. Leave `dynamics` to `add-general-systems`. Verify with `pdm run python -c`
   importing every subpackage.
-- [ ] 2.2 Add to `pyproject.toml` a forbidden contract that `skcomplex.systems.general` imports no field package, and
+- [x] 2.2 Add to `pyproject.toml` a forbidden contract that `skcomplex.systems.general` imports no field package, and
   keep `skcomplex.systems.general` out of the field independence and field forbidden contracts so every field may import
   it. Verify with `nox -s checks -- quality`, which runs `lint-imports`.
 - [ ] 2.3 Extend `tests/systems/test_catalog.py` so every module of `systems/general` must have importers in at least

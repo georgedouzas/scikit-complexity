@@ -443,6 +443,21 @@ ignore_imports = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "Realizations shared by several fields import no field package"
+type = "forbidden"
+source_modules = ["skcomplex.systems.general"]
+forbidden_modules = [
+    "skcomplex.systems.biology",
+    "skcomplex.systems.chemistry",
+    "skcomplex.systems.computer_science",
+    "skcomplex.systems.economics",
+    "skcomplex.systems.engineering",
+    "skcomplex.systems.mathematics",
+    "skcomplex.systems.physics",
+    "skcomplex.systems.social",
+]
+
+[[tool.importlinter.contracts]]
 name = "System subfield packages are self-contained"
 type = "independence"
 modules = [
