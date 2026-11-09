@@ -13,67 +13,13 @@ from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import both, where
-from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class BeamElement(Element):
-    """Transverse position and momentum of a particle of an accelerator beam.
-
-    The opposite beam kicks the particle every turn.
-
-    Map interactions rotate the particle by the tune and kick its momentum with the field of the opposite beam, so the
-    element holds the states and the parameters they read.
-
-    Args:
-        label:
-            The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial transverse position.
-
-        y:
-            The initial transverse momentum.
-
-        nu:
-            The tune, the rotation per turn in units of `pi`, in `[0, 2]`.
-
-        c:
-            The strength of the beam-beam kick.
-
-    Attributes:
-        default_visual_:
-            The visual of the particle when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.mechanics import BeamElement
-        >>> BeamElement('particle').nu
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        y: Annotated[float, StateSpec()] = 0.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 2))] = 0.3,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.nu = nu
-        self.c = c
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class FrictionOscillatorElement(Element):
@@ -189,7 +135,7 @@ def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
     return a * s.target.x + b * s.target.y, -b * s.target.x + a * s.target.y
 
 
-class BeamBeamMapSystem(BaseSystem):
+class BeamBeamMapSystem(DynamicalSystem):
     """The beam-beam map of a particle of an accelerator beam.
 
     The particle meets the opposite beam once every turn.
@@ -219,7 +165,7 @@ class BeamBeamMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BeamBeamMapSystem
-        >>> BeamBeamMapSystem(nu=0.5).prepare().system_.elements[0].nu
+        >>> BeamBeamMapSystem(nu=0.5).prepare().system_.elements[0].get_value('nu')
         0.5
     """
 
@@ -238,7 +184,7 @@ class BeamBeamMapSystem(BaseSystem):
         c: float = 0.05,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.nu = nu
@@ -254,16 +200,29 @@ class BeamBeamMapSystem(BaseSystem):
         safe = where(position == 0, 1, position)
         return momentum - 8 * pi * s.target.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'particle'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec()),
+            'y': DeclaredVariableSpec(self.y, StateSpec()),
+            'nu': DeclaredVariableSpec(self.nu, ParameterSpec(domain=RealSet.closed(0, 2))),
+            'c': DeclaredVariableSpec(self.c, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        rotation = MapInteraction('x_map', target='particle', state='x', function=lambda s: _rotate(s)[0])
-        kick = MapInteraction('y_map', target='particle', state='y', function=self._kick)
-        return CompositeSystem(
-            self.label,
-            elements=[BeamElement('particle', x=self.x, y=self.y, nu=self.nu, c=self.c)],
-            interactions=[rotation, kick],
-            time=DiscreteTime(),
-        )
+        return {
+            'x': lambda s: _rotate(s)[0],
+            'y': self._kick,
+        }
 
 
 class FrictionOscillatorSystem(BaseSystem):
