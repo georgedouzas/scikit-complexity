@@ -26,7 +26,6 @@ from ._chemotherapy import (
     MetastasisChemotherapyElement,
     MultidrugResistanceElement,
     MultidrugResistanceSystem,
-    ResistanceSwitchingElement,
     RestingHuntingChemotherapyElement,
 )
 from ._combination_therapy import (
@@ -41,7 +40,6 @@ from ._combination_therapy import (
     GliomaBrainElement,
     GliomaChemovirotherapySystem,
     HER2TargetedTherapySystem,
-    Her2TumourElement,
 )
 from ._gene_viral_therapy import (
     OncolyticVirusDendriticElement,
@@ -176,7 +174,6 @@ __all__: list[str] = [
     'GompertzSystem',
     'HER2TargetedTherapySystem',
     'HahnfeldtSystem',
-    'Her2TumourElement',
     'IdetaIntermittentAndrogenSystem',
     'ImmuneCompetitionSystem',
     'IntermittentSuppressionElement',
@@ -211,7 +208,6 @@ __all__: list[str] = [
     'ProstateCellQuotaSystem',
     'RadiationCompetitionElement',
     'RadiotherapyCompetitionSystem',
-    'ResistanceSwitchingElement',
     'RestingHuntingChemotherapyElement',
     'SirnaTGFBetaSystem',
     'SirnaTgfBetaElement',

@@ -2,17 +2,16 @@
 
 import numpy as np
 
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.oncology import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,
     DePillisRadunskayaSystem,
     DrugResistanceSwitchingSystem,
     MultidrugResistanceSystem,
-    ResistanceSwitchingElement,
 )
 
-from .conftest import _run
+from .conftest import PRECISE, _run
 
 
 def _high_equilibrium():
@@ -63,14 +62,13 @@ def test_drug_resistance_switching_resensitizes_after_the_dose():
     switching = {'m1': 0.0, 'alpha_m': 0.0, 'alpha_p': 0.01, 'm5': 0.05}
     treated = _run(DrugResistanceSwitchingSystem(**switching), until=200.0, dt=1.0)
     assert treated.values('tumour.Rp')[-1] > 0.5
-    tumour = ResistanceSwitchingElement(
-        'tumour',
-        S=treated.values('tumour.S')[-1],
-        Rp=treated.values('tumour.Rp')[-1],
-        u=0.0,
-        **switching,
+    after = simulate(
+        DrugResistanceSwitchingSystem(S=treated.values('tumour.S')[-1], u=0.0, **switching),
+        until=400.0,
+        dt=1.0,
+        solver=PRECISE,
+        initial_state={'tumour.Rp': treated.values('tumour.Rp')[-1]},
     )
-    after = _run(CompositeSystem(elements=[tumour]), until=400.0, dt=1.0)
     assert after.values('tumour.S')[-1] > 0.9
 
 

@@ -14,13 +14,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -915,151 +916,6 @@ class GliomaBrainElement(Element):
         self.u1 = u1
 
 
-class Her2TumourElement(Element):
-    """HER2+ breast cancer cells under trastuzumab and paclitaxel.
-
-    The model includes antibody binding and drug uptake.
-
-    The tumour grows logistically, `dA/dt = r (1 - DIm) (1 - A / (kc - DCh)) A`. The bound antibody `Ab` lowers the
-    proliferation by `DIm = a1 Ab` from the time `t_a` on, and the internalized paclitaxel `Pin` lowers the carrying
-    capacity by `DCh = sigma a2 exp(-gamma_p (t - t_p)) Pin` from the dose time `t_p` on. The free antibody and the
-    free paclitaxel are drivers, held at the levels `antibody` and `paclitaxel` from their dose times on. The antibody
-    binds the receptors, `dAb/dt = theta_ab (Af - Ab) (theta_r A - Ab)`, and the paclitaxel enters the cells,
-    `dPin/dt = alpha_p (Pf - Pin) A`, while the free drugs are present. Cells are counted in millions, so the carrying
-    capacity is 0.67, the antibody is in millions of molecules, and time is in days.
-
-    Args:
-        label:
-            The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        A:
-            The initial number of cells.
-
-        Ab:
-            The initial bound antibody.
-
-        Pin:
-            The initial internalized paclitaxel.
-
-        r:
-            The growth rate.
-
-        kc:
-            The carrying capacity.
-
-        a1:
-            The inhibition of proliferation per unit of bound antibody.
-
-        a2:
-            The reduction of the carrying capacity per unit of internalized paclitaxel.
-
-        gamma_p:
-            The decay rate of the cytotoxicity of paclitaxel.
-
-        sigma:
-            The synergy of the two drugs, 1 for none.
-
-        theta_ab:
-            The binding rate of the antibody.
-
-        theta_r:
-            The number of receptors per cell.
-
-        alpha_p:
-            The uptake rate of paclitaxel.
-
-        antibody:
-            The level of free antibody from its dose on.
-
-        paclitaxel:
-            The level of free paclitaxel from its dose on, in pmol.
-
-        t_antibody:
-            The time of the antibody dose.
-
-        t_a:
-            The time from which the bound antibody inhibits proliferation.
-
-        t_p:
-            The time of the paclitaxel dose.
-
-    Examples:
-        >>> from skcomplex.systems.biology.oncology import Her2TumourElement
-        >>> Her2TumourElement('tumour').kc
-        0.67
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.035,
-        Ab: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Pin: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.83,
-        kc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.67,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.51,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 23.0,
-        gamma_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.35,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        theta_ab: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.78,
-        theta_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1940000.0,
-        alpha_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.68,
-        antibody: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        paclitaxel: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        t_antibody: float = 1.0,
-        t_a: float = 2.0,
-        t_p: float = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.A = A
-        self.Ab = Ab
-        self.Pin = Pin
-        self.r = r
-        self.kc = kc
-        self.a1 = a1
-        self.a2 = a2
-        self.gamma_p = gamma_p
-        self.sigma = sigma
-        self.theta_ab = theta_ab
-        self.theta_r = theta_r
-        self.alpha_p = alpha_p
-        self.antibody = antibody
-        self.paclitaxel = paclitaxel
-        self.t_antibody = t_antibody
-        self.t_a = t_a
-        self.t_p = t_p
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the tumour growth, the antibody binding, and the paclitaxel uptake.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        A, Ab, Pin, t = s.A, s.Ab, s.Pin, s.t
-        free_antibody = where(t >= self.t_antibody, s.antibody, 0)
-        free_paclitaxel = where(t >= self.t_p, s.paclitaxel, 0)
-        inhibition = where(t > self.t_a, s.a1 * Ab, 0)
-        cytotoxicity = where(t >= self.t_p, s.sigma * s.a2 * exp(-s.gamma_p * (t - self.t_p)) * Pin, 0)
-        binding = s.theta_ab * (free_antibody - Ab) * (s.theta_r * A - Ab)
-        return [
-            RateLaw(A, s.r * (1 - inhibition) * (1 - A / (s.kc - cytotoxicity)) * A),
-            RateLaw(Ab, where(free_antibody > 0, binding, 0)),
-            RateLaw(Pin, where(free_paclitaxel > 0, s.alpha_p * (free_paclitaxel - Pin) * A, 0)),
-        ]
-
-
 def _toxicity(concentration: Expression, scale: Expression) -> Expression:
     """Return a toxicity linear in a low concentration and exponential in a high one.
 
@@ -1247,10 +1103,12 @@ class ChemoimmunotherapySystem(BaseSystem):
                 'effector_recruitment',
                 target='tumour',
                 state='E',
-                rate=lambda s: s.target.r3
-                * (self._effector_kill(s.target) * s.target.A) ** 2
-                / (s.target.g3 + (self._effector_kill(s.target) * s.target.A) ** 2)
-                * s.target.E,
+                rate=lambda s: (
+                    s.target.r3
+                    * (self._effector_kill(s.target) * s.target.A) ** 2
+                    / (s.target.g3 + (self._effector_kill(s.target) * s.target.A) ** 2)
+                    * s.target.E
+                ),
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1754,9 +1612,9 @@ class GliomaChemovirotherapySystem(BaseSystem):
                 'neuron_loss',
                 target='brain',
                 reactants={'N': 1},
-                propensity=lambda s: -s.target.psi
-                * where(self._glia_rate(s.target) < 0, self._glia_rate(s.target), 0)
-                * s.target.N,
+                propensity=lambda s: (
+                    -s.target.psi * where(self._glia_rate(s.target) < 0, self._glia_rate(s.target), 0) * s.target.N
+                ),
             ),
             MichaelisMentenInteraction(
                 'neuron_drug_kill',
@@ -1825,7 +1683,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         return CompositeSystem(self.label, elements=[brain], interactions=interactions)
 
 
-class HER2TargetedTherapySystem(BaseSystem):
+class HER2TargetedTherapySystem(DynamicalSystem):
     """HER2+ breast cancer cells under trastuzumab and paclitaxel.
 
     The model includes antibody binding and drug uptake.
@@ -1865,7 +1723,7 @@ class HER2TargetedTherapySystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import HER2TargetedTherapySystem
-        >>> HER2TargetedTherapySystem(sigma=1.5).prepare().system_.elements[0].sigma
+        >>> HER2TargetedTherapySystem(sigma=1.5).prepare().system_.elements[0].get_value('sigma')
         1.5
     """
 
@@ -1888,7 +1746,7 @@ class HER2TargetedTherapySystem(BaseSystem):
         sigma: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.A = A
         self.antibody = antibody
         self.paclitaxel = paclitaxel
@@ -1897,19 +1755,55 @@ class HER2TargetedTherapySystem(BaseSystem):
         self.t_p = t_p
         self.sigma = sigma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of HER2+ breast cancer cells under trastuzumab and paclitaxel."""
-        tumour = Her2TumourElement(
-            'tumour',
-            A=self.A,
-            antibody=self.antibody,
-            paclitaxel=self.paclitaxel,
-            t_antibody=self.t_antibody,
-            t_a=self.t_a,
-            t_p=self.t_p,
-            sigma=self.sigma,
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'tumour'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'A': DeclaredVariableSpec(self.A, StateSpec(domain=nonnegative)),
+            'Ab': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'Pin': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'r': DeclaredVariableSpec(0.83, ParameterSpec(domain=nonnegative)),
+            'kc': DeclaredVariableSpec(0.67, ParameterSpec(domain=RealSet.open(0, oo))),
+            'a1': DeclaredVariableSpec(2.51, ParameterSpec(domain=nonnegative)),
+            'a2': DeclaredVariableSpec(23.0, ParameterSpec(domain=nonnegative)),
+            'gamma_p': DeclaredVariableSpec(6.35, ParameterSpec(domain=nonnegative)),
+            'sigma': DeclaredVariableSpec(self.sigma, ParameterSpec(domain=nonnegative)),
+            'theta_ab': DeclaredVariableSpec(8.78, ParameterSpec(domain=nonnegative)),
+            'theta_r': DeclaredVariableSpec(1940000.0, ParameterSpec(domain=nonnegative)),
+            'alpha_p': DeclaredVariableSpec(0.68, ParameterSpec(domain=nonnegative)),
+            'antibody': DeclaredVariableSpec(self.antibody, ParameterSpec(domain=nonnegative)),
+            'paclitaxel': DeclaredVariableSpec(self.paclitaxel, ParameterSpec(domain=nonnegative)),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the tumour growth, the antibody binding, and the paclitaxel uptake."""
+        return {'A': self._growth, 'Ab': self._binding, 'Pin': self._uptake}
+
+    def _growth(self, s: SimpleNamespace) -> Expression:
+        """Return the logistic growth of the cells, slowed by the antibody and capped by the paclitaxel."""
+        tumour = s.target
+        inhibition = where(s.t > self.t_a, tumour.a1 * tumour.Ab, 0)
+        cytotoxicity = where(
+            s.t >= self.t_p, tumour.sigma * tumour.a2 * exp(-tumour.gamma_p * (s.t - self.t_p)) * tumour.Pin, 0,
         )
-        return CompositeSystem(self.label, elements=[tumour])
+        return tumour.r * (1 - inhibition) * (1 - tumour.A / (tumour.kc - cytotoxicity)) * tumour.A
+
+    def _binding(self, s: SimpleNamespace) -> Expression:
+        """Return the binding of the free antibody to the receptors while it is present."""
+        tumour = s.target
+        free_antibody = where(s.t >= self.t_antibody, tumour.antibody, 0)
+        binding = tumour.theta_ab * (free_antibody - tumour.Ab) * (tumour.theta_r * tumour.A - tumour.Ab)
+        return where(free_antibody > 0, binding, 0)
+
+    def _uptake(self, s: SimpleNamespace) -> Expression:
+        """Return the uptake of the free paclitaxel into the cells while it is present."""
+        tumour = s.target
+        free_paclitaxel = where(s.t >= self.t_p, tumour.paclitaxel, 0)
+        return where(free_paclitaxel > 0, tumour.alpha_p * (free_paclitaxel - tumour.Pin) * tumour.A, 0)
 
 
 class AngiogenesisImmunotherapySystem(BaseSystem):
