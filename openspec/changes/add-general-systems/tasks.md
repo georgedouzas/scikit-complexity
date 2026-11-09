@@ -176,8 +176,10 @@ Same procedure as group 3.
 - [x] 12.2 Update `docs/overview/user_guide/system_classes.md` to name the general systems, and replace in the user
   guide and the gallery every use of a removed element class. Verify with `pytest-markdown-docs` and a search for the
   removed names that finds none.
-- [ ] 12.3 Add a changelog entry that names the four general systems and the translated `StockFlowSystem` subclasses,
+- [x] 12.3 Add a changelog entry that names the four general systems and the translated `StockFlowSystem` subclasses,
   and lists the removed element classes. Verify the entry renders in `nox -s docs -- build`.
+  The changelog is generated from the commits, so the entry is the body of a `refactor!` commit with a
+  `BREAKING CHANGE:` footer that lists the removed element classes. CHANGELOG.md is not edited by hand.
 
 ## 13. Inventory
 
