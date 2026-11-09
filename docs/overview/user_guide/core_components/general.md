@@ -253,7 +253,9 @@ trajectory = simulate(race, until=10.0, dt=5.0)
 trajectory.values('nations.a'), trajectory.values('nations.arming_a')
 ```
 
-Its hooks are `_get_stocks`, `_get_flows`, `_get_parameters`, `_get_element_label`, and `_get_variables`.
+`None` stands for the environment. A labelled `Source('suppliers')` or `Sink('consumers')` of
+`skcomplex.core.components.laws` in its place names it. Its hooks are `_get_stocks`, `_get_flows`, `_get_parameters`,
+`_get_element_label`, and `_get_variables`.
 
 ## Encounters of a kinetic system
 

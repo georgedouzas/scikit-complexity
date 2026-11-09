@@ -22,7 +22,8 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
 
     The stocks and the parameters are the variables of one `DeclaredElement`. Every flow leaves a stock, or a source
     outside the system, and enters a stock, or a sink outside the system, at a rate that is a function of a namespace
-    whose `source` holds the stocks and the parameters and whose `t` holds the time. A flow is a `TransferInteraction`
+    whose `source` holds the stocks and the parameters and whose `t` holds the time. A labelled `Source` or `Sink` in
+    place of `None` names the environment a flow draws from or releases to. A flow is a `TransferInteraction`
     from the element to itself, so the trajectory reports it as `<element>.<flow>`, and a flow between two stocks keeps
     their total.
 
@@ -89,8 +90,9 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
                 The initial value of every stock, by name, or `None` for no stocks.
 
             flows:
-                The stock it leaves, or `None` for a source, the stock it enters, or `None` for a sink, and the rate
-                of every flow, by name, or `None` for no flows.
+                The stock it leaves, or `None` or a labelled `Source` for the environment, the stock it enters, or
+                `None` or a labelled `Sink` for the environment, and the rate of every flow, by name, or `None` for no
+                flows.
 
             parameters:
                 The value of every parameter the rates read, by name, or `None` for none.
@@ -156,10 +158,10 @@ class StockFlowSystem(BaseSystem[CompositeSystem]):
         """
         stocks = [name for name, variable in self._get_variables().items() if isinstance(variable.spec, StateSpec)]
         for name, (leaves, enters, _) in self._get_flows().items():
-            if leaves is None and enters is None:
+            if not isinstance(leaves, str) and not isinstance(enters, str):
                 error_msg = f'The flow {name!r} of {type(self).__name__} neither leaves nor enters a stock.'
                 raise ValidationError(error_msg)
-            unknown = [stock for stock in (leaves, enters) if stock is not None and stock not in stocks]
+            unknown = [stock for stock in (leaves, enters) if isinstance(stock, str) and stock not in stocks]
             if unknown:
                 error_msg = (
                     f'The flow {name!r} of {type(self).__name__} names the stock {unknown[0]!r}, which it does not '

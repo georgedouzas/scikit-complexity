@@ -104,9 +104,9 @@ field `u` it has a diffusivity `D` for, as an interaction apart from the kinetic
 
 ### Requirement: Stock-flow systems move stocks through named flows
 `StockFlowSystem` SHALL take the initial value of every stock and every flow by name, each flow with the stock it
-leaves or `None` for a source, the stock it enters or `None` for a sink, and its rate as a function of a namespace
-whose `source` holds the stocks and the parameters. Every stock SHALL change only through its flows, and the trajectory
-SHALL report every flow as `<element>.<flow>`.
+leaves or `None` or a labelled `Source` for the environment, the stock it enters or `None` or a labelled `Sink` for the
+environment, and its rate as a function of a namespace whose `source` holds the stocks and the parameters. Every stock
+SHALL change only through its flows, and the trajectory SHALL report every flow as `<element>.<flow>`.
 
 #### Scenario: Bathtub
 - **WHEN** a user simulates a `StockFlowSystem` with the stock `water`, the flow `faucet` from a source into `water`,
@@ -116,6 +116,10 @@ SHALL report every flow as `<element>.<flow>`.
 #### Scenario: Flow of an unknown stock
 - **WHEN** a flow names a stock the system does not declare
 - **THEN** preparing raises a `ValidationError` that names the flow and the stock
+
+#### Scenario: Labelled environment
+- **WHEN** a flow leaves `Source('farms')` for the stock `grain` and another leaves `grain` for `Sink('consumers')`
+- **THEN** their transfers keep the labels `farms` and `consumers`, and the stock changes only through the two flows
 
 ### Requirement: Field systems subclass a general system through hooks
 A field system SHALL subclass a general system by taking the parameters of its model under its own names and by

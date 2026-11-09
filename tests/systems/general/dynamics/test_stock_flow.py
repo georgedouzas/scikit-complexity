@@ -6,6 +6,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import DeclaredElement
+from skcomplex.core.components.laws import Sink, Source
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -92,3 +93,25 @@ def test_stock_flow_subclass_takes_its_own_parameters():
     trajectory = simulate(system, until=2.0, dt=1.0)
     assert trajectory.values('tank.level')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
     assert 'tank.drain' in trajectory.names
+
+
+def test_stock_flow_takes_a_labelled_source_and_sink():
+    """Test that a labelled source and sink name the environment of a flow as `None` does unlabelled."""
+    system = StockFlowSystem(
+        stocks={'grain': 5.0},
+        flows={
+            'harvest': (Source('farms'), 'grain', lambda s: 2.0),
+            'release': ('grain', Sink('consumers'), lambda s: 2.0),
+        },
+    )
+    interactions = system.prepare().system_.interactions
+    assert [interactions[0].state.label, interactions[1].into.label] == ['farms', 'consumers']
+    trajectory = simulate(system, until=3.0, dt=1.0)
+    np.testing.assert_allclose(trajectory.values('stocks.grain'), 5.0)
+
+
+def test_stock_flow_rejects_a_flow_between_two_environments():
+    """Test that a flow from a labelled source to a labelled sink names the flow."""
+    system = StockFlowSystem(stocks={'grain': 1.0}, flows={'pass': (Source('farms'), Sink('market'), lambda s: 1.0)})
+    with pytest.raises(ValidationError, match=r"'pass' .* neither leaves nor enters"):
+        system.prepare()
