@@ -7,6 +7,7 @@ It is compiled into a function of its symbols.
 # License: MIT
 
 import functools
+import itertools
 from collections.abc import Callable, Mapping
 
 import networkx as nx
@@ -24,6 +25,7 @@ from ...components.spaces import (
     CofaceNeighborhood,
     ConeNeighborhood,
     ContinuousSpace,
+    DelaunayNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
@@ -44,7 +46,7 @@ from ._static_search import StaticSearch
 _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood), (ContinuousSpace,)),
+    ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 """Spaces every kind of neighbourhood is read on."""
@@ -93,6 +95,10 @@ class NeighborhoodKernel(BaseKernel):
         coefficients:
             The factor of every pair of the search, such as the oriented entries of an incidence, or `None` for 1.
 
+        hyperedge:
+            The size of the hyperedges that every member forms with sets of its current neighbours, which the
+            reduction runs over instead of single neighbours, or `None` for single neighbours.
+
     Attributes:
         paths_:
             The active links of the last shortest paths reduction with its values, which a run reuses while the links
@@ -115,6 +121,7 @@ class NeighborhoodKernel(BaseKernel):
         reads: dict[Expression, PairReadSpec],
         time: Expression,
         coefficients: Array | None = None,
+        hyperedge: int | None = None,
     ) -> None:
         self.symbol = symbol
         self.kind = kind
@@ -126,6 +133,7 @@ class NeighborhoodKernel(BaseKernel):
         self.reads = reads
         self.time = time
         self.coefficients = coefficients
+        self.hyperedge = hyperedge
 
     @functools.cached_property
     def _symbols(self) -> list[Expression]:
@@ -152,13 +160,18 @@ class NeighborhoodKernel(BaseKernel):
         return self.entry.rows
 
     def _gather(self, x: Array, q: Array, readers: Indices, others: Indices, edges: Indices | None) -> list[Array]:
-        """Return the values of every symbol for every pair."""
+        """Return the values of every symbol for every pair.
+
+        For a reduction over neighbour hyperedges, the pairs are the sets of neighbours, with one column of `others`
+        per other member.
+        """
         values = []
-        differences = None
+        differences: dict[int | None, Array] = {}
         for item in self._symbols:
             pair = self.reads[item]
             read = pair.read
             column = (x if read.is_state else q)[read.index]
+            neighbours = others if pair.position is None else others[:, pair.position]
             if pair.side == 'shared':
                 values.append(column)
             elif pair.side == 'reader':
@@ -171,13 +184,13 @@ class NeighborhoodKernel(BaseKernel):
                 if not isinstance(self.search, MetricSearch):
                     error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
                     raise ValidationError(error_msg)
-                if differences is None:
-                    differences = self.search.differences(x, readers, others)
-                values.append(column[readers] - differences[:, read.column])
+                if pair.position not in differences:
+                    differences[pair.position] = self.search.differences(x, readers, neighbours)
+                values.append(column[readers] - differences[pair.position][:, read.column])
             elif pair.table is not None:
-                values.append(column[pair.table[others]])
+                values.append(column[pair.table[neighbours]])
             else:
-                values.append(column[others])
+                values.append(column[neighbours])
         return values
 
     def _run(self, inputs: RunStateSpec | None) -> None:
@@ -190,10 +203,12 @@ class NeighborhoodKernel(BaseKernel):
         t, x, q = state.t, state.x, state.p
         indptr, others, edges = self.search.run(state).pairs_
         size = self.size
+        if self.hyperedge is not None:
+            indptr, others = self._neighbor_sets(indptr, others, self.hyperedge - 1)
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
         argument, weight = ExpressionPrinter._values_of(self._function(t, *self._gather(x, q, readers, others, edges)))
-        pairs = others.size
+        pairs = readers.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
         if self.kind.startswith('component-'):
@@ -206,6 +221,50 @@ class NeighborhoodKernel(BaseKernel):
         if self.coefficients is not None:
             weight = weight * self.coefficients
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
+
+    @staticmethod
+    def _neighbor_sets(indptr: Indices, others: Indices, number: int) -> tuple[Indices, Indices]:
+        """Return the sets of a number of neighbours of every member in CSR form.
+
+        The sets of a member are the combinations of its neighbours, each in increasing neighbour order. The members of
+        equal neighbour counts share one table of combinations.
+
+        Args:
+            indptr:
+                The row starts of the neighbours of every member.
+
+            others:
+                The neighbours of every member, in increasing order within a row.
+
+            number:
+                The number of neighbours in a set.
+
+        Returns:
+            sets:
+                The row starts of the sets of every member, and one row of neighbours per set.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
+            >>> indptr, others = np.array([0, 3, 4]), np.array([1, 2, 3, 0])
+            >>> indptr, sets = NeighborhoodKernel._neighbor_sets(indptr, others, 2)
+            >>> indptr.tolist(), sets.tolist()
+            ([0, 3, 3], [[1, 2], [1, 3], [2, 3]])
+        """
+        counts = np.diff(indptr)
+        found = np.zeros(counts.size, dtype=np.intp)
+        rows = [np.zeros((0, number), dtype=np.intp)]
+        readers = [np.zeros(0, dtype=np.intp)]
+        for count in np.unique(counts[counts >= number]):
+            combinations = np.asarray(list(itertools.combinations(range(int(count)), number)), dtype=np.intp)
+            members = np.flatnonzero(counts == count)
+            found[members] = len(combinations)
+            places = indptr[members][:, None, None] + combinations[None, :, :]
+            rows.append(others[places].reshape(-1, number))
+            readers.append(np.repeat(members, len(combinations)))
+        order = np.argsort(np.concatenate(readers), kind='stable')
+        sets = np.concatenate(rows)[order].astype(np.intp)
+        return np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(found)]).astype(np.intp), sets
 
     def _cached_paths(self, readers: Indices, others: Indices) -> Array:
         """Return the shortest paths reduction of the active links.
@@ -613,6 +672,7 @@ class NeighborhoodKernel(BaseKernel):
             | RadiusNeighborhood
             | NearestNeighborhood
             | ConeNeighborhood
+            | DelaunayNeighborhood
         ),
         space: object,
         rows: int,

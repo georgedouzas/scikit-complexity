@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ...specs import AgentSnapshotSpec, BaseRecordSpec, NetworkSnapshotSpec
+from ...specs import AgentSnapshotSpec, BaseRecordSpec, DrawLogSpec, NetworkSnapshotSpec
 from ...types import AnyArray
 from ..problems import BaseProblemSpec
 
@@ -47,6 +47,12 @@ class Trajectory:
         structures:
             One mapping from rewritten element path to its structure per frame, empty for other systems.
 
+        draws:
+            The named draws and jump firings of a run that records or replays them, or `None`.
+
+        log_probability:
+            The total log-probability of the draws and firings of a run that records or replays them, or `None`.
+
     Examples:
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
@@ -74,6 +80,8 @@ class Trajectory:
         observables: Sequence[Mapping[str, object]] = (),
         events: Sequence[BaseRecordSpec] = (),
         structures: Sequence[Mapping[str, object]] = (),
+        draws: DrawLogSpec | None = None,
+        log_probability: float | None = None,
     ) -> None:
         self.problem = problem
         self.times = times
@@ -84,6 +92,8 @@ class Trajectory:
         self.observables = observables
         self.events = list(events)
         self.structures = structures
+        self.draws = draws
+        self.log_probability = log_probability
 
     def _present(self, name: str, values: AnyArray) -> AnyArray:
         """Return the values of a variable with NaN where a group holds no member.

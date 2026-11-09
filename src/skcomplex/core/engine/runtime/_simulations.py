@@ -25,6 +25,7 @@ from ..compile._pass_compiler import PassCompiler
 from ..compile._rewriting_compiler import RewritingCompiler
 from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems._draw_recorder import DrawRecorder
 from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -122,6 +123,13 @@ class Simulation(BaseConfig[None, float]):
         until:
             The simulated time `run` stops at when it is given none, or `None` to require one at every run.
 
+        record_draws:
+            Whether to record every named draw and every jump firing of the run in the trajectory.
+
+        replay:
+            A trajectory recorded with its draws, whose named draws and jump firings the run takes instead of drawing
+            them, or `None`.
+
     Attributes:
         problem_:
             The compiled problem.
@@ -137,6 +145,9 @@ class Simulation(BaseConfig[None, float]):
 
         parameters_:
             The current parameter vector.
+
+        draw_recorder_:
+            The recorder of the draws of a run that records or replays them, or `None`.
 
     Examples:
         >>> from skcomplex.core.components.system import System
@@ -169,6 +180,8 @@ class Simulation(BaseConfig[None, float]):
         invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
         until: float | None = None,
+        record_draws: bool = False,
+        replay: Trajectory | None = None,
     ) -> None:
         self.system = system
         self.compiler = compiler
@@ -185,6 +198,8 @@ class Simulation(BaseConfig[None, float]):
         self.invariants = invariants
         self.initial_state = initial_state
         self.until = until
+        self.record_draws = record_draws
+        self.replay = replay
 
     def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
         """Return the time between frames of a run until a time.
@@ -269,12 +284,32 @@ class Simulation(BaseConfig[None, float]):
         """
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_.set_params(random_state=self.random_state, until=until).prepare(self.problem_)
+        self.draw_recorder_ = self._draw_recorder()
+        self.stepper_.draw_recorder_ = self.draw_recorder_
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
         self._frame_parameters: npt.NDArray[np.float64] | None = None
         for observer in self.observers_:
             observer.prepare(self.problem_)
+
+    def _draw_recorder(self) -> DrawRecorder | None:
+        """Return the recorder of the draws of a run that records or replays them, or `None`.
+
+        Returns:
+            recorder:
+                The prepared recorder, or `None` for a run that neither records nor replays.
+
+        Raises:
+            ValidationError:
+                The replayed trajectory holds no draws.
+        """
+        if self.replay is None:
+            return DrawRecorder().prepare() if self.record_draws else None
+        if self.replay.draws is None:
+            error_msg = 'The replayed trajectory holds no draws. Record it with `simulate(..., record_draws=True)`.'
+            raise ValidationError(error_msg)
+        return DrawRecorder(self.replay.draws).prepare()
 
     def _get_frame_parameters(self) -> npt.NDArray[np.float64]:
         """Return a copy of the parameters for a frame.
@@ -340,6 +375,8 @@ class Simulation(BaseConfig[None, float]):
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
                 step = StepSpec(self.time_, self.state_, self.parameters_, target)
+                if self.draw_recorder_ is not None:
+                    self.draw_recorder_.run(self._step)
                 self.state_ = self.stepper_.run(step, final=released).state_
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
@@ -620,7 +657,11 @@ class Simulation(BaseConfig[None, float]):
         if self.recorder_ is None:
             error_msg = 'The simulation does not record frames. Create it with `record=True`.'
             raise SimulationError(error_msg)
-        return self.recorder_.trajectory_
+        trajectory = self.recorder_.trajectory_
+        recorder = getattr(self, 'draw_recorder_', None)
+        if recorder is not None:
+            trajectory.draws, trajectory.log_probability = recorder.log_, recorder.log_probability_
+        return trajectory
 
     @staticmethod
     def _partition_problems(problem: BaseProblemSpec) -> tuple[BaseProblemSpec, ...]:

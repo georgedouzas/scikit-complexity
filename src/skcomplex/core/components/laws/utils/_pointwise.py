@@ -1,14 +1,32 @@
 """Define the pointwise functions of laws.
 
-They are written with Sage arithmetic and `where` so every backend lowers them.
+They are written with Sage arithmetic and `where`, or are functions that every printer lowers, so every backend lowers
+them.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from sage.all__sagemath_symbolics import SR, Expression, tanh
+from sage.symbolic.function import BuiltinFunction
 
 from ._conditions import where
+
+
+class _StopGradient(BuiltinFunction):
+    """Identity whose gradient is zero, `stop_gradient(x)`."""
+
+    def __init__(self) -> None:
+        super().__init__('stop_gradient', nargs=1)
+
+    def _eval_(self, x: Expression) -> Expression | None:
+        """Return a number unchanged, or `None` to stay unevaluated."""
+        value = SR(x)
+        return value if value.is_numeric() else None
+
+    def _tderivative_(self, x: Expression, diff_param: Expression) -> Expression:
+        """Return the derivative, which is zero."""
+        return SR(0)
 
 
 def _smallest(values: tuple[object, ...]) -> Expression:
@@ -168,3 +186,33 @@ def sign(x: object) -> Expression:
         [-1, 0, 1]
     """
     return where(SR(x) > 0, 1, where(SR(x) < 0, -1, 0))
+
+
+def stop_gradient(x: object) -> Expression:
+    """Return a value whose gradient is zero.
+
+    The JAX backend lowers it to `jax.lax.stop_gradient` and every other backend to the identity, so it changes
+    gradients and never values. The straight-through estimator `exact + relaxed - stop_gradient(relaxed)` has the value
+    `exact` and the gradient of `relaxed`.
+
+    Args:
+        x:
+            The expression the function reads.
+
+    Returns:
+        value:
+            The symbolic value.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws.utils import stop_gradient
+        >>> x = var('x')
+        >>> stop_gradient(x**2)
+        stop_gradient(x^2)
+        >>> (x * stop_gradient(x)).diff(x)
+        stop_gradient(x)
+    """
+    return _STOP_GRADIENT(SR(x))
+
+
+_STOP_GRADIENT = _StopGradient()

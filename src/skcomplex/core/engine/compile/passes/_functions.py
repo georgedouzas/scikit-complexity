@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.spaces import DiscreteTime
+from ....components.spaces import DelaunayNeighborhood, DiscreteTime
 from ....components.system import System
 from ....errors import BackendWarning, ValidationError
 from ....specs import (
@@ -33,10 +33,13 @@ from ...backends import BaseBackend, NumpyBackend
 from ...problems import ProblemSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
+from ...problems._draw_recorder import DrawRecorder
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._metric_search import MetricSearch
+from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._output_spec import OutputSpec
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
@@ -137,8 +140,11 @@ class FunctionsPass(BasePass):
     def _chosen_backend(compilation: Compilation, form: FormKind, members: int) -> BaseBackend:
         """Return the backend that lowers a form.
 
-        It is NumPy for a stepwise form, with a warning when it is not the one asked.
+        It is NumPy for a stepwise form, with a warning when it is not the one asked. Without a backend asked, it is
+        NumPy for reductions over Delaunay neighbourhoods, which triangulate with SciPy, whatever the size.
         """
+        if compilation.backend is None and FunctionsPass._triangulates(compilation.reductions):
+            return NumpyBackend()
         requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
@@ -151,6 +157,17 @@ class FunctionsPass(BasePass):
             )
             warnings.warn(message, BackendWarning, stacklevel=2)
         return chosen
+
+    @staticmethod
+    def _triangulates(reductions: ReductionScheduleSpec | None) -> bool:
+        """Return whether a reduction searches neighbours by a Delaunay triangulation."""
+        steps = reductions.steps if reductions is not None else ()
+        return any(
+            isinstance(item, NeighborhoodKernel)
+            and isinstance(item.search, MetricSearch)
+            and isinstance(item.search.neighbourhood, DelaunayNeighborhood)
+            for item in steps
+        )
 
     @staticmethod
     def _backends_of(
@@ -525,12 +542,22 @@ class FunctionsPass(BasePass):
 
         Returns:
             update:
-                The update `F(t, x, p, rng)`.
+                The update `F(t, x, p, rng, recorder=None)`, whose draws go through the recorder when one is given.
         """
 
-        def stochastic(t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
+        def stochastic(
+            t: float,
+            x: Array,
+            p: Array,
+            rng: np.random.Generator,
+            recorder: DrawRecorder | None = None,
+        ) -> Array:
             extended = draws.extend(p)
-            draws.run(RunStateSpec(t, x, extended, rng))
+            state = RunStateSpec(t, x, extended, rng)
+            if recorder is None:
+                draws.run(state)
+            else:
+                draws.record(state, recorder)
             return update(t, x, extended)
 
         return stochastic

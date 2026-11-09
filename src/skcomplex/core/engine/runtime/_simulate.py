@@ -13,7 +13,7 @@ from ...base import BaseConfig
 from ...components.system import BaseSystem, System
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
-from ..backends import BaseBackend
+from ..backends import BaseBackend, NumpyBackend
 from ..compile import BaseCompiler
 from ..problems import BaseProblemSpec
 from ..solvers import BaseSolver
@@ -110,6 +110,8 @@ def simulate(
     random_state: int | np.random.Generator | None = None,
     checked: bool = False,
     clock: BaseClock | None = None,
+    record_draws: bool = False,
+    replay: Trajectory | None = None,
 ) -> Trajectory:
     """Simulate a system until a time and return its trajectory.
 
@@ -179,6 +181,18 @@ def simulate(
             The clock that paces frames against wall time, or `None` to run as fast as possible. A `RealTimeClock`
             paces the run in real time, to watch it in a Rerun viewer as it runs.
 
+        record_draws:
+            Whether to record in the trajectory every named draw of the run by name and step, with the arguments of
+            its distribution, and every firing of a jump law with its time and law. Draws of the laws of stochastic
+            maps and named draws of agent rules are recorded, and the run uses the NumPy backend unless one is given.
+
+        replay:
+            A trajectory recorded with its draws, or `None`. The run forces every named draw and every jump firing to
+            its recorded value, computes the arguments of each distribution from its own parameters and states, and
+            holds the total log-probability of the forced values as `log_probability` of its trajectory. Replay with
+            the random state of the recorded run, so the draws that are not named, such as the order of agents, stay
+            the same.
+
     Returns:
         trajectory:
             The trajectory of the system from time 0 until the end time.
@@ -223,6 +237,8 @@ def simulate(
         random_state=random_state,
         checked=checked,
         clock=clock,
+        record_draws=record_draws,
+        replay=replay,
     )
 
 
@@ -343,6 +359,8 @@ def _simulate(
     random_state: int | np.random.Generator | None = None,
     checked: bool = False,
     clock: BaseClock | None = None,
+    record_draws: bool = False,
+    replay: Trajectory | None = None,
 ) -> Trajectory:
     """Simulate a system as `simulate` does.
 
@@ -394,6 +412,12 @@ def _simulate(
         clock:
             The clock that paces frames against wall time, or `None` to run as fast as possible.
 
+        record_draws:
+            Whether to record the named draws and jump firings of the run.
+
+        replay:
+            A trajectory recorded with its draws, whose draws the run forces, or `None`.
+
     Returns:
         trajectory:
             The trajectory of the system from time 0 until the end time.
@@ -410,6 +434,8 @@ def _simulate(
     if end is None:
         error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
         raise ValidationError(error_msg)
+    if (record_draws or replay is not None) and backend is None:
+        backend = NumpyBackend()
     source: System | BaseProblemSpec
     if compiled is None:
         source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
@@ -431,6 +457,8 @@ def _simulate(
         checked=checked,
         clock=clock,
         until=end,
+        record_draws=record_draws,
+        replay=replay,
     )
     trajectory: Trajectory = simulation.prepare().run().trajectory_
     return trajectory

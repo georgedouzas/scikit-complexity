@@ -55,3 +55,11 @@ def test_tags_accept_every_value_of_the_public_vocabularies():
     )
     tags._check()
     assert tags.time == frozenset(TIMES)
+
+
+def test_tags_differentiable_covers_reparameterized_draws():
+    """Test that stochastic update laws are differentiable only when their draws are reparameterized."""
+    stochastic = Tags(laws=frozenset({'update'}), randomness='stochastic')
+    assert not stochastic.differentiable
+    assert Tags(laws=frozenset({'update'}), randomness='stochastic', reparameterized=True).differentiable
+    assert not Tags(laws=frozenset({'noise'}), randomness='stochastic', reparameterized=True).differentiable

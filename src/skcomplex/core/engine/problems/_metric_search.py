@@ -1,4 +1,4 @@
-"""Neighbours in a continuous space found from the positions with a k-d tree.
+"""Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
 
 They are found at every evaluation.
 """
@@ -9,10 +9,11 @@ They are found at every evaluation.
 
 import numpy as np
 import numpy.typing as npt
-from scipy.spatial import cKDTree
+from scipy.spatial import Delaunay, QhullError, cKDTree
 
 from ...components.spaces import (
     ConeNeighborhood,
+    DelaunayNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
@@ -23,13 +24,13 @@ from ._base import BaseSearch
 
 
 class MetricSearch(BaseSearch):
-    """Neighbours in a continuous space found from the positions with a k-d tree.
+    """Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
 
     They are found at every evaluation.
 
     Args:
         neighbourhood:
-            The radius, nearest, or cone neighbourhood.
+            The radius, nearest, cone, or Delaunay neighbourhood.
 
         positions:
             The entry of the position state of the members.
@@ -49,7 +50,7 @@ class MetricSearch(BaseSearch):
 
     def __init__(
         self,
-        neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood,
+        neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood | DelaunayNeighborhood,
         positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
         direction: DirectionSpec | None = None,
@@ -112,7 +113,9 @@ class MetricSearch(BaseSearch):
         size = positions.shape[0]
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
         neighbourhood = self.neighbourhood
-        if isinstance(neighbourhood, NearestNeighborhood):
+        if isinstance(neighbourhood, DelaunayNeighborhood):
+            readers, others = self._delaunay(positions, self.periods)
+        elif isinstance(neighbourhood, NearestNeighborhood):
             readers, others = self._nearest(tree, positions, neighbourhood.k)
         else:
             pairs = tree.query_pairs(neighbourhood.radius, output_type='ndarray').astype(np.intp)
@@ -137,6 +140,36 @@ class MetricSearch(BaseSearch):
         own = found == np.arange(size)[:, None]
         own[~own.any(axis=1), -1] = True
         return np.repeat(np.arange(size, dtype=np.intp), k), found[~own].astype(np.intp)
+
+    @staticmethod
+    def _delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
+        """Return the pairs of members joined by an edge of the Delaunay triangulation of the positions.
+
+        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge
+        joins the members of its two ends. Too few members, or members in a degenerate position, give every member all
+        the others.
+        """
+        size, dimension = positions.shape
+        if periods is None:
+            points, owners = positions, np.arange(size, dtype=np.intp)
+        else:
+            grid = np.meshgrid(*([[-1.0, 0.0, 1.0]] * dimension), indexing='ij')
+            shifts = np.stack(grid, axis=-1).reshape(-1, dimension) * np.asarray(periods)
+            points = (positions[None, :, :] + shifts[:, None, :]).reshape(-1, dimension)
+            owners = np.tile(np.arange(size, dtype=np.intp), len(shifts))
+        try:
+            simplices = Delaunay(points).simplices
+        except (QhullError, ValueError):
+            readers, others = np.meshgrid(np.arange(size), np.arange(size), indexing='ij')
+            keep = readers != others
+            return readers[keep].astype(np.intp), others[keep].astype(np.intp)
+        first, second = np.triu_indices(simplices.shape[1], k=1)
+        starts = np.concatenate([simplices[:, first].ravel(), simplices[:, second].ravel()])
+        ends = np.concatenate([simplices[:, second].ravel(), simplices[:, first].ravel()])
+        readers, others = owners[starts], owners[ends]
+        keep = readers != others
+        pairs = np.unique(np.stack([readers[keep], others[keep]], axis=1), axis=0)
+        return pairs[:, 0].astype(np.intp), pairs[:, 1].astype(np.intp)
 
     def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""

@@ -82,3 +82,82 @@ ranked.ranking
   data.
 - `sensitivity` runs a design of its own and ranks the inputs one at a time with `method='oat'`, by Morris screening
   with `'morris'`, or by Sobol indices with SALib with `'sobol'`.
+
+### Bayesian calibration
+
+Get posterior uncertainty for the parameters of any system, deterministic or stochastic, with checks that it can be
+trusted. `method` says how `calibrate` searches or samples, and `loss` what scores a candidate.
+
+```python
+import numpy as np
+from scipy import stats
+
+from skcomplex.core.experiments import calibrate
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+rng = np.random.default_rng(0)
+times = np.arange(0.0, 21.0)
+observed = 500 / (1 + 49 * np.exp(-0.8 * times)) * (1 + 0.02 * rng.standard_normal(times.size))
+bounds = {'r': stats.norm(0.8, 0.2), 'K': (100, 1000)}
+posterior = calibrate(
+    LogisticGrowthSystem(n=10.0),
+    {'population.n': (times, observed)},
+    bounds,
+    method='mcmc',
+    loss='likelihood',
+    n_samples=300,
+    random_state=0,
+)
+round(posterior.estimates['r'], 2), posterior.diagnostics['sampler'], posterior.predictive['coverage'] > 0.75
+```
+
+- Methods: `'local'`, the default, is a local SciPy fit, `'global'` searches the bounds with Optuna's seeded
+  tree-structured Parzen estimator for `budget` evaluations, `'abc_smc'` samples an approximate posterior by ABC-SMC
+  with pyabc, `'mcmc'` samples the posterior of a likelihood with numpyro, and `'variational'` fits a multivariate
+  normal posterior with numpyro SVI through differentiable runs on JAX.
+- Losses: `'squares'`, `'likelihood'`, the Gaussian likelihood with an unknown variance, and `'events'`, the
+  likelihood of recorded draws. `'local'` and `'global'` take all three, `'abc_smc'` compares summaries, `'mcmc'` takes
+  `'likelihood'` and `'events'`, and `'variational'` takes `'likelihood'` and `'squares'`.
+- Priors: a bound is a pair `(low, high)`, read as a uniform prior, or a SciPy distribution, read as the prior. Point
+  fits search the pair or the central 99.9% of the distribution. MCMC and variational calibration take the uniform,
+  normal, log-normal, truncated normal, beta, gamma, and exponential families.
+- Summaries: `summary=` maps the series by path to summary statistics, such as final counts or peak times, which
+  ABC-SMC compares by an adaptive distance. Without it ABC-SMC compares the series at the data times.
+- Events: `loss='events'` takes as data a trajectory recorded with `simulate(..., record_draws=True)` and scores
+  every candidate by the log-probability of the recorded draws replayed under it, the exact likelihood of a
+  stochastic model with no model-specific code, as the page [Simulate](simulate.md) shows. Pass the seed of the
+  recorded run as `random_state`.
+- Diagnostics: a posterior result holds `samples`, `weights`, and the posterior medians as `estimates`.
+  `diagnostics` holds the tolerance and the acceptance rate of every generation of ABC-SMC, the split R-hat and the
+  effective sample size of every parameter of MCMC, and the loss history of variational calibration. `predictive`
+  holds the 5%, 50%, and 95% quantiles of the series of posterior draws at the data times and the share of observed
+  points inside the band.
+- MCMC runs NUTS through the JAX run of a system with the tag `differentiable` and the Gaussian likelihood, and the
+  gradient-free affine invariant ensemble sampler otherwise, which is slower and mixes poorly in many dimensions.
+
+Check that a posterior method gives credible intervals that can be trusted with `posterior_coverage`. It draws true
+parameters from the priors, simulates data at each with Gaussian noise, calibrates every data set, and reports how
+often the central interval of every level holds the truth, with the rank of every truth among its samples, the check
+of simulation-based calibration. A calibrated method covers the truth at about the rate of the level, and its ranks
+are uniform.
+
+```python
+import numpy as np
+
+from skcomplex.core.experiments import posterior_coverage
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+coverage = posterior_coverage(
+    LogisticGrowthSystem(n=10.0),
+    {'r': (0.5, 1.0)},
+    np.arange(0.0, 11.0),
+    method='variational',
+    n=4,
+    levels=(0.5, 0.9),
+    noise=5.0,
+    n_samples=100,
+    budget=300,
+    random_state=0,
+)
+coverage.coverage[0.9]['r'], coverage.ranks['r'].shape
+```

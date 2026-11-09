@@ -28,6 +28,13 @@ from ._flocks import (
 from ._foraging import AntElement, PheromoneElement, PheromoneForagingSystem
 from ._herding import HerdedSheepElement, ShepherdElement, ShepherdingInteraction, ShepherdingSystem
 from ._leadership import CouzinLeadershipSystem, SchoolingInteraction, ShoalMemberElement, SwimmingInteraction
+from ._many_body_swarms import (
+    EncirclementInteraction,
+    FlankingInteraction,
+    ManyBodyAlignmentSwarmSystem,
+    MorseAlignmentInteraction,
+    SwarmAgentElement,
+)
 from ._trails import ActiveWalkersSystem, GroundElement, WalkerElement
 
 __all__: list[str] = [
@@ -43,11 +50,15 @@ __all__: list[str] = [
     'BranchElement',
     'ColonySearchInteraction',
     'CouzinLeadershipSystem',
+    'EncirclementInteraction',
+    'FlankingInteraction',
     'FlightInteraction',
     'FlockingInteraction',
     'GroundElement',
     'HeadingInteraction',
     'HerdedSheepElement',
+    'ManyBodyAlignmentSwarmSystem',
+    'MorseAlignmentInteraction',
     'MorsePotentialInteraction',
     'PheromoneElement',
     'PheromoneForagingSystem',
@@ -61,6 +72,7 @@ __all__: list[str] = [
     'ShoalMemberElement',
     'SpatialBoidElement',
     'SpatialFlightInteraction',
+    'SwarmAgentElement',
     'SwimmingInteraction',
     'TrailChoiceInteraction',
     'TrailSegmentElement',

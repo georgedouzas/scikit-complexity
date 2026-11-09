@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sage.all__sagemath_symbolics import SR, Expression, function
 from sage.modules.free_module_element import FreeModuleElement
@@ -38,6 +39,13 @@ class DrawSpec(BaseSpec):
         call:
             The symbolic call of the draw in the expression it was found in, or `None` for the draw of a function.
 
+        temperature:
+            The temperature of the continuous relaxation of a Bernoulli or categorical draw, which the JAX backend
+            draws in its place, or `None` for no relaxation.
+
+        hard:
+            Whether a relaxed draw gives the exact value and the gradient of the relaxation on JAX.
+
     Examples:
         >>> from skcomplex.core.components.laws.utils import bernoulli, draws_in
         >>> draws_in(bernoulli('flip', 0.5))[0].kind
@@ -50,6 +58,28 @@ class DrawSpec(BaseSpec):
     keywords: tuple[str, ...] = ()
     arguments: tuple[Expression, ...] = ()
     call: Expression | None = None
+    temperature: float | None = None
+    hard: bool = False
+
+    def _check(self) -> None:
+        """Raise an error for a relaxation of a draw that is not discrete or not at a positive temperature.
+
+        Raises:
+            ValidationError:
+                The temperature is not a positive number, or the draw is neither Bernoulli nor categorical, or `hard`
+                is given without a temperature.
+        """
+        if self.temperature is None:
+            if self.hard:
+                error_msg = f'The draw {self.name!r} takes `hard=True` only with a temperature.'
+                raise ValidationError(error_msg)
+            return
+        if self.kind not in RELAXED_KINDS:
+            error_msg = f'The {self.kind} draw {self.name!r} has no relaxation. Relax Bernoulli or categorical draws.'
+            raise ValidationError(error_msg)
+        if isinstance(self.temperature, bool) or not isinstance(self.temperature, int | float) or self.temperature <= 0:
+            error_msg = f'The draw {self.name!r} takes a positive temperature, but got {self.temperature!r}.'
+            raise ValidationError(error_msg)
 
     @property
     def parameters(self) -> dict[str, Expression]:
@@ -58,6 +88,7 @@ class DrawSpec(BaseSpec):
 
 
 DRAWS: dict[str, DrawSpec] = {}
+RELAXED_KINDS = frozenset({'bernoulli', 'categorical'})
 
 
 def _call(
@@ -66,16 +97,23 @@ def _call(
     arguments: Sequence[object],
     distribution: str | None = None,
     keywords: tuple[str, ...] = (),
+    *,
+    temperature: float | None = None,
+    hard: bool = False,
 ) -> Expression:
     """Return the symbolic call of a draw of a kind under a name.
 
-    The name is checked first.
+    The name and the relaxation are checked first. A relaxed draw has its own label, which names its temperature.
     """
     if not isinstance(name, str) or not name.isidentifier():
         error_msg = f'A {kind} draw takes a name that is a Python identifier, such as `turn`, but got {name!r}.'
         raise ValidationError(error_msg)
+    spec = DrawSpec(kind, name, distribution, keywords, temperature=temperature, hard=hard)
+    spec._check()
     label = f'{distribution or kind}_{name}{"".join(f"_{keyword}" for keyword in keywords)}'
-    DRAWS[label] = DrawSpec(kind, name, distribution, keywords)
+    if temperature is not None:
+        label += '_relaxed' + re.sub(r'\W', '_', repr(float(temperature))) + ('_hard' if hard else '')
+    DRAWS[label] = spec
     draw_function = function(label, nargs=0, derivative_func=lambda *_, **__: SR(0))
     return draw_function(*(SR(argument) for argument in arguments))
 
@@ -144,8 +182,12 @@ def normal(name: str, mean: object = 0, deviation: object = 1) -> Expression:
     return _call('normal', name, (mean, deviation))
 
 
-def bernoulli(name: str, p: object) -> Expression:
+def bernoulli(name: str, p: object, temperature: float | None = None, hard: bool = False) -> Expression:
     """Return 1 with a probability and 0 otherwise, drawn at every step.
+
+    With a temperature `T`, the JAX backend draws the continuous relaxation of the uniform value `u` of the step,
+    `sigmoid((logit p - logit u) / T)` (Maddison et al. 2017), which tends to the exact draw as `T` tends to 0, so runs
+    have gradients in `p`. Every other backend draws exactly.
 
     Args:
         name:
@@ -154,27 +196,44 @@ def bernoulli(name: str, p: object) -> Expression:
         p:
             The probability of 1, a number or an expression of states and parameters.
 
+        temperature:
+            The positive temperature of the relaxation on JAX, or `None` for no relaxation.
+
+        hard:
+            Whether the JAX value is the exact draw with the gradient of the relaxation, a straight-through estimator.
+
     Returns:
         draw:
             The symbolic draw.
 
     Raises:
         ValidationError:
-            The name is not a Python identifier.
+            The name is not a Python identifier, the temperature is not positive, or `hard` is given without a
+            temperature.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import bernoulli
         >>> 1 - bernoulli('flip', var('q'))
         -bernoulli_flip(q) + 1
+        >>> bernoulli('flip', 0.5, temperature=0.1, hard=True)
+        bernoulli_flip_relaxed0_1_hard(0.5)
     """
-    return _call('bernoulli', name, (p,))
+    return _call('bernoulli', name, (p,), temperature=temperature, hard=hard)
 
 
-def categorical(name: str, weights: Sequence[object]) -> Expression:
+def categorical(
+    name: str,
+    weights: Sequence[object],
+    temperature: float | None = None,
+    hard: bool = False,
+) -> Expression:
     """Return the index of a category drawn at every step.
 
-    The probabilities of the categories are proportional to the weights.
+    The probabilities of the categories are proportional to the weights. The index is the number of cumulative
+    weights `c_k` below `u W`, for the uniform value `u` of the step and the total weight `W`. With a temperature `T`,
+    the JAX backend draws the continuous relaxation `sum_k sigmoid((u - c_k / W) / T)` of the same uniform value, so
+    runs have gradients in the weights. Every other backend draws exactly.
 
     Args:
         name:
@@ -184,13 +243,20 @@ def categorical(name: str, weights: Sequence[object]) -> Expression:
             The nonnegative weights of the categories `0` to `len(weights) - 1`, numbers or expressions of states and
             parameters.
 
+        temperature:
+            The positive temperature of the relaxation on JAX, or `None` for no relaxation.
+
+        hard:
+            Whether the JAX value is the exact draw with the gradient of the relaxation, a straight-through estimator.
+
     Returns:
         draw:
             The symbolic draw.
 
     Raises:
         ValidationError:
-            The name is not a Python identifier, or there are no weights.
+            The name is not a Python identifier, there are no weights, the temperature is not positive, or `hard` is
+            given without a temperature.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils import categorical
@@ -200,7 +266,7 @@ def categorical(name: str, weights: Sequence[object]) -> Expression:
     if isinstance(weights, str) or not len(weights):
         error_msg = f'The categorical draw {name!r} takes a nonempty sequence of weights, but got {weights!r}.'
         raise ValidationError(error_msg)
-    return _call('categorical', name, tuple(weights))
+    return _call('categorical', name, tuple(weights), temperature=temperature, hard=hard)
 
 
 def draw(name: str, distribution: str, **parameters: object) -> Expression:
@@ -277,7 +343,7 @@ def draws_in(expression: object) -> list[DrawSpec]:
             known = DRAWS[name]
             found.setdefault(
                 str(item),
-                DrawSpec(known.kind, known.name, known.distribution, known.keywords, tuple(item.operands()), item),
+                replace(known, arguments=tuple(item.operands()), call=item),
             )
         stack.extend(reversed(item.operands()))
     return list(found.values())

@@ -14,8 +14,8 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.spaces import ConeNeighborhood, NearestNeighborhood
-from ...errors import ValidationError
+from ...components.spaces import ConeNeighborhood, DelaunayNeighborhood, NearestNeighborhood
+from ...errors import BackendError, ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
 from ..problems import BasePrinter
@@ -941,6 +941,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
         neighbourhood = search.neighbourhood
         center = bool(neighbourhood.center)
+        if isinstance(neighbourhood, DelaunayNeighborhood):
+            error_msg = 'Delaunay neighbourhoods triangulate with SciPy, so they run on the NumPy backend, not Numba.'
+            raise BackendError(error_msg)
         if isinstance(neighbourhood, NearestNeighborhood):
             call = f'_nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
@@ -982,6 +985,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         if pair.side == 'shared':
             return f'{vector}[{start} + {read.column}]'
         member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]', 'pair': '_e_'}.get(pair.side, '_j_')
+        if pair.position is not None:
+            member = f'_j{pair.position}_'
         if pair.table is not None:
             slot = self._data_slot(f'__neighbours_{index}_{item}', pair.table)
             member = f'L[_L{2 * slot}_ + _j_]'
@@ -1061,7 +1066,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         kind = reduction.kind
         if kind in COMPONENT_KINDS:
             return lines + self._component_lines(reduction, index, assignments, codes[0])
-        acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
+        acc, weights, found, sets = f'_acc{index}_', f'_ws{index}_', f'_found{index}_', f'_sets{index}_'
         if kind == 'argmax':
             accumulate = [
                 f'if not {found} or _w_ > {weights}:',
@@ -1083,29 +1088,58 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             accumulate = [f'{acc} += _w_ * (1.0 if _a_ != 0.0 else 0.0)']
             value = acc
         else:
-            accumulate = [f'{acc} += _w_ * _a_', f'{weights} += _w_']
-            count = f'(_ip{index}_[_i_ + 1] - _ip{index}_[_i_])'
+            accumulate = [f'{acc} += _w_ * _a_', f'{weights} += _w_', f'{sets} += 1']
+            count = f'(_ip{index}_[_i_ + 1] - _ip{index}_[_i_])' if reduction.hyperedge is None else sets
             value = {
                 'sum': acc,
                 'mean': f'{acc} / {count} if {count} > 0 else 0.0',
                 'normalized-mean': f'{acc} / {weights} if {weights} != 0.0 else 0.0',
             }[kind]
         target = f'_L{2 * self._slot(reduction.entry)}_'
+        loops = self._set_loops(reduction, index) if reduction.hyperedge is not None else self._neighbour_loop(index)
+        depth = INDENT * (len(loops) // 2 + 2)
         lines += [
             f'{INDENT}for _i_ in prange({reduction.size}):',
             *(f'{INDENT * 2}{item} = {self._pair_read_code(reduction, item, index)}' for item in readers),
             f'{INDENT * 2}{acc} = 0.0',
             f'{INDENT * 2}{weights} = 0.0',
             f'{INDENT * 2}{found} = False',
-            f'{INDENT * 2}for _e_ in range(_ip{index}_[_i_], _ip{index}_[_i_ + 1]):',
-            f'{INDENT * 3}_j_ = _ix{index}_[_e_]',
-            *(f'{INDENT * 3}{item} = {self._pair_read_code(reduction, item, index)}' for item in others),
-            *(f'{INDENT * 3}{name} = {code}' for name, code in assignments),
-            f'{INDENT * 3}_a_ = {codes[0]}',
-            f'{INDENT * 3}_w_ = {codes[1]}{self._coefficient_code(reduction, index)}',
-            *(f'{INDENT * 3}{line}' for line in accumulate),
+            f'{INDENT * 2}{sets} = 0',
+            *(f'{INDENT * 2}{line}' for line in loops),
+            *(f'{depth}{item} = {self._pair_read_code(reduction, item, index)}' for item in others),
+            *(f'{depth}{name} = {code}' for name, code in assignments),
+            f'{depth}_a_ = {codes[0]}',
+            f'{depth}_w_ = {codes[1]}{self._coefficient_code(reduction, index)}',
+            *(f'{depth}{line}' for line in accumulate),
             f'{INDENT * 2}p[{target} + _i_] = {value}',
         ]
+        return lines
+
+    @staticmethod
+    def _neighbour_loop(index: int) -> list[str]:
+        """Return the lines of the loop over the neighbours `_j_` of the member `_i_`.
+
+        The neighbour is the pair `_e_`.
+        """
+        return [f'for _e_ in range(_ip{index}_[_i_], _ip{index}_[_i_ + 1]):', f'{INDENT}_j_ = _ix{index}_[_e_]']
+
+    @staticmethod
+    def _set_loops(reduction: NeighborhoodKernel, index: int) -> list[str]:
+        """Return the lines of the nested loops over the sets of neighbours of the member `_i_`.
+
+        The neighbours of a set are `_j0_`, `_j1_`, and so on, in increasing neighbour order, so every set is visited
+        once and reduced as it is visited.
+        """
+        assert reduction.hyperedge is not None
+        lines = []
+        start = f'_ip{index}_[_i_]'
+        for position in range(reduction.hyperedge - 1):
+            indent = INDENT * position
+            lines += [
+                f'{indent}for _e{position}_ in range({start}, _ip{index}_[_i_ + 1]):',
+                f'{indent}{INDENT}_j{position}_ = _ix{index}_[_e{position}_]',
+            ]
+            start = f'_e{position}_ + 1'
         return lines
 
     def _reduce_function(self, reductions: ReductionScheduleSpec, parallel: bool) -> None:

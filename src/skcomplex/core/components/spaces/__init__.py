@@ -15,6 +15,7 @@ from ._coface import CofaceNeighborhood
 from ._cone import ConeNeighborhood
 from ._continuous import ContinuousSpace
 from ._continuous_time import ContinuousTime
+from ._delaunay import DelaunayNeighborhood
 from ._discrete_time import DiscreteTime
 from ._generator import GeneratorNeighborhood
 from ._lattice import LatticeSpace
@@ -45,6 +46,7 @@ __all__: list[str] = [
     'ConeNeighborhood',
     'ContinuousSpace',
     'ContinuousTime',
+    'DelaunayNeighborhood',
     'DiscreteTime',
     'GeneratorNeighborhood',
     'LatticeNeighborhood',

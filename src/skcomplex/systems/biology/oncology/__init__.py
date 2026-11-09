@@ -10,6 +10,7 @@ from ._antiangiogenic import (
     VascularCorePeripherySystem,
     VascularizedSpheroidElement,
 )
+from ._cell_cycle_invasion import CellCycleInvasionInteraction, CellCycleInvasionSystem, CellSiteElement
 from ._cell_kinetics import (
     CellCycleChemotherapySystem,
     CellCycleElement,
@@ -104,6 +105,12 @@ from ._immunotherapy import (
     TumourImmuneSuppressionSystem,
     VaccinatedTumourElement,
 )
+from ._off_lattice_tumour import (
+    OffLatticeTumourGrowthSystem,
+    SpringCellElement,
+    SpringCellView,
+    TumourGrowthInteraction,
+)
 from ._optimal_therapy import (
     OptimalChemotherapyElement,
     OptimalChemotherapySystem,
@@ -138,7 +145,10 @@ __all__: list[str] = [
     'BoneMarrowBloodLeukaemiaSystem',
     'CellCycleChemotherapySystem',
     'CellCycleElement',
+    'CellCycleInvasionInteraction',
+    'CellCycleInvasionSystem',
     'CellQuotaProstateElement',
+    'CellSiteElement',
     'CheckpointTumourElement',
     'ChemoimmunotherapySystem',
     'ChemoimmunotherapyTumourElement',
@@ -185,6 +195,7 @@ __all__: list[str] = [
     'MultidrugResistanceElement',
     'MultidrugResistanceSystem',
     'NortonSimonSystem',
+    'OffLatticeTumourGrowthSystem',
     'OncolyticVirusDendriticElement',
     'OncolyticVirusDendriticSystem',
     'OncolyticVirusElement',
@@ -206,6 +217,8 @@ __all__: list[str] = [
     'SirnaTGFBetaSystem',
     'SirnaTgfBetaElement',
     'SkipperLogKillSystem',
+    'SpringCellElement',
+    'SpringCellView',
     'SproutElement',
     'StemCellDifferentiationElement',
     'StemCellDifferentiationSystem',
@@ -218,6 +231,7 @@ __all__: list[str] = [
     'TissueElement',
     'TumourAngiogenesisSystem',
     'TumourCellElement',
+    'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
     'TumourImmuneSuppressionSystem',
     'VaccinatedTumourElement',

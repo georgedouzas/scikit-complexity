@@ -266,8 +266,8 @@ class System(BaseSystem):
 
     The tags of a system come from its parts: its own time, or else the times its parts agree on, every space of its
     parts and nested systems, or `'none'` without any, the union of the domains, law kinds, and structures of its
-    parts, and a stochastic randomness when any part is stochastic. `prepare` rejects an element bound to a role that
-    does not accept the domains of the states the role reads.
+    parts, and a stochastic randomness when any part is stochastic, reparameterized when every stochastic part is.
+    `prepare` rejects an element bound to a role that does not accept the domains of the states the role reads.
 
     Attributes:
         system_:
@@ -579,6 +579,7 @@ class System(BaseSystem):
         every = [*parts.values(), *nested]
         laws = [item.laws for item in every]
         randomness = {item.randomness for item in every}
+        stochastic = [item for item in every if item.randomness == 'stochastic']
         return Tags(
             time=time | nested_time,
             domains=frozenset().union(*(item.domains for item in every)),
@@ -588,4 +589,5 @@ class System(BaseSystem):
                 'stochastic' if 'stochastic' in randomness else None if None in randomness else 'deterministic'
             ),
             structure=frozenset().union(*(item.structure for item in every)),
+            reparameterized=bool(stochastic) and all(item.reparameterized for item in stochastic),
         )

@@ -9,7 +9,13 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import (
+    ContinuousSpace,
+    DelaunayNeighborhood,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
@@ -322,6 +328,25 @@ def test_continuous_neighbours_within_radius():
     )
     snapshot = simulate(system, until=1).agents('drifters', 1)
     assert snapshot.values['near'].tolist() == [1.0, 1.0, 0.0]
+
+
+class TriangulatedElement(DrifterElement):
+    """Agent in a continuous space that counts its Delaunay neighbours."""
+
+    def count(self, agent, system):
+        """Count the agents joined to the agent by an edge of the Delaunay triangulation."""
+        agent.near = len(agent.neighbors(over=DelaunayNeighborhood()))
+
+
+def test_continuous_neighbours_of_a_delaunay_triangulation():
+    """Test that the centre of a square of agents has four Delaunay neighbours and every corner three."""
+    corners = [(2.0, 2.0), (6.0, 2.0), (6.0, 6.0), (2.0, 6.0), (4.0, 4.0)]
+    system = System(
+        elements=[GroupElement('cells', element=TriangulatedElement, size=5, location=corners)],
+        space=ContinuousSpace(extent=(10.0, 10.0)),
+    )
+    snapshot = simulate(system, until=1).agents('cells', 1)
+    assert snapshot.values['near'].tolist() == [3.0, 3.0, 3.0, 3.0, 4.0]
 
 
 def test_agent_runs_are_reproducible():
@@ -1040,3 +1065,54 @@ def test_network_neighbours_of_one_group_read_the_member_sets_of_the_nodes_aroun
     places = snapshot.locations.tolist()
     assert dict(zip(places, snapshot.values['around'].tolist(), strict=True)) == {0: 1.0, 1: 3.0, 2: 3.0, 3: 1.0}
     assert dict(zip(places, snapshot.values['every'].tolist(), strict=True)) == {0: 2.0, 1: 5.0, 2: 5.0, 3: 2.0}
+
+
+class CoinElement(Element):
+    """Agent that draws a named uniform value and the value its generator would give."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        drawn: Annotated[float, StateSpec()] = 0.0,
+        expected: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.drawn = drawn
+        self.expected = expected
+
+    def _get_laws(self, s):
+        """Return the drawing rule."""
+        return [RuleLaw(self.toss)]
+
+    def toss(self, agent, system):
+        """Draw a named uniform value and the next value of a copy of the generator."""
+        copy = np.random.Generator(type(system.rng.bit_generator)())
+        copy.bit_generator.state = system.rng.bit_generator.state
+        agent.expected = 2 + 3 * copy.random()
+        agent.drawn = system.draw('toss', 'uniform', low=2, high=5)
+
+
+def test_rule_draw_samples_from_the_generator_of_the_system():
+    """Test that the named draw of a rule samples from the generator of the system and is recorded."""
+    group = GroupElement('coins', element=CoinElement, size=5)
+    system = System(elements=[group], time=DiscreteTime())
+    trajectory = simulate(system, until=3, random_state=0, record_draws=True)
+    agents = trajectory.agents('coins', 3).values
+    np.testing.assert_allclose(agents['drawn'], agents['expected'])
+    record = trajectory.draws.draws['coins.toss']
+    assert record.values.size == 15
+    assert np.all(record.arguments['low'] == 2)
+
+
+def test_rule_draw_rejects_an_unknown_distribution():
+    """Test that a named draw of an unknown distribution raises a named error."""
+
+    class OddElement(CoinElement):
+        def toss(self, agent, system):
+            system.draw('toss', 'wobbly', a=1)
+
+    system = System(elements=[GroupElement('coins', element=OddElement, size=2)], time=DiscreteTime())
+    with pytest.raises(ValidationError, match="distribution 'wobbly'"):
+        simulate(system, until=1, random_state=0)

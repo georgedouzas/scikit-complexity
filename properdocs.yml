@@ -57,7 +57,6 @@ nav:
       - Analyse: overview/user_guide/analyse.md
       - Run experiments: overview/user_guide/run_experiments.md
       - Extend the library: overview/user_guide/extend_the_library.md
-    - Migrating from 0.6 to 0.7: overview/migration.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
   - Parts:

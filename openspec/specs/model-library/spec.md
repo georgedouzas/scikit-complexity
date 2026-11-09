@@ -3023,3 +3023,90 @@ period that switches the starvation on and off. The default regime SHALL keep th
 #### Scenario: Starvation as selection
 - **WHEN** `RobbyGASystem` runs in the regime `'circumstance'` with a starvation of 0.3 and of 0
 - **THEN** the mean score rises near zero with starvation and stays near the score of random strategies without it
+
+### Requirement: Many-body alignment swarm
+The library SHALL provide `ManyBodyAlignmentSwarmSystem` in `biology/collective_behaviour` (Gutleb 2026, arXiv
+2611.08314, Eq. 2): self-propelled particles in two or three dimensions whose acceleration is the self-propulsion
+`(alpha - beta |v|^2) v`, a Morse force, Cucker-Smale alignment, a 3-body flanking term weighted by `kappa_v`, and a
+4-body encirclement term weighted by `kappa_4`, all under the smooth cutoff `(1 - r^2 / R^2)^2`.
+
+#### Scenario: Pairwise collective
+- **WHEN** the system runs with `kappa_v = 0` and `kappa_4 = 0`
+- **THEN** its drift equals the sum of its 1-body and 2-body terms within 1e-12
+
+#### Scenario: Body orders against the paper
+- **WHEN** the drift of a fixed configuration of 10 particles is evaluated with `kappa_v = 2` and `kappa_4 = 4`
+- **THEN** each body-order term equals a direct evaluation of the matching term of Eq. 2 within 1e-12
+
+#### Scenario: Bounded motion
+- **WHEN** the system runs with its defaults, 40 particles in two dimensions, for 200 time units
+- **THEN** every position and velocity stays finite and every speed stays within 20% of `sqrt(alpha / beta)`
+
+#### Scenario: Recorded in the inventory
+- **WHEN** the inventory check runs
+- **THEN** the system registers as `many_body_alignment_swarm` under `biology.collective_behaviour` with an
+  implemented entry and a gallery example
+
+### Requirement: Stochastic outcome of the Deffuant encounters
+`DeffuantSystem` SHALL take `steepness`. With `None` it SHALL keep the deterministic threshold. With a number `rho` an
+encounter SHALL move the pair with the probability `1 / (1 + exp(-rho * (confidence - |x_u - x_v|)))`, after Lenti et
+al. (2023, arXiv 2310.02766, Eq. 1), drawn by a named draw that runs record.
+
+#### Scenario: Large steepness
+- **WHEN** the system runs with steepness 1e4 and with `None` from the same seed for 50 steps
+- **THEN** the final opinions agree within 1e-6
+
+#### Scenario: Recorded outcomes
+- **WHEN** the system runs with steepness 20 and `record_draws=True`
+- **THEN** the trajectory holds one Bernoulli outcome per encounter, with its probability
+
+### Requirement: Off-lattice tumour growth
+The library SHALL provide `OffLatticeTumourGrowthSystem` in `biology/oncology`, the biphasic cell-based model of Wang
+et al. (2024, arXiv 2409.19675, section 2.1.1): cell centres in a square joined by springs along `DelaunayNeighborhood`,
+cancer cells that divide with probability `p0 (1 - d / dmax)` once older than `g_age`, which switches at time `tau`,
+and invade healthy neighbours with probability `p_psc`, with the tumour area as an observable.
+
+#### Scenario: Biphasic growth
+- **WHEN** the system runs 30 days with `g_age` 20 hours before `tau = 10` days and 5 hours after
+- **THEN** the tumour area grows faster per day after day 10 than before it
+
+#### Scenario: Springs keep cells apart
+- **WHEN** the system runs 10 days with the default parameters
+- **THEN** no two cell centres are closer than half the natural spring length
+
+### Requirement: Cell cycle and invasion
+The library SHALL provide `CellCycleInvasionSystem` in `biology/oncology`, the cell invasion model of Carr et al. (2021)
+as 2409.19675 (section 2.1.2) uses it: cells on a triangular lattice in the phases G1, eS, and S/G2/M, with transition
+rates `Rr`, `Ry`, and `Rg`, moves to a vacant neighbour at rates `Mr`, `My`, and `Mg`, and division into two G1 cells
+next to a vacancy, run by Gillespie. It SHALL declare the cells per phase as observables.
+
+#### Scenario: Scratch assay
+- **WHEN** the system runs 48 hours from a monolayer with a vacant scratch in its middle
+- **THEN** the number of cells inside the scratch grows
+
+#### Scenario: Full lattice
+- **WHEN** the system runs from a full lattice with all move rates 0
+- **THEN** the number of cells stays constant and no cell leaves G1 before a vacancy appears next to it
+
+### Requirement: Differentiable COVID agents
+The library SHALL provide `DifferentiableCovidAbmSystem` in `biology/epidemiology`, after Quera-Bofarull et al. (2023,
+arXiv 2305.15340, Eq. 6): agents with discrete states in households, schools, and companies, infected by relaxed
+Bernoulli draws of probability `1 - exp(-psi * sum_L beta_L * dt * I_L)`, so it holds the tag `differentiable`, with the
+daily infections as an observable.
+
+#### Scenario: Gradient through the run
+- **WHEN** the gradient of the total infections over 30 days with respect to the three betas, at fixed uniform values
+  of the draws, is compared with central finite differences of step 1e-6
+- **THEN** they agree within 1e-5 relative error
+
+#### Scenario: No transmission
+- **WHEN** the system runs with every beta set to 0
+- **THEN** the daily infections are 0 after the initial cases recover
+
+### Requirement: Calibration probes are recorded in the system inventory
+The inventory SHALL record `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` as
+implemented with their sources and primitives, and the gallery SHALL hold their examples, each showing a calibration.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for the three systems

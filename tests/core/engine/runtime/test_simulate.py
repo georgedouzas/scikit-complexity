@@ -5,11 +5,13 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 import pytest
+from scipy import stats
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import JumpInteraction, RateInteraction
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import LatticeSpace, StaticTime
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import normal
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -216,3 +218,72 @@ def test_simulate_leaves_the_solver_of_nested_systems_to_the_compiled_form(monke
     decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -s.target.x)
     nested = System(systems=[System('left', elements=[TankElement('tank')], interactions=[decay])])
     assert simulate(nested, until=1.0).values('left/tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)
+
+
+class KickedElement(Element):
+    """Element whose state takes a normal kick of a deviation parameter at every step."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        s: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.s = s
+
+    def _get_laws(self, s):
+        """Return the kicked update."""
+        return [UpdateLaw(s.x, s.x + normal('kick', 0, s.s))]
+
+
+def _kicked(deviation: float) -> System:
+    """Return a system of one kicked element with a deviation."""
+    return System(elements=[KickedElement('walker', s=deviation)], time=DiscreteTime())
+
+
+def test_simulate_records_the_draws_of_a_law():
+    """Test that a noisy map run with `record_draws=True` holds 100 kicks, each with its deviation."""
+    trajectory = simulate(_kicked(0.5), until=100, random_state=0, record_draws=True)
+    record = trajectory.draws.draws['walker.kick']
+    assert record.values.size == 100
+    assert record.steps.tolist() == list(range(1, 101))
+    assert np.all(record.arguments['deviation'] == 0.5)
+    np.testing.assert_allclose(np.cumsum(record.values), trajectory.values('walker.x')[1:])
+    assert trajectory.log_probability == pytest.approx(stats.norm.logpdf(record.values, 0, 0.5).sum())
+
+
+def test_simulate_without_recording_holds_no_draws():
+    """Test that a run that neither records nor replays holds no draws."""
+    trajectory = simulate(_kicked(0.5), until=3, random_state=0)
+    assert trajectory.draws is None
+    assert trajectory.log_probability is None
+
+
+def test_replay_forces_the_recorded_draws_and_scores_them():
+    """Test that a replay keeps the recorded states and scores the draws under its own parameters."""
+    recorded = simulate(_kicked(0.5), until=50, random_state=0, record_draws=True)
+    same = simulate(_kicked(0.5), until=50, random_state=0, replay=recorded)
+    other = simulate(_kicked(1.0), until=50, random_state=7, replay=recorded)
+    values = recorded.draws.draws['walker.kick'].values
+    np.testing.assert_allclose(same.values('walker.x'), recorded.values('walker.x'))
+    np.testing.assert_allclose(other.values('walker.x'), recorded.values('walker.x'))
+    assert same.log_probability == pytest.approx(recorded.log_probability)
+    assert other.log_probability == pytest.approx(stats.norm.logpdf(values, 0, 1.0).sum())
+
+
+def test_replay_rejects_a_system_whose_draws_have_other_names():
+    """Test that a replay names the draws the system makes and the trajectory lacks."""
+    recorded = simulate(_kicked(0.5), until=5, random_state=0, record_draws=True)
+    system = System(elements=[KickedElement('hopper')], time=DiscreteTime())
+    with pytest.raises(ValidationError, match=r"draws 'hopper\.kick', which the replayed trajectory lacks"):
+        simulate(system, until=5, random_state=0, replay=recorded)
+
+
+def test_replay_needs_a_trajectory_with_draws():
+    """Test that replaying a trajectory recorded without its draws raises a named error."""
+    recorded = simulate(_kicked(0.5), until=5, random_state=0)
+    with pytest.raises(ValidationError, match='holds no draws'):
+        simulate(_kicked(0.5), until=5, random_state=0, replay=recorded)

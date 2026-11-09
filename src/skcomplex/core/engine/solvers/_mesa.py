@@ -17,19 +17,38 @@ import shapely
 from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
+from scipy import stats
 from shapely import Point, Polygon, STRtree
 
 from ...components.elements import BaseElement, GroupElement
 from ...components.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
-from ...components.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ...components.spaces import (
+    BaseSpace,
+    ContinuousSpace,
+    DelaunayNeighborhood,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
 from ...components.specs import CompiledAgentsSpec
 from ...components.system import System
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
-from ...specs import DEFAULT_PHASE, AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
+from ...specs import (
+    DEFAULT_PHASE,
+    AgentSnapshotSpec,
+    AgentStateSpec,
+    DrawSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    SupportSpec,
+)
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
+from ..problems._draw_kernel import DrawKernel
+from ..problems._draw_recorder import KEYWORDS
+from ..problems._metric_search import MetricSearch
 from ..types import MesaSpace
 from ._external import ExternalSolver
 
@@ -151,6 +170,54 @@ class SystemView:
     def rng(self) -> np.random.Generator:
         """Random number generator of the system, seeded by the simulation's random state."""
         return self._stepper.system_.rng
+
+    def draw(self, name: str, distribution: str, **arguments: npt.ArrayLike) -> float:
+        """Return a value drawn by name from a distribution, which runs record and replay.
+
+        The value comes from the generator of the system. A run that records keeps it by the path of the owner and
+        the name, such as `meetings.outcome`, with the arguments of the distribution, and a run that replays returns
+        the recorded value instead and adds its log-probability.
+
+        Args:
+            name:
+                The name of the draw, unique among the draws of the owner.
+
+            distribution:
+                `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`, `'bernoulli'` with `p`,
+                `'categorical'` with `weights`, or the name of a `scipy.stats` distribution with its keywords.
+
+            **arguments:
+                The arguments of the distribution by keyword.
+
+        Returns:
+            value:
+                The drawn value.
+
+        Raises:
+            ValidationError:
+                The distribution is unknown or an argument is missing.
+        """
+        if distribution == 'categorical':
+            draw, values = DrawSpec('categorical', name), list(np.ravel(arguments.get('weights', [])))
+        elif distribution in KEYWORDS:
+            missing = [keyword for keyword in KEYWORDS[distribution] if keyword not in arguments]
+            if missing:
+                error_msg = f'A {distribution} draw takes the arguments {", ".join(KEYWORDS[distribution])}.'
+                raise ValidationError(error_msg)
+            draw, values = DrawSpec(distribution, name), [arguments[keyword] for keyword in KEYWORDS[distribution]]
+        elif isinstance(getattr(stats, distribution, None), stats.rv_continuous | stats.rv_discrete):
+            draw, values = DrawSpec('draw', name, distribution, tuple(arguments)), list(arguments.values())
+        else:
+            error_msg = (
+                f'The draw {name!r} takes the distribution {distribution!r}, which is neither uniform, normal, '
+                'bernoulli, categorical, nor a scipy.stats distribution.'
+            )
+            raise ValidationError(error_msg)
+        sampled = DrawKernel._sample_draw(draw, values, 1, self.rng)
+        recorder = self._stepper.draw_recorder_
+        if recorder is not None:
+            sampled = recorder.draw(f'{self._owner}.{name}' if self._owner else name, draw, values, sampled)
+        return float(sampled[0])
 
     @property
     def time(self) -> float:
@@ -711,10 +778,15 @@ class AgentView:
         radius: float | None = None,
         layer: str | None = None,
         group: str | None = None,
+        over: DelaunayNeighborhood | None = None,
     ) -> list['AgentView']:
         """Return the agents around the agent.
 
-        They are the agents in the cells or nodes around it, within a radius, or around it in a layer. Agents of a
+        They are the agents in the cells or nodes around it, within a radius, around it in a layer, or joined to it by
+        an edge of the Delaunay triangulation of the positions of its group, or of `group`, in a continuous space. The
+        triangulation is that of the positions when the group is first read in a step, or after agents of the group are
+        created or removed, so the agents of a step read the same one, and in a periodic box it covers the periodic
+        images. Agents of a
         variable group placed on the nodes of a network make a set of members per node that grows and shrinks during a
         run, such as the balls of an urn on every node, and an agent on a node reads the sets of the neighbouring nodes
         as the neighbours of one group.
@@ -730,11 +802,23 @@ class AgentView:
             group:
                 The path of a group whose agents alone are returned, or `None` for every group.
 
+            over:
+                A Delaunay neighbourhood of a continuous space, or `None`.
+
         Returns:
             agents:
                 The neighbouring agents.
+
+        Raises:
+            SpaceError:
+                A Delaunay neighbourhood is read outside a continuous space.
         """
         stepper = self._stepper
+        if over is not None:
+            triangulated = stepper._resolve_group(group, self.group) if group is not None else self.group
+            return [
+                MesaSolver._view_of(agent) for agent in stepper._delaunay_neighbors(self._agent, triangulated, over)
+            ]
         if layer is not None:
             graph = getattr(stepper.problem_.agent_space, 'graphs_', {})[layer]
             cells = stepper._cells()
@@ -1038,6 +1122,7 @@ class MesaSolver(ExternalSolver):
         self.buffer_: dict[tuple[mesa.Agent, str], object] | None = None
         self.round_ = 0
         self.visit_ = (0, 0)
+        self.triangulation_: tuple[object, dict[int, list[mesa.Agent]]] = (None, {})
         self.observed_: dict[str, deque[object]] = {}
         self._compositions: dict[tuple[str, str], dict[Hashable, int]] = {}
         self._triangulations: dict[Polygon, tuple[Array, Array]] = {}
@@ -1450,6 +1535,49 @@ class MesaSolver(ExternalSolver):
         if group not in self._specs:
             return None
         return [self._view_of(agent) for agent in self._group_agents(group)]
+
+    def _delaunay_neighbors(self, agent: mesa.Agent, group: str, over: DelaunayNeighborhood) -> list[mesa.Agent]:
+        """Return the agents of a group joined to an agent by an edge of the Delaunay triangulation of their positions.
+
+        The triangulation is kept for the step while the number of agents of the group stays the same, so it is
+        computed again in a step only after agents are created or removed, and an agent removed in the step is left out.
+
+        Args:
+            agent:
+                The Mesa agent.
+
+            group:
+                The path of the group.
+
+            over:
+                The Delaunay neighbourhood.
+
+        Returns:
+            agents:
+                The neighbouring Mesa agents, with the agent first for a neighbourhood with its centre.
+
+        Raises:
+            SpaceError:
+                The agent space is not continuous.
+        """
+        space = self.space_
+        if not isinstance(space, MesaContinuousSpace):
+            error_msg = 'Delaunay neighbours triangulate positions, so they need a continuous space.'
+            raise SpaceError(error_msg)
+        members = self._group_agents(group)
+        key = (float(self.system_.time), self.visit_, group, len(members))
+        if self.triangulation_[0] != key:
+            positions = np.asarray([MesaSolver._location_of(item) for item in members], dtype=float)
+            periods = tuple(float(side) for side in space.size) if space.torus else None
+            readers, others = MetricSearch._delaunay(positions.reshape(len(members), -1), periods)
+            table: dict[int, list[mesa.Agent]] = {item.unique_id: [] for item in members}
+            for reader, other in zip(readers.tolist(), others.tolist(), strict=True):
+                table[members[reader].unique_id].append(members[other])
+            self.triangulation_ = (key, table)
+        found = [
+            item for item in self.triangulation_[1].get(agent.unique_id, []) if not getattr(item, 'removed_', False)
+        ]
+        return [agent, *found] if over.center else found
 
     def _group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.

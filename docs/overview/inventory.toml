@@ -40,6 +40,8 @@ groups = { description = "Groups of identical members with vectorised laws" }
 interactions = { description = "Interactions between components through roles" }
 reductions = { description = "Reductions over groups, such as totals, means, and counts" }
 member-offsets = { description = "Reads and jumps at offsets of group members" }
+relaxed-draws = { description = "Discrete draws with a continuous relaxation, so runs on JAX carry gradients through them", change = "add-bayesian-calibration" }
+delaunay-neighborhoods = { description = "Neighbours joined by the edges of the Delaunay triangulation of positions in continuous spaces", change = "add-bayesian-calibration" }
 observables = { description = "Declared observables of systems" }
 co-simulation = { description = "Coupled modules with their own solvers" }
 lattices = { description = "Lattice spaces with neighbourhoods" }
@@ -93,6 +95,7 @@ hyperbolic-networks = { description = "Hyperbolic and popularity-similarity netw
 member-sets = { description = "Variable agent groups placed on network nodes, read by neighbours as sets per node that grow", change = "extend-network-dynamics" }
 hyperedge-requests = { description = "Hyperedges of every size up to a rank, added and removed by topology requests during a run", change = "extend-network-dynamics" }
 path-reductions = { description = "Shortest-path quantities, such as the betweenness, recomputed on the current topology", change = "extend-network-dynamics" }
+neighbour-hyperedges = { description = "Hyperedges that every member forms with sets of its current neighbours in a continuous space, found again at every evaluation", change = "add-many-body-neighbour-roles" }
 
 [vocabulary.components]
 element = "One entity with states, parameters, and intrinsic laws"
@@ -399,6 +402,7 @@ consumer_resource = { title = "Consumer-resource models of substitutable and ess
 penaeid_shrimp = { title = "Penaeid shrimp growth", sources = ["Ba 4.11.7"], primitives = ["stocks-and-flows", "time-inputs", "numeric-functions"], system = { components = ["element"], bindings = ["members"] }, priority = "core", status = "implemented" }
 
 [biology.epidemiology]
+differentiable_covid_abm = { title = "Differentiable COVID agents in places", sources = ["2305.15340 3"], primitives = ["relaxed-draws", "draws", "groups", "reductions"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
 sir = { title = "SIR", sources = ["Kermack and McKendrick 1927", "Rm 1.5.2", "Bt 6.2.1", "2312.16815 4.1", "2606.00192 E"], primitives = ["rates", "interactions"], system = { components = ["element"], bindings = ["members"] }, priority = "example", status = "implemented" }
 sis = { title = "SIS", sources = ["Ar 11"], primitives = ["rates", "interactions"], system = { components = ["element"], bindings = ["members"] }, priority = "example", status = "implemented" }
 sirs = { title = "SIRS", sources = ["Ar 11"], primitives = ["rates", "interactions"], system = { components = ["element"], bindings = ["members"] }, priority = "example", status = "implemented" }
@@ -521,8 +525,11 @@ boids3d = { title = "Boids in three dimensions", sources = ["TC 10"], primitives
 couzin_leadership = { title = "Couzin shoal with repulsion, alignment, and informed leaders", sources = ["Mi 4.2"], primitives = ["continuous-spaces", "agents", "agent-spaces", "phases"], system = { components = ["group"], bindings = [] }, priority = "core", status = "implemented" }
 ant_colony_optimization = { title = "Ant colony optimization on a road network", sources = ["Ar 15.2", "Ar 15.3"], primitives = ["agents", "draws", "networks", "interactions"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
 shepherding = { title = "Strömbom shepherding of a flock", sources = ["1912.07796 IV", "Strömbom et al. 2014"], primitives = ["agents", "agent-spaces", "continuous-spaces", "switches", "interactions"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
+many_body_alignment_swarm = { title = "Swarm with many-body flanking and encirclement alignment", sources = ["2611.08314 3.1"], primitives = ["rates", "groups", "interactions", "reductions", "continuous-spaces", "neighbour-hyperedges"], system = { components = ["group"], bindings = ["members", "neighbors", "hyperedges"] }, priority = "core", status = "implemented" }
 
 [biology.oncology]
+cell_cycle_invasion = { title = "Cell cycle and invasion on a triangular lattice", sources = ["2409.19675 2.1.2"], primitives = ["jumps", "member-offsets", "groups", "interactions", "observables"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
+off_lattice_tumour_growth = { title = "Biphasic off-lattice tumour growth", sources = ["2409.19675 2.1.1"], primitives = ["delaunay-neighborhoods", "continuous-spaces", "agents", "draws"], system = { components = ["variable-group"], bindings = ["neighbors"] }, priority = "core", status = "implemented" }
 tumour_angiogenesis = { title = "Multiscale tumour angiogenesis", sources = ["Cm 8"], primitives = ["rates", "groups", "co-simulation", "lattices", "fields", "agents", "agent-spaces"], system = { components = ["group", "site-group", "system", "variable-group"], bindings = [] }, priority = "example", status = "implemented" }
 immune_competition = { title = "Immune competition", sources = ["Be 5.5"], primitives = ["distribution-states", "groups", "interactions"], system = { components = ["group", "site-group"], bindings = ["members"] }, priority = "core", status = "implemented" }
 exponential_linear_growth = { title = "Exponential-linear tumour growth", sources = ["Pa 2.3.3.1"], primitives = ["rates", "switches", "interactions"], system = { components = ["element"], bindings = ["members"] }, priority = "example", status = "implemented" }
@@ -699,7 +706,7 @@ majority_rule = { title = "Majority rule automaton", sources = ["Ar 4.3"], primi
 sznajd = { title = "Sznajd", sources = ["0710.3256 §III"], primitives = ["networks", "agents", "agent-spaces"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
 galam_majority = { title = "Galam majority", sources = ["0710.3256 §III"], primitives = ["interactions", "agents"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
 social_impact = { title = "Social impact theory", sources = ["0710.3256 §III"], primitives = ["interactions", "agents", "agent-spaces"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
-deffuant = { title = "Deffuant bounded confidence", sources = ["0710.3256 §III.6", "Gr 4.3.4"], primitives = ["interactions", "agents"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
+deffuant = { title = "Deffuant bounded confidence", sources = ["0710.3256 §III.6", "Gr 4.3.4", "2310.02766 2"], primitives = ["interactions", "agents"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
 naming_game = { title = "Naming game", sources = ["0710.3256 §V"], primitives = ["interactions", "agents"], system = { components = ["group", "variable-group"], bindings = ["members"] }, priority = "example", status = "implemented" }
 influentials = { title = "Belief diffusion with influentials", sources = ["Cy 4"], primitives = ["agents", "agent-spaces"], system = { components = ["group", "variable-group"], bindings = [] }, priority = "example", status = "implemented" }
 cognitive_consistency = { title = "Cognitive consistency agents", sources = ["Cm 2"], primitives = ["interactions", "networks", "agents", "agent-spaces"], system = { components = ["group", "variable-group"], bindings = ["members", "neighbors"] }, priority = "core", status = "implemented" }

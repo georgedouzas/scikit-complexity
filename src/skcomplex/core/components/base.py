@@ -45,7 +45,9 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     A part whose run draws random numbers that its law kinds do not show, such as an agent rule that reads
     `system.rng` or a law that holds a draw such as `normal('noise')`, declares it with the class attribute `draws`, and
     a part whose arguments decide it, such as a random order of its agents, returns it from the private hook
-    `_draws()`. Its randomness is then stochastic.
+    `_draws()`. Its randomness is then stochastic. A part whose draws are all uniform, normal, or relaxed Bernoulli or
+    categorical draws of its laws declares it with the class attribute `reparameterized`, so its runs on JAX are
+    differentiable.
 
     Examples:
         >>> from skcomplex.core.components.base import BasePart
@@ -69,6 +71,9 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     draws: ClassVar[bool] = False
     """Whether the run of the part draws random numbers that the kinds of its laws do not show."""
+
+    reparameterized: ClassVar[bool] = False
+    """Whether every draw of the part is a uniform, normal, or relaxed draw of its laws, which JAX differentiates."""
 
     def __init__(self, label: str) -> None:
         """Store the label of the part.
@@ -204,7 +209,8 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             'stochastic'
         """
         tags = self._get_tags()
-        return replace(tags, randomness='stochastic') if self._draws() else tags
+        tags = replace(tags, randomness='stochastic') if self._draws() else tags
+        return replace(tags, reparameterized=True) if self.reparameterized else tags
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the variables the part declares from data, by name, none by default."""
