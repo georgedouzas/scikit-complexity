@@ -13,7 +13,6 @@ from ...components.laws import (
     CascadeLaw,
     CrossingLaw,
     DriveLaw,
-    EncounterLaw,
     ExtremalLaw,
     FluxLaw,
     LinearProgramLaw,
@@ -23,12 +22,11 @@ from ...components.laws import (
     TransferLaw,
 )
 
-_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
+_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
 """Laws that leave the form of a system as the other laws decide it."""
 
 _KERNEL_FREE_LAWS = (
     TransferLaw,
-    EncounterLaw,
     BilinearLaw,
     LocalRuleLaw,
     DriveLaw,

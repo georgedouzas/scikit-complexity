@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement, NonnegativeElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
+from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
@@ -32,7 +32,7 @@ def _exchange_table(size, share=0.5):
 
 
 class ExchangeInteraction(Interaction):
-    """Conservative encounters of a population with itself, with a transition table."""
+    """Conservative encounters of a population with itself, as a conserved bilinear law with an outcome table."""
 
     def __init__(
         self,
@@ -49,14 +49,6 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [EncounterLaw(s.population.x, s.population.x, s.eta, self.table)]
-
-
-class ConservedExchangeInteraction(ExchangeInteraction):
-    """Conservative encounters of a population with itself, as a conserved bilinear law."""
-
-    def _get_laws(self, s):
-        """Return the conserved bilinear law."""
         return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, self.table, conserved=True)]
 
 
@@ -141,33 +133,6 @@ def test_encounter_rates_follow_gain_and_loss():
     assert problem.encounters[0].kind == 'transition'
 
 
-def _conserved_system():
-    """Return the system of conservative encounters written as a conserved bilinear law."""
-    return System(
-        elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
-        interactions=[ConservedExchangeInteraction('exchange', population='wealth', table=_exchange_table(CLASSES))],
-        space=LatticeSpace(CLASSES, boundary='fixed'),
-        time=ContinuousTime(),
-    )
-
-
-@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()])
-def test_conserved_bilinear_law_matches_the_encounter(backend):
-    """Test that a conserved bilinear law has the drift and the kind of the encounter it replaces."""
-    encounter = PassCompiler(backend=backend).prepare(_wealth_system()).run().problem_
-    conserved = PassCompiler(backend=backend).prepare(_conserved_system()).run().problem_
-    x, p = encounter.initial_state, encounter.initial_parameters
-    np.testing.assert_allclose(conserved.drift(0.0, x, p), encounter.drift(0.0, x, p), rtol=1e-12, atol=1e-15)
-    assert conserved.encounters[0].kind == 'transition'
-
-
-def test_conserved_bilinear_law_keeps_the_density():
-    """Test that a conserved bilinear law keeps the total density within 1e-10 over 100 time units."""
-    trajectory = simulate(_conserved_system(), until=100, dt=1.0)
-    totals = np.asarray(trajectory.values('wealth.x')).sum(axis=1)
-    np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
-
-
 def test_conserved_bilinear_law_without_a_second_density_redistributes_linearly():
     """Test that a linear redistribution at rate one empties the first class as exp(-t) and keeps the total."""
     system = System(
@@ -223,7 +188,7 @@ def test_parameter_in_transition_table_is_evaluated():
             for candidate in range(CLASSES):
                 table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
                 table[candidate, :, candidate] += 1 - s.q
-            return [EncounterLaw(s.population.x, s.population.x, 1.0, table)]
+            return [BilinearLaw(s.population.x, s.population.x, s.population.x, 1.0, table, conserved=True)]
 
     system = System(
         elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],

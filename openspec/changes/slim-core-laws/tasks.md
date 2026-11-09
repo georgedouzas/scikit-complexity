@@ -59,7 +59,7 @@ when other agents run tests at the same time.
   systems with the trajectories they had
 - [x] 3.4 Update `kinetic_systems_of_active_particles.md` and `kinds_of_dynamics.md`, and verify their markdown
   doctests pass
-- [ ] 3.5 Remove `KineticLaw` from `engine/types.py`, `_KINETIC_LAWS` and the `EncounterLaw` branches from the compile
+- [x] 3.5 Remove `KineticLaw` from `engine/types.py`, `_KINETIC_LAWS` and the `EncounterLaw` branches from the compile
   passes and `compile/_laws.py`, and `EncounterLaw` from the supports of `KineticSolver`, `RK4Solver`,
   `ScipyODESolver`, `StrangSplittingSolver`, and the numpy and numba backends, delete `laws/_encounter.py`, its
   re-export, and `tests/core/components/laws/test_encounter.py`, and verify `grep -rn EncounterLaw src tests docs`

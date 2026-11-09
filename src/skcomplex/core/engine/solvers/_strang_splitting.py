@@ -12,7 +12,7 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import BilinearLaw, EncounterLaw, FluxLaw, RateLaw
+from ...components.laws import BilinearLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
@@ -85,7 +85,7 @@ class StrangSplittingSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw, EncounterLaw, BilinearLaw},
+            laws={FluxLaw, RateLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

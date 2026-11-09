@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, BilinearLaw, EncounterLaw
+from ....components.laws import BaseLaw, BilinearLaw
 from ....components.laws.utils import COORDINATE_PREFIX, coordinate
 from ....components.spaces import PhaseSpace
 from ....errors import ValidationError
@@ -24,11 +24,9 @@ from ...backends import BaseBackend
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._reference_spec import ReferenceSpec
-from ...types import KineticLaw, ReadKind
+from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
-
-_KINETIC_LAWS = (EncounterLaw, BilinearLaw)
 
 
 class CompileEncountersPass(BasePass):
@@ -52,7 +50,7 @@ class CompileEncountersPass(BasePass):
         declarations = Compilation._required(compilation.layout, 'layout')
         compilation.encounters = self._compiled_encounters(specs, declarations, compilation.backend)
         compilation.drawn = [
-            (spec, [law for law in laws if not isinstance(law, _KINETIC_LAWS)]) for spec, laws in specs
+            (spec, [law for law in laws if not isinstance(law, BilinearLaw)]) for spec, laws in specs
         ]
 
     @staticmethod
@@ -62,7 +60,7 @@ class CompileEncountersPass(BasePass):
         backend: BaseBackend | None,
     ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered for their members."""
-        if not any(isinstance(law, _KINETIC_LAWS) for _, laws in specs for law in laws):
+        if not any(isinstance(law, BilinearLaw) for _, laws in specs for law in laws):
             return ()
         members = declarations.members
         fused = BaseCompiler._resolve_backend(backend, members)._get_name() == 'numba'
@@ -142,7 +140,7 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _checked_rate(
-        law: KineticLaw,
+        law: BilinearLaw,
         sizes: tuple[int, int, int],
         owner: str,
         space: PhaseSpace | None = None,
@@ -161,12 +159,12 @@ class CompileEncountersPass(BasePass):
         return rate
 
     @staticmethod
-    def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
+    def _outcome_table(law: BilinearLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
         """Return the outcome table of a law.
 
         Without one, it is the identity on the activity of the candidate.
         """
-        value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
+        value = law.outcomes
         if value is None:
             if sizes[0] != sizes[2]:
                 error_msg = (
@@ -189,7 +187,7 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _compile_encounter(
-        law: KineticLaw,
+        law: BilinearLaw,
         owner: str,
         references: Mapping[Expression, ReferenceSpec],
         time: Expression,
@@ -203,7 +201,7 @@ class CompileEncountersPass(BasePass):
 
         Args:
             law:
-                The encounter or bilinear law.
+                The bilinear law.
 
             owner:
                 The path of the component that returns the law.
@@ -228,18 +226,14 @@ class CompileEncountersPass(BasePass):
             ValidationError:
                 A density is not a state of a group, a table has the wrong shape, or a table reads a state.
         """
-        bilinear = isinstance(law, BilinearLaw)
-        first, second = (law.first, law.second) if bilinear else (law.candidate, law.field)
+        first, second = law.first, law.second
         candidate = CompileEncountersPass._group_indices(first, references, owner)
         linear = second is None
         empty = np.zeros(0, dtype=np.intp)
         field_indices = empty if linear else CompileEncountersPass._group_indices(second, references, owner)
         space = (phases or {}).get(references[first].entry.name)
         positions = 1 if space is None else space.position_size_
-        test_symbol = law.target if bilinear else law.test
-        test = (
-            candidate if test_symbol is None else CompileEncountersPass._group_indices(test_symbol, references, owner)
-        )
+        test = CompileEncountersPass._group_indices(law.target, references, owner)
         sizes = (candidate.size // positions, max(field_indices.size // positions, 1), test.size // positions)
         rates = CompileEncountersPass._checked_rate(law, sizes, owner, space)
         table = CompileEncountersPass._outcome_table(law, sizes, owner)
@@ -255,7 +249,7 @@ class CompileEncountersPass(BasePass):
         )
         return EncounterKernel(
             owner,
-            'bilinear' if bilinear and not law.conserved else 'transition',
+            'transition' if law.conserved else 'bilinear',
             candidate,
             field_indices,
             test,
@@ -297,7 +291,7 @@ class CompileEncountersPass(BasePass):
             CompileEncountersPass._compile_encounter(law, owner, references, time, fused=fused, phases=phases)
             for owner, references, laws in components
             for law in laws
-            if isinstance(law, _KINETIC_LAWS)
+            if isinstance(law, BilinearLaw)
         )
 
     @staticmethod
