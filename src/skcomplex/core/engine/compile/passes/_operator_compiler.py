@@ -356,7 +356,7 @@ class OperatorCompiler(BaseCompiler):
         if classical:
             error_msg = (
                 f'The system mixes operator elements with the classical elements {", ".join(classical)}, which no '
-                'single form runs. System the operator and the classical parts as separate systems.'
+                'single form runs. Write the operator and the classical parts as separate systems.'
             )
             raise IncompatibleLawsError(error_msg)
         for node in nodes:

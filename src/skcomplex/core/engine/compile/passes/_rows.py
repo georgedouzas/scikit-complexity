@@ -166,7 +166,7 @@ class RowsPass(BasePass):
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (
                     f'The {type(law).__name__} of {owner} holds the random draw {found[0].call}, but only update and '
-                    'renewal laws take random draws. System randomness in continuous time with Noise laws for Wiener '
+                    'renewal laws take random draws. Express randomness in continuous time with Noise laws for Wiener '
                     'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
                 )
                 raise IncompatibleLawsError(error_msg)
