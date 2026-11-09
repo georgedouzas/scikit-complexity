@@ -39,8 +39,8 @@
 
 ## 8. Verification
 
-- [ ] 8.1 Grep src, tests, docs, the README, CONTRIBUTING, and `pyproject.toml` for `MassActionSystem`, `_get_mass_action`, `_system`, `_mass_action`, `test_system`, and `test_mass_action`, and for the bare word `System`, and verify every remaining hit is reviewed prose or another name
-- [ ] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
+- [x] 8.1 Grep src, tests, docs, the README, CONTRIBUTING, and `pyproject.toml` for `MassActionSystem`, `_get_mass_action`, `_system`, `_mass_action`, `test_system`, and `test_mass_action`, and for the bare word `System`, and verify every remaining hit is reviewed prose or another name
+- [x] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
 
 ## Workflow follow-up
 
