@@ -61,7 +61,10 @@ semicolon. The main fault is the content, not the length of the first line.
 - No style linter, no new dependency, and no change to the pydoclint, interrogate, or ruff settings.
 - No new public API. A tutorial that finds a missing function notes it for a later change.
 - Private functions and methods keep their one-line summaries and are only checked for length and semicolons.
-- The docstrings of `skcomplex.systems` are out of scope. They follow the same rules when a later change touches them.
+- The docstrings of `skcomplex.systems` are out of scope, except `skcomplex.systems.general`. They follow the same rules
+  when a later change touches them. `skcomplex.systems.general` holds the cross-domain recipes that
+  `move-recipes-to-systems` moves out of the core, whose docstrings this change was already to rewrite, so they stay in
+  scope and follow the rules of the core components.
 
 ## Decisions
 
@@ -151,10 +154,12 @@ markers, and table rules, and fails on a prose line with a semicolon, a dash use
 It imports nothing from the core tests and holds its own copy of the banned list, since a test module must not import
 another. The two lists are kept equal by a third test that reads both constants as text.
 
-`tests/test_sources.py` also gains `test_core_components_pages_cover_every_class`. It reads the `__all__` of each
-family package and fails when a public class, other than an abstract base, has no `## ClassName` heading on the page
-of its family. `test_troubleshooting_covers_every_error` does the same for the public error classes of
-`skcomplex.core.errors` and the troubleshooting page.
+`tests/test_sources.py` also gains `test_core_components_pages_cover_every_class`. It reads the `__all__` of each family
+package and fails when a public class, other than an abstract base, has no `## ClassName` heading on the page of its
+family. It reads the `__all__` of every concept subpackage of `skcomplex.systems.general` against
+`core_components/general.md` the same way, and it fails when a code block of a family page imports from
+`skcomplex.systems`, since the family pages document the core alone. `test_troubleshooting_covers_every_error` does the
+same for the public error classes of `skcomplex.core.errors` and the troubleshooting page.
 
 No test can judge flow. Each page is also read through once, aloud in style, before it is shown to the user: the
 reviewer reads every sentence in order, marks sentences that sound generated, stiff, or padded, and rewrites them. The
@@ -174,6 +179,7 @@ docs/overview/user_guide/
   core_components/
     index.md            how the parts fit, diagrams, a worked example (absorbs concepts.md)
     elements.md, interactions.md, laws.md, spaces.md, systems.md       the reference, one page per family
+    general.md          the recipes of skcomplex.systems.general and the placement rule
     choosing_parts.md   the decision guide
   build_a_custom_system/
     index.md            the build tutorial
@@ -201,6 +207,23 @@ spec asks for one task-led guide.
 
 The reference is for builders of systems, so it explains every core class in full. Each fact has one home.
 
+The family pages document the core building blocks only, with the classes that stay in the core after
+`move-recipes-to-systems`. Their examples import nothing from `skcomplex.systems`, as the core itself never does.
+`NonnegativeElement`, `PointElement`, `BirthDeathInteraction`, `EncounterInteraction`, `ReactionNetworkSystem`, and
+the other recipes leave the core, `PairCouplingInteraction` merges into `PairInteraction`, `ConeNeighborhood` merges
+into `RadiusNeighborhood` with an angle, and `PseudoRiemannianSpace` leaves for physics as `SpacetimeSpace`. An
+example that used one of them is rebuilt from parts that stay, or moves to the page of `skcomplex.systems.general`.
+
+**The page of `skcomplex.systems.general`, in `core_components/general.md`.** It documents the cross-domain recipes
+and the general systems that several fields share, one `## ClassName` section per public class of each concept
+subpackage (`elements`, `agents`, `matching`, `kinetics`, `reactions`, and `dynamics` once `add-general-systems` lands),
+with the same section template as the family pages. Each section names the core parts the recipe is written with, so a
+reader sees, for example, that `ReactionInteraction` is a `JumpInteraction` with stoichiometric changes. The page
+closes with the placement rule of `move-recipes-to-systems`, quoted word for word, and one worked example per step: a
+structural base, a part the engine handles by type, a recipe of several fields, one field, and one system, and a
+recipe that reveals a missing primitive. The page on shared realizations that `move-recipes-to-systems` writes becomes
+this page.
+
 **Hand-written, in `core_components/<family>.md`.** Each family page opens with what the family is for and how it
 fits with the other families. Each public class then has a `## ClassName` section with these parts, as short as the
 class allows:
@@ -227,8 +250,8 @@ tables and the compatibility examples stay.
 
 **Catalog links.** A system uses a class when its module, or a module of its field `common` package that it
 imports, defines a subclass of the class or names it in its globals. The generator finds them by walking the
-registered systems of `skcomplex.systems`. Subclasses are shown as field realizations, such as `CompartmentElement`
-of biology for `NonnegativeElement`. `docs/generate_systems.py` writes the reverse links: each catalog system page
+registered systems of `skcomplex.systems`. Subclasses are shown as field realizations, such as `CellAdhesionInteraction`
+of biology for `SamplingInteraction`. `docs/generate_systems.py` writes the reverse links: each catalog system page
 lists the core classes it builds from, each linked to its fact sheet. The links are built at build time, so no count
 goes stale.
 
@@ -257,15 +280,19 @@ The examples of the reference, among others:
 
 | Class | Example in one field | Example in another field |
 | --- | --- | --- |
-| `NonnegativeElement` with `RateInteraction` | an epidemic, infected people recover at a rate | a bank account, interest grows the balance |
-| `PointElement` | a planet under gravity | a pedestrian walking to an exit |
+| `DeclaredElement` with `RateInteraction` | an epidemic, infected people recover at a rate | a bank account, interest grows the balance |
+| `PairInteraction` with a potential | atoms of a gas under the Lennard-Jones potential | pedestrians that keep their distance |
 | `GroupElement` | a herd of grazing animals | a portfolio of assets |
 | `CouplingInteraction` | fireflies that flash in step | consensus of opinions on a network |
-| `BirthDeathInteraction` | births and deaths of a population | firms that enter and leave a market |
+| `JumpInteraction` | births and deaths of a population | customers who join and leave a queue |
 | `ArrayUpdateLaw` | grains added to a sandpile | a random mutation of a genome |
 | `BallNeighborhood` | toppling sites of a sandpile | the neighbours of a voter model |
 | `NetworkSpace` | an epidemic on a contact network | a power grid of coupled generators |
-| `MassActionSystem` | a chemical reaction network | an SIR epidemic written as reactions |
+| `CompositeSystem` | a predator and its prey on a lattice | a savings account with interest and withdrawals |
+
+The examples that the first draft gave with `NonnegativeElement`, `PointElement`, `BirthDeathInteraction`, and
+`MassActionSystem` move to `core_components/general.md`, where `NonnegativeElement`, `PointElement`,
+`BirthDeathInteraction`, and `ReactionNetworkSystem` keep the same pairs of fields.
 
 ### The workflow tutorials
 
@@ -275,7 +302,8 @@ as a subclass of a general system. Every later page starts from the catalog clas
 so each page runs alone in the test session. The data sit inline in a short array with their source cited.
 
 - **Build** (`build_a_custom_system/index.md`): compose elements, interactions, and a system, then write the same
-  model as a subclass of `MassActionSystem` and as a `BaseSystem` subclass with model parameters.
+  model as a subclass of `ReactionNetworkSystem` of `skcomplex.systems.general.reactions` and as a `BaseSystem`
+  subclass with model parameters.
 - **Check** (`check.md`): `prepare`, `get_tags`, the requirements of an interaction, and the validation errors a
   builder meets most, each triggered, printed, and fixed.
 - **Simulate** (`simulate.md`): `simulate` with its run settings, the choice of solver and backend from the tags,
@@ -339,99 +367,107 @@ states and emits laws that change them. A space places the members of a group, a
 interactions, and a space into one model. The table on the [elements parts page](../../../parts/elements.md) compares
 every element class.
 
-## NonnegativeElement
+## DeclaredElement
 
-A `NonnegativeElement` holds one amount that cannot fall below zero. The same element models people in an epidemic
-and money in a bank account.
+A `DeclaredElement` takes its states and parameters as data, so it needs no subclass. The same element class models
+people in an epidemic and money in a bank account.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.core.components.elements import DeclaredElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
 
-infected = NonnegativeElement('infected', x=100)
+infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
 recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
-epidemic = System(elements=[infected], interactions=[recovery])
+epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
 simulate(epidemic, until=10, dt=5.0).values('infected.x').round(1).tolist()
 ```
 
 ```python continuation
-account = NonnegativeElement('account', x=250.0)
+account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
 interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
-savings = System(elements=[account], interactions=[interest])
+savings = CompositeSystem(elements=[account], interactions=[interest])
 simulate(savings, until=1, dt=1.0).values('account.x').round(2).tolist()
 ```
 
-Biology names it `CompartmentElement`, and physics `PhaseSpaceDensityElement`. The table lists the systems that use
+The metabolic networks of biology build it from their reactions. The shared recipe `NonnegativeElement`, which fixes
+one state `x` at zero or above, is on the [page of shared recipes](general.md). The table lists the systems that use
 it.
 
-## PointElement
+## GroupElement
 
-A `PointElement` is a point that moves in a continuous space, with a position and a velocity. Unlike a nonnegative
-element, its state is a vector, and the laws that act on it give its acceleration. ...
+A `GroupElement` holds many members of one element class as arrays, one row per member. Unlike a single element, it
+can sit on the sites of a lattice or the nodes of a network. ...
 ````
 
-The first block of the sketch shows `[100.0, 60.7, 36.8]` and the second `[250.0, 262.82]`, both checked with
-`CompartmentElement` and the state `n`.
+The first block of the sketch should show `[100.0, 60.7, 36.8]` and the second `[250.0, 262.82]`, the values checked
+with `CompartmentElement` and the state `n`. The task that writes the page checks them with `DeclaredElement`.
 
 ### The order
 
 The change lands after `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`,
-`slim-core-laws`, and `hoist-constants-and-helper-methods`. Those changes add, remove, and rename the classes this
-change documents, such as `NonnegativeElement`, `BallNeighborhood`, `ArrayUpdateLaw`, and `BirthDeathInteraction`, and
+`slim-core-laws`, `rename-core-systems`, `move-recipes-to-systems`, and `hoist-constants-and-helper-methods`. Those
+changes add, remove, rename, and move the classes this change documents, such as `DeclaredElement`,
+`BallNeighborhood`, `ArrayUpdateLaw`, `CompositeSystem`, and the recipes of `skcomplex.systems.general`, and
 `slim-core-interactions` already rewrites the docstring of `EncounterInteraction` in part.
 `hoist-constants-and-helper-methods` is not yet proposed in `openspec/changes`, so the first task checks that it has
 been archived. The evaluate tutorial and the epidemic case study use `identifiability`, so the documents groups also
 wait for `add-identifiability-analysis`. The docstring groups do not.
 
-The pilot is the package `components/elements` with its `__init__`, and `CouplingInteraction`, the hardest
-interaction docstring. The user approves the style on it before the other packages start. The other packages follow
-in the order a reader meets them: the rest of `components`, then `specs` and the root modules, then `analysis` and
-`experiments`, then the engine. The documents follow the docstrings, so the guide and the generated tables can read
-the new summaries, comparisons, and uses. They start with their own pilot: the elements page of the core components
-reference with the generated table and fact sheets of elements, the page on how the parts fit, and the build
+The pilot is the package `components/elements` with its `__init__`, and `CouplingInteraction`, the hardest interaction
+docstring. The user approves the style on it before the other packages start. The other packages follow in the order a
+reader meets them: the rest of `components`, then `specs` and the root modules, then `analysis` and `experiments`, then
+the engine, then `skcomplex.systems.general`. The documents follow the docstrings, so the guide and the generated tables
+can read the new summaries, comparisons, and uses. They start with their own pilot: the elements page of the core
+components reference with the generated table and fact sheets of elements, the page on how the parts fit, and the build
 tutorial, which introduces the running example. The user approves that pilot before the other reference pages,
-tutorials, and case studies start. The order after the pilot is the rest of the reference, then the other tutorials
-in reading order, then the case studies, then the extras, then the README, CONTRIBUTING, and the gallery.
+tutorials, and case studies start. The order after the pilot is the rest of the reference, then the other tutorials in
+reading order, then the case studies, then the extras, then the README, CONTRIBUTING, and the gallery.
 
 ### Before and after
 
 The "after" texts are written against the names left by the earlier changes. Doctest outputs marked as checked were
 run on the current code with the old names. The others are checked when the task runs.
 
-#### 1. The nonnegative element, which replaces `CompartmentElement` and `DensityElement`
+#### 1. The declared element
+
+`NonnegativeElement`, the pilot of the first draft, leaves the core for `skcomplex.systems.general.elements`. Its
+rewrite moves with it to task 3.5. The pilot of the core elements is `DeclaredElement`, which stays.
 
 Before:
 
 ```python
-class CompartmentElement(Element):
-    """Compartment, the amount of units in one named state, as a count or a fraction.
+class DeclaredElement(Element):
+    """Element whose states and parameters are data.
 
-    The label of the element names the compartment, such as `'A'`, `'B'`, or `'source'`. A compartment has no laws
-    of its own, and reactions and flows between compartments move its units.
+    It serves a system that knows them only when it builds the element. The compiler treats a declared variable as it
+    treats an annotated argument of the constructor: the spec gives the declaration and the value gives the default.
+    ...
 
     Args:
         ...
-        n:
-            The initial amount, a nonnegative count or fraction.
+        variables:
+            The declared states and parameters by name, or `None` for none.
     """
 ```
 
 After:
 
 ```python
-class NonnegativeElement(Element):
-    """An element that holds one nonnegative number.
+class DeclaredElement(Element):
+    """An element whose states and parameters are given as data.
 
-    The element holds an amount `x` that cannot fall below zero. Interactions such as rates, reactions, and flows
-    change it, and the element has no laws of its own.
+    The element takes a mapping from each name to its initial value and its spec, so a system can build it without
+    a class of its own. Interactions such as rates, maps, and flows change its states, and the element has no laws of
+    its own.
 
-    Unlike `Element`, it needs no subclass and keeps its one state at zero or above. Choose it when a system tracks
-    an amount that cannot be negative, such as a count, a mass, or a sum of money.
+    Unlike `Element`, it needs no subclass, since it takes its states and parameters as data. Choose it when a system
+    learns its variables only when it builds them, or when a class for one model would only repeat its arguments.
 
     It appears in many fields. The number of people infected in an epidemic, the moles of a chemical species in a
-    reactor, the money in a bank account, and the tokens in a place of a Petri net are all nonnegative elements.
+    reactor, the money in a bank account, and the tokens in a place of a Petri net are all declared states.
 
     Args:
         label:
@@ -440,8 +476,9 @@ class NonnegativeElement(Element):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        x:
-            The initial amount, a number in `[0, oo)`, in the units of the system, such as people or moles.
+        variables:
+            The initial value and the spec of each state and parameter, by name, such as a state `x` in `[0, oo)`
+            in people or moles, or `None` for none.
 
     Attributes:
         default_visual_:
@@ -450,23 +487,25 @@ class NonnegativeElement(Element):
     Examples:
         An epidemic compartment and a bank account are the same kind of element.
 
-        >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> infected = NonnegativeElement('infected', x=10)
-        >>> account = NonnegativeElement('account', x=250.0)
+        >>> from skcomplex.core.components.elements import DeclaredElement
+        >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+        >>> infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
+        >>> account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
 
         Interest at 5 percent a year grows the account continuously.
 
         >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
-        >>> system = System(elements=[account], interactions=[interest])
+        >>> system = CompositeSystem(elements=[account], interactions=[interest])
         >>> simulate(system, until=1, dt=1.0).values('account.x').round(2).tolist()
         [250.0, 262.82]
     """
 ```
 
-The output `[250.0, 262.82]` was checked with `CompartmentElement` and the state `n`.
+The output `[250.0, 262.82]` was checked with `CompartmentElement` and the state `n`. The task checks it again with
+`DeclaredElement`.
 
 #### 2. `CouplingInteraction`
 
@@ -520,30 +559,37 @@ Examples:
     >>> ...  (the current example, unchanged)
 ```
 
-The details of the weights, delays, the lattice form of a rate, and the agent radii move from the body to the
-entries of `weights`, `delay`, `form`, and `radii`.
+The details of the weights, delays, and the lattice form of a rate move from the body to the entries of `weights`,
+`delay`, and `form`. The agent radii leave the core with `ZoneCouplingInteraction`, as `move-recipes-to-systems`
+decides, so the rewrite drops them from the docstring.
 
-#### 3. `EncounterInteraction`
+#### 3. `BilinearLaw`, the primitive under encounters
+
+`EncounterInteraction` leaves the core for `skcomplex.systems.general.kinetics`. Its rewrite moves with it to task 3.5,
+and its section to `core_components/general.md`. The core keeps `BilinearLaw`, which the encounter passes lower.
 
 Before:
 
 ```text
-Encounters of a candidate density with a field density over activity classes.
+Gain or loss of a target density at a signed rate of a product of densities.
 
-The encounters move, remove, or create. The candidate and the field are groups of `DensityElement` on the sites of
-lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at the rate
-`eta[h, k]`. ...
+The product is of two densities. The amount of the first density `f` in class `h` that meets the amount of the
+second density `g` in class `k` adds to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`,
+so the law adds `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. ...
 ```
 
 After:
 
 ```text
-An interaction where members of two distributions meet and change class.
+A law where members of two distributions meet and change class.
 
-A distribution is a group of nonnegative elements, one per class of a trait, that holds how much of a population
-sits in each class. When a member of class `h` meets a member of class `k`, at the rate `rate[h, k]`, the first
-member moves to class `i` with the probability `kernel[h, k, i]`, is removed, or creates a new member, as `outcome`
-says.
+A distribution is a group of elements, one per class of a trait, that holds how much of a population sits in each
+class. When an amount of class `h` meets an amount of class `k`, at the rate `rate[h, k]`, it adds to class `i` of
+the target with the probability `kernel[h, k, i]`. A conserved law takes the same amount from class `h`, so the total
+stays the same.
+
+Unlike `RateLaw`, which gives the rate of one state by an expression, it sums a product of two distributions over
+every pair of classes. Choose it when the change of a population comes from binary meetings of its members.
 
 It appears in many fields. Traders exchange wealth when they meet, people shift their opinion after a conversation,
 immune cells destroy tumour cells they meet, and gas molecules change velocity when they collide.
@@ -680,8 +726,9 @@ Args:
 
 | Module | Before | After |
 | --- | --- | --- |
-| `elements/_nonnegative.py` (was `_compartment.py`) | "Define compartments, elements that hold the amount of units in one named state." | "Define the element that holds one nonnegative number." |
-| `interactions/_encounter.py` | "Define encounters." and "Encounters are bilinear moves of a density over activity classes by meetings with another density." | "Define the interaction where members of two distributions meet." |
+| `elements/_declared.py` | "Define declared elements." and "A declared element takes its states and parameters as data at construction." | "Define the element whose states and parameters are given as data." |
+| `laws/_bilinear.py` | "Define bilinear laws." and "They are gains and losses of a density at the rate of the product of two densities." | "Define the law where members of two distributions meet." |
+| `systems/general/kinetics/_encounter.py` | "Define encounters." and "Encounters are bilinear moves of a density over activity classes by meetings with another density." | "Define the interaction where members of two distributions meet and change class." |
 | `elements/__init__.py` | "Elements of systems." and "Elements are entities that carry states, and groups of identical elements." | "Define elements, the parts of a system that hold its states." and "An element holds named numbers, such as an amount or a position. A group holds many elements of one kind as arrays." |
 
 #### A user guide passage
@@ -714,19 +761,34 @@ the kinetic theory of active particles of Bellomo et al.
 
 ## Distributions as groups
 
-A distribution says what share of a population has each value of a trait. Hold it as a group of nonnegative elements,
-one member per value. This group splits a population over nine wealth classes.
+A distribution says what share of a population has each value of a trait. Hold it as a group of elements with one
+share each, one member per value. This group splits a population over nine wealth classes.
 
 ```python
-import numpy as np
+from typing import Annotated
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.specs import StateSpec
+
+
+class ShareElement(Element):
+    def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0):
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 classes = np.linspace(0.0, 1.0, 9)
 profile = np.exp(-((classes - 0.5) ** 2) / 0.05)
-wealth = GroupElement('wealth', element=NonnegativeElement, size=9, on='sites', values={'x': profile / profile.sum()})
+wealth = GroupElement('wealth', element=ShareElement, size=9, on='sites', values={'x': profile / profile.sum()})
 wealth.values['x'].round(3).tolist()
 ```
+
+The shared recipe `NonnegativeElement` of `skcomplex.systems.general.elements` is the same element, and the page of
+shared recipes builds the distribution with it.
 
 Each member holds the share `x` of the population in its class. The class values are a plain array, which the laws
 and the moments read. The moments of the distribution, such as its mean, give the quantities of the whole population.
@@ -750,6 +812,10 @@ A population with several kinds of members, such as traders and banks, is severa
   uses, and its catalog links live in the docstring and the generated table, and the guide links to them.
 - [A guide example needs a field realization to look natural] → The example uses the core class, and the prose names
   the realization after it, so the core stays the subject of the page.
+- [An example of the first draft used a class that `move-recipes-to-systems` moves or merges] → It is rebuilt from
+  parts that stay, such as `DeclaredElement`, `JumpInteraction`, `PairInteraction` with a potential,
+  `RadiusNeighborhood` with an angle, and `CompositeSystem`, or it moves to `core_components/general.md`. The coverage
+  test rejects an import of `skcomplex.systems` on a family page.
 - [Catalog links found through module globals miss a system that builds a class indirectly] → The links are a guide
   to examples, not a complete index. The generator also follows the field `common` packages a system imports.
 - [Tutorials and case studies slow the test session, since calibration and sweeps run many simulations] → Small

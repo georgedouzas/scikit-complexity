@@ -1,6 +1,6 @@
 ## 1. Preconditions and guard
 
-- [ ] 1.1 Check that `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, `slim-core-laws`, and `hoist-constants-and-helper-methods` are archived, and verify with `openspec list` that none of them is still open
+- [ ] 1.1 Check that `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, `slim-core-laws`, `rename-core-systems`, `move-recipes-to-systems`, and `hoist-constants-and-helper-methods` are archived, and verify with `openspec list` that none of them is still open
 - [ ] 1.2 Fix the current summary lines over 80 characters and the docstrings that hold a semicolon, a dash used as punctuation, or a banned phrase in `skcomplex.core`, and verify with an AST walk that none is left
 - [ ] 1.3 Add `BANNED_PHRASES`, `test_docstring_summaries_are_short`, and `test_docstrings_read_naturally` to `tests/core/components/test_base.py`, walking every module of `skcomplex.core`, and verify they pass and fail on a planted em dash, spaced hyphen, and banned phrase
 - [ ] 1.4 Add `test_class_summaries_name_their_kind`, `test_docstrings_say_main_public_methods`, and `test_components_compare_and_name_uses` with the module constant `REWRITTEN`, empty at first, and verify they pass and fail on a planted bad summary
@@ -8,7 +8,7 @@
 
 ## 2. Pilot: elements and the coupling interaction
 
-- [ ] 2.1 Rewrite the docstrings of every module, class, and method of `skcomplex.core.components.elements` and its `__init__` by the rules of design.md, with the "Unlike" comparison and the "It appears in" uses paragraph of every class, add the cross-domain examples of `NonnegativeElement`, add the package to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/core/components/elements` pass
+- [ ] 2.1 Rewrite the docstrings of every module, class, and method of `skcomplex.core.components.elements` and its `__init__` by the rules of design.md, with the "Unlike" comparison and the "It appears in" uses paragraph of every class, add the cross-domain examples of `DeclaredElement`, add the package to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/core/components/elements` pass
 - [ ] 2.2 Rewrite the docstring of `CouplingInteraction` and its module, moving mode details to the `Args` entries, fixing the broken list of modes, and adding its comparison and uses paragraphs, and verify its doctests and pydoclint pass
 - [ ] 2.3 Read the rewritten docstrings through for flow and rewrite what sounds generated, then show the user the diff of 2.1 and 2.2 and record the approved style, or the corrections, in design.md before group 3 starts
 
@@ -18,6 +18,7 @@
 - [ ] 3.2 Rewrite `components/laws` and `laws/utils`, add them to `REWRITTEN`, and verify the guard and their doctests pass
 - [ ] 3.3 Rewrite `components/spaces`, with the neighbourhoods, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 3.4 Rewrite `components/systems`, `components/specs`, `components/base.py`, and `components/types.py`, add them to `REWRITTEN`, and verify the guard and their doctests pass
+- [ ] 3.5 Rewrite the docstrings of `skcomplex.systems.general` by the same rules, with the comparison paragraph naming the core parts each recipe is written with, such as "Unlike `JumpInteraction`" for `ReactionInteraction`, including the drafts of `NonnegativeElement` and `EncounterInteraction` from the first version of design.md, add the package to the walk of the guard and to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/systems/general` pass
 
 ## 4. Specs and root modules
 
@@ -44,7 +45,7 @@
 - [ ] 7.4 Add the links from catalog system pages to the core classes they build from in `docs/generate_systems.py`, and verify the page of `SIRSystem` links its element classes in a strict build
 - [ ] 7.5 Write `core_components/index.md` with the two Mermaid diagrams, the worked example built step by step, and the import table, merging `concepts.md` and updating every link to it, and verify the diagrams render in a strict build and every block runs with `pytest-markdown-docs`
 - [ ] 7.6 Write `core_components/elements.md` by the section template of design.md for every public element class, and verify every block runs with `pytest-markdown-docs`
-- [ ] 7.7 Add `test_core_components_pages_cover_every_class` to `tests/test_sources.py`, checking the elements page only at first, and verify it passes and fails when a section is removed
+- [ ] 7.7 Add `test_core_components_pages_cover_every_class` to `tests/test_sources.py`, checking the elements page only at first and rejecting an import of `skcomplex.systems` on a family page, and verify it passes, fails when a section is removed, and fails on a planted import of `NonnegativeElement`
 - [ ] 7.8 Rewrite `build_a_custom_system/index.md` as the build tutorial with the hare and lynx running example and its cited data, and verify every block runs with `pytest-markdown-docs` in under a minute
 - [ ] 7.9 Update the navigation in `properdocs.yml` for the pages of this group, add them to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite the sentences that sound generated, and verify `test_documents_read_naturally` and the strict build pass
 - [ ] 7.10 Show the user the elements reference, its fact sheets, the page on how the parts fit, and the build tutorial, and record the approved style, or the corrections, in design.md before group 8 starts
@@ -55,8 +56,9 @@
 - [ ] 8.2 Write `core_components/laws.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
 - [ ] 8.3 Add the generated page `parts/spaces.md` for spaces, neighbourhoods, and times with its navigation entry, write `core_components/spaces.md`, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
 - [ ] 8.4 Write `core_components/systems.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
-- [ ] 8.5 Write `core_components/choosing_parts.md`, the decision guide with Mermaid flow charts whose leaves link reference sections, and verify the strict build passes
-- [ ] 8.6 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
+- [ ] 8.5 Write `core_components/general.md` on `skcomplex.systems.general`, starting from the page on shared realizations that `move-recipes-to-systems` writes, with one section per public class of its concept subpackages that names the core parts it is written with, and the placement rule word for word with one worked example per step, extend the coverage test to the page, and verify the strict build, `pytest-markdown-docs`, and the coverage test pass
+- [ ] 8.6 Write `core_components/choosing_parts.md`, the decision guide with Mermaid flow charts whose leaves link reference sections, and verify the strict build passes
+- [ ] 8.7 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
 
 ## 9. Workflow tutorials
 

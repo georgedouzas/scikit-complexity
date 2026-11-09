@@ -7,8 +7,8 @@ system, solver, spec, result, or error. The summary of a function SHALL be imper
 of a scientific field from the list of the field-term test.
 
 #### Scenario: A class summary
-- **WHEN** a reader reads the summary line of `NonnegativeElement`
-- **THEN** it reads "An element that holds one nonnegative number."
+- **WHEN** a reader reads the summary line of `DeclaredElement`
+- **THEN** it reads "An element whose states and parameters are given as data."
 
 #### Scenario: A summary that hides the kind
 - **WHEN** the summary line of a public class of the core does not start with an article or does not name its kind
@@ -23,8 +23,8 @@ The docstring body of every public class and function of the core parts, the ana
 functions SHALL explain in plain words what the thing does, and SHALL then name concrete uses from at least two fields
 of science. Where a use fits as code, the `Examples` section SHALL show it as a runnable example.
 
-#### Scenario: The nonnegative element
-- **WHEN** a reader reads the docstring of `NonnegativeElement`
+#### Scenario: The declared element
+- **WHEN** a reader reads the docstring of `DeclaredElement`
 - **THEN** it names uses such as people infected in an epidemic, moles of a chemical species, money in an account,
   and tokens in a place of a Petri net, and its examples build at least two of them and run
 
@@ -37,24 +37,24 @@ The docstring of every public class of the core elements, interactions, laws, sp
 systems SHALL hold a paragraph that starts with "Unlike" and names what the class adds over its nearest part, followed
 by a sentence that starts with "Choose it when", and a paragraph of uses that starts with "It appears in".
 
-#### Scenario: The nonnegative element compared
-- **WHEN** a reader reads the docstring of `NonnegativeElement`
-- **THEN** it says that, unlike `Element`, it needs no subclass and keeps its one state at zero or above, and when to
-  choose it
+#### Scenario: The declared element compared
+- **WHEN** a reader reads the docstring of `DeclaredElement`
+- **THEN** it says that, unlike `Element`, it needs no subclass, since it takes its states and parameters as data, and
+  when to choose it
 
 #### Scenario: A missing comparison
 - **WHEN** a public class of a rewritten family has no paragraph that starts with "Unlike" or "It appears in"
 - **THEN** the test session fails and names the class
 
 ### Requirement: The guide is a reference of the core components for builders
-The user guide SHALL hold one hand-written reference page per family: elements, interactions, laws, spaces with their
-neighbourhoods and times, and systems. Every public class SHALL have a section that says what it models, how it
-combines with other parts, its limits and the errors it raises, and how to subclass it into a field realization, with
-runnable examples from at least two fields that use the class unchanged.
+The user guide SHALL hold one hand-written reference page per family of the core: elements, interactions, laws,
+spaces with their neighbourhoods and times, and systems. Every public class SHALL have a section on what it models, how
+it combines, its limits and errors, and its field realizations, with runnable examples from two fields that use it
+unchanged and import nothing from `skcomplex.systems`.
 
 #### Scenario: The elements page
 - **WHEN** a reader opens the elements page of the core components reference
-- **THEN** the section of `NonnegativeElement` simulates an epidemic and a bank account with the same element and
+- **THEN** the section of `DeclaredElement` simulates an epidemic and a bank account with the same element class and
   `RateInteraction`, shows an error it raises with the message and the fix, and subclasses it into a field realization
 
 #### Scenario: The examples run
@@ -65,6 +65,30 @@ runnable examples from at least two fields that use the class unchanged.
 - **WHEN** a public class of a family has no section on its page
 - **THEN** the test session fails and names the class and the page
 
+#### Scenario: A recipe on a core page
+- **WHEN** a code block of a family page of the core components imports a class from `skcomplex.systems`
+- **THEN** the test session fails and names the page and the import
+
+### Requirement: The guide documents the shared recipes and where a new part goes
+The core components guide SHALL hold a page on `skcomplex.systems.general`, the cross-domain recipes and general
+systems that several fields share, with one section per public class of its concept subpackages in the template of
+the family pages. The section SHALL name the core parts the recipe is written with. The page SHALL state the placement
+rule of `package-layout` word for word, with one worked example per step.
+
+#### Scenario: A recipe and its primitives
+- **WHEN** a reader opens the section of `ReactionInteraction` on the page of shared recipes
+- **THEN** it imports the class from `skcomplex.systems.general.reactions`, runs an epidemic and a chemical reaction
+  with it, and says that it is a `JumpInteraction` whose changes are the stoichiometric vector
+
+#### Scenario: Placing a new part
+- **WHEN** a contributor reads the placement rule on the page of shared recipes
+- **THEN** each step has an example, and an agent rule that economics and social both use leads to a concept
+  subpackage of `skcomplex.systems.general`
+
+#### Scenario: A shared recipe without a section
+- **WHEN** a public class of a concept subpackage of `skcomplex.systems.general` has no section on the page
+- **THEN** the test session fails and names the class
+
 ### Requirement: Each family has generated fact sheets and a comparison table
 The parts page of each family SHALL be generated from the code. It SHALL hold a comparison table with one row per
 public class, giving what it adds, when to choose it, and its typical uses from its docstring, and a fact sheet per
@@ -73,8 +97,8 @@ and links to its reference section, its API entry, and the catalog systems that 
 
 #### Scenario: The fact sheet of an element
 - **WHEN** a reader opens the parts page of elements
-- **THEN** the fact sheet of `NonnegativeElement` lists its state `x` with its domain, the solvers that accept it, and
-  links to systems such as `SIRSystem` that use it or its field realizations
+- **THEN** the fact sheet of `DeclaredElement` lists the variables it takes with their specs, the solvers that accept
+  it, and links to catalog systems that use it or its field realizations, such as the metabolic networks of biology
 
 #### Scenario: A new class
 - **WHEN** a contributor adds a public element class with the comparison and uses paragraphs
@@ -98,8 +122,9 @@ Every entry of an `Args` section of the core SHALL say what the value means, wit
 where they apply, and SHALL NOT describe how the code stores or processes it.
 
 #### Scenario: An argument with units
-- **WHEN** a reader reads the argument `x` of `NonnegativeElement`
-- **THEN** it says the value is the initial amount in `[0, oo)`, in the units of the system such as people or moles
+- **WHEN** a reader reads the argument `variables` of `DeclaredElement`
+- **THEN** it says the value gives the initial value and the spec of each state and parameter by name, such as a state
+  `x` in `[0, oo)` in the units of the system, such as people or moles
 
 ### Requirement: Jargon is defined where it appears
 A docstring or a document SHALL use a term of one field or of the library's internals only with a plain definition in
@@ -119,8 +144,8 @@ docstring of a package `__init__` SHALL be one imperative line, followed by at m
 kinds of thing the package holds.
 
 #### Scenario: A private module
-- **WHEN** a reader opens the module that defines `NonnegativeElement`
-- **THEN** its docstring is the single line "Define the element that holds one nonnegative number."
+- **WHEN** a reader opens the module that defines `DeclaredElement`
+- **THEN** its docstring is the single line "Define the element whose states and parameters are given as data."
 
 ### Requirement: Documents show every concept in runnable code
 The README, the user guide, the generated parts and systems pages, and the gallery examples SHALL show every concept
@@ -200,7 +225,8 @@ it builds from. The documentation build SHALL fail on a broken link.
 
 #### Scenario: From the catalog to the core
 - **WHEN** a reader opens the catalog page of `SIRSystem`
-- **THEN** it links the core classes it builds from, each to its fact sheet
+- **THEN** it links the core classes and the shared recipes of `skcomplex.systems.general` it builds from, each to its
+  fact sheet or its section
 
 ### Requirement: The test session guards the mechanical rules of docstrings
 The test session SHALL check every module, public class, public function, and public method of `skcomplex.core` for a

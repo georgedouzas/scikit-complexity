@@ -17,7 +17,8 @@ system, have no page at all. The prose should also read as written by a careful 
 
 - Rewrite the docstrings of `skcomplex.core`: the parts of `components` (elements, interactions, laws, spaces,
   systems, specs, base, and types), the public classes of `engine` (runtime, viz, backends, solvers, compile, problems,
-  translators), `analysis`, `experiments`, `specs`, and the root modules `base`, `errors`, and `types`.
+  translators), `analysis`, `experiments`, `specs`, and the root modules `base`, `errors`, and `types`, and the
+  cross-domain recipes of `skcomplex.systems.general` that `move-recipes-to-systems` moves out of the core.
   - The summary line says plainly what kind of thing it is, in at most about 80 characters, such as "An element that
     holds one nonnegative number."
   - A short body in plain words follows, then concrete uses from two or more fields where the part is cross-domain,
@@ -42,9 +43,13 @@ system, have no page at all. The prose should also read as written by a careful 
   - One hand-written page per family under `docs/overview/user_guide/core_components`: elements, interactions, laws,
     spaces with their neighbourhoods and times, and systems. Every class gets a section on what it models, how the
     engine runs it, how it combines with other parts, its limits and errors, and how to subclass it into a field
-    realization, with runnable examples from two or more fields, such as `NonnegativeElement` with `RateInteraction`
+    realization, with runnable examples from two or more fields, such as `DeclaredElement` with `RateInteraction`
     for an epidemic and a bank account, `CouplingInteraction` for fireflies and for consensus, and `BallNeighborhood`
-    for a sandpile and a voter model.
+    for a sandpile and a voter model. These pages document the core building blocks only, with classes that stay in
+    the core after `move-recipes-to-systems`, and their examples import nothing from `skcomplex.systems`.
+  - A page `core_components/general.md` on `skcomplex.systems.general`, the cross-domain recipes and general systems
+    that several fields share, with one section per class in the same template, and the placement rule of
+    `move-recipes-to-systems` with one worked example per step, so a contributor knows where a new part goes.
   - The docstring of every core component gains a comparison paragraph, "Unlike `X`, it ... Choose it when ...", and
     a uses paragraph, "It appears in ...".
   - The generated parts pages gain one comparison table per family, built from those paragraphs, and one fact sheet
@@ -66,8 +71,9 @@ system, have no page at all. The prose should also read as written by a careful 
   the style, then the other packages of the core, then a documents pilot of the elements reference page, the page on
   how the parts fit, and the build tutorial, then the other reference pages, tutorials, case studies, and extras.
 - No public name, signature, or behaviour changes. The change lands after `add-system-package`,
-  `slim-core-elements-and-spaces`, `slim-core-interactions`, `slim-core-laws`, and
-  `hoist-constants-and-helper-methods`, and is written against the names they leave. The documents also wait for
+  `slim-core-elements-and-spaces`, `slim-core-interactions`, `slim-core-laws`, `rename-core-systems`,
+  `move-recipes-to-systems`, and `hoist-constants-and-helper-methods`, and is written against the names and places
+  they leave. The documents also wait for
   `add-identifiability-analysis`, whose `identifiability` the evaluate tutorial uses.
 
 ## Capabilities
@@ -79,25 +85,27 @@ None.
 ### Modified Capabilities
 
 - `user-documentation`: docstrings and documents follow testable rules for summary lines, bodies, comparisons,
-  cross-domain uses, arguments, jargon, module docstrings, natural prose, and code examples. The guide holds a
-  reference of the core components, workflow tutorials, case studies, a glossary, a decision guide, and a
-  troubleshooting page, in a task-led order that the modified requirement fixes. The parts pages hold generated fact
-  sheets and comparison tables, and the test session guards the mechanical rules.
+  cross-domain uses, arguments, jargon, module docstrings, natural prose, and code examples. The guide holds a reference
+  of the core components, a page of the shared recipes with the placement rule, workflow tutorials, case studies, a
+  glossary, a decision guide, and a troubleshooting page, in a task-led order that the modified requirement fixes. The
+  parts pages hold generated fact sheets and comparison tables, and the test session guards the mechanical rules.
 
 ## Impact
 
-- Code: docstrings only, in every module of `src/skcomplex/core`. No code line changes.
+- Code: docstrings only, in every module of `src/skcomplex/core` and of `src/skcomplex/systems/general`. No code line
+  changes.
 - Tests: new guard tests in `tests/core/components/test_base.py`, beside the field-term test, and checks of the
   documents and of page coverage in `tests/test_sources.py`. Every rewritten doctest runs in the test session as before.
 - Documents: `README.md`, `CONTRIBUTING.md`, the pages under `docs/overview/user_guide` with the new sections
-  `core_components` and `case_studies` and the new pages `check.md`, `evaluate.md`, `calibrate.md`, `share.md`,
-  `glossary.md`, and `troubleshooting.md`, the navigation and a Mermaid fence in `properdocs.yml`, the generators
-  `docs/generate_parts.py` (fact sheets, comparison tables, and a spaces page) and `docs/generate_systems.py` (links
-  to core classes), and the text cells of the gallery examples under `docs/examples`. `concepts.md` and
-  `choosing_compatible_components.md` merge into the new pages.
+  `core_components`, with `core_components/general.md`, and `case_studies` and the new pages `check.md`, `evaluate.md`,
+  `calibrate.md`, `share.md`, `glossary.md`, and `troubleshooting.md`, the navigation and a Mermaid fence in
+  `properdocs.yml`, the generators `docs/generate_parts.py` (fact sheets, comparison tables, and a spaces page) and
+  `docs/generate_systems.py` (links to core classes), and the text cells of the gallery examples under `docs/examples`.
+  `concepts.md` and `choosing_compatible_components.md` merge into the new pages.
 - Users: none in code. Readers get plainer docstrings and API pages.
 - Dependencies: no new package. Mermaid renders through the Material theme already in use, and griffe, which parses
   the docstrings for the fact sheets, is installed with mkdocstrings as `griffelib`. The docs group of
-  `pyproject.toml` names it, since the generator imports it directly. The change lands after the five changes named above,
-  which rename and remove classes such as `CompartmentElement`, `DensityElement`, `DriveLaw`, and
-  `LifeCycleInteraction`, and its documents after `add-identifiability-analysis`.
+  `pyproject.toml` names it, since the generator imports it directly. The change lands after the seven changes named
+  above, which rename, remove, and move classes such as `CompartmentElement`, `DensityElement`, `DriveLaw`,
+  `LifeCycleInteraction`, `MassActionSystem`, and `NonnegativeElement`, and its documents after
+  `add-identifiability-analysis`.
