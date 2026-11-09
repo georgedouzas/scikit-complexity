@@ -213,18 +213,30 @@ loops(system).polarities
 ```
 
 PySD reads the file. The translator writes `source_` from PySD's abstract model, and `settings_` from the control
-section of the file. You save the source and import it like any module. The module defines:
+section of the file. You save the source and import it like any module. The births and deaths of the population are
+its only flows, so the module defines:
 
-- one element class, whose states are the stocks and whose parameters are the constants,
-- the system class `PeopleSystem` on `BaseSystem`, named after the file, whose keyword arguments are the constants with
-  the values of the file as defaults, and whose tuned run settings are the length of the run, the saving interval,
-  and one observable per auxiliary,
+- the system class `PeopleSystem`, named after the file, a subclass of `StockFlowSystem` from
+  `skcomplex.systems.general.dynamics`, whose keyword arguments are the constants with the values of the file as
+  defaults, which returns the stocks from `_get_stocks`, the constants from `_get_parameters`, and the flows from
+  `_get_flows`, and whose tuned run settings are the length of the run, the saving interval, and one observable per
+  auxiliary,
 - the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`.
+
+```python continuation
+from skcomplex.systems.general.dynamics import StockFlowSystem
+
+issubclass(module.PeopleSystem, StockFlowSystem), list(system.get_params())
+```
+
+A file whose stocks also change outside flow variables, or are subscripted, keeps the shape of a custom system: one
+element class, whose states are the stocks and whose parameters are the constants, and a system class on `BaseSystem`
+that builds the element and its interactions.
 
 Time in the module runs from zero, and `Time` in the file becomes `t + START`. The parts of the file become these:
 
-- A flow variable that leaves one stock and enters another is a `TransferInteraction` between the two states. A flow
-  variable of one stock is a `TransferInteraction` with `Source()` or `Sink()`. The trajectory reports each flow as
+- A flow variable that leaves one stock and enters another is a flow between them. A flow variable of one stock is a
+  flow with the environment, a `TransferInteraction` with `Source()` or `Sink()`. The trajectory reports each flow as
   `<element>.<flow>`.
 - The rest of the net rate of a stock is a `RateInteraction`. When it has the form `(goal - stock) / time` or
   `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a goal function and a time function.

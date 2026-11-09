@@ -16,6 +16,7 @@ from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import ObservableSpec, RunSettingsSpec
+from skcomplex.systems.general.dynamics import StockFlowSystem
 
 REFERENCES = {
     'teacup.mdl': 'teacup_mdl.csv',
@@ -151,11 +152,12 @@ def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
 
 
 def test_run_module_has_one_shape(translate):
-    """Test that a module defines its element class, its system, its observables, and its settings."""
+    """Test that a module of flows only defines a stock-flow system, its observables, and its settings."""
     module = translate('sir.mdl')
     system = module.SirSystem(contact_rate=2.0)
-    assert isinstance(system.prepare().system_.elements[0], module.SirElement)
-    assert system.prepare().system_.elements[0].contact_rate == 2.0
+    assert issubclass(module.SirSystem, StockFlowSystem)
+    assert not any(name.endswith('Element') for name in vars(module))
+    assert system.prepare().system_.elements[0].get_value('contact_rate') == 2.0
     assert system.get_params()['contact_rate'] == 2.0
     assert module.SirSystem().get_params()['contact_rate'] != 2.0
     settings = system.get_run_settings()
@@ -261,6 +263,8 @@ def test_run_other_remaining_rates_become_rates(tmp_path, equation):
     source = _translate_text(tmp_path, text).run().source_
     assert 'RateInteraction(' in source
     assert 'def _goal__level(' not in source
+    assert 'class SystemElement(Element)' in source
+    assert 'StockFlowSystem' not in source
 
 
 def test_run_flow_of_several_stocks_stays_in_the_rates(tmp_path):

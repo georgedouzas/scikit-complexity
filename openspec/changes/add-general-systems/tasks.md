@@ -135,13 +135,13 @@ Same procedure as group 3.
 
 ## 11. Translator
 
-- [ ] 11.1 Make the module writer of `core/engine/translators` write a subclass of `StockFlowSystem` for a file whose
+- [x] 11.1 Make the module writer of `core/engine/translators` write a subclass of `StockFlowSystem` for a file whose
   stocks are not subscripted and change only through flow variables, with the constants as parameters and the hooks
   `_get_stocks` and `_get_flows`, and with the source text importing `StockFlowSystem` from
   `skcomplex.systems.general.dynamics`. The translator itself never imports the subpackage. Other files keep the element
   shape. Verify with `tests/core/engine/translators/test_system_dynamics.py`, extended with the two scenarios of
   `system-dynamics-import`, and the PySD comparisons within 1e-6.
-- [ ] 11.2 Update the docstrings of `_system_dynamics.py` and `_module_writer.py` and the stocks and flows page of the
+- [x] 11.2 Update the docstrings of `_system_dynamics.py` and `_module_writer.py` and the stocks and flows page of the
   user guide to show a translated `StockFlowSystem`. Verify with the doctests and `pytest-markdown-docs`.
 
 ## 12. Documents

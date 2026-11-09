@@ -1,6 +1,7 @@
 """Write the source of a system module from the sorted parts of a system.
 
-The system is a stock-and-flow system.
+The system is a stock-and-flow system. A file whose stocks are not subscripted and change only through flows becomes a
+subclass of `StockFlowSystem`, and any other file an element of the stocks with its flows and rates.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -110,6 +111,50 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
 {interactions}
             ],
         )'''
+
+
+STOCK_FLOW_CLASS = '''class {name}(StockFlowSystem):
+    """Run the stock-and-flow system translated from the file `{stem}`.
+
+    Args:
+{arguments}
+    """
+
+    until = UNTIL
+    dt = SAVE_EVERY
+    observables = ({observables})
+
+    def __init__(
+        self,
+        *,
+{declarations}
+    ) -> None:
+        """Store the constants and the label."""
+        super().__init__(label=label)
+{assignments}
+
+    def _get_element_label(self) -> str:
+        """Return the label of the element of the stocks and the constants."""
+        return {label!r}
+
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock."""
+        return {{
+{stocks}
+        }}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the constants of the file."""
+        return {{
+{parameters}
+        }}
+
+    def _get_flows(self) -> FlowTable:
+        """Return the stock every flow leaves and enters, and the function of its amount."""
+        return {{
+{flows}
+        }}'''
+STOCK_FLOW_MODULE = 'skcomplex.systems.general.dynamics'
 
 
 class _ModuleWriter:
@@ -424,6 +469,40 @@ class _ModuleWriter:
             interactions='\n'.join(interactions),
         )
 
+    def _write_stock_flow_system(self, flows: dict[str, tuple[str | None, str | None]], observables: str) -> str:
+        """Return the source of a subclass of `StockFlowSystem`.
+
+        Its parameters are the constants of the file, and its flows read the functions of their amounts.
+        """
+        parts = self.parts
+        documented = [
+            f'{INDENT * 2}{key}:\n{INDENT * 3}The constant `{self._get_original(key)}`.'
+            for key in sorted(parts.constants)
+        ]
+        label = 'The label of the system, which names it when it is nested in another one.'
+        documented.append(f'{INDENT * 2}label:\n{INDENT * 3}{label}')
+        declarations = [f'{INDENT * 2}{key}: float = {value[0]!r},' for key, value in sorted(parts.constants.items())]
+        declarations.append(f"{INDENT * 2}label: str = 'system',")
+        stocks = '\n'.join(
+            f'{INDENT * 3}{name!r}: {self._get_stock_values(name)[0]!r},' for name in sorted(parts.stocks)
+        )
+        rows = [
+            f'{INDENT * 3}{name!r}: ({leaving!r}, {entering!r}, _amount__{name}),'
+            for name, (leaving, entering) in flows.items()
+        ]
+        return STOCK_FLOW_CLASS.format(
+            name=self._get_system_name(),
+            stem=self.stem,
+            arguments='\n\n'.join(documented),
+            observables=observables,
+            declarations='\n'.join(declarations),
+            assignments='\n'.join(f'{INDENT * 2}self.{key} = {key}' for key in sorted(parts.constants)),
+            label=self.label,
+            stocks=stocks,
+            parameters='\n'.join(f'{INDENT * 3}{key!r}: self.{key},' for key in sorted(parts.constants)),
+            flows='\n'.join(rows),
+        )
+
     @staticmethod
     def _write_import(module: str, names: Sequence[str]) -> str:
         """Return the import of names of a module.
@@ -446,9 +525,9 @@ class _ModuleWriter:
             modules.setdefault(module, []).append(name)
         sage = ', '.join(sorted(modules.pop(SAGE_MODULE)))
         library = '\n'.join(self._write_import(module, sorted(names)) for module, names in sorted(modules.items()))
+        typing = 'from typing import Annotated\n' if (ELEMENTS_MODULE, 'Element') in self.expressions.imports else ''
         return (
-            'from types import SimpleNamespace\nfrom typing import Annotated\n\n'
-            f'from sage.all__sagemath_symbolics import {sage}\n\n{library}'
+            f'from types import SimpleNamespace\n{typing}\nfrom sage.all__sagemath_symbolics import {sage}\n\n{library}'
         )
 
     def write(self) -> str:
@@ -472,14 +551,21 @@ class _ModuleWriter:
                 rates.append(function)
                 interactions.append(interaction)
         observed, observables = self._write_observables(flows, relaxations)
-        blocks = [
-            *helpers,
-            self._write_element(),
-            *amounts,
-            *rates,
-            *observed,
-            self._write_system(interactions, observables),
-        ]
+        if flows and not rates and not parts.members:
+            imports = self.expressions.imports
+            imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (SPECS_MODULE, 'ObservableSpec')}
+            imports -= {(INTERACTIONS_MODULE, 'TransferInteraction'), (LAWS_MODULE, 'Source'), (LAWS_MODULE, 'Sink')}
+            imports |= {(STOCK_FLOW_MODULE, 'StockFlowSystem'), (f'{STOCK_FLOW_MODULE}.types', 'FlowTable')}
+            blocks = [*helpers, *amounts, *observed, self._write_stock_flow_system(flows, observables)]
+        else:
+            blocks = [
+                *helpers,
+                self._write_element(),
+                *amounts,
+                *rates,
+                *observed,
+                self._write_system(interactions, observables),
+            ]
         constants = (
             f'START = {settings.start!r}\nUNTIL = {settings.until!r}\n'
             f'DT = {settings.dt!r}\nSAVE_EVERY = {settings.save_every!r}'
