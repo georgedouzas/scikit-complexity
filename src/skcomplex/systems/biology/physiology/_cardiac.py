@@ -18,87 +18,9 @@ from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class BarkleyElement(Element):
-    """Excitable medium of Barkley, a fast excitation `u` and a slow recovery `w`.
-
-    The excitation has a polynomial nullcline.
-
-    The excitation follows `u' = u (1 - u) (u - (w + b) / a)` and the recovery `w' = epsilon (u^gamma - w)`. A diffusion
-    of the excitation couples the sites of the medium. The threshold `(w + b) / a` rises with the recovery, so an
-    excited site recovers before it can fire again.
-
-    Args:
-        label:
-            The label of the medium.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial excitation.
-
-        w:
-            The initial recovery.
-
-        a:
-            The inverse slope of the threshold.
-
-        b:
-            The offset of the threshold.
-
-        epsilon:
-            The ratio of the time scales of the recovery and the excitation.
-
-        gamma:
-            The exponent of the excitation in the recovery, 1 for Barkley's model and 3 for the variant of Bär and
-            Eiswirth with spiral breakup.
-
-    Examples:
-        >>> from skcomplex.systems.biology.physiology import BarkleyElement
-        >>> BarkleyElement('medium').a
-        0.6
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        w: Annotated[float, StateSpec()] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.6,
-        b: Annotated[float, ParameterSpec()] = 0.05,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.w = w
-        self.a = a
-        self.b = b
-        self.epsilon = epsilon
-        self.gamma = gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cubic excitation and its slow recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            RateLaw(s.u, s.u * (1 - s.u) * (s.u - (s.w + s.b) / s.a)),
-            RateLaw(s.w, s.epsilon * (s.u**s.gamma - s.w)),
-        ]
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import ReactionDiffusionSystem
+from ...general.dynamics.types import Equations
 
 
 class AlievPanfilovElement(Element):
@@ -273,7 +195,7 @@ class AlievPanfilovSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[tissue], interactions=[diffusion])
 
 
-class BarkleySystem(BaseSystem):
+class BarkleySystem(ReactionDiffusionSystem):
     """Barkley's excitable medium, started from orthogonal stripes.
 
     The crossing of the stripes curls into a spiral wave.
@@ -311,7 +233,7 @@ class BarkleySystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import BarkleySystem
-        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].values['gamma']
+        >>> BarkleySystem((20, 20), gamma=3.0).prepare().system_.elements[0].get_declaring_part().get_value('gamma')
         3.0
     """
 
@@ -334,8 +256,8 @@ class BarkleySystem(BaseSystem):
         gamma: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
-        self.shape = shape
+        super().__init__(label=label)
+        self.shape: Sequence[int] = shape
         self.spacing = spacing
         self.d = d
         self.a = a
@@ -343,19 +265,37 @@ class BarkleySystem(BaseSystem):
         self.epsilon = epsilon
         self.gamma = gamma
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of Barkley's excitable medium."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'medium'
+
+    def _get_space(self) -> LatticeSpace:
+        """Return the reflecting lattice of the shape and the spacing."""
+        rows, columns = self.shape
+        return LatticeSpace((rows, columns), boundary='reflecting', spacing=self.spacing)
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the excitation on one half, the recovery on the other, and the parameters."""
         rows, columns = self.shape
         u, w = np.zeros(self.shape), np.zeros(self.shape)
         u[:, : columns // 2] = 1.0
         w[: rows // 2, :] = 1.0
-        values = {'u': u, 'w': w, 'a': self.a, 'b': self.b, 'epsilon': self.epsilon, 'gamma': self.gamma}
-        space = LatticeSpace((rows, columns), boundary='reflecting', spacing=self.spacing)
-        medium = FieldElement('medium', element=BarkleyElement, space=space, values=values)
-        diffusion = RateInteraction(
-            'diffusion',
-            target='medium',
-            state='u',
-            rate=lambda s: self.d * laplacian(s.target.u),
-        )
-        return CompositeSystem(self.label, elements=[medium], interactions=[diffusion])
+        return {
+            'u': DeclaredVariableSpec(u, StateSpec()),
+            'w': DeclaredVariableSpec(w, StateSpec()),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.open(0, oo))),
+            'b': DeclaredVariableSpec(self.b, ParameterSpec()),
+            'epsilon': DeclaredVariableSpec(self.epsilon, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the cubic excitation and its slow recovery."""
+        return {
+            'u': lambda s: s.target.u * (1 - s.target.u) * (s.target.u - (s.target.w + s.target.b) / s.target.a),
+            'w': lambda s: s.target.epsilon * (s.target.u**s.target.gamma - s.target.w),
+        }
+
+    def _get_diffusivities(self) -> dict[str, float]:
+        """Return the diffusion coefficient of the excitation."""
+        return {'u': self.d}

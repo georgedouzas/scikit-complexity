@@ -4,7 +4,7 @@ They cover delayed feedback, excitable tissue, the circulation, cell exchange, r
 """
 
 from ._adaptivity import AdaptiveResponderElement, AdaptiveResponseCostsSystem
-from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleyElement, BarkleySystem
+from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleySystem
 from ._cellular_potts import (
     CellAdhesionInteraction,
     CellularPottsSystem,
@@ -30,7 +30,7 @@ from ._exchange import (
     NanotubeGapJunctionExchangeSystem,
 )
 from ._pharmacokinetics import TwoCompartmentElement, TwoCompartmentPharmacokineticsSystem
-from ._physiology import FitzHughNagumoElement, FitzhughNagumoSystem, MackeyGlassElement, MackeyGlassSystem
+from ._physiology import FitzhughNagumoSystem, MackeyGlassElement, MackeyGlassSystem
 from ._regulation import (
     CoagulationElement,
     CoagulationPositiveFeedbackSystem,
@@ -48,7 +48,6 @@ __all__: list[str] = [
     'AdaptiveResponseCostsSystem',
     'AlievPanfilovElement',
     'AlievPanfilovSystem',
-    'BarkleyElement',
     'BarkleySystem',
     'BranchingVesselElement',
     'CardiovascularSystem',
@@ -66,7 +65,6 @@ __all__: list[str] = [
     'DrugToxicityElement',
     'DrugToxicitySystem',
     'ExchangingCellElement',
-    'FitzHughNagumoElement',
     'FitzhughNagumoSystem',
     'FlowAdaptationInteraction',
     'GlucoseControlElement',
