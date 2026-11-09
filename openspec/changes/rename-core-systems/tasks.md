@@ -1,7 +1,7 @@
 ## 1. Preconditions
 
-- [ ] 1.1 Check that `slim-core-elements-and-spaces`, `slim-core-interactions`, and `slim-core-laws` are archived and that no other change is being applied, and verify `openspec list` shows none of the three and `git status` is clean
-- [ ] 1.2 Rebuild the `General elements` block of `specs/general-mechanisms/spec.md` in this change from the archived main spec, renaming only `MassActionSystem`, recheck every other MODIFIED block against its main spec, and verify `openspec validate rename-core-systems --strict` passes
+- [x] 1.1 Check that `slim-core-elements-and-spaces`, `slim-core-interactions`, and `slim-core-laws` are archived and that no other change is being applied, and verify `openspec list` shows none of the three and `git status` is clean
+- [x] 1.2 Rebuild the `General elements` block of `specs/general-mechanisms/spec.md` in this change from the archived main spec, renaming only `MassActionSystem`, recheck every other MODIFIED block against its main spec, and verify `openspec validate rename-core-systems --strict` passes
 
 ## 2. Core systems package
 
