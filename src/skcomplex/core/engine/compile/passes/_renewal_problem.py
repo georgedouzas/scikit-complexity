@@ -13,9 +13,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws.utils import draws_in, reductions_in
+from ....components.laws.utils._draws import DRAWS
 from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
-from ....specs._draw_spec import DRAWS
 from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
 from ...problems._expression_printer import ExpressionPrinter

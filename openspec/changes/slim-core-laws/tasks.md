@@ -118,7 +118,7 @@ when other agents run tests at the same time.
 
 ## 7. Private helpers and draw functions
 
-- [ ] 7.1 Move `uniform`, `normal`, `bernoulli`, `categorical`, `draw`, `draws_in`, `DRAWS`, and `_call` from
+- [x] 7.1 Move `uniform`, `normal`, `bernoulli`, `categorical`, `draw`, `draws_in`, `DRAWS`, and `_call` from
   `specs/_draw_spec.py` to `laws/utils/_draws.py`, keep `DrawSpec` and `RELAXED_KINDS` in specs, and point every import
   at the new module, and verify `pytest tests/core/components/laws/utils/test_draws.py tests/core/engine` passes
 - [ ] 7.2 Drop `draws_in`, the `*_in` functions, `delay_parts`, `has_operator`, `distribute_operators`,

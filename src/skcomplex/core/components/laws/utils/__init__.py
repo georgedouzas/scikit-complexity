@@ -6,13 +6,13 @@ They are reductions, pointwise functions, draws, delays, and calls.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal, uniform
 from ._agents import matches, random_pairing, transfer
 from ._cells import cell_operations_in, codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
 from ._contractions import contraction, contractions_in
 from ._delays import delay_parts, distributed_delay
+from ._draws import bernoulli, categorical, draw, draws_in, normal, uniform
 from ._history import delayed, derivative, lag, residence
 from ._integrals import cumulative_integral, integral_transform, integration_variable
 from ._local_operators import dagger, has_operator, local_operator, operator_product

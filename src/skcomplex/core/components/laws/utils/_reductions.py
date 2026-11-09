@@ -21,7 +21,6 @@ from sage.symbolic.function import Function
 
 from ....errors import ValidationError
 from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
-from ....specs._draw_spec import draws_in
 from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
@@ -34,6 +33,7 @@ from ...spaces import (
 )
 from ...spaces._lattice import BOUNDARIES
 from ._conditions import both
+from ._draws import draws_in
 from ._pointwise import _largest, _smallest
 
 KINDS = {
