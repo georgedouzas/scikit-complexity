@@ -586,32 +586,6 @@ It SHALL be recorded in trajectories like a state, and it SHALL remain settable 
 - **WHEN** an element raises an adaptive rate parameter of another component whenever an expression exceeds a target
 - **THEN** the parameter changes in the trajectory only at steps where the expression exceeds the target
 
-### Requirement: The core is application agnostic
-Every public name and module of `skcomplex.core.components` SHALL be a mathematical, modelling, or engineering term. The core SHALL
-hold each primitive in its general form, one class per mathematical operation, configured by the states it binds and by
-functions, whose standard variants are named by their mathematics, such as the logit or Fermi rule of a choice, the
-Lévy step of a movement, or the stable matching of a matching rule. No core name or argument SHALL name a quantity
-of a field. Every specific realization
-SHALL live in `skcomplex.systems`, and the core SHALL import nothing from `skcomplex.systems`. A specific realization is
-a variant named by a field or a person's system rather than by its mathematics, such as a named potential like
-Lennard-Jones, an order book, a rule code, a quantum species, a forecasting heuristic, a tiling, or a distribution
-beyond the default.
-
-#### Scenario: Forbidden field terms
-- **WHEN** the test suite checks the public names and modules of `skcomplex.core.components` against the reviewed list of field
-  terms
-- **THEN** none of them contains a field term
-
-#### Scenario: No import of systems
-- **WHEN** the import graph of `skcomplex.core.components` is computed
-- **THEN** it contains no module of `skcomplex.systems`
-
-#### Scenario: Mathematical variants in the core
-- **WHEN** a user builds a `ChoiceInteraction` with the `'fermi'` rule and a `MatchingInteraction` with
-  `StableMatchingSpec`
-- **THEN** both interactions come from `skcomplex.core.components.interactions`, the rule spec from `skcomplex.core.specs`, and no system
-  defines either variant again
-
 ### Requirement: Core packages mirror the system definition
 The modelling packages of `skcomplex.core.components` SHALL be `system`, `components`, `interactions`, `space`, which holds space
 and time, and `laws`, each exporting the general primitives of its part of a system. A primitive that belongs to one
@@ -782,3 +756,45 @@ class with its function, or as a named realization in the field that has a term 
 #### Scenario: Specific form without a realization
 - **WHEN** a mathematics system needs an Ornstein-Uhlenbeck control or a graph diffusion
 - **THEN** it writes `RateInteraction` with the rate `(goal - x) / time` or `D laplacian(u)`, with no class of its own
+
+### Requirement: The core names mathematics and holds no realization
+Every public name and module of `skcomplex.core.components` SHALL be a mathematical, modelling, or engineering term,
+and no core name or argument SHALL name a quantity of a field. The core SHALL hold each primitive in its general form,
+one class per mathematical operation. Every specific realization and every recipe SHALL live in `skcomplex.systems`,
+and the core SHALL import nothing from `skcomplex.systems`.
+
+#### Scenario: Forbidden field terms
+- **WHEN** the test suite checks the public names and modules of `skcomplex.core.components` against the reviewed list
+  of field terms
+- **THEN** none of them contains a field term
+
+#### Scenario: No import of systems
+- **WHEN** the import graph of `skcomplex.core.components` is computed
+- **THEN** it contains no module of `skcomplex.systems`
+
+#### Scenario: Recipes outside the core
+- **WHEN** a user builds a `ChoiceInteraction` with the `'fermi'` rule and a `MatchingInteraction` with
+  `StableMatchingSpec`
+- **THEN** both come from `skcomplex.systems.general`, built on the core `RuleLaw`, `UpdateLaw`, and `MatchLaw`, and no
+  field defines either again
+
+### Requirement: The core holds building blocks only
+Every component of the core SHALL be a building block: a structural base where laws run, a primitive mechanism that
+the engine lowers in its own way, or an operator generated from one function. A recipe, a pattern of strategies that
+the primitives express, SHALL live in `skcomplex.systems`. A compile pass, a kernel, a solver, or a backend lowering
+SHALL key on a core primitive, never on a class of `skcomplex.systems`.
+
+#### Scenario: A recipe written with primitives
+- **WHEN** a reviewer lists the interactions of `skcomplex.core.components.interactions`
+- **THEN** none is an agent rule that only returns a `RuleLaw`, and none is a strategy over a law the engine already
+  lowers, such as a matching over `MatchLaw` or a reaction over `JumpLaw`
+
+#### Scenario: Engine support stays with its primitive
+- **WHEN** the engine compiles a matching, a toppling sandpile, or a binary encounter from the systems
+- **THEN** it lowers the core `MatchLaw`, `CascadeLaw`, or `BilinearLaw` that the recipe returns, and names no class of
+  `skcomplex.systems`
+
+#### Scenario: Strategy branches leave kept classes
+- **WHEN** a system needs the zones of a flock or the row scores of a sequence walk
+- **THEN** it subclasses the core `CouplingInteraction` or `SamplingInteraction` in its field, and the core classes take
+  no argument for either strategy

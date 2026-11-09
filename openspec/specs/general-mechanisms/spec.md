@@ -21,13 +21,14 @@ velocity, a mass, a price, an infection, an energy, or a harvest.
 - **THEN** it uses `RateInteraction(state='x', rate=F, divisor='m')`, and the second derivative of `x` is `F / m`
 
 ### Requirement: Field cases are subclasses
-A field case of a general class SHALL be a subclass of it, even a pure renaming, that lives with its one system or in
-the `common` package of its field when several of its packages use it. No field SHALL define the same case twice.
+A field case of a general class SHALL be a subclass of it, even a pure renaming, that lives with its one system, in the
+`common` package of its field when several of its packages use it, or in `skcomplex.systems.general` when several
+fields use it. No field SHALL define the same case twice.
 
 #### Scenario: Lennard-Jones from the core
 - **WHEN** a physics system uses Lennard-Jones particles
-- **THEN** `LennardJonesInteraction` of `physics/common/particles` is a `PairCouplingInteraction` with its pair
-  potential, and its minimum lies at `2 ** (1 / 6)` times its length
+- **THEN** `LennardJonesInteraction` of `physics/common/particles` is a `PairInteraction` with its pair potential, and
+  its minimum lies at `2 ** (1 / 6)` times its length
 
 ### Requirement: Rates, relaxation, gradients, and Lagrangians
 `RateInteraction` SHALL add a rate and an optional noise to the highest derivative of a state of any order, divided by
@@ -86,16 +87,18 @@ reads the wave speeds of all of them, and a flux SHALL read parameters and state
 
 ### Requirement: Maps, local rules, and cascades
 `MapInteraction` SHALL set the next value of a state to a function of the namespace, or add it, updated synchronously,
-sequentially, or in random order. `LocalRuleInteraction` SHALL update cells from their ordered neighbourhoods by a
-table, a totalistic rule, or a function. `CascadeInteraction` SHALL drive a state, then relax every member at or above a
-threshold until all are below it, recording cascades as events.
+sequentially, or in random order. Reinforcement of option scores SHALL be a `MapInteraction` of the scores.
+`LocalRuleInteraction` SHALL update cells from their ordered neighbourhoods by a table, a totalistic rule, or a
+function. `CascadeLaw` SHALL run its drive laws once per step, then its relaxing laws until the lattice is stable,
+recording every cascade as an event. Threshold toppling SHALL be a realization of the field that uses it.
 
 #### Scenario: Logistic map
 - **WHEN** a `MapInteraction` iterates `r x (1 - x)` at `r = 3.2`
 - **THEN** the state settles on the closed-form 2-cycle
 
 #### Scenario: Sandpile avalanches
-- **WHEN** grains drop on a 50 by 50 lattice with redistribution to four neighbours
+- **WHEN** grains drop on a 50 by 50 lattice with redistribution to four neighbours, through the physics
+  `TopplingInteraction` on `CascadeLaw`
 - **THEN** the avalanche sizes follow a power law over two decades
 
 ### Requirement: Coupling over structures
@@ -103,8 +106,10 @@ threshold until all are below it, recording cascades as events.
 source group, or the next member of an ordered group, of a function that reads both members, the edge, the parameters,
 and the time, by sum, mean, maximum, minimum, normalized mean, or circular mean, with weights given as an edge state, a
 matrix, or a function of both members, lag, and delay, and SHALL add it to a rate or combine it, with a function that
-reads the member, the parameters, and the time, into the next value. `PairCouplingInteraction` SHALL do the same for
-every pair within a cutoff, from a function of one or several states or from minus the gradient of a pair potential.
+reads the member, the parameters, and the time, into the next value. `PairInteraction` SHALL do the same for every pair
+within a cutoff, from a function of one or several states or from minus the gradient of a pair potential, and with
+neither it SHALL return no laws, so a subclass writes its own. The zones of an agent flock SHALL be a realization of
+the field that uses them, not an argument of `CouplingInteraction`.
 
 #### Scenario: Kuramoto synchronization
 - **WHEN** 500 phase oscillators with sine coupling above the critical strength run on a complete graph
@@ -127,127 +132,10 @@ every pair within a cutoff, from a function of one or several states or from min
 - **WHEN** the map form combines the member's state, a parameter, and the time with the mean of its neighbours
 - **THEN** every next value equals the direct evaluation of the combination
 
-### Requirement: Jumps, reactions, and transitions
-`JumpInteraction` SHALL change states by signed amounts at a rate, with a probability per step, or after drawn waiting
-times, after which it SHALL reset scalar or vector states. `ReactionInteraction` SHALL move units between species, given as roles and states, by a product propensity or a given
-propensity, with real stoichiometry and modifiers, as rates, jumps, or Langevin noise. `TransitionInteraction` SHALL
-move a discrete state between values by a rate, a probability per step, a condition, a transition matrix, or an
-emission matrix, after an optional residence time, and `TransitionInteraction` SHALL spread an active value along edges through a rate that reads the neighbours.
-
-#### Scenario: Deterministic and stochastic reactions agree
-- **WHEN** `S + I -> 2 I` and `I -> R` run in rate mode and in jump mode with 100,000 units
-- **THEN** the jump means stay within 2 percent of the rate solution, and `S + I + R` stays constant
-
-#### Scenario: Epidemic threshold
-- **WHEN** a contact process runs on a square lattice below and above its critical spreading rate
-- **THEN** the active fraction dies out below it and stays positive above it
-
-### Requirement: Per-member reactions and renamed roles
-`ReactionInteraction` SHALL take species as state names of its `target` alone and react in every member when the
-target is a group or a field, and a subclass SHALL be able to bind its species under roles of its own names.
-
-#### Scenario: Reactions at every site of a field
-- **WHEN** the Gray-Scott system runs its cubic autocatalysis, feed, and removal as reactions on the state names of its
-  field beside its two diffusions
-- **THEN** its trajectory equals the one of sites that carry the same rate laws of their own, up to round-off
-
-#### Scenario: A reaction under renamed roles
-- **WHEN** a subclass binds its species under the roles `susceptible` and `infected` and returns their pairs
-- **THEN** it follows the product propensity of `S + I -> 2 I` at its own rate constant, as a rate equation or as jumps
-
-### Requirement: Encounters, crossings, impulses, and sampling
-`EncounterInteraction` SHALL run conservative, destructive, or proliferative encounters over densities on activity
-classes. `CrossingInteraction` SHALL reset states or end the run when a guard crosses zero, and periodic impulses
-SHALL be crossings of the law utility `periodic_guard(t, period, start, count)`. `SamplingInteraction` SHALL run Monte Carlo sweeps by moves accepted from the change of
-an objective at an intensity.
-
-#### Scenario: Integrate and fire
-- **WHEN** a state integrates a constant input and a crossing resets it at a threshold
-- **THEN** it fires with the closed-form period
-
-#### Scenario: Ising magnetization
-- **WHEN** a `SamplingInteraction` samples a square-lattice Ising energy well below the critical temperature
-- **THEN** the absolute magnetization exceeds 0.9
-
-#### Scenario: Periodic impulses by a guard
-- **WHEN** a `CrossingInteraction` with the guard `periodic_guard(t, 2.0, 1.0, 3)` adds 1 to a state over a run to 10
-- **THEN** it fires at 1, 3, and 5 only, an impulse at the initial time does not fire, and without a count it fires
-  at every period to the end
-
-#### Scenario: Impulses at given times
-- **WHEN** a `CrossingInteraction` has the guard `t - 2.5`
-- **THEN** it fires once at 2.5
-
-#### Scenario: Encounters as a collision operator
-- **WHEN** a user reads the documentation of `EncounterInteraction`
-- **THEN** it describes the binary kinetic collision operator over the class axes
-
-### Requirement: Choice, imitation, reinforcement, and evolution
-`ChoiceInteraction` SHALL draw an option from utilities by the logit, Metropolis, Fermi, or best rule.
-`ImitationInteraction` SHALL copy a neighbour's state at random, by majority, from the best, from a random better
-neighbour, or by the Fermi rule, as rates, per-step probabilities, or agent rules. Reinforcement of option scores
-SHALL be a `MapInteraction` of the scores. `EvolutionInteraction` SHALL replace strategies by selection, replacement,
-crossover, and mutation.
-
-#### Scenario: Glauber dynamics
-- **WHEN** fully connected spins choose by the logit rule at intensity 2
-- **THEN** the magnetization approaches the root of `m = tanh(2 m)`
-
-#### Scenario: Voter consensus
-- **WHEN** voters on a ring of 50 imitate a random neighbour
-- **THEN** every run reaches consensus, and each opinion wins with its initial fraction
-
-### Requirement: Evolution variants
-`EvolutionInteraction` SHALL select by tournament, roulette, proportional, or rank selection, replace by generational,
-Moran, death-birth (parents among survivors or all), truncation, or best-mutant replacement, mutate to another, a
-redrawn, a stepped, or a new label, run once every period, and read the fitness from a state or evaluate it from the
-strategies.
-
-#### Scenario: Virtual scores and truncation
-- **WHEN** players of the minority game add the virtual payoff of each strategy by cumulative reinforcement, and every
-  50 rounds the poorest tenth redraw their strategies by truncation
-- **THEN** the volatility near `alpha = 2^m / N ~ 0.34` falls below that of random play
-
-#### Scenario: Best-mutant climbing
-- **WHEN** a population sharing one strategy takes the fittest mutant only when it is fitter or every member mutated
-- **THEN** with few mutants its evaluated fitness never falls
-
-### Requirement: Agents, groups, and exchange
-`MovementInteraction` SHALL move agents by a step. `TransferInteraction` SHALL move amounts of states between members,
-cells, sources, and sinks. `BirthDeathInteraction` SHALL create and remove members. `GroupingInteraction` SHALL draw
-pairs or groups every step. `MatchingInteraction` SHALL pair requesters with providers by its rule spec, reading the
-states that `reserve`, `quantity`, and `cap` name. `FeedbackInteraction` SHALL set parameters from observables.
-`TopologyInteraction` SHALL add, remove, and rewire nodes and edges.
-
-#### Scenario: Diffusion of walkers
-- **WHEN** 10,000 agents step by Gaussian steps of variance `2 D dt` from the origin of a plane
-- **THEN** their mean squared displacement after time `t` is `4 D t` within 5 percent
-
-#### Scenario: Matching outside markets
-- **WHEN** a ride-sharing system matches riders with idle cars by `StableMatchingSpec`
-- **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
-
-#### Scenario: Neutral matching names
-- **WHEN** a matching binds `reserve=('bid', 'ask')` with `StableMatchingSpec(value='requester')`
-- **THEN** every pair settles at the reserve of its requester, and no argument of the matching or its specs is named
-  `limit`, `allowance`, or `clearing`
-
-#### Scenario: Life cycle variants
-- **WHEN** a birth-death interaction gives births into another group with values of the parent, keeps a share of a
-  split state, replaces parents by their offspring, renews dying agents in place, removes kin of another group, or
-  brings arrivals without a parent at placed locations
-- **THEN** the new agents join the named group with the given values, the parent keeps that share, a parent that gave
-  birth is gone, a renewed agent keeps its identity and the states the new values leave out, the first kin member is
-  removed, and a Poisson number of arrivals of the given mean appear, with the counts reported as `births`, `deaths`,
-  and `arrivals`
-
-#### Scenario: Growth from outside a network
-- **WHEN** a `TopologyInteraction` adds nodes without a target, with values drawn from the generator
-- **THEN** one node joins per step with its edges, as in Barabási-Albert growth, and every new node takes its own draw
-
-#### Scenario: Galam groups
-- **WHEN** the Galam discussion system draws groups of three every step
-- **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
+#### Scenario: Pair coupling is the pair interaction
+- **WHEN** a user builds `PairInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)`
+- **THEN** it adds minus the gradient of the potential to every member of every pair within the cutoff, and the LAMMPS
+  backend lowers it to a pair style as it lowered `PairCouplingInteraction`
 
 ### Requirement: Transfer flows and pairings
 `TransferInteraction` SHALL report every symbolic leg as a flow under its name, under the element when the transfer moves
@@ -298,27 +186,8 @@ agent and the system view, and to symbolic laws in its symbolic form, chosen by 
 
 #### Scenario: Choice reading history
 - **WHEN** an agent system's logit choice reads the payoffs the system recorded in earlier rounds
-- **THEN** it uses `ChoiceInteraction` with a utility of the agent and the system view
-
-### Requirement: General elements
-The core SHALL provide `NonnegativeElement`, which holds one scalar state `x` in `[0, oo)`, and `PointElement`, a
-member with a vector state of order 2 in a continuous space. A compartment, a density at one class, a species, or a
-population SHALL be `NonnegativeElement` or a field realization that subclasses it and keeps the state `x`. The core
-SHALL provide no second element for a nonnegative scalar under another name or another state name.
-`ReactionNetworkSystem` SHALL build one `NonnegativeElement` per species and key its reactions by `(species, 'x')`, and
-`EncounterInteraction` SHALL read the state `x` unless it is given another.
-
-#### Scenario: Kinetic systems share one element
-- **WHEN** the kinetic systems of wealth, opinion, crowds, immune competition, and gases declare their densities
-- **THEN** every density is a `NonnegativeElement`, through the realization of its own field, and its state is `x`
-
-#### Scenario: Mass action species
-- **WHEN** a user builds a `ReactionNetworkSystem` with the reaction `S + I -> 2 I` and simulates it
-- **THEN** the trajectory holds `S.x` and `I.x`, and the reaction reads the keys `('S', 'x')` and `('I', 'x')`
-
-#### Scenario: Former elements are gone
-- **WHEN** a user imports `CompartmentElement` or `DensityElement` from `skcomplex.core.components.elements`
-- **THEN** the import fails with `ImportError`, since the project ships no alias for a removed class
+- **THEN** it uses `ChoiceInteraction` of `skcomplex.systems.general.agents` with a utility of the agent and the system
+  view, which lowers to a core `RuleLaw`
 
 ### Requirement: Neighbour interactions carry member laws, degrees, delays, and cascades
 `NeighborInteraction` SHALL take laws of the members at either end of an edge that run once per member, SHALL offer
@@ -389,13 +258,6 @@ any reduction.
 - **WHEN** a hub element reads the largest state of a lattice group and inhibits every member
 - **THEN** it uses `CouplingInteraction`, and the trajectory equals the previous system's
 
-### Requirement: Parametric stoichiometry
-`ReactionInteraction` SHALL take stoichiometric coefficients that are parameters.
-
-#### Scenario: Oregonator
-- **WHEN** the Oregonator's reactions change `x` and `y` scaled by `1 / epsilon` and `1 / delta`
-- **THEN** it uses `ReactionInteraction`, and its limit cycle equals the previous system's
-
 ### Requirement: Transfers along edges
 `TransferInteraction` SHALL move amounts along the edges of a lattice or network in both directions at parametric
 rates, with one draw per edge shared by both ends.
@@ -464,12 +326,17 @@ appear only in thin subclasses in `skcomplex.systems`.
 - **THEN** the subclass gives the core an intensity of one over the temperature
 
 ### Requirement: One way to select partners
-`PartnerSpec` SHALL be the only spec that selects partners by candidates, a choice, a score, a fallback, and a capacity;
-matching algorithms over offers SHALL be named for the operation, such as batch, continuous, and iterative matching.
+`PartnerSpec` SHALL be the only spec that selects partners by candidates, a choice, a score, a fallback, and a
+capacity, and it SHALL hold no clearing value. Matching algorithms over offers SHALL be realizations named for the
+operation, such as batch, continuous, and iterative matching.
 
 #### Scenario: Greedy matching by a partner spec
 - **WHEN** a matching uses a partner spec with a score and a capacity
 - **THEN** it pairs agents as `GreedyMatchingSpec` did, and `GreedyMatchingSpec` no longer exists
+
+#### Scenario: Partner pairing of a transfer
+- **WHEN** a transfer pairs agents by `PartnerSpec('reach', fallback='nearest')`
+- **THEN** it pairs them as before, and `PartnerSpec` takes no argument `value`
 
 ### Requirement: Bilinear laws are one law
 One bilinear law SHALL express gains and losses of a density at the rate of the product of two densities. A conserved
@@ -488,13 +355,6 @@ a law without a second density SHALL redistribute the first linearly.
 - **WHEN** a conserved bilinear law with no second density moves a density of two classes from the first class to the
   second at rate 1, starting from all in the first class
 - **THEN** the first class decays as `exp(-t)` within 1e-6, and the total stays constant within 1e-12
-
-### Requirement: Encounters take a collision integral
-`EncounterInteraction` SHALL evaluate a binary integral over the class axes when given a `cross_section`.
-
-#### Scenario: Binary integral over classes
-- **WHEN** an encounter with a `cross_section` targets a density on two velocity axes
-- **THEN** it gives the fast spectral integral `CollisionInteraction` gave, within 1e-12
 
 ### Requirement: Operator dynamics are named for their mathematics
 The core and the engine SHALL name linear operator dynamics on tensor products by the operation, with no quantum vocabulary
@@ -529,20 +389,78 @@ namespace alone, and the module that defines them SHALL be a module of that name
 - **WHEN** a user imports `uniform` from the public law namespace
 - **THEN** the import succeeds, and no other public package of the core re-exports `uniform`
 
-### Requirement: Reactions follow a product propensity
-A reaction without a given propensity SHALL have the propensity `k` times the product of its reactant and modifier
-amounts, each raised to its stoichiometric coefficient, where `k` is its rate constant. The core SHALL describe this
-rate law in mathematical words and SHALL name field terms only as examples, such as the law of mass action in
-chemistry, homogeneous mixing in epidemiology, and the encounter term of Lotka-Volterra in ecology.
+### Requirement: Transfers, groupings, and topology
+`TransferInteraction` SHALL move amounts of states between members, cells, sources, and sinks. `GroupingInteraction`
+SHALL draw pairs or groups every step. `MatchLaw` SHALL pair the members of agent groups every step for the rules of
+the step. `TopologyInteraction` SHALL add, remove, and rewire nodes and edges. Movement, birth and death, matching, and
+feedback SHALL be realizations in `skcomplex.systems` built on these primitives.
 
-#### Scenario: Propensity of a bimolecular reaction
-- **WHEN** a user builds the reaction `S + I -> 2 I` at the rate constant `beta` with no given propensity
-- **THEN** its propensity is `beta S I`
+#### Scenario: Growth from outside a network
+- **WHEN** a `TopologyInteraction` adds nodes without a target, with values drawn from the generator
+- **THEN** one node joins per step with its edges, as in Barabási-Albert growth, and every new node takes its own draw
 
-#### Scenario: Propensity with a coefficient above one
-- **WHEN** a user builds the reaction `2 A -> B` at the rate constant `k` with no given propensity
-- **THEN** its propensity is `k A^2`
+#### Scenario: Galam groups
+- **WHEN** the Galam discussion system draws groups of three every step
+- **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
 
-#### Scenario: Core wording is cross-domain
-- **WHEN** a reviewer searches the core, the user guide, and the specs for "mass action" or "mass-action"
-- **THEN** the term appears only as a named example of a field, never as the name of the rate law or of a class
+#### Scenario: Agent recipes leave the core
+- **WHEN** a user imports `MovementInteraction`, `BirthDeathInteraction`, `MatchingInteraction`, or
+  `FeedbackInteraction` from `skcomplex.core.components.interactions`
+- **THEN** the import fails with `ImportError`, since the project ships no alias for a moved class
+
+### Requirement: Bilinear encounters, crossings, impulses, and sampling
+`BilinearLaw` SHALL give the gain and loss of encounters of densities over activity classes. `CrossingInteraction`
+SHALL reset states or end the run when a guard crosses zero, and periodic impulses SHALL be crossings of
+`periodic_guard(t, period, start, count)`. `SamplingInteraction` SHALL run Monte Carlo sweeps by moves accepted from the
+change of a symbolic objective. Objectives over blocks of sites SHALL be field subclasses of it.
+
+#### Scenario: Integrate and fire
+- **WHEN** a state integrates a constant input and a crossing resets it at a threshold
+- **THEN** it fires with the closed-form period
+
+#### Scenario: Ising magnetization
+- **WHEN** a `SamplingInteraction` samples a square-lattice Ising energy well below the critical temperature
+- **THEN** the absolute magnetization exceeds 0.9
+
+#### Scenario: Periodic impulses by a guard
+- **WHEN** a `CrossingInteraction` with the guard `periodic_guard(t, 2.0, 1.0, 3)` adds 1 to a state over a run to 10
+- **THEN** it fires at 1, 3, and 5 only, an impulse at the initial time does not fire, and without a count it fires
+  at every period to the end
+
+#### Scenario: Impulses at given times
+- **WHEN** a `CrossingInteraction` has the guard `t - 2.5`
+- **THEN** it fires once at 2.5
+
+#### Scenario: Sampling takes no special scores
+- **WHEN** a user passes a row, region, or holonomy score to the core `SamplingInteraction`
+- **THEN** checking it raises a `ValidationError` that names the symbolic objective, and the scores live with the
+  subclasses of the fields
+
+### Requirement: Structural elements
+The core SHALL provide the structural elements `Element`, `GroupElement`, `FieldElement`, and `DeclaredElement`, and
+no element that only fixes the states of `Element`. A compartment, a density, a species, or a population SHALL be
+`NonnegativeElement` of `skcomplex.systems.general.elements` or a field subclass that keeps the state `x`. The engine
+SHALL read the state specs of elements, never these classes.
+
+#### Scenario: Elements of one state leave the core
+- **WHEN** a user imports `NonnegativeElement` or `PointElement` from `skcomplex.core.components.elements`
+- **THEN** the import fails with `ImportError`, and both import from `skcomplex.systems.general`
+
+#### Scenario: Former elements are gone
+- **WHEN** a user imports `CompartmentElement` or `DensityElement` from `skcomplex.core.components.elements`
+- **THEN** the import fails with `ImportError`, since the project ships no alias for a removed class
+
+### Requirement: Jumps and transitions
+`JumpInteraction` SHALL change states by signed amounts at a rate, with a probability per step, or after drawn
+waiting times, and SHALL then reset scalar or vector states. A reaction SHALL be a jump whose changes are its
+stoichiometric vector, realized in `skcomplex.systems.general.reactions`. `TransitionInteraction` SHALL move a discrete
+state by a rate, a probability, a condition, or a matrix, after an optional residence time.
+
+#### Scenario: Stoichiometric jumps
+- **WHEN** a `JumpInteraction` adds `{S: -1, I: +1}` at the rate `beta S I` and another adds `{I: -1, R: +1}` at the
+  rate `gamma I`, with 100,000 units
+- **THEN** the jump means follow the solution of the rate equations within 2 percent, and `S + I + R` stays constant
+
+#### Scenario: Epidemic threshold
+- **WHEN** a contact process runs on a square lattice below and above its critical spreading rate
+- **THEN** the active fraction dies out below it and stays positive above it

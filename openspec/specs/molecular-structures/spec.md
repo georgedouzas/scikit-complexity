@@ -9,10 +9,12 @@ ensemble one member per step, and measure the geometry of point chains. The biol
 ## Requirements
 
 ### Requirement: Monte Carlo moves are accepted by row scores
-`SamplingInteraction` SHALL take a `RowScoreSpec` as its objective, a function of the values of one row of a lattice state
-along its last axis and the target's parameters that returns one number. It SHALL propose a declared number of moves
-per row and unit of time through its move, accept each by its rule on the change of the score of the row, give every
-row its own draws from the simulation's stream, and record the score of every row in the trajectory.
+The biology `SequenceSamplingInteraction`, a subclass of the core `SamplingInteraction` in
+`skcomplex.systems.biology.common.sequences`, SHALL take a `RowScoreSpec` as its objective, a function of the values of
+one row of a lattice state along its last axis and the target's parameters that returns one number. It SHALL propose a
+declared number of moves per row and unit of time through its move, accept each by its rule on the change of the score
+of the row, give every row its own draws from the simulation's stream, and record the score of every row in the
+trajectory. It SHALL return an `ArrayUpdateLaw`.
 
 #### Scenario: Neutral walk
 - **WHEN** a row score is 0 for sequences whose phenotype equals a target and 1 otherwise, and a walk starts on the
