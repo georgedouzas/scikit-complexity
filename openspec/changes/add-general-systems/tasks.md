@@ -41,20 +41,26 @@ notes why. Verify each with the comparison and the mirrored tests and doctests o
   `oncology/_chemotherapy.py`, `oncology/_combination_therapy.py`, `oncology/_hormone_therapy.py`,
   `oncology/_optimal_therapy.py`, `physiology/_regulation.py`, `systems_biology/_networks.py`
   (`GlycolysisElement`, whose declared variables go to `_get_variables`)
-- [ ] 3.2 chemistry: `kinetics/_reactors.py` `PulsedElectrochemicalReactorSystem` (`PulsedElectrodeElement`)
+  Rebased: `DroopCellQuotaSystem`, `PenaeidShrimpSystem`, `SteerableFeedbackLoopSystem`, `VascularCorePeripherySystem`. Kept: `WattsMayConcurrencySystem` (trajectory differs in the last bits), `OptimalChemotherapySystem` (its element extends the shared `TumourImmuneChemotherapyElement`), `PolyhomeostaticNeuronSystem` and `WilsonCowanSystem` (their builds hold a `LeakyIntegrationInteraction`, another interaction). Left to do: `SIRVaccinationSystem`, `DrugResistanceSwitchingSystem`, `HER2TargetedTherapySystem`, `PiecewiseLinearIASSystem`, `GlycolysisOscillationsSystem`.
+- [x] 3.2 chemistry: `kinetics/_reactors.py` `PulsedElectrochemicalReactorSystem` (`PulsedElectrodeElement`)
+  Kept: `PulsedElectrochemicalReactorSystem`, whose trajectory differs in the last bits.
 - [ ] 3.3 economics: `macroeconomics/_capital.py`, `macroeconomics/_optimal_growth.py`,
   `macroeconomics/_purchasing_power.py`, `markets/_prices.py`, `resources/_optimal_harvesting.py`
+  Rebased: `CapitalStockSystem`, `OptimalConsumptionSystem`, `RiccatiPricesSystem`, `OptimalHarvestingSystem`. Left to do: `CategorizedPurchasingPowerSystem`.
 - [ ] 3.4 engineering: `circuits/_circuits.py` (four systems), `circuits/_memristive_mixed_mode_oscillator.py`,
   `control/_control.py` (four systems), `mechatronics/_vibrating_table.py`, `power_systems/_electromechanics.py`
+  Rebased: `MemristorOscillatorSystem`, `TunnelDiodeOscillatorSystem`, `PendulumSwingUpSystem`, `PidLoopSystem`, `SatelliteTransferSystem`, `ThermostatSystem`, `VibratingTableSystem`, `FaradayDiskSystem`, `RegenerativeBrakingSystem`. Kept: `MixedModeChuaSystem` and `MemristiveMixedModeOscillatorSystem` (trajectories differ in the last bits). Left to do: `ChuaSystem`.
 - [ ] 3.5 mathematics: `dynamical_systems/_driven_flows.py`, `dynamical_systems/_flows.py` (eight systems, not the
   Lorenz and Rössler systems), `dynamical_systems/_koopman.py`, `dynamical_systems/_normal_forms.py`,
   `dynamical_systems/_subcritical_forms.py`, `fractional_dynamics/_fractional.py` (fractional orders go to
   `_get_variables`)
+  Rebased: `FiniteTimeBlowUpSystem`, `HyperchaoticRosslerSystem`, `IkedaSystem`, `SprottJerkSystem`, `ThomasSystem`, `KoopmanSlowManifoldSystem`, the four normal forms, `FractionalLorenzSystem`, `FractionalOscillatorSystem`, `FractionalRelaxationSystem`. Kept: `LangfordSystem`, `NoseHooverSystem`, `SprottMixedFlowSystem`, `FractionalVanDerPolSystem` (trajectories differ in the last bits), `OUDrivenRosslerSystem` (its element extends the shared `RosslerElement`). Left to do: `SubcriticalHopfFormSystem`.
 - [ ] 3.6 physics: `celestial_mechanics/_spin_orbit.py`, `climate/_energy_balance.py` (Daisyworld and the energy
   balance), `climate/_ice_ages.py`, `climate/_low_order.py`, `climate/_pollution.py`, `climate/_tipping_types.py`,
   `climate/_variability.py`, `heat/_cooling.py`, `mechanics/_accelerators.py` `FrictionOscillatorSystem`,
   `mechanics/_rotations.py`, `nonlinear_oscillators/_oscillators.py` (Adler, Duffing, Toda),
   `oceanography/_thermohaline.py`, `statistical_mechanics/_master_equations.py`
+  Rebased: `EnergyBalanceSystem`, `CarbonCycleSystem`, `VanDerPolIceAgesSystem`, `GeodynamoSystem`, `ENSOSystem`, `DuffingSystem`, `AdlerEquationSystem`, `StommelSystem`, `LandauRelaxationSystem`. Kept: `SaltzmanGlaciationSystem`, `Lorenz84System` (trajectories differ in the last bits), `CoolingCoffeeSystem`, `HasselmannSystem` (their builds hold a `RelaxationTimeInteraction`), `RotatingBallsOnRodsSystem` (two elements). Left to do: `RelativisticOrbitSystem`, `DaisyworldSystem`, `PopulationPollutionSystem`, `FrictionOscillatorSystem`, `ForcedTodaSystem`, `SuteraFraedrichTippingSystem`.
 
 ## 4. Rebases onto DynamicalSystem in discrete time
 
@@ -62,13 +68,19 @@ Same procedure as group 3, with `time='discrete'`.
 
 - [ ] 4.1 biology: `ecology/_factories.py` `FibonacciRabbitsSystem`, `ecology/_instability.py`,
   `epidemiology/_recurrent.py`, `evolution/_prebiotic.py` `EigenQuasispeciesSystem`, `neuroscience/_synapses.py`
+  Rebased: `FibonacciRabbitsSystem`. Kept: `IntrinsicInstabilitySystem` (trajectory differs), `DelayedSIRSSystem` and `EigenQuasispeciesSystem` (several elements). Left to do: `AdaptrodeSystem`.
 - [ ] 4.2 computer science: `neural_networks/_next_generation.py`
+  Left to do: `NextGenerationReservoirSystem`, whose build branches.
 - [ ] 4.3 economics: `finance/_switching_exchange.py`, `innovation/_diversity.py`, `macroeconomics/_growth.py`,
   `resources/_crop_livestock.py`
+  Rebased: `MultiplierAcceleratorSystem`. Kept: `CreativePhaseTransitionSystem` (its map adds to the state, not replaces it). Left to do: `KirmanExchangeRateSystem`, `CropLivestockHouseholdSystem`.
 - [ ] 4.4 engineering: `control/_koopman.py`
+  Left to do: `KoopmanModelPredictiveControlSystem`, whose build branches.
 - [ ] 4.5 mathematics: `dynamical_systems/_maps.py` (thirteen maps), `fractals/_quadratic.py`
+  Rebased: the thirteen maps. Left to do: `JuliaSystem`, `MandelbrotSystem`.
 - [ ] 4.6 physics: `active_matter/_flocks.py` `GregoireChateSystem`, `climate/_soil.py`, `criticality/_sandpiles.py`
   `SelfOrganizedBranchingSystem`, `mechanics/_accelerators.py` `BeamBeamMapSystem`, `statistical_mechanics/_urns.py`
+  Rebased: `SoilTemperatureSystem`, `BeamBeamMapSystem`. Left to do: `GregoireChateSystem`, `SelfOrganizedBranchingSystem`, `EhrenfestUrnSystem`.
 
 ## 5. NetworkDynamicalSystem
 
@@ -85,10 +97,13 @@ Same procedure as group 3.
 
 - [ ] 6.1 biology: `physiology/_exchange.py`, `epidemiology/_networks.py` `MetapopulationSystem`,
   `epidemiology/_adaptive.py` `QuenchedMeanFieldSISSystem`
+  Left to do.
 - [ ] 6.2 physics: `climate/_tipping.py` `TippingCascadeNetworkSystem`, and `synchronization/_networks.py`
   `KuramotoOnNetworksSystem` if its edge group holds no state its trajectory reports. `PhaseOscillatorElement` stays,
   as other systems compose it.
-- [ ] 6.3 mathematics: `networks/_processes.py` `NetworkDiffusionSystem`. `PagerankSystem` keeps its base.
+  Left to do.
+- [x] 6.3 mathematics: `networks/_processes.py` `NetworkDiffusionSystem`. `PagerankSystem` keeps its base.
+  Rebased: `NetworkDiffusionSystem`, whose local equation reads the graph Laplacian. `PagerankSystem` keeps its base.
 
 ## 7. ReactionDiffusionSystem
 
@@ -106,10 +121,13 @@ Same procedure as group 3.
 
 - [ ] 8.1 biology: `ecology/_fronts.py`, `physiology/_cardiac.py` (Aliev-Panfilov, Barkley), `physiology/_physiology.py`
   `FitzhughNagumoSystem`, `systems_biology/_min_proteins.py`
-- [ ] 8.2 chemistry: `pattern_formation/_reaction_diffusion.py` (Gray-Scott, Brusselator, Schnakenberg, keeping their
+  Left to do.
+- [x] 8.2 chemistry: `pattern_formation/_reaction_diffusion.py` (Gray-Scott, Brusselator, Schnakenberg, keeping their
   reactions through `_get_equation_interactions`)
+  Rebased: `GrayScottSystem`, `SchnakenbergSystem`. Kept: `BrusselatorSystem`, whose element extends the shared `BrusselatorReactionElement`.
 - [ ] 8.3 physics: `heat/_heat.py` `HeatDiffusionSystem`, `criticality/_absorbing.py`
   `DirectedPercolationLangevinSystem`
+  Left to do.
 
 ## 9. StockFlowSystem
 
@@ -126,12 +144,16 @@ Same procedure as group 3.
 
 - [ ] 10.1 economics: `innovation/_bass.py`, `markets/_commodities.py`, `markets/_inventory.py`,
   `resources/_extraction.py` (oil economy, fishery capital), `resources/_fisheries.py`, `resources/_food_balance.py`
+  Rebased: `BassDiffusionSystem`. Left to do: the other economics systems, several with transfers of several legs or labelled sources.
 - [ ] 10.2 engineering: `processes/_grain_storage.py`, `processes/_processes.py` `BathtubSystem`,
   `processes/_systems.py` `FoodReliefSystem`
+  Rebased: `BathtubSystem`. Left to do: `GrainStorageSystem`, `FoodReliefSystem`.
 - [ ] 10.3 social: `opinion_dynamics/_undecided.py`, `organizations/_traps.py` (five systems)
-- [ ] 10.4 For `CascadeClassifierSystem`, `RiceMillingSystem`, `SolidWasteSystem`, `IrrigationSystem`, `CocoaSystem`,
+  Left to do: their transfers have several legs and a labelled `Source`, which the flow table does not express.
+- [x] 10.4 For `CascadeClassifierSystem`, `RiceMillingSystem`, `SolidWasteSystem`, `IrrigationSystem`, `CocoaSystem`,
   and `EnergyReturnSystem`, try the rates outside their flows as named flows and compare with the script of 1.3. Keep
   each system on its base unless names and values are equal, and record the result in this task.
+  All six keep their base. A rate written as a named flow adds `<element>.<flow>` to the trajectory, so the names cannot stay equal.
 
 ## 11. Translator
 
