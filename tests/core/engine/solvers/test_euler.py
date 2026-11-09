@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import NonnegativeElement
-from skcomplex.core.components.interactions import RateInteraction, RelaxationInteraction
+from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import delayed, step
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -16,7 +16,7 @@ from skcomplex.core.specs import StepSpec
 
 def _relaxing_system():
     """Return a state that relaxes towards a goal."""
-    relaxation = RelaxationInteraction('relaxation', target='tank', state='x', goal=10.0, time=2.0)
+    relaxation = RateInteraction('relaxation', target='tank', state='x', rate=lambda s: (10.0 - s.target.x) / 2.0)
     return System(elements=[NonnegativeElement('tank', x=0.0)], interactions=[relaxation])
 
 

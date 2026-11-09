@@ -18,8 +18,8 @@ round(float(simulate(system, until=2.0, dt=0.01).values('stock.x')[-1]), 3)
 map, a coupling, a jump, a transition, a choice, a movement, a transfer, a grouping. Find the operation you need in the
 list, then follow the link to its subsection.
 
-- Change a state continuously by a rate, towards a goal, or with noise: `RateInteraction` and
-  `RelaxationInteraction`, in [Rates and relaxation](#rates-and-relaxation).
+- Change a state continuously by a rate, towards a goal, or with noise: `RateInteraction`, in
+  [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian: `GradientInteraction`,
   `EulerLagrangeInteraction`, and `HamiltonianInteraction`, in [Gradients and mechanics](#gradients-and-mechanics).
 - Move a particle along the geodesics of a curved metric, or evolve a metric ansatz by the Einstein equations:
@@ -128,25 +128,26 @@ These classes write differential equations, with or without noise.
 
 ### Rates and relaxation
 
-Use `RateInteraction` to add any rate to a state, as the decay at the top of this section does, and
-`RelaxationInteraction` to pull a state towards a goal.
+Use `RateInteraction` to add any rate to a state, as the decay at the top of this section does, or to pull a state
+towards a goal.
 
 `RateInteraction(target, state, rate, sources=(), noise=None, divisor=None, hurst=None)` adds `rate(s)`, and
 `noise(s) dW`, to the highest derivative of a state of any order. A Hurst index `hurst` makes the noise fractional.
 
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
-from skcomplex.core.components.interactions import RelaxationInteraction
+from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
-smoothing = RelaxationInteraction('smoothing', target='belief', state='x', goal=10.0, time=0.5)
+smoothing = RateInteraction('smoothing', target='belief', state='x', rate=lambda s: (10.0 - s.target.x) / 0.5)
 system = System(elements=[NonnegativeElement('belief', x=0.0)], interactions=[smoothing])
 round(float(simulate(system, until=5.0, dt=0.01).values('belief.x')[-1]), 3)
 ```
 
-`RelaxationInteraction(target, state, goal, time, noise=None)` relaxes a state towards a goal at the rate
-`(goal - x) / time`. With noise, it is an Ornstein-Uhlenbeck process.
+The rate `(goal - x) / time` relaxes a state towards a goal. With noise, it is an Ornstein-Uhlenbeck process. A field
+that has its own term for this form names it by a subclass, such as the physics `RelaxationTimeInteraction` or the
+neuroscience `LeakyIntegrationInteraction`.
 
 ### Gradients and mechanics
 
