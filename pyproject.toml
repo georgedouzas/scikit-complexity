@@ -343,6 +343,7 @@ DEP002 = [
     "biopython",
     "ViennaRNA",
     "mdtraj",
+    "einsteinpy",
     "passagemath-maxima",
     "passagemath-polyhedra",
     "passagemath-gap",
