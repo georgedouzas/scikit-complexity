@@ -159,7 +159,7 @@ Same procedure as group 3.
 
 ## 13. Inventory
 
-- [ ] 13.1 Update the entries of `docs/overview/inventory.toml` whose components or bindings changed with a rebase.
+- [x] 13.1 Update the entries of `docs/overview/inventory.toml` whose components or bindings changed with a rebase.
   Verify with the inventory check that the documentation build runs.
 
 ## 14. Integration
