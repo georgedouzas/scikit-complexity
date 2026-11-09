@@ -32,12 +32,12 @@ when other agents run tests at the same time.
 - [x] 2.1 Add `source=None` to `TransitionLaw`, and move the symbolic-matrix check, the docstring, and the example of
   `EmissionLaw` into it, and verify new tests in `tests/core/components/laws` cover a source with a rectangular matrix
   and the function-matrix error
-- [ ] 2.2 In `MarkovPass`, handle a `TransitionLaw` with a source as it handles an `EmissionLaw`, and verify
+- [x] 2.2 In `MarkovPass`, handle a `TransitionLaw` with a source as it handles an `EmissionLaw`, and verify
   `pytest tests/core/engine/compile` passes
-- [ ] 2.3 Emit `TransitionLaw(observed, matrix, source=value)` in `interactions/_transition.py`, drop `EmissionLaw` from
+- [x] 2.3 Emit `TransitionLaw(observed, matrix, source=value)` in `interactions/_transition.py`, drop `EmissionLaw` from
   its `law_classes` and variant tags, and verify `pytest tests/core/components/interactions/test_variants.py` and the
   hidden Markov systems of `tests/systems/mathematics/stochastic_processes` pass
-- [ ] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
+- [x] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
   verify the markdown doctests and the test pass
 - [ ] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
   backends, and `experiments/_replicate.py`, delete `laws/_emission.py` and its re-export, and verify

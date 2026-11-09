@@ -25,5 +25,5 @@ def test_transition_with_a_source_takes_a_rectangular_matrix():
 def test_transition_with_a_source_rejects_a_function_matrix():
     """Test that a transition law with a source asks for a symbolic matrix when given a function."""
     observed, hidden = var('observed'), var('hidden')
-    with pytest.raises(ValidationError, match='symbolic matrix'):
+    with pytest.raises(ValidationError, match=r'symbolic only.*UpdateLaw'):
         TransitionLaw(observed, lambda t, values: [[1.0]], source=hidden).prepare()

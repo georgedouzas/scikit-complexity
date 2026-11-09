@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
+from ....components.laws import BaseLaw, TransitionLaw, UpdateLaw
 from ....components.laws.utils import categorical, where
 from ....errors import ValidationError
 from ....specs import CallSpec, EntrySpec, MatrixLawSpec, RunStateSpec
@@ -34,7 +34,7 @@ MEMBER_NDIM = 3
 
 
 class MarkovPass(BasePass):
-    """Pass that rewrites transition and emission laws into Markov matrices.
+    """Pass that rewrites transition laws, with or without a source, into Markov matrices.
 
     The matrices are checked at the initial values.
     """
@@ -226,13 +226,13 @@ class MarkovPass(BasePass):
     @staticmethod
     def _emission(
         owner: str,
-        law: EmissionLaw,
+        law: TransitionLaw,
         references: Mapping[Expression, ReferenceSpec],
         updates: dict[str, object],
     ) -> tuple[UpdateLaw, MatrixLawSpec]:
-        """Return the update law an emission law becomes, and its matrix.
+        """Return the update law a transition law with a source becomes, and its matrix.
 
-        The update law reads the next value of the hidden state.
+        The update law reads the next value of the source state.
         """
         description = f'emission law of {owner}.{law._get_targets()[0]}'
         columns = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
@@ -326,7 +326,7 @@ class MarkovPass(BasePass):
         spec: KernelSpec,
         laws: list[BaseLaw],
     ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
-        """Return the laws of a component with transition and emission laws rewritten.
+        """Return the laws of a component with transition laws rewritten.
 
         They are rewritten as update laws with draws.
 
@@ -343,14 +343,14 @@ class MarkovPass(BasePass):
 
         Raises:
             ValidationError:
-                A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or an
-                emission reads a hidden state that no update law of the component sets.
+                A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or its
+                source state is one that no update law of the component sets.
         """
         owner, references = spec.owner, spec.references
         matrices: list[MatrixLawSpec] = []
         rewritten: list[BaseLaw] = []
         for law in laws:
-            if isinstance(law, TransitionLaw):
+            if isinstance(law, TransitionLaw) and law.source is None:
                 update, found = MarkovPass._transition(spec, law)
                 rewritten.append(update)
                 matrices.extend([found] if found is not None else [])
@@ -358,7 +358,7 @@ class MarkovPass(BasePass):
                 rewritten.append(law)
         updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
         for index, law in enumerate(rewritten):
-            if isinstance(law, EmissionLaw):
+            if isinstance(law, TransitionLaw) and law.source is not None:
                 rewritten[index], matrix = MarkovPass._emission(owner, law, references, updates)
                 matrices.append(matrix)
         return rewritten, matrices

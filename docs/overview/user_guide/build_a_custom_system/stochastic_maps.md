@@ -62,8 +62,8 @@ trajectory does not record them. A system that wants to keep a draw assigns it t
 ## Markov chains and hidden Markov sources
 
 Step a state over a finite alphabet with a transition matrix, and emit an observed symbol from a hidden state.
-`TransitionLaw(targets, matrix)` is the step of a discrete-time Markov chain, and `EmissionLaw(targets, source, matrix)`
-draws an observed state.
+`TransitionLaw(targets, matrix)` is the step of a discrete-time Markov chain, and `TransitionLaw(targets, matrix,
+source=source)` draws an observed state from the row that a hidden state selects.
 
 ```python
 from typing import Annotated
@@ -71,7 +71,7 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import EmissionLaw, TransitionLaw
+from skcomplex.core.components.laws import TransitionLaw
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -94,7 +94,7 @@ class SourceElement(Element):
     def _get_laws(self, s):
         return [
             TransitionLaw(s.hidden, [[s.stay, 1 - s.stay], [0.4, 0.6]]),
-            EmissionLaw(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
+            TransitionLaw(s.symbol, [[0.7, 0.3], [0.2, 0.8]], source=s.hidden),
         ]
 
 
@@ -104,8 +104,9 @@ round(float((trajectory.values('source.hidden') == 'calm').mean()), 1)
 
 - The target of a `TransitionLaw` is a state over a finite alphabet, a `FiniteEnumeratedSet` of labels or the integers
   from 0 to `n - 1`. Its current value selects the row of the transition matrix that the next value is drawn from.
-- An `EmissionLaw` draws the observed state from the row of an emission matrix that the hidden state `source` selects.
-  It reads the hidden state after the same step, so the two sequences align frame by frame.
+- A `TransitionLaw` with a `source` draws the observed state from the row of an emission matrix that the hidden state
+  selects. It reads the hidden state after the same step, so the two sequences align frame by frame. Its matrix has one
+  row per hidden value and one column per observed value, and it is symbolic only.
 - Both are update laws, so they combine with other update laws.
 - Matrix entries are numbers or expressions of parameters. `simulate` checks that the entries are nonnegative and that
   every row sums to 1 at the initial parameter values, and raises an error that names the entry otherwise.
