@@ -19,9 +19,9 @@ The audit was checked against the code. Its claims hold, with these corrections.
   `PulseInteraction`, which keeps every argument of the core class.
 - `budget`, the audit's name for `allowance` of `MatchingInteraction`, is in the list of field terms that
   `tests/core/components/test_base.py` forbids. This design uses `cap` instead.
-- The audit placed realizations in new family packages. Creating packages needs the user's approval, so every
-  realization goes into an existing package: a system module, an existing family of a `common` package, or the root
-  of an `engineering` or `economics` common package, which already hold loose modules.
+- The audit placed realizations in new family packages. The user approved new `common` packages after the draft, so
+  the realizations shared by several packages of engineering and economics go into new families of their `common`
+  packages.
 
 This change lands after `add-system-package` and `slim-core-elements-and-spaces`. Paths and examples use
 `skcomplex.core.components.systems`, `NonnegativeElement(label, visual=None, *, x=0.0)`, and `BallNeighborhood`.
@@ -50,12 +50,12 @@ This change lands after `add-system-package` and `slim-core-elements-and-spaces`
 
 | From (core) | To (core) | Realizations by field, with paths under `skcomplex/systems/` | Core dependents |
 | --- | --- | --- | --- |
-| `RelaxationInteraction` | `RateInteraction` with the rate `(goal - x) / time` | physics `RelaxationTimeInteraction` in `physics/common/particles/_relaxation_time.py`, base of `LangevinThermostatInteraction` and `BhatnagarGrossKrookInteraction`, used by heat cooling, coloured noise, and climate variability. engineering `SpeedAdaptationInteraction` in `engineering/common/_speed_adaptation.py`, base of `OptimalVelocityInteraction` and `LangevinDrivingInteraction`, used by the continuum traffic systems. chemistry `MassExchangeInteraction` in `chemistry/kinetics/_mass_exchange.py`, used by the reactors and the oscillators. biology `LeakyIntegrationInteraction` in `biology/neuroscience/_leaky_integration.py`, used by the populations and networks. economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`. social `MotivationInteraction` in `social/crowds/_pedestrians.py`, rebased on `RateInteraction`. No copy: the trails and the adaptivity of biology and the driven flows of mathematics write `RateInteraction` | `_module_writer.py` template, docstrings of `_system_dynamics.py` and `_strang_splitting.py` |
+| `RelaxationInteraction` | `RateInteraction` with the rate `(goal - x) / time` | physics `RelaxationTimeInteraction` in `physics/common/particles/_relaxation_time.py`, base of `LangevinThermostatInteraction` and `BhatnagarGrossKrookInteraction`, used by heat cooling, coloured noise, and climate variability. engineering `SpeedAdaptationInteraction` in `engineering/common/traffic/_speed_adaptation.py`, base of `OptimalVelocityInteraction` and `LangevinDrivingInteraction`, used by the continuum traffic systems. chemistry `MassExchangeInteraction` in `chemistry/kinetics/_mass_exchange.py`, used by the reactors and the oscillators. biology `LeakyIntegrationInteraction` in `biology/neuroscience/_leaky_integration.py`, used by the populations and networks. economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`. social `MotivationInteraction` in `social/crowds/_pedestrians.py`, rebased on `RateInteraction`. No copy: the trails and the adaptivity of biology and the driven flows of mathematics write `RateInteraction` | `_module_writer.py` template, docstrings of `_system_dynamics.py` and `_strang_splitting.py` |
 | `DiffusionInteraction` | `RateInteraction` with the rate `D laplacian(u)` | physics `DiffusivityInteraction` in `physics/common/fields/_diffusivity.py`, used by heat, fluid flows, gyres, and gels. No copy: chemistry reaction-diffusion, biology Min proteins, foraging, trails, cardiac, physiology, angiogenesis, and colonies, and mathematics network processes write `RateInteraction` | none |
 | `AdvectionInteraction` | `ConservationInteraction` with the flux `a u` | physics `AdvectionInteraction` in `physics/common/fields/_advection.py`, used by gyres, gels, kinetic flocks, kinetic equations, and fluid flows. social `SelectionDriftInteraction` in `social/cooperation/_multilevel_selection.py`. biology `SizeGrowthInteraction` in `biology/ecology/_forest_size_structure.py` | docstrings of `_semi_lagrangian.py` and `_strang_splitting.py` |
-| `ImpulseInteraction` | `CrossingInteraction` with the guard `t - t_k` or `periodic_guard(t, period, start, count)` | engineering `PulseInteraction` in `engineering/common/_pulse.py`, used by circuits, magnetic levitation, and minimum-time control. physics `KickInteraction` in `physics/nonlinear_oscillators/_oscillators.py`. biology `IrradiationInteraction` in `biology/oncology/_radiotherapy.py`, rebased on `CrossingInteraction` | new `periodic_guard` in `core/components/laws/utils/_signals.py` |
+| `ImpulseInteraction` | `CrossingInteraction` with the guard `t - t_k` or `periodic_guard(t, period, start, count)` | engineering `PulseInteraction` in `engineering/common/signals/_pulse.py`, used by circuits, magnetic levitation, and minimum-time control. physics `KickInteraction` in `physics/nonlinear_oscillators/_oscillators.py`. biology `IrradiationInteraction` in `biology/oncology/_radiotherapy.py`, rebased on `CrossingInteraction` | new `periodic_guard` in `core/components/laws/utils/_signals.py` |
 | `SignAdjustmentInteraction` | `MapInteraction` | economics `PriceAdjustmentInteraction` in `economics/markets/_shops.py` | none |
-| `ReinforcementInteraction` | `MapInteraction` | economics `PayoffLearningInteraction` in `economics/common/_payoff_learning.py`, used by oligopoly, Brock-Hommes, perishables, El Farol, and minority | none |
+| `ReinforcementInteraction` | `MapInteraction` | economics `PayoffLearningInteraction` in `economics/common/learning/_payoff_learning.py`, used by oligopoly, Brock-Hommes, perishables, El Farol, and minority | none |
 | `MobilityInteraction` | moves | physics `StokesianMobilityInteraction` in `physics/common/particles/_stokesian_mobility.py`, base of `SquirmerSlipInteraction` and `BlinkingTrapsInteraction` | none |
 | `EinsteinInteraction` | moves | physics `EinsteinFieldEquationsInteraction` in `physics/cosmology/_metric_cosmologies.py` | docstring of `spaces/_pseudo_riemannian.py` |
 | `LifeCycleInteraction` | renamed `BirthDeathInteraction` in `_birth_death.py` | none, users in economics, mathematics, social, engineering, and biology change their import | none |
@@ -93,11 +93,12 @@ crossing law per time and one for the period, as `ImpulseInteraction` did.
 ### Placement follows existing packages
 
 A realization of one system module lives in that module. A realization of several modules of one package lives in that
-package. A realization of several packages of one field lives in its `common` package, in an existing family when one
-fits, such as `particles` or `fields` of physics. Engineering and economics have no fitting family, and their `common`
-packages already hold loose modules, so `_speed_adaptation.py`, `_pulse.py`, and `_payoff_learning.py` sit at their
-root. The `model-library` spec asks for families with no loose modules. That conflict exists today, so this change
-neither adds a family nor moves the existing loose modules. A later change can create the families with approval.
+package. A realization of several packages of one field lives in a family package of its `common` package. Physics uses the
+existing families `particles` and `fields`. Engineering and economics had no fitting family, so, with the approval of
+the user, this change adds `engineering/common/traffic` for `SpeedAdaptationInteraction`,
+`engineering/common/signals` for `PulseInteraction`, and `economics/common/learning` for
+`PayoffLearningInteraction`, as the `model-library` spec asks for families rather than loose modules. The loose
+modules that exist today stay where they are.
 
 ### The inventory follows the core
 

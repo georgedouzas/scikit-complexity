@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import pulse_train, series
+from skcomplex.core.components.laws.utils import periodic_guard, pulse_train, series
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -77,3 +77,22 @@ def test_pulse_train_rejects_a_count_that_is_not_a_positive_integer(count):
     """Test that a pulse train with a count that is not a positive integer raises an error."""
     with pytest.raises(ValidationError, match='positive integer'):
         pulse_train(var('t'), 4, 1, count=count)
+
+
+def test_periodic_guard_crosses_zero_at_the_periodic_times_only():
+    """Test that a periodic guard is zero at `start + j period` for `j < count` and nowhere else."""
+    t = var('t')
+    guard = periodic_guard(t, 2.0, start=1.0, count=3)
+    times = np.linspace(-2.0, 12.0, 1401)
+    values = np.array([float(guard.subs({t: time})) for time in times])
+    zeros = times[np.abs(values) < 1e-9]
+    np.testing.assert_allclose(zeros, [1.0, 3.0, 5.0], atol=1e-9)
+    signs = np.sign(values[np.abs(values) > 1e-9])
+    assert np.count_nonzero(np.diff(signs)) == 3
+
+
+@pytest.mark.parametrize(('period', 'count'), [(0.0, None), (1.0, 0), (1.0, True)])
+def test_periodic_guard_rejects_a_bad_period_or_count(period, count):
+    """Test that a periodic guard rejects a period that is not positive and a count that is not a positive integer."""
+    with pytest.raises(ValidationError, match='periodic guard'):
+        periodic_guard(var('t'), period, count=count)

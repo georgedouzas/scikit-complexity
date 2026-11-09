@@ -55,7 +55,7 @@ from ._reductions import (
     total,
     variance,
 )
-from ._signals import pulse, pulse_train, ramp, series, step
+from ._signals import periodic_guard, pulse, pulse_train, ramp, series, step
 from ._tensors import (
     antisymmetric_part,
     distribute_operators,
@@ -131,6 +131,7 @@ __all__: list[str] = [
     'normal',
     'operator_product',
     'partial',
+    'periodic_guard',
     'pulse',
     'pulse_train',
     'ramp',
