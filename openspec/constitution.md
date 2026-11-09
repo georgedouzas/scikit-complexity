@@ -297,7 +297,7 @@ to fill in as the project takes shape.
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
   `skcomplex.core.components` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
-  `system`, and `specs`, and nothing about how it runs. `skcomplex.core.engine` holds what runs a system, in the order
+  `systems`, and `specs`, and nothing about how it runs. `skcomplex.core.engine` holds what runs a system, in the order
   `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.core.analysis` builds on the
   engine, and `skcomplex.core.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.core.base` (`BaseConfig`, the root of every configurable class), `skcomplex.core.types`, `skcomplex.core.specs`, and
@@ -330,7 +330,8 @@ to fill in as the project takes shape.
 - Surface: the top-level package, `skcomplex.core.components`, and `skcomplex.core.engine` re-export nothing, so every public name is
   imported from the subpackage that owns it.
 - Extension points: classes users subclass are the bases `BaseElement`, `Element`, `BaseInteraction`, `Interaction`,
-  `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, and `BaseLaw`; the general interactions, such as
+  `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, `BaseLaw`, and the systems `BaseSystem`,
+  `System`, and `MassActionSystem` of the package `systems`; the general interactions, such as
   `RateInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`, `ConservationInteraction`,
   `CouplingInteraction`, `PairCouplingInteraction`, `MapInteraction`, `JumpInteraction`, `ReactionInteraction`,
   `TransitionInteraction`, and `SamplingInteraction`, and the agent interactions `ChoiceInteraction`,

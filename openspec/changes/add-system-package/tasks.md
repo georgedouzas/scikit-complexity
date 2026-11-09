@@ -15,7 +15,7 @@
 ## 3. Contracts and profile
 
 - [x] 3.1 In `[tool.importlinter]` of `pyproject.toml`, replace the layers `mass_action` and `system` of the components contract with `systems`, and add a layers contract for the container `skcomplex.core.components.systems` with `_mass_action`, `_system`, and `_base`, and verify `lint-imports` passes with `PYTHONPATH=src`
-- [ ] 3.2 Update the Layout and Extension points of the Project Profile in `openspec/constitution.md` to name the package `systems` in the order of the packages of `components`, and verify `grep` finds no `system` package or `mass_action` module left in the profile
+- [x] 3.2 Update the Layout and Extension points of the Project Profile in `openspec/constitution.md` to name the package `systems` in the order of the packages of `components`, and verify `grep` finds no `system` package or `mass_action` module left in the profile
 - [x] 3.3 Commit the work as a conventional `refactor!` commit whose body names the new import path, and verify `nox -s changelog` lists it as a breaking change
 
 ## 4. Verification
