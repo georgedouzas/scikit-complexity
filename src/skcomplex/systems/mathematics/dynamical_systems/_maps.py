@@ -13,347 +13,8 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class BakerMapElement(Element):
-    """Coordinates and parameters of the generalized baker map.
-
-    The map stretches the unit square and stacks it.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial stretched coordinate.
-
-        y:
-            The initial squeezed coordinate.
-
-        alpha:
-            The position of the cut.
-
-        lambda_a:
-            The height of the bottom band.
-
-        lambda_b:
-            The height of the top band.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import BakerMapElement
-        >>> BakerMapElement('map', alpha=0.4).alpha
-        0.4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.2,
-        y: Annotated[object, StateSpec()] = 0.3,
-        alpha: Annotated[object, ParameterSpec()] = 1 / 3,
-        lambda_a: Annotated[object, ParameterSpec()] = 1 / 3,
-        lambda_b: Annotated[object, ParameterSpec()] = 2 / 3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.alpha = alpha
-        self.lambda_a = lambda_a
-        self.lambda_b = lambda_b
-
-
-class CatMapElement(Element):
-    """Coordinates of Arnold's cat map of the unit torus.
-
-    The map is `(x, y) -> (2 x + y, x + y) (mod 1)`, which maps iterate.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate, between 0 and 1.
-
-        y:
-            The initial second coordinate, between 0 and 1.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import CatMapElement
-        >>> CatMapElement('map', x=0.5).x
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-
-
-class CircleMapElement(Element):
-    """Angle and parameters of the sine circle map.
-
-    The map is `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        theta:
-            The initial angle, as a fraction of a turn.
-
-        Omega:
-            The bare rotation per step.
-
-        K:
-            The nonlinearity.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import CircleMapElement
-        >>> CircleMapElement('map', K=1.0).K
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        Omega: Annotated[object, ParameterSpec()] = 0.25,
-        K: Annotated[object, ParameterSpec()] = 0.9,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.Omega = Omega
-        self.K = K
-
-
-class ConservativeHenonMapElement(Element):
-    """Coordinates and rotation of Hénon's area-preserving map.
-
-    The map is a rotation by `2π nu` followed by a quadratic kick.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        nu:
-            The rotation number of the linear part, in turns.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import ConservativeHenonMapElement
-        >>> ConservativeHenonMapElement('map', nu=0.25).nu
-        0.25
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.0,
-        nu: Annotated[object, ParameterSpec()] = 0.2114,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.nu = nu
-
-
-class FermiUlamMapElement(Element):
-    """Speed and wall phase of the Fermi-Ulam map.
-
-    A ball bounces between a fixed and an oscillating wall.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial speed of the ball.
-
-        theta:
-            The initial phase of the oscillating wall.
-
-        epsilon:
-            The amplitude of the speed the oscillating wall gives the ball.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import FermiUlamMapElement
-        >>> FermiUlamMapElement('map', epsilon=0.2).epsilon
-        0.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[object, StateSpec()] = 0.5,
-        theta: Annotated[object, StateSpec()] = 1.0,
-        epsilon: Annotated[object, ParameterSpec()] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.theta = theta
-        self.epsilon = epsilon
-
-
-class GaussianMapElement(Element):
-    """Value and parameters of the CDN Gaussian map `x' = exp(-alpha² x²) + β`.
-
-    The map acts on an interval.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value.
-
-        alpha:
-            The steepness of the Gaussian.
-
-        beta:
-            The shift of the Gaussian.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import GaussianMapElement
-        >>> GaussianMapElement('map', beta=-0.3).beta
-        -0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        alpha: Annotated[object, ParameterSpec()] = 2.8,
-        beta: Annotated[object, ParameterSpec()] = -0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.alpha = alpha
-        self.beta = beta
-
-
-class HenonMapElement(Element):
-    """Coordinates and parameters of the Hénon map `x' = 1 - a x^2 + y`, `y' = b x`.
-
-    Maps iterate the coordinates.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        a:
-            The nonlinearity.
-
-        b:
-            The contraction.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import HenonMapElement
-        >>> HenonMapElement('map', a=1.2).a
-        1.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        a: Annotated[object, ParameterSpec()] = 1.4,
-        b: Annotated[object, ParameterSpec()] = 0.3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.a = a
-        self.b = b
-
-
-class IntermittencyMapElement(Element):
-    """Value and exponent of the Pomeau-Manneville map `x' = x + x^z (mod 1)`.
-
-    A `MapInteraction` iterates the value.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, between 0 and 1.
-
-        z:
-            The exponent of the tangency at 0, above 1.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import IntermittencyMapElement
-        >>> IntermittencyMapElement('map', z=1.5).z
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.01,
-        z: Annotated[object, ParameterSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.z = z
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class LogisticMapElement(Element):
@@ -393,222 +54,7 @@ class LogisticMapElement(Element):
         self.r = r
 
 
-class LoziMapElement(Element):
-    """Coordinates and parameters of the Lozi map `x' = 1 + y - a |x|`, `y' = b x`.
-
-    Maps iterate the coordinates.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        a:
-            The slope of the fold.
-
-        b:
-            The contraction.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import LoziMapElement
-        >>> LoziMapElement('map', a=1.5).a
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        a: Annotated[object, ParameterSpec()] = 1.7,
-        b: Annotated[object, ParameterSpec()] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.a = a
-        self.b = b
-
-
-class NewtonMapElement(Element):
-    """Real and imaginary parts of Newton's method for `z^3 = 1`.
-
-    The method is `z' = (2 z^3 + 1) / (3 z^2)`, which maps iterate.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial real part.
-
-        y:
-            The initial imaginary part.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import NewtonMapElement
-        >>> NewtonMapElement('map', x=1.5).x
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.5,
-        y: Annotated[object, StateSpec()] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-
-
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
-
-
-class StandardMapElement(Element):
-    """Angle, momentum, and kick of the standard map.
-
-    The map is `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        theta:
-            The initial angle.
-
-        p:
-            The initial momentum.
-
-        K:
-            The kick strength.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapElement
-        >>> StandardMapElement('map', K=0.5).K
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        p: Annotated[object, StateSpec()] = 2 * math.pi * GOLDEN_MEAN,
-        K: Annotated[object, ParameterSpec()] = 1.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.p = p
-        self.K = K
-
-
-class TentMapElement(Element):
-    """Value and slope of the tent map `x' = mu min(x, 1 - x)`.
-
-    A `MapInteraction` iterates the value.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, between 0 and 1.
-
-        mu:
-            The slope, between 0 and 2.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import TentMapElement
-        >>> TentMapElement('map', mu=1.5).mu
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.3,
-        mu: Annotated[object, ParameterSpec()] = 1.99,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.mu = mu
-
-
-class TowelMapElement(Element):
-    """Coordinates and growth rates of Rössler's towel map.
-
-    The map is three-dimensional with two positive exponents.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
-
-        a:
-            The growth rate of the first logistic coordinate.
-
-        b:
-            The growth rate of the third logistic coordinate.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import TowelMapElement
-        >>> TowelMapElement('map', a=3.7).a
-        3.7
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.085,
-        y: Annotated[object, StateSpec()] = -0.121,
-        z: Annotated[object, StateSpec()] = 0.075,
-        a: Annotated[object, ParameterSpec()] = 3.8,
-        b: Annotated[object, ParameterSpec()] = 3.78,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.a = a
-        self.b = b
 
 
 class LogisticMapSystem(BaseSystem):
@@ -666,7 +112,7 @@ class LogisticMapSystem(BaseSystem):
         )
 
 
-class HenonMapSystem(BaseSystem):
+class HenonMapSystem(DynamicalSystem):
     """The Hénon map `x' = 1 - a x² + y`, `y' = b x`.
 
     The map has a fractal strange attractor for its defaults.
@@ -691,7 +137,7 @@ class HenonMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
-        >>> HenonMapSystem(a=1.2).prepare().system_.elements[0].a
+        >>> HenonMapSystem(a=1.2).prepare().system_.elements[0].get_value('a')
         1.2
     """
 
@@ -710,32 +156,43 @@ class HenonMapSystem(BaseSystem):
         b: float = 0.3,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Hénon map `x' = 1 - a x² + y`, `y' = b x`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map has a fractal strange attractor for its defaults.
-        """
-        first = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: 1 - s.target.a * s.target.x**2 + s.target.y,
-        )
-        second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
-        return CompositeSystem(
-            self.label,
-            elements=[HenonMapElement('map', x=self.x, y=self.y, a=self.a, b=self.b)],
-            interactions=[first, second],
-        )
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+            'b': self.b,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the Hénon map `x' = 1 - a x² + y`, `y' = b x`."""
+        return {
+            'x': lambda s: 1 - s.target.a * s.target.x**2 + s.target.y,
+            'y': lambda s: s.target.b * s.target.x,
+        }
 
 
-class StandardMapSystem(BaseSystem):
+class StandardMapSystem(DynamicalSystem):
     """The Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
 
     The map has global chaos above K ≈ 0.9716.
@@ -759,7 +216,7 @@ class StandardMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapSystem
-        >>> StandardMapSystem(K=0.5).prepare().system_.elements[0].K
+        >>> StandardMapSystem(K=0.5).prepare().system_.elements[0].get_value('K')
         0.5
     """
 
@@ -777,36 +234,41 @@ class StandardMapSystem(BaseSystem):
         K: float = 1.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.theta = theta
         self.p = p
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map has global chaos above K ≈ 0.9716.
-        """
-        kick = MapInteraction(
-            'p_map',
-            target='map',
-            state='p',
-            function=lambda s: s.target.p + s.target.K * sin(s.target.theta),
-        )
-        rotation = MapInteraction(
-            'theta_map',
-            target='map',
-            state='theta',
-            function=lambda s: mod(s.target.theta + s.target.p + s.target.K * sin(s.target.theta), 2 * pi),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[StandardMapElement('map', theta=self.theta, p=self.p, K=self.K)],
-            interactions=[kick, rotation],
-        )
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'theta': self.theta,
+            'p': self.p,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'K': self.K,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`."""
+        return {
+            'p': lambda s: s.target.p + s.target.K * sin(s.target.theta),
+            'theta': lambda s: mod(s.target.theta + s.target.p + s.target.K * sin(s.target.theta), 2 * pi),
+        }
 
 
-class CircleMapSystem(BaseSystem):
+class CircleMapSystem(DynamicalSystem):
     """The sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`.
 
     The map locks into Arnold tongues.
@@ -828,7 +290,7 @@ class CircleMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CircleMapSystem
-        >>> CircleMapSystem(K=1.0).prepare().system_.elements[0].K
+        >>> CircleMapSystem(K=1.0).prepare().system_.elements[0].get_value('K')
         1.0
     """
 
@@ -846,33 +308,42 @@ class CircleMapSystem(BaseSystem):
         K: float = 0.9,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.theta = theta
         self.Omega = Omega
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map locks into Arnold tongues.
-        """
-        rotation = MapInteraction(
-            'theta_map',
-            target='map',
-            state='theta',
-            function=lambda s: mod(
-                s.target.theta + s.target.Omega - s.target.K / (2 * pi) * sin(2 * pi * s.target.theta),
-                1,
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'theta': self.theta,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'Omega': self.Omega,
+            'K': self.K,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`."""
+        return {
+            'theta': lambda s: mod(
+                s.target.theta + s.target.Omega - s.target.K / (2 * pi) * sin(2 * pi * s.target.theta), 1,
             ),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[CircleMapElement('map', theta=self.theta, Omega=self.Omega, K=self.K)],
-            interactions=[rotation],
-        )
+        }
 
 
-class TentMapSystem(BaseSystem):
+class TentMapSystem(DynamicalSystem):
     """The tent map `x' = μ min(x, 1 - x)`.
 
     The map is chaotic with Lyapunov exponent `ln μ` for μ above 1.
@@ -891,7 +362,7 @@ class TentMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import TentMapSystem
-        >>> TentMapSystem(mu=1.5).prepare().system_.elements[0].mu
+        >>> TentMapSystem(mu=1.5).prepare().system_.elements[0].get_value('mu')
         1.5
     """
 
@@ -908,25 +379,38 @@ class TentMapSystem(BaseSystem):
         mu: float = 1.99,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.mu = mu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the tent map `x' = μ min(x, 1 - x)`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map is chaotic with Lyapunov exponent `ln μ` for μ above 1.
-        """
-        tent = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: s.target.mu * where(s.target.x < 1 / 2, s.target.x, 1 - s.target.x),
-        )
-        return CompositeSystem(self.label, elements=[TentMapElement('map', x=self.x, mu=self.mu)], interactions=[tent])
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'mu': self.mu,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the tent map `x' = μ min(x, 1 - x)`."""
+        return {
+            'x': lambda s: s.target.mu * where(s.target.x < 1 / 2, s.target.x, 1 - s.target.x),
+        }
 
 
-class BakerMapSystem(BaseSystem):
+class BakerMapSystem(DynamicalSystem):
     """The generalized baker map.
 
     The map stretches the unit square along `x` and stacks the two pieces in `y`.
@@ -957,7 +441,7 @@ class BakerMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import BakerMapSystem
-        >>> BakerMapSystem(lambda_a=0.2).prepare().system_.elements[0].lambda_a
+        >>> BakerMapSystem(lambda_a=0.2).prepare().system_.elements[0].get_value('lambda_a')
         0.2
     """
 
@@ -977,47 +461,53 @@ class BakerMapSystem(BaseSystem):
         lambda_b: float = 2 / 3,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.alpha = alpha
         self.lambda_a = lambda_a
         self.lambda_b = lambda_b
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'alpha': self.alpha,
+            'lambda_a': self.lambda_a,
+            'lambda_b': self.lambda_b,
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        stretch = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: where(
+        return {
+            'x': lambda s: where(
                 s.target.x < s.target.alpha,
                 s.target.x / s.target.alpha,
                 (s.target.x - s.target.alpha) / (1 - s.target.alpha),
             ),
-        )
-        stack = MapInteraction(
-            'y_map',
-            target='map',
-            state='y',
-            function=lambda s: where(
+            'y': lambda s: where(
                 s.target.x < s.target.alpha,
                 s.target.lambda_a * s.target.y,
                 1 - s.target.lambda_b + s.target.lambda_b * s.target.y,
             ),
-        )
-        baker = BakerMapElement(
-            'map',
-            x=self.x,
-            y=self.y,
-            alpha=self.alpha,
-            lambda_a=self.lambda_a,
-            lambda_b=self.lambda_b,
-        )
-        return CompositeSystem(self.label, elements=[baker], interactions=[stretch, stack])
+        }
 
 
-class TowelMapSystem(BaseSystem):
+class TowelMapSystem(DynamicalSystem):
     """Rössler's towel map.
 
     It is a three-dimensional map with two positive Lyapunov exponents.
@@ -1046,7 +536,7 @@ class TowelMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import TowelMapSystem
-        >>> TowelMapSystem(a=3.7).prepare().system_.elements[0].a
+        >>> TowelMapSystem(a=3.7).prepare().system_.elements[0].get_value('a')
         3.7
     """
 
@@ -1066,46 +556,48 @@ class TowelMapSystem(BaseSystem):
         b: float = 3.78,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.z = z
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Rössler's towel map.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        It is a three-dimensional map with two positive Lyapunov exponents.
-        """
-        first = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: (
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+            'z': self.z,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+            'b': self.b,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return Rössler's towel map."""
+        return {
+            'x': lambda s: (
                 s.target.a * s.target.x * (1 - s.target.x) - 0.05 * (s.target.y + 0.35) * (1 - 2 * s.target.z)
             ),
-        )
-        second = MapInteraction(
-            'y_map',
-            target='map',
-            state='y',
-            function=lambda s: 0.1 * ((s.target.y + 0.35) * (1 - 2 * s.target.z) - 1) * (1 - 1.9 * s.target.x),
-        )
-        third = MapInteraction(
-            'z_map',
-            target='map',
-            state='z',
-            function=lambda s: s.target.b * s.target.z * (1 - s.target.z) + 0.2 * s.target.y,
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[TowelMapElement('map', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b)],
-            interactions=[first, second, third],
-        )
+            'y': lambda s: 0.1 * ((s.target.y + 0.35) * (1 - 2 * s.target.z) - 1) * (1 - 1.9 * s.target.x),
+            'z': lambda s: s.target.b * s.target.z * (1 - s.target.z) + 0.2 * s.target.y,
+        }
 
 
-class IntermittencyMapSystem(BaseSystem):
+class IntermittencyMapSystem(DynamicalSystem):
     """The Pomeau-Manneville map `x' = x + x^z (mod 1)`.
 
     Its long laminar phases near 0 end in chaotic bursts.
@@ -1124,7 +616,7 @@ class IntermittencyMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import IntermittencyMapSystem
-        >>> IntermittencyMapSystem(z=1.5).prepare().system_.elements[0].z
+        >>> IntermittencyMapSystem(z=1.5).prepare().system_.elements[0].get_value('z')
         1.5
     """
 
@@ -1141,26 +633,38 @@ class IntermittencyMapSystem(BaseSystem):
         z: float = 2.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.z = z
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'z': self.z,
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        burst = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: mod(s.target.x + s.target.x**s.target.z, 1),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[IntermittencyMapElement('map', x=self.x, z=self.z)],
-            interactions=[burst],
-        )
+        return {
+            'x': lambda s: mod(s.target.x + s.target.x**s.target.z, 1),
+        }
 
 
-class NewtonRaphsonMapSystem(BaseSystem):
+class NewtonRaphsonMapSystem(DynamicalSystem):
     """Newton's method for `z³ = 1` in the complex plane, in real coordinates.
 
     The method is `z' = (2z³ + 1) / (3z²)`.
@@ -1180,7 +684,7 @@ class NewtonRaphsonMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import NewtonRaphsonMapSystem
-        >>> NewtonRaphsonMapSystem(x=1.5).prepare().system_.elements[0].x
+        >>> NewtonRaphsonMapSystem(x=1.5).prepare().system_.elements[0].get_value('x')
         1.5
     """
 
@@ -1197,39 +701,38 @@ class NewtonRaphsonMapSystem(BaseSystem):
         *,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Newton's method for `z³ = 1` in the complex plane, in real coordinates.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The method is `z' = (2z³ + 1) / (3z²)`.
-        """
-        real = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: (
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return Newton's method for `z³ = 1` in the complex plane, in real coordinates."""
+        return {
+            'x': lambda s: (
                 2 * s.target.x / 3 + (s.target.x**2 - s.target.y**2) / (3 * (s.target.x**2 + s.target.y**2) ** 2)
             ),
-        )
-        imaginary = MapInteraction(
-            'y_map',
-            target='map',
-            state='y',
-            function=lambda s: (
+            'y': lambda s: (
                 2 * s.target.y / 3 - 2 * s.target.x * s.target.y / (3 * (s.target.x**2 + s.target.y**2) ** 2)
             ),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[NewtonMapElement('map', x=self.x, y=self.y)],
-            interactions=[real, imaginary],
-        )
+        }
 
 
-class CatMapSystem(BaseSystem):
+class CatMapSystem(DynamicalSystem):
     """Arnold's cat map `(x, y) → (2x + y, x + y) (mod 1)`.
 
     It is an area-preserving hyperbolic map of the torus.
@@ -1248,7 +751,7 @@ class CatMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CatMapSystem
-        >>> CatMapSystem(x=0.5).prepare().system_.elements[0].x
+        >>> CatMapSystem(x=0.5).prepare().system_.elements[0].get_value('x')
         0.5
     """
 
@@ -1265,22 +768,34 @@ class CatMapSystem(BaseSystem):
         *,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        first = MapInteraction('x_map', target='map', state='x', function=lambda s: mod(2 * s.target.x + s.target.y, 1))
-        second = MapInteraction('y_map', target='map', state='y', function=lambda s: mod(s.target.x + s.target.y, 1))
-        return CompositeSystem(
-            self.label,
-            elements=[CatMapElement('map', x=self.x, y=self.y)],
-            interactions=[first, second],
-        )
+        return {
+            'x': lambda s: mod(2 * s.target.x + s.target.y, 1),
+            'y': lambda s: mod(s.target.x + s.target.y, 1),
+        }
 
 
-class LoziMapSystem(BaseSystem):
+class LoziMapSystem(DynamicalSystem):
     """The Lozi map `x' = 1 + y - a |x|`, `y' = b x`.
 
     It is the piecewise linear Hénon map with a strange attractor.
@@ -1306,7 +821,7 @@ class LoziMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import LoziMapSystem
-        >>> LoziMapSystem(a=1.5).prepare().system_.elements[0].a
+        >>> LoziMapSystem(a=1.5).prepare().system_.elements[0].get_value('a')
         1.5
     """
 
@@ -1325,29 +840,43 @@ class LoziMapSystem(BaseSystem):
         b: float = 0.5,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+            'b': self.b,
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        first = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: 1 + s.target.y - s.target.a * abs_symbolic(s.target.x),
-        )
-        second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
-        return CompositeSystem(
-            self.label,
-            elements=[LoziMapElement('map', x=self.x, y=self.y, a=self.a, b=self.b)],
-            interactions=[first, second],
-        )
+        return {
+            'x': lambda s: 1 + s.target.y - s.target.a * abs_symbolic(s.target.x),
+            'y': lambda s: s.target.b * s.target.x,
+        }
 
 
-class ConservativeHenonMapSystem(BaseSystem):
+class ConservativeHenonMapSystem(DynamicalSystem):
     """Hénon's area-preserving quadratic map.
 
     The map is a rotation by `2π nu` with a quadratic kick.
@@ -1373,7 +902,7 @@ class ConservativeHenonMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import ConservativeHenonMapSystem
-        >>> ConservativeHenonMapSystem(nu=0.25).prepare().system_.elements[0].nu
+        >>> ConservativeHenonMapSystem(nu=0.25).prepare().system_.elements[0].get_value('nu')
         0.25
     """
 
@@ -1391,38 +920,45 @@ class ConservativeHenonMapSystem(BaseSystem):
         nu: float = 0.2114,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Hénon's area-preserving quadratic map.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map is a rotation by `2π nu` with a quadratic kick.
-        """
-        first = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: cos(2 * pi * s.target.nu) * s.target.x
-            + sin(2 * pi * s.target.nu) * (s.target.y + s.target.x**2),
-        )
-        second = MapInteraction(
-            'y_map',
-            target='map',
-            state='y',
-            function=lambda s: -sin(2 * pi * s.target.nu) * s.target.x
-            + cos(2 * pi * s.target.nu) * (s.target.y + s.target.x**2),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[ConservativeHenonMapElement('map', x=self.x, y=self.y, nu=self.nu)],
-            interactions=[first, second],
-        )
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'nu': self.nu,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return Hénon's area-preserving quadratic map."""
+        return {
+            'x': lambda s: (
+                cos(2 * pi * s.target.nu) * s.target.x + sin(2 * pi * s.target.nu) * (s.target.y + s.target.x**2)
+            ),
+            'y': lambda s: (
+                -sin(2 * pi * s.target.nu) * s.target.x + cos(2 * pi * s.target.nu) * (s.target.y + s.target.x**2)
+            ),
+        }
 
 
-class FermiUlamMapSystem(BaseSystem):
+class FermiUlamMapSystem(DynamicalSystem):
     """The Fermi-Ulam map of a ball bouncing between two walls.
 
     One wall is fixed and the other oscillates in time.
@@ -1447,7 +983,7 @@ class FermiUlamMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import FermiUlamMapSystem
-        >>> FermiUlamMapSystem(epsilon=0.2).prepare().system_.elements[0].epsilon
+        >>> FermiUlamMapSystem(epsilon=0.2).prepare().system_.elements[0].get_value('epsilon')
         0.2
     """
 
@@ -1465,39 +1001,43 @@ class FermiUlamMapSystem(BaseSystem):
         epsilon: float = 0.1,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.u = u
         self.theta = theta
         self.epsilon = epsilon
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Fermi-Ulam map of a ball bouncing between two walls.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        One wall is fixed and the other oscillates in time.
-        """
-        speed = MapInteraction(
-            'u_map',
-            target='map',
-            state='u',
-            function=lambda s: abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
-        )
-        phase = MapInteraction(
-            'theta_map',
-            target='map',
-            state='theta',
-            function=lambda s: mod(
-                s.target.theta + 2 * pi / abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
-                2 * pi,
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'u': self.u,
+            'theta': self.theta,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'epsilon': self.epsilon,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the Fermi-Ulam map of a ball bouncing between two walls."""
+        return {
+            'u': lambda s: abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
+            'theta': lambda s: mod(
+                s.target.theta + 2 * pi / abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)), 2 * pi,
             ),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[FermiUlamMapElement('map', u=self.u, theta=self.theta, epsilon=self.epsilon)],
-            interactions=[speed, phase],
-        )
+        }
 
 
-class CDNMapSystem(BaseSystem):
+class CDNMapSystem(DynamicalSystem):
     """The Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`.
 
     The map acts on an interval.
@@ -1522,7 +1062,7 @@ class CDNMapSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CDNMapSystem
-        >>> CDNMapSystem(beta=-0.3).prepare().system_.elements[0].beta
+        >>> CDNMapSystem(beta=-0.3).prepare().system_.elements[0].get_value('beta')
         -0.3
     """
 
@@ -1540,24 +1080,34 @@ class CDNMapSystem(BaseSystem):
         beta: float = -0.5,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'map'
 
-        The map acts on an interval.
-        """
-        gaussian = MapInteraction(
-            'x_map',
-            target='map',
-            state='x',
-            function=lambda s: exp(-(s.target.alpha**2) * s.target.x**2) + s.target.beta,
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[GaussianMapElement('map', x=self.x, alpha=self.alpha, beta=self.beta)],
-            interactions=[gaussian],
-        )
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'alpha': self.alpha,
+            'beta': self.beta,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`."""
+        return {
+            'x': lambda s: exp(-(s.target.alpha**2) * s.target.x**2) + s.target.beta,
+        }

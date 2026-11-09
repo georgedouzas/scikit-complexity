@@ -9,12 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, Interaction, MapInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, series
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.populations import (
@@ -40,43 +39,6 @@ THERMAL = (
     (25.0, 25.7, 26.4, 27.1, 27.8, 28.5, 29.2, 29.9, 30.6, 31.3, 32.0),
     (0.902, 0.92, 0.951, 0.99, 1.02, 1.06, 1.08, 1.08, 1.09, 1.1, 1.1),
 )
-
-
-class RabbitsElement(Element):
-    """Pairs of rabbits of this month and of last month.
-
-    They are the two age classes of Fibonacci's recurrence.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        pairs:
-            The number of pairs this month, a state that keeps its value one month earlier.
-
-        pairs_lag1:
-            The number of pairs last month.
-
-    Examples:
-        >>> from skcomplex.systems.biology.ecology import RabbitsElement
-        >>> RabbitsElement('rabbits', pairs=3.0).pairs
-        3.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        pairs: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,))] = 1.0,
-        pairs_lag1: float = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.pairs = pairs
-        self.pairs_lag1 = pairs_lag1
 
 
 class RickerGrowthInteraction(Interaction):
@@ -515,7 +477,7 @@ class LotkaVolterraSystem(BaseSystem):
         )
 
 
-class FibonacciRabbitsSystem(BaseSystem):
+class FibonacciRabbitsSystem(DynamicalSystem):
     """Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`.
 
     Every pair older than one month breeds a new pair.
@@ -535,7 +497,7 @@ class FibonacciRabbitsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
-        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].pairs
+        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].get_value('pairs')
         1.0
     """
 
@@ -552,23 +514,31 @@ class FibonacciRabbitsSystem(BaseSystem):
         *,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.pairs = pairs
         self.previous = previous
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'rabbits'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'pairs': DeclaredVariableSpec(
+                self.pairs, StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,)),
+            ),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of Fibonacci's rabbits."""
-        breeding = MapInteraction(
-            'breeding',
-            target='rabbits',
-            state='pairs',
-            function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
-        )
-        return CompositeSystem(
-            self.label,
-            elements=[RabbitsElement('rabbits', pairs=self.pairs, pairs_lag1=self.previous)],
-            interactions=[breeding],
-        )
+        return {
+            'pairs': lambda s: s.target.pairs + lag(s.target.pairs, 1),
+        }
 
 
 class RickerSystem(BaseSystem):

@@ -7,7 +7,7 @@ from ._banking import DepositorElement, FractionalReserveBankingSystem, PolicySw
 from ._capital import CapitalStockSystem
 from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
 from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
-from ._growth import EconomyElement, IncomeElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
+from ._growth import EconomyElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
 from ._herding import HerdingAgentElement, NetworkHerdingSystem
 from ._mark0 import Mark0EconomyInteraction, Mark0FirmElement, Mark0System
 from ._metaphoria import (
@@ -53,7 +53,6 @@ __all__: list[str] = [
     'FractionalReserveBankingSystem',
     'HerdingAgentElement',
     'HouseholdsElement',
-    'IncomeElement',
     'InvestingFirmElement',
     'LabourMarketInteraction',
     'LenderElement',

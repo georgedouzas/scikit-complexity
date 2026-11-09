@@ -10,10 +10,12 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, RateInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class EconomyElement(Element):
@@ -44,58 +46,6 @@ class EconomyElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.k = k
-
-
-class IncomeElement(Element):
-    """Economy described by its national income.
-
-    It keeps the income of the previous period.
-
-    Args:
-        label:
-            The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        Y:
-            The income of the current period.
-
-        Y_lag1:
-            The income of the previous period.
-
-        c:
-            The marginal propensity to consume.
-
-        v:
-            The accelerator, the investment response to the change in consumption.
-
-        G:
-            The government spending.
-
-    Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import IncomeElement
-        >>> IncomeElement('economy', c=0.5).c
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        Y: Annotated[object, StateSpec(lags=1, initial=(100.0,))] = 110.0,
-        Y_lag1: float = 100.0,
-        c: Annotated[object, ParameterSpec()] = 0.8,
-        v: Annotated[object, ParameterSpec()] = 1.5,
-        G: Annotated[object, ParameterSpec()] = 20.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.Y = Y
-        self.Y_lag1 = Y_lag1
-        self.c = c
-        self.v = v
-        self.G = G
 
 
 class SolowGrowthInteraction(RateInteraction):
@@ -215,7 +165,7 @@ class SolowSystem(BaseSystem):
         )
 
 
-class MultiplierAcceleratorSystem(BaseSystem):
+class MultiplierAcceleratorSystem(DynamicalSystem):
     """Samuelson's multiplier-accelerator, `Y_{t+1} = c (1 + v) Y_t - c v Y_{t-1} + G`.
 
     Income oscillates around `G / (1 - c)`, with growing amplitude when `c v > 1` and complex characteristic roots. The
@@ -242,7 +192,7 @@ class MultiplierAcceleratorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import MultiplierAcceleratorSystem
-        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].v
+        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].get_value('v')
         0.5
     """
 
@@ -262,7 +212,7 @@ class MultiplierAcceleratorSystem(BaseSystem):
         G: float = 20.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.income = income
         self.previous = previous
         self.c = c
@@ -278,10 +228,25 @@ class MultiplierAcceleratorSystem(BaseSystem):
         )
         return income
 
-    def _build_system(self) -> CompositeSystem:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'economy'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'Y': DeclaredVariableSpec(self.income, StateSpec(lags=1, initial=(100.0,))),
+            'c': DeclaredVariableSpec(self.c, ParameterSpec()),
+            'v': DeclaredVariableSpec(self.v, ParameterSpec()),
+            'G': DeclaredVariableSpec(self.G, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
-            self.label,
-            elements=[IncomeElement('economy', Y=self.income, Y_lag1=self.previous, c=self.c, v=self.v, G=self.G)],
-            interactions=[MapInteraction('cycle', target='economy', state='Y', function=self._next_income)],
-        )
+        return {
+            'Y': self._next_income,
+        }

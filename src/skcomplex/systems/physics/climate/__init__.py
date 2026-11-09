@@ -27,7 +27,7 @@ from ._low_order import (
 )
 from ._net_energy import EnergyReturnSystem, EnergySectorElement
 from ._pollution import PollutedRegionElement, PopulationPollutionSystem
-from ._soil import SoilTemperatureElement, SoilTemperatureSystem
+from ._soil import SoilTemperatureSystem
 from ._tipping import TippingCascadeNetworkSystem, TippingElementElement
 from ._tipping_types import (
     FoldFollowerElement,
@@ -71,7 +71,6 @@ __all__: list[str] = [
     'SaltzmanGlaciationSystem',
     'SaltzmanMaaschElement',
     'SocialForestDiebackSystem',
-    'SoilTemperatureElement',
     'SoilTemperatureSystem',
     'StochasticEnergyBalanceElement',
     'SuteraFraedrichTippingSystem',
