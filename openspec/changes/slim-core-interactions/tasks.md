@@ -23,7 +23,7 @@
 - [x] 3.2 Rebase `LangevinThermostatInteraction` and `BhatnagarGrossKrookInteraction` on it, and migrate heat cooling,
   coloured noise, and climate variability. Verify with the tests of `tests/systems/physics` for those modules and the
   LAMMPS thermostat tests.
-- [ ] 3.3 Add engineering `SpeedAdaptationInteraction` in `engineering/common/traffic/_speed_adaptation.py` with its tests,
+- [x] 3.3 Add engineering `SpeedAdaptationInteraction` in `engineering/common/traffic/_speed_adaptation.py` with its tests,
   rebase `OptimalVelocityInteraction` and `LangevinDrivingInteraction`, and migrate the continuum traffic systems.
   Verify with `tests/systems/engineering`.
 - [ ] 3.4 Add chemistry `MassExchangeInteraction` in `chemistry/kinetics/_mass_exchange.py` with its tests, and migrate

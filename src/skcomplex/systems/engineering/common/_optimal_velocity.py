@@ -12,12 +12,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws.utils import mod, shift_member
 from ....core.specs import ParameterSpec, RoleSpec
+from .traffic import SpeedAdaptationInteraction
 
 
-class OptimalVelocityInteraction(RelaxationInteraction):
+class OptimalVelocityInteraction(SpeedAdaptationInteraction):
     """Relaxation of the speed `v` of every car of a ring road.
 
     The speed follows `v' = a (V(h) - v)` with the optimal velocity `V(h) = V0 (tanh(h - hc) + tanh(hc))` of the

@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
@@ -23,6 +22,7 @@ from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common._car import CarElement
 from ..common._optimal_velocity import OptimalVelocityInteraction
+from ..common.traffic import SpeedAdaptationInteraction
 
 
 class TrafficMomentsElement(Element):
@@ -71,7 +71,7 @@ class TrafficMomentsElement(Element):
         ]
 
 
-class LangevinDrivingInteraction(RelaxationInteraction):
+class LangevinDrivingInteraction(SpeedAdaptationInteraction):
     """Relaxation of the speed of every car of a ring road, with noise.
 
     The speed relaxes towards the speed of the local density. The speed follows
