@@ -310,64 +310,18 @@ the geodesic equation `x''^mu = -Γ^mu_(alpha beta) x'^alpha x'^beta`, with the 
 The initial four-velocity decides the kind of geodesic: a norm `g_(mu nu) x'^mu x'^nu` of -1 is a massive particle on
 its proper time, and 0 is a light ray. The circular orbit above, of radius `20 M`, keeps its radius.
 
-Use the physics `EinsteinFieldEquationsInteraction` when the metric itself is the unknown, reduced by a symmetry to functions of time, such as
-the scale factor `a(t)` of a flat universe of dust:
-
-```python
-import math
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.spaces import PseudoRiemannianSpace
-from skcomplex.core.components.systems import System
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.systems.physics.cosmology import EinsteinFieldEquationsInteraction
-
-
-class UniverseElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        a: Annotated[float, StateSpec(order=2)] = 1.0,
-        a_d1: float = 1.0,
-        rho: Annotated[float, ParameterSpec()] = 3 / (8 * math.pi),
-    ):
-        super().__init__(label)
-        self.a = a
-        self.a_d1 = a_d1
-        self.rho = rho
-
-
-t, r, theta, phi = SR.var('t r theta phi')
-a = function('a')(t)
-metric = diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
-ansatz = PseudoRiemannianSpace(metric, (t, r, theta, phi))
-
-
-def dust(s):
-    return diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0])
-
-
-expansion = EinsteinFieldEquationsInteraction(
-    'expansion', target='universe', states='a', space=ansatz, components=[(1, 1)], source=dust
-)
-system = System(elements=[UniverseElement('universe')], interactions=[expansion])
-trajectory = simulate(system, until=2.0, dt=0.1)
-round(float(trajectory.values('universe.a')[-1]), 4)
-```
+The physics `EinsteinFieldEquationsInteraction` of `skcomplex.systems.physics.cosmology` evolves the metric when the
+metric itself is the unknown, reduced by a symmetry to functions of time, such as the scale factor `a(t)` of a flat
+universe of dust in `FLRWCosmologySystem`.
 
 `EinsteinFieldEquationsInteraction(target, states, space, components, source=None, coupling=8π,
-cosmological_constant=0.0, time=0, axes=None)` names every function of the metric after a state or parameter of the target. It takes one component
-`(mu, nu)` of the mixed equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` per state, and solves them for the second time
-derivatives. The source returns the mixed energy-momentum tensor, here dust of density `ρ / a³`, so the scale factor
-grows as `(3 t / 2 + 1)^(2/3)`. The other components, such as the Friedmann equation `G^t_t`, are constraints the
-initial values satisfy. A function of a spatial coordinate too, such as the radius `R(t, r)` of the shells of a dust
-ball, needs that coordinate on a lattice axis of a field, `axes={1: 0}`, and its derivatives become `partial` of the
-field. An equation that mixes time and space derivatives, or keeps a coordinate, raises an error.
+cosmological_constant=0.0, time=0, axes=None)` names every function of the metric after a state or parameter of the
+target. It takes one component `(mu, nu)` of the mixed equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` per state, and solves
+them for the second time derivatives. The source returns the mixed energy-momentum tensor, for dust of density `ρ /
+a³`, so the scale factor grows as `(3 t / 2 + 1)^(2/3)`. The other components, such as the Friedmann equation `G^t_t`,
+are constraints the initial values satisfy. A function of a spatial coordinate too, such as the radius `R(t, r)` of the
+shells of a dust ball, needs that coordinate on a lattice axis of a field, `axes={1: 0}`, and its derivatives become
+`partial` of the field. An equation that mixes time and space derivatives, or keeps a coordinate, raises an error.
 
 ### Conservation laws
 
@@ -623,45 +577,14 @@ round(float(distances.min()), 2), round(float(distances.max()), 2)
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
 
-Use the physics `StokesianMobilityInteraction` for spheres in a viscous fluid at low Reynolds number, where the force on one sphere moves all
-the others through the flow it creates. Two spheres that sediment side by side fall faster than one alone:
-
-```python
-from typing import Annotated
-
-import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import vector
-
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
-
-
-class SphereElement(Element):
-    def __init__(self, label, *, x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-def fall(positions):
-    gravity = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
-    spheres = GroupElement('spheres', element=SphereElement, size=len(positions), values={'x': positions})
-    system = System(elements=[spheres], interactions=[gravity], space=ContinuousSpace(n_dim=3))
-    heights = simulate(system, until=10.0, dt=1.0).values('spheres.x')[..., 2]
-    return float(heights[0, 0] - heights[-1, 0]) / 10 * 6 * np.pi
-
-
-round(fall([[0.0, 0.0, 0.0]]), 3), round(fall([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]]), 3)
-```
+The physics `StokesianMobilityInteraction` of `skcomplex.systems.physics.common.particles` moves spheres in a viscous
+fluid at low Reynolds number, where the force on one sphere moves all the others through the flow it creates, as in
+`SquirmersSystem`. Two spheres that sediment side by side fall faster than one alone.
 
 `StokesianMobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate',
 force, torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)`
-moves the spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to their
-velocities and angular velocities. A lone sphere moves at `F / (6 pi eta a)`, and the second sphere above adds the
+moves the spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to
+their velocities and angular velocities. A lone sphere moves at `F / (6 pi eta a)`, and a second sphere adds the
 fraction `3 a / (4 r) + a^3 / (2 r^3)` to the speed of the first, about a quarter at the distance `r = 3`.
 
 - The tensor is `'oseen'`, the flow of a point force, `'rotne-prager-yamakawa'`, which adds the finite size of the

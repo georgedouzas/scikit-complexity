@@ -115,7 +115,7 @@
 
 ## 10. Documents and inventory
 
-- [ ] 10.1 Rewrite the user guide pages `general_interactions.md`, `phase_space_fields.md`, `stocks_and_flows.md`, and
+- [x] 10.1 Rewrite the user guide pages `general_interactions.md`, `phase_space_fields.md`, `stocks_and_flows.md`, and
   `agent_based_systems.md` with the core forms and the field realizations, with no hard-coded counts. Verify with the
   docs build.
 - [x] 10.2 Drop the primitive `hydrodynamic-interactions` from `docs/overview/inventory.toml` and from the squirmers and
