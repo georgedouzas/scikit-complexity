@@ -331,7 +331,7 @@ to fill in as the project takes shape.
   imported from the subpackage that owns it.
 - Extension points: classes users subclass are the bases `BaseElement`, `Element`, `BaseInteraction`, `Interaction`,
   `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, `BaseLaw`, and the systems `BaseSystem`,
-  `System`, and `MassActionSystem` of the package `systems`; the general interactions, such as
+  `CompositeSystem`, and `ReactionNetworkSystem` of the package `systems`; the general interactions, such as
   `RateInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`, `ConservationInteraction`,
   `CouplingInteraction`, `PairCouplingInteraction`, `MapInteraction`, `JumpInteraction`, `ReactionInteraction`,
   `TransitionInteraction`, and `SamplingInteraction`, and the agent interactions `ChoiceInteraction`,

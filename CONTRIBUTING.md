@@ -81,7 +81,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.systems import create_system, register_system
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -103,9 +103,9 @@ class TankElement(Element):
 
 
 @register_system(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
-def draining_tank(level: float = 2.0) -> System:
+def draining_tank(level: float = 2.0) -> CompositeSystem:
     """Return a tank that drains at a rate proportional to its level."""
-    return System(elements=[TankElement('tank', level=level)])
+    return CompositeSystem(elements=[TankElement('tank', level=level)])
 
 
 print(create_system('draining_tank').elements[0].level)

@@ -210,7 +210,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -242,7 +242,7 @@ class PredationInteraction(Interaction):
         return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
 
 
-system = System(
+system = CompositeSystem(
     elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
     interactions=[
         RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 1.1 * s.target.n * (1 - s.target.n / 1000)),
@@ -299,7 +299,7 @@ class HarvestInteraction(Interaction):
         return [RateLaw(s.target.n, -s.h * s.target.n)]
 
 
-harvested = System(
+harvested = CompositeSystem(
     elements=[PopulationElement('fish', n=500)],
     interactions=[
         RateInteraction('growth', target='fish', state='n', rate=lambda s: 0.5 * s.target.n * (1 - s.target.n / 1000)),
@@ -331,7 +331,7 @@ class TankElement(Element):
         self.level = level
 
 
-wrong = System(
+wrong = CompositeSystem(
     elements=[TankElement('tank'), PopulationElement('foxes')],
     interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
 )
