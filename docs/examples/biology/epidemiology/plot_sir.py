@@ -30,7 +30,7 @@ compartments = rrb.TimeSeriesView(
     name='S, I, R',
     defaults=[rr.SeriesLines.from_fields(widths=2.5)],
     axis_x=rrb.TimeAxis(view_range=whole_run),
-    overrides={f'{name}/n': rr.SeriesLines.from_fields(colors=color).visualizer() for name, color in colors.items()},
+    overrides={f'{name}/x': rr.SeriesLines.from_fields(colors=color).visualizer() for name, color in colors.items()},
 )
 blueprint = rrb.Blueprint(
     compartments,

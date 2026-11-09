@@ -26,7 +26,7 @@ SYSTEM = 'nonlinear_pairwise_group_conflict'
 CELLS = 100
 
 system = NonlinearPairwiseGroupConflictSystem(cells=CELLS, group_strength=2.0)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/x', interval=1)
 trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 
 # %%

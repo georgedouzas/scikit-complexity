@@ -28,7 +28,7 @@ SYSTEM = 'vlasov_equation'
 WAVE_NUMBER = 0.5
 
 system = VlasovEquationSystem(positions=64, velocities=128, setup='two-stream', amplitude=1e-4)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='gas/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='gas/x', interval=1)
 solver = SemiLagrangianSolver(0.25)
 simulation = simulate(system, until=50, solver=solver, observers=[observer])
 

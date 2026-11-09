@@ -25,7 +25,7 @@ SYSTEM = 'trimorphic_multilevel_selection'
 CELLS = 30
 
 system = TrimorphicMultilevelSelectionSystem(cells=CELLS)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/x', interval=1)
 trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 
 # %%

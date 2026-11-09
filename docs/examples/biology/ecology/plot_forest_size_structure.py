@@ -25,7 +25,7 @@ SYSTEM = 'forest_size_structure'
 POSITIONS, HEIGHTS = 40, 100
 
 system = ForestSizeStructureSystem(positions=POSITIONS, heights=HEIGHTS).prepare().system_
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='forest/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='forest/x', interval=1)
 trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[observer], until=200)
 
 # %%
@@ -39,7 +39,7 @@ trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[obser
 space = system.elements[0].space.prepare()
 heights = space.coordinates_['h']
 positions = (np.arange(POSITIONS) + 0.5) * 10 / POSITIONS
-density = trajectory.values('forest.f')[-1].reshape(POSITIONS, HEIGHTS)
+density = trajectory.values('forest.x')[-1].reshape(POSITIONS, HEIGHTS)
 bulk, edge = density[POSITIONS // 2], density[0]
 fig, (sizes, profile) = plt.subplots(1, 2, figsize=(11, 4))
 sizes.loglog(heights, bulk, label='bulk')
