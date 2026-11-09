@@ -18,7 +18,6 @@ from ...components.laws import (
     CrossingLaw,
     EquationLaw,
     FluxLaw,
-    FractionalNoiseLaw,
     NoiseLaw,
     RateLaw,
     TransferLaw,
@@ -75,7 +74,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.laws import FractionalNoiseLaw
+        >>> from skcomplex.core.components.laws import NoiseLaw
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
@@ -87,7 +86,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...         self.x = x
         ...
         ...     def _get_laws(self, s):
-        ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
+        ...         return [NoiseLaw(s.x, 1, hurst=0.75)]
         >>> system = System(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
         >>> problem = simulate(system, until=0).problem
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
@@ -102,8 +101,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
-            noise=frozenset({NoiseKind.DIAGONAL}),
+            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )
 

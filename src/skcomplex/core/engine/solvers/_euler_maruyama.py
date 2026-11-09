@@ -62,7 +62,7 @@ class EulerMaruyamaSolver(SDESolver):
                 TransferLaw,
                 NoiseLaw,
             },
-            noise=frozenset(NoiseKind),
+            noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

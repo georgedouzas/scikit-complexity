@@ -5,39 +5,39 @@ when other agents run tests at the same time.
 
 ## 1. Noise law with a Hurst index
 
-- [ ] 1.1 Add `NoiseKind.FRACTIONAL` to `core/types.py` and widen its docstring from Wiener processes to the noise
+- [x] 1.1 Add `NoiseKind.FRACTIONAL` to `core/types.py` and widen its docstring from Wiener processes to the noise
   processes of a system, and verify `pytest --doctest-modules src/skcomplex/core/types.py` passes
-- [ ] 1.2 Add `hurst=None` to `NoiseLaw` after `conserved`, move the range check and the docstring of
+- [x] 1.2 Add `hurst=None` to `NoiseLaw` after `conserved`, move the range check and the docstring of
   `FractionalNoiseLaw` into it, and add the checks that reject a Hurst index with a process or on a conserved noise,
   and verify new tests in
   `tests/core/components/laws/test_noise.py` cover the range, the process, and the conserved checks
-- [ ] 1.3 In `CheckFractionalNoisePass`, `FractionalProblemPass`, and `PassCompiler._noise_needs`, test
+- [x] 1.3 In `CheckFractionalNoisePass`, `FractionalProblemPass`, and `PassCompiler._noise_needs`, test
   `law.hurst is not None` in place of the class, record `NoiseKind.FRACTIONAL` for such a law, and give the fix text of
   that kind the name of `FractionalEulerMaruyamaSolver`, and verify
   `pytest tests/core/engine/compile/passes/test_fractional_form.py` passes after its laws become `NoiseLaw(..., hurst=)`
-- [ ] 1.4 Set the noise support of `FractionalEulerMaruyamaSolver` to `{DIAGONAL, FRACTIONAL}` and remove
+- [x] 1.4 Set the noise support of `FractionalEulerMaruyamaSolver` to `{DIAGONAL, FRACTIONAL}` and remove
   `FractionalNoiseLaw` from its laws, set `EulerMaruyamaSolver`, `HeunSolver`, and `CoSimulationSolver` to every kind
   but `FRACTIONAL`, and remove `FractionalNoiseLaw` from the numpy and numba backends, and verify
   `pytest tests/core/engine/solvers/test_fractional_euler_maruyama.py` passes, including the wrong stepper error
-- [ ] 1.5 Emit `NoiseLaw(..., hurst=)` in `interactions/_rate.py` and `_relaxation.py` (if it still exists), drop
+- [x] 1.5 Emit `NoiseLaw(..., hurst=)` in `interactions/_rate.py` and `_relaxation.py` (if it still exists), drop
   `FractionalNoiseLaw` from their `law_classes` and from the docstring of `specs/_interaction_requirement_spec.py`, and
   verify `pytest tests/core/components/interactions` passes
-- [ ] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`
+- [x] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`
   to write `NoiseLaw(..., hurst=)`, and verify their markdown doctests pass
-- [ ] 1.7 Delete `laws/_fractional_noise.py` and its re-export, and verify `grep -rn FractionalNoiseLaw src tests docs`
+- [x] 1.7 Delete `laws/_fractional_noise.py` and its re-export, and verify `grep -rn FractionalNoiseLaw src tests docs`
   finds nothing and `pytest tests/core` passes
 
 ## 2. Transition law with a source
 
-- [ ] 2.1 Add `source=None` to `TransitionLaw`, and move the symbolic-matrix check, the docstring, and the example of
+- [x] 2.1 Add `source=None` to `TransitionLaw`, and move the symbolic-matrix check, the docstring, and the example of
   `EmissionLaw` into it, and verify new tests in `tests/core/components/laws` cover a source with a rectangular matrix
   and the function-matrix error
-- [ ] 2.2 In `MarkovPass`, handle a `TransitionLaw` with a source as it handles an `EmissionLaw`, and verify
+- [x] 2.2 In `MarkovPass`, handle a `TransitionLaw` with a source as it handles an `EmissionLaw`, and verify
   `pytest tests/core/engine/compile` passes
-- [ ] 2.3 Emit `TransitionLaw(observed, matrix, source=value)` in `interactions/_transition.py`, drop `EmissionLaw` from
+- [x] 2.3 Emit `TransitionLaw(observed, matrix, source=value)` in `interactions/_transition.py`, drop `EmissionLaw` from
   its `law_classes` and variant tags, and verify `pytest tests/core/components/interactions/test_variants.py` and the
   hidden Markov systems of `tests/systems/mathematics/stochastic_processes` pass
-- [ ] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
+- [x] 2.4 Update `stochastic_maps.md` of the user guide and `tests/core/engine/compile/test_draw_lowering.py`, and
   verify the markdown doctests and the test pass
 - [ ] 2.5 Remove `EmissionLaw` from `MarkovPass`, `solvers/_maps.py`, `_cosimulation.py`, the numpy and numba
   backends, and `experiments/_replicate.py`, delete `laws/_emission.py` and its re-export, and verify

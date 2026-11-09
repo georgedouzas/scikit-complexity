@@ -100,12 +100,21 @@ class OrderKind(StrEnum):
 
 
 class NoiseKind(StrEnum):
-    """Structure of the Wiener processes that the noise laws of a system draw."""
+    """Structure of the noise processes that the noise laws of a system draw.
+
+    The processes are Wiener processes, or fractional Brownian motions for noise laws with a Hurst index.
+
+    Examples:
+        >>> from skcomplex.core.types import NoiseKind
+        >>> NoiseKind.FRACTIONAL.value
+        'fractional'
+    """
 
     DIAGONAL = 'diagonal'
     SHARED = 'shared'
     CORRELATED = 'correlated'
     CONSERVED = 'conserved'
+    FRACTIONAL = 'fractional'
 
 
 class FormKind(StrEnum):

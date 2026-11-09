@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import FractionalNoiseLaw, NoiseLaw
+from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -36,7 +36,7 @@ def _walkers(hurst, members=1000, fractional=True):
 
         def _get_laws(self, s):
             """Return the laws of the walker element."""
-            return [FractionalNoiseLaw(s.x, 1, hurst=hurst) if fractional else NoiseLaw(s.x, 1)]
+            return [NoiseLaw(s.x, 1, hurst=hurst if fractional else None)]
 
     walker = WalkerElement
     return System(elements=[GroupElement('w', element=walker, size=members)])
@@ -111,7 +111,7 @@ def test_fractional_euler_maruyama_takes_the_horizon_from_the_run():
 class TaggedWalkerElement(Element):
     """Walker element that declares its fractional noise law, so its tags name the noise."""
 
-    law_classes = (FractionalNoiseLaw,)
+    law_classes = (NoiseLaw,)
 
     def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[object, StateSpec()] = 0.0):
         super().__init__(label, visual=visual)
@@ -119,7 +119,7 @@ class TaggedWalkerElement(Element):
 
     def _get_laws(self, s):
         """Return the fractional noise of the walker."""
-        return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
+        return [NoiseLaw(s.x, 1, hurst=0.75)]
 
 
 @pytest.mark.parametrize(
@@ -138,6 +138,18 @@ def test_euler_maruyama_rejects_fractional_noise():
     problem = PassCompiler().prepare(_walkers(0.7, members=2)).run().problem_
     with pytest.raises(SolverError, match=r'FractionalEulerMaruyamaSolver'):
         EulerMaruyamaSolver(random_state=0).prepare(problem)
+
+
+def test_a_simulation_with_the_euler_maruyama_stepper_rejects_fractional_noise():
+    """Test that a run with the Euler-Maruyama stepper names the fractional stepper for a Hurst index of 0.7."""
+    with pytest.raises(SolverError, match=r'FractionalEulerMaruyamaSolver'):
+        simulate(_walkers(0.7, members=2), until=1, solver=EulerMaruyamaSolver(dt=0.1), random_state=0)
+
+
+def test_a_hurst_index_of_one_half_runs_with_the_euler_maruyama_stepper():
+    """Test that a noise law with a Hurst index of 1/2 runs with the Euler-Maruyama stepper."""
+    trajectory = simulate(_walkers(0.5, members=2), until=1, solver=EulerMaruyamaSolver(dt=0.1), random_state=0)
+    assert trajectory.values('w.x').shape[1] == 2
 
 
 def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
@@ -160,7 +172,7 @@ def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
 
         def _get_laws(self, s):
             """Return the laws of the walker element."""
-            return [FractionalNoiseLaw(s.x, 1, hurst=s.H)]
+            return [NoiseLaw(s.x, 1, hurst=s.H)]
 
     walker = WalkerElement
     solver = FractionalEulerMaruyamaSolver(dt=0.1, horizon=10)

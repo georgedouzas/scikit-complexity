@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
-from skcomplex.core.components.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
+from skcomplex.core.components.laws import RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.systems import System
@@ -207,7 +207,8 @@ class HiddenElement(Element):
 
     def _get_laws(self, s):
         """Return the transition of the hidden state and the emission of the observed one."""
-        laws = [TransitionLaw(s.h, CHAIN), EmissionLaw(s.o, s.h, EMISSION if self.emission is None else self.emission)]
+        emission = EMISSION if self.emission is None else self.emission
+        laws = [TransitionLaw(s.h, CHAIN), TransitionLaw(s.o, emission, source=s.h)]
         return laws if self.order == 1 else laws[::-1]
 
 
