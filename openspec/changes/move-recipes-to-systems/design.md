@@ -177,8 +177,8 @@ page of the user guide repeat it word for word.
 - The roots of `systems/general` and of every `systems/<field>/common` hold only `__init__.py` and subpackages.
 
 The third test needs the loose modules at the roots of four field `common` packages to move into families named by
-concept: `economics/common/assets`, `banking`, and `exchange`, the existing `engineering/common/traffic`,
-`mathematics/common/networks`, and the approved `physics/common/avalanches`. The task list names every module.
+concept: the approved `economics/common/assets`, `banking`, and `exchange`, the existing
+`engineering/common/traffic`, and the approved `mathematics/common/networks` and `physics/common/avalanches`. The task list names every module.
 
 The proxies were checked against the core this change leaves, by reading the code with `ast`. Every class that stays
 passes, with no allowlist. Engine and analysis references cover the laws, the spaces, the neighbourhoods but one, the
@@ -325,6 +325,8 @@ These are final.
 - `FeedbackInteraction` becomes the economics `PolicyRuleInteraction` in `economics/common/policy`.
 - The field families `physics/common/avalanches`, `economics/common/policy`, and `biology/common/sequences` are
   approved.
+- The field families `economics/common/assets`, `economics/common/banking`, `economics/common/exchange`, and
+  `mathematics/common/networks`, which take the loose modules of their `common` packages, are approved.
 - The cross-domain package is `skcomplex.systems.general`, with one subpackage per concept.
 - General systems are recipes. The core keeps `BaseSystem` and `CompositeSystem` only.
 - `DialectSpec` is deleted in this change, and `GeometrySpec` is placed by the placement rule.
