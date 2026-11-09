@@ -119,10 +119,10 @@ logistic ODE, and the harvest depends on the number of farmers through an aggreg
 
 ### Requirement: Ready-made systems are classes
 Every ready-made system SHALL be a class on `BaseSystem`, or on a general system of `skcomplex.systems.general` such as
-`ReactionNetworkSystem`, in the module of its subfield. It SHALL take its model parameters as arguments of its
-constructor and SHALL give its field path, topics, references, and tuned run settings as class attributes.
-`all_systems()` SHALL find every such class, and SHALL list no general system of `skcomplex.systems.general`, which has
-no field.
+`ReactionNetworkSystem`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, or `StockFlowSystem`,
+in the module of its subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its
+field path, topics, references, and tuned run settings as class attributes. `all_systems()` SHALL find every such
+class, and SHALL list no general system of `skcomplex.systems.general`, which has no field.
 
 #### Scenario: Browse the catalog
 - **WHEN** a user calls `all_systems(field='biology')` or `all_systems(field='biology/ecology')`
@@ -3176,3 +3176,31 @@ in `biology.collective_behaviour`, and the region and holonomy scores in their s
 - **WHEN** the banking, Mark-0, and commons systems set parameters from what they read every round
 - **THEN** each uses `PolicyRuleInteraction` of `skcomplex.systems.economics.common.policy`, and its trajectory equals
   the one with the former `FeedbackInteraction`
+
+### Requirement: Ready-made systems use the general system of their shape
+A ready-made system whose structure is that of a general system SHALL subclass it, imported from
+`skcomplex.systems.general`, unless its element class is a part that other systems or users compose, such as an element
+of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move into the
+hooks of the system.
+
+#### Scenario: Map of one field
+- **WHEN** a contributor reads `HenonMapSystem` of `mathematics/dynamical_systems`
+- **THEN** it subclasses `DynamicalSystem` in discrete time, and the module defines no element class for it
+
+#### Scenario: Shared element
+- **WHEN** an element class such as the Lorenz element of `mathematics/common/flows` serves several systems
+- **THEN** the systems that compose it keep it, and none of them rebases onto `DynamicalSystem`
+
+### Requirement: Rebasing keeps a system's interface and results
+Rebasing a ready-made system onto a general system SHALL keep its public name, its import path, its constructor
+parameters with their defaults, its state and observable names, its tags, and its trajectory. A rebase that changes any
+of these SHALL NOT be made, and the system SHALL keep its base.
+
+#### Scenario: Same trajectory
+- **WHEN** a rebased system is simulated with its defaults, `random_state=0` where it takes one, and its tuned run
+  settings, before and after the rebase
+- **THEN** both trajectories hold the same names and equal values
+
+#### Scenario: Same parameters
+- **WHEN** a user calls `get_params()` on a rebased system
+- **THEN** the result equals the one before the rebase
