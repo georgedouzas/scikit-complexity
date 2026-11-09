@@ -94,7 +94,7 @@ when other agents run tests at the same time.
 
 ## 6. Series, distributed delay, and inverse Helmholtz
 
-- [ ] 6.1 Rename the first argument of `series` to `x` and its `times` to `points`, move the docstring example of
+- [x] 6.1 Rename the first argument of `series` to `x` and its `times` to `points`, move the docstring example of
   `lookup` into it, and fold `test_lookups.py` into `test_signals.py`, and verify
   `pytest tests/core/components/laws/utils/test_signals.py` passes
 - [ ] 6.2 Replace `lookup` with `series` in `social/organizations/_traps`, `economics/resources/_food`,
