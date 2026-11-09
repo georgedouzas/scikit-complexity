@@ -7,7 +7,7 @@ when other agents run tests at the same time.
 
 - [x] 1.1 Add `NoiseKind.FRACTIONAL` to `core/types.py` and widen its docstring from Wiener processes to the noise
   processes of a system, and verify `pytest --doctest-modules src/skcomplex/core/types.py` passes
-- [ ] 1.2 Add `hurst=None` to `NoiseLaw` after `conserved`, move the range check and the docstring of
+- [x] 1.2 Add `hurst=None` to `NoiseLaw` after `conserved`, move the range check and the docstring of
   `FractionalNoiseLaw` into it, and add the checks that reject a Hurst index with a process or on a conserved noise,
   and verify new tests in
   `tests/core/components/laws/test_noise.py` cover the range, the process, and the conserved checks
