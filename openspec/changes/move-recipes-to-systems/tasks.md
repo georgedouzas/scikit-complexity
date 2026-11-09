@@ -162,10 +162,10 @@
   for `PairCouplingInteraction`, `ConeNeighborhood`, `FeedbackInteraction`, `PseudoRiemannianSpace`, `DialectSpec` outside its module, and
   `PartnerSpec(` with `value`. Verify that only reviewed hits
   remain.
-- [ ] 10.2 Run the full test suite and the conformance suite with random state 0. Verify that every trajectory agrees
+- [x] 10.2 Run the full test suite and the conformance suite with random state 0. Verify that every trajectory agrees
   within its tolerance.
-- [ ] 10.3 Run `nox -s checks` and `nox -s formatting`. Verify that every session passes with no suppression added.
-- [ ] 10.4 Run `openspec validate move-recipes-to-systems --strict`. Verify that it passes.
+- [x] 10.3 Run `nox -s checks` and `nox -s formatting`. Verify that every session passes with no suppression added.
+- [x] 10.4 Run `openspec validate move-recipes-to-systems --strict`. Verify that it passes.
 
 ## Workflow follow-up
 
