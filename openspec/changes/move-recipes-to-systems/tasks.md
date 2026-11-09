@@ -143,8 +143,9 @@
 - [ ] 9.1 Move the sections that teach a moved class out of the core pages of the user guide
   (`general_interactions.md`, `agent_based_systems.md`, `groups_of_many_elements.md`, `networks.md`,
   `constraints_and_search.md`, `kinds_of_dynamics.md`, `phase_space_fields.md`, `choosing_compatible_components.md`,
-  `simulate.md`, `system_classes.md`, `extend_the_library.md`) into a page on shared realizations under the systems
-  guide, and write the core pages with the primitives. Update `docs/generate_parts.py`. Verify with
+  `simulate.md`, `system_classes.md`, `extend_the_library.md`) into the new page
+  `docs/overview/user_guide/core_components/general.md` on `skcomplex.systems.general` (create it, it is listed in the
+  navigation, and `rewrite-docstrings-and-docs` later rewrites it), and write the core pages with the primitives. Update `docs/generate_parts.py`. Verify with
   `nox -s docs -- build` and the doc tests of the guide.
 - [ ] 9.2 Make the inventory follow the core: drop the primitives that name a moved recipe, such as `markets`,
   `satisfiability`, `population-search`, and `label-copies`, rewrite `matrix-groups` without the holonomy sampling,
