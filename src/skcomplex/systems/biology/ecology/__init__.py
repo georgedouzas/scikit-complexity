@@ -38,7 +38,7 @@ from ._factories import (
     VaryingCapacityLogisticSystem,
 )
 from ._forest_size_structure import ForestSizeStructureSystem, SizeGrowthInteraction
-from ._fronts import FisherKPPElement, FisherKPPSystem
+from ._fronts import FisherKPPSystem
 from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
 from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
@@ -83,7 +83,6 @@ __all__: list[str] = [
     'EmotionMarksElement',
     'ExponentialGrowthSystem',
     'FibonacciRabbitsSystem',
-    'FisherKPPElement',
     'FisherKPPSystem',
     'FoodWebsSystem',
     'ForagerElement',

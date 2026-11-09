@@ -33,7 +33,6 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import FisherKPPElement
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
@@ -159,6 +158,30 @@ def test_pattern_is_omitted_above_the_limit():
     system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=3000)])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.jacobian.pattern() is None
+
+
+class FisherKPPElement(Element):
+    """Site of a line whose density `u` diffuses and grows logistically, `du/dt = D laplacian(u) + r u (1 - u)`."""
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
+
+    def _get_laws(self, s):
+        """Return the diffusion and the logistic growth of the density."""
+        return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
 
 class ReactiveHeatElement(Element):

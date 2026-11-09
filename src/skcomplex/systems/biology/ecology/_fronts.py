@@ -3,79 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import ReactionDiffusionSystem
+from ...general.dynamics.types import Equations
 
 
-class FisherKPPElement(Element):
-    """Site of a line whose density `u` diffuses and grows logistically.
-
-    The density follows `du/dt = D laplacian(u) + r u (1 - u)`.
-
-    Args:
-        label:
-            The label of the site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial density, as a fraction of the carrying capacity.
-
-        D:
-            The diffusion coefficient.
-
-        r:
-            The growth rate.
-
-    Examples:
-        >>> from skcomplex.systems.biology.ecology import FisherKPPElement
-        >>> FisherKPPElement('site', u=0.5).u
-        0.5
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.D = D
-        self.r = r
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the diffusion and the logistic growth of the density.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the density.
-        """
-        return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
-
-
-class FisherKPPSystem(BaseSystem):
+class FisherKPPSystem(ReactionDiffusionSystem):
     """The Fisher-KPP equation, whose step invades the empty line as a front.
 
     The front has the speed `2 sqrt(r D)`.
@@ -123,26 +64,38 @@ class FisherKPPSystem(BaseSystem):
         front: float = 0.05,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.length = length
         self.D = D
         self.r = r
         self.spacing = spacing
         self.front = front
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Fisher-KPP equation."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'line'
+
+    def _get_space(self) -> LatticeSpace:
+        """Return the line of the sites."""
+        return LatticeSpace(self.length, spacing=self.spacing)
+
+    def _get_boundaries(self) -> dict[str, str]:
+        """Return the zero-flux boundary of the density."""
+        return {'u': 'zero-flux'}
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the density, occupied on the left of the line, and the parameters."""
         u = (np.arange(self.length) < self.front * self.length).astype(float)
-        space = LatticeSpace(self.length, spacing=self.spacing)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                FieldElement(
-                    'line',
-                    element=FisherKPPElement,
-                    space=space,
-                    boundary={'u': 'zero-flux'},
-                    values={'u': u, 'D': self.D, 'r': self.r},
-                ),
-            ],
-        )
+        return {
+            'u': DeclaredVariableSpec(u, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'r': DeclaredVariableSpec(self.r, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the logistic growth of the density."""
+        return {'u': lambda s: s.target.r * s.target.u * (1 - s.target.u)}
+
+    def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
+        """Return the diffusion coefficient of the density."""
+        return {'u': lambda s: s.target.D}
