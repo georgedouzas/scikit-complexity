@@ -193,7 +193,10 @@ Add binary collisions between particles of different velocities, as in the Boltz
 `EncounterInteraction(label, candidate=..., state='x', cross_section=..., factor=None)` is the binary collision
 integral over two interval class axes.
 
-- The cross-section is a function of arrays of the relative speed and of the cosine of the deflection angle.
+- The cross-section is the kernel `B(speed, cosine)` of the relative speed and of the cosine of the deflection angle.
+  It returns an expression of the two and numbers, written with Sage functions.
+- The interaction returns `RateLaw(f, collision_integral(f, kernel))`. A law of your own can read the same integral,
+  since the call carries its kernel. A kernel that reads a state or a parameter raises a `ValidationError`.
 - It enters the fast spectral method of Mouhot and Pareschi through a singular value decomposition, a single term for
   Maxwell molecules.
 - The method uses FFT products on a grid padded by `(3 + sqrt(2)) / 2`. It conserves the density exactly, and the

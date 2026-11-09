@@ -89,7 +89,7 @@ when other agents run tests at the same time.
   and verify `pytest tests/core/engine/compile tests/core/engine/problems/test_collision_kernel.py
   tests/core/components/interactions/test_encounter.py tests/systems/physics/fluids` passes, including the BKW
   scenario within 1e-4 and the conservation within 1e-12
-- [ ] 5.3 Update `phase_space_fields.md`, and verify its markdown doctests pass and
+- [x] 5.3 Update `phase_space_fields.md`, and verify its markdown doctests pass and
   `grep -rnw "collision\|cross_section" src/skcomplex/core/components/laws` finds nothing
 
 ## 6. Series, distributed delay, and inverse Helmholtz
