@@ -745,10 +745,10 @@ def test_match_spec_is_a_frozen_spec():
     [
         (RandomSearchSpec(tries=3), 'tries', 3),
         (PartnerSwitchSpec(sample=2), 'sample', 2),
-        (QueueSpec(order='limit'), 'order', 'limit'),
+        (QueueSpec(order='reserve'), 'order', 'reserve'),
         (IterativeMatchingSpec(iterations=10), 'iterations', 10),
         (ContinuousMatchingSpec(arrival='sequential'), 'arrival', 'sequential'),
-        (StableMatchingSpec(clearing='requester'), 'clearing', 'requester'),
+        (StableMatchingSpec(value='requester'), 'value', 'requester'),
         (PartnerSpec(candidates=2.0), 'candidates', 2.0),
     ],
 )
@@ -768,13 +768,13 @@ def test_batch_matching_spec_has_no_settings():
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (RandomSearchSpec(clearing='bid'), 'midpoint'),
+        (RandomSearchSpec(value='bid'), 'midpoint'),
         (QueueSpec(order='bid'), 'order'),
         (ContinuousMatchingSpec(arrival='bid'), 'arrival'),
-        (StableMatchingSpec(clearing='bid'), 'clearing'),
+        (StableMatchingSpec(value='bid'), 'value'),
         (PartnerSpec(candidates=0.0), 'positive'),
         (PartnerSpec(candidates=True), 'positive'),
-        (PartnerSpec(clearing='bid'), 'clearing'),
+        (PartnerSpec(value='bid'), 'value'),
         (PartnerSpec(choice='score', score=2), 'score'),
     ],
 )
