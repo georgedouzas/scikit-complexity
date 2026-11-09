@@ -1,10 +1,10 @@
-"""Test the `_lorenz` module of `skcomplex.systems.mathematics.common.flows`."""
+"""Test the `_lorenz` module of `skcomplex.systems.general.flows`."""
 
 import numpy as np
 
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.systems.mathematics.common.flows import LorenzElement
+from skcomplex.systems.general.flows import LorenzElement
 
 
 def test_lorenz_element_settles_on_a_fixed_point_below_the_first_bifurcation():

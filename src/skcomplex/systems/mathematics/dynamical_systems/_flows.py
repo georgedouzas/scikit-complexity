@@ -19,7 +19,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
-from ..common.flows import LorenzElement
+from ...general.flows import LorenzElement
 from ..common.flows._rossler import RosslerElement
 
 

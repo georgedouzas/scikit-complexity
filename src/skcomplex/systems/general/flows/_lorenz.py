@@ -6,9 +6,9 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.elements import Element
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class LorenzElement(Element):
@@ -44,7 +44,7 @@ class LorenzElement(Element):
 
     Examples:
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.mathematics.common.flows import LorenzElement
+        >>> from skcomplex.systems.general.flows import LorenzElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = CompositeSystem(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
         >>> trajectory = simulate(system, until=1.0, dt=0.5)

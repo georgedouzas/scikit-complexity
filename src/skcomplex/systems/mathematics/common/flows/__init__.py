@@ -1,12 +1,10 @@
 """Flows shared by the mathematics packages.
 
-The package holds the Lorenz and Rössler flows.
+The package holds the Rössler flow.
 """
 
-from ._lorenz import LorenzElement
 from ._rossler import RosslerElement
 
 __all__: list[str] = [
-    'LorenzElement',
     'RosslerElement',
 ]
