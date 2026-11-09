@@ -20,4 +20,4 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, and the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
+- [x] 4.1 Run `nox -s checks` for `src`, `tests`, and `docs`, including ruff, mypy, and the import contracts, the full test session with doctests, and the strict docs build, and fix every finding without a suppression
