@@ -367,3 +367,8 @@ Decisions taken while applying the change, by the placement rule.
   `ZoneCouplingInteraction`. The core coupling keeps the forms `'rate'` and `'map'` and checks one written state and
   a phase of the map form in `_check_form`, which the zone coupling overrides with its own checks. `AgentCombination`
   moves with it.
+- `DialectSpec` is not dead code: the expression printer of the engine reads `DIALECTS`, its table of instances, from
+  `core/specs/_dialect_spec.py`. By step 2 of the placement rule the class stays as engine support, so the change
+  removes only its public re-export from `skcomplex.core.specs`, which nothing outside the package used, and deletes
+  no test, since it had none. Making the printer's dialects private to the engine is a package move left to its own
+  change.

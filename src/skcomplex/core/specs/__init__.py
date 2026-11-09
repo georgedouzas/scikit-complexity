@@ -20,7 +20,6 @@ from ._connector_spec import ConnectorSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._dataset_spec import DatasetSpec
 from ._declared_variable_spec import DeclaredVariableSpec
-from ._dialect_spec import DialectSpec
 from ._direction_spec import DirectionSpec
 from ._draw_log_spec import DrawLogSpec
 from ._draw_record_spec import DrawRecordSpec
@@ -138,7 +137,6 @@ __all__ = [
     'ControlSolutionSpec',
     'DatasetSpec',
     'DeclaredVariableSpec',
-    'DialectSpec',
     'DirectionSpec',
     'DrawLogSpec',
     'DrawRecordSpec',

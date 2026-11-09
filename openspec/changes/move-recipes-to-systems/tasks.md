@@ -135,7 +135,7 @@
   `einsteinpy` from the runtime dependencies of `pyproject.toml` to `[project.optional-dependencies]`, and skip the
   relativity tests without it as the other extras do. Repoint celestial mechanics and cosmology. Verify with
   `tests/systems/physics`, a core import without `einsteinpy` installed, and the test of task 3.3.
-- [ ] 8.8 Delete `DialectSpec`, its module, its export from `core/specs`, and its test, since nothing in `src` reads it.
+- [x] 8.8 Delete `DialectSpec`, its module, its export from `core/specs`, and its test, since nothing in `src` reads it.
   Verify with `grep -rn DialectSpec src tests` returning nothing and `tests/core/specs`.
 
 ## 9. Documents and inventory
