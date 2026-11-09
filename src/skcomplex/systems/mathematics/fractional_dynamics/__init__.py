@@ -8,12 +8,7 @@ from ._fractional import (
     FractionalOscillatorSystem,
     FractionalRelaxationSystem,
     FractionalVanDerPolSystem,
-    OscillatorElement,
-    RelaxationElement,
     VanDerPolElement,
-    lorenz_type,
-    oscillator_type,
-    relaxation_type,
     van_der_pol_type,
 )
 
@@ -22,11 +17,6 @@ __all__: list[str] = [
     'FractionalOscillatorSystem',
     'FractionalRelaxationSystem',
     'FractionalVanDerPolSystem',
-    'OscillatorElement',
-    'RelaxationElement',
     'VanDerPolElement',
-    'lorenz_type',
-    'oscillator_type',
-    'relaxation_type',
     'van_der_pol_type',
 ]

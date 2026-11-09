@@ -14,10 +14,8 @@ from skcomplex.systems.mathematics.fractional_dynamics import (
     FractionalOscillatorSystem,
     FractionalRelaxationSystem,
     FractionalVanDerPolSystem,
-    OscillatorElement,
-    RelaxationElement,
     VanDerPolElement,
-    relaxation_type,
+    van_der_pol_type,
 )
 
 
@@ -67,22 +65,22 @@ def test_fractional_lorenz_stays_on_bounded_attractor():
 
 def test_element_types_of_orders_pickle_by_reference():
     """Test that the element types of every order are cached and pickle by reference."""
-    assert relaxation_type(0.3) is relaxation_type(0.3)
-    element_type = type(FractionalRelaxationSystem(order=0.37).prepare().system_.elements[0])
-    assert element_type is relaxation_type(0.37)
+    assert van_der_pol_type(0.3) is van_der_pol_type(0.3)
+    element_type = type(FractionalVanDerPolSystem(order=0.37).prepare().system_.elements[0])
+    assert element_type is van_der_pol_type(0.37)
     assert getattr(importlib.import_module(element_type.__module__), element_type.__qualname__) is element_type
 
 
-def test_oscillator_element_follows_the_cosine_without_damping():
+def test_oscillator_of_order_one_follows_the_cosine_without_damping():
     """Test that the undamped oscillator of order 1 follows `cos(omega t)`."""
-    system = CompositeSystem(elements=[OscillatorElement('oscillator', omega=2.0)])
+    system = FractionalOscillatorSystem(order=1.0, omega=2.0)
     trajectory = simulate(system, until=5.0, dt=0.5)
     np.testing.assert_allclose(trajectory.values('oscillator.x'), np.cos(2.0 * trajectory.times), atol=1e-4)
 
 
-def test_relaxation_element_decays_exponentially():
+def test_relaxation_of_order_one_decays_exponentially():
     """Test that relaxation of order 1 decays as `exp(-lam t)`."""
-    system = CompositeSystem(elements=[RelaxationElement('relaxation', x=2.0, lam=0.5)])
+    system = FractionalRelaxationSystem(x=2.0, order=1.0, lam=0.5)
     trajectory = simulate(system, until=4.0, dt=1.0)
     np.testing.assert_allclose(trajectory.values('relaxation.x'), 2.0 * np.exp(-0.5 * trajectory.times), rtol=1e-4)
 
