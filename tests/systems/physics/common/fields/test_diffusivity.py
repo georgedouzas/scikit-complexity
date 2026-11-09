@@ -1,4 +1,4 @@
-"""Test the `_diffusion` module of `skcomplex.core.components.interactions`."""
+"""Test the `_diffusivity` module of `skcomplex.systems.physics.common.fields`."""
 
 from typing import Annotated
 
@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import DiffusionInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.systems.physics.common.fields import DiffusivityInteraction
 
 CELLS, SPACING, COEFFICIENT, WIDTH, UNTIL = 200, 0.1, 0.5, 1.0, 2.0
 
@@ -24,7 +24,7 @@ class CellElement(Element):
         self.u = u
 
 
-class RodDiffusionInteraction(DiffusionInteraction):
+class RodDiffusivityInteraction(DiffusivityInteraction):
     """Diffusion that binds its field as `rod`."""
 
     def __init__(self, label: str, *, rod: Annotated[str, RoleSpec()], **arguments: object) -> None:
@@ -46,7 +46,7 @@ def test_run_conserves_the_total_and_spreads_as_the_heat_kernel():
     positions = np.arange(CELLS) * SPACING
     space = LatticeSpace((CELLS,), spacing=SPACING, boundary='periodic')
     field = FieldElement('rod', element=CellElement, space=space, values={'u': _gaussian(positions, WIDTH**2)})
-    heat = DiffusionInteraction('heat', target='rod', state='u', coefficient=lambda s: COEFFICIENT)
+    heat = DiffusivityInteraction('heat', target='rod', state='u', coefficient=lambda s: COEFFICIENT)
     values = simulate(System(elements=[field], interactions=[heat]), until=UNTIL, dt=0.5).values('rod.u')
     np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-10)
     expected = _gaussian(positions, WIDTH**2 + 2 * COEFFICIENT * UNTIL)
@@ -56,7 +56,7 @@ def test_run_conserves_the_total_and_spreads_as_the_heat_kernel():
 def test_check_rejects_a_coefficient_that_is_not_a_function():
     """Test that `check` rejects a coefficient that is neither callable nor a number."""
     with pytest.raises(ValidationError, match='coefficient'):
-        DiffusionInteraction('heat', target='rod', coefficient='fast').prepare()
+        DiffusivityInteraction('heat', target='rod', coefficient='fast').prepare()
 
 
 def test_get_laws_reads_a_renamed_target():
@@ -66,8 +66,8 @@ def test_get_laws_reads_a_renamed_target():
     field = FieldElement('bar', element=CellElement, space=space, values={'u': _gaussian(positions, WIDTH**2)})
     values = []
     for heat in (
-        DiffusionInteraction('heat', target='bar', state='u', coefficient=lambda s: COEFFICIENT),
-        RodDiffusionInteraction('heat', rod='bar', state='u', coefficient=lambda s: COEFFICIENT),
+        DiffusivityInteraction('heat', target='bar', state='u', coefficient=lambda s: COEFFICIENT),
+        RodDiffusivityInteraction('heat', rod='bar', state='u', coefficient=lambda s: COEFFICIENT),
     ):
         values.append(simulate(System(elements=[field], interactions=[heat]), until=1.0, dt=0.5).values('bar.u'))
     np.testing.assert_allclose(values[1], values[0])

@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import delayed, hill
+from ....core.components.laws.utils import delayed, hill, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
@@ -203,7 +203,9 @@ class FitzhughNagumoSystem(BaseSystem):
             b=self.b,
             epsilon=self.epsilon,
         )
-        diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=self.D)
+        diffusion = RateInteraction(
+            'diffusion', target='medium', state='u', rate=lambda s: self.D * laplacian(s.target.u),
+        )
         return System(self.label, elements=[medium], interactions=[kinetics, diffusion])
 
 

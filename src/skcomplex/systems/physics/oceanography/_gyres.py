@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import AdvectionInteraction, DiffusionInteraction, RateInteraction
+from ....core.components.interactions import AdvectionInteraction, RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..common.fields import DiffusivityInteraction
 
 
 class QuasiGeostrophicSiteElement(Element):
@@ -222,5 +223,5 @@ class DoubleGyreSystem(BaseSystem):
             riemann=None,
         )
         wind = RateInteraction('wind', target='basin', state='zeta', rate=self._wind)
-        viscosity = DiffusionInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
+        viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
         return System(self.label, elements=[basin], interactions=[transport, wind, viscosity])

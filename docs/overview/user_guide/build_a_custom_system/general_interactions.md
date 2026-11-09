@@ -24,8 +24,8 @@ list, then follow the link to its subsection.
   `EulerLagrangeInteraction`, and `HamiltonianInteraction`, in [Gradients and mechanics](#gradients-and-mechanics).
 - Move a particle along the geodesics of a curved metric, or evolve a metric ansatz by the Einstein equations:
   `PseudoRiemannianSpace`, `GeodesicInteraction`, and `EinsteinInteraction`, in [Curved spacetimes](#curved-spacetimes).
-- Conserve, carry, or spread a quantity over a field: `ConservationInteraction`, `AdvectionInteraction`, and
-  `DiffusionInteraction`, in [Conservation laws](#conservation-laws).
+- Conserve, carry, or spread a quantity over a field: `ConservationInteraction` and `RateInteraction`, in
+  [Conservation laws](#conservation-laws).
 - Update a state in steps, search by trial and error, or run a cellular automaton or a cascade: `MapInteraction`,
   `SignAdjustmentInteraction`, `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
@@ -370,7 +370,7 @@ field. An equation that mixes time and space derivatives, or keeps a coordinate,
 
 ### Conservation laws
 
-Use these classes for a quantity of a field that is only moved around, never created or lost, except by a source. The
+Use a conservation law for a quantity of a field that is only moved around, never created or lost, except by a source. The
 example runs Burgers' flux, a drift, and diffusion on a periodic finite-volume field, and the total stays the same in
 each case.
 
@@ -380,7 +380,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction, DiffusionInteraction
+from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
+from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -397,8 +398,8 @@ space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
 values = {'u': 1.0 + np.sin(2 * np.pi * np.arange(50) / 50)}
 interactions = {
     'burgers': ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2),
-    'drift': AdvectionInteraction('drift', target='wave', state='u', drift=lambda s: 1.0),
-    'heat': DiffusionInteraction('heat', target='wave', state='u', coefficient=0.1),
+    'drift': ConservationInteraction('drift', target='wave', state='u', flux=lambda s: 1.0 * s.target.u),
+    'heat': RateInteraction('heat', target='wave', state='u', rate=lambda s: 0.1 * laplacian(s.target.u)),
 }
 totals = {}
 for label, interaction in interactions.items():
@@ -412,8 +413,10 @@ totals
 - `ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` conserves a state of
   a finite-volume field under a flux and a source. The flux laws of one field form one system. With `riemann=None`, it
   lowers to the divergence of the flux on spectral and finite-difference fields.
-- `AdvectionInteraction(target, state, drift)` carries a state by a drift `a`, which is the flux `a u`.
-- `DiffusionInteraction(target, state, coefficient)` is the flux minus a coefficient times the gradient.
+- A drift `a` carries a state as the flux `a u` of a `ConservationInteraction`.
+- Diffusion is the rate `D laplacian(u)` of a `RateInteraction`, the divergence of the flux `-D gradient(u)`, which keeps
+  the total of a periodic field. Physics names these forms by the subclasses `AdvectionInteraction` and
+  `DiffusivityInteraction`.
 
 ## Discrete time
 

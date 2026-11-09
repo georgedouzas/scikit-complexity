@@ -13,7 +13,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    DiffusionInteraction,
     LifeCycleInteraction,
     MapInteraction,
     MovementInteraction,
@@ -21,6 +20,7 @@ from ....core.components.interactions import (
     TransferInteraction,
 )
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -392,7 +392,12 @@ class ActiveWalkersSystem(BaseSystem):
                             state='G',
                             rate=lambda s: -s.target.G / self._get_durability(s),
                         ),
-                        DiffusionInteraction('spreading', target='ground', state='V', coefficient=self._get_diffusion),
+                        RateInteraction(
+                            'spreading',
+                            target='ground',
+                            state='V',
+                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.V),
+                        ),
                         RateInteraction(
                             'smoothing',
                             target='ground',

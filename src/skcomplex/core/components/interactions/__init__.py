@@ -14,7 +14,6 @@ from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
-from ._diffusion import DiffusionInteraction
 from ._einstein import EinsteinInteraction
 from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
@@ -60,7 +59,6 @@ __all__: list[str] = [
     'ConservationInteraction',
     'CouplingInteraction',
     'CrossingInteraction',
-    'DiffusionInteraction',
     'EinsteinInteraction',
     'EncounterInteraction',
     'EulerLagrangeInteraction',

@@ -15,7 +15,8 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, DiffusionInteraction, MovementInteraction
+from ....core.components.interactions import CouplingInteraction, MovementInteraction, RateInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -276,7 +277,9 @@ class NetworkDiffusionSystem(BaseSystem):
             space=NetworkSpace(graph),
             values={'u': initial, 'D': self.D},
         )
-        diffusion = DiffusionInteraction('diffusion', target='nodes', state='u', coefficient=lambda s: s.target.D)
+        diffusion = RateInteraction(
+            'diffusion', target='nodes', state='u', rate=lambda s: s.target.D * laplacian(s.target.u),
+        )
         return System(self.label, elements=[nodes], interactions=[diffusion])
 
 

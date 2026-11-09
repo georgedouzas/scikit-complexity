@@ -14,7 +14,8 @@ from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
+from ....core.components.interactions import RateInteraction, ReactionInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
@@ -242,11 +243,21 @@ class MinProteinSkeletonSystem(BaseSystem):
             ),
         ]
         membrane = [
-            DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dm)
+            RateInteraction(
+                f'diffusion_{state}',
+                target='cell',
+                state=state,
+                rate=lambda s, state=state: s.target.Dm * laplacian(getattr(s.target, state)),
+            )
             for state in ('md', 'mde')
         ]
         cytosol = [
-            DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dc)
+            RateInteraction(
+                f'diffusion_{state}',
+                target='cell',
+                state=state,
+                rate=lambda s, state=state: s.target.Dc * laplacian(getattr(s.target, state)),
+            )
             for state in ('cdt', 'cdd', 'ce')
         ]
         return System(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])
