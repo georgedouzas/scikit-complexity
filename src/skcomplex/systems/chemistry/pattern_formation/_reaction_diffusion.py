@@ -11,7 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
+from ....core.components.interactions import RateInteraction, ReactionInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
@@ -202,14 +203,18 @@ def _get_v_diffusion(s: SimpleNamespace) -> Expression:
     return s.target.Dv
 
 
-def _get_diffusions() -> list[DiffusionInteraction]:
+def _get_diffusions() -> list[RateInteraction]:
     """Return the diffusions of `u` and `v` on the field `cells`.
 
     They run at the coefficients `Du` and `Dv` of its sites.
     """
     return [
-        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
-        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
+        RateInteraction(
+            'u_diffusion', target='cells', state='u', rate=lambda s: _get_u_diffusion(s) * laplacian(s.target.u),
+        ),
+        RateInteraction(
+            'v_diffusion', target='cells', state='v', rate=lambda s: _get_v_diffusion(s) * laplacian(s.target.v),
+        ),
     ]
 
 

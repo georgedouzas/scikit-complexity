@@ -10,7 +10,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction, RelaxationInteraction
+from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
     coordinates_of,
@@ -230,12 +230,11 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
     width = space.spacings_[1]
     start = np.exp(-((v - 2.0) ** 2) / 2) + 0.5 * np.exp(-((v + 2.0) ** 2) / 2)
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
-    relax = RelaxationInteraction(
+    relax = RateInteraction(
         'bgk',
         target='gas',
         state='x',
-        goal=lambda s: maximum_entropy(s.target.x, axes=('v',)),
-        time=1.0,
+        rate=lambda s: maximum_entropy(s.target.x, axes=('v',)) - s.target.x,
     )
     system = System(elements=[gas], interactions=[relax])
     trajectory = simulate(system, until=50.0, dt=1.0, solver=RK4Solver(dt=0.1))
@@ -258,12 +257,11 @@ def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> N
     first = np.exp(-((a - 1.0) ** 2) - b**2) + np.exp(-((a + 1.0) ** 2) - (b - 1.0) ** 2)
     start = np.stack([first, 2.0 * first[::-1]])
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
-    relax = RelaxationInteraction(
+    relax = RateInteraction(
         'bgk',
         target='gas',
         state='x',
-        goal=lambda s: maximum_entropy(s.target.x, axes=('a', 'b')),
-        time=1.0,
+        rate=lambda s: maximum_entropy(s.target.x, axes=('a', 'b')) - s.target.x,
     )
     trajectory = simulate(System(elements=[gas], interactions=[relax]), until=1.0, solver=RK4Solver(dt=0.2))
     final = trajectory.values('gas.x')[-1].reshape(start.shape)

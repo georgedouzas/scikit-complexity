@@ -14,7 +14,6 @@ from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
-from ._diffusion import DiffusionInteraction
 from ._einstein import EinsteinInteraction
 from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
@@ -42,7 +41,6 @@ from ._pair_coupling import PairCouplingInteraction
 from ._rate import RateInteraction
 from ._reaction import ReactionInteraction
 from ._reinforcement import ReinforcementInteraction
-from ._relaxation import RelaxationInteraction
 from ._sampling import SamplingInteraction
 from ._satisfiability import SatisfiabilityInteraction
 from ._sign_adjustment import SignAdjustmentInteraction
@@ -61,7 +59,6 @@ __all__: list[str] = [
     'ConservationInteraction',
     'CouplingInteraction',
     'CrossingInteraction',
-    'DiffusionInteraction',
     'EinsteinInteraction',
     'EncounterInteraction',
     'EulerLagrangeInteraction',
@@ -89,7 +86,6 @@ __all__: list[str] = [
     'RateInteraction',
     'ReactionInteraction',
     'ReinforcementInteraction',
-    'RelaxationInteraction',
     'SamplingInteraction',
     'SatisfiabilityInteraction',
     'SignAdjustmentInteraction',

@@ -37,19 +37,19 @@
 - [x] 3.7 Make the module writer of the system-dynamics translator emit a `RateInteraction` whose rate is
   `(goal - stock) / time` of the goal and time functions, and update the docstrings of `_system_dynamics.py` and
   `_strang_splitting.py`. Verify with `tests/core/engine/translators/test_system_dynamics.py` against PySD.
-- [ ] 3.8 Delete `interactions/_relaxation.py`, its export, and `tests/core/components/interactions/test_relaxation.py`
+- [x] 3.8 Delete `interactions/_relaxation.py`, its export, and `tests/core/components/interactions/test_relaxation.py`
   once every test it held lives in a realization test. Verify `grep -rw RelaxationInteraction src tests docs` finds
   nothing, and the core interaction tests pass.
 
 ## 4. Diffusion into rates
 
-- [ ] 4.1 Add physics `DiffusivityInteraction` in `physics/common/fields/_diffusivity.py` on `RateInteraction`, with the
+- [x] 4.1 Add physics `DiffusivityInteraction` in `physics/common/fields/_diffusivity.py` on `RateInteraction`, with the
   coefficient check and the heat-kernel test moved from `test_diffusion.py` to
   `tests/systems/physics/common/fields/test_diffusivity.py`. Verify it passes.
-- [ ] 4.2 Migrate heat, fluid flows, gyres, and gels to it, and write the chemistry, biology, and mathematics
+- [x] 4.2 Migrate heat, fluid flows, gyres, and gels to it, and write the chemistry, biology, and mathematics
   diffusions as `RateInteraction` with the rate `D laplacian(u)`. Verify with the tests of every migrated module and
   their catalog tag tests.
-- [ ] 4.3 Delete `interactions/_diffusion.py`, its export, and its core test. Verify `grep -rw DiffusionInteraction src
+- [x] 4.3 Delete `interactions/_diffusion.py`, its export, and its core test. Verify `grep -rw DiffusionInteraction src
   tests docs` finds only the `NeighborInteraction` docstring example class, which is renamed to a neutral name.
 
 ## 5. Advection into conservation laws

@@ -226,8 +226,8 @@ Time in the module runs from zero, and `Time` in the file becomes `t + START`. T
 - A flow variable that leaves one stock and enters another is a `TransferInteraction` between the two states. A flow
   variable of one stock is a `TransferInteraction` with `Source()` or `Sink()`. The trajectory reports each flow as
   `<element>.<flow>`.
-- The rest of the net rate of a stock is a `RelaxationInteraction` when it has the form `(goal - stock) / time` or
-  `(goal - stock) * rate`, and a `RateInteraction` otherwise.
+- The rest of the net rate of a stock is a `RateInteraction`. When it has the form `(goal - stock) / time` or
+  `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a goal function and a time function.
 - An auxiliary is a private function `_name(s, t)` that the laws call, and an `ObservableSpec` under its snake-case
   name.
 - A lookup is a `lookup` table. The built-in functions are `where`, `step`, `ramp`, `pulse`, `pulse_train`, `delay1`,

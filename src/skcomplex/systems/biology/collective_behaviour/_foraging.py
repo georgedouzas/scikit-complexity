@@ -12,13 +12,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    DiffusionInteraction,
-    MapInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, MovementInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -368,11 +364,11 @@ class PheromoneForagingSystem(BaseSystem):
                     'ground',
                     elements=[pheromone],
                     interactions=[
-                        DiffusionInteraction(
+                        RateInteraction(
                             'diffusion',
                             target='pheromone',
                             state='level',
-                            coefficient=self._get_diffusion,
+                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.level),
                         ),
                         EvaporationInteraction('evaporation', target='pheromone', state='level'),
                     ],

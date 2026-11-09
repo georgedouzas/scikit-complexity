@@ -172,10 +172,10 @@ round(float(np.asarray(trajectory.values('total'))[-1]), 10)
 Move particles between classes at one position, and relax them towards a local equilibrium:
 
 ```python
-from skcomplex.core.components.interactions import RelaxationInteraction
+from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import maximum_entropy
 
-relax = RelaxationInteraction('r', target='gas', state='x', goal=lambda s: maximum_entropy(s.target.x, axes=('v',)))
+relax = RateInteraction('r', target='gas', state='x', rate=lambda s: maximum_entropy(s.target.x, axes=('v',)) - s.target.x)
 relax.state
 ```
 

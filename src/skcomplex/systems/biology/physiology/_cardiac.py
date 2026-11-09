@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
@@ -263,7 +264,9 @@ class AlievPanfilovSystem(BaseSystem):
         values = {'u': u, 'v': v, 'k': self.k, 'a': self.a, 'epsilon0': self.epsilon0, 'mu1': self.mu1, 'mu2': self.mu2}
         space = LatticeSpace((rows, columns), boundary='reflecting')
         tissue = FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)
-        diffusion = DiffusionInteraction('diffusion', target='tissue', state='u', coefficient=self.D)
+        diffusion = RateInteraction(
+            'diffusion', target='tissue', state='u', rate=lambda s: self.D * laplacian(s.target.u),
+        )
         return System(self.label, elements=[tissue], interactions=[diffusion])
 
 
@@ -346,5 +349,7 @@ class BarkleySystem(BaseSystem):
         values = {'u': u, 'w': w, 'a': self.a, 'b': self.b, 'epsilon': self.epsilon, 'gamma': self.gamma}
         space = LatticeSpace((rows, columns), boundary='reflecting', spacing=self.spacing)
         medium = FieldElement('medium', element=BarkleyElement, space=space, values=values)
-        diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=self.d)
+        diffusion = RateInteraction(
+            'diffusion', target='medium', state='u', rate=lambda s: self.d * laplacian(s.target.u),
+        )
         return System(self.label, elements=[medium], interactions=[diffusion])
