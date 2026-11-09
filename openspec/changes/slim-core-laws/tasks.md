@@ -29,7 +29,7 @@ when other agents run tests at the same time.
 
 ## 2. Transition law with a source
 
-- [ ] 2.1 Add `source=None` to `TransitionLaw`, and move the symbolic-matrix check, the docstring, and the example of
+- [x] 2.1 Add `source=None` to `TransitionLaw`, and move the symbolic-matrix check, the docstring, and the example of
   `EmissionLaw` into it, and verify new tests in `tests/core/components/laws` cover a source with a rectangular matrix
   and the function-matrix error
 - [ ] 2.2 In `MarkovPass`, handle a `TransitionLaw` with a source as it handles an `EmissionLaw`, and verify
