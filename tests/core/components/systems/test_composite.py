@@ -1,5 +1,6 @@
-"""Test the `_system` module of `skcomplex.core.components.systems`."""
+"""Test the `_composite` module of `skcomplex.core.components.systems`."""
 
+import importlib
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -22,7 +23,7 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import UnitarySolver
@@ -134,7 +135,7 @@ class TwoLevelElement(Element):
 def test_system_constructor_only_stores_its_parts():
     """Test that a system stores its parts as given and is labelled `system` by default."""
     rabbits = StockElement('rabbits')
-    system = System(elements=[rabbits])
+    system = CompositeSystem(elements=[rabbits])
     assert (system.label, system.elements, system.interactions, system.systems) == ('system', [rabbits], (), ())
     assert (system.space, system.time) == (None, None)
 
@@ -142,23 +143,23 @@ def test_system_constructor_only_stores_its_parts():
 def test_system_checks_every_part():
     """Test that checking a system checks its parts, which reject their invalid arguments."""
     with pytest.raises(ValidationError, match='label'):
-        System(elements=[StockElement(1)]).prepare()
+        CompositeSystem(elements=[StockElement(1)]).prepare()
     with pytest.raises(ValidationError, match='Unknown schedule'):
-        System(elements=[StockElement('a')], time=DiscreteTime('parallel')).prepare()
+        CompositeSystem(elements=[StockElement('a')], time=DiscreteTime('parallel')).prepare()
 
 
 def test_system_prepares_groups_on_its_space():
     """Test that preparing a system prepares its space and gives it to the groups and nested systems without one."""
     weights = GroupElement('weights', element=StockElement, on='edges')
-    nested = System('inner', elements=[GroupElement('nodes', element=StockElement, on='sites')])
-    System(elements=[weights], systems=[nested], space=NetworkSpace(nx.cycle_graph(30))).prepare()
+    nested = CompositeSystem('inner', elements=[GroupElement('nodes', element=StockElement, on='sites')])
+    CompositeSystem(elements=[weights], systems=[nested], space=NetworkSpace(nx.cycle_graph(30))).prepare()
     assert weights.size_ == 30
     assert nested.elements[0].size_ == 30
 
 
 def test_system_runs_into_the_laws_of_its_parts():
     """Test that a prepared system runs into the laws of its elements and its interactions, each for its namespace."""
-    system = System(
+    system = CompositeSystem(
         elements=[CounterElement('clock'), StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
         time=ContinuousTime(),
@@ -177,13 +178,13 @@ def test_system_runs_into_the_laws_of_its_parts():
 
 def test_system_prints_its_parameters():
     """Test that a system prints the parameters it was given, through scikit-learn."""
-    system = System('meadow', elements=[StockElement('rabbits')])
-    assert repr(system) == "System(elements=[StockElement(label='rabbits')], label='meadow')"
+    system = CompositeSystem('meadow', elements=[StockElement('rabbits')])
+    assert repr(system) == "CompositeSystem(elements=[StockElement(label='rabbits')], label='meadow')"
 
 
 def test_four_part_system_runs():
     """Test that a system of elements, interactions, no space, and continuous time runs and lists its parameters."""
-    system = System(
+    system = CompositeSystem(
         'ecology',
         elements=[StockElement('rabbits'), StockElement('foxes')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
@@ -197,8 +198,8 @@ def test_four_part_system_runs():
 
 def test_systems_nest_and_interactions_couple_them_by_path():
     """Test that an interaction couples the elements of a nested system by their path."""
-    system = System(
-        systems=[System('meadow', elements=[StockElement('rabbits', n=2.0)])],
+    system = CompositeSystem(
+        systems=[CompositeSystem('meadow', elements=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
     trajectory = simulate(system, until=1, dt=0.5)
@@ -207,8 +208,8 @@ def test_systems_nest_and_interactions_couple_them_by_path():
 
 def test_system_classes_nest_twice_under_their_labels():
     """Test that a ready-made system class nests twice by label, with its paths and its parameters kept apart."""
-    system = System(
-        systems=[SIRSystem(label='town'), System('region', systems=[SIRSystem(beta=0.0006, label='city')])],
+    system = CompositeSystem(
+        systems=[SIRSystem(label='town'), CompositeSystem('region', systems=[SIRSystem(beta=0.0006, label='city')])],
         interactions=[RateInteraction('arrivals', target='town/S', state='x', rate=lambda s: 0.01 * s.target.x)],
     )
     assert PassCompiler().prepare(system).report_.ok
@@ -221,7 +222,7 @@ def test_system_classes_nest_twice_under_their_labels():
 
 def test_duplicate_labels_are_reported():
     """Test that two direct children with one label give one issue at the system that names the label."""
-    report = PassCompiler().prepare(System('farm', elements=[StockElement('a'), StockElement('a')])).report_
+    report = PassCompiler().prepare(CompositeSystem('farm', elements=[StockElement('a'), StockElement('a')])).report_
     (issue,) = report.errors
     assert issue.path == 'farm'
     assert "'a'" in issue.message
@@ -229,7 +230,7 @@ def test_duplicate_labels_are_reported():
 
 def test_rate_under_discrete_time_is_reported():
     """Test that a rate law in a system of discrete time is reported with the time it needs."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=DiscreteTime(),
@@ -241,15 +242,15 @@ def test_rate_under_discrete_time_is_reported():
 
 def test_nested_system_inherits_time():
     """Test that a nested system without a time is checked against the time of its parent."""
-    nested = System('inner', elements=[CounterElement('clock')])
-    assert PassCompiler().prepare(System(systems=[nested], time=DiscreteTime())).report_.ok
-    (issue,) = PassCompiler().prepare(System(systems=[nested], time=ContinuousTime())).report_.errors
+    nested = CompositeSystem('inner', elements=[CounterElement('clock')])
+    assert PassCompiler().prepare(CompositeSystem(systems=[nested], time=DiscreteTime())).report_.ok
+    (issue,) = PassCompiler().prepare(CompositeSystem(systems=[nested], time=ContinuousTime())).report_.errors
     assert issue.path == 'inner/clock'
 
 
 def test_static_time_rejects_dynamic_laws():
     """Test that a static system holding a rate law is reported."""
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=StaticTime(),
@@ -259,7 +260,7 @@ def test_static_time_rejects_dynamic_laws():
 
 def test_periodic_space_wraps_positions():
     """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
-    system = System(
+    system = CompositeSystem(
         elements=[PointElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
@@ -269,7 +270,7 @@ def test_periodic_space_wraps_positions():
 
 def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('gas', element=PointElement, size=1, values={'x': [[0.95, 0.5]], 'x_d1': [[1.0, 0.0]]}),
         ],
@@ -282,7 +283,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
 
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
-    system = System(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
+    system = CompositeSystem(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
     trajectory = simulate(system, until=3)
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
@@ -290,13 +291,21 @@ def test_variable_group_of_elements_grows():
 def test_group_on_edges_has_one_member_per_edge():
     """Test that a group on the edges of a network with 30 edges holds 30 members, sized from the inherited space."""
     weights = GroupElement('weights', element=StockElement, on='edges')
-    problem = PassCompiler().prepare(System(elements=[weights], space=NetworkSpace(nx.cycle_graph(30)))).run().problem_
+    problem = (
+        PassCompiler()
+        .prepare(CompositeSystem(elements=[weights], space=NetworkSpace(nx.cycle_graph(30))))
+        .run()
+        .problem_
+    )
     assert problem.states.entry('weights.n').shape == (30,)
 
 
 def test_group_on_edges_outside_a_network_is_reported():
     """Test that a group on edges in a lattice space is reported with the space it needs."""
-    system = System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4))
+    system = CompositeSystem(
+        elements=[GroupElement('weights', element=StockElement, on='edges')],
+        space=LatticeSpace(4),
+    )
     report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
     assert (issue.code, issue.message) == ('space-missing', 'weights: LatticeSpace has no edges.')
@@ -304,7 +313,7 @@ def test_group_on_edges_outside_a_network_is_reported():
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that an element with a complex state in a Hilbert space and a generator law runs unitary dynamics."""
-    system = System(elements=[TwoLevelElement('q')])
+    system = CompositeSystem(elements=[TwoLevelElement('q')])
     trajectory = simulate(system, until=np.pi, solver=UnitarySolver(), dt=np.pi)
     assert trajectory.problem.form.name == 'OPERATOR'
 
@@ -320,7 +329,7 @@ class SwitchElement(Element):
 def test_system_is_a_base_system_with_tags_derived_from_its_parts():
     """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
     noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
-    system = System(elements=[StockElement('stock')], interactions=[noisy])
+    system = CompositeSystem(elements=[StockElement('stock')], interactions=[noisy])
     tags = system.get_tags()
     assert isinstance(system, BaseSystem)
     assert (tags.laws, tags.randomness, tags.time, tags.space) == (
@@ -337,8 +346,8 @@ def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
     on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
     on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
     with pytest.raises(TagError, match=r"The parts 'cells' and 'nodes' disagree on the tag 'space'"):
-        System(elements=[on_lattice, on_network]).get_tags()
-    joined = System(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
+        CompositeSystem(elements=[on_lattice, on_network]).get_tags()
+    joined = CompositeSystem(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
     assert joined.space == {'continuous', 'lattice', 'network'}
 
 
@@ -347,11 +356,11 @@ def test_system_tags_reject_parts_of_times_that_nothing_joins():
     rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
     step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)
     with pytest.raises(TagError, match=r"disagree on the tag 'time'"):
-        System(elements=[StockElement('stock')], interactions=[rate, step]).get_tags()
-    nested = System(
+        CompositeSystem(elements=[StockElement('stock')], interactions=[rate, step]).get_tags()
+    nested = CompositeSystem(
         systems=[
-            System('plant', elements=[StockElement('stock')], time=ContinuousTime()),
-            System('counter', elements=[StockElement('stock')], time=DiscreteTime()),
+            CompositeSystem('plant', elements=[StockElement('stock')], time=ContinuousTime()),
+            CompositeSystem('counter', elements=[StockElement('stock')], time=DiscreteTime()),
         ],
         interactions=[rate.set_params(target='plant/stock'), step],
     )
@@ -361,9 +370,18 @@ def test_system_tags_reject_parts_of_times_that_nothing_joins():
 def test_system_rejects_a_role_bound_to_a_domain_it_does_not_accept():
     """Test that a rate interaction on a boolean state fails to prepare, naming role, element, and domain."""
     rate = RateInteraction('growth', target='switch', state='on', rate=1.0)
-    system = System(elements=[SwitchElement('switch')], interactions=[rate])
+    system = CompositeSystem(elements=[SwitchElement('switch')], interactions=[rate])
     with pytest.raises(
         RoleElementError,
         match=r"The role 'target' of 'growth' .* 'switch' .* 'on' of the domain 'boolean'",
     ):
         system.prepare()
+
+
+@pytest.mark.parametrize(('name', 'module'), [('System', '_system'), ('MassActionSystem', '_mass_action')])
+def test_former_class_names_are_gone(name, module):
+    """Test that the former core system classes and their modules cannot be imported."""
+    systems = importlib.import_module('skcomplex.core.components.systems')
+    assert not hasattr(systems, name)
+    with pytest.raises(ImportError):
+        importlib.import_module(f'skcomplex.core.components.systems.{module}')

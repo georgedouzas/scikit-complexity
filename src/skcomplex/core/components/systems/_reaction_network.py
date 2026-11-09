@@ -1,6 +1,7 @@
-"""Define mass-action systems.
+"""Define reaction network systems.
 
-A mass-action system holds species in compartments and the reactions between them at mass-action rates.
+A reaction network system holds species and the reactions between them, whose default propensity is a rate constant
+times the product of the reactant amounts, each raised to its stoichiometric coefficient.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -12,25 +13,28 @@ from ...types import ReactionTable
 from ..elements import NonnegativeElement
 from ..interactions import ReactionInteraction
 from ._base import BaseSystem
-from ._system import System
+from ._composite import CompositeSystem
 
 
-class MassActionSystem(BaseSystem[System]):
-    """Species in compartments and the reactions between them at mass-action rates.
+class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
+    """Species and the reactions between them, with product propensities.
 
     Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount. Every reaction is a
     `ReactionInteraction` with a stoichiometric coefficient for each of its reactants and products and a rate constant
-    `k`. Its propensity is `k` times the amount of every reactant to the power of its coefficient, and it changes the
-    amount of every species by its coefficient among the products minus its coefficient among the reactants. So
+    `k`. Its propensity is `k` times the product of the reactant amounts, each raised to its coefficient, and it changes
+    the amount of every species by its coefficient among the products minus its coefficient among the reactants. So
     `S + I -> 2 I` at the rate constant `beta` has the reactants `{'S': 1, 'I': 1}`, the products `{'I': 2}`, and the
     propensity `beta S I`. A species among both the reactants and the products with one coefficient, such as a
     catalyst, enters the propensity and does not change.
+
+    Fields name this product propensity in their own words, such as the law of mass action in chemistry, homogeneous
+    mixing in epidemiology, and the encounter term of Lotka-Volterra in ecology.
 
     In the mode `'rate'` the reactions are the rate equations of the amounts, in the mode `'jump'` they are the random
     events of a continuous-time Markov chain, run by Gillespie's algorithm, and in the mode `'langevin'` they are the
     chemical Langevin equations.
 
-    Compartmental systems of every field are mass-action systems, such as epidemics of susceptible, infected, and
+    Compartmental systems of every field are reaction networks, such as epidemics of susceptible, infected, and
     recovered individuals or enzyme kinetics. A subclass takes the parameters of its model under its own names, and
     gives its species, its reactions, and its mode from the hooks `_get_species`, `_get_reactions`, and `_get_mode`, or
     its reactions as interactions from `_get_interactions`, when they are subclasses of `ReactionInteraction` with
@@ -38,7 +42,7 @@ class MassActionSystem(BaseSystem[System]):
 
     Attributes:
         system_:
-            The composite of the compartments and the reactions built from the parameters at the last `prepare`.
+            The composite of the species and the reactions built from the parameters at the last `prepare`.
 
         laws_:
             The laws the system contributes for the namespace of its last run.
@@ -46,9 +50,9 @@ class MassActionSystem(BaseSystem[System]):
     Examples:
         The reversible isomerization `A <-> B`, whose amounts relax to `k_back / (k_forth + k_back)` of the total:
 
-        >>> from skcomplex.core.components.systems import MassActionSystem
+        >>> from skcomplex.core.components.systems import ReactionNetworkSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> isomerization = MassActionSystem(
+        >>> isomerization = ReactionNetworkSystem(
         ...     species={'A': 10.0, 'B': 0.0},
         ...     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
         ... )
@@ -137,14 +141,14 @@ class MassActionSystem(BaseSystem[System]):
             for name, (reactants, products, k) in self._get_reactions().items()
         ]
 
-    def _build_system(self) -> System:
-        """Return a compartment for every species, and the reactions between them.
+    def _build_system(self) -> CompositeSystem:
+        """Return an element for every species, and the reactions between them.
 
         Returns:
             system:
-                The composite of the compartments and the reactions.
+                The composite of the species and the reactions.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[NonnegativeElement(name, x=amount) for name, amount in self._get_species().items()],
             interactions=list(self._get_interactions()),

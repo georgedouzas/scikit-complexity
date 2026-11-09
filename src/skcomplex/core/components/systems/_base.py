@@ -47,9 +47,9 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     A system builds its parts from its model parameters, prepares them, and derives its tags. A subclass takes the
     parameters of its model as arguments of its own `__init__`, which stores each under its own name, as in
     scikit-learn, so `get_params`, `set_params`, and `clone` work on them. It builds its parts in the hook
-    `_build_system`, which returns the generic composite `System` of its elements, interactions, nested systems, space,
-    and time, written in terms of the model parameters. The type parameter `CompositeT` names the class of that
-    composite, so a subclass that writes `BaseSystem[System]` gets `system_` typed as `System`. `prepare` passes the
+    `_build_system`, which returns the `CompositeSystem` of its elements, interactions, nested systems, space, and time,
+    written in terms of the model parameters. The type parameter `CompositeT` names the class of that composite, so a
+    subclass that writes `BaseSystem[CompositeSystem]` gets `system_` typed as `CompositeSystem`. `prepare` passes the
     current model parameters down to the parts by building them again when a parameter differs by value from those of
     the last build, and prepares them as `system_`, so a parameter changed with `set_params` changes the parts of the
     next `prepare`. The tags of a system are derived from its parts and never declared.
@@ -58,8 +58,8 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
     out: `until`, the end time, `dt`, the time between frames, `solver`, the solver, `observables`, the observables,
     `initial_state`, the initial values by dotted state name, `invariants`, the tolerance of every observable that
     must stay constant, `schedule`, the functions of time that drive parameters, `compiler`, the compiler of a form
-    the system brings, and `backend`, the backend. The compiler also reads `observables` of a `System`
-    it compiles, so the tuned observables of a subclass of `System` are computed without being passed again.
+    the system brings, and `backend`, the backend. The compiler also reads `observables` of a `CompositeSystem` it
+    compiles, so the tuned observables of a subclass of `CompositeSystem` are computed without being passed again.
 
     Attributes:
         system_:
@@ -72,7 +72,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import RateInteraction
-        >>> from skcomplex.core.components.systems import BaseSystem, System
+        >>> from skcomplex.core.components.systems import BaseSystem, CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> class TankElement(Element):
         ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
@@ -85,7 +85,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
         ...
         ...     def _build_system(self):
         ...         decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -self.k * s.target.x)
-        ...         return System(self.label, elements=[TankElement('tank')], interactions=[decay])
+        ...         return CompositeSystem(self.label, elements=[TankElement('tank')], interactions=[decay])
         >>> system = DecaySystem(k=0.5).prepare()
         >>> system.get_params()
         {'k': 0.5, 'label': 'decay'}
@@ -180,7 +180,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
             return built[1]
         system = self._build_system()
         if not isinstance(system, BaseSystem) or system._build_system() is not system:
-            error_msg = f'{type(self).__name__} builds its parts as a System, not as {type(system).__name__}.'
+            error_msg = f'{type(self).__name__} builds its parts as a CompositeSystem, not as {type(system).__name__}.'
             raise ValidationError(error_msg)
         self._built_from = (params, system)
         return system

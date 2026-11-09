@@ -10,7 +10,7 @@ from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, RunSettings, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -29,8 +29,8 @@ class StockElement(Element):
         self.n = n
 
 
-class GrowthSystem(BaseSystem[System]):
-    """System of exponential growth whose model parameter is the rate."""
+class GrowthSystem(BaseSystem[CompositeSystem]):
+    """CompositeSystem of exponential growth whose model parameter is the rate."""
 
     until = 5.0
 
@@ -38,9 +38,9 @@ class GrowthSystem(BaseSystem[System]):
         super().__init__(label)
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         growth = RateInteraction('growth', target='stock', state='n', rate=self.r)
-        return System(self.label, elements=[StockElement('stock')], interactions=[growth])
+        return CompositeSystem(self.label, elements=[StockElement('stock')], interactions=[growth])
 
 
 def test_base_system_returns_its_tuned_run_settings():
@@ -64,14 +64,14 @@ def test_base_system_passes_model_parameters_down_to_its_parts():
 
 
 class CountingSystem(GrowthSystem):
-    """System of exponential growth that counts how often it builds its parts."""
+    """CompositeSystem of exponential growth that counts how often it builds its parts."""
 
     def __init__(self, label: str = 'growth', r: float = 1.0, weights: object = None) -> None:
         super().__init__(label, r)
         self.weights = weights
         self.n_builds = 0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         self.n_builds += 1
         return super()._build_system()
 
@@ -94,15 +94,15 @@ def test_base_system_builds_its_parts_once_per_set_of_parameters():
 
 
 def test_base_system_rejects_parts_that_are_no_system():
-    """Test that a system subclass whose hook returns no `System` fails to prepare."""
+    """Test that a system subclass whose hook returns no `CompositeSystem` fails to prepare."""
 
     class BrokenSystem(BaseSystem):
-        """System whose hook returns an element."""
+        """CompositeSystem whose hook returns an element."""
 
         def _build_system(self):
             return StockElement('stock')
 
-    with pytest.raises(ValidationError, match='builds its parts as a System, not as StockElement'):
+    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as StockElement'):
         BrokenSystem().prepare()
 
 
@@ -115,5 +115,5 @@ def test_base_system_rejects_parts_that_are_no_composite():
         def _build_system(self):
             return GrowthSystem()
 
-    with pytest.raises(ValidationError, match='builds its parts as a System, not as GrowthSystem'):
+    with pytest.raises(ValidationError, match='builds its parts as a CompositeSystem, not as GrowthSystem'):
         NestingSystem().prepare()

@@ -20,7 +20,7 @@ from ..spaces import BaseSpace, BaseTime
 from ._base import BaseSystem
 
 
-class System(BaseSystem['System']):
+class CompositeSystem(BaseSystem['CompositeSystem']):
     """Composition of elements and the interactions between them, with nested systems.
 
     The system lives on a space, in a time. A system is defined by its parts and by nothing about how it runs. An
@@ -47,7 +47,7 @@ class System(BaseSystem['System']):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> class DecayElement(Element):
         ...     law_classes = (RateLaw,)
         ...
@@ -57,7 +57,7 @@ class System(BaseSystem['System']):
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, -namespace.x)]
-        >>> system = System(elements=[DecayElement('decay')]).prepare()
+        >>> system = CompositeSystem(elements=[DecayElement('decay')]).prepare()
         >>> namespace = SimpleNamespace(decay=SimpleNamespace(x=var('x')))
         >>> [type(law).__name__ for law in system.run(namespace).laws_]
         ['RateLaw']
@@ -106,7 +106,7 @@ class System(BaseSystem['System']):
         self.space = space
         self.time = time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the system itself, whose parts are its arguments."""
         return self
 
@@ -152,9 +152,9 @@ class System(BaseSystem['System']):
 
         The alternative is a composite.
         """
-        return any(not isinstance(system, System) or system._nests_classes() for system in self.systems)
+        return any(not isinstance(system, CompositeSystem) or system._nests_classes() for system in self.systems)
 
-    def _get_composite(self) -> System:
+    def _get_composite(self) -> CompositeSystem:
         """Return the system with the prepared composite of every nested system in place.
 
         A nested system class, such as a ready-made system of the catalog, is replaced by the composite it builds from
@@ -217,7 +217,7 @@ class System(BaseSystem['System']):
         The result is `None` when no element of a system has the path.
         """
         *scopes, label = path.split('/')
-        system: System | None = self
+        system: CompositeSystem | None = self
         for scope in scopes:
             system = next((item.system_ for item in system.systems if item.label == scope), None) if system else None
         if system is None:
