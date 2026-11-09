@@ -113,10 +113,10 @@ Same procedure as group 3.
 
 ## 9. StockFlowSystem
 
-- [ ] 9.1 Add `StockFlowSystem` in `src/skcomplex/systems/general/dynamics/_stock_flow.py` with the signature and hooks
+- [x] 9.1 Add `StockFlowSystem` in `src/skcomplex/systems/general/dynamics/_stock_flow.py` with the signature and hooks
   of design.md, and export it from the subpackage, without a layers contract. Its docstring carries runnable examples of
   the bathtub and of an arms race. Verify with the doctests of the module.
-- [ ] 9.2 Add `tests/systems/general/dynamics/test_stock_flow.py` with the scenarios of `general-systems`: the bathtub,
+- [x] 9.2 Add `tests/systems/general/dynamics/test_stock_flow.py` with the scenarios of `general-systems`: the bathtub,
   the flow of an unknown stock, declared domains, conservation of the total over flows between stocks, and the flow
   names in the trajectory. Verify they pass.
 
