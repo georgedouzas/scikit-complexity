@@ -52,7 +52,7 @@ from ._normal_forms import (
     SaddleNodeFormSystem,
     TakensBogdanovFormSystem,
 )
-from ._subcritical_forms import SubcriticalHopfElement, SubcriticalHopfFormSystem
+from ._subcritical_forms import SubcriticalHopfFormSystem
 
 __all__: list[str] = [
     'BakerMapSystem',
@@ -93,7 +93,6 @@ __all__: list[str] = [
     'SprottJerkSystem',
     'SprottMixedFlowSystem',
     'StandardMapSystem',
-    'SubcriticalHopfElement',
     'SubcriticalHopfFormSystem',
     'TakensBogdanovFormSystem',
     'TentMapSystem',
