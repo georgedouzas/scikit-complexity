@@ -48,14 +48,18 @@ semicolon. The main fault is the content, not the length of the first line.
 **Goals:**
 
 - One set of testable rules for docstrings and documents, written down here and in the spec.
-- A pilot the user approves before the bulk of the work.
+- Prose that reads as written by a careful person.
+- A full reference of the core components for builders of systems.
+- Tutorials for every workflow of a system, and case studies that run the whole workflow in several fields.
+- Pilots the user approves before the bulk of the work.
 - A light guard for the rules that a machine can check.
 
 **Non-Goals:**
 
 - No change of a name, a signature, or behaviour. A docstring that reveals a confusing name is noted for a later
   change, not renamed here.
-- No style linter, no new tool, and no change to the pydoclint, interrogate, or ruff settings.
+- No style linter, no new dependency, and no change to the pydoclint, interrogate, or ruff settings.
+- No new public API. A tutorial that finds a missing function notes it for a later change.
 - Private functions and methods keep their one-line summaries and are only checked for length and semicolons.
 - The docstrings of `skcomplex.systems` are out of scope. They follow the same rules when a later change touches them.
 
@@ -96,6 +100,20 @@ semicolon. The main fault is the content, not the length of the first line.
    concept is shown in a code block that runs, placed right after the paragraph that first names it. The tone is
    academic but simple: precise words, full sentences, no slang, no exclamation marks, and no words such as "just",
    "simply", or "magic".
+10. **Natural prose.** The text reads as written by a careful person, not generated.
+   - No semicolons and no dashes as punctuation: no em dash, no en dash, and no hyphen between spaces. A clause that
+     wants a dash becomes its own sentence, or joins with a comma, "and", "so", or "because". Hyphenated words such as
+     "cross-domain", Markdown list markers, table rules, and code stay allowed.
+   - No stock openers, closers, or filler. The banned list holds "in summary", "in conclusion", "to summarize", "it is
+     worth noting", "it's worth noting", "note that", "let's dive", "dive into", "delve", "leverage", "seamless",
+     "seamlessly", "robust", "powerful", "cutting-edge", "unlock", "harness", "empower", "plethora", "myriad",
+     "a wide range of", "in today's", "simply", "just", "easily", and "magic". Code, inline code, and the titles of
+     cited references are exempt.
+   - No rule-of-three padding. A list of three appears only when there are three things.
+   - A paragraph, not a list, where the items need connecting words. A list holds parallel items that a reader scans.
+   - Sentence length varies. A short sentence follows a long one where the point is simple.
+   - Precise verbs: "integrates", "draws", "sums", "raises", not "handles", "deals with", "manages", or "processes".
+   - Every claim is backed by the code on the page or by a cited reference. A page does not praise the library.
 
 Alternative considered: a third-party prose linter such as Vale. It needs its own rules and configuration, and the
 user asked for a light guard, not a style linter.
@@ -107,8 +125,10 @@ They walk every module of `skcomplex.core`, with `skcomplex.core.specs` and the 
 read the docstrings of modules, public classes, public functions, and public methods.
 
 - `test_docstring_summaries_are_short`: the first line is at most 80 characters.
-- `test_docstrings_hold_no_semicolon`: no prose line holds `;`. Lines that start with `>>>` or `...` are code and are
-  exempt.
+- `test_docstrings_read_naturally`: no prose line holds `;`, an em dash, an en dash, a hyphen between spaces, or a
+  phrase of the banned list of rule 10, compared case-insensitively on whole words. Lines that start with `>>>` or
+  `...`, and inline code between backticks, are exempt. The banned list is a module constant `BANNED_PHRASES` beside
+  `FIELD_TERMS`.
 - `test_class_summaries_name_their_kind`: the summary of a public class starts with "A " or "An ", and contains the
   kind word of its name suffix. The map of suffix to word is `Element: element`, `Interaction: interaction`,
   `Law: law`, `Space: space`, `Time: time`, `Neighborhood: neighbourhood`, `System: system`, `Solver: solver`,
@@ -119,56 +139,121 @@ read the docstrings of modules, public classes, public functions, and public met
 - `test_components_compare_and_name_uses`: the docstring of every public class of the core component families holds
   a paragraph that starts with "Unlike" and holds "Choose it when", and a paragraph that starts with "It appears in".
 
-The first two hold for the whole core once the few current findings are fixed in the first task group. The other
+The first two hold for the whole core once the current findings are fixed in the first task group. The docs hold
+dozens of en and em dashes and spaced hyphens today, so the documents test starts with the README and the pages
+already rewritten, through a tuple `REWRITTEN_DOCUMENTS` in `tests/test_sources.py`, and the last group removes it. The other
 three hold only after a package is rewritten. So they read a module constant `REWRITTEN`, the tuple of package prefixes
 already rewritten, which each task group extends. The last group removes the constant and checks the whole core.
 
-`tests/test_sources.py` gains `test_documents_hold_no_semicolon`, which reads the README and the pages of the user
-guide, skips fenced code blocks, and fails on a prose line with `;`.
+`tests/test_sources.py` gains `test_documents_read_naturally`, which reads the README, `CONTRIBUTING.md`, the pages of
+the user guide, and the docstrings of the gallery examples. It skips fenced code blocks, inline code, Markdown list
+markers, and table rules, and fails on a prose line with a semicolon, a dash used as punctuation, or a banned phrase.
+It imports nothing from the core tests and holds its own copy of the banned list, since a test module must not import
+another. The two lists are kept equal by a third test that reads both constants as text.
 
 `tests/test_sources.py` also gains `test_core_components_pages_cover_every_class`. It reads the `__all__` of each
 family package and fails when a public class, other than an abstract base, has no `## ClassName` heading on the page
-of its family.
+of its family. `test_troubleshooting_covers_every_error` does the same for the public error classes of
+`skcomplex.core.errors` and the troubleshooting page.
+
+No test can judge flow. Each page is also read through once, aloud in style, before it is shown to the user: the
+reviewer reads every sentence in order, marks sentences that sound generated, stiff, or padded, and rewrites them. The
+tasks hold one such review per page group.
 
 Alternative considered: one guard test module under `tests/`. The constitution asks the test tree to mirror the
 source tree, and `test_base.py` already holds the cross-cutting checks of the core, so the guard joins it.
 
-### The core components guide
+### The structure of the guide
 
-The documents should describe the core components, how they differ, what they offer, and how they support systems in
-any field. Two places exist today. The guide under `docs/overview/user_guide` is hand-written, and
-`pytest-markdown-docs` runs its blocks in the test session. The parts pages under `parts/` are written by
-`docs/generate_parts.py` at build time, with tag tables and examples that `markdown-exec` runs in the documentation
-build. Each fact goes to one place.
+The guide keeps its task-led order and grows into five parts. Files are named by what they hold.
 
-- **Hand-written explanations in the guide.** A new section `docs/overview/user_guide/core_components/` holds
-  `index.md` and one page per family: `elements.md`, `interactions.md`, `laws.md`, `spaces.md` with neighbourhoods
-  and times, and `systems.md`. It sits in the navigation after "System classes" and before "Build a custom system".
-  Each page opens with what the family is for and how the families fit: an element holds states, an interaction
-  emits laws that change them, a law is one equation or rule, a space places members, and a system composes them.
-  Then each public class has a `## ClassName` section with one plain sentence of what it is, a link to its row of
-  the comparison table, and runnable examples from at least two fields that use the class unchanged. The section
-  ends with the catalog systems that use the class, through a link to the generated table, not a hand-written list.
-- **Generated tables in the parts pages.** `docs/generate_parts.py` adds a comparison table to the pages of elements,
-  interactions, laws, and systems, and a new page `parts/spaces.md` for spaces, neighbourhoods, and times. The columns
-  are the class, what it adds and when to choose it, taken from the "Unlike" paragraph, its typical uses, taken from
-  the "It appears in" paragraph, and the catalog systems that use it. The tag tables and the compatibility examples
-  stay as they are.
-- **Catalog links.** A system uses a class when its module, or a module of its field `common` package that it
-  imports, defines a subclass of the class or names the class in its globals. The generator finds them by walking
-  the registered systems of `skcomplex.systems` and links each to its system page. Subclasses are shown as field
-  realizations, such as `CompartmentElement` of biology for `NonnegativeElement`. The links are built at build time,
-  so no count goes stale.
+```text
+docs/overview/user_guide/
+  index.md
+  select_a_ready_made_system.md, change_it.md, system_classes.md      getting started, kept
+  core_components/
+    index.md            how the parts fit, diagrams, a worked example (absorbs concepts.md)
+    elements.md, interactions.md, laws.md, spaces.md, systems.md       the reference, one page per family
+    choosing_parts.md   the decision guide
+  build_a_custom_system/
+    index.md            the build tutorial
+    lattice_systems.md, networks.md, ...                               recipes by kind of system, kept
+  check.md              new, absorbs choosing_compatible_components.md
+  simulate.md, analyse.md                                              rewritten as tutorials
+  evaluate.md, calibrate.md                                            new
+  run_experiments.md    the experiment tutorial
+  observe.md            the visualise tutorial
+  share.md              new, beside extend_the_library.md
+  case_studies/
+    index.md, epidemic_calibration.md, opinion_sweep.md, ising_transition.md
+  glossary.md, troubleshooting.md
+```
 
-The docstring is then the one source of what a class is, what it adds, when to choose it, and where it is used. The
-guide adds what a docstring cannot hold: the story of the family and examples from several fields side by side.
+The navigation in `properdocs.yml` follows this order, which the modified requirement "The user guide is task-led"
+fixes. `concepts.md` merges into `core_components/index.md` and `choosing_compatible_components.md` into `check.md`,
+so every earlier topic keeps a section and none is told twice. Links to the two merged pages are updated, and the
+strict build catches any that remain.
 
-Alternatives considered: replace the parts pages with hand-written pages. That copies the tags and the summaries by
-hand, and they go stale. Or extend only the generated pages. Generated text cannot tell the story of a family, and
-`markdown-exec` blocks do not run in the test session.
+Alternative considered: a separate "Tutorials" tab beside the guide. It splits one reading order in two, and the
+spec asks for one task-led guide.
 
-The examples of the guide pages use the core alone. Where a field realization exists, the page names it after the
-core example, as the catalog uses it. Planned pairs, among others:
+### The core components reference
+
+The reference is for builders of systems, so it explains every core class in full. Each fact has one home.
+
+**Hand-written, in `core_components/<family>.md`.** Each family page opens with what the family is for and how it
+fits with the other families. Each public class then has a `## ClassName` section with these parts, as short as the
+class allows:
+
+- What it models, in one plain paragraph, with the first runnable example.
+- The same class in another field, with a second runnable example. The examples use the core alone. Where a field
+  realization exists, the prose names it after the example.
+- How the engine runs it: which laws it emits, and what a solver does with them, such as integrating a rate or
+  applying an update once per step.
+- How it combines with other parts: the roles it fills or binds, and its usual partners.
+- Limits and errors: what it cannot express, and one example that triggers its most common error and prints the
+  message, followed by the fix.
+- A field realization: a short subclass that renames the part for one field, as the catalog does.
+- A link to its fact sheet and to its API entry.
+
+**Generated, in `parts/<family>.md`.** `docs/generate_parts.py` writes, per family, the comparison table and one fact
+sheet per class. A fact sheet lists the states with their domains, the roles with the element kinds and states they
+accept, the parameters, the law kinds it emits, the times, solvers, and backends whose tags accept it, the errors of
+its `Raises` section, and links to its reference section, its API entry, and the catalog systems that use it. The
+meaning of each state, role, and parameter comes from the `Args` section of the docstring, parsed with griffe, the
+docstring parser that mkdocstrings already uses. Its package `griffelib` is already installed, and the docs group of
+`pyproject.toml` names it because the generator imports it. A new parts page covers spaces, neighbourhoods, and times. The tag
+tables and the compatibility examples stay.
+
+**Catalog links.** A system uses a class when its module, or a module of its field `common` package that it
+imports, defines a subclass of the class or names it in its globals. The generator finds them by walking the
+registered systems of `skcomplex.systems`. Subclasses are shown as field realizations, such as `CompartmentElement`
+of biology for `NonnegativeElement`. `docs/generate_systems.py` writes the reverse links: each catalog system page
+lists the core classes it builds from, each linked to its fact sheet. The links are built at build time, so no count
+goes stale.
+
+The docstring is the one source of what a class is, what it adds, when to choose it, its uses, the meaning of its
+arguments, and its errors. The code is the source of its states, roles, laws, and tags. The reference page adds what
+neither can hold: how the class behaves in a run, how it combines, and examples from several fields side by side.
+
+Alternatives considered: hand-written pages alone, which copy tags and argument lists that then go stale, and
+generated pages alone, which cannot explain behaviour and whose `markdown-exec` blocks do not run in the test
+session.
+
+**How the parts fit.** `core_components/index.md` opens the reference. It explains that an element holds states, an
+interaction reads them through roles and emits laws, a law is one equation or rule for one state, a space places the
+members of a group and says who neighbours whom, a time says whether the system steps or flows, and a system composes
+them. Two diagrams in Mermaid show it. The first is a class diagram of the parts and their relations. The second is a
+flow chart of a run: `prepare` checks the parts and collects their laws, the compiler lowers the laws to a problem,
+a solver advances the problem on a backend, and observers record a trajectory. A worked example then builds one
+system in steps, a predator and its prey on a lattice, running after each step: the elements, then one interaction,
+then the space, then the time, then the system, then `simulate`. A table at the end maps each family to its import
+path.
+
+Mermaid needs one entry in `properdocs.yml`: a custom fence `mermaid` under `pymdownx.superfences` with
+`pymdownx.superfences.fence_code_format`, which the Material theme renders. No new dependency is added.
+
+The examples of the reference, among others:
 
 | Class | Example in one field | Example in another field |
 | --- | --- | --- |
@@ -181,6 +266,68 @@ core example, as the catalog uses it. Planned pairs, among others:
 | `BallNeighborhood` | toppling sites of a sandpile | the neighbours of a voter model |
 | `NetworkSpace` | an epidemic on a contact network | a power grid of coupled generators |
 | `MassActionSystem` | a chemical reaction network | an SIR epidemic written as reactions |
+
+### The workflow tutorials
+
+Each workflow page is a tutorial with one running example: the hare and lynx populations of the Hudson's Bay Company
+pelt records, the classic data set of predator and prey cycles. The build tutorial builds it from core parts and then
+as a subclass of a general system. Every later page starts from the catalog class `LotkaVolterraSystem` in one line,
+so each page runs alone in the test session. The data sit inline in a short array with their source cited.
+
+- **Build** (`build_a_custom_system/index.md`): compose elements, interactions, and a system, then write the same
+  model as a subclass of `MassActionSystem` and as a `BaseSystem` subclass with model parameters.
+- **Check** (`check.md`): `prepare`, `get_tags`, the requirements of an interaction, and the validation errors a
+  builder meets most, each triggered, printed, and fixed.
+- **Simulate** (`simulate.md`): `simulate` with its run settings, the choice of solver and backend from the tags,
+  `random_state` for reproducible stochastic runs, and the `Trajectory` it returns.
+- **Analyse** (`analyse.md`): the analysis functions that apply to the example, found with `applicable_analyses`,
+  and how to read each result.
+- **Evaluate** (`evaluate.md`): comparison with the pelt records, the goodness of fit of a calibration, posterior
+  predictive checks, `posterior_coverage`, and practical identifiability with `identifiability`.
+- **Calibrate** (`calibrate.md`): every method of `calibrate`, which are `'local'`, `'global'`, `'abc_smc'`,
+  `'mcmc'`, and `'variational'`, with the losses each takes, its diagnostics, and when to choose it.
+- **Experiment** (`run_experiments.md`): `sweep`, `ensemble`, `sensitivity`, `compare_scenarios`,
+  `basin_stability`, and `orbit_diagram`.
+- **Visualise** (`observe.md`): the `RerunObserver` with a blueprint, the visuals of `skcomplex.core.engine.viz`, and
+  plots of trajectories and results with matplotlib.
+- **Share** (`share.md`): turn the example into a system class, register it, add its inventory entry and gallery
+  example, and contribute it, with links to `CONTRIBUTING.md`.
+
+Expensive methods run with small budgets and fixed seeds, so each page stays fast in the test session. The prose says
+which budget a real study would use.
+
+### The case studies
+
+Three case studies from different fields take one system through the whole workflow, each against data or a known
+result.
+
+- **An epidemic calibrated to case data** (biology): `SIRSystem` calibrated to the daily counts of the 1978 influenza
+  outbreak in an English boarding school, reported in the British Medical Journal. It checks the fit and the posterior
+  coverage, studies the identifiability of the two rates, and compares scenarios of earlier isolation.
+- **An opinion model swept and analysed** (social science): a bounded confidence model swept over the confidence
+  bound, with an ensemble per value, the number of opinion clusters from `clusters`, and the sensitivity of the
+  final consensus to the bound and the convergence rate.
+- **A lattice phase transition** (physics): the two-dimensional Ising model swept over temperature on lattices of
+  several sizes. It locates the peak of the susceptibility near the exact critical temperature of Onsager,
+  `2 / ln(1 + sqrt(2))`, and estimates critical exponents with `scaling` and `data_collapse`.
+
+Each case study cites its data or its exact result. Data enter as short inline arrays, so the pages need no download.
+
+### Extras
+
+- **Glossary** (`glossary.md`): one entry per mathematical or library term the guide uses, such as attractor, law,
+  role, tag, mass action, phase space, and posterior. Each entry is two or three sentences with a link to where the
+  term is used. A docstring still defines a term where it uses it, as rule 5 asks.
+- **Decision guide** (`core_components/choosing_parts.md`): Mermaid flow charts that lead from the features of a
+  problem to parts. Does the state flow or step? Is it one amount, a vector, or many members? Do members sit on a
+  lattice, a network, or in continuous space? Do they act by rates, maps, or agent rules? Each leaf links to the
+  reference sections of its parts.
+- **Troubleshooting** (`troubleshooting.md`): one section per public error class of `skcomplex.core.errors`. Each
+  shows the shortest code that raises it, the message, what it means, and the fix. The docstring of each error class
+  says when it is raised and how to fix it, and the page shows it happen.
+- **Cross-links**: the reference and the tutorials link each core class to its API entry with autorefs, fact sheets
+  link the reference and the catalog, and catalog pages link the core classes they build from. The strict build
+  fails on a broken link.
 
 #### A sketch of the elements page
 
@@ -235,15 +382,18 @@ The change lands after `add-system-package`, `slim-core-elements-and-spaces`, `s
 change documents, such as `NonnegativeElement`, `BallNeighborhood`, `ArrayUpdateLaw`, and `BirthDeathInteraction`, and
 `slim-core-interactions` already rewrites the docstring of `EncounterInteraction` in part.
 `hoist-constants-and-helper-methods` is not yet proposed in `openspec/changes`, so the first task checks that it has
-been archived.
+been archived. The evaluate tutorial and the epidemic case study use `identifiability`, so the documents groups also
+wait for `add-identifiability-analysis`. The docstring groups do not.
 
 The pilot is the package `components/elements` with its `__init__`, and `CouplingInteraction`, the hardest
 interaction docstring. The user approves the style on it before the other packages start. The other packages follow
 in the order a reader meets them: the rest of `components`, then `specs` and the root modules, then `analysis` and
 `experiments`, then the engine. The documents follow the docstrings, so the guide and the generated tables can read
 the new summaries, comparisons, and uses. They start with their own pilot: the elements page of the core components
-guide with the generated comparison table of elements, and the two existing guide pages rewritten in the examples
-below. The user approves that pilot before the other family pages and documents start.
+reference with the generated table and fact sheets of elements, the page on how the parts fit, and the build
+tutorial, which introduces the running example. The user approves that pilot before the other reference pages,
+tutorials, and case studies start. The order after the pilot is the rest of the reference, then the other tutorials
+in reading order, then the case studies, then the extras, then the README, CONTRIBUTING, and the gallery.
 
 ### Before and after
 
@@ -602,6 +752,16 @@ A population with several kinds of members, such as traders and banks, is severa
   the realization after it, so the core stays the subject of the page.
 - [Catalog links found through module globals miss a system that builds a class indirectly] → The links are a guide
   to examples, not a complete index. The generator also follows the field `common` packages a system imports.
+- [Tutorials and case studies slow the test session, since calibration and sweeps run many simulations] → Small
+  budgets, small lattices, and fixed seeds. Each page must run in under a minute, and the task that writes it measures
+  this.
+- [Calibration and sampling outputs vary across platforms] → Pages print rounded values, or a comparison such as
+  `bool(abs(estimate - 0.5) < 0.1)`, never raw floating point from a sampler.
+- [The banned phrase list rejects a valid term, such as robust control] → Inline code and titles of cited references
+  are exempt, and a sentence can name the concept another way. A term that cannot be rephrased is a reason to change
+  the list in review, not to suppress the test.
+- [Merging `concepts.md` and `choosing_compatible_components.md` breaks links from elsewhere] → The strict build
+  fails on each broken link, and the task updates them.
 - [A large diff is hard to review] → One commit per package, and the pilot comes first.
 
 ## Migration Plan
