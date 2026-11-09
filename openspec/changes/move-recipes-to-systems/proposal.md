@@ -9,17 +9,21 @@ recipes and proves for each one how the primitives express it. This change moves
 
 ## What Changes
 
-- New cross-domain package `skcomplex.systems.common`, approved by the user, for realizations that several fields
-  share. It holds family packages only, imports only the core, and every field may import it.
-- **BREAKING** These interactions leave the core for `skcomplex.systems.common`: `MovementInteraction` and
-  `BirthDeathInteraction` (family `agents`), `ChoiceInteraction` and `ImitationInteraction` (family `decisions`),
-  `EvolutionInteraction` (family `evolution`), `MatchingInteraction` with its rule specs (family `matching`),
-  `EncounterInteraction` (family `encounters`), and `ReactionInteraction` (family `reactions`).
-- **BREAKING** `ReactionNetworkSystem`, with the aliases `Stoichiometry` and `ReactionTable`, leaves
-  `skcomplex.core.components.systems` for `skcomplex.systems.common.reactions`. It builds a `CompositeSystem` of
-  reactions, which are recipes, so it is a recipe too.
-- **BREAKING** `NonnegativeElement` and `PointElement` leave the core for `skcomplex.systems.common` (families
-  `amounts` and `points`). Each is `Element` with one declared state, and the engine reads the state spec, never the
+- New cross-domain package `skcomplex.systems.general`, approved by the user, for realizations that several fields
+  share. It holds one subpackage per concept and no loose module. It imports only the core, every field may import
+  it, and the core never imports it.
+- **BREAKING** These interactions leave the core for `skcomplex.systems.general`: `MovementInteraction`,
+  `BirthDeathInteraction`, `ChoiceInteraction`, `ImitationInteraction`, and `EvolutionInteraction` (subpackage
+  `agents`), `MatchingInteraction` with its rule specs (`matching`), `EncounterInteraction` (`kinetics`), and
+  `ReactionInteraction` (`reactions`).
+- **BREAKING** General systems are recipes, as the user decided. The core keeps only `BaseSystem` and `CompositeSystem`.
+  `ReactionNetworkSystem`, the name `rename-core-systems` gives `MassActionSystem`, leaves
+  `skcomplex.core.components.systems` for `skcomplex.systems.general.reactions` with the aliases `Stoichiometry` and
+  `ReactionTable`. The general systems that `add-general-systems` drafts will live in
+  `skcomplex.systems.general.dynamics`. Core features that produce systems, such as the data-driven functions, keep
+  returning plain composites of core parts.
+- **BREAKING** `NonnegativeElement` and `PointElement` leave the core for `skcomplex.systems.general` (subpackage
+  `elements`). Each is `Element` with one declared state, and the engine reads the state spec, never the
   class.
 - **BREAKING** Recipes of one field move into that field. `CascadeInteraction` becomes the physics
   `TopplingInteraction` in `physics/common/avalanches`. `FeedbackInteraction` moves to `economics/common/policy`.
@@ -31,7 +35,7 @@ recipes and proves for each one how the primitives express it. This change moves
   module of biology, `HolonomyScoreSpec` into the Wilson sampling of physics, and `RowScoreSpec` into a new biology
   family `sequences`. Each subclass returns an `ArrayUpdateLaw`, which is the primitive they used all along.
 - **BREAKING** The clearing value of a match leaves `PartnerSpec`. `PartnerSpec` keeps the pairing that transfers and
-  match laws read, and the matching family adds `PartnerMatchingSpec(PartnerSpec)` with `value`.
+  match laws read, and the matching subpackage adds `PartnerMatchingSpec(PartnerSpec)` with `value`.
 - **BREAKING** Two merges inside the core. `PairCouplingInteraction` merges into `PairInteraction`, which takes the
   optional `function`, `potential`, `write`, and `divisor`, and the LAMMPS lowering keys on `PairInteraction` with a
   potential. `ConeNeighborhood` merges into `RadiusNeighborhood`, which takes `angle` and `direction`.
@@ -51,19 +55,22 @@ recipes and proves for each one how the primitives express it. This change moves
 
 ### New Capabilities
 
-- `shared-realizations`: the cross-domain package `skcomplex.systems.common`, its families, its import rules, and the
-  recipes it holds for agents, decisions, evolution, matching, encounters, reactions, amounts, and points.
+- `general-realizations`: the cross-domain package `skcomplex.systems.general`, its subpackages, its import rules, and
+  the recipes it holds for agents, matching, kinetics, reactions, and elements.
 
 ### Modified Capabilities
 
 - `system-modeling`: the core holds building blocks only, and recipes live in the systems.
-- `general-mechanisms`: the core mechanisms lose the recipes, pairs couple through `PairInteraction`, and the general
-  elements and reactions are realizations of `skcomplex.systems.common`.
-- `model-library`: realizations shared by several fields live in `skcomplex.systems.common`, and field recipes such as
-  toppling, feedback, zone coupling, and sequence sampling live in their field.
+- `general-mechanisms`: the core mechanisms lose the recipes, pairs couple through `PairInteraction`, partners carry no
+  clearing value, and the general elements and reactions are realizations of `skcomplex.systems.general`.
+- `base-interfaces`: the core keeps `BaseSystem` and `CompositeSystem` only, and general systems live in
+  `skcomplex.systems.general`.
+- `package-layout`: the systems package of the core re-exports no general system, and cones are radius neighbourhoods
+  with an angle.
+- `model-library`: realizations shared by several fields live in `skcomplex.systems.general`, and field recipes such as
+  toppling, feedback, zone coupling, search, and satisfiability live in their field.
+- `molecular-structures`: row scores belong to the biology sequence sampling.
 - `constraint-satisfaction`: a state that is not Boolean is reported by the role domain check.
-- `search-processes`: population search is a realization of computer science.
-- `agent-spaces`: cone neighbourhoods are radius neighbourhoods with an angle.
 
 ## Impact
 
@@ -74,9 +81,10 @@ recipes and proves for each one how the primitives express it. This change moves
   `ReactionTable`, and `MatchingRule`. The compiler, the LAMMPS solver, the metric search, the neighbourhood kernel,
   the numba printer, and the reduction lowering change where they name a moved or merged class. Doctests that used a
   moved class use a primitive or a local subclass.
-- Systems: a new package `skcomplex.systems.common` with its families, new field families `physics/common/avalanches`,
-  `economics/common/policy`, and `biology/common/sequences`, and the imports of every user module in all eight fields.
-- Configuration: the import contracts in `pyproject.toml` gain `skcomplex.systems.common`.
+- Systems: a new package `skcomplex.systems.general` with its subpackages, new field families
+  `physics/common/avalanches`, `economics/common/policy`, and `biology/common/sequences`, and the imports of every user
+  module in all eight fields.
+- Configuration: the import contracts in `pyproject.toml` gain `skcomplex.systems.general`.
 - Tests: the tests of every moved class move under `tests/systems/`, mirroring the new modules. Engine tests that used
   a recipe as a fixture use a primitive.
 - Documents: the user guide pages that teach a recipe move it to the systems pages, the inventory primitives follow
