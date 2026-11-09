@@ -15,12 +15,11 @@ from sage.all__sagemath_symbolics import QQ, SR, Expression, cos, matrix, sin
 from sage.structure.element import Matrix
 
 from ....core.components.elements import Element
-from ....core.components.interactions import GeodesicInteraction
-from ....core.components.spaces import PseudoRiemannianSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
+from ..common.relativity import GeodesicInteraction, SpacetimeSpace
 
 R_INDEX = 1
 PHI_INDEX = 3
@@ -78,7 +77,7 @@ class GeodesicParticleElement(Element):
         self.x_d1 = x_d1
 
 
-class SchwarzschildSpace(PseudoRiemannianSpace):
+class SchwarzschildSpace(SpacetimeSpace):
     """Spacetime outside a static, spherical mass `M`, the Schwarzschild metric.
 
     The metric is in units with `G = c = 1`.
@@ -134,7 +133,7 @@ class SchwarzschildSpace(PseudoRiemannianSpace):
         return matrix(SR, 4, 4, {(0, 0): -lapse, (1, 1): 1 / lapse, (2, 2): r**2, (3, 3): r**2 * sin(theta) ** 2})
 
 
-class KerrSpace(PseudoRiemannianSpace):
+class KerrSpace(SpacetimeSpace):
     """Spacetime outside a spinning mass `M`, the Kerr metric.
 
     The mass has the angular momentum `M a`, and the metric is in Boyer-Lindquist coordinates.

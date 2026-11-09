@@ -12,14 +12,15 @@ from typing import Annotated, ClassVar
 from sage.all__sagemath_symbolics import SR, vector
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec
-from ...types import ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, RateLaw
-from ..laws.utils import derivative
-from ..spaces import BaseSpace, PseudoRiemannianSpace
-from ._interaction import Interaction
+from .....core.components.base import BasePart
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
+from .....core.components.laws.utils import derivative
+from .....core.components.spaces import BaseSpace
+from .....core.errors import SpaceError, ValidationError
+from .....core.specs import RoleSpec
+from .....core.types import ElementKind
+from ._spacetime import SpacetimeSpace
 
 
 class GeodesicInteraction(Interaction):
@@ -59,12 +60,12 @@ class GeodesicInteraction(Interaction):
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix
         >>> from skcomplex.systems.general.elements import PointElement
-        >>> from skcomplex.core.components.interactions import GeodesicInteraction
-        >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
+        >>> from skcomplex.systems.physics.common.relativity import GeodesicInteraction
+        >>> from skcomplex.systems.physics.common.relativity import SpacetimeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> r, phi = SR.var('r phi')
-        >>> plane = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
+        >>> plane = SpacetimeSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
         >>> line = GeodesicInteraction('line', target='particle', space=plane)
         >>> particle = PointElement('particle', x=[1.0, 0.0], x_d1=[0.0, 1.0])
         >>> system = CompositeSystem(elements=[particle], interactions=[line], space=plane)
@@ -81,7 +82,7 @@ class GeodesicInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'x',
-        space: PseudoRiemannianSpace | None = None,
+        space: SpacetimeSpace | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -109,10 +110,10 @@ class GeodesicInteraction(Interaction):
                 f'{type(self).__name__} {self.label!r} moves the state {self.state!r}. Give the name of a state.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(self.space, PseudoRiemannianSpace):
+        if not isinstance(self.space, SpacetimeSpace):
             error_msg = (
                 f'{type(self).__name__} {self.label!r} moves a point along the geodesics of {self.space!r}. Give a '
-                '`PseudoRiemannianSpace`.'
+                '`SpacetimeSpace`.'
             )
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()

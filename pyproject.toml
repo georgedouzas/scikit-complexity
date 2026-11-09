@@ -149,7 +149,6 @@ dependencies = [
     "highspy>=1.15.1",
     "passagemath-polyhedra>=10.8.13",
     "pysd>=3.14.3,<4",
-    "einsteinpy>=0.5.0",
     "optuna>=5.0.0",
     "pyabc>=0.13.1",
     "numpyro>=0.22.0",
@@ -164,6 +163,7 @@ metabolism = [
 structures = ["biopython>=1.88"]
 rna = ["ViennaRNA>=2.7.2"]
 trajectories = ["mdtraj>=1.11.2"]
+relativity = ["einsteinpy>=0.5.0"]
 
 [project.urls]
 Homepage = "https://georgedouzas.github.io/scikit-complexity"

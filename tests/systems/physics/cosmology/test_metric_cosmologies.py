@@ -11,12 +11,13 @@ from scipy.optimize import brentq
 
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws.utils import partial
-from skcomplex.core.components.spaces import LatticeSpace, PseudoRiemannianSpace
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.systems.physics.common.relativity import SpacetimeSpace
 from skcomplex.systems.physics.cosmology import (
     EinsteinFieldEquationsInteraction,
     FLRWCosmologySystem,
@@ -132,19 +133,19 @@ class ProfileElement(Element):
         self.u_d1 = u_d1
 
 
-def _flat_universe() -> PseudoRiemannianSpace:
+def _flat_universe() -> SpacetimeSpace:
     """Return the flat Robertson-Walker ansatz of the scale factor `a(t)`."""
     a = function('a')(t)
-    return PseudoRiemannianSpace(
+    return SpacetimeSpace(
         diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2]),
         (t, r, theta, phi),
     )
 
 
-def _warped_plane() -> PseudoRiemannianSpace:
+def _warped_plane() -> SpacetimeSpace:
     """Return the ansatz `ds² = -dt² + dx² + u(t, x)² (dy² + dz²)`, whose `G^y_y = 0` is the wave equation of `u`."""
     u = function('u')(t, x)
-    return PseudoRiemannianSpace(diagonal_matrix(SR, [-1, 1, u**2, u**2]), (t, x, y, z))
+    return SpacetimeSpace(diagonal_matrix(SR, [-1, 1, u**2, u**2]), (t, x, y, z))
 
 
 def test_dust_universe_follows_the_einstein_de_sitter_solution():
@@ -234,7 +235,7 @@ def test_einstein_interaction_rejects_coordinates_the_ansatz_keeps():
     """Test that a covariant component that keeps the radius is rejected, unlike its mixed counterpart."""
     namespace = SimpleNamespace(target=SimpleNamespace(a=SR.var('a')), t=SR.var('t'))
     a = function('a')(t)
-    space = PseudoRiemannianSpace(
+    space = SpacetimeSpace(
         diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2 + r]),
         (t, r, theta, phi),
     )

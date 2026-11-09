@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "release", "rna", "structures", "tests", "trajectories"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "relativity", "release", "rna", "structures", "tests", "trajectories"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:cfb66018e9ede733202f5d3cfec9d55efb6f183ab24f822d44f4964245a24dc1"
+content_hash = "sha256:f5c6f8e60bedc17af36d43a1e63dcad4cca1a2f15c4eeadd35b1a1361add7c26"
 
 [[metadata.targets]]
 requires_python = ">=3.12,!=3.14.1,<3.15"
@@ -203,7 +203,7 @@ name = "astropy"
 version = "8.0.2"
 requires_python = ">=3.11"
 summary = "Astronomy and astrophysics core library"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "PyYAML>=6.0.0",
@@ -229,7 +229,7 @@ name = "astropy-iers-data"
 version = "0.2026.11.2.0.34.55"
 requires_python = ">=3.11"
 summary = "IERS Earth Rotation and Leap Second tables for the astropy core package"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "astropy_iers_data-0.2026.11.2.0.34.55-py3-none-any.whl", hash = "sha256:785cd5bc193d9206316bd7c786fe0647e212ebf017cd861beabedd91cbe585bf"},
@@ -856,7 +856,7 @@ name = "contourpy"
 version = "1.4.0"
 requires_python = ">=3.12"
 summary = "Python library for calculating contours of 2D quadrilateral grids"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy>=2.0",
@@ -1134,7 +1134,7 @@ name = "cycler"
 version = "0.12.1"
 requires_python = ">=3.8"
 summary = "Composable style cycles"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "cycler-0.12.1-py3-none-any.whl", hash = "sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"},
@@ -1541,7 +1541,7 @@ name = "einsteinpy"
 version = "0.5.0"
 requires_python = ">=3.10"
 summary = "Python package for General Relativity"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "astropy>=5.1.1",
@@ -1644,7 +1644,7 @@ name = "fonttools"
 version = "4.68.0"
 requires_python = ">=3.11"
 summary = "Tools to manipulate font files"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "fonttools-4.68.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:f265c85432c398d86f26add143423924a4747879b2dce001a3ffe0a5fed30638"},
@@ -2590,7 +2590,7 @@ name = "kiwisolver"
 version = "1.5.1"
 requires_python = ">=3.10"
 summary = "A fast implementation of the Cassowary constraint solver"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "kiwisolver-1.5.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:63fb7294b768f444eb4b068965f2662f28c2fd4161e23bd60fcf3ff27b74c046"},
@@ -2807,7 +2807,7 @@ name = "llvmlite"
 version = "0.50.0"
 requires_python = ">=3.10"
 summary = "lightweight wrapper around basic LLVM functionality"
-groups = ["default", "tests"]
+groups = ["default", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "llvmlite-0.50.0-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:55f50a6b7c0b8de88b05d6bc407d70a60486ce024013997dc97e202bd187c75b"},
@@ -3103,7 +3103,7 @@ name = "matplotlib"
 version = "3.11.2"
 requires_python = ">=3.11"
 summary = "Python plotting package"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "contourpy>=1.0.1",
@@ -3263,7 +3263,7 @@ ref = "a10433af16682386548b360297e2476152d46ede"
 revision = "a10433af16682386548b360297e2476152d46ede"
 summary = "mfapy: a python package for the 13C metabolic flux analysis"
 groups = ["tests"]
-marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+marker = "python_version >= \"3.12\" and python_full_version != \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "joblib",
     "matplotlib",
@@ -3617,7 +3617,7 @@ files = [
 name = "mpmath"
 version = "1.3.0"
 summary = "Python library for arbitrary-precision floating-point arithmetic"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
@@ -3789,7 +3789,7 @@ name = "narwhals"
 version = "2.28.0"
 requires_python = ">=3.10"
 summary = "Extremely lightweight compatibility layer between dataframe libraries"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "narwhals-2.28.0-py3-none-any.whl", hash = "sha256:1f69d6385ec30e2fa6e1fdeb37c562ecabd0f713f6f3e3b58a668c5c9df9567f"},
@@ -3944,7 +3944,7 @@ name = "numba"
 version = "0.68.1"
 requires_python = ">=3.10"
 summary = "compiling Python code using LLVM"
-groups = ["default", "tests"]
+groups = ["default", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "llvmlite<0.51,>=0.50.0dev0",
@@ -3978,7 +3978,7 @@ name = "numpy"
 version = "2.5.4"
 requires_python = ">=3.12"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "docs", "metabolism", "structures", "tests", "trajectories"]
+groups = ["default", "docs", "metabolism", "relativity", "structures", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "numpy-2.5.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c6342f54c67093cae5c0227eb0eb772fdb79f2a2c37a6eb278b9909ee06aa356"},
@@ -4227,7 +4227,7 @@ name = "packaging"
 version = "26.3"
 requires_python = ">=3.9"
 summary = "Core utilities for Python packages"
-groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "metabolism", "release", "tests", "trajectories"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "metabolism", "relativity", "release", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
@@ -5154,7 +5154,7 @@ name = "pillow"
 version = "13.0.0"
 requires_python = ">=3.11"
 summary = "Python Imaging Library (fork)"
-groups = ["default", "docs", "gallery", "metabolism", "tests"]
+groups = ["default", "docs", "gallery", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pillow-13.0.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:67c8d44ad89fa7eb88de5d6ef6199b1e03dd24974f85a67639fc8badb801fe79"},
@@ -5313,7 +5313,7 @@ name = "plotly"
 version = "7.1.0"
 requires_python = ">=3.8"
 summary = "An open-source interactive data visualization library for Python"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "narwhals>=1.15.1",
@@ -5775,7 +5775,7 @@ name = "pyerfa"
 version = "2.0.1.5"
 requires_python = ">=3.9"
 summary = "Python bindings for ERFA"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy>=1.19.3",
@@ -5866,7 +5866,7 @@ name = "pyparsing"
 version = "3.3.2"
 requires_python = ">=3.9"
 summary = "pyparsing - Classes and methods to define and execute parsing grammars"
-groups = ["default", "checks", "docs", "metabolism", "tests", "trajectories"]
+groups = ["default", "checks", "docs", "metabolism", "relativity", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d"},
@@ -6109,7 +6109,7 @@ name = "python-dateutil"
 version = "4.0.0"
 requires_python = ">=3.11"
 summary = "Extensions to the standard Python datetime module"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "tzdata",
@@ -6313,7 +6313,7 @@ name = "pyyaml"
 version = "6.0.3"
 requires_python = ">=3.8"
 summary = "YAML parser and emitter for Python"
-groups = ["default", "checks", "docs"]
+groups = ["default", "checks", "docs", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pyyaml-6.0.3-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:7f047e29dcae44602496db43be01ad42fc6f1cc0d8cd6c83d342306c32270196"},
@@ -6812,7 +6812,7 @@ name = "scipy"
 version = "1.18.1"
 requires_python = ">=3.12"
 summary = "Fundamental algorithms for scientific computing in Python"
-groups = ["default", "metabolism", "tests", "trajectories"]
+groups = ["default", "metabolism", "relativity", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy<2.8,>=2.0.0",
@@ -7154,7 +7154,7 @@ name = "sympy"
 version = "1.14.0"
 requires_python = ">=3.9"
 summary = "Computer algebra system (CAS) in Python"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "mpmath<1.4,>=1.1.0",
@@ -7466,7 +7466,7 @@ name = "tzdata"
 version = "2026.6"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "tzdata-2026.6-py2.py3-none-any.whl", hash = "sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec"},

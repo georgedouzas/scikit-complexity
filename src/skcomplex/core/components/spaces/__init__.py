@@ -23,7 +23,6 @@ from ._mesh import MeshSpace
 from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
 from ._phase import PhaseSpace
-from ._pseudo_riemannian import PseudoRiemannianSpace
 from ._radius import RadiusNeighborhood
 from ._simplex import SimplexSpace
 from ._state_translation import StateTranslationNeighborhood
@@ -49,7 +48,6 @@ __all__: list[str] = [
     'NearestNeighborhood',
     'NetworkSpace',
     'PhaseSpace',
-    'PseudoRiemannianSpace',
     'RadiusNeighborhood',
     'SimplexSpace',
     'StateTranslationNeighborhood',

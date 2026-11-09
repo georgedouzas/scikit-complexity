@@ -22,7 +22,7 @@ list, then follow the link to its subsection.
   [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian: `GradientInteraction`,
   `EulerLagrangeInteraction`, and `HamiltonianInteraction`, in [Gradients and mechanics](#gradients-and-mechanics).
-- Move a particle along the geodesics of a curved metric: `PseudoRiemannianSpace` and `GeodesicInteraction`, in
+- Move a particle along the geodesics of a curved metric: `SpacetimeSpace` and `GeodesicInteraction`, in
   [Curved spacetimes](#curved-spacetimes). Physics evolves a metric ansatz by the Einstein equations with
   `EinsteinFieldEquationsInteraction`.
 - Conserve, carry, or spread a quantity over a field: `ConservationInteraction` and `RateInteraction`, in
@@ -275,15 +275,15 @@ invariants(system, expressions=[momentum]).conserved, invariants(system, kind='s
 
 ### Curved spacetimes
 
-Use `PseudoRiemannianSpace` and `GeodesicInteraction` when a particle falls freely in a metric you know, such as a
+Use `SpacetimeSpace` and `GeodesicInteraction` when a particle falls freely in a metric you know, such as a
 planet around a static mass in the Schwarzschild metric:
 
 ```python
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, pi, sin
 
 from skcomplex.systems.general.elements import PointElement
-from skcomplex.core.components.interactions import GeodesicInteraction
-from skcomplex.core.components.spaces import PseudoRiemannianSpace
+from skcomplex.systems.physics.common.relativity import GeodesicInteraction
+from skcomplex.systems.physics.common.relativity import SpacetimeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -291,7 +291,7 @@ from skcomplex.core.engine.solvers import ScipyODESolver
 t, r, theta, phi = SR.var('t r theta phi')
 lapse = 1 - 2 / r
 metric = diagonal_matrix(SR, [-lapse, 1 / lapse, r**2, r**2 * sin(theta) ** 2])
-spacetime = PseudoRiemannianSpace(metric, (t, r, theta, phi), curvature=False)
+spacetime = SpacetimeSpace(metric, (t, r, theta, phi), curvature=False)
 dilation = 1 / (1 - 3 / 20) ** 0.5
 planet = PointElement('planet', x=[0.0, 20.0, pi / 2, 0.0], x_d1=[dilation, 0.0, 0.0, dilation / 20**1.5])
 fall = GeodesicInteraction('fall', target='planet', space=spacetime)
@@ -301,7 +301,7 @@ trajectory = simulate(system, until=500.0, dt=10.0, solver=solver)
 round(float(trajectory.values('planet.x')[-1][1]), 6)
 ```
 
-`PseudoRiemannianSpace(metric, coordinates, curvature=True)` takes a symmetric Sage matrix and its coordinates, and
+`SpacetimeSpace(metric, coordinates, curvature=True)` takes a symmetric Sage matrix and its coordinates, and
 `prepare` derives through EinsteinPy the Christoffel symbols `christoffel_`, and with `curvature` the tensors
 `riemann_`, `ricci_`, `ricci_scalar_`, and `einstein_`. It derives them again only when the metric, the coordinates,
 or `curvature` change. The space is an unbounded continuous space with one dimension per coordinate, so a point on it

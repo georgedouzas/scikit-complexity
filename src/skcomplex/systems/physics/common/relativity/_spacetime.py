@@ -1,4 +1,4 @@
-"""Define pseudo-Riemannian spaces.
+"""Define spacetimes, the pseudo-Riemannian spaces of relativity.
 
 They are coordinate charts with a symbolic metric and the curvature it derives.
 """
@@ -10,22 +10,22 @@ from collections.abc import Iterator, Sequence
 from typing import ClassVar
 
 import numpy as np
-from einsteinpy.symbolic import ChristoffelSymbols, MetricTensor, RicciScalar, RicciTensor, RiemannCurvatureTensor
 from sage.all__sagemath_symbolics import SR, Expression, function, matrix
 from sage.structure.element import Matrix
 from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from ...errors import ValidationError
-from ..base import BasePart
-from ._continuous import ContinuousSpace
+from .....core.components.base import BasePart
+from .....core.components.spaces import ContinuousSpace
+from .....core.errors import ValidationError
+from ...._extras import import_extra
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]
 type Riemann = tuple[tuple[tuple[tuple[Expression, ...], ...], ...], ...]
 type Derivation = tuple[Matrix, tuple[Expression, ...], bool]
 
 
-class PseudoRiemannianSpace(ContinuousSpace):
+class SpacetimeSpace(ContinuousSpace):
     """Chart of coordinates with a symbolic metric `g_(mu nu)`.
 
     The connection and the curvature follow from the metric. The metric is a symmetric, nondegenerate Sage matrix whose
@@ -91,9 +91,9 @@ class PseudoRiemannianSpace(ContinuousSpace):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix, sin
-        >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
+        >>> from skcomplex.systems.physics.common.relativity import SpacetimeSpace
         >>> theta, phi = SR.var('theta phi')
-        >>> sphere = PseudoRiemannianSpace(matrix(SR, [[1, 0], [0, sin(theta) ** 2]]), (theta, phi)).prepare()
+        >>> sphere = SpacetimeSpace(matrix(SR, [[1, 0], [0, sin(theta) ** 2]]), (theta, phi)).prepare()
         >>> sphere.christoffel_[0][1][1]
         -cos(theta)*sin(theta)
         >>> sphere.ricci_scalar_
@@ -245,8 +245,9 @@ class PseudoRiemannianSpace(ContinuousSpace):
         functions = self._get_functions(self.metric_)
         pairs = [(item, function(f'skcomplex_ansatz_{index}')) for index, item in enumerate(functions)]
         rows = [[self._rename(SR(entry), pairs)._sympy_() for entry in row] for row in self.metric_.rows()]
-        tensor = MetricTensor(rows, [item._sympy_() for item in self.coordinates_])
-        christoffel = ChristoffelSymbols.from_metric(tensor)
+        symbolic = import_extra('einsteinpy.symbolic', 'SpacetimeSpace', 'relativity')
+        tensor = symbolic.MetricTensor(rows, [item._sympy_() for item in self.coordinates_])
+        christoffel = symbolic.ChristoffelSymbols.from_metric(tensor)
         values = christoffel.tensor()
         indices = range(n_dim)
         self.christoffel_: Christoffel = tuple(
@@ -259,7 +260,7 @@ class PseudoRiemannianSpace(ContinuousSpace):
         self.einstein_: Matrix | None = None
         if not self.curvature:
             return
-        riemann = RiemannCurvatureTensor.from_christoffels(christoffel)
+        riemann = symbolic.RiemannCurvatureTensor.from_christoffels(christoffel)
         values = riemann.tensor()
         self.riemann_ = tuple(
             tuple(
@@ -268,10 +269,10 @@ class PseudoRiemannianSpace(ContinuousSpace):
             )
             for rho in indices
         )
-        ricci = RicciTensor.from_riemann(riemann)
+        ricci = symbolic.RicciTensor.from_riemann(riemann)
         values = ricci.tensor()
         self.ricci_ = matrix(SR, n_dim, n_dim, lambda mu, nu: self._to_sage(values[mu, nu], pairs))
-        self.ricci_scalar_ = self._to_sage(RicciScalar.from_riccitensor(ricci).expr, pairs).simplify_full()
+        self.ricci_scalar_ = self._to_sage(symbolic.RicciScalar.from_riccitensor(ricci).expr, pairs).simplify_full()
         self.einstein_ = (self.ricci_ - self.ricci_scalar_ * self.metric_ / 2).apply_map(
             lambda entry: SR(entry).simplify_full(),
         )

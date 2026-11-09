@@ -12,7 +12,6 @@ from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
-from ._geodesic import GeodesicInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction
@@ -39,7 +38,6 @@ __all__: list[str] = [
     'CouplingInteraction',
     'CrossingInteraction',
     'EulerLagrangeInteraction',
-    'GeodesicInteraction',
     'GradientInteraction',
     'GroupingInteraction',
     'HamiltonianInteraction',

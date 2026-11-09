@@ -23,12 +23,13 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, partial
-from ....core.components.spaces import BaseSpace, LatticeSpace, PseudoRiemannianSpace
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import SpaceError, ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import ElementKind
+from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi
 """The coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`."""
@@ -114,7 +115,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         >>> from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.systems.physics.cosmology import EinsteinFieldEquationsInteraction
-        >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
+        >>> from skcomplex.systems.physics.common.relativity import SpacetimeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
@@ -126,7 +127,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         >>> t, r, theta, phi = SR.var('t r theta phi')
         >>> a = function('a')(t)
         >>> metric = diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
-        >>> flat = PseudoRiemannianSpace(metric, (t, r, theta, phi))
+        >>> flat = SpacetimeSpace(metric, (t, r, theta, phi))
         >>> vacuum = EinsteinFieldEquationsInteraction(
         ...     'vacuum', target='universe', states='a', space=flat, components=[(1, 1)], cosmological_constant=3.0
         ... )
@@ -144,7 +145,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states',))],
         states: str | Sequence[str] = 'x',
-        space: PseudoRiemannianSpace | None = None,
+        space: SpacetimeSpace | None = None,
         components: Sequence[tuple[int, int]] = (),
         source: Callable[[SimpleNamespace], object] | None = None,
         coupling: float = 8 * math.pi,
@@ -198,10 +199,10 @@ class EinsteinFieldEquationsInteraction(Interaction):
         if self.source is not None and not callable(self.source):
             error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
-        if not isinstance(self.space, PseudoRiemannianSpace) or not self.space.curvature:
+        if not isinstance(self.space, SpacetimeSpace) or not self.space.curvature:
             error_msg = (
                 f'{type(self).__name__} {self.label!r} reads the curvature of {self.space!r}. Give a '
-                '`PseudoRiemannianSpace` with `curvature=True`.'
+                '`SpacetimeSpace` with `curvature=True`.'
             )
             raise SpaceError(error_msg)
         self.space_ = self.space.prepare()
@@ -392,7 +393,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         ]
 
 
-class RobertsonWalkerSpace(PseudoRiemannianSpace):
+class RobertsonWalkerSpace(SpacetimeSpace):
     """Homogeneous and isotropic spacetime of the Robertson-Walker ansatz.
 
     The scale factor `a(t)` is unknown.
@@ -430,7 +431,7 @@ class RobertsonWalkerSpace(PseudoRiemannianSpace):
         return diagonal_matrix(SR, [-1, a**2 / (1 - QQ(self.k) * r**2), a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
 
 
-class LemaitreTolmanBondiSpace(PseudoRiemannianSpace):
+class LemaitreTolmanBondiSpace(SpacetimeSpace):
     """Spherical spacetime of dust in comoving coordinates.
 
     This is the Lemaître-Tolman-Bondi ansatz.

@@ -129,7 +129,7 @@
   into `SequenceSamplingInteraction` in `biology/common/sequences/_sequence_sampling.py`, each returning an
   `ArrayUpdateLaw`. Migrate RNA walks, early stage, and fuzzy oil drop. Verify with the sampling tests, the scenarios of
   `molecular-structures`, and `tests/systems` for those modules.
-- [ ] 8.7 Move `PseudoRiemannianSpace` to `physics/common/relativity/_spacetime.py` as `SpacetimeSpace` and
+- [x] 8.7 Move `PseudoRiemannianSpace` to `physics/common/relativity/_spacetime.py` as `SpacetimeSpace` and
   `GeodesicInteraction` to `physics/common/relativity/_geodesic.py`, with their tests under
   `tests/systems/physics/common/relativity`. Load EinsteinPy through `import_extra` with the extra `relativity`, move
   `einsteinpy` from the runtime dependencies of `pyproject.toml` to `[project.optional-dependencies]`, and skip the
