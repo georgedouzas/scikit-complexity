@@ -15,51 +15,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
+from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import MovementInteraction
-
-
-class NodeContentElement(Element):
-    """Content of a node of a network.
-
-    The content diffuses along the links with the coefficient `D`.
-
-    Args:
-        label:
-            The label of the node or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial content.
-
-        D:
-            The diffusion coefficient of every link.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.networks import NodeContentElement
-        >>> NodeContentElement('node', D=0.5).D
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.D = D
+from ...general.dynamics import NetworkDynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class NodeRankElement(Element):
@@ -220,7 +185,7 @@ class NetworkRandomWalkSystem(BaseSystem):
         )
 
 
-class NetworkDiffusionSystem(BaseSystem):
+class NetworkDiffusionSystem(NetworkDynamicalSystem):
     """Diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`.
 
     The diffusion spreads a unit mass to every node.
@@ -262,29 +227,27 @@ class NetworkDiffusionSystem(BaseSystem):
         source: int = 0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.graph = graph
         self.D = D
         self.source = source
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        graph = _graph_or_default(self.graph)
-        initial = np.zeros(graph.number_of_nodes())
+    def _get_graph(self) -> nx.Graph:
+        """Return the graph, Zachary's karate club by default."""
+        return _graph_or_default(self.graph)
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the content, one at the source and zero elsewhere, and the diffusion constant."""
+        initial = np.zeros(self._get_graph().number_of_nodes())
         initial[self.source] = 1.0
-        nodes = FieldElement(
-            'nodes',
-            element=NodeContentElement,
-            space=NetworkSpace(graph),
-            values={'u': initial, 'D': self.D},
-        )
-        diffusion = RateInteraction(
-            'diffusion',
-            target='nodes',
-            state='u',
-            rate=lambda s: s.target.D * laplacian(s.target.u),
-        )
-        return CompositeSystem(self.label, elements=[nodes], interactions=[diffusion])
+        return {
+            'u': DeclaredVariableSpec(initial, StateSpec()),
+            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the diffusion `D L u` of the content by the graph Laplacian."""
+        return {'u': lambda s: s.target.D * laplacian(s.target.u)}
 
 
 class PagerankSystem(BaseSystem):

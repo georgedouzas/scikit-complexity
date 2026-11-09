@@ -43,7 +43,6 @@ from ._processes import (
     NetworkDiffusionSystem,
     NetworkRandomWalkSystem,
     NetworkWalkerElement,
-    NodeContentElement,
     NodeRankElement,
     PagerankSystem,
 )
@@ -95,7 +94,6 @@ __all__: list[str] = [
     'NetworkStructureAnalysisSystem',
     'NetworkSuperpositionSystem',
     'NetworkWalkerElement',
-    'NodeContentElement',
     'NodeMergingSystem',
     'NodeRankElement',
     'PagerankSystem',
