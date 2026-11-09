@@ -15,8 +15,8 @@ class RegionScoreSpec(BaseSpec):
     """Spec of an objective of a state of integer labels.
 
     The sites of one label form a region. The objective is `sum_<i,j> w_ij c(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l -
-    A_l)^2 + b_l (S_l - B_l)^2`, the contact energy across the boundaries between regions and an elastic constraint on
-    the volume and the surface of every region. The first sum runs over the pairs of neighbouring sites `i` and `j` with
+    A_l)^2 + b_l (S_l - B_l)^2`, a cost of the boundaries between labelled regions and a quadratic penalty on the
+    volume and the surface of every region. The first sum runs over the pairs of neighbouring sites `i` and `j` with
     the weight `w_ij` of their contact, `l_i` is the label of site `i`, `V_l` the volume of region `l`, the sum of the
     volumes of its sites, and `S_l` its surface, the sum of the weights of the contacts of its sites with sites of other
     labels. A label copy changes the volumes and the surfaces of only the two regions it moves a site between, so a
@@ -25,7 +25,7 @@ class RegionScoreSpec(BaseSpec):
     Args:
         contact:
             The function `contact(first, second, **parameters)` of two arrays of labels, which broadcast, and the
-            parameters of the system that it names, which returns the energy per unit of contact between regions of the
+            parameters of the system that it names, which returns the cost per unit of boundary between regions of the
             labels, symmetric in the labels.
 
         volume:

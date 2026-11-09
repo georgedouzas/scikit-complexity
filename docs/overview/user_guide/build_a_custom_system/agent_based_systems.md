@@ -236,9 +236,9 @@ auction = System(
             requesters='buyers',
             providers='sellers',
             rule=BatchMatchingSpec(),
-            limit=('bid', 'ask'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
-            allowance='money',
+            cap='money',
             transfers=(('money', -1), ('goods', 1)),
             phase='trade',
         ),
@@ -266,21 +266,21 @@ trajectory.values('auction.volume').tolist()
 **Markets.** `MatchingInteraction(label, requesters=..., providers=..., rule=...)`, from
 `skcomplex.core.components.interactions`, matches two groups.
 
-- Requesters state the highest clearing value they accept in their `limit` state, the quantity they want in
-  `quantity`, and the most value they can give in `allowance`. Providers state their lowest clearing value and the
-  quantity they offer. A missing state counts as no limit, one unit, and no allowance.
-- A name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of the providers.
+- Requesters state the highest clearing value they accept in their `reserve` state, the quantity they want in
+  `quantity`, and the most value they can give in `cap`. Providers state their lowest clearing value and the
+  quantity they offer. A missing state counts as no reserve, one unit, and no cap.
+- A name given as a pair, such as `reserve=('bid', 'ask')`, names the state of the requesters and of the providers.
 - The rule is a frozen spec of `skcomplex.core.specs` that names the matching algorithm and holds only its settings:
-  - `RandomSearchSpec(tries, clearing)`, the default,
+  - `RandomSearchSpec(tries, value)`, the default,
   - `PartnerSwitchSpec(sample, intensity, partner)`, partner choice with switching,
   - `QueueSpec(order)`,
   - `IterativeMatchingSpec(adjustment, iterations, tolerance)`, a clearing value adjusted until requests and offers
     balance,
   - `ContinuousMatchingSpec(arrival)`, where arriving offers match resting ones by limit and arrival,
   - `BatchMatchingSpec()`, one clearing value for all offers,
-  - `StableMatchingSpec(requester_preference, provider_preference, clearing)`, stable matching by the `matching`
+  - `StableMatchingSpec(requester_preference, provider_preference, value)`, stable matching by the `matching`
     library,
-  - `PartnerSpec(candidates, choice, fallback, capacity, score, clearing)`, where requesters in random order pick among
+  - `PartnerSpec(candidates, choice, fallback, capacity, score, value)`, where requesters in random order pick among
     the candidates that still offer a quantity at a limit they accept.
 - The rule may also be a function `rule(requesters, providers, rng, capacity)` that returns pairs, which match at the
   midpoint of both limits.

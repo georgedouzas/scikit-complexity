@@ -106,11 +106,11 @@
 - [x] 9.1 Rename `LifeCycleInteraction` to `BirthDeathInteraction` in `interactions/_birth_death.py` and
   `test_birth_death.py`, and update every user. Verify `grep -rw LifeCycleInteraction` finds nothing and the agent
   tests pass.
-- [ ] 9.2 Rename the `MatchingInteraction` arguments `limit` to `reserve` and `allowance` to `cap`, the rule-spec field
+- [x] 9.2 Rename the `MatchingInteraction` arguments `limit` to `reserve` and `allowance` to `cap`, the rule-spec field
   `clearing` to `value`, and the `QueueSpec` order `'limit'` to `'reserve'`, with the docstrings of the matching specs.
   Update the economics and engineering users. Verify with the matching, labour, double auction, order book, and
   ridesharing tests.
-- [ ] 9.3 Document `EncounterInteraction` as the binary kinetic collision operator over class axes, and reword the
+- [x] 9.3 Document `EncounterInteraction` as the binary kinetic collision operator over class axes, and reword the
   contact text of `RegionScoreSpec` as a boundary cost between labelled regions. Verify with the doctests.
 
 ## 10. Documents and inventory
@@ -118,7 +118,7 @@
 - [ ] 10.1 Rewrite the user guide pages `general_interactions.md`, `phase_space_fields.md`, `stocks_and_flows.md`, and
   `agent_based_systems.md` with the core forms and the field realizations, with no hard-coded counts. Verify with the
   docs build.
-- [ ] 10.2 Drop the primitive `hydrodynamic-interactions` from `docs/overview/inventory.toml` and from the squirmers and
+- [x] 10.2 Drop the primitive `hydrodynamic-interactions` from `docs/overview/inventory.toml` and from the squirmers and
   coupled traps entries, set the description of `curved-spacetimes`, and take the priorities the inventory check
   reports. Verify with `docs/inventory_checks.py`.
 

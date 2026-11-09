@@ -189,15 +189,15 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             The path of the group of traders that can be found, the same group.
 
         rule:
-            The spec of the algorithm that pairs the traders, such as `PartnerSpec('local', clearing='provider')`.
+            The spec of the algorithm that pairs the traders, such as `PartnerSpec('local', value='provider')`.
 
-        limit:
-            The state with the limit of both sides, missing for traders, which then accept any partner.
+        reserve:
+            The state with the reserve value of both sides, missing for traders, which then accept any partner.
 
         quantity:
             The states of the partners a requester wants and a provider takes, one and without limit for traders.
 
-        allowance:
+        cap:
             The state of a requester with the most value it can give, missing for traders.
 
         transfers:
@@ -227,9 +227,9 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
         rule: MatchingRule = RandomSearchSpec(),
-        limit: str | tuple[str, str] = 'limit',
+        reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',
-        allowance: str = 'allowance',
+        cap: str = 'cap',
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, SystemView], None] | None = None,
@@ -240,9 +240,9 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             requesters=requesters,
             providers=providers,
             rule=rule,
-            limit=limit,
+            reserve=reserve,
             quantity=quantity,
-            allowance=allowance,
+            cap=cap,
             transfers=transfers,
             phase=phase,
             on_match=on_match,
@@ -464,7 +464,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
                     'barter',
                     requesters='traders',
                     providers='traders',
-                    rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, clearing='provider'),
+                    rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, value='provider'),
                     quantity=('quantity', 'partners'),
                     units=self.units,
                 ),

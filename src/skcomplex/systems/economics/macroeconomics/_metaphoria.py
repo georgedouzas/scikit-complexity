@@ -900,13 +900,13 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
     They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
     `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
     purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
-    `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, clearing='provider')`, whose score prefers the
+    `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import FoodMarketInteraction
-        >>> rule = PartnerSpec(5.0, 'score', score=FoodMarketInteraction.score, clearing='provider')
+        >>> rule = PartnerSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
         >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
         'gdp'
     """
@@ -971,7 +971,7 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
     They take it in random order. A matching of the people, who request a job, with the firms, which provide their
     vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
     still has a vacancy, and moves to it. Build it with
-    `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, clearing='provider')`.
+    `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
@@ -980,8 +980,8 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         ...     'jobs',
         ...     requesters='people',
         ...     providers='businesses',
-        ...     rule=PartnerSpec(5.0, 'score', score=LabourMarketInteraction.score, clearing='provider'),
-        ...     limit=('hireable', 'limit'),
+        ...     rule=PartnerSpec(5.0, 'score', score=LabourMarketInteraction.score, value='provider'),
+        ...     reserve=('hireable', 'reserve'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,
         ... ).providers
@@ -1226,8 +1226,8 @@ class MetaphoriaSystem(BaseSystem):
             'jobs',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, clearing='provider'),
-            limit=('hireable', 'limit'),
+            rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, value='provider'),
+            reserve=('hireable', 'reserve'),
             quantity=('quantity', 'vacancies'),
             phase='hiring',
             on_match=LabourMarketInteraction.hire,
@@ -1236,10 +1236,10 @@ class MetaphoriaSystem(BaseSystem):
             'shops',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
-            limit=('limit', 'price'),
+            rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, value='provider'),
+            reserve=('reserve', 'price'),
             quantity=('shortfall', 'stock'),
-            allowance='money',
+            cap='money',
             transfers=(('money', -1),),
             phase='market',
             on_match=FoodMarketInteraction.sell,

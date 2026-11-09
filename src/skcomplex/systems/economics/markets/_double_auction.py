@@ -411,7 +411,7 @@ class DoubleAuctionSystem(BaseSystem):
             requesters='buyers',
             providers='sellers',
             rule=ContinuousMatchingSpec() if self.protocol == 'order_book' else BatchMatchingSpec(),
-            limit=('bid', 'ask'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='trade',
             on_match=self._book_profit,

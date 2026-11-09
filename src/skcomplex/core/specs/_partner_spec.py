@@ -46,12 +46,12 @@ class PartnerSpec(BaseSpec):
             The function `score(agent, candidate)` of their agent views the choice `'score'` reads, higher for preferred
             candidates, or `None`.
 
-        clearing:
+        value:
             The value of a pair that a matching settles, `'midpoint'` of both limits, `'provider'`, or `'requester'`.
 
     Raises:
         ValidationError:
-            The choice, the fallback, or the clearing is unknown, the distance or the capacity is not positive, or the
+            The choice, the fallback, or the value rule is unknown, the distance or the capacity is not positive, or the
             score does not fit the choice, raised when its owner checks it.
 
     Examples:
@@ -65,20 +65,20 @@ class PartnerSpec(BaseSpec):
     fallback: str | None = None
     capacity: str | float | None = None
     score: Preference | None = None
-    clearing: str = 'midpoint'
+    value: str = 'midpoint'
 
     def _check(self) -> None:
         """Raise an error for an unknown or invalid setting of the selection.
 
-        The setting is an unknown choice, fallback, or clearing, a bad distance or capacity, or a bad score.
+        The setting is an unknown choice, fallback, or value rule, a bad distance or capacity, or a bad score.
 
         Raises:
             ValidationError:
-                The choice, the fallback, or the clearing is unknown, the distance or the capacity is not positive, or
+                The choice, the fallback, or the value rule is unknown, the distance or the capacity is not positive, or
                 the score does not fit the choice.
         """
-        if self.clearing not in CLEARINGS:
-            error_msg = f'Unknown clearing {self.clearing!r}. Use one of {CLEARINGS}.'
+        if self.value not in CLEARINGS:
+            error_msg = f'Unknown value rule {self.value!r}. Use one of {CLEARINGS}.'
             raise ValidationError(error_msg)
         if self.choice not in CHOICES:
             error_msg = f'Unknown choice {self.choice!r} of partners. Use one of {CHOICES}.'

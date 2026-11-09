@@ -1372,14 +1372,14 @@ queue.reports, type(stable.rule).__name__, controller.phase
 with providers by the algorithm its rule names, then moves the states of `transfers`. The rules are frozen specs of
 `skcomplex.core.specs` that hold only the settings of their algorithm:
 
-- `RandomSearchSpec(tries, clearing)`, the default.
-- `PartnerSpec(candidates, choice, fallback, capacity, score, clearing)`.
+- `RandomSearchSpec(tries, value)`, the default.
+- `PartnerSpec(candidates, choice, fallback, capacity, score, value)`.
 - `PartnerSwitchSpec(sample, intensity, partner)`.
 - `QueueSpec(order)`.
 - `IterativeMatchingSpec(adjustment, iterations, tolerance)`.
 - `ContinuousMatchingSpec(arrival)`.
 - `BatchMatchingSpec()`.
-- `StableMatchingSpec(requester_preference, provider_preference, clearing)`.
+- `StableMatchingSpec(requester_preference, provider_preference, value)`.
 
 The matching runs each algorithm as its own method, chosen by the type of its rule, so a new algorithm is a new spec
 and a method. A `FeedbackInteraction(rule)` reads observables once per round of its phase and sets parameters. The

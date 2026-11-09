@@ -5,6 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -59,6 +60,8 @@ class PulseInteraction(CrossingInteraction):
         >>> dose.start
         0.0
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
 
     def __init__(
         self,

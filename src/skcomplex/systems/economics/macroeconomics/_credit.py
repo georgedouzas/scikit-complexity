@@ -405,13 +405,13 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
         rule:
             The spec of the algorithm that matches firms with banks, such as `PartnerSwitchSpec()`.
 
-        limit:
+        reserve:
             The state with the rate of both sides, or a pair of the firms' and the banks' states.
 
         quantity:
             The state with the loan of both sides, or a pair of the firms' and the banks' states.
 
-        allowance:
+        cap:
             The state of a firm with what it can spend.
 
         transfers:
@@ -616,7 +616,7 @@ class CreditNetworksSystem(BaseSystem):
             requesters='firms',
             providers='banks',
             rule=PartnerSwitchSpec(sample=self.sample, intensity=self.intensity),
-            limit=('bid', 'ask'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='credit',
             on_match=self._lend,

@@ -1,6 +1,7 @@
 """Define encounters.
 
-Encounters are bilinear moves of a density over activity classes by meetings with another density.
+Encounters are the binary kinetic collision operator over class axes, bilinear moves of a density by meetings with
+another density.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -25,9 +26,10 @@ OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
 
 class EncounterInteraction(Interaction):
-    """Encounters of a candidate density with a field density over activity classes.
+    """Binary kinetic collision operator of a candidate density with a field density over class axes.
 
-    The encounters move, remove, or create. The candidate and the field are groups of `NonnegativeElement` on the
+    It is bilinear in the two densities, as the collision integral of kinetic theory. The encounters move, remove, or
+    create. The candidate and the field are groups of `NonnegativeElement` on the
     sites of lattices of activity classes, one member per class. A candidate at class `h` meets a field at class `k` at
     the rate `eta[h, k]`. In the outcome `'conservative'` the candidate moves to class `i` with the probability
     `kernel[h, k, i]`, in the outcome `'destructive'` it is removed, and in the outcome `'proliferative'` it creates a

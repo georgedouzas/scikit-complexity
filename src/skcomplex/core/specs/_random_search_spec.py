@@ -23,12 +23,12 @@ class RandomSearchSpec(BaseSpec):
         tries:
             The number of providers every requester meets.
 
-        clearing:
+        value:
             The value of a match, `'midpoint'`, `'requester'`, or `'provider'`.
 
     Raises:
         ValidationError:
-            The clearing rule is unknown, raised when its owner checks it.
+            The value rule is unknown, raised when its owner checks it.
 
     Examples:
         >>> from skcomplex.core.specs import RandomSearchSpec
@@ -37,15 +37,15 @@ class RandomSearchSpec(BaseSpec):
     """
 
     tries: int = 1
-    clearing: str = 'midpoint'
+    value: str = 'midpoint'
 
     def _check(self) -> None:
-        """Raise an error for an unknown clearing rule.
+        """Raise an error for an unknown value rule.
 
         Raises:
             ValidationError:
-                The clearing rule is unknown.
+                The value rule is unknown.
         """
-        if self.clearing not in CLEARINGS:
-            error_msg = f'Unknown clearing {self.clearing!r}. Use one of {CLEARINGS}.'
+        if self.value not in CLEARINGS:
+            error_msg = f'Unknown value rule {self.value!r}. Use one of {CLEARINGS}.'
             raise ValidationError(error_msg)

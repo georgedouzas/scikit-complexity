@@ -281,7 +281,7 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
     """Grazing of the meadow, a matching of the cows with the pastures.
 
     After the matching every cow eats and burns energy. The rule of the matching pairs the cows with the pastures, such
-    as `PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider')`, which pairs every cow, in
+    as `PartnerSpec('local', 'score', score=GrazingInteraction.score, value='provider')`, which pairs every cow, in
     random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
     pasture takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
     appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns its
@@ -672,7 +672,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             'grazing',
             requesters='cows',
             providers='meadow',
-            rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider'),
+            rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
             herders='herders',
         )
         return System(

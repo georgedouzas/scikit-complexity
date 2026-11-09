@@ -267,13 +267,13 @@ class BookInteraction(MatchingInteraction[SystemView]):
         rule:
             The spec of the algorithm that matches the orders, such as `ContinuousMatchingSpec()`.
 
-        limit:
+        reserve:
             The states with the limit prices of the buyers and of the sellers.
 
         quantity:
             The states with the quantities the buyers want and the sellers offer.
 
-        allowance:
+        cap:
             The state of a buyer with the money it can spend.
 
         transfers:
@@ -303,9 +303,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
         rule: MatchingRule = RandomSearchSpec(),
-        limit: str | tuple[str, str] = ('bid', 'ask'),
+        reserve: str | tuple[str, str] = ('bid', 'ask'),
         quantity: str | tuple[str, str] = ('demand', 'supply'),
-        allowance: str = 'money',
+        cap: str = 'money',
         transfers: Sequence[tuple[str, int]] = (('money', -1), ('shares', 1)),
         phase: str | None = 'trade',
         on_match: Callable[[MatchSpec, SystemView], None] | None = None,
@@ -316,9 +316,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
             requesters=requesters,
             providers=providers,
             rule=rule,
-            limit=limit,
+            reserve=reserve,
             quantity=quantity,
-            allowance=allowance,
+            cap=cap,
             transfers=transfers,
             phase=phase,
             on_match=on_match,

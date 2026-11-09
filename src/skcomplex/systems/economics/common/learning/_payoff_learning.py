@@ -8,7 +8,7 @@ Payoff learning moves the scores of options towards the payoffs they realized.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from .....core.components.base import BasePart
 from .....core.components.interactions import MapInteraction
-from .....core.components.laws import UpdateLaw
+from .....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from .....core.components.laws.utils import where
 from .....core.components.spaces import BaseSpace
 from .....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -104,6 +104,8 @@ class PayoffLearningInteraction(MapInteraction):
         ... ).chosen
         'shop'
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
 
     def __init__(
         self,

@@ -37,7 +37,7 @@ from ..types import AgentViewProtocol, MatchingRule, Pairing, SystemViewProtocol
 from ._interaction import Interaction
 
 SIGNS = (-1, 1)
-DEFAULT_STATES = ('limit', 'quantity', 'allowance')
+DEFAULT_STATES = ('reserve', 'quantity', 'cap')
 RULES = (
     RandomSearchSpec,
     PartnerSpec,
@@ -54,10 +54,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     """Matching of the members of a group of requesters with those of providers.
 
     The providers form a group, and a rule matches the members. Requesters state the highest clearing value they accept
-    in their `limit` state, the quantity they want in their `quantity` state, and the most value they can give in their
-    `allowance` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
-    a pair names the state of the requesters first and of the providers second, and a missing state counts as no limit,
-    one unit, and no allowance. The rule is a spec that names the algorithm that pairs the offers and holds its
+    in their `reserve` state, the quantity they want in their `quantity` state, and the most value they can give in their
+    `cap` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
+    a pair names the state of the requesters first and of the providers second, and a missing state counts as no reserve,
+    one unit, and no cap. The rule is a spec that names the algorithm that pairs the offers and holds its
     settings: random search, partners, partner switching, a queue, iterative, continuous, batch, or stable matching. The
     `value` of a match is its clearing value per unit. Every match lowers the quantities of both sides and moves every
     state of `transfers`: a negative sign moves `value * quantity` from the requester to the provider, and a positive
@@ -79,20 +79,20 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         rule:
             The spec of the algorithm that matches the members, such as `ContinuousMatchingSpec()`, or a function
             `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that returns their
-            pairs, which match at the midpoint of both limits. A `PartnerSpec` picks among the providers that still
-            offer a quantity at a limit the requester accepts, in random order of the requesters.
+            pairs, which match at the midpoint of both reserves. A `PartnerSpec` picks among the providers that still
+            offer a quantity at a reserve the requester accepts, in random order of the requesters.
 
-        limit:
-            The state with the limit of both sides, or a pair of the requesters' and the providers' states. An agent
-            without the default state `'limit'` has no limit as a requester and the limit 0 as a provider.
+        reserve:
+            The state with the reserve of both sides, or a pair of the requesters' and the providers' states. An agent
+            without the default state `'reserve'` has no reserve as a requester and the reserve 0 as a provider.
 
         quantity:
             The state with the quantity of both sides, or a pair of the requesters' and the providers' states. An
             agent without the default state `'quantity'` offers the quantity 1.
 
-        allowance:
+        cap:
             The state of a requester with the most value it can give. A requester without the default state
-            `'allowance'` has no limit on what it gives.
+            `'cap'` has no reserve on what it gives.
 
         transfers:
             The states every match moves, each with the sign `-1` for a move from the requester to the provider or
@@ -108,7 +108,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         ValidationError:
             A transfer has a sign other than `-1` or `1`, or the rule is neither a matching spec nor a function, or
             it is invalid, raised by `prepare`, or an agent lacks a state other than a default one that names its
-            limit, quantity, or allowance, raised by `run`.
+            reserve, quantity, or cap, raised by `run`.
 
     Examples:
         >>> from skcomplex.core.components.interactions import MatchingInteraction
@@ -118,7 +118,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         ...     requesters='traders',
         ...     providers='traders',
         ...     rule=ContinuousMatchingSpec(),
-        ...     limit=('bid', 'ask'),
+        ...     reserve=('bid', 'ask'),
         ... )
         >>> matching.reports
         ('value', 'volume', 'unmatched')
@@ -142,9 +142,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         requesters: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
         providers: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
         rule: MatchingRule | Pairing = RandomSearchSpec(),
-        limit: str | tuple[str, str] = 'limit',
+        reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',
-        allowance: str = 'allowance',
+        cap: str = 'cap',
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, SystemT], None] | None = None,
@@ -153,9 +153,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         self.requesters = requesters
         self.providers = providers
         self.rule = rule
-        self.limit = limit
+        self.reserve = reserve
         self.quantity = quantity
-        self.allowance = allowance
+        self.cap = cap
         self.transfers = transfers
         self.phase = phase
         self.on_match = on_match
@@ -187,11 +187,11 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     def _get_affordable(offer: SimpleNamespace, value: float) -> float:
         """Return the quantity a participant can still match at a value.
 
-        The value is within its allowance.
+        The value is within its cap.
         """
         if value <= 0:
             return float(offer.quantity)
-        return max(0.0, min(offer.quantity, offer.allowance / value))
+        return max(0.0, min(offer.quantity, offer.cap / value))
 
     @staticmethod
     def _book(trades: list[MatchSpec], requester: SimpleNamespace, provider: SimpleNamespace, value: float) -> None:
@@ -203,7 +203,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         if quantity <= 0:
             return
         requester.quantity -= quantity
-        requester.allowance -= quantity * value
+        requester.cap -= quantity * value
         provider.quantity -= quantity
         trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
 
@@ -211,16 +211,16 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     def _get_value(requester: SimpleNamespace, provider: SimpleNamespace, clearing: str) -> float:
         """Return the value of a match under a clearing rule."""
         if clearing == 'requester':
-            return requester.limit
+            return requester.reserve
         if clearing == 'provider':
-            return provider.limit
-        return (requester.limit + provider.limit) / 2
+            return provider.reserve
+        return (requester.reserve + provider.reserve) / 2
 
     @staticmethod
     def _order(offers: list[SimpleNamespace], order: str, rng: np.random.Generator) -> list[SimpleNamespace]:
-        """Return offers in random order, by decreasing limit, or in order of creation."""
-        if order == 'limit':
-            return sorted(offers, key=lambda item: (-item.limit, item.agent.id))
+        """Return offers in random order, by decreasing reserve, or in order of creation."""
+        if order == 'reserve':
+            return sorted(offers, key=lambda item: (-item.reserve, item.agent.id))
         if order == 'sequential':
             return sorted(offers, key=lambda item: item.agent.id)
         return [offers[index] for index in rng.permutation(len(offers))]
@@ -230,22 +230,22 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
         Matches lower the quantity.
         """
-        limits, quantities = self._get_sides(self.limit), self._get_sides(self.quantity)
+        reserves, quantities = self._get_sides(self.reserve), self._get_sides(self.quantity)
         requesters = [
             SimpleNamespace(
                 agent=agent,
-                limit=self._read(agent, limits[0], math.inf),
+                reserve=self._read(agent, reserves[0], math.inf),
                 quantity=self._read(agent, quantities[0], 1.0),
-                allowance=self._read(agent, self.allowance, math.inf),
+                cap=self._read(agent, self.cap, math.inf),
             )
             for agent in system.agents(self._get_role('requesters'))
         ]
         providers = [
             SimpleNamespace(
                 agent=agent,
-                limit=self._read(agent, limits[1], 0.0),
+                reserve=self._read(agent, reserves[1], 0.0),
                 quantity=self._read(agent, quantities[1], 1.0),
-                allowance=math.inf,
+                cap=math.inf,
             )
             for agent in system.agents(self._get_role('providers'))
         ]
@@ -262,7 +262,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     ) -> list[MatchSpec]:
         """Return the matches of requesters in random order that meet random providers.
 
-        They match on crossing limits.
+        They match on crossing reserves.
         """
         trades: list[MatchSpec] = []
         for index in rng.permutation(len(requesters)):
@@ -272,8 +272,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 if requester.quantity <= 0 or not available:
                     break
                 provider = available[int(rng.integers(len(available)))]
-                if provider.limit <= requester.limit:
-                    self._book(trades, requester, provider, self._get_value(requester, provider, rule.clearing))
+                if provider.reserve <= requester.reserve:
+                    self._book(trades, requester, provider, self._get_value(requester, provider, rule.value))
         return trades
 
     @staticmethod
@@ -289,11 +289,11 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         """
         if current is None or current.quantity <= 0:
             return best
-        if best.limit >= current.limit:
+        if best.reserve >= current.reserve:
             return current
-        if best.limit <= 0:
+        if best.reserve <= 0:
             return best
-        switching = 1 - math.exp(rule.intensity * (best.limit - current.limit) / best.limit)
+        switching = 1 - math.exp(rule.intensity * (best.reserve - current.reserve) / best.reserve)
         return best if rng.random() < switching else current
 
     def _match_partner_switch(
@@ -305,7 +305,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     ) -> list[MatchSpec]:
         """Return the matches of every requester with its kept or new partner.
 
-        The matches are at the partner's limit.
+        The matches are at the partner's reserve.
         """
         trades: list[MatchSpec] = []
         by_id = {provider.agent.id: provider for provider in providers}
@@ -315,13 +315,13 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             if not available:
                 break
             picks = rng.choice(len(available), size=min(rule.sample, len(available)), replace=False)
-            best = min((available[int(pick)] for pick in picks), key=lambda provider: provider.limit)
+            best = min((available[int(pick)] for pick in picks), key=lambda provider: provider.reserve)
             current = by_id.get(int(getattr(requester.agent, rule.partner, -1)))
             chosen = self._choose_partner(rule, best, current, rng)
             if hasattr(requester.agent, rule.partner):
                 setattr(requester.agent, rule.partner, chosen.agent.id)
-            if chosen.limit <= requester.limit:
-                self._book(trades, requester, chosen, chosen.limit)
+            if chosen.reserve <= requester.reserve:
+                self._book(trades, requester, chosen, chosen.reserve)
         return trades
 
     def _match_queue(
@@ -333,17 +333,17 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     ) -> list[MatchSpec]:
         """Return the matches of the queue of requesters served by the lowest providers.
 
-        The providers serve at their limits.
+        The providers serve at their reserves.
         """
         queue = self._order(requesters, rule.order, rng)
-        stock = sorted(providers, key=lambda provider: provider.limit)
+        stock = sorted(providers, key=lambda provider: provider.reserve)
         trades: list[MatchSpec] = []
         for requester in queue:
             for provider in stock:
-                if requester.quantity <= 0 or provider.limit > requester.limit:
+                if requester.quantity <= 0 or provider.reserve > requester.reserve:
                     break
                 if provider.quantity > 0:
-                    self._book(trades, requester, provider, provider.limit)
+                    self._book(trades, requester, provider, provider.reserve)
         return trades
 
     @staticmethod
@@ -359,9 +359,9 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             requested = sum(
                 MatchingInteraction._get_affordable(requester, value)
                 for requester in requesters
-                if requester.limit >= value
+                if requester.reserve >= value
             )
-            provided = sum(provider.quantity for provider in providers if provider.limit <= value)
+            provided = sum(provider.quantity for provider in providers if provider.reserve <= value)
             total = requested + provided
             if not total or abs(requested - provided) / total < rule.tolerance:
                 break
@@ -380,8 +380,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         They match in random order.
         """
         trades: list[MatchSpec] = []
-        willing_requesters = self._order([item for item in requesters if item.limit >= value], 'random', rng)
-        willing_providers = self._order([item for item in providers if item.limit <= value], 'random', rng)
+        willing_requesters = self._order([item for item in requesters if item.reserve >= value], 'random', rng)
+        willing_providers = self._order([item for item in providers if item.reserve <= value], 'random', rng)
         pairs = iter(willing_providers)
         provider = next(pairs, None)
         for requester in willing_requesters:
@@ -403,11 +403,11 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
         The tâtonnement starts from the value of the last clearing.
         """
-        limits = [offer.limit for offer in requesters + providers if offer.limit > 0]
-        if not limits:
+        reserves = [offer.reserve for offer in requesters + providers if offer.reserve > 0]
+        if not reserves:
             return []
         last = storage.get('value')
-        start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(limits))
+        start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(reserves))
         value = self._adjust(rule, requesters, providers, start)
         storage['value'] = value
         return self._match_at(requesters, providers, value, rng)
@@ -443,32 +443,32 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             if is_request:
                 while (
                     provisions
-                    and provisions[0][0] <= offer.limit
+                    and provisions[0][0] <= offer.reserve
                     and MatchingInteraction._get_affordable(offer, provisions[0][0]) > 0
                 ):
                     resting = provisions[0][2]
-                    self._book(trades, offer, resting, resting.limit)
+                    self._book(trades, offer, resting, resting.reserve)
                     if resting.quantity <= 0:
                         heapq.heappop(provisions)
-                if MatchingInteraction._get_affordable(offer, offer.limit) > 0:
-                    heapq.heappush(requests, (-offer.limit, time, offer))
+                if MatchingInteraction._get_affordable(offer, offer.reserve) > 0:
+                    heapq.heappush(requests, (-offer.reserve, time, offer))
                 continue
-            while requests and -requests[0][0] >= offer.limit and offer.quantity > 0:
+            while requests and -requests[0][0] >= offer.reserve and offer.quantity > 0:
                 resting = requests[0][2]
-                self._book(trades, resting, offer, resting.limit)
-                if MatchingInteraction._get_affordable(resting, resting.limit) <= 0:
+                self._book(trades, resting, offer, resting.reserve)
+                if MatchingInteraction._get_affordable(resting, resting.reserve) <= 0:
                     heapq.heappop(requests)
             if offer.quantity > 0:
-                heapq.heappush(provisions, (offer.limit, time, offer))
+                heapq.heappush(provisions, (offer.reserve, time, offer))
         return trades
 
     @staticmethod
     def _get_requested(offer: SimpleNamespace) -> float:
-        """Return the quantity a requester can match at its own limit."""
+        """Return the quantity a requester can match at its own reserve."""
         return (
             offer.quantity
-            if not math.isfinite(offer.allowance)
-            else MatchingInteraction._get_affordable(offer, offer.limit)
+            if not math.isfinite(offer.cap)
+            else MatchingInteraction._get_affordable(offer, offer.reserve)
         )
 
     def _pair(
@@ -476,21 +476,21 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         requesters: list[SimpleNamespace],
         providers: list[SimpleNamespace],
     ) -> tuple[list[tuple[SimpleNamespace, SimpleNamespace]], float]:
-        """Return the pairs of crossing offers in order of their limits.
+        """Return the pairs of crossing offers in order of their reserves.
 
         It also returns the value of the last pair.
         """
-        ranked_requesters = sorted(requesters, key=lambda offer: (-offer.limit, offer.agent.id))
-        ranked_providers = sorted(providers, key=lambda offer: (offer.limit, offer.agent.id))
+        ranked_requesters = sorted(requesters, key=lambda offer: (-offer.reserve, offer.agent.id))
+        ranked_providers = sorted(providers, key=lambda offer: (offer.reserve, offer.agent.id))
         left = {id(offer): self._get_requested(offer) for offer in ranked_requesters}
         offered = {id(offer): offer.quantity for offer in ranked_providers}
         pairs: list[tuple[SimpleNamespace, SimpleNamespace]] = []
         marginal = math.nan
         requester_iter, provider_iter = iter(ranked_requesters), iter(ranked_providers)
         requester, provider = next(requester_iter, None), next(provider_iter, None)
-        while requester is not None and provider is not None and requester.limit >= provider.limit:
+        while requester is not None and provider is not None and requester.reserve >= provider.reserve:
             pairs.append((requester, provider))
-            marginal = (requester.limit + provider.limit) / 2
+            marginal = (requester.reserve + provider.reserve) / 2
             quantity = min(left[id(requester)], offered[id(provider)])
             left[id(requester)] -= quantity
             offered[id(provider)] -= quantity
@@ -515,7 +515,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     def _score_provider(rule: StableMatchingSpec, requester: SimpleNamespace, provider: SimpleNamespace) -> float:
         """Return the score of a provider for a requester, higher for a preferred provider."""
         if rule.requester_preference is None:
-            return -provider.limit
+            return -provider.reserve
         return rule.requester_preference(requester.agent, provider.agent)
 
     @staticmethod
@@ -525,7 +525,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         The score is higher for a preferred requester.
         """
         if rule.provider_preference is None:
-            return requester.limit
+            return requester.reserve
         return rule.provider_preference(provider.agent, requester.agent)
 
     def _rank_providers(
@@ -544,7 +544,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             acceptable = [
                 provider
                 for provider in providers
-                if provider.agent.id in capacities and provider.limit <= requester.limit
+                if provider.agent.id in capacities and provider.reserve <= requester.reserve
             ]
             ranked = sorted(
                 (-self._score_provider(rule, requester, provider), provider.agent.id) for provider in acceptable
@@ -618,11 +618,11 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             provider = by_id[provider_id]
             for requester_id in requester_ids:
                 requester = by_id[requester_id]
-                value = self._get_value(requester, provider, rule.clearing)
+                value = self._get_value(requester, provider, rule.value)
                 quantity = min(1.0, MatchingInteraction._get_affordable(requester, value), provider.quantity)
                 if quantity > 0:
                     requester.quantity -= quantity
-                    requester.allowance -= quantity * value
+                    requester.cap -= quantity * value
                     provider.quantity -= quantity
                     trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
         return trades
@@ -642,12 +642,12 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         offering = {id(offer.agent): offer for offer in providers}
 
         def is_feasible(requester: AgentViewProtocol, provider: AgentViewProtocol) -> bool:
-            """Return whether a provider still offers a quantity at an acceptable limit.
+            """Return whether a provider still offers a quantity at an acceptable reserve.
 
-            The requester accepts the limit.
+            The requester accepts the reserve.
             """
             offer = offering[id(provider)]
-            return offer.quantity > 0 and offer.limit <= wanting[id(requester)].limit
+            return offer.quantity > 0 and offer.reserve <= wanting[id(requester)].reserve
 
         trades: list[MatchSpec] = []
         left, right = [offer.agent for offer in requesters], [offer.agent for offer in providers]
@@ -658,7 +658,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             is_feasible,
         ):
             first, second = wanting[id(requester)], offering[id(provider)]
-            self._book(trades, first, second, self._get_value(first, second, rule.clearing))
+            self._book(trades, first, second, self._get_value(first, second, rule.value))
         return trades
 
     def _match_function(
@@ -670,7 +670,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     ) -> list[MatchSpec]:
         """Return the matches of the pairs of a function.
 
-        Each is at the midpoint of the limits.
+        Each is at the midpoint of the reserves.
         """
         wanting = {id(offer.agent): offer for offer in requesters}
         offering = {id(offer.agent): offer for offer in providers}
