@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -403,8 +403,6 @@
       
         
           
-        
-      
         
       
         
@@ -1616,34 +1614,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../overview/migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9871,6 +9841,8 @@
       
         
       
+        
+      
     
     
     
@@ -10181,6 +10153,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../biology/collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11329,6 +11329,8 @@
       
         
       
+        
+      
     
     
     
@@ -11471,6 +11473,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../biology/epidemiology/differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13187,6 +13217,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13265,6 +13299,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../biology/oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../biology/oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13273,6 +13335,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../biology/oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35487,7 +35577,7 @@
 <li>Import: <code>from skcomplex.systems.social.opinion_dynamics import DeffuantSystem</code></li>
 <li>Field: <code>social/opinion_dynamics</code></li>
 <li>Topics: <code>opinion</code>, <code>agents</code>, <code>bounded confidence</code>, <code>clusters</code></li>
-<li>References: Deffuant et al. 2000; Castellano, Fortunato, and Loreto 2009; Gros 2015</li>
+<li>References: Deffuant et al. 2000; Castellano, Fortunato, and Loreto 2009; Gros 2015; Lenti et al. 2023</li>
 </ul>
 <h2 id="use-this-system">Use this system</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
@@ -35515,6 +35605,10 @@
 <tr>
 <td><code>convergence</code></td>
 <td><code>0.5</code></td>
+</tr>
+<tr>
+<td><code>steepness</code></td>
+<td><code>None</code></td>
 </tr>
 <tr>
 <td><code>random_state</code></td>
@@ -35573,6 +35667,10 @@
 <span class="sd">        convergence:</span>
 <span class="sd">            The fraction of the difference by which each agent of a compromising pair moves.</span>
 
+<span class="sd">        steepness:</span>
+<span class="sd">            The steepness of the probability that a pair compromises, after Lenti et al. (2023), or `None` for the</span>
+<span class="sd">            deterministic threshold of the confidence.</span>
+
 <span class="sd">        random_state:</span>
 <span class="sd">            The seed or generator of the uniform initial opinions.</span>
 
@@ -35587,7 +35685,7 @@
 
     <span class="n">field</span> <span class="o">=</span> <span class="s1">'social/opinion_dynamics'</span>
     <span class="n">topics</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'opinion'</span><span class="p">,</span> <span class="s1">'agents'</span><span class="p">,</span> <span class="s1">'bounded confidence'</span><span class="p">,</span> <span class="s1">'clusters'</span><span class="p">)</span>
-    <span class="n">references</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'Deffuant et al. 2000'</span><span class="p">,</span> <span class="s1">'Castellano, Fortunato, and Loreto 2009'</span><span class="p">,</span> <span class="s1">'Gros 2015'</span><span class="p">)</span>
+    <span class="n">references</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'Deffuant et al. 2000'</span><span class="p">,</span> <span class="s1">'Castellano, Fortunato, and Loreto 2009'</span><span class="p">,</span> <span class="s1">'Gros 2015'</span><span class="p">,</span> <span class="s1">'Lenti et al. 2023'</span><span class="p">)</span>
     <span class="n">until</span> <span class="o">=</span> <span class="mi">50</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -35596,6 +35694,7 @@
         <span class="o">*</span><span class="p">,</span>
         <span class="n">confidence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
         <span class="n">convergence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">steepness</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'system'</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -35603,6 +35702,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_agents</span> <span class="o">=</span> <span class="n">n_agents</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">confidence</span> <span class="o">=</span> <span class="n">confidence</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">convergence</span> <span class="o">=</span> <span class="n">convergence</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steepness</span> <span class="o">=</span> <span class="n">steepness</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">random_state</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_system</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">System</span><span class="p">:</span>
@@ -35616,7 +35716,8 @@
             <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'opinion'</span><span class="p">:</span> <span class="n">opinions</span><span class="p">,</span> <span class="s1">'confidence'</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">confidence</span><span class="p">,</span> <span class="s1">'convergence'</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">convergence</span><span class="p">},</span>
             <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">System</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">people</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">EncountersInteraction</span><span class="p">(</span><span class="s1">'meetings'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'people'</span><span class="p">)])</span>
+        <span class="n">encounters</span> <span class="o">=</span> <span class="n">EncountersInteraction</span><span class="p">(</span><span class="s1">'meetings'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'people'</span><span class="p">,</span> <span class="n">steepness</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">steepness</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">System</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">people</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">encounters</span><span class="p">])</span>
 </code></pre></div>
 <h2 id="components">Components</h2>
 <p>Elements:</p>
@@ -35679,8 +35780,11 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">EncountersInteraction</span><span class="p">(</span><span class="n">RandomPairsInteraction</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Random binary encounters of the Deffuant system.</span>
 
-<span class="sd">    There are as many per step as there are agents. In every encounter two random agents whose opinions differ by less</span>
-<span class="sd">    than the confidence bound move towards each other by the convergence fraction of their difference.</span>
+<span class="sd">    There are as many per step as there are agents. In every encounter two random agents move towards each other by the</span>
+<span class="sd">    convergence fraction of their difference when a Bernoulli outcome, drawn by the name `outcome`, is 1. Without a</span>
+<span class="sd">    steepness the outcome is 1 when their opinions differ by less than the confidence bound. With a steepness `rho` it</span>
+<span class="sd">    is 1 with the probability `1 / (1 + exp(-rho * (confidence - |x_u - x_v|)))` of Lenti et al. (2023), which</span>
+<span class="sd">    approaches the threshold as `rho` grows. Runs record and replay the outcomes.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        label:</span>
@@ -35692,16 +35796,28 @@
 <span class="sd">        phase:</span>
 <span class="sd">            The phase of the step the encounters run in, or `None` for the default phase.</span>
 
+<span class="sd">        steepness:</span>
+<span class="sd">            The steepness `rho` of the probability of a compromise, or `None` for the deterministic threshold.</span>
+
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; from skcomplex.systems.social.opinion_dynamics import EncountersInteraction</span>
-<span class="sd">        &gt;&gt;&gt; EncountersInteraction('meetings', target='people').target</span>
-<span class="sd">        'people'</span>
+<span class="sd">        &gt;&gt;&gt; EncountersInteraction('meetings', target='people', steepness=20.0).steepness</span>
+<span class="sd">        20.0</span>
 <span class="sd">    """</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">act_on</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">members</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AgentViewProtocol</span><span class="p">],</span> <span class="n">system</span><span class="p">:</span> <span class="n">SystemViewProtocol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Move the opinions of a pair towards each other.</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RoleSpec</span><span class="p">()],</span>
+        <span class="n">phase</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">steepness</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steepness</span> <span class="o">=</span> <span class="n">steepness</span>
 
-<span class="sd">        They move when they differ by less than the confidence bound.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">act_on</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">members</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AgentViewProtocol</span><span class="p">],</span> <span class="n">system</span><span class="p">:</span> <span class="n">SystemViewProtocol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Move the opinions of a pair towards each other when their drawn outcome is 1.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            members:</span>
@@ -35712,7 +35828,9 @@
 <span class="sd">        """</span>
         <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="p">[</span><span class="n">member</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">DiscussantView</span><span class="p">)]</span>
         <span class="n">difference</span> <span class="o">=</span> <span class="n">second</span><span class="o">.</span><span class="n">opinion</span> <span class="o">-</span> <span class="n">first</span><span class="o">.</span><span class="n">opinion</span>
-        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">first</span><span class="o">.</span><span class="n">confidence</span><span class="p">:</span>
+        <span class="n">gap</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="n">confidence</span> <span class="o">-</span> <span class="nb">abs</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span>
+        <span class="n">probability</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">gap</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">steepness</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">expit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steepness</span> <span class="o">*</span> <span class="n">gap</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">system</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="s1">'outcome'</span><span class="p">,</span> <span class="s1">'bernoulli'</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probability</span><span class="p">):</span>
             <span class="n">first</span><span class="o">.</span><span class="n">opinion</span> <span class="o">+=</span> <span class="n">first</span><span class="o">.</span><span class="n">convergence</span> <span class="o">*</span> <span class="n">difference</span>
             <span class="n">second</span><span class="o">.</span><span class="n">opinion</span> <span class="o">-=</span> <span class="n">first</span><span class="o">.</span><span class="n">convergence</span> <span class="o">*</span> <span class="n">difference</span>
 </code></pre></div>
@@ -35790,10 +35908,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../../assets/_markdown_exec_pyodide.js"></script>
       

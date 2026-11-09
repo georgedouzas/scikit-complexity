@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -403,8 +403,6 @@
       
         
           
-        
-      
         
       
         
@@ -1616,34 +1614,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../overview/migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9866,6 +9836,8 @@
       
         
       
+        
+      
     
     
     
@@ -10176,6 +10148,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11324,6 +11324,8 @@
       
         
       
+        
+      
     
     
     
@@ -11466,6 +11468,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/epidemiology/differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13182,6 +13212,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13260,6 +13294,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../systems/biology/oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../systems/biology/oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13268,6 +13330,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35316,6 +35406,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#skcomplex.core.experiments.CoverageResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoverageResult
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#skcomplex.core.experiments.ExperimentResult" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -35476,6 +35577,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#skcomplex.core.experiments.posterior_coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        posterior_coverage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#skcomplex.core.experiments.sensitivity" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -35527,9 +35639,9 @@
     <div class="doc doc-contents first">
 
         <p>Study systems through many runs.</p>
-<p>They are sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration. The experiments are functions of a
-system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration returns the
-fitted system in its result.</p>
+<p>They are sweeps, ensembles, scenarios, sensitivity, basin stability, calibration, and posterior coverage. The
+experiments are functions of a system, in the role of the model selection functions of scikit-learn, and return frozen
+results. Calibration returns the fitted system in its result.</p>
 
 
 
@@ -35683,7 +35795,7 @@ fitted system in its result.</p>
 
 
 <h2 id="skcomplex.core.experiments.CalibrationResult" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">CalibrationResult</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">estimates</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="n">rmse</span><span class="p">,</span> <span class="n">mae</span><span class="p">,</span> <span class="n">mape</span><span class="p">,</span> <span class="n">covariance</span><span class="p">,</span> <span class="n">simulated</span><span class="p">,</span> <span class="n">success</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">CalibrationResult</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">estimates</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="n">rmse</span><span class="p">,</span> <span class="n">mae</span><span class="p">,</span> <span class="n">mape</span><span class="p">,</span> <span class="n">covariance</span><span class="p">,</span> <span class="n">simulated</span><span class="p">,</span> <span class="n">success</span><span class="p">,</span> <span class="n">samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">diagnostics</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">predictive</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -35697,6 +35809,8 @@ fitted system in its result.</p>
 
 
         <p>Fit of the model parameters of a system to observed time series.</p>
+<p>A point fit holds one estimate. A posterior method also holds the samples, their weights, the diagnostics of the
+method, and the posterior predictive check, and its estimates are the posterior medians.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -35735,7 +35849,7 @@ fitted system in its result.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The fitted value of every parameter.</p>
+                <p>The fitted value of every parameter, the posterior median for the posterior methods.</p>
               </div>
             </td>
             <td>
@@ -35815,7 +35929,8 @@ fitted system in its result.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The covariance of the estimates from the Jacobian of the residuals, or <code>None</code> when it is singular.</p>
+                <p>The covariance of the estimates, from the Jacobian of the residuals for a point fit and from the weighted
+samples for a posterior method, or <code>None</code> when it is singular or there are no residuals.</p>
               </div>
             </td>
             <td>
@@ -35847,7 +35962,225 @@ fitted system in its result.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether the optimiser converged.</p>
+                <p>Whether the method converged, such as the optimiser of a point fit, the split R-hat of every parameter of
+MCMC, or a finite loss of variational calibration.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>samples</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="skcomplex.core.types.Array">Array</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The samples of every parameter of a posterior method, or <code>None</code> for a point fit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weights</code>
+            </td>
+            <td>
+                  <code><span title="skcomplex.core.types.Array">Array</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The normalised weights of the samples, or <code>None</code> for a point fit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>diagnostics</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="object">object</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The diagnostics of the method, such as the tolerances and acceptance rates of ABC-SMC, the split R-hat and
+effective sample sizes of MCMC, or the loss history of variational calibration.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>predictive</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="object">object</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The 5%, 50%, and 95% quantiles of the simulated series of posterior draws at the data times by path, under
+<code>q05</code>, <code>q50</code>, and <code>q95</code>, and the share of observed points inside the band under <code>coverage</code>, or <code>None</code> for
+a point fit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="skcomplex.core.experiments.CoverageResult" class="doc doc-heading">
+              <code class="highlight language-python"><span class="n">CoverageResult</span><span class="p">(</span><span class="n">levels</span><span class="p">,</span> <span class="n">coverage</span><span class="p">,</span> <span class="n">ranks</span><span class="p">,</span> <span class="n">truths</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Empirical coverage of the credible intervals of calibration on data simulated from prior draws.</p>
+<p>A calibrated posterior covers the true value with its central interval of level <code>q</code> in a share <code>q</code> of the data
+sets, and the ranks of the true values among their samples are uniform, as simulation-based calibration checks.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>levels</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="float">float</span>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The levels of the central credible intervals.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>coverage</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="float">float</span>, <span title="dict">dict</span>[<span title="str">str</span>, <span title="float">float</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The share of the data sets whose interval holds the true value, by level and parameter.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ranks</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="skcomplex.core.types.Array">Array</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The weighted share of the samples below the true value, one per data set, by parameter.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>truths</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="skcomplex.core.types.Array">Array</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The true value of every data set, by parameter.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>results</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<a class="autorefs autorefs-internal" title="CalibrationResult(system, estimates, r2, rmse, mae, mape, covariance, simulated, success, samples=None, weights=None, diagnostics=dict(), predictive=None)
+
+  
+      dataclass
+   (skcomplex.core.experiments._calibration.CalibrationResult)" href="#skcomplex.core.experiments.CalibrationResult">CalibrationResult</a>, ...]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The calibration of every data set.</p>
               </div>
             </td>
             <td>
@@ -35856,6 +36189,13 @@ fitted system in its result.</p>
           </tr>
       </tbody>
     </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.experiments</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoverageResult</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">CoverageResult</span><span class="p">((</span><span class="mf">0.9</span><span class="p">,),</span> <span class="p">{</span><span class="mf">0.9</span><span class="p">:</span> <span class="p">{</span><span class="s1">'r'</span><span class="p">:</span> <span class="mf">0.85</span><span class="p">}},</span> <span class="p">{},</span> <span class="p">{},</span> <span class="p">())</span><span class="o">.</span><span class="n">coverage</span><span class="p">[</span><span class="mf">0.9</span><span class="p">][</span><span class="s1">'r'</span><span class="p">]</span>
+<span class="go">0.85</span>
+</code></pre></div>
 
 
 
@@ -37015,7 +37355,7 @@ replicated system, and the classifier receives every member as a trajectory of t
                 <code>classifier</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=()) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]</code>
+                  <code><span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=(), draws=None, log_probability=None) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -37419,19 +37759,43 @@ compile to a general problem.</p>
 
 
 <h2 id="skcomplex.core.experiments.calibrate" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">calibrate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">'squares'</span><span class="p">,</span> <span class="n">replicates</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calibrate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'local'</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">'squares'</span><span class="p">,</span> <span class="n">summary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">budget</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chains</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">replicates</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Return the fit of the model parameters of a system to observed time series, with SciPy.</p>
+        <p>Return the fit of the model parameters of a system to observed time series.</p>
 <p>The fitted system reproduces the observed time series. It is a copy of the system with <code>set_params</code> applied, or
 what the factory builds from the parameters. Every evaluation runs the system through <code>simulate</code> to the last data
 time and interpolates its states or observables at the data times. Stochastic systems average <code>replicates</code> runs
-with fixed streams, so the loss is smooth in the parameters. Least squares use <code>scipy.optimize.least_squares</code>, and
-the Gaussian likelihood with an unknown variance uses <code>scipy.optimize.minimize</code>.</p>
+with fixed streams, so the loss is smooth in the parameters.</p>
+<p><code>method</code> says how to search or sample and <code>loss</code> what scores a candidate:</p>
+<ul>
+<li><code>'local'</code>: a local SciPy fit, <code>least_squares</code> for <code>'squares'</code> and <code>minimize</code> for <code>'likelihood'</code> and <code>'events'</code>,
+  with the covariance from the Jacobian of the residuals.</li>
+<li><code>'global'</code>: the best of <code>budget</code> evaluations, 200 by default, chosen by Optuna's seeded tree-structured Parzen
+  estimator over the bounds, which copes with the rough losses of stochastic runs.</li>
+<li><code>'abc_smc'</code>: an approximate posterior by sequential Monte Carlo approximate Bayesian computation with pyabc,
+  which compares the summaries of every simulation with the observed ones by an adaptive distance and stops after
+  <code>budget</code> simulations, 20000 by default. Its diagnostics hold the tolerance and the acceptance rate of every
+  generation.</li>
+<li><code>'mcmc'</code>: <code>chains</code> chains of <code>n_samples</code> draws of the posterior of the Gaussian or the event likelihood with
+  numpyro, by NUTS through the JAX run of a system with the tag <code>differentiable</code> and the Gaussian likelihood, and
+  by the gradient-free affine invariant ensemble sampler otherwise. Its diagnostics hold the split R-hat and the
+  effective sample size of every parameter.</li>
+<li><code>'variational'</code>: a multivariate normal posterior fitted by numpyro SVI over <code>budget</code> steps, 2000 by default,
+  through the JAX run of a system with the tag <code>differentiable</code>. With <code>'squares'</code> it is the generalised posterior
+  of the sum of squares. Its diagnostics hold the loss history.</li>
+</ul>
+<p>A posterior method returns the samples, their weights, the posterior medians as the estimates, and a posterior
+predictive check of at most 200 draws at the data times.</p>
+<p>A bound is a pair <code>(low, high)</code>, read as a uniform prior, or a SciPy distribution, read as the prior of that
+parameter. Point fits search the pair or the central 99.9% of the distribution. <code>'squares'</code> is least squares,
+<code>'likelihood'</code> the Gaussian likelihood with an unknown variance, and <code>'events'</code> the log-probability of the draws of
+a trajectory recorded with <code>simulate(..., record_draws=True)</code>, given as <code>data</code>, replayed under every candidate with
+<code>random_state</code>, the seed of the recorded run.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -37467,11 +37831,12 @@ a system class, which takes them as keyword arguments.</p>
                 <code>data</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="tuple">tuple</span>[<span title="numpy.typing.ArrayLike">ArrayLike</span>, <span title="numpy.typing.ArrayLike">ArrayLike</span>]]</code>
+                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="tuple">tuple</span>[<span title="numpy.typing.ArrayLike">ArrayLike</span>, <span title="numpy.typing.ArrayLike">ArrayLike</span>]] | <a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=(), draws=None, log_probability=None) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>A mapping from state or observable path to its observed <code>(times, values)</code>.</p>
+                <p>A mapping from state or observable path to its observed <code>(times, values)</code>, or a trajectory recorded with
+its draws for the loss <code>'events'</code>.</p>
               </div>
             </td>
             <td>
@@ -37483,15 +37848,31 @@ a system class, which takes them as keyword arguments.</p>
                 <code>bounds</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Mapping">Mapping</span>[<span title="str">str</span>, <span title="tuple">tuple</span>[<span title="float">float</span>, <span title="float">float</span>]]</code>
+                  <code><span title="skcomplex.core.experiments.types.Bounds">Bounds</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>A mapping from model parameter of the system to its <code>(low, high)</code> bounds.</p>
+                <p>A mapping from model parameter of the system to its <code>(low, high)</code> bounds or its SciPy prior.</p>
               </div>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>'local'</code>, <code>'global'</code>, <code>'abc_smc'</code>, <code>'mcmc'</code>, or <code>'variational'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;local&#39;</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -37503,7 +37884,7 @@ a system class, which takes them as keyword arguments.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The starting values of the parameters, or <code>None</code> for the midpoints of their bounds.</p>
+                <p>The starting values of the parameters of a local fit, or <code>None</code> for the medians of their priors.</p>
               </div>
             </td>
             <td>
@@ -37519,11 +37900,77 @@ a system class, which takes them as keyword arguments.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p><code>'squares'</code> for least squares or <code>'likelihood'</code> for the Gaussian likelihood with an unknown variance.</p>
+                <p><code>'squares'</code>, <code>'likelihood'</code>, or <code>'events'</code>, as the method allows.</p>
               </div>
             </td>
             <td>
                   <code>&#39;squares&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>summary</code>
+            </td>
+            <td>
+                  <code><span title="skcomplex.core.experiments._calibration.Summary">Summary</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The function from simulated or observed series by path to summary statistics that ABC-SMC compares, or
+<code>None</code> for the concatenated series.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_samples</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of samples of a posterior method, per chain for MCMC.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1000</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>budget</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of evaluations of a global fit, simulations of ABC-SMC, or steps of variational calibration, or
+<code>None</code> for the default of the method.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>chains</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of chains of MCMC.</p>
+              </div>
+            </td>
+            <td>
+                  <code>4</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -37583,7 +38030,7 @@ a system class, which takes them as keyword arguments.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The seed of the runs.</p>
+                <p>The seed of the runs and of the method.</p>
               </div>
             </td>
             <td>
@@ -37605,7 +38052,7 @@ a system class, which takes them as keyword arguments.</p>
       <tbody>
           <tr class="doc-section-item">
 <td><code>result</code></td>            <td>
-                  <code><a class="autorefs autorefs-internal" title="CalibrationResult(system, estimates, r2, rmse, mae, mape, covariance, simulated, success)
+                  <code><a class="autorefs autorefs-internal" title="CalibrationResult(system, estimates, r2, rmse, mae, mape, covariance, simulated, success, samples=None, weights=None, diagnostics=dict(), predictive=None)
 
   
       dataclass
@@ -37636,8 +38083,8 @@ a system class, which takes them as keyword arguments.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The system is a system name, the loss is unknown, there is no data, the replicates are bad, or a bound has
-a dotted path.</p>
+                <p>The system is a system name, the method or the loss is unknown or they do not fit, there is no data, the
+replicates are bad, or a bound is neither a pair nor a SciPy distribution or has a dotted path.</p>
               </div>
             </td>
           </tr>
@@ -37655,182 +38102,253 @@ a dotted path.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">fitted</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span><span class="n">LogisticGrowthSystem</span><span class="p">(),</span> <span class="p">{</span><span class="s1">'population.n'</span><span class="p">:</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">)},</span> <span class="n">bounds</span><span class="p">)</span><span class="o">.</span><span class="n">system</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">fitted</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="nb">round</span><span class="p">(</span><span class="n">fitted</span><span class="o">.</span><span class="n">K</span><span class="p">)</span>
 <span class="go">(0.5, 100)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span><span class="n">LogisticGrowthSystem</span><span class="p">(),</span> <span class="p">{</span><span class="s1">'population.n'</span><span class="p">:</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">)},</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'global'</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">budget</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">estimates</span><span class="p">[</span><span class="s1">'r'</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">noisy</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'population.n'</span><span class="p">:</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">0.02</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="mi">21</span><span class="p">)))}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">posterior</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span><span class="n">LogisticGrowthSystem</span><span class="p">(),</span> <span class="n">noisy</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'variational'</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">'likelihood'</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">n_samples</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">posterior</span><span class="o">.</span><span class="n">estimates</span><span class="p">[</span><span class="s1">'r'</span><span class="p">],</span> <span class="mi">1</span><span class="p">),</span> <span class="n">posterior</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="s1">'r'</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(0.5, (200,))</span>
 </code></pre></div>
 
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/skcomplex/core/experiments/_calibration.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 68</span>
-<span class="normal"> 69</span>
-<span class="normal"> 70</span>
-<span class="normal"> 71</span>
-<span class="normal"> 72</span>
-<span class="normal"> 73</span>
-<span class="normal"> 74</span>
-<span class="normal"> 75</span>
-<span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
-<span class="normal"> 86</span>
-<span class="normal"> 87</span>
-<span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
-<span class="normal"> 91</span>
-<span class="normal"> 92</span>
-<span class="normal"> 93</span>
-<span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span>
-<span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
-<span class="normal">118</span>
-<span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
-<span class="normal">122</span>
-<span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
-<span class="normal">138</span>
-<span class="normal">139</span>
-<span class="normal">140</span>
-<span class="normal">141</span>
-<span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span>
-<span class="normal">151</span>
-<span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span>
-<span class="normal">164</span>
-<span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span>
-<span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span>
-<span class="normal">180</span>
-<span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span>
-<span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calibrate</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 864</span>
+<span class="normal"> 865</span>
+<span class="normal"> 866</span>
+<span class="normal"> 867</span>
+<span class="normal"> 868</span>
+<span class="normal"> 869</span>
+<span class="normal"> 870</span>
+<span class="normal"> 871</span>
+<span class="normal"> 872</span>
+<span class="normal"> 873</span>
+<span class="normal"> 874</span>
+<span class="normal"> 875</span>
+<span class="normal"> 876</span>
+<span class="normal"> 877</span>
+<span class="normal"> 878</span>
+<span class="normal"> 879</span>
+<span class="normal"> 880</span>
+<span class="normal"> 881</span>
+<span class="normal"> 882</span>
+<span class="normal"> 883</span>
+<span class="normal"> 884</span>
+<span class="normal"> 885</span>
+<span class="normal"> 886</span>
+<span class="normal"> 887</span>
+<span class="normal"> 888</span>
+<span class="normal"> 889</span>
+<span class="normal"> 890</span>
+<span class="normal"> 891</span>
+<span class="normal"> 892</span>
+<span class="normal"> 893</span>
+<span class="normal"> 894</span>
+<span class="normal"> 895</span>
+<span class="normal"> 896</span>
+<span class="normal"> 897</span>
+<span class="normal"> 898</span>
+<span class="normal"> 899</span>
+<span class="normal"> 900</span>
+<span class="normal"> 901</span>
+<span class="normal"> 902</span>
+<span class="normal"> 903</span>
+<span class="normal"> 904</span>
+<span class="normal"> 905</span>
+<span class="normal"> 906</span>
+<span class="normal"> 907</span>
+<span class="normal"> 908</span>
+<span class="normal"> 909</span>
+<span class="normal"> 910</span>
+<span class="normal"> 911</span>
+<span class="normal"> 912</span>
+<span class="normal"> 913</span>
+<span class="normal"> 914</span>
+<span class="normal"> 915</span>
+<span class="normal"> 916</span>
+<span class="normal"> 917</span>
+<span class="normal"> 918</span>
+<span class="normal"> 919</span>
+<span class="normal"> 920</span>
+<span class="normal"> 921</span>
+<span class="normal"> 922</span>
+<span class="normal"> 923</span>
+<span class="normal"> 924</span>
+<span class="normal"> 925</span>
+<span class="normal"> 926</span>
+<span class="normal"> 927</span>
+<span class="normal"> 928</span>
+<span class="normal"> 929</span>
+<span class="normal"> 930</span>
+<span class="normal"> 931</span>
+<span class="normal"> 932</span>
+<span class="normal"> 933</span>
+<span class="normal"> 934</span>
+<span class="normal"> 935</span>
+<span class="normal"> 936</span>
+<span class="normal"> 937</span>
+<span class="normal"> 938</span>
+<span class="normal"> 939</span>
+<span class="normal"> 940</span>
+<span class="normal"> 941</span>
+<span class="normal"> 942</span>
+<span class="normal"> 943</span>
+<span class="normal"> 944</span>
+<span class="normal"> 945</span>
+<span class="normal"> 946</span>
+<span class="normal"> 947</span>
+<span class="normal"> 948</span>
+<span class="normal"> 949</span>
+<span class="normal"> 950</span>
+<span class="normal"> 951</span>
+<span class="normal"> 952</span>
+<span class="normal"> 953</span>
+<span class="normal"> 954</span>
+<span class="normal"> 955</span>
+<span class="normal"> 956</span>
+<span class="normal"> 957</span>
+<span class="normal"> 958</span>
+<span class="normal"> 959</span>
+<span class="normal"> 960</span>
+<span class="normal"> 961</span>
+<span class="normal"> 962</span>
+<span class="normal"> 963</span>
+<span class="normal"> 964</span>
+<span class="normal"> 965</span>
+<span class="normal"> 966</span>
+<span class="normal"> 967</span>
+<span class="normal"> 968</span>
+<span class="normal"> 969</span>
+<span class="normal"> 970</span>
+<span class="normal"> 971</span>
+<span class="normal"> 972</span>
+<span class="normal"> 973</span>
+<span class="normal"> 974</span>
+<span class="normal"> 975</span>
+<span class="normal"> 976</span>
+<span class="normal"> 977</span>
+<span class="normal"> 978</span>
+<span class="normal"> 979</span>
+<span class="normal"> 980</span>
+<span class="normal"> 981</span>
+<span class="normal"> 982</span>
+<span class="normal"> 983</span>
+<span class="normal"> 984</span>
+<span class="normal"> 985</span>
+<span class="normal"> 986</span>
+<span class="normal"> 987</span>
+<span class="normal"> 988</span>
+<span class="normal"> 989</span>
+<span class="normal"> 990</span>
+<span class="normal"> 991</span>
+<span class="normal"> 992</span>
+<span class="normal"> 993</span>
+<span class="normal"> 994</span>
+<span class="normal"> 995</span>
+<span class="normal"> 996</span>
+<span class="normal"> 997</span>
+<span class="normal"> 998</span>
+<span class="normal"> 999</span>
+<span class="normal">1000</span>
+<span class="normal">1001</span>
+<span class="normal">1002</span>
+<span class="normal">1003</span>
+<span class="normal">1004</span>
+<span class="normal">1005</span>
+<span class="normal">1006</span>
+<span class="normal">1007</span>
+<span class="normal">1008</span>
+<span class="normal">1009</span>
+<span class="normal">1010</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span>
+<span class="normal">1014</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span>
+<span class="normal">1017</span>
+<span class="normal">1018</span>
+<span class="normal">1019</span>
+<span class="normal">1020</span>
+<span class="normal">1021</span>
+<span class="normal">1022</span>
+<span class="normal">1023</span>
+<span class="normal">1024</span>
+<span class="normal">1025</span>
+<span class="normal">1026</span>
+<span class="normal">1027</span>
+<span class="normal">1028</span>
+<span class="normal">1029</span>
+<span class="normal">1030</span>
+<span class="normal">1031</span>
+<span class="normal">1032</span>
+<span class="normal">1033</span>
+<span class="normal">1034</span>
+<span class="normal">1035</span>
+<span class="normal">1036</span>
+<span class="normal">1037</span>
+<span class="normal">1038</span>
+<span class="normal">1039</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span>
+<span class="normal">1045</span>
+<span class="normal">1046</span>
+<span class="normal">1047</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calibrate</span><span class="p">(</span>
     <span class="n">system</span><span class="p">:</span> <span class="n">Source</span><span class="p">,</span>
-    <span class="n">data</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span><span class="p">]],</span>
-    <span class="n">bounds</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span><span class="p">]]</span> <span class="o">|</span> <span class="n">Trajectory</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'local'</span><span class="p">,</span>
     <span class="n">initial</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'squares'</span><span class="p">,</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="n">Summary</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="n">budget</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">chains</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
     <span class="n">replicates</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">solver</span><span class="p">:</span> <span class="n">BaseSolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CalibrationResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Return the fit of the model parameters of a system to observed time series, with SciPy.</span>
+<span class="w">    </span><span class="sd">"""Return the fit of the model parameters of a system to observed time series.</span>
 
 <span class="sd">    The fitted system reproduces the observed time series. It is a copy of the system with `set_params` applied, or</span>
 <span class="sd">    what the factory builds from the parameters. Every evaluation runs the system through `simulate` to the last data</span>
 <span class="sd">    time and interpolates its states or observables at the data times. Stochastic systems average `replicates` runs</span>
-<span class="sd">    with fixed streams, so the loss is smooth in the parameters. Least squares use `scipy.optimize.least_squares`, and</span>
-<span class="sd">    the Gaussian likelihood with an unknown variance uses `scipy.optimize.minimize`.</span>
+<span class="sd">    with fixed streams, so the loss is smooth in the parameters.</span>
+
+<span class="sd">    `method` says how to search or sample and `loss` what scores a candidate:</span>
+
+<span class="sd">    - `'local'`: a local SciPy fit, `least_squares` for `'squares'` and `minimize` for `'likelihood'` and `'events'`,</span>
+<span class="sd">      with the covariance from the Jacobian of the residuals.</span>
+<span class="sd">    - `'global'`: the best of `budget` evaluations, 200 by default, chosen by Optuna's seeded tree-structured Parzen</span>
+<span class="sd">      estimator over the bounds, which copes with the rough losses of stochastic runs.</span>
+<span class="sd">    - `'abc_smc'`: an approximate posterior by sequential Monte Carlo approximate Bayesian computation with pyabc,</span>
+<span class="sd">      which compares the summaries of every simulation with the observed ones by an adaptive distance and stops after</span>
+<span class="sd">      `budget` simulations, 20000 by default. Its diagnostics hold the tolerance and the acceptance rate of every</span>
+<span class="sd">      generation.</span>
+<span class="sd">    - `'mcmc'`: `chains` chains of `n_samples` draws of the posterior of the Gaussian or the event likelihood with</span>
+<span class="sd">      numpyro, by NUTS through the JAX run of a system with the tag `differentiable` and the Gaussian likelihood, and</span>
+<span class="sd">      by the gradient-free affine invariant ensemble sampler otherwise. Its diagnostics hold the split R-hat and the</span>
+<span class="sd">      effective sample size of every parameter.</span>
+<span class="sd">    - `'variational'`: a multivariate normal posterior fitted by numpyro SVI over `budget` steps, 2000 by default,</span>
+<span class="sd">      through the JAX run of a system with the tag `differentiable`. With `'squares'` it is the generalised posterior</span>
+<span class="sd">      of the sum of squares. Its diagnostics hold the loss history.</span>
+
+<span class="sd">    A posterior method returns the samples, their weights, the posterior medians as the estimates, and a posterior</span>
+<span class="sd">    predictive check of at most 200 draws at the data times.</span>
+
+<span class="sd">    A bound is a pair `(low, high)`, read as a uniform prior, or a SciPy distribution, read as the prior of that</span>
+<span class="sd">    parameter. Point fits search the pair or the central 99.9% of the distribution. `'squares'` is least squares,</span>
+<span class="sd">    `'likelihood'` the Gaussian likelihood with an unknown variance, and `'events'` the log-probability of the draws of</span>
+<span class="sd">    a trajectory recorded with `simulate(..., record_draws=True)`, given as `data`, replayed under every candidate with</span>
+<span class="sd">    `random_state`, the seed of the recorded run.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        system:</span>
@@ -37838,16 +38356,34 @@ a dotted path.</p>
 <span class="sd">            a system class, which takes them as keyword arguments.</span>
 
 <span class="sd">        data:</span>
-<span class="sd">            A mapping from state or observable path to its observed `(times, values)`.</span>
+<span class="sd">            A mapping from state or observable path to its observed `(times, values)`, or a trajectory recorded with</span>
+<span class="sd">            its draws for the loss `'events'`.</span>
 
 <span class="sd">        bounds:</span>
-<span class="sd">            A mapping from model parameter of the system to its `(low, high)` bounds.</span>
+<span class="sd">            A mapping from model parameter of the system to its `(low, high)` bounds or its SciPy prior.</span>
+
+<span class="sd">        method:</span>
+<span class="sd">            `'local'`, `'global'`, `'abc_smc'`, `'mcmc'`, or `'variational'`.</span>
 
 <span class="sd">        initial:</span>
-<span class="sd">            The starting values of the parameters, or `None` for the midpoints of their bounds.</span>
+<span class="sd">            The starting values of the parameters of a local fit, or `None` for the medians of their priors.</span>
 
 <span class="sd">        loss:</span>
-<span class="sd">            `'squares'` for least squares or `'likelihood'` for the Gaussian likelihood with an unknown variance.</span>
+<span class="sd">            `'squares'`, `'likelihood'`, or `'events'`, as the method allows.</span>
+
+<span class="sd">        summary:</span>
+<span class="sd">            The function from simulated or observed series by path to summary statistics that ABC-SMC compares, or</span>
+<span class="sd">            `None` for the concatenated series.</span>
+
+<span class="sd">        n_samples:</span>
+<span class="sd">            The number of samples of a posterior method, per chain for MCMC.</span>
+
+<span class="sd">        budget:</span>
+<span class="sd">            The number of evaluations of a global fit, simulations of ABC-SMC, or steps of variational calibration, or</span>
+<span class="sd">            `None` for the default of the method.</span>
+
+<span class="sd">        chains:</span>
+<span class="sd">            The number of chains of MCMC.</span>
 
 <span class="sd">        replicates:</span>
 <span class="sd">            The number of runs averaged per evaluation.</span>
@@ -37859,7 +38395,7 @@ a dotted path.</p>
 <span class="sd">            The solver, or `None` for the tuned one.</span>
 
 <span class="sd">        random_state:</span>
-<span class="sd">            The seed of the runs.</span>
+<span class="sd">            The seed of the runs and of the method.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        result:</span>
@@ -37867,8 +38403,8 @@ a dotted path.</p>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        ValidationError:</span>
-<span class="sd">            The system is a system name, the loss is unknown, there is no data, the replicates are bad, or a bound has</span>
-<span class="sd">            a dotted path.</span>
+<span class="sd">            The system is a system name, the method or the loss is unknown or they do not fit, there is no data, the</span>
+<span class="sd">            replicates are bad, or a bound is neither a pair nor a SciPy distribution or has a dotted path.</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; import numpy as np</span>
@@ -37880,91 +38416,73 @@ a dotted path.</p>
 <span class="sd">        &gt;&gt;&gt; fitted = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).system</span>
 <span class="sd">        &gt;&gt;&gt; round(fitted.r, 2), round(fitted.K)</span>
 <span class="sd">        (0.5, 100)</span>
+<span class="sd">        &gt;&gt;&gt; result = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds, method='global',</span>
+<span class="sd">        ...     budget=100, random_state=0)</span>
+<span class="sd">        &gt;&gt;&gt; bool(abs(result.estimates['r'] - 0.5) &lt; 0.1)</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; noisy = {'population.n': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}</span>
+<span class="sd">        &gt;&gt;&gt; posterior = calibrate(LogisticGrowthSystem(), noisy, bounds, method='variational', loss='likelihood',</span>
+<span class="sd">        ...     n_samples=200, random_state=0)</span>
+<span class="sd">        &gt;&gt;&gt; round(posterior.estimates['r'], 1), posterior.samples['r'].shape</span>
+<span class="sd">        (0.5, (200,))</span>
 <span class="sd">    """</span>
     <span class="n">_check_source</span><span class="p">(</span><span class="n">system</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">loss</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">LOSSES</span><span class="p">:</span>
-        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'Unknown loss </span><span class="si">{</span><span class="n">loss</span><span class="si">!r}</span><span class="s1">. Use one of </span><span class="si">{</span><span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">LOSSES</span><span class="p">)</span><span class="si">}</span><span class="s1">.'</span>
-        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
-        <span class="n">error_msg</span> <span class="o">=</span> <span class="s1">'Calibration needs at least one observed series.'</span>
-        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-    <span class="n">_check_count</span><span class="p">(</span><span class="s1">'replicates'</span><span class="p">,</span> <span class="n">replicates</span><span class="p">)</span>
-    <span class="n">dotted</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">bounds</span> <span class="k">if</span> <span class="s1">'.'</span> <span class="ow">in</span> <span class="n">name</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">dotted</span><span class="p">:</span>
-        <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">'Calibration fits model parameters of the system, which `set_params` takes, not the dotted paths '</span>
-            <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dotted</span><span class="p">)</span><span class="si">}</span><span class="s1">.'</span>
-        <span class="p">)</span>
-        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-    <span class="n">series</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="n">path</span><span class="p">:</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
-        <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-    <span class="p">}</span>
-    <span class="n">seeds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">SeedSequence</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">replicates</span><span class="p">)</span>
-    <span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">fitted_system</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">BaseSystem</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_build</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">values</span><span class="p">),</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">simulated_at</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Array</span><span class="p">]:</span>
-        <span class="n">candidate</span> <span class="o">=</span> <span class="n">fitted_system</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-        <span class="n">until</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">times</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="k">for</span> <span class="n">times</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-        <span class="n">runs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">seeds</span><span class="p">:</span>
-            <span class="n">trajectory</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span>
-                <span class="n">candidate</span><span class="p">,</span>
-                <span class="n">until</span><span class="o">=</span><span class="n">until</span><span class="p">,</span>
-                <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
-                <span class="n">solver</span><span class="o">=</span><span class="n">solver</span><span class="p">,</span>
-                <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="n">runs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="p">{</span>
-                    <span class="n">path</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
-                    <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-                <span class="p">},</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="n">path</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">run</span><span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="k">for</span> <span class="n">run</span> <span class="ow">in</span> <span class="n">runs</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">series</span><span class="p">}</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">residuals</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Array</span><span class="p">:</span>
-        <span class="n">simulated</span> <span class="o">=</span> <span class="n">simulated_at</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">simulated</span><span class="p">[</span><span class="n">path</span><span class="p">]</span> <span class="o">-</span> <span class="n">observed</span> <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">observed</span><span class="p">)</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
-
-    <span class="n">start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([(</span><span class="n">initial</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">name</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="n">low</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">bounds</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="n">high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">bounds</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">loss</span> <span class="o">==</span> <span class="s1">'squares'</span><span class="p">:</span>
-        <span class="n">fit</span> <span class="o">=</span> <span class="n">least_squares</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">),</span> <span class="n">x_scale</span><span class="o">=</span><span class="s1">'jac'</span><span class="p">)</span>
-        <span class="n">estimate</span><span class="p">,</span> <span class="n">jacobian</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">jac</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">observed</span><span class="o">.</span><span class="n">size</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">observed</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-        <span class="n">fit</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">values</span><span class="p">:</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">count</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">residuals</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span>
-            <span class="n">start</span><span class="p">,</span>
-            <span class="n">bounds</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span>
-        <span class="p">)</span>
-        <span class="n">estimate</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">x</span>
-        <span class="n">jacobian</span> <span class="o">=</span> <span class="n">least_squares</span><span class="p">(</span><span class="n">residuals</span><span class="p">,</span> <span class="n">estimate</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">),</span> <span class="n">max_nfev</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">jac</span>
-    <span class="n">final</span> <span class="o">=</span> <span class="n">residuals</span><span class="p">(</span><span class="n">estimate</span><span class="p">)</span>
-    <span class="n">observed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">values</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
-    <span class="n">dof</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">observed</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">covariance</span><span class="p">:</span> <span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">jacobian</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">jacobian</span><span class="p">)</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">final</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">dof</span>
-    <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
-        <span class="n">covariance</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">nonzero</span> <span class="o">=</span> <span class="n">observed</span> <span class="o">!=</span> <span class="mi">0</span>
-    <span class="k">return</span> <span class="n">CalibrationResult</span><span class="p">(</span>
-        <span class="n">system</span><span class="o">=</span><span class="n">fitted_system</span><span class="p">(</span><span class="n">estimate</span><span class="p">),</span>
-        <span class="n">estimates</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">estimate</span><span class="p">),</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span>
-        <span class="n">r2</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">final</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">observed</span> <span class="o">-</span> <span class="n">observed</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span>
-        <span class="n">rmse</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">final</span><span class="o">**</span><span class="mi">2</span><span class="p">))),</span>
-        <span class="n">mae</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">final</span><span class="p">))),</span>
-        <span class="n">mape</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="mi">100</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">final</span><span class="p">[</span><span class="n">nonzero</span><span class="p">]</span> <span class="o">/</span> <span class="n">observed</span><span class="p">[</span><span class="n">nonzero</span><span class="p">])))</span> <span class="k">if</span> <span class="n">nonzero</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s1">'nan'</span><span class="p">),</span>
-        <span class="n">covariance</span><span class="o">=</span><span class="n">covariance</span><span class="p">,</span>
-        <span class="n">simulated</span><span class="o">=</span><span class="n">simulated_at</span><span class="p">(</span><span class="n">estimate</span><span class="p">),</span>
-        <span class="n">success</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">success</span><span class="p">),</span>
+    <span class="n">_check_settings</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">replicates</span><span class="p">)</span>
+    <span class="n">priors</span> <span class="o">=</span> <span class="n">_check_priors</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span>
+    <span class="n">objective</span> <span class="o">=</span> <span class="n">_CalibrationObjective</span><span class="p">(</span>
+        <span class="n">system</span><span class="p">,</span>
+        <span class="n">_series_of</span><span class="p">(</span><span class="n">data</span><span class="p">),</span>
+        <span class="n">priors</span><span class="p">,</span>
+        <span class="n">replicates</span><span class="o">=</span><span class="n">replicates</span><span class="p">,</span>
+        <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
+        <span class="n">solver</span><span class="o">=</span><span class="n">solver</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">recorded</span><span class="o">=</span><span class="n">data</span> <span class="k">if</span> <span class="n">loss</span> <span class="o">==</span> <span class="s1">'events'</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Trajectory</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
     <span class="p">)</span>
+    <span class="n">budget</span> <span class="o">=</span> <span class="n">BUDGETS</span><span class="p">[</span><span class="n">method</span><span class="p">]</span> <span class="k">if</span> <span class="n">budget</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">budget</span>
+    <span class="n">_check_count</span><span class="p">(</span><span class="s1">'n_samples'</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span>
+    <span class="n">_check_count</span><span class="p">(</span><span class="s1">'chains'</span><span class="p">,</span> <span class="n">chains</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'variational'</span><span class="p">:</span>
+        <span class="n">_check_differentiable</span><span class="p">(</span><span class="n">objective</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">'mcmc'</span><span class="p">,</span> <span class="s1">'variational'</span><span class="p">}:</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">prior</span> <span class="ow">in</span> <span class="n">priors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">_numpyro_prior</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">prior</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'abc_smc'</span><span class="p">:</span>
+        <span class="n">samples</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">diagnostics</span> <span class="o">=</span> <span class="n">_fit_abc</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">budget</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_posterior_result</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span>
+            <span class="n">loss</span><span class="p">,</span>
+            <span class="n">samples</span><span class="p">,</span>
+            <span class="n">weights</span><span class="p">,</span>
+            <span class="n">diagnostics</span><span class="o">=</span><span class="n">diagnostics</span><span class="p">,</span>
+            <span class="n">success</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">'mcmc'</span><span class="p">,</span> <span class="s1">'variational'</span><span class="p">}:</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'mcmc'</span><span class="p">:</span>
+            <span class="n">samples</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">,</span> <span class="n">success</span> <span class="o">=</span> <span class="n">_fit_mcmc</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">chains</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">samples</span><span class="p">,</span> <span class="n">diagnostics</span><span class="p">,</span> <span class="n">success</span> <span class="o">=</span> <span class="n">_fit_variational</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">budget</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">),</span> <span class="mi">1</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">_posterior_result</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span>
+            <span class="n">loss</span><span class="p">,</span>
+            <span class="n">samples</span><span class="p">,</span>
+            <span class="n">weights</span><span class="p">,</span>
+            <span class="n">diagnostics</span><span class="o">=</span><span class="n">diagnostics</span><span class="p">,</span>
+            <span class="n">success</span><span class="o">=</span><span class="n">success</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'global'</span><span class="p">:</span>
+        <span class="n">estimate</span> <span class="o">=</span> <span class="n">_fit_global</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">budget</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_result</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">estimate</span><span class="p">,</span> <span class="n">objective</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">estimate</span><span class="p">,</span> <span class="n">loss</span><span class="p">),</span> <span class="n">success</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+        <span class="p">[(</span><span class="n">initial</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">prior</span><span class="o">.</span><span class="n">median</span><span class="p">()))</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">prior</span> <span class="ow">in</span> <span class="n">priors</span><span class="o">.</span><span class="n">items</span><span class="p">()],</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">estimate</span><span class="p">,</span> <span class="n">success</span> <span class="o">=</span> <span class="n">_fit_local</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">start</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_result</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span> <span class="n">estimate</span><span class="p">,</span> <span class="n">objective</span><span class="o">.</span><span class="n">covariance</span><span class="p">(</span><span class="n">estimate</span><span class="p">,</span> <span class="n">loss</span><span class="p">),</span> <span class="n">success</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -38057,7 +38575,7 @@ system class, which takes them as keyword arguments.</p>
                 <code>analyses</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=()) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=(), draws=None, log_probability=None) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -38555,7 +39073,7 @@ system class, which takes them as keyword arguments.</p>
                 <code>analyses</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=()) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=(), draws=None, log_probability=None) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -39519,6 +40037,737 @@ single elements and their interactions.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="skcomplex.core.experiments.posterior_coverage" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">posterior_coverage</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">paths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'mcmc'</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="s1">'likelihood'</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">),</span> <span class="n">noise</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">summary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">budget</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chains</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">executor</span><span class="o">=</span><span class="s1">'serial'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the empirical coverage of the credible intervals of a posterior method over prior draws.</p>
+<p>It draws <code>n</code> true parameter vectors from the priors the bounds give, simulates data at each at the given times with
+Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often
+the central credible interval of every level holds the true value. It also gives the rank of every true value among
+its samples, the check of simulation-based calibration (Talts et al. 2018).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>system</code>
+            </td>
+            <td>
+                  <code><span title="skcomplex.core.experiments.types.Source">Source</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The system, or a factory of systems.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bounds</code>
+            </td>
+            <td>
+                  <code><span title="skcomplex.core.experiments.types.Bounds">Bounds</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A pair <code>(low, high)</code> or a SciPy prior per model parameter, as <code>calibrate</code> takes them.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>times</code>
+            </td>
+            <td>
+                  <code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The times of the simulated data.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>paths</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The state or observable paths of the data, or <code>None</code> for every scalar state.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>'abc_smc'</code>, <code>'mcmc'</code>, or <code>'variational'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;mcmc&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>loss</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The loss of the method.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;likelihood&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of true parameter vectors.</p>
+              </div>
+            </td>
+            <td>
+                  <code>40</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>levels</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="float">float</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The levels of the central credible intervals, between 0 and 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0.5, 0.9)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>noise</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The standard deviation of the Gaussian noise added to the simulated data.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>summary</code>
+            </td>
+            <td>
+                  <code><span title="skcomplex.core.experiments._calibration.Summary">Summary</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The summary statistics of ABC-SMC, or <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_samples</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of samples of every calibration, per chain for MCMC.</p>
+              </div>
+            </td>
+            <td>
+                  <code>500</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>budget</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The budget of every calibration, or <code>None</code> for the default of the method.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>chains</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of chains of MCMC.</p>
+              </div>
+            </td>
+            <td>
+                  <code>4</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dt</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The time between frames, or <code>None</code> for the tuned one.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>solver</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="BaseSolver(*, random_state=None, until=math.inf) (skcomplex.core.engine.solvers.BaseSolver)" href="../engine/solvers/#skcomplex.core.engine.solvers.BaseSolver">BaseSolver</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The solver, or <code>None</code> for the tuned one.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>random_state</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The seed of the true values, the noise, and the calibrations.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>executor</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="concurrent.futures.Executor">Executor</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>'serial'</code>, <code>'thread'</code>, <code>'process'</code>, or a <code>concurrent.futures</code> executor that runs the calibrations. MCMC
+and variational calibration run numpyro, whose effect handlers are global, so they do not run on threads.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;serial&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>result</code></td>            <td>
+                  <code><a class="autorefs autorefs-internal" title="CoverageResult(levels, coverage, ranks, truths, results)
+
+  
+      dataclass
+   (skcomplex.core.experiments._coverage.CoverageResult)" href="#skcomplex.core.experiments.CoverageResult">CoverageResult</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The coverage by level and parameter, the ranks, the true values, and the calibrations.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ValidationError (skcomplex.core.errors.ValidationError)" href="../errors/#skcomplex.core.errors.ValidationError">ValidationError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The method is not a posterior method, the loss does not fit it, a level is not between 0 and 1, <code>n</code> is not
+a positive integer, or the executor is unknown or runs numpyro on threads.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.experiments</span><span class="w"> </span><span class="kn">import</span> <span class="n">posterior_coverage</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.systems.biology.ecology</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogisticGrowthSystem</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">posterior_coverage</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">LogisticGrowthSystem</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mf">10.0</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">'r'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)},</span>
+<span class="gp">... </span>    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">11.0</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">method</span><span class="o">=</span><span class="s1">'variational'</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">n</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">levels</span><span class="o">=</span><span class="p">(</span><span class="mf">0.9</span><span class="p">,),</span>
+<span class="gp">... </span>    <span class="n">noise</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">n_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">budget</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">coverage</span><span class="p">[</span><span class="mf">0.9</span><span class="p">]),</span> <span class="n">result</span><span class="o">.</span><span class="n">ranks</span><span class="p">[</span><span class="s1">'r'</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(['r'], (3,))</span>
+</code></pre></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/skcomplex/core/experiments/_coverage.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">posterior_coverage</span><span class="p">(</span>
+    <span class="n">system</span><span class="p">:</span> <span class="n">Source</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="n">Bounds</span><span class="p">,</span>
+    <span class="n">times</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">paths</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'mcmc'</span><span class="p">,</span>
+    <span class="n">loss</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'likelihood'</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span>
+    <span class="n">levels</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">),</span>
+    <span class="n">noise</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="n">Summary</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
+    <span class="n">budget</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">chains</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">solver</span><span class="p">:</span> <span class="n">BaseSolver</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">executor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Executor</span> <span class="o">=</span> <span class="s1">'serial'</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CoverageResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the empirical coverage of the credible intervals of a posterior method over prior draws.</span>
+
+<span class="sd">    It draws `n` true parameter vectors from the priors the bounds give, simulates data at each at the given times with</span>
+<span class="sd">    Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often</span>
+<span class="sd">    the central credible interval of every level holds the true value. It also gives the rank of every true value among</span>
+<span class="sd">    its samples, the check of simulation-based calibration (Talts et al. 2018).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        system:</span>
+<span class="sd">            The system, or a factory of systems.</span>
+
+<span class="sd">        bounds:</span>
+<span class="sd">            A pair `(low, high)` or a SciPy prior per model parameter, as `calibrate` takes them.</span>
+
+<span class="sd">        times:</span>
+<span class="sd">            The times of the simulated data.</span>
+
+<span class="sd">        paths:</span>
+<span class="sd">            The state or observable paths of the data, or `None` for every scalar state.</span>
+
+<span class="sd">        method:</span>
+<span class="sd">            `'abc_smc'`, `'mcmc'`, or `'variational'`.</span>
+
+<span class="sd">        loss:</span>
+<span class="sd">            The loss of the method.</span>
+
+<span class="sd">        n:</span>
+<span class="sd">            The number of true parameter vectors.</span>
+
+<span class="sd">        levels:</span>
+<span class="sd">            The levels of the central credible intervals, between 0 and 1.</span>
+
+<span class="sd">        noise:</span>
+<span class="sd">            The standard deviation of the Gaussian noise added to the simulated data.</span>
+
+<span class="sd">        summary:</span>
+<span class="sd">            The summary statistics of ABC-SMC, or `None`.</span>
+
+<span class="sd">        n_samples:</span>
+<span class="sd">            The number of samples of every calibration, per chain for MCMC.</span>
+
+<span class="sd">        budget:</span>
+<span class="sd">            The budget of every calibration, or `None` for the default of the method.</span>
+
+<span class="sd">        chains:</span>
+<span class="sd">            The number of chains of MCMC.</span>
+
+<span class="sd">        dt:</span>
+<span class="sd">            The time between frames, or `None` for the tuned one.</span>
+
+<span class="sd">        solver:</span>
+<span class="sd">            The solver, or `None` for the tuned one.</span>
+
+<span class="sd">        random_state:</span>
+<span class="sd">            The seed of the true values, the noise, and the calibrations.</span>
+
+<span class="sd">        executor:</span>
+<span class="sd">            `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor that runs the calibrations. MCMC</span>
+<span class="sd">            and variational calibration run numpyro, whose effect handlers are global, so they do not run on threads.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        result:</span>
+<span class="sd">            The coverage by level and parameter, the ranks, the true values, and the calibrations.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValidationError:</span>
+<span class="sd">            The method is not a posterior method, the loss does not fit it, a level is not between 0 and 1, `n` is not</span>
+<span class="sd">            a positive integer, or the executor is unknown or runs numpyro on threads.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">        &gt;&gt;&gt; from skcomplex.core.experiments import posterior_coverage</span>
+<span class="sd">        &gt;&gt;&gt; from skcomplex.systems.biology.ecology import LogisticGrowthSystem</span>
+<span class="sd">        &gt;&gt;&gt; result = posterior_coverage(</span>
+<span class="sd">        ...     LogisticGrowthSystem(n=10.0),</span>
+<span class="sd">        ...     {'r': (0.5, 1.0)},</span>
+<span class="sd">        ...     np.arange(0.0, 11.0),</span>
+<span class="sd">        ...     method='variational',</span>
+<span class="sd">        ...     n=3,</span>
+<span class="sd">        ...     levels=(0.9,),</span>
+<span class="sd">        ...     noise=5.0,</span>
+<span class="sd">        ...     n_samples=100,</span>
+<span class="sd">        ...     budget=300,</span>
+<span class="sd">        ...     random_state=0,</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; sorted(result.coverage[0.9]), result.ranks['r'].shape</span>
+<span class="sd">        (['r'], (3,))</span>
+<span class="sd">    """</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">_check_source</span><span class="p">(</span><span class="n">system</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">POSTERIOR_METHODS</span><span class="p">:</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'Posterior coverage calibrates by a posterior method. Use one of </span><span class="si">{</span><span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">POSTERIOR_METHODS</span><span class="p">)</span><span class="si">}</span><span class="s1">.'</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">loss</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">LOSSES</span><span class="p">[</span><span class="n">method</span><span class="p">]</span> <span class="ow">or</span> <span class="n">loss</span> <span class="o">==</span> <span class="s1">'events'</span><span class="p">:</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">LOSSES</span><span class="p">[</span><span class="n">method</span><span class="p">]</span> <span class="k">if</span> <span class="n">item</span> <span class="o">!=</span> <span class="s1">'events'</span><span class="p">)</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'Posterior coverage with the method </span><span class="si">{</span><span class="n">method</span><span class="si">!r}</span><span class="s1"> takes the losses </span><span class="si">{</span><span class="n">allowed</span><span class="si">}</span><span class="s1">.'</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="n">_check_count</span><span class="p">(</span><span class="s1">'n'</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">checked</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">level</span><span class="p">)</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">levels</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">checked</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">level</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">checked</span><span class="p">):</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'The levels of posterior coverage must lie between 0 and 1, not </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span><span class="si">!r}</span><span class="s1">.'</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">executor</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">EXECUTORS</span><span class="p">:</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"executor = </span><span class="si">{</span><span class="n">executor</span><span class="si">!r}</span><span class="s2"> must be 'serial', 'thread', 'process', or an executor."</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">executor</span> <span class="o">==</span> <span class="s1">'thread'</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">ThreadPoolExecutor</span><span class="p">))</span> <span class="ow">and</span> <span class="n">method</span> <span class="o">!=</span> <span class="s1">'abc_smc'</span><span class="p">:</span>
+        <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'The method </span><span class="si">{</span><span class="n">method</span><span class="si">!r}</span><span class="s1"> runs numpyro, whose effect handlers are global, so it cannot run on threads. Use '</span>
+            <span class="s2">"executor='process' or executor='serial'."</span>
+        <span class="p">)</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="n">priors</span> <span class="o">=</span> <span class="n">_check_priors</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="n">draws</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">prior</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">rng</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">prior</span> <span class="ow">in</span> <span class="n">priors</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="n">truths</span> <span class="o">=</span> <span class="p">[{</span><span class="n">name</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">draws</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+    <span class="n">seeds</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span> <span class="k">for</span> <span class="n">seed</span> <span class="ow">in</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">31</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">)]</span>
+    <span class="n">task</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
+        <span class="n">_calibrate_truth</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+        <span class="n">times</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+        <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
+        <span class="n">noise</span><span class="o">=</span><span class="n">noise</span><span class="p">,</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+        <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
+        <span class="n">n_samples</span><span class="o">=</span><span class="n">n_samples</span><span class="p">,</span>
+        <span class="n">budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+        <span class="n">chains</span><span class="o">=</span><span class="n">chains</span><span class="p">,</span>
+        <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span>
+        <span class="n">solver</span><span class="o">=</span><span class="n">solver</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">executor</span> <span class="o">==</span> <span class="s1">'serial'</span><span class="p">:</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">task</span><span class="p">(</span><span class="n">truth</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span> <span class="k">for</span> <span class="n">truth</span><span class="p">,</span> <span class="n">seed</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">truths</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">executor</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">Executor</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span> <span class="ow">or</span> <span class="p">(</span><span class="n">ThreadPoolExecutor</span><span class="p">()</span> <span class="k">if</span> <span class="n">executor</span> <span class="o">==</span> <span class="s1">'thread'</span> <span class="k">else</span> <span class="n">ProcessPoolExecutor</span><span class="p">())</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">truths</span><span class="p">,</span> <span class="n">seeds</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">pool</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+    <span class="n">coverage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="n">level</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">checked</span><span class="p">}</span>
+    <span class="n">ranks</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Array</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">priors</span><span class="p">:</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="p">[((</span><span class="n">result</span><span class="o">.</span><span class="n">samples</span> <span class="ow">or</span> <span class="p">{})[</span><span class="n">name</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">weights</span><span class="p">))</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">truth</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">truth</span> <span class="ow">in</span> <span class="n">truths</span><span class="p">]</span>
+        <span class="n">below</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">[</span><span class="n">samples</span> <span class="o">&lt;</span> <span class="n">value</span><span class="p">])</span> <span class="k">for</span> <span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">weights</span><span class="p">),</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+        <span class="n">ranks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">below</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">weights</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">checked</span><span class="p">:</span>
+            <span class="n">intervals</span> <span class="o">=</span> <span class="p">[</span><span class="n">_interval</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span> <span class="k">for</span> <span class="n">samples</span><span class="p">,</span> <span class="n">weights</span> <span class="ow">in</span> <span class="n">pairs</span><span class="p">]</span>
+            <span class="n">inside</span> <span class="o">=</span> <span class="p">[</span><span class="n">low</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="n">high</span> <span class="k">for</span> <span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">),</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">intervals</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
+            <span class="n">coverage</span><span class="p">[</span><span class="n">level</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">inside</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">CoverageResult</span><span class="p">(</span><span class="n">checked</span><span class="p">,</span> <span class="n">coverage</span><span class="p">,</span> <span class="n">ranks</span><span class="p">,</span> <span class="n">draws</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="skcomplex.core.experiments.sensitivity" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">sensitivity</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'sobol'</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">observables</span><span class="o">=</span><span class="p">(),</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">executor</span><span class="o">=</span><span class="s1">'serial'</span><span class="p">)</span></code>
 
@@ -40199,7 +41448,7 @@ system class, which takes them as keyword arguments.</p>
                 <code>analyses</code>
             </td>
             <td>
-                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=()) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
+                  <code><span title="collections.abc.Sequence">Sequence</span>[<span title="collections.abc.Callable">Callable</span>[[<a class="autorefs autorefs-internal" title="Trajectory(problem, times, states, parameters, *, agents=(), reporters=(), observables=(), events=(), structures=(), draws=None, log_probability=None) (skcomplex.core.engine.runtime.Trajectory)" href="../engine/runtime/#skcomplex.core.engine.runtime.Trajectory">Trajectory</a>], <span title="object">object</span>]] | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -40731,10 +41980,10 @@ setting is not valid.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../assets/_markdown_exec_pyodide.js"></script>
       

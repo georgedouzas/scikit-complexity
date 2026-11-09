@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -405,8 +405,6 @@
       
         
           
-        
-      
         
       
         
@@ -1205,6 +1203,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#hyperedges-of-current-neighbours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperedges of current neighbours
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ordered-phases-of-update-laws" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1822,34 +1831,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -10072,6 +10053,8 @@
       
         
       
+        
+      
     
     
     
@@ -10382,6 +10365,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../systems/biology/collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11530,6 +11541,8 @@
       
         
       
+        
+      
     
     
     
@@ -11672,6 +11685,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../systems/biology/epidemiology/differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13388,6 +13429,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13466,6 +13511,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../../systems/biology/oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../../systems/biology/oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13474,6 +13547,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../systems/biology/oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35538,6 +35639,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#hyperedges-of-current-neighbours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperedges of current neighbours
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ordered-phases-of-update-laws" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -35985,9 +36097,10 @@ summed over the hyperedges of every size around a player:</p>
 <div class="highlight"><pre><span></span><code>[5.403, 3.199, 0.0, -3.199, -5.403]
 [1.5, 3.5, 1.5, 0.5, 3.0]
 </code></pre></div>
-<p>The reduction <code>hyperedges(expression, reduce='sum', size=None, weight=None)</code> of <code>skcomplex.core.components.laws.utils</code>
-does the work. It reduces an expression written for one hyperedge over the hyperedges around every member of a group on
-the nodes of a network with hyperedges, as <code>neighbors</code> does for one neighbour. Inside the expression:</p>
+<p>The reduction <code>hyperedges(expression, reduce='sum', size=None, weight=None, over=None)</code> of
+<code>skcomplex.core.components.laws.utils</code> does the work. It reduces an expression written for one hyperedge over the
+hyperedges around every member of a group on the nodes of a network with hyperedges, as <code>neighbors</code> does for one
+neighbour. Inside the expression:</p>
 <ul>
 <li><code>s.others</code> holds the other members of the hyperedge in its order,</li>
 <li><code>s.members</code> holds all its members, which <code>total</code>, <code>mean</code>, <code>count</code>, <code>maximum</code>, and <code>minimum</code> reduce with
@@ -36000,6 +36113,77 @@ issue code <code>law-space</code>, and a size the network lacks gets the code <c
 <p><code>CouplingInteraction(mode='hyperedges', size=...)</code> couples every member through this reduction. The function reads
 <code>s.member</code>, <code>s.others</code>, cut to <code>size - 1</code> members when the size is given, and <code>s.members</code>. The default term is the sum
 over the other members of the difference of <code>read</code>. In the map form it sets the next value of <code>write</code> in discrete time.</p>
+<h3 id="hyperedges-of-current-neighbours">Hyperedges of current neighbours</h3>
+<p>In a continuous space the hyperedges around a member need not be fixed. With <code>over</code>, a neighbourhood of the space,
+<code>hyperedges(expression, size=k, over=RadiusNeighborhood(r))</code> reduces over the hyperedges that every member forms with
+each set of <code>k - 1</code> of its current neighbours, the other members of a set in increasing member order. The sets are
+found again from the positions at every evaluation, so a member that enters or leaves the neighbourhood joins or leaves
+every set at once. <code>NearestNeighborhood(k)</code> and <code>ConeNeighborhood(r, angle)</code> work too. Such sets carry the many-body
+terms of flocks and schools, three-body potentials such as Axilrod-Teller and Stillinger-Weber, and group interactions
+in crowds and social models. <code>CouplingInteraction(mode='hyperedges', size=k, neighborhood=...)</code> couples every member
+through them. A three-body alignment that acts only on a member whose two neighbours flank it:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sage.all__sagemath_symbolics</span><span class="w"> </span><span class="kn">import</span> <span class="n">sqrt</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">GroupElement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">CouplingInteraction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.spaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContinuousSpace</span><span class="p">,</span> <span class="n">RadiusNeighborhood</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.system</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">StateSpec</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GliderElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">object</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">vector</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="s1">'position'</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">u</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">object</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">vector</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">u</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">u</span><span class="p">)]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">flank</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">others</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">-</span> <span class="n">s</span><span class="o">.</span><span class="n">member</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">others</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">-</span> <span class="n">s</span><span class="o">.</span><span class="n">member</span><span class="o">.</span><span class="n">x</span>
+    <span class="n">cosine</span> <span class="o">=</span> <span class="n">first</span> <span class="o">*</span> <span class="n">second</span> <span class="o">/</span> <span class="n">sqrt</span><span class="p">((</span><span class="n">first</span> <span class="o">*</span> <span class="n">first</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">second</span> <span class="o">*</span> <span class="n">second</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">cosine</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">((</span><span class="n">s</span><span class="o">.</span><span class="n">others</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">u</span> <span class="o">-</span> <span class="n">s</span><span class="o">.</span><span class="n">member</span><span class="o">.</span><span class="n">u</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">others</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">u</span> <span class="o">-</span> <span class="n">s</span><span class="o">.</span><span class="n">member</span><span class="o">.</span><span class="n">u</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">4.5</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">5.5</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">,</span> <span class="mf">8.0</span><span class="p">]])</span>
+<span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<span class="n">gliders</span> <span class="o">=</span> <span class="n">GroupElement</span><span class="p">(</span><span class="s1">'gliders'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">GliderElement</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s1">'u'</span><span class="p">:</span> <span class="n">u</span><span class="p">})</span>
+<span class="n">alignment</span> <span class="o">=</span> <span class="n">CouplingInteraction</span><span class="p">(</span>
+    <span class="s1">'alignment'</span><span class="p">,</span>
+    <span class="n">target</span><span class="o">=</span><span class="s1">'gliders'</span><span class="p">,</span>
+    <span class="n">write</span><span class="o">=</span><span class="s1">'u'</span><span class="p">,</span>
+    <span class="n">mode</span><span class="o">=</span><span class="s1">'hyperedges'</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">neighborhood</span><span class="o">=</span><span class="n">RadiusNeighborhood</span><span class="p">(</span><span class="mf">1.0</span><span class="p">),</span>
+    <span class="n">function</span><span class="o">=</span><span class="n">flank</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">gliders</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">alignment</span><span class="p">],</span> <span class="n">space</span><span class="o">=</span><span class="n">ContinuousSpace</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">)))</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">problem</span>
+<span class="n">drift</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">drift</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">initial_parameters</span><span class="p">)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">states</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">drift</span><span class="p">,</span> <span class="s1">'gliders.u'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>[[1.0, 0.5], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+</code></pre></div>
+<p>The first glider sits between the second and the third, so it gains the mean of their relative velocities. The second
+and the third have their neighbours on one side, and the last has none, so they gain nothing.</p>
+<p>The number of sets is <code>C(d, k - 1)</code> for <code>d</code> neighbours, so the cost grows as <code>N d^(k - 1)</code> for <code>N</code> members. Hyperedges
+of four members at ten neighbours are 84 sets per member, so keep the neighbourhood to a few neighbours. The size is
+required, between 2 and 5. The NumPy and Numba backends run these reductions, and the Numba backend reduces every set as
+it visits it, without storing the sets. A neighbourhood outside a continuous space gets the issue code <code>law-space</code>, and
+another backend the code <code>backend-unsupported</code>.</p>
 <h3 id="ordered-phases-of-update-laws">Ordered phases of update laws</h3>
 <p>Let a later rule of a step read what an earlier rule of the same step wrote, such as an imitation that reads the
 payoff just played. The public goods game of a lattice plays in the phase <code>play</code> and copies a random neighbour by the
@@ -36126,7 +36310,9 @@ them. Diffusion on a path whose second edge conducts ten times better:</p>
 <li>the neighbours of a network, by default,</li>
 <li>a layer, with <code>AdjacencyNeighborhood(layer=label)</code>,</li>
 <li>the neighbourhood of a lattice,</li>
-<li>in a continuous space, <code>RadiusNeighborhood(r)</code>, <code>NearestNeighborhood(k)</code>, and <code>ConeNeighborhood(r, angle)</code>.</li>
+<li>in a continuous space, <code>RadiusNeighborhood(r)</code>, <code>NearestNeighborhood(k)</code>, <code>ConeNeighborhood(r, angle)</code>, and
+  <code>DelaunayNeighborhood()</code>, the members joined by an edge of the Delaunay triangulation of the positions, such as
+  cells joined by springs, computed again every step and across periodic boundaries, on the NumPy backend.</li>
 </ul>
 <p>The reductions are <code>'sum'</code>, <code>'mean'</code>, <code>'count'</code>, <code>'max'</code>, <code>'min'</code>, and <code>'normalized-mean'</code>. A weight may read the state
 of the edge group of the layer through a role of an interaction, as the weight of the edge that joins the member to its
@@ -36613,10 +36799,10 @@ around it. <a href="../agent_based_systems/">Agent-based systems</a> describes t
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../../assets/_markdown_exec_pyodide.js"></script>
       

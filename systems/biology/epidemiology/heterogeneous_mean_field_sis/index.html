@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -403,8 +403,6 @@
       
         
           
-        
-      
         
       
         
@@ -1616,34 +1614,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../overview/migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9873,6 +9843,8 @@
       
         
       
+        
+      
     
     
     
@@ -10183,6 +10155,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11333,6 +11333,8 @@
       
         
       
+        
+      
     
     
     
@@ -11475,6 +11477,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13304,6 +13334,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13382,6 +13416,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13390,6 +13452,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -36004,10 +36094,10 @@
 <span class="sd">    reduction over separate elements is written out term by term.</span>
 <span class="sd">    - `'next'`: the next member of the group in member order, the first after the last.</span>
 <span class="sd">    - `'hyperedges'`: the other members of every hyperedge around `i` of `size` members, or of every size, on a network</span>
-<span class="sd">      with hyperedges. The function then reads `namespace.member`, `namespace.others`, the other members of one</span>
-<span class="sd">      hyperedge in its order, and `namespace.members`, all its members, which reductions over them read, and the</span>
-<span class="sd">      reduction runs over the hyperedges around `i`. The default function is the sum over the other members of the</span>
-<span class="sd">      difference of `read`.</span>
+<span class="sd">      with hyperedges, or with a `neighborhood` in a continuous space, every set of `size - 1` current neighbours of</span>
+<span class="sd">      `i`. The function then reads `namespace.member`, `namespace.others`, the other members of one hyperedge in its</span>
+<span class="sd">      order, and `namespace.members`, all its members, which reductions over them read, and the reduction runs over the</span>
+<span class="sd">      hyperedges around `i`. The default function is the sum over the other members of the difference of `read`.</span>
 
 <span class="sd">    With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the</span>
 <span class="sd">    state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of</span>
@@ -36091,7 +36181,8 @@
 
 <span class="sd">        neighborhood:</span>
 <span class="sd">            The neighbourhood of the mode `'edges'`, such as `RadiusNeighborhood(1.0)` in a continuous space, or `None`</span>
-<span class="sd">            for the edges of the lattice or network.</span>
+<span class="sd">            for the edges of the lattice or network. In the mode `'hyperedges'`, the neighbourhood of a continuous</span>
+<span class="sd">            space whose current neighbours form the hyperedges, or `None` for the hyperedges of the network.</span>
 
 <span class="sd">        layer:</span>
 <span class="sd">            The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.</span>
@@ -36226,9 +36317,12 @@
 <span class="sd">        They must also suit the form.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s1">'edges'</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span><span class="p">,</span> <span class="n">BaseNeighborhood</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">'edges'</span><span class="p">,</span> <span class="s1">'hyperedges'</span><span class="p">}</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span><span class="p">,</span> <span class="n">BaseNeighborhood</span><span class="p">)</span>
         <span class="p">):</span>
-            <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'The neighbourhood </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span><span class="si">!r}</span><span class="s1"> of coupling needs a neighbourhood in the mode edges.'</span>
+            <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">'The neighbourhood </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span><span class="si">!r}</span><span class="s1"> of coupling needs a neighbourhood in the mode edges or '</span>
+                <span class="s1">'hyperedges.'</span>
+            <span class="p">)</span>
             <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_per_edge</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_names_matrix</span><span class="p">():</span>
             <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span>
@@ -36599,14 +36693,15 @@
 
 <span class="sd">        Raises:</span>
 <span class="sd">            ValidationError:</span>
-<span class="sd">                The members live on no network with hyperedges.</span>
+<span class="sd">                The members live on no network with hyperedges and in no continuous space.</span>
 <span class="sd">        """</span>
         <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_member</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="s1">'target'</span><span class="p">)</span>
         <span class="n">others</span><span class="p">,</span> <span class="n">members</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s1">'others'</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s1">'members'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">others</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">members</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s1">'The coupling </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">!r}</span><span class="s1"> over hyperedges binds </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="si">!r}</span><span class="s1">, whose members live on no network '</span>
-                <span class="s1">'with hyperedges. Give the group a network space with hyperedges.'</span>
+                <span class="s1">'with hyperedges and in no continuous space. Give the group a network space with hyperedges, or a '</span>
+                <span class="s1">'continuous space and a neighbourhood.'</span>
             <span class="p">)</span>
             <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -36616,7 +36711,10 @@
         <span class="n">weight</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">):</span>
             <span class="n">weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">(</span><span class="n">SimpleNamespace</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span><span class="p">(</span><span class="n">namespace</span><span class="p">),</span> <span class="o">**</span><span class="nb">vars</span><span class="p">(</span><span class="n">around</span><span class="p">)))</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">hyperedges</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">reduce</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reduce</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map</span><span class="p">(</span>
+            <span class="n">term</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">hyperedges</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">reduce</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reduce</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight</span><span class="p">,</span> <span class="n">over</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">neighborhood</span><span class="p">),</span>
+        <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_reduction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="n">SimpleNamespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Target</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Return the reduction that one member gets, by mode."""</span>
@@ -36846,10 +36944,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../../assets/_markdown_exec_pyodide.js"></script>
       

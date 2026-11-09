@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -403,8 +403,6 @@
       
         
           
-        
-      
         
       
         
@@ -1619,34 +1617,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="overview/migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9869,6 +9839,8 @@
       
         
       
+        
+      
     
     
     
@@ -10179,6 +10151,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systems/biology/collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11327,6 +11327,8 @@
       
         
       
+        
+      
     
     
     
@@ -11469,6 +11471,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systems/biology/epidemiology/differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13185,6 +13215,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13263,6 +13297,34 @@
   
   
     <li class="md-nav__item">
+      <a href="systems/biology/oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="systems/biology/oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13271,6 +13333,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="systems/biology/oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35334,8 +35424,41 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#build-a-custom-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build a custom system
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-out-which-components-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find out which components fit
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spec-driven-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec-driven development
+      
+    </span>
+  </a>
   
 </li>
       
@@ -35518,16 +35641,14 @@ scikit-learn.</p>
     <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
     <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
   </tr>
+</table>
 
-The [catalog](https://georgedouzas.github.io/scikit-complexity/systems/catalog/) lists every system by field and topic,
-and the page of each system shows the classes it is built from.
-
-### Build a custom system
-
-A custom system needs only the core. An element declares its states, and an interaction declares its roles and returns
-its laws, where the namespace `s` holds the symbols of its parameters and of the elements bound to its roles. A predator
-and prey system takes one element class, the general `RateInteraction`, and one new interaction:
-
+<p>The <a href="https://georgedouzas.github.io/scikit-complexity/systems/catalog/">catalog</a> lists every system by field and topic,
+and the page of each system shows the classes it is built from.</p>
+<h3 id="build-a-custom-system">Build a custom system</h3>
+<p>A custom system needs only the core. An element declares its states, and an interaction declares its roles and returns
+its laws, where the namespace <code>s</code> holds the symbols of its parameters and of the elements bound to its roles. A predator
+and prey system takes one element class, the general <code>RateInteraction</code>, and one new interaction:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
@@ -35576,10 +35697,8 @@ and prey system takes one element class, the general `RateInteraction`, and one 
 <span class="n">trajectory</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
 <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="s1">'rabbits.n'</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
 </code></pre></div>
-
-A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer
-during the run. A schedule changes a parameter while the system runs, here halving the hunting rate at time 15:
-
+<p>A <code>RerunObserver</code> records the run for the Rerun viewer, and <code>RerunObserver('predators', spawn=True)</code> opens the viewer
+during the run. A schedule changes a parameter while the system runs, here halving the hunting rate at time 15:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -35595,9 +35714,7 @@ during the run. A schedule changes a parameter while the system runs, here halvi
 <span class="p">)</span>
 <span class="nb">float</span><span class="p">(</span><span class="n">trajectory</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 </code></pre></div>
-
-Adding a process takes one more interaction, and the analysis `symbolic` shows the equations of the system:
-
+<p>Adding a process takes one more interaction, and the analysis <code>symbolic</code> shows the equations of the system:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sage.all__sagemath_symbolics</span><span class="w"> </span><span class="kn">import</span> <span class="n">oo</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sage.sets.real_set</span><span class="w"> </span><span class="kn">import</span> <span class="n">RealSet</span>
 
@@ -35629,18 +35746,13 @@ Adding a process takes one more interaction, and the analysis `symbolic` shows t
 <span class="p">)</span>
 <span class="n">symbolic</span><span class="p">(</span><span class="n">harvested</span><span class="p">)</span><span class="o">.</span><span class="n">equations</span><span class="p">[</span><span class="s1">'fish.n'</span><span class="p">]</span>
 </code></pre></div>
-
-### Find out which components fit
-
-An interaction states what it needs from each role, and an element states what it carries. Ask them before you build:
-
+<h3 id="find-out-which-components-fit">Find out which components fit</h3>
+<p>An interaction states what it needs from each role, and an element states what it carries. Ask them before you build:</p>
 <div class="highlight"><pre><span></span><code><span class="n">hunt</span> <span class="o">=</span> <span class="n">PredationInteraction</span><span class="p">(</span><span class="s1">'hunt'</span><span class="p">,</span> <span class="n">predator</span><span class="o">=</span><span class="s1">'foxes'</span><span class="p">,</span> <span class="n">prey</span><span class="o">=</span><span class="s1">'rabbits'</span><span class="p">)</span>
 <span class="n">hunt</span><span class="o">.</span><span class="n">get_requirements</span><span class="p">()</span><span class="o">.</span><span class="n">roles</span><span class="p">[</span><span class="s1">'prey'</span><span class="p">]</span><span class="o">.</span><span class="n">states</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">PopulationElement</span><span class="p">(</span><span class="s1">'rabbits'</span><span class="p">)</span><span class="o">.</span><span class="n">get_states</span><span class="p">())</span>
 </code></pre></div>
-
-When a role is bound to an element without the state it reads, `simulate` raises an error that names the role, the
-state, and the fix:
-
+<p>When a role is bound to an element without the state it reads, <code>simulate</code> raises an error that names the role, the
+state, and the fix:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">RoleElementError</span>
 
 
@@ -35660,17 +35772,14 @@ state, and the fix:
     <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
 <span class="n">message</span>
 </code></pre></div>
-
-The [parts pages](https://georgedouzas.github.io/scikit-complexity/parts/elements/) list every element, interaction, law,
+<p>The <a href="https://georgedouzas.github.io/scikit-complexity/parts/elements/">parts pages</a> list every element, interaction, law,
 solver, and backend with the tags they accept, and the
-[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/)
-walks through the choices in order.
-
-## Spec-driven development
-
-The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
-project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development, and
-`openspec/config.yaml` names the constitution as binding.
+<a href="https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/">user guide</a>
+walks through the choices in order.</p>
+<h2 id="spec-driven-development">Spec-driven development</h2>
+<p>The project's engineering constitution lives in <code>openspec/constitution.md</code> and binds all work. The
+project uses <a href="https://github.com/Fission-AI/OpenSpec">OpenSpec</a> for spec-driven development, and
+<code>openspec/config.yaml</code> names the constitution as binding.</p>
 
 
 
@@ -35742,10 +35851,10 @@ project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="assets/_markdown_exec_pyodide.js"></script>
       

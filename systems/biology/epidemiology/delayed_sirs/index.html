@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://georgedouzas.github.io/scikit-complexity/systems/biology/epidemiology/delayed_sirs/">
       
       
-        <link rel="prev" href="../heterogeneous_mean_field_sir/">
+        <link rel="prev" href="../differentiable_covid_abm/">
       
       
         <link rel="next" href="../episims_city/">
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -403,8 +403,6 @@
       
         
           
-        
-      
         
       
         
@@ -1616,34 +1614,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../overview/migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9873,6 +9843,8 @@
       
         
       
+        
+      
     
     
     
@@ -10183,6 +10155,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11333,6 +11333,8 @@
       
         
       
+        
+      
     
     
     
@@ -11475,6 +11477,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13304,6 +13334,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13382,6 +13416,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13390,6 +13452,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35960,8 +36050,8 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">UpdateLaw</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">next_value</span><span class="p">,</span> <span class="n">increment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">'increment'</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_order</span><span class="p">())]</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>first.x: x_first(t + 1) == -(e_second*x_second(t) + x_first(t))*a_first*(where(recovery_first &gt;= 4, x_first(t - 4), 0) + where(recovery_first &gt;= 5, x_first(t - 5), 0) + where(recovery_first &gt;= 7, x_first(t - 7), 0) + where(recovery_first &gt;= 2, x_first(t - 2), 0) + where(recovery_first &gt;= 6, x_first(t - 6), 0) + where(recovery_first &gt;= 1, x_first(t - 1), 0) + where(recovery_first &gt;= 10, x_first(t - 10), 0) + where(recovery_first &gt;= 11, x_first(t - 11), 0) + where(recovery_first &gt;= 9, x_first(t - 9), 0) + where(recovery_first &gt;= 8, x_first(t - 8), 0) + where(recovery_first &gt;= 12, x_first(t - 12), 0) + where(recovery_first &gt;= 3, x_first(t - 3), 0) + x_first(t) - 1)
-second.x: x_second(t + 1) == -(e_first*x_first(t) + x_second(t))*a_second*(where(recovery_second &gt;= 6, x_second(t - 6), 0) + where(recovery_second &gt;= 7, x_second(t - 7), 0) + where(recovery_second &gt;= 4, x_second(t - 4), 0) + where(recovery_second &gt;= 5, x_second(t - 5), 0) + where(recovery_second &gt;= 1, x_second(t - 1), 0) + where(recovery_second &gt;= 2, x_second(t - 2), 0) + where(recovery_second &gt;= 3, x_second(t - 3), 0) + where(recovery_second &gt;= 9, x_second(t - 9), 0) + where(recovery_second &gt;= 10, x_second(t - 10), 0) + where(recovery_second &gt;= 11, x_second(t - 11), 0) + where(recovery_second &gt;= 12, x_second(t - 12), 0) + where(recovery_second &gt;= 8, x_second(t - 8), 0) + x_second(t) - 1)
+<div class="highlight"><pre><span></span><code>first.x: x_first(t + 1) == -(e_second*x_second(t) + x_first(t))*a_first*(where(recovery_first &gt;= 2, x_first(t - 2), 0) + where(recovery_first &gt;= 1, x_first(t - 1), 0) + where(recovery_first &gt;= 4, x_first(t - 4), 0) + where(recovery_first &gt;= 6, x_first(t - 6), 0) + where(recovery_first &gt;= 3, x_first(t - 3), 0) + where(recovery_first &gt;= 5, x_first(t - 5), 0) + where(recovery_first &gt;= 12, x_first(t - 12), 0) + where(recovery_first &gt;= 8, x_first(t - 8), 0) + where(recovery_first &gt;= 9, x_first(t - 9), 0) + where(recovery_first &gt;= 10, x_first(t - 10), 0) + where(recovery_first &gt;= 11, x_first(t - 11), 0) + where(recovery_first &gt;= 7, x_first(t - 7), 0) + x_first(t) - 1)
+second.x: x_second(t + 1) == -(e_first*x_first(t) + x_second(t))*a_second*(where(recovery_second &gt;= 12, x_second(t - 12), 0) + where(recovery_second &gt;= 8, x_second(t - 8), 0) + where(recovery_second &gt;= 9, x_second(t - 9), 0) + where(recovery_second &gt;= 11, x_second(t - 11), 0) + where(recovery_second &gt;= 10, x_second(t - 10), 0) + where(recovery_second &gt;= 1, x_second(t - 1), 0) + where(recovery_second &gt;= 3, x_second(t - 3), 0) + where(recovery_second &gt;= 2, x_second(t - 2), 0) + where(recovery_second &gt;= 4, x_second(t - 4), 0) + where(recovery_second &gt;= 7, x_second(t - 7), 0) + where(recovery_second &gt;= 6, x_second(t - 6), 0) + where(recovery_second &gt;= 5, x_second(t - 5), 0) + x_second(t) - 1)
 </code></pre></div>
 
 
@@ -36034,10 +36124,10 @@ second.x: x_second(t + 1) == -(e_first*x_first(t) + x_second(t))*a_second*(where
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../../assets/_markdown_exec_pyodide.js"></script>
       

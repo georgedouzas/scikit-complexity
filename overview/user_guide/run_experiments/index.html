@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -405,8 +405,6 @@
       
         
           
-        
-      
         
       
         
@@ -1653,6 +1651,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#bayesian-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bayesian calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1698,34 +1707,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../migration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrating from 0.6 to 0.7
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -9948,6 +9929,8 @@
       
         
       
+        
+      
     
     
     
@@ -10258,6 +10241,34 @@
     
   
     Strömbom shepherding of a flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/collective_behaviour/many_body_alignment_swarm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm with many-body flanking and encirclement alignment
   
 
     
@@ -11406,6 +11417,8 @@
       
         
       
+        
+      
     
     
     
@@ -11548,6 +11561,34 @@
     
   
     Degree-class SIR on uncorrelated networks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/epidemiology/differentiable_covid_abm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differentiable COVID agents in places
   
 
     
@@ -13264,6 +13305,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -13342,6 +13387,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../systems/biology/oncology/off_lattice_tumour_growth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biphasic off-lattice tumour growth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../systems/biology/oncology/bone_marrow_blood_leukaemia/" class="md-nav__link">
         
   
@@ -13350,6 +13423,34 @@
     
   
     Bone-marrow and blood cells with blasts and cancer stem cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/biology/oncology/cell_cycle_invasion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell cycle and invasion on a triangular lattice
   
 
     
@@ -35380,6 +35481,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#bayesian-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bayesian calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -35486,6 +35598,83 @@ thousands of runs compile once per model parameter.</p>
 <li><code>sensitivity</code> runs a design of its own and ranks the inputs one at a time with <code>method='oat'</code>, by Morris screening
   with <code>'morris'</code>, or by Sobol indices with SALib with <code>'sobol'</code>.</li>
 </ul>
+<h3 id="bayesian-calibration">Bayesian calibration</h3>
+<p>Get posterior uncertainty for the parameters of any system, deterministic or stochastic, with checks that it can be
+trusted. <code>method</code> says how <code>calibrate</code> searches or samples, and <code>loss</code> what scores a candidate.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.experiments</span><span class="w"> </span><span class="kn">import</span> <span class="n">calibrate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.systems.biology.ecology</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogisticGrowthSystem</span>
+
+<span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">21.0</span><span class="p">)</span>
+<span class="n">observed</span> <span class="o">=</span> <span class="mi">500</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">49</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.8</span> <span class="o">*</span> <span class="n">times</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">0.02</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'r'</span><span class="p">:</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">),</span> <span class="s1">'K'</span><span class="p">:</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)}</span>
+<span class="n">posterior</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span>
+    <span class="n">LogisticGrowthSystem</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mf">10.0</span><span class="p">),</span>
+    <span class="p">{</span><span class="s1">'population.n'</span><span class="p">:</span> <span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">observed</span><span class="p">)},</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="s1">'mcmc'</span><span class="p">,</span>
+    <span class="n">loss</span><span class="o">=</span><span class="s1">'likelihood'</span><span class="p">,</span>
+    <span class="n">n_samples</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">round</span><span class="p">(</span><span class="n">posterior</span><span class="o">.</span><span class="n">estimates</span><span class="p">[</span><span class="s1">'r'</span><span class="p">],</span> <span class="mi">2</span><span class="p">),</span> <span class="n">posterior</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">[</span><span class="s1">'sampler'</span><span class="p">],</span> <span class="n">posterior</span><span class="o">.</span><span class="n">predictive</span><span class="p">[</span><span class="s1">'coverage'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.75</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>(0.81, 'nuts', True)
+</code></pre></div>
+<ul>
+<li>Methods: <code>'local'</code>, the default, is a local SciPy fit, <code>'global'</code> searches the bounds with Optuna's seeded
+  tree-structured Parzen estimator for <code>budget</code> evaluations, <code>'abc_smc'</code> samples an approximate posterior by ABC-SMC
+  with pyabc, <code>'mcmc'</code> samples the posterior of a likelihood with numpyro, and <code>'variational'</code> fits a multivariate
+  normal posterior with numpyro SVI through differentiable runs on JAX.</li>
+<li>Losses: <code>'squares'</code>, <code>'likelihood'</code>, the Gaussian likelihood with an unknown variance, and <code>'events'</code>, the
+  likelihood of recorded draws. <code>'local'</code> and <code>'global'</code> take all three, <code>'abc_smc'</code> compares summaries, <code>'mcmc'</code> takes
+  <code>'likelihood'</code> and <code>'events'</code>, and <code>'variational'</code> takes <code>'likelihood'</code> and <code>'squares'</code>.</li>
+<li>Priors: a bound is a pair <code>(low, high)</code>, read as a uniform prior, or a SciPy distribution, read as the prior. Point
+  fits search the pair or the central 99.9% of the distribution. MCMC and variational calibration take the uniform,
+  normal, log-normal, truncated normal, beta, gamma, and exponential families.</li>
+<li>Summaries: <code>summary=</code> maps the series by path to summary statistics, such as final counts or peak times, which
+  ABC-SMC compares by an adaptive distance. Without it ABC-SMC compares the series at the data times.</li>
+<li>Events: <code>loss='events'</code> takes as data a trajectory recorded with <code>simulate(..., record_draws=True)</code> and scores
+  every candidate by the log-probability of the recorded draws replayed under it, the exact likelihood of a
+  stochastic model with no model-specific code, as the page <a href="../simulate/">Simulate</a> shows. Pass the seed of the
+  recorded run as <code>random_state</code>.</li>
+<li>Diagnostics: a posterior result holds <code>samples</code>, <code>weights</code>, and the posterior medians as <code>estimates</code>.
+  <code>diagnostics</code> holds the tolerance and the acceptance rate of every generation of ABC-SMC, the split R-hat and the
+  effective sample size of every parameter of MCMC, and the loss history of variational calibration. <code>predictive</code>
+  holds the 5%, 50%, and 95% quantiles of the series of posterior draws at the data times and the share of observed
+  points inside the band.</li>
+<li>MCMC runs NUTS through the JAX run of a system with the tag <code>differentiable</code> and the Gaussian likelihood, and the
+  gradient-free affine invariant ensemble sampler otherwise, which is slower and mixes poorly in many dimensions.</li>
+</ul>
+<p>Check that a posterior method gives credible intervals that can be trusted with <code>posterior_coverage</code>. It draws true
+parameters from the priors, simulates data at each with Gaussian noise, calibrates every data set, and reports how
+often the central interval of every level holds the truth, with the rank of every truth among its samples, the check
+of simulation-based calibration. A calibrated method covers the truth at about the rate of the level, and its ranks
+are uniform.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.experiments</span><span class="w"> </span><span class="kn">import</span> <span class="n">posterior_coverage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.systems.biology.ecology</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogisticGrowthSystem</span>
+
+<span class="n">coverage</span> <span class="o">=</span> <span class="n">posterior_coverage</span><span class="p">(</span>
+    <span class="n">LogisticGrowthSystem</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mf">10.0</span><span class="p">),</span>
+    <span class="p">{</span><span class="s1">'r'</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)},</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">11.0</span><span class="p">),</span>
+    <span class="n">method</span><span class="o">=</span><span class="s1">'variational'</span><span class="p">,</span>
+    <span class="n">n</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">levels</span><span class="o">=</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">),</span>
+    <span class="n">noise</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">n_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">budget</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">coverage</span><span class="o">.</span><span class="n">coverage</span><span class="p">[</span><span class="mf">0.9</span><span class="p">][</span><span class="s1">'r'</span><span class="p">],</span> <span class="n">coverage</span><span class="o">.</span><span class="n">ranks</span><span class="p">[</span><span class="s1">'r'</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>(0.5, (4,))
+</code></pre></div>
 
 
 
@@ -35557,10 +35746,10 @@ thousands of runs compile once per model parameter.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../../assets/_markdown_exec_pyodide.js"></script>
       
