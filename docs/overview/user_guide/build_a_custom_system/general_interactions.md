@@ -577,9 +577,9 @@ round(float(distances.min()), 2), round(float(distances.max()), 2)
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
 
-The physics `StokesianMobilityInteraction` of `skcomplex.systems.physics.common.particles` moves spheres in a viscous
-fluid at low Reynolds number, where the force on one sphere moves all the others through the flow it creates, as in
-`SquirmersSystem`. Two spheres that sediment side by side fall faster than one alone.
+The physics `StokesianMobilityInteraction` moves spheres in a viscous fluid at low Reynolds number, where the force on
+one sphere moves all the others through the flow it creates, as in `SquirmersSystem`. Two spheres that sediment side by
+side fall faster than one alone.
 
 `StokesianMobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate',
 force, torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)`
