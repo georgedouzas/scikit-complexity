@@ -13,6 +13,7 @@ from ._lattice_state_spec import LatticeStateSpec
 from ._node_spec import NodeSpec
 from ._operator_view_spec import OperatorViewSpec
 from ._scenario_spec import ScenarioSpec
+from ._subsystem_spec import SubsystemSpec
 
 __all__: list[str] = [
     'CensusRecordSpec',
@@ -25,4 +26,5 @@ __all__: list[str] = [
     'NodeSpec',
     'OperatorViewSpec',
     'ScenarioSpec',
+    'SubsystemSpec',
 ]

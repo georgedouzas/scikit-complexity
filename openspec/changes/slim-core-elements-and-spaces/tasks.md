@@ -17,7 +17,7 @@
 
 ## 4. Core spec
 
-- [ ] 4.1 Rename `_SubsystemSpec` to `SubsystemSpec`, export it from `core/components/specs/__init__.py`, import it from the package in `engine/problems/_operator_lowering.py` and `engine/compile/passes/_operator_compiler.py`, and verify `grep -rn "_SubsystemSpec" src tests` finds nothing
+- [x] 4.1 Rename `_SubsystemSpec` to `SubsystemSpec`, export it from `core/components/specs/__init__.py`, import it from the package in `engine/problems/_operator_lowering.py` and `engine/compile/passes/_operator_compiler.py`, and verify `grep -rn "_SubsystemSpec" src tests` finds nothing
 
 ## 5. Field realizations
 

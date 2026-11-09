@@ -17,8 +17,13 @@ from sage.modules.free_module import FreeModule_generic
 from ....components.elements import BaseElement, Element, GroupElement
 from ....components.interactions import BaseInteraction, NeighborInteraction
 from ....components.laws import DissipatorLaw, GeneratorLaw
-from ....components.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec, OperatorViewSpec
-from ....components.specs._subsystem_spec import _SubsystemSpec
+from ....components.specs import (
+    CompiledElementSpec,
+    CompiledInteractionSpec,
+    NodeSpec,
+    OperatorViewSpec,
+    SubsystemSpec,
+)
 from ....components.systems import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableSpec
@@ -621,16 +626,16 @@ class OperatorCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, _SubsystemSpec]:
+    def _subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, SubsystemSpec]:
         """Return the subsystems of the operator elements and groups in tensor order.
 
         Each comes with its state symbol.
         """
-        subsystems: dict[str, _SubsystemSpec] = {}
+        subsystems: dict[str, SubsystemSpec] = {}
         for node in operator_nodes:
             for key, element in OperatorCompiler._members_of(node):
                 state = symbol(f'{element.state}_{OperatorCompiler._name_of(key)}', CC)
-                subsystems[key] = _SubsystemSpec(key, element, len(subsystems), state, element.local_operators())
+                subsystems[key] = SubsystemSpec(key, element, len(subsystems), state, element.local_operators())
         return subsystems
 
     @staticmethod
@@ -646,7 +651,7 @@ class OperatorCompiler(BaseCompiler):
     @staticmethod
     def _element_laws(
         operator_nodes: list[NodeSpec],
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, SubsystemSpec],
         *,
         symbols: Mapping[str, object],
         time: Expression,
@@ -680,7 +685,7 @@ class OperatorCompiler(BaseCompiler):
         system: System,
         initial: object,
         *,
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, SubsystemSpec],
         generator: tuple[OperatorKernel, ...],
         p: Array,
         is_open: bool,

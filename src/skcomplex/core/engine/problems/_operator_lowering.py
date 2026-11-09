@@ -19,7 +19,7 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 from ...base import BaseConfig
 from ...components.laws.utils import dagger, has_operator, operator_product
 from ...components.laws.utils._local_operators import LOCAL_OPERATOR
-from ...components.specs._subsystem_spec import _SubsystemSpec
+from ...components.specs import SubsystemSpec
 from ...errors import ValidationError
 from ...specs import LocalOperatorSpec, OperatorSpec
 from ...types import Array
@@ -61,7 +61,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
     def __init__(
         self,
         time: Expression,
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, SubsystemSpec],
         dimensions: tuple[int, ...],
         arguments: Mapping[Expression, int],
     ) -> None:

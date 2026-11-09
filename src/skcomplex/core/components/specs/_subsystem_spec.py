@@ -14,10 +14,26 @@ from ._operator_view_spec import OperatorViewSpec
 
 
 @dataclass(frozen=True)
-class _SubsystemSpec(BaseSpec):
+class SubsystemSpec(BaseSpec):
     """Subsystem of a tensor product.
 
-    It holds its key, its element, its index in the tensor product, its state symbol, and operators.
+    The operator compiler builds one per operator element, and the operator lowering reads them.
+
+    Args:
+        key:
+            The key of the subsystem, the path of its element.
+
+        element:
+            The operator view of the element.
+
+        index:
+            The index of the subsystem in the tensor product.
+
+        symbol:
+            The state symbol of the subsystem.
+
+        operators:
+            The local operators of the element, by name.
     """
 
     key: str
