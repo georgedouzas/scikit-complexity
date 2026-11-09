@@ -13,15 +13,16 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, MapInteraction, PairInteraction, RateInteraction
+from ....core.components.interactions import MapInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ...general.elements import PointElement
+from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
 class BoidView(AgentView):
@@ -270,7 +271,7 @@ class FlightInteraction(MovementInteraction):
         return tuple(float(item) for item in np.mod(position, np.array([boid.width, boid.height])))
 
 
-class FlockingInteraction(CouplingInteraction):
+class FlockingInteraction(ZoneCouplingInteraction):
     """Reynolds' steering of every boid by the boids it sees, with a bounded speed.
 
     It steers a boid toward, away from, and along those boids.
@@ -302,7 +303,6 @@ class FlockingInteraction(CouplingInteraction):
             label,
             target=target,
             write=('vx', 'vy'),
-            form='agent',
             radii=(
                 RadiusSpec('radius', self._get_cohesion, reduce='mean'),
                 RadiusSpec('separation_radius', self._get_separation),

@@ -363,3 +363,7 @@ Decisions taken while applying the change, by the placement rule.
 - The tuple of algorithm specs that `OptimizationInteraction` checks is `ALGORITHM_SPECS` in `_optimisers.py`, since
   the module already names its table of algorithms `ALGORITHMS`. `pymoo` stays a runtime dependency, as the change
   decides no extra for it.
+- The agent form of `CouplingInteraction` was the zone branch, since it needed radii, so it leaves whole with
+  `ZoneCouplingInteraction`. The core coupling keeps the forms `'rate'` and `'map'` and checks one written state and
+  a phase of the map form in `_check_form`, which the zone coupling overrides with its own checks. `AgentCombination`
+  moves with it.

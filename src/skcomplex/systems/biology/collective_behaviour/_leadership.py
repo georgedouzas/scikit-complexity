@@ -14,23 +14,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, MapInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
-    ClampSpec,
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RadiusSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
 )
 from ....core.types import Array
 from ...general.agents import MovementInteraction
+from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
 class ShoalMemberView(AgentView):
@@ -146,7 +145,7 @@ class ShoalMemberElement(Element):
         return ShoalMemberView
 
 
-class SchoolingInteraction(CouplingInteraction):
+class SchoolingInteraction(ZoneCouplingInteraction):
     """Couzin's turn of every fish toward a desired direction, by at most `max_turn`.
 
     Zones around the fish set the desired direction.
@@ -178,7 +177,6 @@ class SchoolingInteraction(CouplingInteraction):
             label,
             target=target,
             write=('vx', 'vy'),
-            form='agent',
             combine=self._get_desired,
             radii=(
                 RadiusSpec('alpha', self._get_repulsion, priority=1),

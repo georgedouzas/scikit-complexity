@@ -18,7 +18,6 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from shapely import Polygon
 
-from ..types import Array
 from .spaces import DelaunayNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
@@ -29,7 +28,6 @@ type Reach = LatticeNeighborhood | MemoryNeighborhood
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]
-type AgentCombination = Callable[[AgentViewProtocol, SystemViewProtocol, Array | None, int | None], npt.ArrayLike]
 
 
 @runtime_checkable

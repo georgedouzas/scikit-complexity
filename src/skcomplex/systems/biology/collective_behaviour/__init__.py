@@ -36,6 +36,7 @@ from ._many_body_swarms import (
     SwarmAgentElement,
 )
 from ._trails import ActiveWalkersSystem, GroundElement, WalkerElement
+from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 __all__: list[str] = [
     'ActiveWalkersSystem',
@@ -48,6 +49,7 @@ __all__: list[str] = [
     'Boids3dSystem',
     'BoidsSystem',
     'BranchElement',
+    'ClampSpec',
     'ColonySearchInteraction',
     'CouzinLeadershipSystem',
     'EncirclementInteraction',
@@ -62,6 +64,7 @@ __all__: list[str] = [
     'MorsePotentialInteraction',
     'PheromoneElement',
     'PheromoneForagingSystem',
+    'RadiusSpec',
     'RatsElement',
     'RatsSystem',
     'SchoolingInteraction',
@@ -77,4 +80,5 @@ __all__: list[str] = [
     'TrailChoiceInteraction',
     'TrailSegmentElement',
     'WalkerElement',
+    'ZoneCouplingInteraction',
 ]

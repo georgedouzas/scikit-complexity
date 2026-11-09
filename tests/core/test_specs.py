@@ -27,7 +27,6 @@ from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.experiments import compare_scenarios
 from skcomplex.core.specs import (
     BaseSpec,
-    ClampSpec,
     DatasetSpec,
     HilbertSpec,
     LayerSpec,
@@ -38,7 +37,6 @@ from skcomplex.core.specs import (
     PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RadiusSpec,
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
@@ -744,21 +742,6 @@ def test_partner_spec_holds_no_value():
     """Test that a selection of partners keeps its candidates and has no clearing value, which only matchings read."""
     assert PartnerSpec(candidates=2.0).candidates == 2.0
     assert not hasattr(PartnerSpec(), 'value')
-
-
-@pytest.mark.parametrize(
-    ('spec', 'message'),
-    [
-        (RadiusSpec(1.0, lambda agent, other, system: (0.0,), reduce='max'), 'reduction'),
-        (RadiusSpec(1.0, 'term'), 'callable'),
-        (RadiusSpec(-1.0, lambda agent, other, system: (0.0,)), 'nonnegative'),
-        (ClampSpec(max_angle=-0.1), 'max_angle'),
-    ],
-)
-def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
-    """Test that a radius or a clamp with an invalid setting raises an error naming it."""
-    with pytest.raises(ValidationError, match=message):
-        spec._check()
 
 
 @pytest.mark.parametrize(

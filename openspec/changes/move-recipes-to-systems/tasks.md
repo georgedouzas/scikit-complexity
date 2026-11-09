@@ -121,7 +121,7 @@
   `computer_science/neural_networks/_perceptron.py`, with their tests. Remove `_satisfiability_issues` from
   `_pass_compiler.py`, and turn its test into the scenario "Real state" with `RoleElementError`. Verify with
   `tests/systems/computer_science/neural_networks` and `tests/core/engine/compile/test_pass_compiler.py`.
-- [ ] 8.5 Move the zone branch of `CouplingInteraction` (`radii`, `clamp`, their checks and methods) with `RadiusSpec`
+- [x] 8.5 Move the zone branch of `CouplingInteraction` (`radii`, `clamp`, their checks and methods) with `RadiusSpec`
   and `ClampSpec` into `ZoneCouplingInteraction` in `biology/collective_behaviour/_zones.py`, and migrate flocks and
   leadership. Verify with the coupling tests and `tests/systems/biology/collective_behaviour`.
 - [ ] 8.6 Move the score branches of `SamplingInteraction`: `RegionScoreSpec` with its methods into
