@@ -143,7 +143,7 @@ class CoSimulationSolver(Solver):
                 TransferLaw,
                 BoundaryLaw,
             },
-            noise=frozenset(NoiseKind),
+            noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset(OrderKind),
         )
 

@@ -15,7 +15,7 @@ when other agents run tests at the same time.
   `law.hurst is not None` in place of the class, record `NoiseKind.FRACTIONAL` for such a law, and give the fix text of
   that kind the name of `FractionalEulerMaruyamaSolver`, and verify
   `pytest tests/core/engine/compile/passes/test_fractional_form.py` passes after its laws become `NoiseLaw(..., hurst=)`
-- [ ] 1.4 Set the noise support of `FractionalEulerMaruyamaSolver` to `{DIAGONAL, FRACTIONAL}` and remove
+- [x] 1.4 Set the noise support of `FractionalEulerMaruyamaSolver` to `{DIAGONAL, FRACTIONAL}` and remove
   `FractionalNoiseLaw` from its laws, set `EulerMaruyamaSolver`, `HeunSolver`, and `CoSimulationSolver` to every kind
   but `FRACTIONAL`, and remove `FractionalNoiseLaw` from the numpy and numba backends, and verify
   `pytest tests/core/engine/solvers/test_fractional_euler_maruyama.py` passes, including the wrong stepper error
