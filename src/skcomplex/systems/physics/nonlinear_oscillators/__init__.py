@@ -17,7 +17,6 @@ from ._oscillators import (
     NuclearQuadrupoleSystem,
     QuadrupoleElement,
     StuartLandauSystem,
-    TodaElement,
     VanDerPolElement,
     VanDerPolSystem,
 )
@@ -39,7 +38,6 @@ __all__: list[str] = [
     'SinaiBilliardElement',
     'StuartLandauSystem',
     'ThreeDiskBilliardElement',
-    'TodaElement',
     'VanDerPolElement',
     'VanDerPolSystem',
 ]
