@@ -105,7 +105,7 @@ when other agents run tests at the same time.
   `pytest tests/systems/engineering` passes with unchanged trajectories
 - [x] 6.4 Make the translator write `series` for lookups and `distributed_delay` for delays and smoothings, and verify
   `pytest tests/core/engine/translators/test_system_dynamics.py` passes, including `DELAY3` within 1e-6 of PySD
-- [ ] 6.5 Delete `laws/utils/_lookups.py`, `delay1`, `delay3`, and `smooth`, with their re-exports, move the delay
+- [x] 6.5 Delete `laws/utils/_lookups.py`, `delay1`, `delay3`, and `smooth`, with their re-exports, move the delay
   docstrings into `distributed_delay`, and update `test_delays.py`, and verify
   `pytest tests/core/components/laws/utils` passes
 - [ ] 6.6 Give `inverse_helmholtz` the default screening `0`, remove `inverse_laplacian`, use `inverse_helmholtz` in

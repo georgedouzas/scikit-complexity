@@ -12,11 +12,10 @@ from ._cells import cell_operations_in, codifferential, exterior_derivative, hod
 from ._components import components
 from ._conditions import both, either, mod, where
 from ._contractions import contraction, contractions_in
-from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
+from ._delays import delay_parts, distributed_delay
 from ._history import delayed, derivative, lag, residence
 from ._integrals import cumulative_integral, integral_transform, integration_variable
 from ._local_operators import dagger, has_operator, local_operator, operator_product
-from ._lookups import lookup
 from ._moments import moment
 from ._operators import (
     INVERSION_BOUNDARIES,
@@ -89,8 +88,6 @@ __all__: list[str] = [
     'count',
     'cumulative_integral',
     'dagger',
-    'delay1',
-    'delay3',
     'delay_parts',
     'delayed',
     'derivative',
@@ -118,7 +115,6 @@ __all__: list[str] = [
     'local_operator',
     'log_sum_exp',
     'logistic',
-    'lookup',
     'matches',
     'maximum',
     'maximum_entropy',
@@ -145,7 +141,6 @@ __all__: list[str] = [
     'shifted',
     'shortest_paths',
     'sign',
-    'smooth',
     'step',
     'stop_gradient',
     'symmetric_part',

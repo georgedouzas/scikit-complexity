@@ -54,6 +54,12 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
     to a pulse is the Erlang distribution of the order with the mean `time`. A delay that does not conserve its input
     smooths it, each stage adjusting to the previous one at `gap / (time / order)`, and its output starts at the value.
 
+    The first-order material delay is one hidden stock emptied at `stock / time`, and the third-order material delay
+    is three hidden stocks in series, each with a third of the time, whose response to a pulse is the Erlang
+    distribution of order 3. The first-order delay that does not conserve its input is the exponential smoothing of
+    the value, a hidden stock that adjusts at `gap / time`. These are the `DELAY1`, `DELAY3`, and `SMOOTH` functions of
+    system dynamics.
+
     Args:
         value:
             The symbolic input.
@@ -78,6 +84,8 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import distributed_delay
+        >>> distributed_delay(var('inflow'), 4)
+        material_delay1(inflow, 4)
         >>> distributed_delay(var('orders'), 4, order=3)
         material_delay3(orders, 4)
         >>> distributed_delay(var('sales'), 2, conserved=False)
@@ -92,90 +100,3 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
         raise ValueError(error_msg)
     return function(name, nargs=2, eval_func=_eval_delay)(value, time)
 
-
-def delay1(value: object, time: object) -> Expression:
-    """Return the outflow of a first-order material delay of an inflow.
-
-    The delay is one hidden stock emptied at `stock / time`.
-
-    Args:
-        value:
-            The symbolic inflow.
-
-        time:
-            The mean delay time, a positive number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic outflow.
-
-    Raises:
-        ValueError:
-            The delay time is a number that is not positive.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import delay1
-        >>> delay1(var('inflow'), 4)
-        material_delay1(inflow, 4)
-    """
-    return distributed_delay(value, time, 1)
-
-
-def delay3(value: object, time: object) -> Expression:
-    """Return the outflow of a third-order material delay.
-
-    The delay is three hidden stocks in series, each with a third of the time. The response to a pulse is the Erlang
-    distribution of order 3 with the mean `time`.
-
-    Args:
-        value:
-            The symbolic inflow.
-
-        time:
-            The mean delay time, a positive number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic outflow.
-
-    Raises:
-        ValueError:
-            The delay time is a number that is not positive.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import delay3
-        >>> delay3(var('inflow'), 6)
-        material_delay3(inflow, 6)
-    """
-    return distributed_delay(value, time, 3)
-
-
-def smooth(value: object, time: object) -> Expression:
-    """Return the first-order exponential smoothing of a value.
-
-    The smoothing is a hidden stock that adjusts at `gap / time`.
-
-    Args:
-        value:
-            The symbolic value.
-
-        time:
-            The smoothing time, a positive number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic smoothed value, which starts at the value.
-
-    Raises:
-        ValueError:
-            The smoothing time is a number that is not positive.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import smooth
-        >>> smooth(var('signal'), 2)
-        smoothing_delay1(signal, 2)
-    """
-    return distributed_delay(value, time, 1, conserved=False)
