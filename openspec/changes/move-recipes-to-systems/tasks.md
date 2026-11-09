@@ -108,7 +108,7 @@
 
 ## 8. Recipes of one field
 
-- [ ] 8.1 Move `CascadeInteraction` to `physics/common/avalanches/_toppling.py` as `TopplingInteraction`, with its
+- [x] 8.1 Move `CascadeInteraction` to `physics/common/avalanches/_toppling.py` as `TopplingInteraction`, with its
   tests, and repoint criticality, sandpiles, and faults. Replace its `BallNeighborhood` default by the lattice default.
   Verify with `tests/systems/physics` for those modules and the scenario "Sandpile avalanches".
 - [ ] 8.2 Move `FeedbackInteraction` to `economics/common/policy/_policy_rule.py` as `PolicyRuleInteraction`, with its

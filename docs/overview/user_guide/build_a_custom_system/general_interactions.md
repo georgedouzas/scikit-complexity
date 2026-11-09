@@ -28,7 +28,7 @@ list, then follow the link to its subsection.
 - Conserve, carry, or spread a quantity over a field: `ConservationInteraction` and `RateInteraction`, in
   [Conservation laws](#conservation-laws).
 - Update a state in steps, search by trial and error, or run a cellular automaton or a cascade: `MapInteraction`,
-  `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
+  `LocalRuleInteraction`, and `TopplingInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
   and `PairInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
 - Move particles through a viscous fluid by the forces, torques, and active slip of all of them: the physics
@@ -438,7 +438,7 @@ simulate(system, until=3).values('quote.x').tolist()
 The next value is `x (1 + step sign(signal))` kept within `[lower, upper]`. Economics names this search
 `PriceAdjustmentInteraction`, with an additive stepping and an agent form.
 
-Use `LocalRuleInteraction` for a cellular automaton and `CascadeInteraction` for a cascade. The helper `run` below
+Use `LocalRuleInteraction` for a cellular automaton and `TopplingInteraction` for a cascade. The helper `run` below
 places a row of five cells and runs one interaction on it:
 
 ```python
@@ -447,7 +447,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CascadeInteraction, LocalRuleInteraction
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -481,12 +482,12 @@ rule, or a function of the ordered neighbourhood.
 
 ```python continuation
 around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
-toppling = CascadeInteraction('toppling', target='cells', state='c', threshold=2, share=1, neighborhood=around)
+toppling = TopplingInteraction('toppling', target='cells', state='c', threshold=2, share=1, neighborhood=around)
 trajectory = run(toppling, [0.0, 1.0, 3.0, 1.0, 0.0], 1)
 trajectory.states[-1].tolist(), [event.size for event in trajectory.events]
 ```
 
-`CascadeInteraction(target, state, threshold, share, mode, drive=None, neighborhood=None)` first drives the members.
+`TopplingInteraction(target, state, threshold, share, mode, drive=None, neighborhood=None)` first drives the members.
 It then relaxes every member at or above a threshold by a reset, a redistribution, or a random share, and records each
 cascade as an event.
 

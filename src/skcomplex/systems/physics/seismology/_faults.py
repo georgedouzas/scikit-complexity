@@ -14,11 +14,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CascadeInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.avalanches import TopplingInteraction
 
 THRESHOLD = 1.0
 
@@ -125,7 +125,7 @@ class EarthquakesSystem(BaseSystem):
             self.label,
             elements=[GroupElement('fault', element=FaultElement, space=space, values={'force': forces}, on='sites')],
             interactions=[
-                CascadeInteraction(
+                TopplingInteraction(
                     'earthquake',
                     target='fault',
                     state='force',

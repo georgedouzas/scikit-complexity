@@ -13,17 +13,17 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 
-from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec
-from ...types import Array, ElementKind
-from ..laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
-from ..spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
-from ._neighbor import NeighborInteraction
+from .....core.components.interactions import NeighborInteraction
+from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
+from .....core.components.spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
+from .....core.errors import ValidationError
+from .....core.specs import BaseSpec, RoleSpec
+from .....core.types import Array, ElementKind
 
 MODES = ('redistribute', 'reset', 'random')
 
 
-class CascadeInteraction(NeighborInteraction):
+class TopplingInteraction(NeighborInteraction):
     """Cascade of the members whose state reaches a threshold.
 
     These members relax and pass shares to their neighbours. At every step the drive changes the state, and then every
@@ -73,8 +73,8 @@ class CascadeInteraction(NeighborInteraction):
             mode `'random'` has no lattice neighbourhood or a threshold that is not a whole number of parcels.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import CascadeInteraction
-        >>> cascade = CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1)
+        >>> from skcomplex.systems.physics.common.avalanches import TopplingInteraction
+        >>> cascade = TopplingInteraction('cascade', target='sites', state='height', threshold=4, share=1)
         >>> cascade.mode
         'redistribute'
     """

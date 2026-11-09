@@ -357,3 +357,6 @@ Decisions taken while applying the change, by the placement rule.
 - `test_validation.py` checks the role element error with a local agent rule on `RuleLaw`. The Mesa tests of continuous
   spaces keep `MovementInteraction` as the fixture that moves agents, imported from `skcomplex.systems.general.agents`,
   since they test the solver and not the movement. The variant cases of movement and birth-death moved to their tests.
+- `TopplingInteraction` keeps its default `BallNeighborhood(metric='manhattan', center='first')`. The default
+  neighbourhood of a lattice leaves out the site itself, which the relaxation reads first, and the toppling builds its
+  laws without the space. `BallNeighborhood` stays in the core, so the physics family imports it publicly.

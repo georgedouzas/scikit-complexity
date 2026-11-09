@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction
+from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
     BallNeighborhood,
@@ -27,7 +27,7 @@ from ....core.components.spaces import (
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common.avalanches import SandpileCellElement
+from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
 
 class ForestElement(Element):
@@ -75,7 +75,7 @@ class ForestElement(Element):
         self.lightning = lightning
 
 
-class AvalancheInteraction(CascadeInteraction):
+class AvalancheInteraction(TopplingInteraction):
     """Slowly driven sandpile.
 
     Every step drops one grain on a random site, and the full sites topple in avalanches.

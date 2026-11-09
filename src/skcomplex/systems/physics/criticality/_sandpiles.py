@@ -16,13 +16,13 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
+from ....core.components.interactions import LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common.avalanches import SandpileCellElement
+from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
 
 class BranchingTreeElement(Element):
@@ -308,7 +308,7 @@ class ZhangSandpileSystem(BaseSystem):
         """
         energies = np.random.default_rng(self.random_state).uniform(0.0, self.threshold, size=tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        avalanche = CascadeInteraction(
+        avalanche = TopplingInteraction(
             'avalanche',
             target='pile',
             state='energy',

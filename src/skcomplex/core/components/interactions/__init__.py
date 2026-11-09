@@ -7,7 +7,6 @@ Interactions are the parts of a system whose laws couple elements to each other 
 # License: MIT
 
 from ._base import SCHEDULES, BaseInteraction
-from ._cascade import CascadeInteraction
 from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
@@ -38,7 +37,6 @@ __all__: list[str] = [
     'OPTIMIZERS',
     'SCHEDULES',
     'BaseInteraction',
-    'CascadeInteraction',
     'ConnectionInteraction',
     'ConservationInteraction',
     'CouplingInteraction',

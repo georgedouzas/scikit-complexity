@@ -1,4 +1,4 @@
-"""Test the `_cascade` module of `skcomplex.core.components.interactions`."""
+"""Test the `_toppling` module of `skcomplex.systems.physics.common.avalanches`."""
 
 from typing import Annotated
 
@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CascadeInteraction
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
     BallNeighborhood,
@@ -19,6 +18,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
 SIDE = 50
 STEPS = 12000
@@ -40,7 +40,7 @@ class SiteElement(Element):
         self.height = height
 
 
-class PileInteraction(CascadeInteraction):
+class PileInteraction(TopplingInteraction):
     """Cascade that binds its sites as `pile`."""
 
     def __init__(self, label: str, *, pile: Annotated[str, RoleSpec()], **arguments: object) -> None:
@@ -63,7 +63,7 @@ def _run(space, heights, threshold, until, seed=0, **arguments):
     """Return the trajectory of a cascade over the sites of a space, run for some steps."""
     system = CompositeSystem(
         elements=[GroupElement('sites', element=SiteElement, space=space, values={'height': heights}, on='sites')],
-        interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
+        interactions=[TopplingInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
     )
     return simulate(system, until=until, dt=until, random_state=seed)
@@ -159,7 +159,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
 def test_check_rejects_unknown_modes_drives_and_neighbourhoods(arguments, match):
     """Test that unknown modes, drives, neighbourhoods, and parcels that do not divide the threshold raise errors."""
     with pytest.raises(ValidationError, match=match):
-        CascadeInteraction('cascade', target='sites', **arguments).prepare()
+        TopplingInteraction('cascade', target='sites', **arguments).prepare()
 
 
 def test_get_laws_reads_a_renamed_target():
@@ -171,7 +171,7 @@ def test_get_laws_reads_a_renamed_target():
     ]
     finals = []
     for cascade in (
-        CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1),
+        TopplingInteraction('cascade', target='sites', state='height', threshold=4, share=1),
         PileInteraction('cascade', pile='sites', state='height', threshold=4, share=1),
     ):
         system = CompositeSystem(elements=elements, interactions=[cascade], time=DiscreteTime())

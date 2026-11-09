@@ -11,7 +11,6 @@ from skcomplex.core.components import interactions
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
-    CascadeInteraction,
     CouplingInteraction,
     CrossingInteraction,
     GradientInteraction,
@@ -52,6 +51,7 @@ from skcomplex.systems.general.agents import (
 )
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.reactions import ReactionInteraction
+from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
 from ....conftest import NodeElement
 
@@ -365,7 +365,7 @@ SPEC_VARIANTS = {
     'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
     'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
     'topology action': lambda spec: PruningInteraction('change', target='nodes', action=spec),
-    'cascade mode': lambda spec: CascadeInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
+    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
     'coupling mode': lambda spec: CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=spec),
     'map mode': lambda spec: MapInteraction('map', target='nodes', state='x', function=lambda s: 1, mode=spec),
 }
@@ -492,7 +492,7 @@ UNHANDLED_VARIANTS = {
         '_get_requests',
     ),
     'cascade': (
-        lambda: _run_variant(CascadeInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
+        lambda: _run_variant(TopplingInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
         '_relax',
     ),
     'coupling': (
