@@ -24,7 +24,7 @@ when other agents run tests at the same time.
   verify `pytest tests/core/components/interactions` passes
 - [x] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`
   to write `NoiseLaw(..., hurst=)`, and verify their markdown doctests pass
-- [ ] 1.7 Delete `laws/_fractional_noise.py` and its re-export, and verify `grep -rn FractionalNoiseLaw src tests docs`
+- [x] 1.7 Delete `laws/_fractional_noise.py` and its re-export, and verify `grep -rn FractionalNoiseLaw src tests docs`
   finds nothing and `pytest tests/core` passes
 
 ## 2. Transition law with a source
