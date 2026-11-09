@@ -5,7 +5,7 @@ The package covers pendulums, oscillators, friction, projectiles, collisions, ro
 
 from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import HarmonicForceInteraction
-from ._accelerators import BeamBeamMapSystem, FrictionOscillatorElement, FrictionOscillatorSystem
+from ._accelerators import BeamBeamMapSystem, FrictionOscillatorSystem
 from ._mechanics import (
     BouncingBallElement,
     BouncingBallSystem,
@@ -73,7 +73,6 @@ __all__: list[str] = [
     'DrivenDampedOscillatorSystem',
     'ElasticCollisionInteraction',
     'ExponentialWellInteraction',
-    'FrictionOscillatorElement',
     'FrictionOscillatorSystem',
     'GimballedGyroscopeSystem',
     'GyroscopeElement',

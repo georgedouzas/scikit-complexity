@@ -7,126 +7,15 @@ The module holds the beam-beam map of colliding beams and a mass that sticks and
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import both, where
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
-
-
-class FrictionOscillatorElement(Element):
-    """Mass on a spring with static, Coulomb, and viscous friction.
-
-    The mass sticks and slips.
-
-    The mass `m` at the position `x` with the velocity `v` feels the spring `-k x` and the viscous friction `-c v`.
-    While it slides it feels the Coulomb friction `-mu_k m g sign(v)`, and at rest it stays at rest while the spring
-    force stays within the static friction `mu_s m g`. The friction is discontinuous in the velocity, so the mass
-    counts as at rest below the speed `v_stick`, which must exceed the change of speed of one solver step, and its
-    position stays still while it is at rest.
-
-    Args:
-        label:
-            The label of the mass.
-
-        visual:
-            How the mass is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        v:
-            The initial velocity.
-
-        m:
-            The mass.
-
-        k:
-            The stiffness of the spring.
-
-        c:
-            The viscous friction coefficient.
-
-        mu_s:
-            The static friction coefficient.
-
-        mu_k:
-            The kinetic friction coefficient.
-
-        g:
-            The gravitational acceleration.
-
-        v_stick:
-            The speed below which the mass counts as at rest.
-
-    Attributes:
-        default_visual_:
-            The visual of the mass when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.mechanics import FrictionOscillatorElement
-        >>> FrictionOscillatorElement('mass').mu_s
-        0.06
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 1.03,
-        v: Annotated[float, StateSpec()] = 0.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mu_s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        mu_k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        v_stick: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
-        self.m = m
-        self.k = k
-        self.c = c
-        self.mu_s = mu_s
-        self.mu_k = mu_k
-        self.g = g
-        self.v_stick = v_stick
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the mass under the spring and the friction.
-
-        The friction makes the mass stick and slip.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rates of the position and the velocity.
-        """
-        s = namespace
-        force = -s.k * s.x - s.c * s.v
-        moving = abs(s.v) > s.v_stick
-        direction = where(moving, where(s.v > 0, 1, -1), where(force > 0, 1, -1))
-        stuck = both(abs(s.v) <= s.v_stick, abs(s.k * s.x) <= s.mu_s * s.m * s.g)
-        return [
-            RateLaw(s.x, where(moving, s.v, 0)),
-            RateLaw(s.v, where(stuck, 0, (force - s.mu_k * s.m * s.g * direction) / s.m)),
-        ]
 
 
 def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
@@ -225,7 +114,7 @@ class BeamBeamMapSystem(DynamicalSystem):
         }
 
 
-class FrictionOscillatorSystem(BaseSystem):
+class FrictionOscillatorSystem(DynamicalSystem):
     """A mass on a linear spring with static, Coulomb, and viscous friction.
 
     The mass follows `m x'' + c x' + k x + f = 0`.
@@ -270,7 +159,7 @@ class FrictionOscillatorSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import FrictionOscillatorSystem
-        >>> FrictionOscillatorSystem(mu_k=0.1).prepare().system_.elements[0].mu_k
+        >>> FrictionOscillatorSystem(mu_k=0.1).prepare().system_.elements[0].get_value('mu_k')
         0.1
     """
 
@@ -295,7 +184,7 @@ class FrictionOscillatorSystem(BaseSystem):
         v_stick: float = 0.01,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.v = v
         self.m = m
@@ -306,21 +195,38 @@ class FrictionOscillatorSystem(BaseSystem):
         self.g = g
         self.v_stick = v_stick
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a mass on a linear spring with static, Coulomb, and viscous friction.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'mass'
 
-        The mass follows `m x'' + c x' + k x + f = 0`.
-        """
-        mass = FrictionOscillatorElement(
-            'mass',
-            x=self.x,
-            v=self.v,
-            m=self.m,
-            k=self.k,
-            c=self.c,
-            mu_s=self.mu_s,
-            mu_k=self.mu_k,
-            g=self.g,
-            v_stick=self.v_stick,
-        )
-        return CompositeSystem(self.label, elements=[mass])
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec()),
+            'v': DeclaredVariableSpec(self.v, StateSpec()),
+            'm': DeclaredVariableSpec(self.m, ParameterSpec(domain=RealSet.open(0, oo))),
+            'k': DeclaredVariableSpec(self.k, ParameterSpec(domain=nonnegative)),
+            'c': DeclaredVariableSpec(self.c, ParameterSpec(domain=nonnegative)),
+            'mu_s': DeclaredVariableSpec(self.mu_s, ParameterSpec(domain=nonnegative)),
+            'mu_k': DeclaredVariableSpec(self.mu_k, ParameterSpec(domain=nonnegative)),
+            'g': DeclaredVariableSpec(self.g, ParameterSpec(domain=RealSet.open(0, oo))),
+            'v_stick': DeclaredVariableSpec(self.v_stick, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the motion of the mass under the spring and the friction, which makes it stick and slip."""
+        return {
+            'x': lambda s: where(abs(s.target.v) > s.target.v_stick, s.target.v, 0),
+            'v': self._acceleration,
+        }
+
+    @staticmethod
+    def _acceleration(s: SimpleNamespace) -> Expression:
+        """Return the acceleration of the mass, zero while the static friction holds it."""
+        mass = s.target
+        force = -mass.k * mass.x - mass.c * mass.v
+        moving = abs(mass.v) > mass.v_stick
+        direction = where(moving, where(mass.v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(mass.v) <= mass.v_stick, abs(mass.k * mass.x) <= mass.mu_s * mass.m * mass.g)
+        return where(stuck, 0, (force - mass.mu_k * mass.m * mass.g * direction) / mass.m)
