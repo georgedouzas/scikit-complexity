@@ -330,7 +330,7 @@ class HilsaFisherySystem(BaseSystem):
         self.migration_loss = migration_loss
 
     @staticmethod
-    def _life_cycle() -> list[TransferInteraction]:
+    def _birth_death() -> list[TransferInteraction]:
         """Return the life cycle flows of the stages of the hilsa.
 
         They are the spawning, hatching, growth, migration, losses, and catch.
@@ -416,4 +416,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return System(self.label, elements=[hilsa], interactions=self._life_cycle())
+        return System(self.label, elements=[hilsa], interactions=self._birth_death())

@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction, LifeCycleInteraction
+from ....core.components.interactions import BirthDeathInteraction, EvolutionInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, System
@@ -381,7 +381,7 @@ class MoranStepInteraction(EvolutionInteraction):
         return (1 + system.parameter('advantage')) ** np.ravel(strategies)
 
 
-class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
+class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
     """Life cycle of the organisms of the Tangled Nature system.
 
     The cycle is run by the visits of a phase drawn with replacement.

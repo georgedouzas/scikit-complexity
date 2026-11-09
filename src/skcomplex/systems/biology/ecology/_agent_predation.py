@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import (
-    LifeCycleInteraction,
+    BirthDeathInteraction,
     MapInteraction,
     MovementInteraction,
     TransferInteraction,
@@ -238,21 +238,21 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         del predator, system
         return 0.0
 
-    def _get_prey(self, group: str) -> list[MovementInteraction | LifeCycleInteraction]:
+    def _get_prey(self, group: str) -> list[MovementInteraction | BirthDeathInteraction]:
         """Return the member interactions of a prey.
 
         A prey walks, then gives birth when alone in the new cell.
         """
         return [
             MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-            LifeCycleInteraction(f'{group}_birth', target=group, birth=self._get_birth, schedule='member'),
+            BirthDeathInteraction(f'{group}_birth', target=group, birth=self._get_birth, schedule='member'),
         ]
 
     def _get_predators(
         self,
         group: str,
         prey: str,
-    ) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction | MapInteraction]:
+    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction | MapInteraction]:
         """Return the member interactions of a predator.
 
         A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
@@ -273,8 +273,8 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
                 partners=1,
                 remove='source',
             ),
-            LifeCycleInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
-            LifeCycleInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
+            BirthDeathInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
+            BirthDeathInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
             MapInteraction(
                 f'{group}_digestion',
                 target=group,

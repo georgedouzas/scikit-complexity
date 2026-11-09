@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    LifeCycleInteraction,
+    BirthDeathInteraction,
     MapInteraction,
     MovementInteraction,
     TransferInteraction,
@@ -669,14 +669,14 @@ class StigmergicPredatorPreySystem(BaseSystem):
             schedule='member',
         )
 
-    def _get_plants(self, system: str, label: str) -> list[MapInteraction | LifeCycleInteraction]:
+    def _get_plants(self, system: str, label: str) -> list[MapInteraction | BirthDeathInteraction]:
         """Return the member interactions of a plant.
 
         A plant ages and spreads into an empty neighbouring cell at maturity.
         """
         return [
             self._get_growth(system, label, 'age'),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 f'{label}_spreading',
                 target=f'{system}/{label}',
                 birth=self._spreads,
@@ -692,7 +692,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         label: str,
         element: type['ForagerElement'],
         sense: Callable[[AgentViewProtocol, SystemViewProtocol], float],
-    ) -> list[MapInteraction | LifeCycleInteraction | MovementInteraction | TransferInteraction]:
+    ) -> list[MapInteraction | BirthDeathInteraction | MovementInteraction | TransferInteraction]:
         """Return the member interactions of an animal.
 
         An animal ages, starves, senses, moves and eats, feels, marks, and breeds.
@@ -702,7 +702,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return [
             self._get_growth(system, label, 'age'),
             self._get_growth(system, label, 'hunger'),
-            LifeCycleInteraction(f'{label}_starvation', target=group, death=self._starves, schedule='member'),
+            BirthDeathInteraction(f'{label}_starvation', target=group, death=self._starves, schedule='member'),
             MapInteraction(
                 f'{label}_experience',
                 target=group,
@@ -759,7 +759,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 f'{label}_breeding',
                 target=group,
                 birth=self._get_breeding,

@@ -50,7 +50,7 @@ list, then follow the link to its subsection.
 - Choose, imitate, learn, or evolve: `ChoiceInteraction`, `ImitationInteraction`, `MapInteraction`, and
   `EvolutionInteraction`, in [Choice and learning](#choice-and-learning).
 - Move agents, transfer amounts, create and remove agents, form groups, match partners, or rewire a network:
-  `MovementInteraction`, `TransferInteraction`, `LifeCycleInteraction`, `GroupingInteraction`,
+  `MovementInteraction`, `TransferInteraction`, `BirthDeathInteraction`, `GroupingInteraction`,
   `MatchingInteraction`, `FeedbackInteraction`, and `TopologyInteraction`, in
   [Agents, groups, and exchange](#agents-groups-and-exchange).
 - Place agents in three dimensions or in regions such as census tracts: `ContinuousSpace` and `MovementInteraction`,
@@ -1015,7 +1015,7 @@ simulate(system, until=4, random_state=0).agents('walkers', 4).values['steps'].t
 An agent rule may name the role whose members run it, `RuleLaw(function, members='target')`. The Mesa solver runs it
 in the activation of every member of that role, after the rules of the member's element and the member rules of the
 interactions listed before it. `MapInteraction`, `TransitionInteraction`, `MovementInteraction`,
-`TransferInteraction`, and `LifeCycleInteraction` take `schedule='member'` for it. The movement, transfers,
+`TransferInteraction`, and `BirthDeathInteraction` take `schedule='member'` for it. The movement, transfers,
 transitions, and life cycle of one agent then run together as one step of that agent, in the order of the system's
 interactions.
 
@@ -1289,14 +1289,14 @@ set(trajectory.values('lane.occupied').sum(axis=1))
 
 ### Birth and death
 
-Use `LifeCycleInteraction` to create and remove agents. Here a cell of size 8 divides twice, and each division splits
+Use `BirthDeathInteraction` to create and remove agents. Here a cell of size 8 divides twice, and each division splits
 the size between parent and offspring:
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LifeCycleInteraction
+from skcomplex.core.components.interactions import BirthDeathInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -1310,12 +1310,12 @@ class CellElement(Element):
 
 
 cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
+division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
 system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
 simulate(system, until=2, random_state=0).agents('cells', 2).values['size'].tolist()
 ```
 
-`LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
+`BirthDeathInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
 creates offspring by a condition, a probability, or a rate. Offspring values are inherited, given, split, or mutated.
 It also removes or renews agents.
 

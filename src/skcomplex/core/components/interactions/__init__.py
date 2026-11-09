@@ -7,6 +7,7 @@ Interactions are the parts of a system whose laws couple elements to each other 
 # License: MIT
 
 from ._base import BaseInteraction
+from ._birth_death import BirthDeathInteraction
 from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
 from ._connection import ConnectionInteraction
@@ -25,7 +26,6 @@ from ._hyperedge import HyperedgeInteraction
 from ._imitation import ImitationInteraction
 from ._interaction import Interaction
 from ._jump import JumpInteraction
-from ._life_cycle import LifeCycleInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._matching import MatchingInteraction
@@ -46,6 +46,7 @@ from ._transition import TransitionInteraction
 __all__: list[str] = [
     'OPTIMIZERS',
     'BaseInteraction',
+    'BirthDeathInteraction',
     'CascadeInteraction',
     'ChoiceInteraction',
     'ConnectionInteraction',
@@ -64,7 +65,6 @@ __all__: list[str] = [
     'ImitationInteraction',
     'Interaction',
     'JumpInteraction',
-    'LifeCycleInteraction',
     'LocalRuleInteraction',
     'MapInteraction',
     'MatchingInteraction',

@@ -1,4 +1,4 @@
-"""Test the `_life_cycle` module of `skcomplex.core.components.interactions`."""
+"""Test the `_birth_death` module of `skcomplex.core.components.interactions`."""
 
 from typing import Annotated
 
@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import LifeCycleInteraction, TransferInteraction
+from skcomplex.core.components.interactions import BirthDeathInteraction, TransferInteraction
 from skcomplex.core.components.laws import Sink, Source
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import System
@@ -74,9 +74,9 @@ def _upkeep(amount: float) -> TransferInteraction:
     )
 
 
-def _life(threshold: float = 0.0, probability: float = 0.0) -> LifeCycleInteraction:
+def _life(threshold: float = 0.0, probability: float = 0.0) -> BirthDeathInteraction:
     """Return the death of foragers below zero reserve and their split above a threshold with a probability."""
-    return LifeCycleInteraction(
+    return BirthDeathInteraction(
         'life',
         target='foragers',
         death=lambda forager, system: forager.reserve < 0,
@@ -144,7 +144,7 @@ def test_live_member_schedule_runs_the_upkeep_and_the_death_of_each_forager_toge
         schedule='member',
         form='agent',
     )
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='foragers',
         death=lambda forager, system: forager.reserve < 0,
@@ -180,7 +180,7 @@ def test_live_feeds_foragers_on_the_nodes_of_a_network():
 def test_live_rate_draws_a_poisson_number_of_births():
     """Test that births at a rate follow a Poisson number of that mean, each with the offspring count."""
     parents = GroupElement('parents', element=ReserveElement, size=400, variable=True, capacity=4000)
-    births = LifeCycleInteraction('births', target='parents', rate=1.5, offspring=2)
+    births = BirthDeathInteraction('births', target='parents', rate=1.5, offspring=2)
     system = System(elements=[parents], interactions=[births])
     trajectory = simulate(system, until=1, random_state=0)
     assert len(trajectory.agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
@@ -189,7 +189,7 @@ def test_live_rate_draws_a_poisson_number_of_births():
 def test_live_places_offspring_in_free_neighboring_cells():
     """Test that offspring placed in neighbouring cells take free cells only, and fewer are born when none is free."""
     parents = GroupElement('parents', element=ReserveElement, size=1, location=[(1, 1)], variable=True)
-    births = LifeCycleInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
+    births = BirthDeathInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
     space = LatticeSpace((3, 3), metric='chebyshev')
     trajectory = simulate(System(elements=[parents], interactions=[births], space=space), until=1)
     locations = {tuple(cell) for cell in np.asarray(trajectory.agents('parents', 1).locations).tolist()}
@@ -210,14 +210,14 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
         values={'trait': 2.0, 'reserve': 5.0},
         variable=True,
     )
-    births = LifeCycleInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
+    births = BirthDeathInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
     trajectory = simulate(System(elements=[parents], interactions=[births]), until=1)
     values = trajectory.agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
 
 
-def _cycle(life: LifeCycleInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
+def _cycle(life: BirthDeathInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
     """Return the trajectory of groups of reserve members under a life cycle on a lattice."""
     system = System(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
     return simulate(system, until=until, random_state=0)
@@ -227,7 +227,7 @@ def test_live_creates_offspring_in_another_group_with_given_values():
     """Test that births into another group create members of it with the values of the parent's function."""
     parents = GroupElement('parents', element=ReserveElement, size=2, values={'trait': [1.0, 2.0]})
     young = GroupElement('young', element=ReserveElement, size=1, location=[(0, 0)], variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='parents',
         birth=1.0,
@@ -243,7 +243,7 @@ def test_live_creates_offspring_in_another_group_with_given_values():
 def test_live_replaces_parents_by_their_offspring():
     """Test that with replacement a parent is removed after its births, also when it has no offspring."""
     parents = GroupElement('parents', element=ReserveElement, size=4, variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='parents',
         birth=1.0,
@@ -258,14 +258,14 @@ def test_live_replaces_parents_by_their_offspring():
 def test_live_keeps_a_share_of_the_split_states():
     """Test that a parent keeps the share `keep` of a split state and its offspring take the rest."""
     parents = GroupElement('parents', element=ReserveElement, size=1, values={'reserve': 8.0}, variable=True)
-    life = LifeCycleInteraction('life', target='parents', birth=1.0, offspring=2, split=('reserve',), keep=0.5)
+    life = BirthDeathInteraction('life', target='parents', birth=1.0, offspring=2, split=('reserve',), keep=0.5)
     assert _reserves_of(_cycle(life, parents)) == [2.0, 2.0, 4.0]
 
 
 def test_live_resets_a_parent_after_its_birth():
     """Test that a parent takes the reset values after it gives birth, and a parent that does not keeps its own."""
     parents = GroupElement('parents', element=ReserveElement, size=2, values={'reserve': [3.0, 1.0]}, variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='parents',
         birth=lambda parent, system: parent.reserve >= 2,
@@ -284,7 +284,7 @@ def test_live_renews_dying_agents_in_place():
         values={'reserve': [-1.0, 2.0], 'trait': [7.0, 8.0]},
         variable=True,
     )
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='parents',
         death=lambda agent, system: agent.reserve < 0,
@@ -302,7 +302,7 @@ def test_live_culls_kin_of_another_group():
     """Test that an agent removes the first member of the other group that is its kin."""
     owners = GroupElement('owners', element=ReserveElement, size=2, values={'trait': [0.0, 1.0]})
     owned = GroupElement('owned', element=ReserveElement, size=3, values={'trait': [1.0, 0.0, 1.0]}, variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='owners',
         group='owned',
@@ -315,7 +315,7 @@ def test_live_culls_kin_of_another_group():
 def test_live_brings_arrivals_at_placed_locations():
     """Test that a Poisson number of arrivals join the group at the placement's locations with drawn values."""
     members = GroupElement('members', element=ReserveElement, size=1, location=[(2, 1)], variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='members',
         arrival=lambda system: 50.0,
@@ -352,13 +352,13 @@ def _reserves_of(trajectory: Trajectory) -> list[float]:
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown placement, two kinds of birth, and values that are not numbers or functions are rejected."""
     with pytest.raises(ValidationError):
-        LifeCycleInteraction('life', target='foragers', **arguments).prepare()
+        BirthDeathInteraction('life', target='foragers', **arguments).prepare()
 
 
 def test_live_culls_a_random_member_of_its_group_after_a_replacement():
     """Test that a parent replaced by its offspring still removes a random member of its own group."""
     parents = GroupElement('parents', element=ReserveElement, size=4, values={'trait': 1.0}, variable=True)
-    life = LifeCycleInteraction(
+    life = BirthDeathInteraction(
         'life',
         target='parents',
         birth=1.0,

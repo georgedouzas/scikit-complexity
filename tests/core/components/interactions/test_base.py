@@ -11,6 +11,7 @@ from skcomplex.core.components import interactions
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
+    BirthDeathInteraction,
     CascadeInteraction,
     ChoiceInteraction,
     CouplingInteraction,
@@ -22,7 +23,6 @@ from skcomplex.core.components.interactions import (
     ImitationInteraction,
     Interaction,
     JumpInteraction,
-    LifeCycleInteraction,
     LocalRuleInteraction,
     MapInteraction,
     MatchingInteraction,
@@ -305,7 +305,7 @@ GRID_ONLY = {
     ),
     'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
     'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
-    'life cycle': (LifeCycleInteraction('life', target='agents', placement='neighbor'), 'placement'),
+    'life cycle': (BirthDeathInteraction('life', target='agents', placement='neighbor'), 'placement'),
     'matching': (
         MatchingInteraction(
             'market',

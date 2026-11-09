@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
+from ....core.components.interactions import BirthDeathInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import Sink
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -44,7 +44,7 @@ class ForagerElement(Element):
     It burns its metabolism, and may starve. In its own activation, a forager sees `vision` cells along each of the four
     lattice directions and moves to the free cell with the most sugar, the nearest among equals, or stays when no cell
     in sight beats its own, by a `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar
-    of its cell and burn its metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
+    of its cell and burn its metabolism, and a `BirthDeathInteraction` removes it when its wealth falls below zero.
 
     Args:
         label:
@@ -327,7 +327,7 @@ class SugarscapeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+    def _get_foraging() -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction]:
         """Return the member interactions of a forager.
 
         They move to the best cell in sight, harvest, burn, and starve.
@@ -366,7 +366,7 @@ class SugarscapeSystem(BaseSystem):
                 schedule='member',
                 phase='foraging',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'starvation',
                 target='foragers',
                 death=_is_starved,

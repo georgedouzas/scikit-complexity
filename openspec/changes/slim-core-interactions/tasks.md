@@ -103,7 +103,7 @@
 
 ## 9. Renames
 
-- [ ] 9.1 Rename `LifeCycleInteraction` to `BirthDeathInteraction` in `interactions/_birth_death.py` and
+- [x] 9.1 Rename `LifeCycleInteraction` to `BirthDeathInteraction` in `interactions/_birth_death.py` and
   `test_birth_death.py`, and update every user. Verify `grep -rw LifeCycleInteraction` finds nothing and the agent
   tests pass.
 - [ ] 9.2 Rename the `MatchingInteraction` arguments `limit` to `reserve` and `allowance` to `cap`, the rule-spec field

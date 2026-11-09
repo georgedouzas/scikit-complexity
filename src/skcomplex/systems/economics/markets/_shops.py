@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import (
-    LifeCycleInteraction,
+    BirthDeathInteraction,
     MapInteraction,
     MatchingInteraction,
 )
@@ -674,7 +674,7 @@ class ShopsSystem(BaseSystem):
                 form='agent',
                 phase='accounts',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'closure',
                 target='shops',
                 death=lambda agent, system: agent.money < 0,

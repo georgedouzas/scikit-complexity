@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
+from ....core.components.interactions import BirthDeathInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink, Source
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
@@ -326,7 +326,7 @@ class WolfSheepSystem(BaseSystem):
         group: str,
         food: str,
         removed: bool,
-    ) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction]:
         """Return the member interactions of an animal.
 
         An animal wanders at a unit cost of energy, eats in its cell, and lives.
@@ -359,7 +359,7 @@ class WolfSheepSystem(BaseSystem):
         return [
             MovementInteraction(f'{group}_walk', target=group, cost=cost, schedule='member'),
             eating,
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 f'{group}_life',
                 target=group,
                 death=self._is_starved,

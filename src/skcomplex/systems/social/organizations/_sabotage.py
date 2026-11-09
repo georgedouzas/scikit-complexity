@@ -11,7 +11,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MapInteraction, MovementInteraction
+from ....core.components.interactions import BirthDeathInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
@@ -412,7 +412,7 @@ class InsiderSabotageSystem(BaseSystem):
                 )
                 for state, function, mode in maps
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'turnover',
                 target='employees',
                 death=self._leave,
