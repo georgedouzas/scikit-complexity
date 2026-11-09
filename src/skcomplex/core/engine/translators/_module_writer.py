@@ -65,13 +65,6 @@ TRANSFER = """                TransferInteraction(
                     amount=_amount__{name},
                     flow={name!r},
                 ),"""
-RELAXATION = """                RelaxationInteraction(
-                    {name!r},
-                    target={label!r},
-                    state={stock!r},
-                    goal=_goal__{stock},
-                    time=_time__{stock},
-                ),"""
 RATE = """                RateInteraction(
                     {name!r},
                     target={label!r},
@@ -286,10 +279,13 @@ class _ModuleWriter:
         return functions, interactions
 
     def _write_relaxation(self, stock: str, form: _GoalSeekingSpec) -> tuple[list[str], str, str]:
-        """Return the functions, relaxation source, and rate label of a goal-seeking stock."""
+        """Return the functions, rate source, and rate label of a goal-seeking stock.
+
+        The rate is `(goal - stock) / time` of the functions of the goal and the time.
+        """
         expressions = self.expressions
         original = self.parts.originals[stock]
-        expressions.imports.add((INTERACTIONS_MODULE, 'RelaxationInteraction'))
+        expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         goal = expressions.write(form.goal, original)
         scale = expressions.write(form.scale, original)
         time = scale if form.is_time else f'1 / ({scale})'
@@ -308,13 +304,20 @@ class _ModuleWriter:
                 self._write_return(time),
             ),
             self._write_function(
+                f'_rate__{stock}(namespace: SimpleNamespace) -> Expression',
+                f'Return the rate that brings the stock `{self._get_original(stock)}` to its goal.',
+                self._write_return(
+                    f'(_goal__{stock}(namespace) - namespace.target.{stock}) / _time__{stock}(namespace)',
+                ),
+            ),
+            self._write_function(
                 f'_observed__{name}(s: SimpleNamespace) -> Expression',
                 f'Return the rate that brings the stock `{self._get_original(stock)}` to its goal.',
                 *([f'{INDENT}t = s.t'] if re.search(r'\bt\b', f'{goal} {time}') else []),
                 self._write_return(f'(({goal}) - s.{stock}) / ({time})'),
             ),
         ]
-        return functions, RELAXATION.format(name=name, label=self.label, stock=stock), name
+        return functions, RATE.format(name=name, label=self.label, stock=stock), name
 
     def _write_rate(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[str, str]:
         """Return the function of the rest of the net rate of a stock, and its interaction.

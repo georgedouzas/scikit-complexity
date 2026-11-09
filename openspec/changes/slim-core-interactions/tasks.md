@@ -34,7 +34,7 @@
 - [x] 3.6 Add economics `PartialAdjustmentInteraction` in `economics/resources/_food.py`, rebase social
   `MotivationInteraction` on `RateInteraction` with its own rate, and write the mathematics driven-flow control as
   `RateInteraction`. Verify with the tests of those modules.
-- [ ] 3.7 Make the module writer of the system-dynamics translator emit a `RateInteraction` whose rate is
+- [x] 3.7 Make the module writer of the system-dynamics translator emit a `RateInteraction` whose rate is
   `(goal - stock) / time` of the goal and time functions, and update the docstrings of `_system_dynamics.py` and
   `_strang_splitting.py`. Verify with `tests/core/engine/translators/test_system_dynamics.py` against PySD.
 - [ ] 3.8 Delete `interactions/_relaxation.py`, its export, and `tests/core/components/interactions/test_relaxation.py`

@@ -9,7 +9,7 @@ import pysd
 import pytest
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.interactions import RelaxationInteraction, TransferInteraction
+from skcomplex.core.components.interactions import RateInteraction, TransferInteraction
 from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
@@ -227,16 +227,14 @@ def test_run_flows_with_the_environment_use_source_and_sink(translate):
 
 
 def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
-    """Test that a stock changed by the gap to its target over a time relaxes, and that it runs like PySD."""
+    """Test that a stock changed by the gap to its target over a time relaxes at a rate, and runs like PySD."""
     module = translate('goal_seeking.mdl')
     system = _parts(module)
-    assert [type(item) for item in system.interactions] == [RelaxationInteraction]
+    assert [type(item) for item in system.interactions] == [RateInteraction]
     relaxation = system.interactions[0]
-    assert (relaxation.state, relaxation.goal.__name__, relaxation.time.__name__) == (
-        'stock',
-        '_goal__stock',
-        '_time__stock',
-    )
+    assert (relaxation.state, relaxation.rate.__name__) == ('stock', '_rate__stock')
+    source = SystemDynamicsTranslator(fixtures_folder / 'goal_seeking.mdl').prepare().run().source_
+    assert '(_goal__stock(namespace) - namespace.target.stock) / _time__stock(namespace)' in source
     reference = _load_reference(fixtures_folder, 'goal_seeking.mdl')
     trajectory = _simulate(module)
     values = _at_saved_times(trajectory, trajectory.values('goal_seeking.stock'), module, reference)
@@ -249,7 +247,7 @@ def test_run_gap_times_a_rate_becomes_relaxation(tmp_path):
     """Test that the gap to a goal times a rate relaxes over the inverse of the rate."""
     text = 'Level = INTEG((Goal + 1 - Level) * Speed, 0) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'RelaxationInteraction(' in source
+    assert 'def _goal__level(' in source
     assert '1 / (s.speed)' in source
 
 
@@ -262,7 +260,7 @@ def test_run_other_remaining_rates_become_rates(tmp_path, equation):
     text = f'Level = INTEG({equation}, 1) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
     assert 'RateInteraction(' in source
-    assert 'RelaxationInteraction(' not in source
+    assert 'def _goal__level(' not in source
 
 
 def test_run_flow_of_several_stocks_stays_in_the_rates(tmp_path):
