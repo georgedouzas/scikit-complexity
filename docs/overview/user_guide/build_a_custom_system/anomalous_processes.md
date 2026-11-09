@@ -102,14 +102,14 @@ compiler keeps the count of every member in a hidden state, `<group>.<label>~ren
 ## Fractional noise
 
 Drive a state with noise that remembers its past, as in rough or persistent paths.
-`FractionalNoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index
+`NoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index
 `0 < H < 1`.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import FractionalNoiseLaw
+from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
@@ -122,7 +122,7 @@ class RoughElement(Element):
         self.x = x
 
     def _get_laws(self, s):
-        return [FractionalNoiseLaw(s.x, 1, hurst=0.3)]
+        return [NoiseLaw(s.x, 1, hurst=0.3)]
 
 
 walkers = System(elements=[GroupElement('walkers', element=RoughElement, size=500)])
@@ -131,7 +131,7 @@ round(float(rough.values('walkers.x')[-1].var()), 1)
 ```
 
 - The increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`.
-- A Hurst index of 1/2 compiles to an ordinary noise law. For other indices the amplitude must not depend on any state.
+- A Hurst index of 1/2 compiles to a noise law without one. For other indices the amplitude must not depend on any state.
 - `FractionalEulerMaruyamaSolver(dt, horizon)` is the stepper of systems with fractional noise. When it first advances,
   it draws the increments of the whole run on its grid, with the circulant embedding of Davies and Harte over
   `scipy.fft`. So frames must fall on multiples of `dt`.

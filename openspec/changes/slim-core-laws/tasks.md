@@ -22,7 +22,7 @@ when other agents run tests at the same time.
 - [x] 1.5 Emit `NoiseLaw(..., hurst=)` in `interactions/_rate.py` and `_relaxation.py` (if it still exists), drop
   `FractionalNoiseLaw` from their `law_classes` and from the docstring of `specs/_interaction_requirement_spec.py`, and
   verify `pytest tests/core/components/interactions` passes
-- [ ] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`
+- [x] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`
   to write `NoiseLaw(..., hurst=)`, and verify their markdown doctests pass
 - [ ] 1.7 Delete `laws/_fractional_noise.py` and its re-export, and verify `grep -rn FractionalNoiseLaw src tests docs`
   finds nothing and `pytest tests/core` passes
