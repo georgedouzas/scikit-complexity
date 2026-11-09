@@ -50,7 +50,7 @@ skcomplex.systems.biology.ecology import LotkaVolterraSystem`, which reads natur
 
 Alternative considered: the singular `system`. It would keep `from skcomplex.core.components.system import System`
 working and halve the import edits. It breaks the plural pattern of the siblings, and it gives a package whose name
-reads as one system while it holds several. It is listed as an open question.
+reads as one system while it holds several. The user confirmed this name.
 
 ### `_base.py` holds `BaseSystem` and `RunSettings`
 
@@ -141,10 +141,7 @@ the layers contract, not a test module, since the test tree checks no repository
 Replace `skcomplex.core.components.system` and `skcomplex.core.components.mass_action` with
 `skcomplex.core.components.systems` in every import. Rolling back is reverting the change's commits.
 
-## Open Questions
+## Decisions by the user
 
-- Package name: `systems`, chosen here to mirror the plural siblings, or the singular `system`, which keeps the
-  current import path of `System`, `BaseSystem`, and `RunSettings` and avoids sharing a name with the catalog. The
-  choice changes only the path in the tasks, not the approach.
-- Typing of the composite: a type parameter, chosen here, or `System` kept in `_base.py` beside `BaseSystem`. The
-  second keeps typing without a parameter but leaves a concrete system in `_base`.
+- Package name: `systems`, plural like its siblings (2026-11-09).
+- Typing of the composite: `BaseSystem` takes the composite type as a type parameter (2026-11-09).
