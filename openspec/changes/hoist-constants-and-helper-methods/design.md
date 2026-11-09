@@ -321,7 +321,6 @@ The user answered the four open questions of the first draft on 2026-11-09.
    its own task group.
 3. Moved helpers with noun names take verb names now, following the constitution, and the check covers it where
    feasible. Decision 6 applies it. A test cannot tell moved methods from older ones, so the check and the renames
-   reach every method of `src`. If the user wants the renames limited to moved helpers, the verb test is dropped and
-   the names script runs only on the moved methods.
+   reach every method of `src`. The user confirmed on 2026-11-09 that every method of `src` takes a verb name.
 4. The constants rule applies to `src`, `tests`, and `docs`, the examples and the generators included, and the same
    test checks it. Decisions 1 and 10 apply it.
