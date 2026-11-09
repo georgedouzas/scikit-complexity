@@ -66,7 +66,7 @@ from ._spin_glasses import (
 from ._spins import IsingSystem, PottsSpinElement, PottsSystem, XYSpinElement, XYSystem
 from ._susceptibility import SusceptibilityResult, susceptibility
 from ._traps import TrapSystem, TrapWalkerElement
-from ._urns import EhrenfestUrnElement, EhrenfestUrnSystem
+from ._urns import EhrenfestUrnSystem
 
 __all__: list[str] = [
     'ASEPSystem',
@@ -85,7 +85,6 @@ __all__: list[str] = [
     'DiskElement',
     'DissipativeZeroRangeSystem',
     'EdwardsAndersonSystem',
-    'EhrenfestUrnElement',
     'EhrenfestUrnSystem',
     'EnergyLevelElement',
     'ExclusionHopsInteraction',
