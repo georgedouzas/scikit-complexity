@@ -9,7 +9,7 @@
 
 ## 2. The cross-domain package
 
-- [ ] 2.1 Create `src/skcomplex/systems/general/__init__.py` with a module docstring and an empty `__all__`, and the
+- [x] 2.1 Create `src/skcomplex/systems/general/__init__.py` with a module docstring and an empty `__all__`, and the
   concept subpackages `elements`, `agents`, `matching`, `kinetics`, and `reactions`, each with an `__init__.py`.
   Mirror them under `tests/systems/general/`. Leave `dynamics` to `add-general-systems`. Verify with `pdm run python -c`
   importing every subpackage.
