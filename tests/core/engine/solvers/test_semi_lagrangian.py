@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.systems import System
@@ -38,7 +38,7 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
         values={'x': start},
         discretization='finite-volume',
     )
-    stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda _: [coordinate('v'), 0])
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = SemiLagrangianSolver(dt=5 * spacing)
     system = System(elements=[gas], interactions=[stream])
     trajectory = simulate(system, until=4.0, dt=5 * spacing, solver=solver)
@@ -73,7 +73,9 @@ def test_partial_cells_raise_a_named_error() -> None:
         values=values,
         discretization='finite-volume',
     )
-    flow = AdvectionInteraction('flow', target='groups', state='x', drift=lambda _: [0, 1.0, -1.0])
+    flow = ConservationInteraction(
+        'flow', target='groups', state='x', flux=lambda s: [0, 1.0 * s.target.x, -1.0 * s.target.x],
+    )
     with pytest.raises(SolverError, match='partial cells'):
         simulate(System(elements=[groups], interactions=[flow]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
 
@@ -93,7 +95,9 @@ def test_landau_damping_with_large_steps() -> None:
         values={'x': start},
         discretization='finite-volume',
     )
-    drift = AdvectionInteraction('vlasov', target='gas', state='x', drift=poisson_drift)
+    drift = ConservationInteraction(
+        'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in poisson_drift(s)],
+    )
     system = System(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
     trajectory = simulate(system, until=30.0, dt=0.25, solver=solver)

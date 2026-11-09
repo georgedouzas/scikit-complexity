@@ -20,7 +20,7 @@ Build a phase space from a position lattice and a velocity axis, and let a gas s
 import numpy as np
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
@@ -32,7 +32,7 @@ space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 6
 x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
 gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume')
-stream = AdvectionInteraction('stream', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
+stream = ConservationInteraction('stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
 system = System(elements=[gas], interactions=[stream])
 final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.x')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -77,8 +77,8 @@ poisson_drift.__name__
 
 Fields over position and fields on a phase space read each other:
 
-- A drift reads another field over the position lattice through the `sources` of `AdvectionInteraction` and
-  `ConservationInteraction`, broadcast along the class axes.
+- A flux reads another field over the position lattice through the `sources` of `ConservationInteraction`, broadcast
+  along the class axes.
 - A `RateInteraction` over the position lattice reads a moment of a field on a phase space through its `sources`.
 
 ## Integrals over class axes

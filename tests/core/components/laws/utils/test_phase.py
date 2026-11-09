@@ -10,7 +10,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction
+from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
     coordinates_of,
@@ -74,7 +74,9 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
     space = PhaseSpace(LatticeSpace((8,), spacing=0.5), [AxisSpec('v', 4, -1.0, 1.0)]).prepare()
     start = np.outer(2.0 + np.sin(np.arange(8)), np.ones(4))
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
-    stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda _: [coordinate('v'), 0], riemann=None)
+    stream = ConservationInteraction(
+        's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], riemann=None,
+    )
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
     system = System(elements=[gas], interactions=[stream, grow])
     trajectory = simulate(system, until=0.1, backend=backend, solver=RK4Solver(dt=0.01))
@@ -165,7 +167,9 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
         values={'x': start},
         discretization='finite-volume',
     )
-    drift = AdvectionInteraction('vlasov', target='gas', state='x', drift=potential_force)
+    drift = ConservationInteraction(
+        'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in potential_force(s)],
+    )
     system = System(elements=[field], interactions=[drift])
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.05)).values('gas.x')[-1]
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -184,12 +188,8 @@ def test_drift_reads_field_over_position_through_sources() -> None:
         discretization='finite-volume',
     )
     force = FieldElement('force', element=NonnegativeElement, space=lattice, values={'x': [1.0, 0.0]})
-    drift = AdvectionInteraction(
-        'push',
-        target='gas',
-        state='x',
-        drift=lambda s: [0, s.sources[0].x],
-        sources=['force'],
+    drift = ConservationInteraction(
+        'push', target='gas', state='x', flux=lambda s: [0, s.sources[0].x * s.target.x], sources=['force'],
     )
     system = System(elements=[gas, force], interactions=[drift], space=space)
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.01))
@@ -284,7 +284,13 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
         values={'x': start},
         discretization='finite-difference',
     )
-    drift = AdvectionInteraction('vlasov', target='gas', state='x', drift=potential_force, riemann=None)
+    drift = ConservationInteraction(
+        'vlasov',
+        target='gas',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in potential_force(s)],
+        riemann=None,
+    )
     observables = [ObservableSpec('energy', electric_energy, group='gas')]
     system = System(elements=[field], interactions=[drift])
     trajectory = simulate(system, until=30.0, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables)

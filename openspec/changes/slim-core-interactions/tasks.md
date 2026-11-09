@@ -54,13 +54,13 @@
 
 ## 5. Advection into conservation laws
 
-- [ ] 5.1 Add physics `AdvectionInteraction` in `physics/common/fields/_advection.py` on `ConservationInteraction`,
+- [x] 5.1 Add physics `AdvectionInteraction` in `physics/common/fields/_advection.py` on `ConservationInteraction`,
   with the drift check and the tests moved from `test_advection.py`. Verify they pass, with the test that its
   trajectory equals a `ConservationInteraction` of the flux `a u`.
-- [ ] 5.2 Migrate gyres, gels, kinetic flocks, kinetic equations, and fluid flows to it. Add social
+- [x] 5.2 Migrate gyres, gels, kinetic flocks, kinetic equations, and fluid flows to it. Add social
   `SelectionDriftInteraction` and biology `SizeGrowthInteraction` in their modules. Verify with the tests of those
   modules and the phase-space tests.
-- [ ] 5.3 Rewrite the docstring examples of `_semi_lagrangian.py` and `_strang_splitting.py` with
+- [x] 5.3 Rewrite the docstring examples of `_semi_lagrangian.py` and `_strang_splitting.py` with
   `ConservationInteraction` and `RateInteraction`, delete `interactions/_advection.py`, its export, and its core test,
   and move the phase-space advection tests in `tests/core/engine/solvers` to `ConservationInteraction`. Verify with the
   doctests and `tests/core/engine/solvers`.

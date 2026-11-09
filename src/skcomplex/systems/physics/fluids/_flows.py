@@ -16,14 +16,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import AdvectionInteraction, ConservationInteraction, Interaction, RateInteraction
+from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
 from ....core.components.laws.utils import gradient, inverse_laplacian, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common.fields import DiffusivityInteraction
+from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class BoussinesqElement(Element):

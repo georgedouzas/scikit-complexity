@@ -6,7 +6,6 @@ Interactions are the parts of a system whose laws couple elements to each other 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._advection import AdvectionInteraction
 from ._base import BaseInteraction
 from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
@@ -51,7 +50,6 @@ from ._transition import TransitionInteraction
 
 __all__: list[str] = [
     'OPTIMIZERS',
-    'AdvectionInteraction',
     'BaseInteraction',
     'CascadeInteraction',
     'ChoiceInteraction',

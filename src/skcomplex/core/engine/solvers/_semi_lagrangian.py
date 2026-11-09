@@ -48,7 +48,7 @@ class SemiLagrangianSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
-        >>> from skcomplex.core.components.interactions import AdvectionInteraction
+        >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import System
@@ -60,7 +60,9 @@ class SemiLagrangianSolver(Solver):
         >>> gas = FieldElement(
         ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
+        >>> stream = ConservationInteraction(
+        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
+        ... )
         >>> system = System(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
         >>> final = simulate(system, until=2.0, solver=solver).values('gas.x')[-1]
