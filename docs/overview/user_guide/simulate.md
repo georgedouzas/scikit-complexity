@@ -158,7 +158,7 @@ import numba
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec
 
@@ -184,7 +184,7 @@ class SaturationInteraction(Interaction):
         return [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
 
 
-herds = System(
+herds = CompositeSystem(
     elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
@@ -212,7 +212,7 @@ from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver
 from skcomplex.core.specs import ParameterSpec
@@ -259,7 +259,7 @@ def get_drag_fix(fix):
 
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
-atoms = System(
+atoms = CompositeSystem(
     elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': grid})],
     interactions=[
         LennardJonesInteraction('lj', 'atoms', 'atoms', cutoff=2.5),

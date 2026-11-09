@@ -19,7 +19,7 @@ from inventory_checks import InventoryError, inventory_problems
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import Tags
 
@@ -175,7 +175,7 @@ def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
     return lines
 
 
-def _component_types(system: System) -> list[type]:
+def _component_types(system: CompositeSystem) -> list[type]:
     """Return the element and interaction types of a system and its subsystems.
 
     They are in order of first use.

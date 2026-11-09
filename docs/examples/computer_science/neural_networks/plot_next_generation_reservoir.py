@@ -18,7 +18,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -64,7 +64,7 @@ def lorenz_samples(samples):
         'y': lambda s: s.target.x * (28.0 - s.target.z) - s.target.y,
         'z': lambda s: s.target.x * s.target.y - 8.0 / 3.0 * s.target.z,
     }
-    flow = System(
+    flow = CompositeSystem(
         elements=[LorenzFlowElement('flow')],
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
     )

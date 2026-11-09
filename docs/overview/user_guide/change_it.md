@@ -23,7 +23,7 @@ logistic.prepare().system_.interactions
 ```
 
 `prepare` builds the parts of a system from its current parameters, and keeps them as `system_`, the composite
-`System` of its elements and interactions.
+`CompositeSystem` of its elements and interactions.
 
 A parameter can change more than a number. With a finite capacity `K`, `LotkaVolterraSystem` replaces exponential
 growth of the prey by logistic growth. With `stochastic=True`, `SIRSystem` writes the epidemic as random jumps of whole
@@ -85,7 +85,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -117,10 +117,10 @@ class PredationInteraction(Interaction):
         return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
 
 
-landscape = System(
+landscape = CompositeSystem(
     systems=[
-        System('forest', elements=[PopulationElement('foxes', n=5)]),
-        System('meadow', elements=[PopulationElement('rabbits', n=50)]),
+        CompositeSystem('forest', elements=[PopulationElement('foxes', n=5)]),
+        CompositeSystem('meadow', elements=[PopulationElement('rabbits', n=50)]),
     ],
     interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
 )
@@ -136,16 +136,16 @@ A ready-made system nests in the same way, through its parts. Give each nested s
 class has the label `system` by default, and nest the composite `system_` of its parts.
 
 ```python
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 island = LotkaVolterraSystem(label='island').prepare().system_
 town = SIRSystem(label='town').prepare().system_
-trajectory = simulate(System(systems=[island, town]), until=5, dt=0.1)
+trajectory = simulate(CompositeSystem(systems=[island, town]), until=5, dt=0.1)
 trajectory.values('town/I.x')[-1].round(1)
 ```
 
 To change what a ready-made system builds, rather than its values, subclass it, as the page
-[System classes](system_classes.md) shows.
+[CompositeSystem classes](system_classes.md) shows.

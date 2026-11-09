@@ -22,7 +22,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction, MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import StateSpec
 from skcomplex.core.types import ElementKind
 
@@ -106,7 +106,7 @@ class TankElement(Element):
         self.level = level
 
 
-wrong = System(
+wrong = CompositeSystem(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)],
 )
@@ -122,8 +122,8 @@ A role filled by an unsuitable element raises `RoleElementError` with the code `
 kind of its element gets the same code, and a law in the wrong time gets `law-time`.
 
 ```python continuation
-kinds = System(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
-times = System(
+kinds = CompositeSystem(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
+times = CompositeSystem(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('grow', target='tank', state='level', rate=1.0)],
     time=DiscreteTime(),
@@ -155,7 +155,7 @@ system with a `TagError` that names it, before it compiles anything.
 from skcomplex.core.engine.solvers import IterationSolver, RK4Solver
 from skcomplex.core.errors import TagError
 
-system = System(elements=[rabbits], interactions=[growth])
+system = CompositeSystem(elements=[rabbits], interactions=[growth])
 assert system.get_tags().laws <= RK4Solver.get_supported_tags().laws
 try:
     simulate(system, until=1, solver=IterationSolver())

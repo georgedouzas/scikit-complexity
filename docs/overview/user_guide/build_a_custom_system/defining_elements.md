@@ -97,7 +97,7 @@ signature. `DeclaredElement` takes them in one argument instead.
 ```python continuation
 from skcomplex.core.components.elements import DeclaredElement
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec
 
@@ -115,7 +115,7 @@ declared = {
 decay = DecayElement('decay', variables=declared)
 faster = clone(decay).set_params(k=1.0)
 decay.get_value('k'), faster.get_value('k')
-system = System(elements=[decay], time=ContinuousTime())
+system = CompositeSystem(elements=[decay], time=ContinuousTime())
 simulate(system, until=1.0, dt=0.1).values('decay.b')[-1]
 ```
 
@@ -173,7 +173,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -194,7 +194,7 @@ class CullInteraction(Interaction):
         return [RateLaw(s.target.n, lambda t, values: -1.0 if values[name] > 50 else 0.0)]
 
 
-culled = System(
+culled = CompositeSystem(
     elements=[PopulationElement('deer', n=60.0)],
     interactions=[CullInteraction('cull', target='deer')],
 )
@@ -215,7 +215,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
 
@@ -239,7 +239,7 @@ class TankElement(Element):
         return [RateLaw(s.level, grow), CrossingLaw(full, {s.level: lambda t, values: 1.0}, direction=1)]
 
 
-tanks = System(elements=[TankElement('a')], systems=[System('plant', elements=[TankElement('b')])])
+tanks = CompositeSystem(elements=[TankElement('a')], systems=[CompositeSystem('plant', elements=[TankElement('b')])])
 trajectory = simulate(tanks, until=2, dt=0.01)
 len(trajectory.events) > 0, trajectory.values('a.level')[-1] == trajectory.values('plant/b.level')[-1]
 ```
@@ -278,7 +278,7 @@ class WalkerElement(TankElement):
 
 
 def walk(seed):
-    system = System(elements=[WalkerElement('a')], time=DiscreteTime())
+    system = CompositeSystem(elements=[WalkerElement('a')], time=DiscreteTime())
     return simulate(system, until=5, random_state=seed).values('a.level')
 
 
@@ -301,7 +301,7 @@ class MedianElement(TankElement):
 
 shapes = []
 for element in (HerdElement, MedianElement):
-    herd = System(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
+    herd = CompositeSystem(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
     shapes.append(simulate(herd, until=1, dt=0.01).values('herd.level').shape)
 shapes
 ```
@@ -314,7 +314,7 @@ class DoublerElement(TankElement):
         return [JumpLaw(s.rate, {s.level: CallSpec(lambda t, values: values['level'], relative=True)})]
 
 
-doubling = simulate(System(elements=[DoublerElement('a')]), until=10, random_state=0)
+doubling = simulate(CompositeSystem(elements=[DoublerElement('a')]), until=10, random_state=0)
 float(np.log2(doubling.values('a.level')[-1])).is_integer()
 ```
 
@@ -326,7 +326,7 @@ def total_level(t, values):
 
 
 observables = [ObservableSpec('sum', function=total_level)]
-observed = simulate(System(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
+observed = simulate(CompositeSystem(elements=[TankElement('a')]), until=1, dt=0.5, observables=observables)
 observed.values('sum').shape
 ```
 
@@ -441,7 +441,7 @@ from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -462,7 +462,7 @@ class PhaseElement(Element):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-z = simulate(System(elements=[PhaseElement('osc')]), until=10, dt=0.5).values('osc.z')
+z = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=10, dt=0.5).values('osc.z')
 z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4))
 ```
 

@@ -9,7 +9,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -32,11 +32,11 @@ class HeaterElement(Element):
 
 
 try:
-    simulate(System(elements=[HeaterElement('heater', power=2.0)]), until=3)
+    simulate(CompositeSystem(elements=[HeaterElement('heater', power=2.0)]), until=3)
 except ParameterError as error:
     message = str(error)
 message
-room = System(elements=[HeaterElement('heater')])
+room = CompositeSystem(elements=[HeaterElement('heater')])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = simulate(room, until=3, dt=0.5, schedule=schedule)
 heated.values('heater.power').tolist()
@@ -57,7 +57,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -79,7 +79,7 @@ class PlantElement(Element):
         return [RateLaw(s.x, s.u)]
 
 
-plant = System(elements=[PlantElement('plant')])
+plant = CompositeSystem(elements=[PlantElement('plant')])
 
 
 def cost(s):
@@ -164,7 +164,7 @@ from typing import Annotated
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -186,7 +186,7 @@ class CartElement(Element):
         return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
 
 
-cart = System(elements=[CartElement('cart')])
+cart = CompositeSystem(elements=[CartElement('cart')])
 linear = linearization(cart, outputs=['cart.x'], state_weights=[[1, 0], [0, 1]], control_weights=[[1]])
 linear.controllability, linear.observability
 linear.gain.round(3).tolist()

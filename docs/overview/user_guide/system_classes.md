@@ -9,10 +9,10 @@ Every system derives from `BaseSystem`, and comes in one of four kinds, from the
 
 - **`BaseSystem`** is the base of every system. It holds the main public methods, derives the tags, and builds the parts of a system
   from its model parameters.
-- **`System`** is the generic composite of elements, interactions, and nested systems, on a space and in a time. It
+- **`CompositeSystem`** is the composite of elements, interactions, and nested systems, on a space and in a time. It
   plays the role of `Pipeline` in scikit-learn: it holds parts and adds no model of its own.
-- **General systems of the core**, such as `MassActionSystem`, name a mathematical structure that several fields share,
-  such as species in compartments that react at mass-action rates.
+- **General systems of the core**, such as `ReactionNetworkSystem`, name a mathematical structure that several fields share,
+  such as a reaction network, whose reactions fire at a rate constant times the product of the reactant amounts.
 - **Field realizations**, such as `SIRSystem`, give a general system or `BaseSystem` the parameters and the words of one
   field. Every ready-made system of the catalog is one.
 
@@ -20,11 +20,14 @@ The kinds mirror the linear models of scikit-learn, where `Ridge` and `Lasso` re
 parameters of their own.
 
 ```python
-from skcomplex.core.components.systems import MassActionSystem
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem, ReactionNetworkSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
-issubclass(SIRSystem, MassActionSystem), issubclass(MassActionSystem, BaseSystem), issubclass(System, BaseSystem)
+(
+    issubclass(SIRSystem, ReactionNetworkSystem),
+    issubclass(ReactionNetworkSystem, BaseSystem),
+    issubclass(CompositeSystem, BaseSystem),
+)
 ```
 
 ## How a system class builds its parts
@@ -34,14 +37,14 @@ and calibrates like any estimator. A subclass of `BaseSystem` does two things:
 
 - its `__init__` takes the parameters of the model and stores each under its own name, and nothing else, as in
   scikit-learn, so `get_params`, `set_params`, and `clone` work on them,
-- its hook `_build_system` returns the `System` of its parts, written in terms of these parameters.
+- its hook `_build_system` returns the `CompositeSystem` of its parts, written in terms of these parameters.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -63,7 +66,7 @@ class DrainingTankSystem(BaseSystem):
 
     def _build_system(self):
         drain = RateInteraction('drain', target='tank', state='level', rate=lambda s: -self.k * s.target.level)
-        return System(self.label, elements=[TankElement('tank', level=self.level)], interactions=[drain])
+        return CompositeSystem(self.label, elements=[TankElement('tank', level=self.level)], interactions=[drain])
 
 
 tank = DrainingTankSystem(k=0.2)
@@ -81,15 +84,15 @@ out. A system whose settings depend on its parameters overrides `get_run_setting
 
 ## General systems of the core
 
-Write a compartment model of any field without writing an element or an interaction. `MassActionSystem` takes the
+Write a compartment model of any field without writing an element or an interaction. `ReactionNetworkSystem` takes the
 initial amount of every species and a table of reactions. Every reaction maps its label to its reactants and products,
 as coefficients by species name, and to its rate constant.
 
 ```python
-from skcomplex.core.components.systems import MassActionSystem
+from skcomplex.core.components.systems import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 
-isomerization = MassActionSystem(
+isomerization = ReactionNetworkSystem(
     species={'A': 10.0, 'B': 0.0},
     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
 )
@@ -105,12 +108,13 @@ molecules, `'jump'`, or as chemical Langevin equations, `'langevin'`. The amount
 ## Field realizations
 
 A field realization takes the parameters of its model under its own names, and gives the general system its parts
-through hooks. `SIRSystem` subclasses `MassActionSystem`. It takes `susceptible`, `infected`, `beta`, and `gamma`,
+through hooks. `SIRSystem` subclasses `ReactionNetworkSystem`. It takes `susceptible`, `infected`, `beta`, and `gamma`,
 returns its compartments from `_get_species`, and its infection and recovery from `_get_interactions`. Epidemics of
-susceptible, infected, and recovered individuals and enzyme kinetics are both mass-action systems, so they share the
-general system and differ in their realizations.
+susceptible, infected, and recovered individuals and enzyme kinetics are both reaction networks with a product
+propensity, which epidemiology calls homogeneous mixing and chemistry the law of mass action, so they share the general
+system and differ in their realizations.
 
-The hooks of `MassActionSystem` are these:
+The hooks of `ReactionNetworkSystem` are these:
 
 - `_get_species` returns the initial amount of every species by name,
 - `_get_reactions` returns the reaction table,

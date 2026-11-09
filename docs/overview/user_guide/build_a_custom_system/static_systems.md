@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import exp
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -32,8 +32,8 @@ class DoseElement(Element):
         return [EquationLaw(s.survival == exp(-0.3 * s.dose - 0.03 * s.dose**2), target=s.survival)]
 
 
-def dose_response(dose: float = 2.0) -> System:
-    return System(elements=[DoseElement('cells', dose=dose)], time=StaticTime())
+def dose_response(dose: float = 2.0) -> CompositeSystem:
+    return CompositeSystem(elements=[DoseElement('cells', dose=dose)], time=StaticTime())
 
 
 result = sweep(dose_response, {'dose': [0.0, 2.0]}, until=0.0, outputs=['cells.survival'])

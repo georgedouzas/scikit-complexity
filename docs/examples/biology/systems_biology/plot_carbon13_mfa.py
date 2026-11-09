@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import Carbon13MFASystem, tca_labelling_analysis
@@ -28,7 +28,7 @@ labelling = tca_labelling_analysis(noise=0.002, random_state=0)
 result = labelling(system)
 network = system.elements[0]
 fixed = {f'{bound}_{name}': result.fluxes[name] for name in TRUE for bound in ('lower', 'upper')}
-estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
+estimated = CompositeSystem(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='tca/graph')
 simulate(estimated, until=0.0, observers=[observer])
 

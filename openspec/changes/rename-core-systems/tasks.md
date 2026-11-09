@@ -33,8 +33,8 @@
 
 ## 7. Documentation and configuration
 
-- [ ] 7.1 Apply the rewrite to the user guide pages, the gallery examples, `docs/generate_parts.py`, and `docs/generate_systems.py`, keeping table headers and prose such as "System page", and verify the generators run and the docs build passes in strict mode
-- [ ] 7.2 Rewrite "mass action" and "mass-action" in the user guide and in `docs/generate_parts.py` as reaction networks with a product propensity, keeping the term only as a named field example, and verify `grep -rniE "mass[ -]action" docs/overview docs/generate_parts.py` shows only such examples
+- [x] 7.1 Apply the rewrite to the user guide pages, the gallery examples, `docs/generate_parts.py`, and `docs/generate_systems.py`, keeping table headers and prose such as "System page", and verify the generators run and the docs build passes in strict mode
+- [x] 7.2 Rewrite "mass action" and "mass-action" in the user guide and in `docs/generate_parts.py` as reaction networks with a product propensity, keeping the term only as a named field example, and verify `grep -rniE "mass[ -]action" docs/overview docs/generate_parts.py` shows only such examples
 - [ ] 7.3 Update the README and CONTRIBUTING, and the extension points of the profile in `openspec/constitution.md`, and verify `grep -rnwE "System|MassActionSystem" README.md CONTRIBUTING.md openspec/constitution.md` shows no reference to the old core classes
 
 ## 8. Verification

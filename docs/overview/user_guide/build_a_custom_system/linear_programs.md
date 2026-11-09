@@ -10,7 +10,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
 
@@ -34,7 +34,7 @@ class RoutesElement(Element):
         return [LinearProgramLaw([s.direct, s.detour], constraints, [objective])]
 
 
-system = System(elements=[RoutesElement('flows')], time=StaticTime())
+system = CompositeSystem(elements=[RoutesElement('flows')], time=StaticTime())
 trajectory = simulate(system, until=0.0)
 trajectory.values('flows.objective_0')[0]
 ```

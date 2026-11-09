@@ -15,7 +15,7 @@ import numpy as np
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BallNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
@@ -37,7 +37,7 @@ trajectory = simulate(system, observers=[observer])
 
 values = trajectory.values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = System(
+laplacian = CompositeSystem(
     elements=system.prepare().system_.elements,
     interactions=[
         LocalRuleInteraction(

@@ -15,7 +15,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, normal, where
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -39,7 +39,7 @@ class PersistentElement(Element):
         return [UpdateLaw(s.d, turn), UpdateLaw(s.x, s.x + turn + normal('jitter', 0, 0.1))]
 
 
-walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
+walkers = CompositeSystem(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
 final = simulate(walkers, until=200, dt=1.0, random_state=0).values('walkers.x')[-1]
 round(float(final.var() / 200), 1)
 ```
@@ -72,7 +72,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import TransitionLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -98,7 +98,7 @@ class SourceElement(Element):
         ]
 
 
-trajectory = simulate(System(elements=[SourceElement('source')]), until=10000, dt=1.0, random_state=0)
+trajectory = simulate(CompositeSystem(elements=[SourceElement('source')]), until=10000, dt=1.0, random_state=0)
 round(float((trajectory.values('source.hidden') == 'calm').mean()), 1)
 ```
 
@@ -115,7 +115,7 @@ round(float((trajectory.values('source.hidden') == 'calm').mean()), 1)
 from skcomplex.core.errors import ValidationError
 
 try:
-    simulate(System(elements=[SourceElement('source', stay=1.5)]), until=10)
+    simulate(CompositeSystem(elements=[SourceElement('source', stay=1.5)]), until=10)
 except ValidationError as error:
     message = str(error)
 assert 'below 0' in message

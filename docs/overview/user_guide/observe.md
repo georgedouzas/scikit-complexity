@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import I, exp, pi
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
@@ -47,7 +47,7 @@ def order_parameter(s):
 
 
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-oscillators = System(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
+oscillators = CompositeSystem(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
 order = simulate(oscillators, until=50, dt=1.0, observables=observables).values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
@@ -105,7 +105,7 @@ def sine(member):
 
 
 values = {'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-coupled = System(
+coupled = CompositeSystem(
     elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)],
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
@@ -136,11 +136,11 @@ from pathlib import Path
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 
-molecule = System(
+molecule = CompositeSystem(
     elements=[PointElement('a', x=[0.0, 0.0, 0.0]), PointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
     interactions=[
         RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),

@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
 
@@ -44,7 +44,7 @@ def squared_error(s):
 
 
 series = 0.8 ** np.arange(1, 11)
-system = System('decay', elements=[DecayElement('unit')], time=DiscreteTime())
+system = CompositeSystem('decay', elements=[DecayElement('unit')], time=DiscreteTime())
 training = TrainingInteraction(
     'fit',
     system='decay',
@@ -54,7 +54,7 @@ training = TrainingInteraction(
     learning_rate=0.05,
     batch_size=1,
 )
-fitting = System('fitting', systems=[system], interactions=[training], time=DiscreteTime())
+fitting = CompositeSystem('fitting', systems=[system], interactions=[training], time=DiscreteTime())
 trajectory = simulate(fitting, until=300, random_state=0)
 round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.values('fit/loss')[-1] < 1e-6)
 ```
@@ -126,7 +126,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction, count, total
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -156,7 +156,7 @@ class DriveInteraction(Interaction):
 
 
 W = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 2.0]])
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('cells', element=NodeElement, size=3),
         GroupElement('inputs', element=NodeElement, size=2, values={'x': [1.0, 2.0]}),
@@ -205,7 +205,7 @@ class TripletInteraction(Interaction):
 
 species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1})
 triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
-community = System(elements=[species], interactions=[triplets])
+community = CompositeSystem(elements=[species], interactions=[triplets])
 trajectory = simulate(community, until=50, dt=0.1)
 trajectory.values('species.x')[-1].round(3).tolist()
 ```

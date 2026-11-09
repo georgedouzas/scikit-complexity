@@ -41,7 +41,7 @@ from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
@@ -80,7 +80,7 @@ def sites(values):
     return values
 
 
-chain = System(
+chain = CompositeSystem(
     elements=[
         GroupElement(
             'chain', element=SpinElement, space=LatticeSpace(6), on='sites', values={'psi': ['up', 'down'] * 3}

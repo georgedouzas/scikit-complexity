@@ -12,9 +12,9 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 
-oscillator = System(
+oscillator = CompositeSystem(
     elements=[PointElement('p', x=1.0)],
     interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
     space=ContinuousSpace(n_dim=1),
@@ -368,7 +368,7 @@ type(echo.system.time).__name__, echo.forecast.shape
 `mode_decomposition`, `sparse_identification`, and `reservoir` take one or more trajectories or arrays sampled at a
 uniform step `dt`. Their results hold these fields:
 
-- `system`, a `System` of one surrogate element, which `simulate` runs like a hand-written
+- `system`, a `CompositeSystem` of one surrogate element, which `simulate` runs like a hand-written
   system,
 - `training_error` and `validation_error`, the relative errors of the fit on the training samples and on the end of
   every series held out by `validation`,
@@ -443,7 +443,7 @@ import numpy as np
 from skcomplex.core.analysis import irreversibility, large_deviations
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import StateSpec
 
 
@@ -456,7 +456,7 @@ class CounterElement(Element):
         return [JumpLaw(1.0, {s.n: 1})]
 
 
-counter = System(elements=[CounterElement('counter')])
+counter = CompositeSystem(elements=[CounterElement('counter')])
 cloning = large_deviations(
     counter, kind='cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
 )

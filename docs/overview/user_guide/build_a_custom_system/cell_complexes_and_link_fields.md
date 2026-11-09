@@ -43,7 +43,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -69,7 +69,7 @@ interactions = [
     RateInteraction('potential', target='links', state='A', rate=lambda n: -n.target.E),
     RateInteraction('field', target='links', state='E', rate=lambda n: codifferential(exterior_derivative(n.target.A))),
 ]
-system = System(elements=[links], interactions=interactions)
+system = CompositeSystem(elements=[links], interactions=interactions)
 trajectory = simulate(system, until=2.0, dt=0.1)
 bool(np.abs(space.incidences_[0].T @ trajectory.values('links.E').T).max() < 1e-10)
 ```
@@ -108,7 +108,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -130,7 +130,7 @@ sampling = SamplingInteraction(
     width=1.5,
     schedule='colored',
 )
-system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
+system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 states = simulate(system, until=200, random_state=0).values('links.theta')
 round(float(np.cos(space.incidences_[1] @ states[-50:].T).mean()), 1)
 ```
@@ -181,7 +181,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, StateSpec
 
@@ -209,7 +209,7 @@ sampling = SamplingInteraction(
     width=0.6,
     schedule='colored',
 )
-system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
+system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 states = simulate(system, until=100, random_state=0).values('links.U')
 loops = group.holonomy_of(group.matrices_of(states[-1]), space.boundaries_, space.boundary_signs_)
 round(float(np.trace(loops, axis1=1, axis2=2).real.mean() / 2), 1)

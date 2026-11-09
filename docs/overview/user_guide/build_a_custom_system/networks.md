@@ -59,7 +59,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -95,7 +95,7 @@ class HebbianInteraction(NeighborInteraction):
 
 
 space = NetworkSpace(nx.cycle_graph(6))
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement(
             'neurons', element=NeuronElement, space=space, on='sites', values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}
@@ -133,7 +133,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -157,7 +157,7 @@ class TriadInteraction(HyperedgeInteraction):
 
 triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
 space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles)
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('phases', element=PhaseElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}),
     ],
@@ -214,7 +214,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction
 from skcomplex.core.components.laws.utils import mean, where
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -243,7 +243,7 @@ galam = GroupingInteraction(
     write='s',
     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
 )
-run = simulate(System(elements=[voters], interactions=[galam]), until=5, random_state=0)
+run = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=5, random_state=0)
 run.values('voters.s').mean(axis=1).round(2).tolist()
 
 players = GroupElement(
@@ -260,7 +260,7 @@ goods = GroupingInteraction(
     write='payoff',
     function=lambda g: 4.5 * mean(g.members.s, over=g.members) - g.member.s,
 )
-run = simulate(System(elements=[players], interactions=[goods]), until=1)
+run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
 run.values('players.payoff')[-1][:5].round(2).tolist()
 ```
 
@@ -301,7 +301,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws.utils import count, total
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -335,7 +335,7 @@ triads = CouplingInteraction(
 oscillators = GroupElement(
     'oscillators', element=PlayerElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}
 )
-problem = simulate(System(elements=[oscillators], interactions=[triads]), until=0.0).problem
+problem = simulate(CompositeSystem(elements=[oscillators], interactions=[triads]), until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 np.round(problem.states.read(drift, 'oscillators.theta'), 3).tolist()
 
@@ -351,7 +351,7 @@ goods = CouplingInteraction(
     write='payoff',
     function=lambda s: 3 * total(s.members.s, over=s.members) / count(over=s.members) - s.member.s,
 )
-run = simulate(System(elements=[players], interactions=[goods]), until=1)
+run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
 run.values('players.payoff')[-1].round(2).tolist()
 ```
 
@@ -394,7 +394,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -433,7 +433,7 @@ alignment = CouplingInteraction(
     neighborhood=RadiusNeighborhood(1.0),
     function=flank,
 )
-system = System(elements=[gliders], interactions=[alignment], space=ContinuousSpace(extent=(10.0, 10.0)))
+system = CompositeSystem(elements=[gliders], interactions=[alignment], space=ContinuousSpace(extent=(10.0, 10.0)))
 problem = simulate(system, until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 problem.states.read(drift, 'gliders.u').round(3).tolist()
@@ -463,7 +463,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
 
@@ -500,7 +500,7 @@ imitation = ImitationInteraction(
     'imitation', target='players', state='s', rule='fermi', form='probability', intensity=2.0, phase='imitate'
 )
 time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-system = System(elements=[players], interactions=[play, imitation], time=time)
+system = CompositeSystem(elements=[players], interactions=[play, imitation], time=time)
 run = simulate(system, until=30, random_state=0)
 round(float(run.values('players.s')[-1].mean()), 2) > 0.5
 ```
@@ -532,7 +532,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -560,7 +560,7 @@ class BondExchangeInteraction(Interaction):
 
 
 space = NetworkSpace(nx.path_graph(3))
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}, on='sites'),
         GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': [1.0, 10.0]}),
@@ -604,7 +604,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import components, where
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -625,7 +625,7 @@ sites = GroupElement(
     space=NetworkSpace(nx.path_graph(6)),
     values={'occupied': [1.0, 1.0, 1.0, 0.0, 1.0, 1.0]}, on='sites',
 )
-problem = simulate(System(elements=[sites]), until=0.0).problem
+problem = simulate(CompositeSystem(elements=[sites]), until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 problem.states.read(drift, 'sites.occupied').tolist()
 ```
@@ -656,7 +656,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.laws.utils import shortest_paths
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -676,7 +676,7 @@ links = GroupElement('links', element=Element, on='edges', variable=True)
 overload = TopologyInteraction(
     'overload', target='nodes', action='remove-node', condition=lambda s: shortest_paths(1) > s.source.capacity
 )
-system = System(elements=[nodes, links], interactions=[overload], space=NetworkSpace(graph), time=DiscreteTime())
+system = CompositeSystem(elements=[nodes, links], interactions=[overload], space=NetworkSpace(graph), time=DiscreteTime())
 trajectory = simulate(system, until=10)
 [len(trajectory.network(frame).nodes) for frame in range(4)]
 ```
@@ -708,7 +708,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TopologyRequestSpec
 
@@ -731,7 +731,7 @@ class GrowthElement(Element):
         return [UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=degree), 1)]
 
 
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=203),
         GroupElement('links', element=Element, on='edges', variable=True, capacity=403),
@@ -785,7 +785,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -806,7 +806,7 @@ growth = TopologyInteraction(
     toward=lambda node: where(abs(node.angle - node.source.angle) <= 0.1, 1, 0),
 )
 space = NetworkSpace(nx.empty_graph(80))
-system = System(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
+system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
 trajectory = simulate(system, until=50, random_state=0)
 network = trajectory.network(-1)
 placed = trajectory.values('nodes.angle')[-1]
@@ -835,10 +835,10 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=Element, on='sites', variable=True, capacity=23),
         GroupElement('links', element=Element, on='edges', variable=True, capacity=43),
@@ -871,10 +871,10 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=Element, on='sites', variable=True, capacity=40),
         GroupElement('links', element=Element, on='edges', variable=True, capacity=40),
@@ -922,7 +922,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MapInteraction, TopologyInteraction
 from skcomplex.core.components.laws.utils import components
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -937,7 +937,7 @@ def product(node):
     return node.size * node.source.size
 
 
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=ClusteredElement, on='sites', variable=True, capacity=500),
         GroupElement('links', element=Element, on='edges', variable=True, capacity=500),
@@ -982,10 +982,10 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
-system = System(
+system = CompositeSystem(
     elements=[
         GroupElement('nodes', element=Element, on='sites', variable=True, capacity=50),
         GroupElement('links', element=Element, on='edges', variable=True, capacity=400),

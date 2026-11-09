@@ -16,7 +16,7 @@ from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
@@ -127,13 +127,13 @@ A nonnegative element holds a real amount, and the `target` of a `RateInteractio
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(tank.get_tags().domains)
-trajectory = simulate(System(elements=[tank], interactions=[decay]), until=2)
+trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
 round(trajectory.values('tank.x')[-1], 2)
 ```
 
@@ -149,7 +149,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleElementError
 from skcomplex.core.specs import StateSpec
@@ -165,7 +165,7 @@ switch = SwitchElement('switch')
 sorted(switch.get_tags().domains)
 flip = RateInteraction('flip', target='switch', state='on', rate=1.0)
 try:
-    simulate(System(elements=[switch], interactions=[flip]), until=1)
+    simulate(CompositeSystem(elements=[switch], interactions=[flip]), until=1)
 except RoleElementError as error:
     message = str(error)
 message
@@ -207,13 +207,13 @@ A rate returns a `rate` law of continuous time, and its `target` accepts the rea
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
 sorted(decay.get_tags().laws), sorted(decay.get_tags().time)
-trajectory = simulate(System(elements=[tank], interactions=[decay]), until=2)
+trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=2)
 round(trajectory.values('tank.x')[-1], 2)
 ```
 
@@ -225,7 +225,7 @@ so the system names the tag the two parts disagree on.
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
 
@@ -234,7 +234,7 @@ decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 *
 halve = MapInteraction('halve', target='tank', state='x', function=lambda s: s.target.x / 2)
 sorted(halve.get_tags().laws), sorted(halve.get_tags().time)
 try:
-    simulate(System(elements=[tank], interactions=[decay, halve]), until=1)
+    simulate(CompositeSystem(elements=[tank], interactions=[decay, halve]), until=1)
 except TagError as error:
     message = str(error)
 message
@@ -269,14 +269,14 @@ An arrival that adds one unit at random times returns a `jump` law, which `Gille
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
 queue = NonnegativeElement('queue', x=0.0)
 arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
 sorted(arrive.get_tags().laws)
-system = System(elements=[queue], interactions=[arrive])
+system = CompositeSystem(elements=[queue], interactions=[arrive])
 trajectory = simulate(system, until=5, solver=GillespieSolver(), random_state=0)
 trajectory.values('queue.x')[-1]
 ```
@@ -288,7 +288,7 @@ trajectory.values('queue.x')[-1]
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import TagError
@@ -296,7 +296,7 @@ from skcomplex.core.errors import TagError
 queue = NonnegativeElement('queue', x=0.0)
 arrive = JumpInteraction('arrive', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
 try:
-    simulate(System(elements=[queue], interactions=[arrive]), until=5, solver=EulerSolver())
+    simulate(CompositeSystem(elements=[queue], interactions=[arrive]), until=5, solver=EulerSolver())
 except TagError as error:
     message = str(error)
 message
@@ -331,13 +331,13 @@ A rate with a noise term returns a `rate` and a `noise` law, and `EulerMaruyamaS
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 
 tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
-system = System(elements=[tank], interactions=[decay])
+system = CompositeSystem(elements=[tank], interactions=[decay])
 sorted(system.get_tags().laws), sorted(EulerMaruyamaSolver.get_supported_tags().laws)
 trajectory = simulate(system, until=1, solver=EulerMaruyamaSolver(), random_state=0)
 round(trajectory.values('tank.x')[-1], 2)
@@ -350,7 +350,7 @@ round(trajectory.values('tank.x')[-1], 2)
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import TagError
@@ -358,7 +358,7 @@ from skcomplex.core.errors import TagError
 tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
 try:
-    simulate(System(elements=[tank], interactions=[decay]), until=1, solver=RK4Solver())
+    simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, solver=RK4Solver())
 except TagError as error:
     message = str(error)
 message
@@ -385,13 +385,13 @@ A backend turns the compiled laws of a system into numeric functions, with NumPy
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 
 tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x)
-trajectory = simulate(System(elements=[tank], interactions=[decay]), until=1, backend=NumbaBackend())
+trajectory = simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, backend=NumbaBackend())
 round(trajectory.values('tank.x')[-1], 2)
 ```
 
@@ -402,7 +402,7 @@ round(trajectory.values('tank.x')[-1], 2)
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
@@ -411,7 +411,7 @@ tank = NonnegativeElement('tank', x=10.0)
 decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -0.5 * s.target.x, noise=0.1)
 sorted(JaxBackend.get_supported_tags().laws)
 try:
-    simulate(System(elements=[tank], interactions=[decay]), until=1, backend=JaxBackend())
+    simulate(CompositeSystem(elements=[tank], interactions=[decay]), until=1, backend=JaxBackend())
 except TagError as error:
     message = str(error)
 message
@@ -632,7 +632,7 @@ def _core_systems() -> list[type[BaseSystem]]:
     They are the generic composite and the general systems.
     """
     found = _public_classes(systems, BaseSystem)
-    return sorted(found, key=lambda system: (system is not System, system.__name__))
+    return sorted(found, key=lambda system: (system is not CompositeSystem, system.__name__))
 
 
 def _systems_page() -> str:
@@ -647,8 +647,8 @@ def _systems_page() -> str:
     intro = """
 A system is a part that holds elements, interactions, nested systems, a space, and a time. `BaseSystem` is the base
 of every system: a subclass takes the parameters of its model in `__init__`, builds its parts from them in
-`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `System` is the generic
-composite you build from parts. A general system of the core, such as `MassActionSystem`, builds the parts of a
+`_build_system`, and derives its capability tags from its parts, which `get_tags()` returns. `CompositeSystem` is the
+composite you build from parts. A general system of the core, such as `ReactionNetworkSystem`, builds the parts of a
 structure that several fields share from a table of parameters. The ready-made systems of `skcomplex.systems` are
 subclasses of these, one class per model. The [catalog](../systems/catalog.md) lists them by field and by topic, with
 their import paths, their model parameters, and their capability tags, and `all_systems` of `skcomplex.systems` lists
@@ -657,15 +657,15 @@ them by field, topic, or tag. The table lists the system classes of the core.
     examples = """
 ## A compatible system
 
-A mass-action system in the mode `jump` has random reaction events, which `GillespieSolver` draws.
+A reaction network system in the mode `jump` has random reaction events, which `GillespieSolver` draws.
 
 ```python
-from skcomplex.core.components.systems import MassActionSystem
+from skcomplex.core.components.systems import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
 reactions = {'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)}
-isomerization = MassActionSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions, mode='jump')
+isomerization = ReactionNetworkSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions, mode='jump')
 sorted(isomerization.get_tags().laws), isomerization.get_tags().randomness
 trajectory = simulate(isomerization, until=5, solver=GillespieSolver(), random_state=0)
 trajectory.values('A.x')[-1]
@@ -677,13 +677,13 @@ In the default mode `rate` the same reactions are rate equations, which `Gillesp
 names the law kind.
 
 ```python
-from skcomplex.core.components.systems import MassActionSystem
+from skcomplex.core.components.systems import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.errors import TagError
 
 reactions = {'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)}
-isomerization = MassActionSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions)
+isomerization = ReactionNetworkSystem(species={'A': 10.0, 'B': 0.0}, reactions=reactions)
 try:
     simulate(isomerization, until=5, solver=GillespieSolver())
 except TagError as error:

@@ -15,7 +15,7 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
@@ -36,7 +36,7 @@ trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_s
 
 alive = trajectory.values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
-parity = System(
+parity = CompositeSystem(
     elements=[GroupElement('cells', element=BinaryCellElement, space=quotient, on='sites')],
     interactions=[
         LocalRuleInteraction(

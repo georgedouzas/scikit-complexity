@@ -6,7 +6,7 @@ rewriting system replaces its parts in parallel at every step.
 ```python
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 
@@ -15,7 +15,7 @@ class AlgaeElement(WordElement):
         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
 
 
-algae = System(elements=[AlgaeElement('algae', axiom='A')])
+algae = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')])
 trajectory = simulate(algae, until=5)
 trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text
 ```
@@ -43,7 +43,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ModuleSpec, ParameterSpec
 
@@ -60,7 +60,7 @@ class ShrinkingElement(WordElement):
         return [ProductionLaw(ModuleSpec('A', (x,)), successor, condition=x > 0.1)]
 
 
-plant = System(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
+plant = CompositeSystem(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
 simulate(plant, until=5).structure('plant', 5).text
 ```
 
@@ -88,7 +88,7 @@ Draw a word as a curve, or grow a patch of tiles, and measure the result as a fr
 from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.laws import ProductionLaw, SubstitutionLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import AffineSpec, GeometrySpec, PrototileSpec
 
@@ -98,7 +98,7 @@ class KochElement(WordElement):
         return [ProductionLaw('F', 'F+F--F+F')]
 
 
-koch = System(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
+koch = CompositeSystem(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
 curve = simulate(koch, until=4).structure('koch', 4)
 len(curve.segments()), round(curve.length(), 6)
 ```
@@ -125,7 +125,7 @@ class CantorElement(PatchElement):
         return [SubstitutionLaw('interval', thirds)]
 
 
-cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
+cantor = CompositeSystem(elements=[CantorElement('cantor', prototiles=[interval])])
 trajectory = simulate(cantor, until=5)
 trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6)
 grid = trajectory.structure('cantor', 5).raster(729)

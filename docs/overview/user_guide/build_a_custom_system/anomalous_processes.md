@@ -15,7 +15,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import draw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -29,7 +29,7 @@ class FlierElement(Element):
         return [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))]
 
 
-fliers = System(elements=[GroupElement('fliers', element=FlierElement, size=100)])
+fliers = CompositeSystem(elements=[GroupElement('fliers', element=FlierElement, size=100)])
 flight = simulate(fliers, until=20, dt=1.0, random_state=0)
 flight.values('fliers.x').shape
 ```
@@ -54,7 +54,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.laws.utils import draw, normal
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -76,7 +76,7 @@ class WalkerElement(Element):
         return [JumpLaw(waiting=waiting, reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')]
 
 
-walkers = System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
+walkers = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
 walk = simulate(walkers, until=1000, dt=100.0, random_state=0)
 walk.problem.form.value, bool(walk.values('jumps.renewals')[-1] > 1000)
 ```
@@ -110,7 +110,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.core.specs import StateSpec
@@ -125,7 +125,7 @@ class RoughElement(Element):
         return [NoiseLaw(s.x, 1, hurst=0.3)]
 
 
-walkers = System(elements=[GroupElement('walkers', element=RoughElement, size=500)])
+walkers = CompositeSystem(elements=[GroupElement('walkers', element=RoughElement, size=500)])
 rough = simulate(walkers, until=1, dt=0.1, solver=FractionalEulerMaruyamaSolver(dt=0.01), random_state=0)
 round(float(rough.values('walkers.x')[-1].var()), 1)
 ```
@@ -154,7 +154,7 @@ from typing import Annotated
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import L1Solver
 from skcomplex.core.specs import StateSpec
@@ -169,7 +169,7 @@ class RelaxingElement(Element):
         return [RateLaw(s.x, -s.x)]
 
 
-system = System(elements=[RelaxingElement('a')])
+system = CompositeSystem(elements=[RelaxingElement('a')])
 relaxing = simulate(system, until=20, dt=1.0, solver=L1Solver(dt=0.01, memory=10.0))
 solution = symbolic(system, kind='solve', use_initial_state=True).solutions['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})

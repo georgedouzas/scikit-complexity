@@ -64,7 +64,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
@@ -108,7 +108,7 @@ class NucleusElement(Element):
 
 
 try:
-    simulate(System(elements=[NucleusElement('atom')]), until=1)
+    simulate(CompositeSystem(elements=[NucleusElement('atom')]), until=1)
 except ValidationError as error:
     message = str(error)
 assert '[laws-mixed]' in message

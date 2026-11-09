@@ -12,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CardinalitySpec, ClauseSpec, StateSpec
 
@@ -26,7 +26,7 @@ class BitElement(Element):
 constraints = [CardinalitySpec((1, 2, 3), 2, 'at-least'), ClauseSpec((-1,)), ClauseSpec((-2,))]
 decide = SatisfiabilityInteraction('decide', target='bits', state='on', constraints=constraints)
 bits = GroupElement('bits', element=BitElement, size=3)
-system = System(elements=[bits], interactions=[decide], time=DiscreteTime())
+system = CompositeSystem(elements=[bits], interactions=[decide], time=DiscreteTime())
 simulate(system, until=3).values('decide.satisfiable')[1:]
 ```
 

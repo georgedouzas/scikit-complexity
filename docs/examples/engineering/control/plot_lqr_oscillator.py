@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import linearization
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import LqrOscillatorSystem
@@ -34,7 +34,7 @@ trajectory = simulate(system, observers=[observer])
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
 parts = system.prepare().system_
-linear = linearization(System(elements=list(parts.elements)))
+linear = linearization(CompositeSystem(elements=list(parts.elements)))
 gain = np.array([parts.interactions[0].gain])
 slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
 times, energy = trajectory.times, trajectory.values('energy')

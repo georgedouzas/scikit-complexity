@@ -37,7 +37,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
 
@@ -54,7 +54,7 @@ class LifeElement(Element):
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
-cells = System(elements=[GroupElement('cells', element=LifeElement, space=space, values={'alive': glider}, on='sites')])
+cells = CompositeSystem(elements=[GroupElement('cells', element=LifeElement, space=space, values={'alive': glider}, on='sites')])
 trajectory = simulate(cells, until=4, dt=1)
 np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
 ```
@@ -106,7 +106,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
@@ -133,7 +133,7 @@ class SpinElement(Element):
         return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
 
 
-spins = System(elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((32, 32)), on='sites')])
+spins = CompositeSystem(elements=[GroupElement('spins', element=SpinElement, space=LatticeSpace((32, 32)), on='sites')])
 abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
@@ -160,7 +160,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -181,7 +181,7 @@ class BurnElement(Element):
 fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
-forest = System(elements=[GroupElement('forest', element=BurnElement, space=space, values={'fire': fire}, on='sites')])
+forest = CompositeSystem(elements=[GroupElement('forest', element=BurnElement, space=space, values={'fire': fire}, on='sites')])
 burning = simulate(forest, until=3, dt=1).lattice('forest.fire')
 [int(item.sum()) for item in burning]
 ```
@@ -208,7 +208,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
@@ -234,7 +234,7 @@ class GraphSpinElement(Element):
 
 
 graph = nx.random_regular_graph(4, 200, seed=0)
-spins = System(elements=[GroupElement('spins', element=GraphSpinElement, space=NetworkSpace(graph), on='sites')])
+spins = CompositeSystem(elements=[GroupElement('spins', element=GraphSpinElement, space=NetworkSpace(graph), on='sites')])
 abs(simulate(spins, until=200, dt=50, random_state=0).states[-1].mean()) > 0.9
 ```
 
@@ -262,7 +262,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RegionScoreSpec, StateSpec
 
@@ -287,7 +287,7 @@ copies = SamplingInteraction(
     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, volume), move='copy'
 )
 sites = GroupElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions}, on='sites')
-system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
+system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
 labels = simulate(system, until=200, random_state=0).values('sites.region')
 abs((labels[50:].reshape(-1, 144) == 1).sum(axis=1).mean() - 30) < 2
 ```
@@ -336,7 +336,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     StateTranslationNeighborhood,
 )
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
 
@@ -356,7 +356,7 @@ class SeriesElement(Element):
 
 
 group = CayleySpace(SymmetricGroup(3))
-shift = System(
+shift = CompositeSystem(
     elements=[
         GroupElement(
             'cells', element=GroupValuedElement, space=group, on='sites', values={'value': [1, 2, 3, 4, 5, 0]}
@@ -376,7 +376,7 @@ simulate(shift, until=1).values('cells.value')[-1].tolist()
 
 start = np.zeros((6, 4))
 start[3, 0] = 1
-series = System(
+series = CompositeSystem(
     elements=[GroupElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start}, on='sites')],
     interactions=[
         LocalRuleInteraction(
@@ -426,7 +426,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import ExtremalLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -447,7 +447,7 @@ class SpeciesElement(Element):
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 members = GroupElement('ring', element=SpeciesElement, space=space, on='sites', values={'fitness': fitness})
-ring = System(elements=[members])
+ring = CompositeSystem(elements=[members])
 trajectory = simulate(ring, until=100, dt=10, random_state=0)
 len(trajectory.events), trajectory.events[0].label
 ```

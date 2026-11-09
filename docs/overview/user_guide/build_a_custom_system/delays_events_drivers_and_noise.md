@@ -16,7 +16,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import delayed
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -48,7 +48,7 @@ class MackeyGlassElement(Element):
         return [RateLaw(s.x, s.beta * past / (1 + past**s.n) - s.gamma * s.x)]
 
 
-cells = System(elements=[MackeyGlassElement('cells')])
+cells = CompositeSystem(elements=[MackeyGlassElement('cells')])
 round(float(simulate(cells, until=300, dt=0.5).values('cells.x')[-1]), 3)
 ```
 
@@ -68,7 +68,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -92,7 +92,7 @@ class BallElement(Element):
         return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
 
-trajectory = simulate(System(elements=[BallElement('ball')]), until=3, dt=0.01)
+trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=3, dt=0.01)
 [round(event.time, 6) for event in trajectory.events]
 ```
 
@@ -115,7 +115,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import step
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -136,7 +136,7 @@ class FilterElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-filtered = simulate(System(elements=[FilterElement('filter')]), until=10, dt=0.5)
+filtered = simulate(CompositeSystem(elements=[FilterElement('filter')]), until=10, dt=0.5)
 round(float(filtered.values('filter.y')[-1]), 4)
 ```
 
@@ -154,7 +154,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MilsteinSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -178,7 +178,7 @@ class GrowthElement(Element):
         return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')]
 
 
-growth = System(elements=[GrowthElement('asset')])
+growth = CompositeSystem(elements=[GrowthElement('asset')])
 round(float(simulate(growth, until=1, solver=MilsteinSolver(dt=0.01), random_state=0).states[-1][0]), 3)
 ```
 
@@ -202,7 +202,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
@@ -233,7 +233,7 @@ class CorrelatedNoiseInteraction(Interaction):
 
 
 processes = WienerProcessSpec('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
-market = System(
+market = CompositeSystem(
     elements=[StockElement('a'), StockElement('b')],
     interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
 )
@@ -279,7 +279,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -303,7 +303,7 @@ class DensityElement(Element):
         return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)]
 
 
-gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
+gas = CompositeSystem(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
 density = simulate(gas, until=5, solver=solver, random_state=0).values('gas.rho')
 round(float(density[-1].sum()), 6), bool(density[-1].std() > 0)

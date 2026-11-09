@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -45,7 +45,7 @@ class ForagerElement(Element):
             agent.create(food=agent.food)
 
 
-foragers = System(
+foragers = CompositeSystem(
     elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
@@ -113,7 +113,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
@@ -145,9 +145,9 @@ class SpreadInteraction(Interaction):
 
 counts = []
 places = [(10.0 * index, 0.5) for index in range(5)]
-road = System(
+road = CompositeSystem(
     systems=[
-        System(
+        CompositeSystem(
             'road',
             elements=[GroupElement('walkers', element=WalkerElement, size=5, location=places)],
             interactions=[SpreadInteraction('spread', walkers='walkers')],
@@ -174,7 +174,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction, MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import BatchMatchingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 
@@ -225,7 +225,7 @@ class ClerkInteraction(FeedbackInteraction):
 rng = np.random.default_rng(0)
 buyers = {'value': rng.uniform(0.5, 2, 20), 'demand': 1.0, 'money': 2.0}
 sellers = {'value': rng.uniform(0, 1.5, 20), 'supply': 1.0}
-auction = System(
+auction = CompositeSystem(
     elements=[
         GroupElement('buyers', element=TraderElement, size=20, values=buyers),
         GroupElement('sellers', element=TraderElement, size=20, values=sellers),
@@ -342,7 +342,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -366,7 +366,7 @@ class CoinElement(Element):
         agent.heads += float(system.rng.random() < agent.bias)
 
 
-coins = System('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
+coins = CompositeSystem('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
 int(simulate(coins, until=10, random_state=0).agents('coins', 10).values['heads'].sum())
 ```
 

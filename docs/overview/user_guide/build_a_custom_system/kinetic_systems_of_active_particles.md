@@ -45,7 +45,7 @@ cooperation and competition move them one class up or down:
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
@@ -73,7 +73,7 @@ class ExchangeInteraction(Interaction):
         return [BilinearLaw(s.population.f, s.population.f, s.population.f, s.eta, table, conserved=True)]
 
 
-economy = System(
+economy = CompositeSystem(
     elements=[wealth],
     interactions=[ExchangeInteraction('exchange', population='wealth')],
     space=LatticeSpace(9, boundary='fixed'),
@@ -139,7 +139,7 @@ class PolicyInteraction(Interaction):
         return [BilinearLaw(s.population.f, s.population.f, s.government.f, rates * s.tax, table, conserved=True)]
 
 
-welfare = System(
+welfare = CompositeSystem(
     elements=[wealth, GroupElement('government', element=WealthDensityElement, size=1, values={'f': 1.0})],
     interactions=[
         ExchangeInteraction('exchange', population='wealth'),
@@ -261,7 +261,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
@@ -280,7 +280,7 @@ class MajorityElement(Element):
 
 alive = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 cells = GroupElement('cells', element=MajorityElement, space=tree, on='sites', values={'alive': alive})
-majority = System(elements=[cells])
+majority = CompositeSystem(elements=[cells])
 tree.ball_sizes_, simulate(majority, until=3, dt=1).values('cells.alive').shape
 CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare().words_
 ```
@@ -349,7 +349,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
 
@@ -363,7 +363,7 @@ class CellElement(Element):
 def cellular_automaton(space, neighborhood, rule):
     cells = GroupElement('cells', element=CellElement, space=space, on='sites')
     interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
-    return System(elements=[cells], interactions=[interaction])
+    return CompositeSystem(elements=[cells], interactions=[interaction])
 
 
 life_rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
@@ -382,16 +382,16 @@ cells = [1, 0, 1, 1, 0, 0, 0, 0]
 for _ in range(2):
     cells = step.run({'space': ring, 'alive': cells}).value_
 start = GroupElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]}, on='sites')
-started = System(elements=[start], interactions=shift.interactions)
+started = CompositeSystem(elements=[start], interactions=shift.interactions)
 frames = simulate(started, until=2, dt=1).values('cells.alive')
 cells.tolist() == frames[-1].astype(int).tolist()
 ```
 
 `skcomplex.core.analysis` decides the properties the theory studies on finite universes, where they are decidable:
 periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do not decide them on
-infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, and the analysis `automaton` reads
-the system. The `run` of a `LocalRuleLaw` is one step of the map on configurations, so several steps are a loop over
-that `run` or a `simulate` of the system. The two give the same configuration, as the last line shows.
+infinite groups. A cellular automaton is a `CompositeSystem` with a `LocalRuleInteraction`, and the analysis
+`automaton` reads the system. The `run` of a `LocalRuleLaw` is one step of the map on configurations, so several steps
+are a loop over that `run` or a `simulate` of the system. The two give the same configuration, as the last line shows.
 
 - The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
   universes and solve a SAT encoding with PySAT on larger ones.
@@ -412,7 +412,7 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
 
@@ -434,10 +434,10 @@ class GoldenCellElement(Element):
 
 
 def golden(space):
-    return System(elements=[GroupElement('cells', element=GoldenCellElement, space=space, on='sites')])
+    return CompositeSystem(elements=[GroupElement('cells', element=GoldenCellElement, space=space, on='sites')])
 
 
-laplacian = System(
+laplacian = CompositeSystem(
     elements=[GroupElement('cells', element=CellElement, space=LatticeSpace(5), on='sites')],
     interactions=[
         LocalRuleInteraction(
@@ -465,7 +465,7 @@ keep = LocalRuleInteraction(
     rule=TableSpec({(1,): 1}),
     neighborhood=LatticeNeighborhood(((0,),)),
 )
-held = System(elements=[cells], interactions=[keep])
+held = CompositeSystem(elements=[cells], interactions=[keep])
 automaton(held, kind='admissible', configuration=forbidden).admissible
 simulate(held, until=2, dt=1).values('cells.alive')[-1].astype(int).tolist()
 ```

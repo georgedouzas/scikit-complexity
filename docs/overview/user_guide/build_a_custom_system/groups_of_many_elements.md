@@ -8,12 +8,12 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 rng = np.random.default_rng(0)
 values = {'x': rng.uniform(0, 1, (1_000, 2)), 'x_d1': rng.normal(0, 1, (1_000, 2))}
-gas = System(
+gas = CompositeSystem(
     elements=[GroupElement('gas', element=PointElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
@@ -55,7 +55,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -69,7 +69,7 @@ class UnitElement(Element):
         return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
 
 
-units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
+units = CompositeSystem(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 simulate(units, until=2, dt=0.5).values('units.x')[-1, :3].round(3).tolist()
 ```
 
@@ -107,7 +107,7 @@ class ReplicationInteraction(Interaction):
         return [RateLaw(x, x * (total(x, weights=payoff) - total(x * total(x, weights=payoff))))]
 
 
-game = System(
+game = CompositeSystem(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
@@ -147,7 +147,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -169,7 +169,7 @@ class InhibitionInteraction(Interaction):
         return [RateLaw(x, x * (1 - x) - s.beta * x * (total(x) - x))]
 
 
-network = System(
+network = CompositeSystem(
     elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
@@ -187,7 +187,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -217,7 +217,7 @@ class WeightedSumInteraction(Interaction):
         return [UpdateLaw(s.target.x, total_input)]
 
 
-summed = System(
+summed = CompositeSystem(
     elements=[
         NodeElement('a', x=1.0),
         NodeElement('b', x=2.0),
@@ -259,7 +259,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import mod, shift_member
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -286,7 +286,7 @@ class FollowingInteraction(Interaction):
 
 
 positions = np.arange(20) * 2.0 + np.eye(20)[0] * 0.1
-ring = System(
+ring = CompositeSystem(
     elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
     interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
@@ -321,7 +321,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RunStateSpec, StateSpec
 
@@ -335,7 +335,7 @@ class UnitElement(Element):
         return [RateLaw(s.x, -s.x + tanh(total(s.x)))]
 
 
-units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
+units = CompositeSystem(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
 problem = simulate(units, until=1).problem
 state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
 jacobian = problem.jacobian.prepare(problem).run(state).values_
@@ -369,7 +369,7 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 
@@ -379,7 +379,7 @@ def lennard_jones(s, r):
 
 side = np.arange(10) * 1.2
 positions = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
-liquid = System(
+liquid = CompositeSystem(
     elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': positions})],
     interactions=[PairCouplingInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),

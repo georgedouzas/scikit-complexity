@@ -23,7 +23,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
@@ -33,7 +33,7 @@ x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
 gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume')
 stream = ConservationInteraction('stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
-system = System(elements=[gas], interactions=[stream])
+system = CompositeSystem(elements=[gas], interactions=[stream])
 final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).values('gas.x')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
@@ -95,7 +95,7 @@ from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
@@ -108,7 +108,7 @@ groups = FieldElement('groups', element=NonnegativeElement, space=space, values=
 conflict = RateInteraction(
     'conflict', target='groups', state='x', rate=lambda s: s.target.x * integral_transform(s.target.x, gain, ('z',))
 )
-trajectory = simulate(System(elements=[groups], interactions=[conflict]), until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
+trajectory = simulate(CompositeSystem(elements=[groups], interactions=[conflict]), until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
 final = trajectory.values('groups.x')[-1]
 round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
 ```
@@ -140,7 +140,7 @@ import numpy as np
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import AxisSpec, ObservableSpec
 
@@ -153,7 +153,7 @@ axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
 simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
 groups = FieldElement('groups', element=NonnegativeElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
 observables = [ObservableSpec('total', total, group='groups')]
-trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
 round(float(np.asarray(trajectory.values('total'))[-1]), 10)
 ```
 

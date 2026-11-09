@@ -18,7 +18,7 @@ The library follows scikit-learn. What you define is an estimator, and what you 
 | scikit-learn | scikit-complexity |
 | --- | --- |
 | an estimator, such as `Ridge`, with `get_params`, `set_params`, and `clone` | a part of a system, an element, an interaction, a law, or a system, such as `SIRSystem` |
-| `Pipeline` | `System`, the composite of elements, interactions, and nested systems |
+| `Pipeline` | `CompositeSystem`, the composite of elements, interactions, and nested systems |
 | `fit` | `prepare` |
 | estimator tags | capability tags, from `get_tags()` |
 | `all_estimators()` | `all_systems()` |

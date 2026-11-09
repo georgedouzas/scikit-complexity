@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
@@ -37,7 +37,7 @@ class ReservoirElement(Element):
         return [EquationLaw(s.a_n, s.a_mu - s.level)]
 
 
-system = System(
+system = CompositeSystem(
     elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
 )
@@ -86,7 +86,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
 
@@ -171,7 +171,7 @@ class GroundElement(Element):
         return [EquationLaw(s.p_v, 0)]
 
 
-circuit = System(
+circuit = CompositeSystem(
     elements=[CapacitorElement('tank', u=1.0, C=0.5), ResistorElement('load', R=2.0), GroundElement('ground')],
     interactions=[
         ConnectionInteraction('top', members=['tank', 'load'], ports=['p', 'p']),

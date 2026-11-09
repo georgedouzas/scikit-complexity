@@ -19,7 +19,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -39,7 +39,7 @@ class InflowInteraction(RateInteraction):
         return {'target': 'stock'}.get(role, role)
 
 
-inflow = System(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
+inflow = CompositeSystem(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
 round(float(simulate(inflow, until=1, dt=0.1).values('tank.level')[-1]), 3)
 ```
 
@@ -63,7 +63,7 @@ class WalkerElement(StockElement):
 
 
 walkers = GroupElement('walkers', element=WalkerElement, size=2, location=[(2, 2)] * 2)
-walk = System(
+walk = CompositeSystem(
     elements=[walkers],
     interactions=[BoldWalkInteraction('walk', target='walkers')],
     space=LatticeSpace((5, 5)),
@@ -100,7 +100,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PartnerSpec, StateSpec
 
@@ -141,7 +141,7 @@ meal = TransferInteraction(
     form='agent',
     settlement=settle,
 )
-system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
+system = CompositeSystem(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
 trajectory = simulate(system, until=1, random_state=0)
 trajectory.agents('eaters', 1).values['level'].tolist()
 ```
@@ -166,7 +166,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -184,7 +184,7 @@ class QueueElement(Element):
 
 
 group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
-queues = System(elements=[group], time=DiscreteTime())
+queues = CompositeSystem(elements=[group], time=DiscreteTime())
 trajectory = simulate(queues, until=1, random_state=0)
 trajectory.agents('queues', 1).values['orders'].tolist()
 ```
@@ -266,10 +266,10 @@ parts:
 ```python
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
+[issubclass(cls, BaseConfig) for cls in (Element, CompositeSystem, LotkaVolterraSystem)]
 issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
 ```
 
@@ -320,8 +320,8 @@ import order, so a module imports only the modules above it:
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
   interactions built on them.
-- `systems`: `BaseSystem` and its `RunSettings`, the composite `System`, and `MassActionSystem`, the first general
-  system of the core.
+- `systems`: `BaseSystem` and its `RunSettings`, the composite `CompositeSystem`, and `ReactionNetworkSystem`, the
+  first general system of the core.
 - `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
 
 ### The engine

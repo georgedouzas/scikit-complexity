@@ -19,7 +19,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
@@ -46,7 +46,7 @@ for beta, color in ((-3.0, 'tab:blue'), (0.0, 'tab:gray'), (3.0, 'tab:orange')):
         values={'x': [[0.0, 0.0, 0.0], [0.0, 4.0, 0.0]], 'p': [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]},
     )
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=1.5, B2=1.5 * beta)
-    system = System(elements=[pair], interactions=[slip], space=ContinuousSpace(n_dim=3))
+    system = CompositeSystem(elements=[pair], interactions=[slip], space=ContinuousSpace(n_dim=3))
     trajectory = simulate(system, until=12, dt=0.25)
     positions = trajectory.values('squirmers.x')
     gap = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)

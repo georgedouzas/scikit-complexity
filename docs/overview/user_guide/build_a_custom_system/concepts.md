@@ -6,12 +6,12 @@ how to solve it.
 ```python
 from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
 rabbits = NonnegativeElement('rabbits', x=10)
 growth = RateInteraction('growth', target='rabbits', state='x', rate=lambda s: 0.5 * s.target.x)
-system = System(elements=[rabbits], interactions=[growth])
+system = CompositeSystem(elements=[rabbits], interactions=[growth])
 simulate(system, until=2, dt=0.1).values('rabbits.x')[-1].round(2)
 ```
 
@@ -36,7 +36,7 @@ class PopulationElement(Element):
         self.x = x
 
 
-system = System(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
+system = CompositeSystem(elements=[PopulationElement('rabbits', x=10)], interactions=[growth])
 simulate(system, until=2, dt=0.1).values('rabbits.x')[-1].round(2)
 ```
 

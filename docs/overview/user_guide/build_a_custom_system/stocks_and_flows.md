@@ -9,7 +9,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import Sink, Source, TransferLaw
 from skcomplex.core.components.laws.utils import series
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
@@ -39,7 +39,7 @@ class PeopleElement(Element):
         ]
 
 
-crowd = System(elements=[PeopleElement('crowd')])
+crowd = CompositeSystem(elements=[PeopleElement('crowd')])
 observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
 trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
 round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3)
@@ -122,7 +122,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.laws.utils import transfer
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, StateSpec
 
@@ -157,7 +157,7 @@ class TraderElement(Element):
 
 
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
-market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
+market = CompositeSystem(elements=[GroupElement('traders', element=TraderElement, size=3)])
 traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
 float(traders.agents('traders', 3).values['cash'].sum())
 ```

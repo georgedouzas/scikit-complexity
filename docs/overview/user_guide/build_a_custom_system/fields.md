@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -37,7 +37,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 space = LatticeSpace(400, spacing=0.05)
 rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = simulate(System(elements=[rod]), until=0.5, dt=0.1)
+trajectory = simulate(CompositeSystem(elements=[rod]), until=0.5, dt=0.1)
 heat = trajectory.values('rod.u')
 round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist()
 ```
@@ -81,7 +81,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.specs import StateSpec
@@ -104,7 +104,7 @@ line = FieldElement(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-trajectory = simulate(System(elements=[line]), until=100, dt=10, solver=ETDRK4Solver(dt=0.25))
+trajectory = simulate(CompositeSystem(elements=[line]), until=100, dt=10, solver=ETDRK4Solver(dt=0.25))
 round(float(np.abs(trajectory.values('line.u')[-1]).max()), 1)
 ```
 
@@ -181,7 +181,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -204,7 +204,7 @@ def rate_of(rate):
     values = {'u': np.exp(-((centers - 6.4) ** 2))}
     line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
     interaction = RateInteraction('rate', target='line', state='u', rate=rate)
-    return simulate(System(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).values('line.u')
+    return simulate(CompositeSystem(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).values('line.u')
 
 
 def smoothing(s):
@@ -270,7 +270,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -289,7 +289,7 @@ exchange = CouplingInteraction(
     write='u',
     function=lambda s: 0.2 * (s.other.u - s.member.u),
 )
-system = System(elements=[cells], interactions=[exchange])
+system = CompositeSystem(elements=[cells], interactions=[exchange])
 trajectory = simulate(system, until=2.0, dt=0.5)
 trajectory.values('cells.u')[-1].sum().round(6)
 ```
