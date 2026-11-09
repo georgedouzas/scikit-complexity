@@ -15,26 +15,25 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 
-from ...errors import ValidationError
-from ...specs import (
-    BatchMatchingSpec,
-    ContinuousMatchingSpec,
-    IterativeMatchingSpec,
-    MatchSpec,
-    PartnerSpec,
-    PartnerSwitchSpec,
-    QueueSpec,
-    RandomSearchSpec,
-    RoleSpec,
-    StableMatchingSpec,
-)
-from ...types import ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, MatchLaw, RuleLaw
-from ..laws.utils import transfer
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, MatchingRule, Pairing, SystemViewProtocol
-from ._interaction import Interaction
+from ....core.components.base import BasePart
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.components.laws.utils import transfer
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import PartnerSpec, RoleSpec
+from ....core.types import ElementKind
+from ._batch_matching_spec import BatchMatchingSpec
+from ._continuous_matching_spec import ContinuousMatchingSpec
+from ._iterative_matching_spec import IterativeMatchingSpec
+from ._match_spec import MatchSpec
+from ._partner_matching_spec import PartnerMatchingSpec
+from ._partner_switch_spec import PartnerSwitchSpec
+from ._queue_spec import QueueSpec
+from ._random_search_spec import RandomSearchSpec
+from ._stable_matching_spec import StableMatchingSpec
+from .types import MatchingRule
 
 SIGNS = (-1, 1)
 DEFAULT_STATES = ('reserve', 'quantity', 'cap')
@@ -80,7 +79,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             The spec of the algorithm that matches the members, such as `ContinuousMatchingSpec()`, or a function
             `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that returns their
             pairs, which match at the midpoint of both reserves. A `PartnerSpec` picks among the providers that still
-            offer a quantity at a reserve the requester accepts, in random order of the requesters.
+            offer a quantity at a reserve the requester accepts, in random order of the requesters, and settles at
+            the midpoint, or at the value of a `PartnerMatchingSpec`.
 
         reserve:
             The state with the reserve of both sides, or a pair of the requesters' and the providers' states. An agent
@@ -111,8 +111,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             reserve, quantity, or cap, raised by `run`.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import MatchingInteraction
-        >>> from skcomplex.core.specs import ContinuousMatchingSpec
+        >>> from skcomplex.systems.general.matching import MatchingInteraction
+        >>> from skcomplex.systems.general.matching import ContinuousMatchingSpec
         >>> matching = MatchingInteraction(
         ...     'exchange',
         ...     requesters='traders',
@@ -658,7 +658,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             is_feasible,
         ):
             first, second = wanting[id(requester)], offering[id(provider)]
-            self._book(trades, first, second, self._get_value(first, second, rule.value))
+            value = rule.value if isinstance(rule, PartnerMatchingSpec) else 'midpoint'
+            self._book(trades, first, second, self._get_value(first, second, value))
         return trades
 
     def _match_function(

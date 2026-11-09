@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ._base_spec import BaseSpec
+from ....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class MatchSpec(BaseSpec):
             The clearing value per unit.
 
     Examples:
-        >>> from skcomplex.core.specs import MatchSpec
+        >>> from skcomplex.systems.general.matching import MatchSpec
         >>> MatchSpec('a', 'b', 2.0, 5.0).quantity
         2.0
     """

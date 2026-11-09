@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ._base_spec import BaseSpec
+from ....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class PartnerSwitchSpec(BaseSpec):
             The name of the requester state that holds the id of its partner.
 
     Examples:
-        >>> from skcomplex.core.specs import PartnerSwitchSpec
+        >>> from skcomplex.systems.general.matching import PartnerSwitchSpec
         >>> PartnerSwitchSpec(sample=2, intensity=4.0).intensity
         4.0
     """

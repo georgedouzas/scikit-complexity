@@ -1,24 +1,25 @@
-"""Test the `_matching` module of `skcomplex.core.components.interactions`."""
+"""Test the `_matching` module of `skcomplex.systems.general.matching`, and its rule specs."""
+
+import dataclasses
 
 import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.interactions import MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import (
+from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec
+from skcomplex.systems.general.matching import (
     BatchMatchingSpec,
     ContinuousMatchingSpec,
     IterativeMatchingSpec,
+    MatchingInteraction,
     MatchSpec,
-    PartnerSpec,
+    PartnerMatchingSpec,
     PartnerSwitchSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
     QueueSpec,
     RandomSearchSpec,
     StableMatchingSpec,
@@ -265,7 +266,7 @@ def _lowest_limit(requester, provider):
 def test_match_partners_takes_the_lowest_feasible_limit(clear):
     """Test that every requester takes the provider of the lowest reserve it accepts, at the provider's reserve."""
     matches = clear(
-        PartnerSpec(choice='score', score=_lowest_limit, value='provider'),
+        PartnerMatchingSpec(choice='score', score=_lowest_limit, value='provider'),
         {'reserve': [10.0, 10.0]},
         {'reserve': [3.0, 5.0, 12.0]},
     )
@@ -274,14 +275,14 @@ def test_match_partners_takes_the_lowest_feasible_limit(clear):
 
 def test_match_partners_takes_the_provider_of_the_highest_score(clear):
     """Test that requesters take the provider of the highest score instead of the lowest reserve."""
-    rule = PartnerSpec(choice='score', score=lambda requester, provider: provider.value, value='requester')
+    rule = PartnerMatchingSpec(choice='score', score=lambda requester, provider: provider.value, value='requester')
     matches = clear(rule, {'reserve': [10.0]}, {'reserve': [3.0, 5.0], 'value': [1.0, 2.0]})
     assert [(provider, value) for _, provider, _, _, value in matches] == [(5.0, 10.0)]
 
 
 def test_match_partners_respects_the_capacity_of_providers(clear):
     """Test that a provider of capacity one takes one requester although it offers more."""
-    rule = PartnerSpec(choice='score', score=_lowest_limit, capacity='value', value='provider')
+    rule = PartnerMatchingSpec(choice='score', score=_lowest_limit, capacity='value', value='provider')
     matches = clear(rule, {'reserve': [10.0, 10.0, 10.0]}, {'reserve': [1.0, 2.0], 'quantity': 5.0, 'value': 1.0})
     assert sorted(provider for _, provider, _, _, _ in matches) == [1.0, 2.0]
 
@@ -368,3 +369,53 @@ def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):
 def test_match_partners_rejects_a_provider_above_the_limit_of_the_requester(clear):
     """Test that a partner spec pairs no requester with a provider whose reserve it does not accept."""
     assert clear(PartnerSpec('all', 'uniform'), {'reserve': [1.0]}, {'reserve': [2.0]}) == []
+
+
+def test_match_spec_is_a_frozen_spec():
+    """Test that a match is a frozen spec of a requester, a provider, a quantity, and a price."""
+    match = MatchSpec('requester', 'provider', 2.0, 5.0)
+    assert (match.requester, match.provider, match.quantity * match.value) == ('requester', 'provider', 10.0)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        match.value = 1.0
+
+
+@pytest.mark.parametrize(
+    ('spec', 'name', 'value'),
+    [
+        (RandomSearchSpec(tries=3), 'tries', 3),
+        (PartnerSwitchSpec(sample=2), 'sample', 2),
+        (QueueSpec(order='reserve'), 'order', 'reserve'),
+        (IterativeMatchingSpec(iterations=10), 'iterations', 10),
+        (ContinuousMatchingSpec(arrival='sequential'), 'arrival', 'sequential'),
+        (StableMatchingSpec(value='requester'), 'value', 'requester'),
+        (PartnerMatchingSpec(value='provider'), 'value', 'provider'),
+    ],
+)
+def test_matching_rule_specs_hold_their_settings(spec, name, value):
+    """Test that a matching rule is a frozen spec that keeps the setting it was given."""
+    checked = spec
+    assert getattr(checked, name) == value
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        setattr(checked, name, value)
+
+
+def test_batch_matching_spec_has_no_settings():
+    """Test that batch matching is a spec without settings."""
+    assert dataclasses.fields(BatchMatchingSpec()) == ()
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (RandomSearchSpec(value='bid'), 'midpoint'),
+        (QueueSpec(order='bid'), 'order'),
+        (ContinuousMatchingSpec(arrival='bid'), 'arrival'),
+        (StableMatchingSpec(value='bid'), 'value'),
+        (PartnerMatchingSpec(value='bid'), 'value'),
+        (PartnerMatchingSpec(candidates=0.0), 'positive'),
+    ],
+)
+def test_matching_rule_specs_reject_invalid_settings(spec, message):
+    """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
+    with pytest.raises(ValidationError, match=message):
+        spec._check()

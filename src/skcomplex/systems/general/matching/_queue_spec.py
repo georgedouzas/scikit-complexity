@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
-from ..errors import ValidationError
-from ._base_spec import BaseSpec
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec
 
 ORDERS = ('random', 'reserve', 'sequential')
 
@@ -27,7 +27,7 @@ class QueueSpec(BaseSpec):
             The order is unknown, raised when its owner checks it.
 
     Examples:
-        >>> from skcomplex.core.specs import QueueSpec
+        >>> from skcomplex.systems.general.matching import QueueSpec
         >>> QueueSpec(order='reserve').order
         'reserve'
     """

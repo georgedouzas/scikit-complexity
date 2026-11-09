@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
-from ..errors import ValidationError
-from ._base_spec import BaseSpec
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec
 
 CLEARINGS = ('midpoint', 'requester', 'provider')
 
@@ -31,7 +31,7 @@ class RandomSearchSpec(BaseSpec):
             The value rule is unknown, raised when its owner checks it.
 
     Examples:
-        >>> from skcomplex.core.specs import RandomSearchSpec
+        >>> from skcomplex.systems.general.matching import RandomSearchSpec
         >>> RandomSearchSpec(tries=3).tries
         3
     """

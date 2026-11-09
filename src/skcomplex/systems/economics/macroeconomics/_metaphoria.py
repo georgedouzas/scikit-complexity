@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, Interaction, MatchingInteraction, TransferInteraction
+from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
@@ -26,10 +26,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BaseSpec,
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
     RoleSpec,
@@ -37,6 +35,7 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
 
 
@@ -900,13 +899,13 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
     They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
     `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
     purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
-    `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
+    `PartnerMatchingSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import FoodMarketInteraction
-        >>> rule = PartnerSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
+        >>> rule = PartnerMatchingSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
         >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
         'gdp'
     """
@@ -971,7 +970,7 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
     They take it in random order. A matching of the people, who request a job, with the firms, which provide their
     vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
     still has a vacancy, and moves to it. Build it with
-    `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
+    `PartnerMatchingSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
@@ -980,7 +979,7 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         ...     'jobs',
         ...     requesters='people',
         ...     providers='businesses',
-        ...     rule=PartnerSpec(5.0, 'score', score=LabourMarketInteraction.score, value='provider'),
+        ...     rule=PartnerMatchingSpec(5.0, 'score', score=LabourMarketInteraction.score, value='provider'),
         ...     reserve=('hireable', 'reserve'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,
@@ -1226,7 +1225,7 @@ class MetaphoriaSystem(BaseSystem):
             'jobs',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, value='provider'),
+            rule=PartnerMatchingSpec(SIGHT, 'score', score=LabourMarketInteraction.score, value='provider'),
             reserve=('hireable', 'reserve'),
             quantity=('quantity', 'vacancies'),
             phase='hiring',
@@ -1236,7 +1235,7 @@ class MetaphoriaSystem(BaseSystem):
             'shops',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, value='provider'),
+            rule=PartnerMatchingSpec(SIGHT, 'score', score=FoodMarketInteraction.score, value='provider'),
             reserve=('reserve', 'price'),
             quantity=('shortfall', 'stock'),
             cap='money',

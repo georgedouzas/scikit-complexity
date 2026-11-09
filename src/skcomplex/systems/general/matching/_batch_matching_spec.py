@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ._base_spec import BaseSpec
+from ....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,7 @@ class BatchMatchingSpec(BaseSpec):
     limits, and every paired requester and provider matches at it.
 
     Examples:
-        >>> from skcomplex.core.specs import BatchMatchingSpec
+        >>> from skcomplex.systems.general.matching import BatchMatchingSpec
         >>> BatchMatchingSpec()
         BatchMatchingSpec()
     """

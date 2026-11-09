@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ._base_spec import BaseSpec
+from ....core.specs import BaseSpec
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class IterativeMatchingSpec(BaseSpec):
             The relative excess of requests at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.core.specs import IterativeMatchingSpec
+        >>> from skcomplex.systems.general.matching import IterativeMatchingSpec
         >>> IterativeMatchingSpec(adjustment=0.05).iterations
         500
     """

@@ -13,7 +13,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
-from .conftest import ParticipantElement
+from ....systems.general.matching.conftest import ParticipantElement
 
 
 class CounterElement(Element):

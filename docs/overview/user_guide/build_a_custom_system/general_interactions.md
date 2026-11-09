@@ -1286,8 +1286,9 @@ Use `MatchingInteraction` to pair requesters with providers, such as buyers and 
 `FeedbackInteraction` to set parameters from what happened in a round:
 
 ```python
-from skcomplex.core.components.interactions import FeedbackInteraction, MatchingInteraction
-from skcomplex.core.specs import QueueSpec, StableMatchingSpec
+from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.systems.general.matching import MatchingInteraction
+from skcomplex.systems.general.matching import QueueSpec, StableMatchingSpec
 
 queue = MatchingInteraction('queue', requesters='buyers', providers='sellers', rule=QueueSpec())
 stable = MatchingInteraction('stable', requesters='buyers', providers='sellers', rule=StableMatchingSpec())

@@ -21,7 +21,6 @@ from skcomplex.core.components.interactions import (
     JumpInteraction,
     LocalRuleInteraction,
     MapInteraction,
-    MatchingInteraction,
     NeighborInteraction,
     PairInteraction,
     RateInteraction,
@@ -51,6 +50,7 @@ from skcomplex.systems.general.agents import (
     ImitationInteraction,
     MovementInteraction,
 )
+from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.reactions import ReactionInteraction
 
 from ....conftest import NodeElement

@@ -15,27 +15,26 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import FeedbackInteraction, MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, MatchingRule, SystemViewProtocol
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import (
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RandomSearchSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
 )
 from ...general.agents import BirthDeathInteraction
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
+from ...general.matching.types import MatchingRule
 
 
 class HerderView(AgentView):
@@ -277,8 +276,8 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
     """Grazing of the meadow, a matching of the cows with the pastures.
 
     After the matching every cow eats and burns energy. The rule of the matching pairs the cows with the pastures, such
-    as `PartnerSpec('local', 'score', score=GrazingInteraction.score, value='provider')`, which pairs every cow, in
-    random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
+    as `PartnerMatchingSpec('local', 'score', score=GrazingInteraction.score, value='provider')`, which pairs every cow,
+    in random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
     pasture takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
     appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns its
     metabolism and counts in the herd of its herder, and a cow whose energy runs out dies.
@@ -668,7 +667,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             'grazing',
             requesters='cows',
             providers='meadow',
-            rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
+            rule=PartnerMatchingSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
             herders='herders',
         )
         return CompositeSystem(

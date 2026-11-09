@@ -262,7 +262,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.core.specs.RandomSearchSpec", "skcomplex.core.specs.DifferentialEvolutionSpec"]
+extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.core.specs.DifferentialEvolutionSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.components.base` or `sage.all__sagemath_symbolics`."

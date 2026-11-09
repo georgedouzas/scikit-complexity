@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -24,16 +24,15 @@ from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import (
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
     StateSpec,
     VisualSpec,
 )
 from ...general.agents import BirthDeathInteraction
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 
 STEPPINGS = ('multiplicative', 'additive')
 
@@ -682,7 +681,7 @@ class ShopsSystem(BaseSystem):
             'shopping',
             requesters='shoppers',
             providers='shops',
-            rule=PartnerSpec(choice='score', score=ResidentElement.get_preference, value='provider'),
+            rule=PartnerMatchingSpec(choice='score', score=ResidentElement.get_preference, value='provider'),
             reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             transfers=(('money', -1),),

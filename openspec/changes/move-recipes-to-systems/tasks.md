@@ -93,13 +93,13 @@
 
 ## 7. Matching and encounters
 
-- [ ] 7.1 Move `MatchingInteraction`, `MatchSpec`, `MatchingRule`, and the rule specs `RandomSearchSpec`,
+- [x] 7.1 Move `MatchingInteraction`, `MatchSpec`, `MatchingRule`, and the rule specs `RandomSearchSpec`,
   `PartnerSwitchSpec`, `QueueSpec`, `IterativeMatchingSpec`, `ContinuousMatchingSpec`, `BatchMatchingSpec`, and
   `StableMatchingSpec` to `systems/general/matching`, with `CLEARINGS`. Add `PartnerMatchingSpec(PartnerSpec)` with
   `value` and its check, and remove `value` from the core `PartnerSpec`. Remove the moved names from `core/specs` and
   `core/components/types.py`. Verify with the moved tests under `tests/systems/general/matching` and with
   `tests/core/specs` and `tests/core/components/laws/test_match.py`.
-- [ ] 7.2 Repoint the matchings of economics and engineering, and replace `PartnerSpec(..., value=...)` by
+- [x] 7.2 Repoint the matchings of economics and engineering, and replace `PartnerSpec(..., value=...)` by
   `PartnerMatchingSpec` in commons, shops, barter networks, and Metaphoria. Verify with `tests/systems/economics` and
   `tests/systems/engineering/traffic`, and the scenario "Partners with a clearing value".
 - [ ] 7.3 Move `EncounterInteraction` to `systems/general/kinetics`, with its tests, and repoint its users in biology,

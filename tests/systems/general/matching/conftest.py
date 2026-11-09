@@ -7,12 +7,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MatchingInteraction
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.components.types import MatchingRule, SystemViewProtocol
+from skcomplex.core.components.types import SystemViewProtocol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import AgentView
-from skcomplex.core.specs import MatchSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.systems.general.matching import MatchingInteraction, MatchSpec
+from skcomplex.systems.general.matching.types import MatchingRule
 
 type Clearing = Callable[..., list[tuple[float, float, float, float, float]]]
 

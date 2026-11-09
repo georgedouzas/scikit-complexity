@@ -24,7 +24,6 @@ from ._interaction import Interaction
 from ._jump import JumpInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
-from ._matching import MatchingInteraction
 from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
 from ._pair import PairInteraction
@@ -57,7 +56,6 @@ __all__: list[str] = [
     'JumpInteraction',
     'LocalRuleInteraction',
     'MapInteraction',
-    'MatchingInteraction',
     'NeighborInteraction',
     'OptimizationInteraction',
     'PairInteraction',

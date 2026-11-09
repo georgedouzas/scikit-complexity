@@ -5,9 +5,9 @@
 
 from dataclasses import dataclass
 
-from ..errors import ValidationError
-from ..types import Preference
-from ._base_spec import BaseSpec
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec
+from ....core.types import Preference
 from ._random_search_spec import CLEARINGS
 
 
@@ -38,7 +38,7 @@ class StableMatchingSpec(BaseSpec):
             The value rule is unknown, raised when its owner checks it.
 
     Examples:
-        >>> from skcomplex.core.specs import StableMatchingSpec
+        >>> from skcomplex.systems.general.matching import StableMatchingSpec
         >>> StableMatchingSpec(value='requester').value
         'requester'
     """

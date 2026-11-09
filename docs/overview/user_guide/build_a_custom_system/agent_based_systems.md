@@ -171,12 +171,14 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction, MatchingInteraction
+from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import BatchMatchingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.systems.general.matching import BatchMatchingSpec
 
 
 class TraderElement(Element):

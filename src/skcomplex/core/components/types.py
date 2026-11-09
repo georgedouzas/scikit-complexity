@@ -18,16 +18,6 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from shapely import Polygon
 
-from ..specs import (
-    BatchMatchingSpec,
-    ContinuousMatchingSpec,
-    IterativeMatchingSpec,
-    PartnerSpec,
-    PartnerSwitchSpec,
-    QueueSpec,
-    RandomSearchSpec,
-    StableMatchingSpec,
-)
 from ..types import Array
 from .spaces import DelaunayNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 
@@ -36,16 +26,6 @@ type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Feasibility = Callable[[AgentViewProtocol, AgentViewProtocol], bool]
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
-type MatchingRule = (
-    RandomSearchSpec
-    | PartnerSpec
-    | PartnerSwitchSpec
-    | QueueSpec
-    | IterativeMatchingSpec
-    | ContinuousMatchingSpec
-    | BatchMatchingSpec
-    | StableMatchingSpec
-)
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]

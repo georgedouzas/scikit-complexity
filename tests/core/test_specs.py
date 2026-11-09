@@ -27,30 +27,22 @@ from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.experiments import compare_scenarios
 from skcomplex.core.specs import (
     BaseSpec,
-    BatchMatchingSpec,
     ClampSpec,
-    ContinuousMatchingSpec,
     DatasetSpec,
     HilbertSpec,
-    IterativeMatchingSpec,
     LayerSpec,
-    MatchSpec,
     MoveSpec,
     ObjectiveSpec,
     ObservableSpec,
     ParameterSpec,
     PartnerSpec,
-    PartnerSwitchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    QueueSpec,
     RadiusSpec,
-    RandomSearchSpec,
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
     ScheduleSpec,
-    StableMatchingSpec,
     StateSpec,
     SymmetrySpec,
     TopologyRequestSpec,
@@ -734,56 +726,24 @@ def test_scenario_spec_is_a_frozen_spec():
         scenario.name = 'quota'
 
 
-def test_match_spec_is_a_frozen_spec():
-    """Test that a match is a frozen spec of a requester, a provider, a quantity, and a price."""
-    match = MatchSpec('requester', 'provider', 2.0, 5.0)
-    assert (match.requester, match.provider, match.quantity * match.value) == ('requester', 'provider', 10.0)
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        match.value = 1.0
-
-
-@pytest.mark.parametrize(
-    ('spec', 'name', 'value'),
-    [
-        (RandomSearchSpec(tries=3), 'tries', 3),
-        (PartnerSwitchSpec(sample=2), 'sample', 2),
-        (QueueSpec(order='reserve'), 'order', 'reserve'),
-        (IterativeMatchingSpec(iterations=10), 'iterations', 10),
-        (ContinuousMatchingSpec(arrival='sequential'), 'arrival', 'sequential'),
-        (StableMatchingSpec(value='requester'), 'value', 'requester'),
-        (PartnerSpec(candidates=2.0), 'candidates', 2.0),
-    ],
-)
-def test_matching_rule_specs_hold_their_settings(spec, name, value):
-    """Test that a matching rule is a frozen spec that keeps the setting it was given."""
-    checked = spec
-    assert getattr(checked, name) == value
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        setattr(checked, name, value)
-
-
-def test_batch_matching_spec_has_no_settings():
-    """Test that batch matching is a spec without settings."""
-    assert dataclasses.fields(BatchMatchingSpec()) == ()
-
-
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (RandomSearchSpec(value='bid'), 'midpoint'),
-        (QueueSpec(order='bid'), 'order'),
-        (ContinuousMatchingSpec(arrival='bid'), 'arrival'),
-        (StableMatchingSpec(value='bid'), 'value'),
         (PartnerSpec(candidates=0.0), 'positive'),
         (PartnerSpec(candidates=True), 'positive'),
-        (PartnerSpec(value='bid'), 'value'),
         (PartnerSpec(choice='score', score=2), 'score'),
     ],
 )
-def test_matching_rule_specs_reject_invalid_settings(spec, message):
-    """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
+def test_partner_spec_rejects_invalid_settings(spec, message):
+    """Test that a distance that is not positive and a bad score raise an error naming them."""
     with pytest.raises(ValidationError, match=message):
         spec._check()
+
+
+def test_partner_spec_holds_no_value():
+    """Test that a selection of partners keeps its candidates and has no clearing value, which only matchings read."""
+    assert PartnerSpec(candidates=2.0).candidates == 2.0
+    assert not hasattr(PartnerSpec(), 'value')
 
 
 @pytest.mark.parametrize(

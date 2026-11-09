@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
-from ..errors import ValidationError
-from ._base_spec import BaseSpec
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec
 
 ARRIVALS = ('random', 'sequential')
 
@@ -29,7 +29,7 @@ class ContinuousMatchingSpec(BaseSpec):
             The order of arrival is unknown, raised when its owner checks it.
 
     Examples:
-        >>> from skcomplex.core.specs import ContinuousMatchingSpec
+        >>> from skcomplex.systems.general.matching import ContinuousMatchingSpec
         >>> ContinuousMatchingSpec().arrival
         'random'
     """

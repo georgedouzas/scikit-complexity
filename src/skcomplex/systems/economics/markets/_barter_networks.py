@@ -16,22 +16,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import MatchingRule
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PartnerSpec,
-    RandomSearchSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
+from ...general.matching.types import MatchingRule
 
 
 class BarterTraderView(AgentView):
@@ -189,7 +181,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             The path of the group of traders that can be found, the same group.
 
         rule:
-            The spec of the algorithm that pairs the traders, such as `PartnerSpec('local', value='provider')`.
+            The spec of the algorithm that pairs the traders, such as `PartnerMatchingSpec('local', value='provider')`.
 
         reserve:
             The state with the reserve value of both sides, missing for traders, which then accept any partner.
@@ -464,7 +456,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
                     'barter',
                     requesters='traders',
                     providers='traders',
-                    rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, value='provider'),
+                    rule=PartnerMatchingSpec(choice='score', score=BarterTraderElement.get_rate_gap, value='provider'),
                     quantity=('quantity', 'partners'),
                     units=self.units,
                 ),

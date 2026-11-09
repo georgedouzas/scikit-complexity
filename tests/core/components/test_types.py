@@ -10,9 +10,11 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.components.types import AgentViewProtocol, MatchingRule, Process, SystemViewProtocol, Target
+from skcomplex.core.components.types import AgentViewProtocol, Process, SystemViewProtocol, Target
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PartnerSpec, RandomSearchSpec
+from skcomplex.core.specs import PartnerSpec
+from skcomplex.systems.general.matching import RandomSearchSpec
+from skcomplex.systems.general.matching.types import MatchingRule
 
 
 def test_targets_are_symbolic_expressions_or_vectors():
