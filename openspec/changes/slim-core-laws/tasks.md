@@ -128,7 +128,7 @@ when other agents run tests at the same time.
   passes
 - [x] 7.3 Make `random_pairing` the private method `MatchLaw._get_random_pairs`, move its test from `test_agents.py` to
   `test_match.py`, and verify both pass
-- [ ] 7.4 Delete the empty `laws/utils/_tables.py`, and verify `python -c "import skcomplex.core.components.laws.utils"`
+- [x] 7.4 Delete the empty `laws/utils/_tables.py`, and verify `python -c "import skcomplex.core.components.laws.utils"`
   succeeds
 - [ ] 7.5 Update the module docstring of `laws/utils/__init__.py` and the user guide pages that list the utilities, and
   verify `grep` finds no privatised name in `docs/overview`
