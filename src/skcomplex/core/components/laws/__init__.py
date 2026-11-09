@@ -15,7 +15,6 @@ from ._encounter import EncounterLaw
 from ._equation import EquationLaw
 from ._extremal import ExtremalLaw
 from ._flux import FluxLaw
-from ._fractional_noise import FractionalNoiseLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
@@ -45,7 +44,6 @@ __all__: list[str] = [
     'EquationLaw',
     'ExtremalLaw',
     'FluxLaw',
-    'FractionalNoiseLaw',
     'GeneratorLaw',
     'GradientStepLaw',
     'JumpLaw',
