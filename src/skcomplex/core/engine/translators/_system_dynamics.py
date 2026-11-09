@@ -51,9 +51,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
     `observables`, one per auxiliary and per goal-seeking stock.
 
     A file whose stocks are not subscripted and change only through flow variables becomes a subclass of
-    `StockFlowSystem`, imported in the source from `skcomplex.systems.general.dynamics`, which returns the initial stocks
-    from `_get_stocks`, the constants from `_get_parameters`, and the flows from `_get_flows`. A flow variable of two
-    stocks flows from one to the other, and a flow variable of one stock with the environment.
+    `StockFlowSystem`, imported in the source from `skcomplex.systems.general.dynamics`, which returns the initial
+    stocks from `_get_stocks`, the constants from `_get_parameters`, and the flows from `_get_flows`. A flow variable of
+    two stocks flows from one to the other, and a flow variable of one stock with the environment.
 
     Any other file becomes one element class, whose states are the stocks and whose parameters are the constants of
     the file, and a system class on `BaseSystem` that builds the `CompositeSystem` of its element and its interactions
