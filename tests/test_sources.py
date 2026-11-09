@@ -5,7 +5,7 @@ import importlib
 import multiprocessing
 import re
 from pathlib import Path
-from typing import is_typeddict
+from typing import cast, is_typeddict
 
 import pytest
 
@@ -232,12 +232,14 @@ def _is_general_form(klass: type, classes: list[type]) -> bool:
     """
     if not issubclass(klass, BaseInteraction):
         return False
-    laws = klass._get_law_classes()
-    siblings = [other for other in classes if issubclass(other, BaseInteraction) and other.__base__ is klass.__base__]
+    laws = cast(type[BaseInteraction], klass)._get_law_classes()
+    siblings = [
+        cast(type[BaseInteraction], other)._get_law_classes()
+        for other in classes
+        if issubclass(other, BaseInteraction) and other.__base__ is klass.__base__
+    ]
     return any(
-        len(laws) == min(len(other._get_law_classes()) for other in siblings if law in other._get_law_classes())
-        for law in laws
-        if law is not RuleLaw
+        len(laws) == min(len(listed) for listed in siblings if law in listed) for law in laws if law is not RuleLaw
     )
 
 

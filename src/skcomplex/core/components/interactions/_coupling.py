@@ -183,7 +183,7 @@ class CouplingInteraction(NeighborInteraction):
         lag: Annotated[float, ParameterSpec()] = 0.0,
         delay: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         form: str = 'rate',
-        combine: Combination | None = None,
+        combine: Combination | Callable[..., object] | None = None,
         neighborhood: BaseNeighborhood | None = None,
         layer: str | None = None,
         phase: str | None = None,
