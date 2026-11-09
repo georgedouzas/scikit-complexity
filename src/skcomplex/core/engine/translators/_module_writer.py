@@ -211,12 +211,12 @@ class _ModuleWriter:
         parts, expressions = self.parts, self.expressions
         helpers = []
         for name, table in sorted(parts.lookups.items()):
-            lookup = expressions.add_import(UTILITIES_MODULE, 'lookup')
+            series = expressions.add_import(UTILITIES_MODULE, 'series')
             helpers.append(
                 self._write_function(
                     f'_{name}(x: Expression) -> Expression',
                     f'Return the lookup `{self._get_original(name)}`.',
-                    self._write_return(f'{lookup}(x, {expressions.write_points(table)})'),
+                    self._write_return(f'{series}(x, {expressions.write_points(table)})'),
                 ),
             )
         for name in parts.order_auxiliaries(expressions.problems):

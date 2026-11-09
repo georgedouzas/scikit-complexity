@@ -303,9 +303,9 @@ def test_run_maps_min_of_max_to_clip(fixtures_folder):
     """Test that the source writes the built-in functions with the law utilities."""
     source = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').prepare().run().source_
     assert 'clip(s.level, 1.0, 3.0)' in source
-    for name in ('lookup', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'delay1', 'smooth'):
+    for name in ('series', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'distributed_delay'):
         assert f'{name}(' in source
-    assert 'distributed_delay(' in source
+    assert 'conserved=False)' in source
     assert 'delayed(s.level, 2)' in source
     assert 'minimum(' in source
     assert 'maximum(' in source
