@@ -43,7 +43,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -108,7 +108,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -181,7 +181,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, StateSpec
 

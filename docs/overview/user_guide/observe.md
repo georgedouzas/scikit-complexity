@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import I, exp, pi
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
@@ -136,7 +136,7 @@ from pathlib import Path
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 

@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.systems import all_systems
 
 from ._errors import GalleryError

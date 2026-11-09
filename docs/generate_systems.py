@@ -19,7 +19,7 @@ from inventory_checks import InventoryError, inventory_problems
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import Tags
 

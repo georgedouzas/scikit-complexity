@@ -9,7 +9,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -57,7 +57,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -164,7 +164,7 @@ from typing import Annotated
 from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 

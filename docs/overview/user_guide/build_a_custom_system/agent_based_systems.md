@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -113,7 +113,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
@@ -174,7 +174,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import FeedbackInteraction, MatchingInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import BatchMatchingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 
@@ -342,7 +342,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 

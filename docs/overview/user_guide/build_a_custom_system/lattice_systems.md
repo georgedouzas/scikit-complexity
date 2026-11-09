@@ -37,7 +37,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeSpace, MooreNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
 
@@ -105,7 +105,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace, VonNeumannNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
@@ -159,7 +159,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeSpace, TriangularNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -207,7 +207,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import SampleLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 
@@ -261,7 +261,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RegionScoreSpec, StateSpec
 
@@ -335,7 +335,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     StateTranslationNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec
 
@@ -421,7 +421,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import ExtremalLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 

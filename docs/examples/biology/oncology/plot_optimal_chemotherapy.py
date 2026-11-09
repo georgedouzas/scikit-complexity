@@ -13,7 +13,7 @@ the tumour shrinks to well below its untreated size.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import OptimalChemotherapySystem, TumourImmuneChemotherapyElement

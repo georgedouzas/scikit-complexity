@@ -97,7 +97,7 @@ signature. `DeclaredElement` takes them in one argument instead.
 ```python continuation
 from skcomplex.core.components.elements import DeclaredElement
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DeclaredVariableSpec
 
@@ -173,7 +173,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -215,7 +215,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
 
@@ -441,7 +441,7 @@ from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 

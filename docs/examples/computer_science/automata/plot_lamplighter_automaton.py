@@ -15,7 +15,7 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec

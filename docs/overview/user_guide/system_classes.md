@@ -20,8 +20,8 @@ The kinds mirror the linear models of scikit-learn, where `Ridge` and `Lasso` re
 parameters of their own.
 
 ```python
-from skcomplex.core.components.mass_action import MassActionSystem
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import MassActionSystem
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 issubclass(SIRSystem, MassActionSystem), issubclass(MassActionSystem, BaseSystem), issubclass(System, BaseSystem)
@@ -41,7 +41,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -86,7 +86,7 @@ initial amount of every species and a table of reactions. Every reaction maps it
 as coefficients by species name, and to its rate constant.
 
 ```python
-from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.components.systems import MassActionSystem
 from skcomplex.core.engine.runtime import simulate
 
 isomerization = MassActionSystem(

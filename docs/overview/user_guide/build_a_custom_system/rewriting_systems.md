@@ -6,7 +6,7 @@ rewriting system replaces its parts in parallel at every step.
 ```python
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 
@@ -43,7 +43,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ModuleSpec, ParameterSpec
 
@@ -88,7 +88,7 @@ Draw a word as a curve, or grow a patch of tiles, and measure the result as a fr
 from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.laws import ProductionLaw, SubstitutionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import AffineSpec, GeometrySpec, PrototileSpec
 

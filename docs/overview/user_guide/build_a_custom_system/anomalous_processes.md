@@ -15,7 +15,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import draw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -54,7 +54,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.laws.utils import draw, normal
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -110,7 +110,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import FractionalNoiseLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.core.specs import StateSpec
@@ -154,7 +154,7 @@ from typing import Annotated
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import L1Solver
 from skcomplex.core.specs import StateSpec

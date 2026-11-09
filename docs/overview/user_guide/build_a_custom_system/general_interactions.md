@@ -6,7 +6,7 @@ mathematical operation you need, bind it to your elements, and pass the function
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
@@ -103,7 +103,7 @@ The general interactions act on a few general elements, so you rarely need an el
 ```python
 from skcomplex.core.components.elements import CompartmentElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 system = System(
@@ -137,7 +137,7 @@ Use `RateInteraction` to add any rate to a state, as the decay at the top of thi
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RelaxationInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
@@ -156,7 +156,7 @@ Use `GradientInteraction` when a state moves down a potential. On a state of ord
 from skcomplex.core.components.elements import CompartmentElement, PointElement
 from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
@@ -186,7 +186,7 @@ from sage.all__sagemath_symbolics import cos
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -217,7 +217,7 @@ from sage.all__sagemath_symbolics import sqrt
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import Yoshida4Solver
 from skcomplex.core.specs import StateSpec
@@ -282,7 +282,7 @@ from sage.all__sagemath_symbolics import SR, diagonal_matrix, pi, sin
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 
@@ -320,7 +320,7 @@ from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EinsteinInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -381,7 +381,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction, DiffusionInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -425,7 +425,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -458,7 +458,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import SignAdjustmentInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -489,7 +489,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import CascadeInteraction, LocalRuleInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
@@ -541,7 +541,7 @@ from sage.all__sagemath_symbolics import sin
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -598,7 +598,7 @@ from sage.all__sagemath_symbolics import exp
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 morse = PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
@@ -626,7 +626,7 @@ from sage.all__sagemath_symbolics import vector
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MobilityInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -682,7 +682,7 @@ Use `JumpInteraction` for random events that change states by fixed amounts, suc
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
@@ -725,7 +725,7 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -781,7 +781,7 @@ import numpy as np
 from skcomplex.core.components.elements import DensityElement, GroupElement
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 kernel = np.zeros((3, 1, 3))
@@ -815,7 +815,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import CrossingInteraction, ImpulseInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -854,7 +854,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -891,7 +891,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RowScoreSpec, StateSpec
 
@@ -978,7 +978,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MapInteraction, MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1020,7 +1020,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ChoiceInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1053,7 +1053,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1083,7 +1083,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ReinforcementInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1126,7 +1126,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import EvolutionInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
 
@@ -1179,7 +1179,7 @@ Use `MovementInteraction` to move agents. Here two walkers each take one step to
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
@@ -1201,7 +1201,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1234,7 +1234,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1280,7 +1280,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LifeCycleInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1311,7 +1311,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import GroupingInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -1378,7 +1378,7 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
@@ -1413,7 +1413,7 @@ Agents can live in a box of three dimensions, or move between named regions such
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 divers = GroupElement('divers', element=Element, size=4)
@@ -1441,7 +1441,7 @@ from shapely import Point, box
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 census = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 0.0, 9.0, 4.0)]
@@ -1553,7 +1553,7 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
 )
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 

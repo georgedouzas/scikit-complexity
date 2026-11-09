@@ -10,7 +10,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
 

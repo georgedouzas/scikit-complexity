@@ -15,7 +15,7 @@ import numpy as np
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BoxNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec

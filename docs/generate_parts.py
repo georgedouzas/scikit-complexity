@@ -4,21 +4,19 @@ Each page has a table of the capability tags of its classes, and executed exampl
 """
 
 import inspect
-import pkgutil
 import sys
 from collections.abc import Callable, Iterable
-from importlib import import_module
 from types import ModuleType
 
 import mkdocs_gen_files
 
-from skcomplex.core import analysis, components, experiments
-from skcomplex.core.components import elements, interactions, laws
+from skcomplex.core import analysis, experiments
+from skcomplex.core.components import elements, interactions, laws, systems
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
@@ -129,7 +127,7 @@ A compartment holds a real amount, and the `target` of a `RateInteraction` accep
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 tank = CompartmentElement('tank', n=10.0)
@@ -151,7 +149,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleElementError
 from skcomplex.core.specs import StateSpec
@@ -209,7 +207,7 @@ A rate returns a `rate` law of continuous time, and its `target` accepts the rea
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 tank = CompartmentElement('tank', n=10.0)
@@ -227,7 +225,7 @@ so the system names the tag the two parts disagree on.
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
 
@@ -271,7 +269,7 @@ An arrival that adds one unit at random times returns a `jump` law, which `Gille
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
@@ -290,7 +288,7 @@ trajectory.values('queue.n')[-1]
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import JumpInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import TagError
@@ -333,7 +331,7 @@ A rate with a noise term returns a `rate` and a `noise` law, and `EulerMaruyamaS
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 
@@ -352,7 +350,7 @@ round(trajectory.values('tank.n')[-1], 2)
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import TagError
@@ -387,7 +385,7 @@ A backend turns the compiled laws of a system into numeric functions, with NumPy
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import simulate
 
@@ -404,7 +402,7 @@ round(trajectory.values('tank.n')[-1], 2)
 ```python
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import TagError
@@ -633,16 +631,8 @@ def _core_systems() -> list[type[BaseSystem]]:
 
     They are the generic composite and the general systems.
     """
-    for module in pkgutil.iter_modules(components.__path__):
-        import_module(f'{components.__name__}.{module.name}')
-    found: list[type[BaseSystem]] = []
-    pending = list(BaseSystem.__subclasses__())
-    while pending:
-        system = pending.pop()
-        pending += system.__subclasses__()
-        if system.__module__.startswith('skcomplex.core.') and not inspect.isabstract(system):
-            found.append(system)
-    return sorted(set(found), key=lambda system: (system is not System, system.__name__))
+    found = _public_classes(systems, BaseSystem)
+    return sorted(found, key=lambda system: (system is not System, system.__name__))
 
 
 def _systems_page() -> str:
@@ -651,7 +641,7 @@ def _systems_page() -> str:
     It shows the system classes of the core and a link to the catalog of ready-made ones.
     """
     rows = [
-        [f'`{system.__name__}`', f'`from {system.__module__} import {system.__name__}`', _summary(system)]
+        [f'`{system.__name__}`', f'`from {systems.__name__} import {system.__name__}`', _summary(system)]
         for system in _core_systems()
     ]
     intro = """
@@ -670,7 +660,7 @@ them by field, topic, or tag. The table lists the system classes of the core.
 A mass-action system in the mode `jump` has random reaction events, which `GillespieSolver` draws.
 
 ```python
-from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.components.systems import MassActionSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
@@ -687,7 +677,7 @@ In the default mode `rate` the same reactions are rate equations, which `Gillesp
 names the law kind.
 
 ```python
-from skcomplex.core.components.mass_action import MassActionSystem
+from skcomplex.core.components.systems import MassActionSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.errors import TagError

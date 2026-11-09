@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import Carbon13MFASystem, tca_labelling_analysis

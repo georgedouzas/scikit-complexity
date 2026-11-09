@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import exp
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec
 

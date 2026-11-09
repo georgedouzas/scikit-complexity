@@ -81,7 +81,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.systems import create_system, register_system
 from skcomplex.core.specs import ParameterSpec, StateSpec
 

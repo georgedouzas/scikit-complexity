@@ -18,7 +18,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver

@@ -19,7 +19,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -100,7 +100,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PartnerSpec, StateSpec
 
@@ -166,7 +166,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -266,7 +266,7 @@ parts:
 ```python
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 [issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
@@ -319,8 +319,8 @@ import order, so a module imports only the modules above it:
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
   interactions built on them.
-- `system`: `BaseSystem` and `System`.
-- `mass_action`: `MassActionSystem`, the first general system of the core.
+- `systems`: `BaseSystem` and its `RunSettings`, the composite `System`, and `MassActionSystem`, the first general
+  system of the core.
 - `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
 
 ### The engine

@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
 
@@ -126,7 +126,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import contraction, count, total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 

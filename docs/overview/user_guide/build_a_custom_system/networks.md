@@ -59,7 +59,7 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -131,7 +131,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -210,7 +210,7 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.interactions import GroupingInteraction
 from skcomplex.core.components.laws.utils import mean, where
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -297,7 +297,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws.utils import count, total
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -386,7 +386,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -455,7 +455,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
 
@@ -524,7 +524,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -596,7 +596,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import components, where
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -648,7 +648,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.laws.utils import shortest_paths
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -700,7 +700,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TopologyRequestSpec
 
@@ -777,7 +777,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -827,7 +827,7 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 system = System(
@@ -863,7 +863,7 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 system = System(
@@ -914,7 +914,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MapInteraction, TopologyInteraction
 from skcomplex.core.components.laws.utils import components
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -974,7 +974,7 @@ import networkx as nx
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 system = System(

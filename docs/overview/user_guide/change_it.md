@@ -85,7 +85,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -136,7 +136,7 @@ A ready-made system nests in the same way, through its parts. Give each nested s
 class has the label `system` by default, and nest the composite `system_` of its parts.
 
 ```python
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem

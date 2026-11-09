@@ -8,7 +8,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 rng = np.random.default_rng(0)
@@ -55,7 +55,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
@@ -147,7 +147,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -187,7 +187,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -259,7 +259,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import mod, shift_member
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
@@ -321,7 +321,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import RunStateSpec, StateSpec
 
@@ -369,7 +369,7 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 
 

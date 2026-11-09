@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -81,7 +81,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.specs import StateSpec
@@ -181,7 +181,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -270,7 +270,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 

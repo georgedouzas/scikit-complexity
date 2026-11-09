@@ -12,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CardinalitySpec, ClauseSpec, StateSpec
 

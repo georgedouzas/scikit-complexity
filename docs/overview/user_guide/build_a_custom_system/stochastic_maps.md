@@ -15,7 +15,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, normal, where
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -72,7 +72,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import EmissionLaw, TransitionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 

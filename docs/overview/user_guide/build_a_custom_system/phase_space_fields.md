@@ -23,7 +23,7 @@ from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
@@ -95,7 +95,7 @@ from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import AxisSpec
@@ -140,7 +140,7 @@ import numpy as np
 from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import AxisSpec, ObservableSpec
 

@@ -12,7 +12,7 @@ from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 
 oscillator = System(
     elements=[PointElement('p', x=1.0)],
@@ -443,7 +443,7 @@ import numpy as np
 from skcomplex.core.analysis import irreversibility, large_deviations
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import StateSpec
 
 

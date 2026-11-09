@@ -22,7 +22,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import MapInteraction, MovementInteraction, RateInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.specs import StateSpec
 from skcomplex.core.types import ElementKind
 

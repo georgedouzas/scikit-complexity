@@ -45,7 +45,7 @@ cooperation and competition move them one class up or down:
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
@@ -260,7 +260,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import CayleySpace, GeneratorNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec, TotalisticSpec
 
@@ -347,7 +347,7 @@ from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import OuterTotalisticSpec, StateSpec, TableSpec
 
@@ -410,7 +410,7 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
 

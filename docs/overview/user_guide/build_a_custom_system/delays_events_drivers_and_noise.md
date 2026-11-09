@@ -16,7 +16,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import delayed
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -68,7 +68,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -115,7 +115,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import step
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -154,7 +154,7 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MilsteinSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -202,7 +202,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
@@ -279,7 +279,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec

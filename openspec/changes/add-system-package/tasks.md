@@ -10,7 +10,7 @@
 - [x] 2.1 Replace every import of `skcomplex.core.components.system` and `skcomplex.core.components.mass_action`, relative or absolute, in `src/skcomplex/core`, including the docstring examples, and the import strings of the module template in `engine/translators/_module_writer.py`, and verify `pytest --doctest-modules src/skcomplex/core` and `pytest tests/core` pass
 - [x] 2.2 Replace the same imports in `src/skcomplex/systems` and `tests/systems`, so the catalog imports `BaseSystem`, `RunSettings`, `System`, and `MassActionSystem` from `skcomplex.core.components.systems`, and verify `pytest tests/systems` and the catalog doctests pass
 - [x] 2.3 Replace the same imports in `tests/conftest.py` and every other test module, and verify `grep -rn "components\.system\b\|components\.mass_action" src tests` finds nothing
-- [ ] 2.4 Replace the same imports in `docs/overview`, `docs/examples`, `docs/gallery_tools`, `docs/generate_parts.py`, `docs/generate_systems.py`, `docs/inventory_checks.py`, `README.md`, and `CONTRIBUTING.md`, and verify the markdown doctests of `README.md` and the user guide pass and `grep` over `docs`, `README.md`, and `CONTRIBUTING.md` finds no old path
+- [x] 2.4 Replace the same imports in `docs/overview`, `docs/examples`, `docs/gallery_tools`, `docs/generate_parts.py`, `docs/generate_systems.py`, `docs/inventory_checks.py`, `README.md`, and `CONTRIBUTING.md`, and verify the markdown doctests of `README.md` and the user guide pass and `grep` over `docs`, `README.md`, and `CONTRIBUTING.md` finds no old path
 
 ## 3. Contracts and profile
 
