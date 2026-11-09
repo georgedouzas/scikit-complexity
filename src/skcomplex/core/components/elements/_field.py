@@ -16,14 +16,14 @@ from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
 from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
 from ._base import BaseElement
-from ._lattice import LatticeElement
+from ._group import GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 MATRIX_RANK = 2
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
 
 
-class FieldElement(LatticeElement):
+class FieldElement(GroupElement):
     """Group of members of an element type at the sites of a lattice, network, or mesh.
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
@@ -112,7 +112,7 @@ class FieldElement(LatticeElement):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
-        super().__init__(label, element=element, space=space, values=values, visual=visual)
+        super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
         self.symmetry = symmetry

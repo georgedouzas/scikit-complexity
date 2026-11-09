@@ -229,7 +229,7 @@ class SamplingInteraction(Interaction):
             `'copy'` or the heat-bath rule, or the move `'copy'` has an objective other than a region score.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element, LatticeElement
+        >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import SamplingInteraction
         >>> from skcomplex.core.components.laws.utils import neighbors
         >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
@@ -243,7 +243,7 @@ class SamplingInteraction(Interaction):
         ...         self.s = s
         >>> objective = lambda n: -n.target.s * neighbors(n.target.other.s)
         >>> ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
-        >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
+        >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((8, 8)), on='sites')
         >>> system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
         >>> states = simulate(system, until=20, random_state=0).states
         >>> bool(abs(states[-1].mean()) > 0.9)
@@ -274,7 +274,7 @@ class SamplingInteraction(Interaction):
         >>> walk = SamplingInteraction(
         ...     'walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
         ... )
-        >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((2, 8)))
+        >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((2, 8)), on='sites')
         >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
         >>> simulate(system, until=3, random_state=0).values('walk.score').shape
         (4, 2)
@@ -307,7 +307,8 @@ class SamplingInteraction(Interaction):
         ...     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, area), move='copy'
         ... )
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
-        >>> sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((8, 8)), values={'region': regions})
+        >>> space = LatticeSpace((8, 8))
+        >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
         >>> system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
         >>> final = simulate(system, until=20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())

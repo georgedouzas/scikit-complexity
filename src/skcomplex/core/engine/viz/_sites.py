@@ -188,7 +188,7 @@ class SiteVisual(BaseVisual):
         Examples:
             >>> from typing import Annotated
             >>> import networkx as nx
-            >>> from skcomplex.core.components.elements import Element, LatticeElement
+            >>> from skcomplex.core.components.elements import Element, GroupElement
             >>> from skcomplex.core.components.spaces import NetworkSpace
             >>> from skcomplex.core.specs import StateSpec
             >>> from skcomplex.core.components.systems import System
@@ -198,9 +198,8 @@ class SiteVisual(BaseVisual):
             ...     def __init__(self, label, value: Annotated[float, StateSpec()] = 0.0):
             ...         super().__init__(label)
             ...         self.value = value
-            >>> system = System(
-            ...     elements=[LatticeElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)))]
-            ... )
+            >>> nodes = GroupElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
+            >>> system = System(elements=[nodes])
             >>> problem = simulate(system, until=0).problem
             >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]

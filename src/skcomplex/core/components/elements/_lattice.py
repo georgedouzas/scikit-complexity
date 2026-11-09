@@ -8,10 +8,8 @@ A lattice group has one member per site of a lattice or node of a network.
 
 from collections.abc import Mapping
 
-import numpy as np
-
 from ...specs import VisualSpec
-from ..spaces import BaseSpace, NetworkSpace
+from ..spaces import BaseSpace
 from ._base import BaseElement
 from ._group import GroupElement
 
@@ -78,45 +76,3 @@ class LatticeElement(GroupElement):
         visual: VisualSpec | None = None,
     ) -> None:
         super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
-
-    def _flatten_values(self) -> dict[str, object]:
-        """Return the values as one row per site.
-
-        Mappings from node to value and arrays of the lattice shape become rows.
-        """
-        values = dict(self.values or {})
-        if isinstance(self.space, NetworkSpace):
-            nodes = list(self.space.graph.nodes)
-            values = {
-                name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
-                for name, value in values.items()
-            }
-        return {
-            name: (
-                np.asarray(value).ravel()
-                if self.space is not None and np.asarray(value).shape == self.space.shape_
-                else value
-            )
-            for name, value in values.items()
-        }
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `size_`, `values_`, and `default_visual_`.
-
-        The size is the number of sites, and the values have one row per site. The default visual is the visual of a
-        member, or the default visual of the space when the member sets none.
-
-        Args:
-            context:
-                The space the group inherits from its system, which a lattice group does not read.
-
-        Raises:
-            SpaceError:
-                The space does not have sites.
-
-            ValidationError:
-                A per-site value does not have one row per site.
-        """
-        super()._prepare(context)
-        if self.space is not None and self.default_visual_ == VisualSpec():
-            self.default_visual_ = VisualSpec(self.space.default_visual_ or 'sites')

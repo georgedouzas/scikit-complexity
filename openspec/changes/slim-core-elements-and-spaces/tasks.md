@@ -5,9 +5,9 @@
 
 ## 2. Core group on sites
 
-- [ ] 2.1 Move `_flatten_values` of `LatticeElement` into `GroupElement` for groups on `'sites'`, reading the space the group lives on, own or inherited, and move the default visual of the space into `GroupElement._prepare`, and add tests to `tests/core/components/elements/test_group.py` for lattice-shaped values, node mappings, and the visual
-- [ ] 2.2 Make `FieldElement` subclass `GroupElement` with `on='sites'`, and verify `tests/core/components/elements/test_field.py` passes
-- [ ] 2.3 Replace `LatticeElement` in the core docstrings of `analysis/_automata.py`, `interactions/_sampling.py`, and `engine/viz/_sites.py`, and move the tests of `test_lattice.py` that still apply into `test_group.py`
+- [x] 2.1 Move `_flatten_values` of `LatticeElement` into `GroupElement` for groups on `'sites'`, reading the space the group lives on, own or inherited, and move the default visual of the space into `GroupElement._prepare`, and add tests to `tests/core/components/elements/test_group.py` for lattice-shaped values, node mappings, and the visual
+- [x] 2.2 Make `FieldElement` subclass `GroupElement` with `on='sites'`, and verify `tests/core/components/elements/test_field.py` passes
+- [x] 2.3 Replace `LatticeElement` in the core docstrings of `analysis/_automata.py`, `interactions/_sampling.py`, and `engine/viz/_sites.py`, and move the tests of `test_lattice.py` that still apply into `test_group.py`
 
 ## 3. Core ball neighbourhood
 

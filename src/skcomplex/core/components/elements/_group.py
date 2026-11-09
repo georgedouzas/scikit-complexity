@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import ZZ
 from ...errors import SpaceError, ValidationError
 from ...specs import RoleSpec, Spec, StateSpec, Tags, VisualSpec
 from ..base import BasePart
-from ..spaces import BaseSpace
+from ..spaces import BaseSpace, NetworkSpace
 from ._base import BaseElement
 from ._declared import DeclaredElement
 
@@ -42,14 +42,15 @@ class GroupElement(BaseElement):
             The number of members.
 
         values:
-            A mapping from state or parameter name to its per-member or shared value.
+            A mapping from state or parameter name to its per-member or shared value. On sites, a per-site value may
+            also be an array of the lattice shape or a mapping from node to value on a network.
 
         visual:
             How the group is drawn, or `None` for `default_visual_`.
 
         space:
-            The space whose sites the members occupy, such as a lattice with one member per site, or `None` for the
-            space of the enclosing system.
+            The space whose sites the members occupy, such as a lattice with one member per site or a network with one
+            member per node in the order of `graph.nodes`, or `None` for the space of the enclosing system.
 
         variable:
             Whether laws add and remove members during a run, such as the births and deaths of agents.
@@ -77,8 +78,8 @@ class GroupElement(BaseElement):
 
     Attributes:
         default_visual_:
-            The visual of a member, or the plain visual when the member sets none, which the group takes when it sets
-            none.
+            The visual of a member, which the group takes when it sets none. When the member sets none, it is the
+            default visual of the space of a group on sites, and the plain visual otherwise.
 
         size_:
             The number of members: the size, or for a group on parts without one, the number of parts of its space.
@@ -227,12 +228,34 @@ class GroupElement(BaseElement):
         array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
         return array[index] if array.ndim >= 1 and array.shape[0] == size else location
 
-    def _flatten_values(self) -> dict[str, object]:
+    def _get_site_space(self, context: BaseSpace | None) -> BaseSpace | None:
+        """Return the space with one member of the group per site, or `None`.
+
+        It is the space of a group on sites with no size of its own, its own space or else the inherited one.
+        """
+        if self.on != 'sites' or self.size is not None:
+            return None
+        return self.space if self.space is not None else context
+
+    def _flatten_values(self, space: BaseSpace | None) -> dict[str, object]:
         """Return the values with one row per member.
 
-        A group takes them as given.
+        On the sites of a space, mappings from node to value on a network and arrays of the shape of a lattice become
+        one row per site. Without such a space the group takes its values as given.
         """
-        return dict(self.values or {})
+        values = dict(self.values or {})
+        if space is None:
+            return values
+        if isinstance(space, NetworkSpace):
+            nodes = list(space.graph.nodes)
+            values = {
+                name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
+                for name, value in values.items()
+            }
+        return {
+            name: np.asarray(value).ravel() if np.asarray(value).shape == space.shape_ else value
+            for name, value in values.items()
+        }
 
     def _check_value_rows(self) -> None:
         """Raise an error for a per-member value without one row per member.
@@ -303,8 +326,9 @@ class GroupElement(BaseElement):
         or values.
 
         `default_visual_` is the visual of the group when it sets none. The default visual of a group is the visual of a
-        member, or the plain visual when the member sets none. The size of a group on parts of a space without a size of
-        its own is the number of parts of its space, or else of the space it inherits.
+        member. When the member sets none, it is the default visual of the space of a group on its sites, and the plain
+        visual otherwise. The size of a group on parts of a space without a size of its own is the number of parts of
+        its space, or else of the space it inherits. The values of a group on sites take the shape of that space.
 
         Args:
             context:
@@ -331,8 +355,11 @@ class GroupElement(BaseElement):
         if member.visual is not None:
             self.default_visual_ = member.visual
         self.size_ = self._size_of(context)
-        self.values_ = self._flatten_values()
+        space = self._get_site_space(context)
+        self.values_ = self._flatten_values(space)
         self._check_value_rows()
+        if space is not None and self.default_visual_ == VisualSpec():
+            self.default_visual_ = VisualSpec(space.default_visual_ or 'sites')
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the element type for a namespace of symbols.

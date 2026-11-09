@@ -335,7 +335,7 @@ def automaton(
         >>> from typing import Annotated
         >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
         >>> from skcomplex.core.analysis import automaton
-        >>> from skcomplex.core.components.elements import Element, LatticeElement
+        >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import LocalRuleInteraction
         >>> from skcomplex.core.components.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.core.components.systems import System
@@ -345,7 +345,7 @@ def automaton(
         ...         super().__init__(label)
         ...         self.alive = alive
         >>> def build(size, rule, neighborhood):
-        ...     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(size))
+        ...     cells = GroupElement('cells', element=CellElement, space=LatticeSpace(size), on='sites')
         ...     interaction = LocalRuleInteraction(
         ...         'rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood
         ...     )
@@ -367,7 +367,7 @@ def automaton(
         ...         super().__init__(label)
         ...         self.alive = alive
         >>> window = LatticeSpace(6, boundary='fixed')
-        >>> golden = System(elements=[LatticeElement('cells', element=GoldenCellElement, space=window)])
+        >>> golden = System(elements=[GroupElement('cells', element=GoldenCellElement, space=window, on='sites')])
         >>> automaton(golden, kind='count').count
         21
         >>> windows = [LatticeSpace(20, boundary='fixed')]

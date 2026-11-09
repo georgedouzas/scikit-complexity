@@ -196,3 +196,84 @@ def test_group_on_hyperedges_takes_a_rank_and_an_empty_size():
     """Test that an empty variable group on hyperedges with a rank is valid."""
     group = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=4, rank=3)
     assert group.prepare().size_ == 0
+
+
+class HeightElement(Element):
+    """Cell with a height and no visual of its own."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+
+
+class ColumnElement(HeightElement):
+    """Column drawn by its heights."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('heights'),
+        *,
+        h: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, h=h)
+
+
+def test_group_on_sites_flattens_values_of_the_lattice_shape():
+    """Test that a group on the sites of a lattice has one member per site, in row-major order."""
+    values = {'h': np.arange(12.0).reshape(3, 4)}
+    cells = GroupElement('cells', element=HeightElement, space=LatticeSpace((3, 4)), on='sites', values=values)
+    cells.prepare()
+    assert (cells.size_, cells.on) == (12, 'sites')
+    assert cells.values_['h'].tolist() == np.arange(12.0).tolist()
+
+
+def test_group_on_sites_flattens_values_of_an_inherited_lattice():
+    """Test that a group on sites without a space of its own reads the shape of the space it inherits."""
+    cells = GroupElement('cells', element=HeightElement, on='sites', values={'h': np.eye(3, 4)})
+    assert cells.prepare(LatticeSpace((3, 4))).values_['h'].tolist() == np.eye(3, 4).ravel().tolist()
+
+
+def test_group_on_sites_of_a_network_reads_values_by_node():
+    """Test that a group on the sites of a network takes a mapping from node to value in node order."""
+    graph = nx.Graph([('b', 'a'), ('a', 'c')])
+    values = {'h': {'a': 1, 'b': 2, 'c': 3}}
+    cells = GroupElement('cells', element=HeightElement, space=NetworkSpace(graph), on='sites', values=values)
+    assert cells.prepare().values_['h'].tolist() == [2, 1, 3]
+
+
+def test_group_on_sites_rejects_values_of_another_shape():
+    """Test that values that are neither of the lattice shape nor one per site are rejected."""
+    values = {'h': np.zeros(5)}
+    cells = GroupElement('cells', element=HeightElement, space=LatticeSpace((3, 4)), on='sites', values=values)
+    with pytest.raises(ValidationError, match='5 values of h for 12 members'):
+        cells.prepare()
+
+
+def test_group_with_a_size_takes_values_as_given():
+    """Test that a group with a size of its own does not reshape values of the lattice shape."""
+    values = {'h': np.eye(3, 4)}
+    cells = GroupElement('cells', element=HeightElement, size=3, space=LatticeSpace((3, 4)), on='sites', values=values)
+    assert cells.prepare().values_['h'] is values['h']
+
+
+def test_group_on_sites_keeps_the_visual_of_its_element_type():
+    """Test that a group on sites of a type that declares a visual takes that visual, not that of its space."""
+    columns = GroupElement('columns', element=ColumnElement, space=LatticeSpace((3,)), on='sites').prepare()
+    assert columns.default_visual_.kind == 'heights'
+
+
+def test_group_on_sites_takes_the_visual_of_its_space():
+    """Test that a group on sites of a type that declares no visual is drawn as its space draws groups."""
+    lattice = GroupElement('cells', element=HeightElement, space=LatticeSpace((3,)), on='sites').prepare()
+    assert lattice.default_visual_ == VisualSpec('image')
+    network = GroupElement('cells', element=HeightElement, space=NetworkSpace(nx.path_graph(3)), on='sites')
+    assert network.prepare().default_visual_ == VisualSpec('sites')
+    inherited = GroupElement('cells', element=HeightElement, on='sites')
+    assert inherited.prepare(LatticeSpace((3,))).default_visual_ == VisualSpec('image')
