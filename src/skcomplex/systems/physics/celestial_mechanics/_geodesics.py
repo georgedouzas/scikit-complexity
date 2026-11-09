@@ -17,7 +17,7 @@ from sage.structure.element import Matrix
 from ....core.components.elements import Element
 from ....core.components.interactions import GeodesicInteraction
 from ....core.components.spaces import PseudoRiemannianSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
@@ -283,7 +283,7 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         self.eccentricity = eccentricity
         self.mass = mass
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a massive particle on a bound orbit around a static mass.
 
         Its perihelion advances every turn.
@@ -313,7 +313,7 @@ class SchwarzschildPrecessionSystem(BaseSystem):
         )
         space = SchwarzschildSpace(mass=self.mass)
         geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
-        return System(self.label, elements=[particle], interactions=[geodesic], space=space)
+        return CompositeSystem(self.label, elements=[particle], interactions=[geodesic], space=space)
 
 
 class LightBendingSystem(BaseSystem):
@@ -370,7 +370,7 @@ class LightBendingSystem(BaseSystem):
         self.distance = distance
         self.mass = mass
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a light ray that passes a static mass and is deflected towards it."""
         if self.impact_parameter <= 3 * math.sqrt(3) * self.mass:
             error_msg = (
@@ -391,7 +391,7 @@ class LightBendingSystem(BaseSystem):
         )
         space = SchwarzschildSpace(mass=self.mass)
         geodesic = GeodesicInteraction('geodesic', target='photon', space=space)
-        return System(self.label, elements=[photon], interactions=[geodesic], space=space)
+        return CompositeSystem(self.label, elements=[photon], interactions=[geodesic], space=space)
 
 
 class KerrFrameDraggingSystem(BaseSystem):
@@ -449,7 +449,7 @@ class KerrFrameDraggingSystem(BaseSystem):
         self.mass = mass
         self.spin = spin
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle without angular momentum that falls into a spinning mass.
 
         The mass drags the particle around it.
@@ -471,4 +471,4 @@ class KerrFrameDraggingSystem(BaseSystem):
             x_d1=[rate, 0.0, 0.0, omega * rate],
         )
         geodesic = GeodesicInteraction('geodesic', target='particle', space=space)
-        return System(self.label, elements=[particle], interactions=[geodesic], space=space)
+        return CompositeSystem(self.label, elements=[particle], interactions=[geodesic], space=space)

@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -362,10 +362,10 @@ class TwoBodyOrbitSystem(BaseSystem):
         """Return the Hamiltonian of the Kepler problem of the target."""
         return _get_kepler_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[KeplerBodyElement('planet', x=self.radius, y=0.0, px=0.0, py=speed, G=self.G, mass=self.mass)],
             interactions=[
@@ -451,7 +451,7 @@ class NBodySystem(BaseSystem):
             raise ValidationError(error_msg)
         return PRESETS[name]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return bodies in the plane that attract pairwise by Newtonian gravity."""
         preset_G, preset_masses, preset_positions, preset_velocities = self._preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
@@ -471,7 +471,7 @@ class NBodySystem(BaseSystem):
             )
             for first, second in itertools.combinations(range(len(bodies)), 2)
         ]
-        return System(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
 
 
 class RestrictedThreeBodySystem(BaseSystem):
@@ -547,9 +547,9 @@ class RestrictedThreeBodySystem(BaseSystem):
         """Return the Hamiltonian of the rotating frame of the target."""
         return _get_rotating_frame_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RotatingFrameBodyElement(
@@ -630,9 +630,9 @@ class SitnikovSystem(BaseSystem):
         distance = (1 - s.target.e * cos(s.t)) / 2
         return -1 / sqrt(s.target.z**2 + distance**2)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],
             interactions=[

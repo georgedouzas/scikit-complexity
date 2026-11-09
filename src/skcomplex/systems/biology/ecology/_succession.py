@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -280,12 +280,12 @@ class MangroveSuccessionSystem(BaseSystem):
         self.g_sundari = g_sundari
         self.seedlings = seedlings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the regrowth of a mangrove forest after a clear cut.
 
         The forest is of the Sundarbans.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StandElement('keora', volume=self.keora, mature=196.11),

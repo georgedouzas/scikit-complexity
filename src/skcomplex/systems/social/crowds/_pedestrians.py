@@ -19,7 +19,7 @@ from ....core.components.interactions import (
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
 
@@ -256,7 +256,7 @@ class SocialForceSystem(BaseSystem):
         self.speed = speed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cutoff = 2.0
@@ -286,7 +286,7 @@ class SocialForceSystem(BaseSystem):
             )
             for first, second in pairs
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=walkers,
             interactions=interactions,

@@ -17,7 +17,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec
 from ..common.populations import PopulationDensityElement
 
@@ -109,7 +109,7 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
     return moment(s.x, 1, activities, normalized=True)
 
 
-def _classes_of(system: System) -> int:
+def _classes_of(system: CompositeSystem) -> int:
     """Return the number of activity classes of a system.
 
     It is the size of its tumour distribution.
@@ -231,7 +231,7 @@ class ImmuneCompetitionSystem(BaseSystem):
         settings['observables'] = immune_observables(_classes_of(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the kinetic system of tumour and immune cells.
 
         The system is the competition between tumour cells and immune cells.
@@ -242,7 +242,7 @@ class ImmuneCompetitionSystem(BaseSystem):
         tumour_density[0] = self.tumour
         immune_density = np.zeros(self.classes)
         immune_density[int(np.argmin(np.abs(activities - self.activation)))] = self.immune
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

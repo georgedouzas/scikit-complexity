@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, shortest_paths
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
 
@@ -133,7 +133,7 @@ class MotterLaiOverloadSystem(BaseSystem):
         """Return whether the load of a node on the network present exceeds its capacity."""
         return shortest_paths(1) > s.source.capacity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cascade of overload failures of Motter and Lai.
 
         The cascade follows the removal of one node.
@@ -163,7 +163,7 @@ class MotterLaiOverloadSystem(BaseSystem):
             values={'load': loads, 'capacity': capacities, 'giant': float(len(loads))},
         )
         links = GroupElement('links', element=Element, on='edges', variable=True, capacity=graph.number_of_edges())
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[nodes, links],
             interactions=[

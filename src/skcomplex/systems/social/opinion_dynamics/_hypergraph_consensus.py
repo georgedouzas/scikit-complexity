@@ -21,7 +21,7 @@ from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -222,7 +222,7 @@ class HypergraphConsensusSystem(BaseSystem):
         self.period = period
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         triads = [
@@ -251,4 +251,4 @@ class HypergraphConsensusSystem(BaseSystem):
             reinforcement=self.reinforcement,
             period=self.period,
         )
-        return System(self.label, elements=[nodes, schedules], interactions=[consensus])
+        return CompositeSystem(self.label, elements=[nodes, schedules], interactions=[consensus])

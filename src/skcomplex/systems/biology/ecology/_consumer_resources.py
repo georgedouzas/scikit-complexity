@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -487,7 +487,7 @@ class ConsumerResourceSystem(BaseSystem):
         self.n = n
         self.v = v
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of consumer species that compete only through resources.
 
         They compete only through the resources they take up.
@@ -544,4 +544,4 @@ class ConsumerResourceSystem(BaseSystem):
             supply=self.supply,
             v=self.v,
         )
-        return System(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])
+        return CompositeSystem(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])

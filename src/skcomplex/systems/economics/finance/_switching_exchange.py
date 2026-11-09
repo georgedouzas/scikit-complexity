@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, normal, uniform, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -228,7 +228,7 @@ class KirmanExchangeRateSystem(BaseSystem):
         self.epsilon = epsilon
         self.delta = delta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         market = SwitchingExchangeElement(
             'market',
@@ -242,4 +242,4 @@ class KirmanExchangeRateSystem(BaseSystem):
             epsilon=self.epsilon,
             delta=self.delta,
         )
-        return System(self.label, elements=[market])
+        return CompositeSystem(self.label, elements=[market])

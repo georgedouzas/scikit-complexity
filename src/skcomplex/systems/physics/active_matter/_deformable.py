@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import POINTS
@@ -193,7 +193,7 @@ class DeformableActiveParticlesSystem(BaseSystem):
         self.noise = noise
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return deformable self-propelled particles of Ohta and Ohkuma.
 
         The particles move straight or along circles.
@@ -210,4 +210,4 @@ class DeformableActiveParticlesSystem(BaseSystem):
             'noise': self.noise,
         }
         cells = GroupElement('cells', element=DeformableParticleElement, size=self.n_particles, values=values)
-        return System(self.label, elements=[cells], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[cells], space=ContinuousSpace(n_dim=2))

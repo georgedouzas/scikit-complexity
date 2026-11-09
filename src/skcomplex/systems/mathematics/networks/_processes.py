@@ -18,7 +18,7 @@ from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, MovementInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -207,11 +207,11 @@ class NetworkRandomWalkSystem(BaseSystem):
         if isinstance(agent, NetworkWalkerView):
             agent.steps += 1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         graph = _graph_or_default(self.graph)
         walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('walkers', element=NetworkWalkerElement, size=self.n_walkers)],
             interactions=[walk],
@@ -266,7 +266,7 @@ class NetworkDiffusionSystem(BaseSystem):
         self.D = D
         self.source = source
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         graph = _graph_or_default(self.graph)
         initial = np.zeros(graph.number_of_nodes())
@@ -280,7 +280,7 @@ class NetworkDiffusionSystem(BaseSystem):
         diffusion = RateInteraction(
             'diffusion', target='nodes', state='u', rate=lambda s: s.target.D * laplacian(s.target.u),
         )
-        return System(self.label, elements=[nodes], interactions=[diffusion])
+        return CompositeSystem(self.label, elements=[nodes], interactions=[diffusion])
 
 
 class PagerankSystem(BaseSystem):
@@ -334,7 +334,7 @@ class PagerankSystem(BaseSystem):
         member, other = s.member, s.other
         return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j`.
 
         The network is undirected.
@@ -352,4 +352,4 @@ class PagerankSystem(BaseSystem):
             function=self._get_link_term,
             form='map',
         )
-        return System(self.label, elements=[pages], interactions=[links])
+        return CompositeSystem(self.label, elements=[pages], interactions=[links])

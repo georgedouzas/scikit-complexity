@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -248,7 +248,7 @@ class KineticWealthExchangeSystem(BaseSystem):
         self.wealth = wealth
         self.amount = amount
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.debt is not None and self.saving:
             error_msg = 'Give either a saving propensity or a debt limit, not both.'
@@ -267,7 +267,7 @@ class KineticWealthExchangeSystem(BaseSystem):
                 amount=self.amount,
             )
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

@@ -19,7 +19,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.mechanics import PendulumElement, PendulumInteraction
@@ -874,9 +874,9 @@ class DoublePendulumSystem(BaseSystem):
         self.l2 = l2
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 DoublePendulumElement(
@@ -969,12 +969,12 @@ class CoupledPendulumsSystem(BaseSystem):
         self.l2 = l2
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two pendulums whose bobs are joined by a spring.
 
         The pendulums pass their energy back and forth.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 PendulumElement('left', theta=self.theta1, m=self.m1, l=self.l1, g=self.g),
@@ -1056,12 +1056,12 @@ class CartPendulumSystem(BaseSystem):
         self.g = g
         self.F = F
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a pendulum hanging from a cart.
 
         The cart slides without friction along a horizontal track.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 CartPendulumElement(
@@ -1154,9 +1154,9 @@ class ParametricPendulumSystem(BaseSystem):
         self.c = c
         self.direction = direction
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 ParametricPendulumElement(
@@ -1240,7 +1240,7 @@ class MagneticPendulumSystem(BaseSystem):
         self.gamma = gamma
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a magnetic bob on a string swinging above magnets on a circle.
 
         The bob comes to rest at one of the magnets.
@@ -1256,7 +1256,7 @@ class MagneticPendulumSystem(BaseSystem):
             )
             for index, angle in enumerate(angles)
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MassPointElement('bob', x=[self.x, self.y], x_d1=[0.0, 0.0])],
             interactions=[
@@ -1331,7 +1331,7 @@ class BallisticPendulumSystem(BaseSystem):
         self.l = l
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a bullet that sticks in the block of a pendulum at rest.
 
         The pendulum then swings up.
@@ -1352,7 +1352,7 @@ class BallisticPendulumSystem(BaseSystem):
             },
             direction=1,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 BallisticPendulumElement(
@@ -1455,7 +1455,7 @@ class HuygensClocksSystem(BaseSystem):
         self.lam = lam
         self.theta_c = theta_c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         clocks = [
             ClockPendulumElement(
@@ -1478,4 +1478,4 @@ class HuygensClocksSystem(BaseSystem):
         motions = [
             ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(self.n_clocks)
         ]
-        return System(self.label, elements=clocks, interactions=[*springs, *motions])
+        return CompositeSystem(self.label, elements=clocks, interactions=[*springs, *motions])

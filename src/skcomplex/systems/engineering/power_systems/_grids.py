@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -148,7 +148,7 @@ class PowerGridSystem(BaseSystem):
         self.added_line = added_line
         self.doubled_line = doubled_line
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         elements = [
             GridNodeElement(
@@ -179,4 +179,4 @@ class PowerGridSystem(BaseSystem):
                     K=self.K,
                 ),
             )
-        return System(self.label, elements=elements, interactions=interactions)
+        return CompositeSystem(self.label, elements=elements, interactions=interactions)

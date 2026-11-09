@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import PontryaginSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction
@@ -401,9 +401,9 @@ class OptimalChemotherapySystem(BaseSystem):
         self.N = N
         self.w = w
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a patient under the chemotherapy."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
         )
@@ -468,7 +468,7 @@ class OptimalImmunotherapySystem(BaseSystem):
         self.w1 = w1
         self.w2 = w2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour under the adoptive therapy and IL-2 injection."""
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
@@ -521,4 +521,4 @@ class OptimalImmunotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.z,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)

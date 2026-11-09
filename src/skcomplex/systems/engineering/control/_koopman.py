@@ -23,7 +23,7 @@ from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory, simulate
 from ....core.errors import ValidationError
 from ....core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -304,7 +304,7 @@ def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> 
 
     The input is drawn every sample, from a random state.
     """
-    system = System(
+    system = CompositeSystem(
         elements=[
             PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
             ControlInputElement('input'),
@@ -458,7 +458,7 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
             reference=case.reference,
         ).prepare()
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'The plant {self.plant!r} is unknown. Use one of {", ".join(PLANTS)}.'
@@ -476,11 +476,15 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
             sources=['plant/state'],
             function=functools.partial(self._hold, problem=problem),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('controller', elements=[ControlInputElement('input')], time=DiscreteTime()),
-                System('plant', elements=[PlantStateElement('state', x=self.x, y=self.y)], time=ContinuousTime()),
+                CompositeSystem('controller', elements=[ControlInputElement('input')], time=DiscreteTime()),
+                CompositeSystem(
+                    'plant',
+                    elements=[PlantStateElement('state', x=self.x, y=self.y)],
+                    time=ContinuousTime(),
+                ),
             ],
             interactions=[controller, *_plant_interactions(case, 'plant/state', 'controller/input')],
         )

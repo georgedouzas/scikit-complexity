@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 SECTORS = 3
@@ -189,7 +189,7 @@ def _sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: s
     return values[index]
 
 
-def _observables(system: System) -> list[ObservableSpec]:
+def _observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the index and the input of every sector."""
     economy = system.elements[0]
     if not isinstance(economy, PurchasingPowerElement):
@@ -280,7 +280,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         self.C = C
         self.D = D
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         variables = {
             name: DeclaredVariableSpec(float(value), ParameterSpec())
@@ -296,7 +296,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
             D=self.D,
             feedback=self.feedback,
         )
-        return System(self.label, elements=[economy])
+        return CompositeSystem(self.label, elements=[economy])
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.

@@ -19,7 +19,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.populations import ReplicatorInteraction
@@ -278,7 +278,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         gained = u * source_fitness * source.x + kept * (1 - sigma) * s.target.x
         return gained / self._mean_fitness(master)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the shares of a population around a master sequence.
 
         The shares are at every number of mutations from the master sequence.
@@ -300,7 +300,7 @@ class EigenQuasispeciesSystem(BaseSystem):
             for source, target in itertools.pairwise(labels)
         ]
         interactions = [selection, *mutations]
-        return System(self.label, elements=elements, interactions=interactions)
+        return CompositeSystem(self.label, elements=elements, interactions=interactions)
 
 
 class HypercyclesSystem(BaseSystem):
@@ -361,7 +361,7 @@ class HypercyclesSystem(BaseSystem):
         self.omega = omega
         self.topology = topology
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a hypercycle of self-replicating molecules.
 
         The catalysis of the network keeps a set of them alive.
@@ -388,4 +388,4 @@ class HypercyclesSystem(BaseSystem):
             omega=self.omega,
             topology=tuple(tuple(float(value) for value in row) for row in links),
         )
-        return System(self.label, elements=[soup], interactions=[catalysis])
+        return CompositeSystem(self.label, elements=[soup], interactions=[catalysis])

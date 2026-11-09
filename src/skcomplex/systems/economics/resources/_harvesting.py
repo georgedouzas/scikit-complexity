@@ -14,7 +14,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import count
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -266,9 +266,12 @@ class HarvestingSystem(BaseSystem):
         self.r = r
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        land = System('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
-        village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=self.farmers)])
+        land = CompositeSystem('land', elements=[StockElement('stock', n=self.K, r=self.r, K=self.K)])
+        village = CompositeSystem(
+            'village',
+            elements=[GroupElement('farmers', element=FarmerElement, size=self.farmers)],
+        )
         harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=self.effort)
-        return System(self.label, interactions=[harvest], systems=[land, village])
+        return CompositeSystem(self.label, interactions=[harvest], systems=[land, village])

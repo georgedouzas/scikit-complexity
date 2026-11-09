@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -276,7 +276,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         rng = np.random.default_rng(self.seed)
         start = rng.uniform(-self.spread, self.spread, (2, self.cells))
@@ -289,7 +289,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
             'v1': self.v1,
             'v2': self.v2,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('cells', element=FateLandscapeElement, size=self.cells, values=values)],
         )
@@ -359,7 +359,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.noise = noise
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a ring of cells that inhibit the neural fate of neighbours."""
         index = np.arange(self.cells)
         distance = np.abs(index[:, None] - index[None, :])
@@ -378,4 +378,4 @@ class BristleLateralInhibitionSystem(BaseSystem):
             cells='cells',
             kernel=tuple(map(tuple, kernel.tolist())),
         )
-        return System(self.label, elements=[group], interactions=[inhibition])
+        return CompositeSystem(self.label, elements=[group], interactions=[inhibition])

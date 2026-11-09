@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -180,7 +180,7 @@ class CurieWeissSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         spins = _initial_spins(self.n_spins, self.initial, self.random_state)
         group = GroupElement(
@@ -191,7 +191,7 @@ class CurieWeissSystem(BaseSystem):
             visual=SPIN_IMAGE,
             on='sites',
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])
 
 
 class SherringtonKirkpatrickSystem(BaseSystem):
@@ -255,7 +255,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         self.h = h
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
@@ -274,4 +274,4 @@ class SherringtonKirkpatrickSystem(BaseSystem):
             visual=SPIN_IMAGE,
             on='sites',
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])

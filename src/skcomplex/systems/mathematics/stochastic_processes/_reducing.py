@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BirthDeathInteraction, MapInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -369,12 +369,12 @@ class SampleSpaceReducingSystem(BaseSystem):
         self.n_states = n_states
         self.lam = lam
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return sample-space-reducing processes.
 
         Their state visits follow Zipf's law `1 / i` for `lam = 1`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -429,9 +429,9 @@ class FragmentationSystem(BaseSystem):
         self.size = size
         self.rate = rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -504,9 +504,9 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
         self.n_states = n_states
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

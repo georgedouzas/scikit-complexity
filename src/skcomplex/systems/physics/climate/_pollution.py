@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import series
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 ABSORPTION_TIME = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (0.6, 2.5, 5.0, 8.0, 11.5, 15.5, 20.0))
@@ -231,7 +231,7 @@ class PopulationPollutionSystem(BaseSystem):
         self.birth_normal = birth_normal
         self.death_normal = death_normal
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the pollution model of Bala, Arshad, and Noh.
 
         A population degrades its environment.
@@ -245,4 +245,4 @@ class PopulationPollutionSystem(BaseSystem):
             birth_normal=self.birth_normal,
             death_normal=self.death_normal,
         )
-        return System(self.label, elements=[region])
+        return CompositeSystem(self.label, elements=[region])

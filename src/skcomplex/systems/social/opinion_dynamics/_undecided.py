@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -221,7 +221,7 @@ class ThreeStateOpinionSystem(BaseSystem):
             return -1.0
         return 1.0 if draw < against + support else 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
@@ -239,7 +239,7 @@ class ThreeStateOpinionSystem(BaseSystem):
             schedule='random-sequential',
             form='agent',
         )
-        return System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
 
 
 class UndecidedFlowsSystem(BaseSystem):
@@ -326,7 +326,7 @@ class UndecidedFlowsSystem(BaseSystem):
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         population = UndecidedFlowsElement(
             'population',
@@ -350,4 +350,4 @@ class UndecidedFlowsSystem(BaseSystem):
                 ('support', 'undecided', self._doubting_support, 'doubting_support'),
             ],
         )
-        return System(self.label, elements=[population], interactions=[flows])
+        return CompositeSystem(self.label, elements=[population], interactions=[flows])

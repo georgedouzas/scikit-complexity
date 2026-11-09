@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import both, laplacian, pulse_train, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -221,7 +221,7 @@ class ShakenSpringBlockSystem(BaseSystem):
         self.relax_time = relax_time
         self.v_stick = v_stick
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a chain of blocks joined by springs on a frictional substrate.
 
         The chain is shaken and relaxed in turn.
@@ -243,4 +243,4 @@ class ShakenSpringBlockSystem(BaseSystem):
                 'v_stick': self.v_stick,
             },
         )
-        return System(self.label, elements=[chain])
+        return CompositeSystem(self.label, elements=[chain])

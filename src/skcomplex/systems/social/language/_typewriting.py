@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -227,7 +227,7 @@ class RandomTypewritingSystem(BaseSystem):
         self.keystrokes = keystrokes
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         code, length = 0, 0
@@ -247,4 +247,4 @@ class RandomTypewritingSystem(BaseSystem):
             space_bar=self.space,
             keystrokes=self.keystrokes,
         )
-        return System(self.label, elements=[words], interactions=[typing])
+        return CompositeSystem(self.label, elements=[words], interactions=[typing])

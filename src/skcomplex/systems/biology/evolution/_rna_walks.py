@@ -16,7 +16,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import RowScoreSpec, StateSpec, VisualSpec
 from ..._extras import import_extra
@@ -272,7 +272,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         fold = fold_sequence(read_sequence(row))[0]
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of walkers of RNA sequences."""
         import_extra('RNA', 'rna_neutral_networks', 'rna')
         if self.regime not in REGIMES:
@@ -288,7 +288,7 @@ class RNANeutralNetworksSystem(BaseSystem):
             bases = np.random.default_rng(self.seed).integers(0, len(BASES), size=(self.walkers, self.length))
         else:
             bases = np.tile([BASES.index(letter) for letter in self.start], (self.walkers, 1))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

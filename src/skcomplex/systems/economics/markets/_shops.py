@@ -23,7 +23,7 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
@@ -99,7 +99,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.markets import PriceAdjustmentInteraction
@@ -110,7 +110,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         >>> search = PriceAdjustmentInteraction(
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
-        >>> system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
         >>> simulate(system, until=3).values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
@@ -599,7 +599,7 @@ class ShopsSystem(BaseSystem):
         self.value = value
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -692,7 +692,7 @@ class ShopsSystem(BaseSystem):
             phase='market',
             on_match=StoreElement.record_sale,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[shoppers, stores],
             interactions=[*plan, shopping, *settlement],

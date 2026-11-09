@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -225,7 +225,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
         self.pbar = pbar
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         profits = self.pbar + 2.0 * np.random.default_rng(self.random_state).random(self.n_firms)
         firms = GroupElement(
@@ -238,4 +238,4 @@ class ToyFirmInvestmentSystem(BaseSystem):
             MapInteraction(label, target='firms', state=name, function=function, form='agent')
             for label, name, function in InvestingFirmElement.get_steps()
         ]
-        return System(self.label, elements=[firms], interactions=steps, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[firms], interactions=steps, time=DiscreteTime())

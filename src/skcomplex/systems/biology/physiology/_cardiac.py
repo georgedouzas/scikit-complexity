@@ -16,7 +16,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -255,7 +255,7 @@ class AlievPanfilovSystem(BaseSystem):
         self.mu1 = mu1
         self.mu2 = mu2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Aliev-Panfilov system of cardiac tissue."""
         rows, columns = self.shape
         u, v = np.zeros(self.shape), np.zeros(self.shape)
@@ -267,7 +267,7 @@ class AlievPanfilovSystem(BaseSystem):
         diffusion = RateInteraction(
             'diffusion', target='tissue', state='u', rate=lambda s: self.D * laplacian(s.target.u),
         )
-        return System(self.label, elements=[tissue], interactions=[diffusion])
+        return CompositeSystem(self.label, elements=[tissue], interactions=[diffusion])
 
 
 class BarkleySystem(BaseSystem):
@@ -340,7 +340,7 @@ class BarkleySystem(BaseSystem):
         self.epsilon = epsilon
         self.gamma = gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Barkley's excitable medium."""
         rows, columns = self.shape
         u, w = np.zeros(self.shape), np.zeros(self.shape)
@@ -352,4 +352,4 @@ class BarkleySystem(BaseSystem):
         diffusion = RateInteraction(
             'diffusion', target='medium', state='u', rate=lambda s: self.d * laplacian(s.target.u),
         )
-        return System(self.label, elements=[medium], interactions=[diffusion])
+        return CompositeSystem(self.label, elements=[medium], interactions=[diffusion])

@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -1173,7 +1173,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.du = du
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prostate cancer under continuous androgen suppression."""
         tumour = AndrogenSuppressionElement(
             'tumour',
@@ -1233,7 +1233,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
                 rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class IdetaIntermittentAndrogenSystem(BaseSystem):
@@ -1346,7 +1346,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Ideta system of intermittent androgen suppression."""
         tumour = IntermittentSuppressionElement(
             'tumour',
@@ -1416,7 +1416,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             ),
             *switches,
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateCellQuotaSystem(BaseSystem):
@@ -1551,7 +1551,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
         return uptake
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Portz cell-quota system of prostate cancer."""
         tumour = CellQuotaProstateElement(
             'tumour',
@@ -1680,7 +1680,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 ),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateAndrogenReceptorSystem(BaseSystem):
@@ -1794,7 +1794,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         division: Expression = self._receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
         return division
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         prostate = AndrogenReceptorProstateElement(
             'prostate',
@@ -1898,7 +1898,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du3 * s.target.UP,
             ),
         ]
-        return System(self.label, elements=[prostate], interactions=interactions)
+        return CompositeSystem(self.label, elements=[prostate], interactions=interactions)
 
 
 class PiecewiseLinearIASSystem(BaseSystem):
@@ -1957,7 +1957,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
@@ -1988,7 +1988,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
             self.h0,
             self.h1,
         )
-        return System(self.label, elements=[tumour], interactions=switches)
+        return CompositeSystem(self.label, elements=[tumour], interactions=switches)
 
 
 class TamoxifenCellCycleSystem(BaseSystem):
@@ -2067,7 +2067,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
         return room
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
@@ -2150,4 +2150,4 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)

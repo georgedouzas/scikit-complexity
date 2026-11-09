@@ -12,7 +12,7 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.flows import LorenzElement
 
@@ -400,9 +400,12 @@ class FractionalRelaxationSystem(BaseSystem):
         self.order = order
         self.lam = lam
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[relaxation_type(float(self.order))('relaxation', x=self.x, lam=self.lam)])
+        return CompositeSystem(
+            self.label,
+            elements=[relaxation_type(float(self.order))('relaxation', x=self.x, lam=self.lam)],
+        )
 
 
 class FractionalOscillatorSystem(BaseSystem):
@@ -462,12 +465,12 @@ class FractionalOscillatorSystem(BaseSystem):
         self.omega = omega
         self.gamma = gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the fractional damped oscillator.
 
         The oscillator is `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 oscillator_type(float(self.order))(
@@ -532,12 +535,12 @@ class FractionalVanDerPolSystem(BaseSystem):
         self.order = order
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the fractional Van der Pol oscillator.
 
         The oscillator is `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[van_der_pol_type(float(self.order))('oscillator', x=self.x, y=self.y, mu=self.mu)],
         )
@@ -611,7 +614,7 @@ class FractionalLorenzSystem(BaseSystem):
         self.rho = rho
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the fractional Lorenz flow of Grigorenko and Grigorenko.
 
         The flow is chaotic for orders close enough to 1.
@@ -625,4 +628,4 @@ class FractionalLorenzSystem(BaseSystem):
             rho=self.rho,
             beta=self.beta,
         )
-        return System(self.label, elements=[flow])
+        return CompositeSystem(self.label, elements=[flow])

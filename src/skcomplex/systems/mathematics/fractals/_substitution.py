@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 
@@ -271,7 +271,7 @@ class KochCurveSystem(BaseSystem):
         super().__init__(label)
         self.angle = angle
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         word = KochElement(
             'koch',
@@ -280,7 +280,7 @@ class KochCurveSystem(BaseSystem):
             geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
             bounds=(-0.03, -0.05, 1.03, 0.35),
         )
-        return System(self.label, elements=[word])
+        return CompositeSystem(self.label, elements=[word])
 
 
 class CantorSetSystem(BaseSystem):
@@ -335,11 +335,11 @@ class CantorSetSystem(BaseSystem):
             error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
             raise ValidationError(error_msg)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
         cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
-        return System(self.label, elements=[cantor])
+        return CompositeSystem(self.label, elements=[cantor])
 
 
 class SierpinskiSubstitutionSystem(BaseSystem):
@@ -385,8 +385,8 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         self.shape = shape
         self.filled = filled
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         prototile, _ = SierpinskiElement._sierpinski_tiles(self.shape)
         sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
-        return System(self.label, elements=[sierpinski])
+        return CompositeSystem(self.label, elements=[sierpinski])

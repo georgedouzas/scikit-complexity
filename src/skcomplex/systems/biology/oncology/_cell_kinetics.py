@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -356,7 +356,7 @@ class CellCycleChemotherapySystem(BaseSystem):
         self.u2 = u2
         self.v = v
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of tumour cells in cell-cycle compartments under killing."""
         if self.dormant:
             dormant_interactions = [
@@ -393,7 +393,7 @@ class CellCycleChemotherapySystem(BaseSystem):
                     rate=lambda s: s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
                 ),
             ]
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[DormantCellCycleElement('tumour', u=self.u1, v=self.v)],
                 interactions=dormant_interactions,
@@ -427,7 +427,7 @@ class CellCycleChemotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.u1 * s.target.l3 * s.target.A3,
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[CellCycleElement('tumour', u1=self.u1, u2=self.u2)],
             interactions=interactions,
@@ -503,7 +503,7 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.Q50 = Q50
         self.n = n
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the production of red cells under 6-mercaptopurine.
 
         The level of the drug is constant.
@@ -603,4 +603,4 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
                 divisor='L',
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)

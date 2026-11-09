@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -250,7 +250,7 @@ class CognitiveConsistencySystem(BaseSystem):
         self.decay = decay
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         graph = nx.complete_graph(40) if graph is None else graph
@@ -263,7 +263,7 @@ class CognitiveConsistencySystem(BaseSystem):
             size=size,
             values={'valences': valences, 'attitude': valences[:, 1], 'decay': self.decay},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[thinkers],
             interactions=[ConversationsInteraction('talks', target='thinkers')],

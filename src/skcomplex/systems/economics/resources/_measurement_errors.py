@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -208,7 +208,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.step = step
         self.restocking = restocking
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         fisheries = GroupElement(
             'fisheries',
@@ -224,4 +224,4 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
                 'restocking': float(self.restocking),
             },
         )
-        return System(self.label, elements=[fisheries])
+        return CompositeSystem(self.label, elements=[fisheries])

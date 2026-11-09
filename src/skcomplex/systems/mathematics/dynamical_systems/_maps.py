@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -651,7 +651,7 @@ class LogisticMapSystem(BaseSystem):
         self.x = x
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         logistic = MapInteraction(
             'x_map',
@@ -659,7 +659,11 @@ class LogisticMapSystem(BaseSystem):
             state='x',
             function=lambda s: s.target.r * s.target.x * (1 - s.target.x),
         )
-        return System(self.label, elements=[LogisticMapElement('map', x=self.x, r=self.r)], interactions=[logistic])
+        return CompositeSystem(
+            self.label,
+            elements=[LogisticMapElement('map', x=self.x, r=self.r)],
+            interactions=[logistic],
+        )
 
 
 class HenonMapSystem(BaseSystem):
@@ -712,7 +716,7 @@ class HenonMapSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Hénon map `x' = 1 - a x² + y`, `y' = b x`.
 
         The map has a fractal strange attractor for its defaults.
@@ -724,7 +728,7 @@ class HenonMapSystem(BaseSystem):
             function=lambda s: 1 - s.target.a * s.target.x**2 + s.target.y,
         )
         second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[HenonMapElement('map', x=self.x, y=self.y, a=self.a, b=self.b)],
             interactions=[first, second],
@@ -778,7 +782,7 @@ class StandardMapSystem(BaseSystem):
         self.p = p
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Chirikov standard map `p' = p + K sin θ`, `θ' = θ + p'`.
 
         The map has global chaos above K ≈ 0.9716.
@@ -795,7 +799,7 @@ class StandardMapSystem(BaseSystem):
             state='theta',
             function=lambda s: mod(s.target.theta + s.target.p + s.target.K * sin(s.target.theta), 2 * pi),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[StandardMapElement('map', theta=self.theta, p=self.p, K=self.K)],
             interactions=[kick, rotation],
@@ -847,7 +851,7 @@ class CircleMapSystem(BaseSystem):
         self.Omega = Omega
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the sine circle map `θ' = θ + Ω - K / (2π) sin 2πθ (mod 1)`.
 
         The map locks into Arnold tongues.
@@ -861,7 +865,7 @@ class CircleMapSystem(BaseSystem):
                 1,
             ),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[CircleMapElement('map', theta=self.theta, Omega=self.Omega, K=self.K)],
             interactions=[rotation],
@@ -908,7 +912,7 @@ class TentMapSystem(BaseSystem):
         self.x = x
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the tent map `x' = μ min(x, 1 - x)`.
 
         The map is chaotic with Lyapunov exponent `ln μ` for μ above 1.
@@ -919,7 +923,7 @@ class TentMapSystem(BaseSystem):
             state='x',
             function=lambda s: s.target.mu * where(s.target.x < 1 / 2, s.target.x, 1 - s.target.x),
         )
-        return System(self.label, elements=[TentMapElement('map', x=self.x, mu=self.mu)], interactions=[tent])
+        return CompositeSystem(self.label, elements=[TentMapElement('map', x=self.x, mu=self.mu)], interactions=[tent])
 
 
 class BakerMapSystem(BaseSystem):
@@ -980,7 +984,7 @@ class BakerMapSystem(BaseSystem):
         self.lambda_a = lambda_a
         self.lambda_b = lambda_b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         stretch = MapInteraction(
             'x_map',
@@ -1010,7 +1014,7 @@ class BakerMapSystem(BaseSystem):
             lambda_a=self.lambda_a,
             lambda_b=self.lambda_b,
         )
-        return System(self.label, elements=[baker], interactions=[stretch, stack])
+        return CompositeSystem(self.label, elements=[baker], interactions=[stretch, stack])
 
 
 class TowelMapSystem(BaseSystem):
@@ -1069,7 +1073,7 @@ class TowelMapSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Rössler's towel map.
 
         It is a three-dimensional map with two positive Lyapunov exponents.
@@ -1094,7 +1098,7 @@ class TowelMapSystem(BaseSystem):
             state='z',
             function=lambda s: s.target.b * s.target.z * (1 - s.target.z) + 0.2 * s.target.y,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[TowelMapElement('map', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b)],
             interactions=[first, second, third],
@@ -1141,7 +1145,7 @@ class IntermittencyMapSystem(BaseSystem):
         self.x = x
         self.z = z
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         burst = MapInteraction(
             'x_map',
@@ -1149,7 +1153,11 @@ class IntermittencyMapSystem(BaseSystem):
             state='x',
             function=lambda s: mod(s.target.x + s.target.x**s.target.z, 1),
         )
-        return System(self.label, elements=[IntermittencyMapElement('map', x=self.x, z=self.z)], interactions=[burst])
+        return CompositeSystem(
+            self.label,
+            elements=[IntermittencyMapElement('map', x=self.x, z=self.z)],
+            interactions=[burst],
+        )
 
 
 class NewtonRaphsonMapSystem(BaseSystem):
@@ -1193,7 +1201,7 @@ class NewtonRaphsonMapSystem(BaseSystem):
         self.x = x
         self.y = y
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Newton's method for `z³ = 1` in the complex plane, in real coordinates.
 
         The method is `z' = (2z³ + 1) / (3z²)`.
@@ -1214,7 +1222,7 @@ class NewtonRaphsonMapSystem(BaseSystem):
                 2 * s.target.y / 3 - 2 * s.target.x * s.target.y / (3 * (s.target.x**2 + s.target.y**2) ** 2)
             ),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[NewtonMapElement('map', x=self.x, y=self.y)],
             interactions=[real, imaginary],
@@ -1261,11 +1269,15 @@ class CatMapSystem(BaseSystem):
         self.x = x
         self.y = y
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         first = MapInteraction('x_map', target='map', state='x', function=lambda s: mod(2 * s.target.x + s.target.y, 1))
         second = MapInteraction('y_map', target='map', state='y', function=lambda s: mod(s.target.x + s.target.y, 1))
-        return System(self.label, elements=[CatMapElement('map', x=self.x, y=self.y)], interactions=[first, second])
+        return CompositeSystem(
+            self.label,
+            elements=[CatMapElement('map', x=self.x, y=self.y)],
+            interactions=[first, second],
+        )
 
 
 class LoziMapSystem(BaseSystem):
@@ -1319,7 +1331,7 @@ class LoziMapSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         first = MapInteraction(
             'x_map',
@@ -1328,7 +1340,7 @@ class LoziMapSystem(BaseSystem):
             function=lambda s: 1 + s.target.y - s.target.a * abs_symbolic(s.target.x),
         )
         second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[LoziMapElement('map', x=self.x, y=self.y, a=self.a, b=self.b)],
             interactions=[first, second],
@@ -1384,7 +1396,7 @@ class ConservativeHenonMapSystem(BaseSystem):
         self.y = y
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Hénon's area-preserving quadratic map.
 
         The map is a rotation by `2π nu` with a quadratic kick.
@@ -1403,7 +1415,7 @@ class ConservativeHenonMapSystem(BaseSystem):
             function=lambda s: -sin(2 * pi * s.target.nu) * s.target.x
             + cos(2 * pi * s.target.nu) * (s.target.y + s.target.x**2),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ConservativeHenonMapElement('map', x=self.x, y=self.y, nu=self.nu)],
             interactions=[first, second],
@@ -1458,7 +1470,7 @@ class FermiUlamMapSystem(BaseSystem):
         self.theta = theta
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Fermi-Ulam map of a ball bouncing between two walls.
 
         One wall is fixed and the other oscillates in time.
@@ -1478,7 +1490,7 @@ class FermiUlamMapSystem(BaseSystem):
                 2 * pi,
             ),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FermiUlamMapElement('map', u=self.u, theta=self.theta, epsilon=self.epsilon)],
             interactions=[speed, phase],
@@ -1533,7 +1545,7 @@ class CDNMapSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β`.
 
         The map acts on an interval.
@@ -1544,7 +1556,7 @@ class CDNMapSystem(BaseSystem):
             state='x',
             function=lambda s: exp(-(s.target.alpha**2) * s.target.x**2) + s.target.beta,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GaussianMapElement('map', x=self.x, alpha=self.alpha, beta=self.beta)],
             interactions=[gaussian],

@@ -16,7 +16,7 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import BaseInteraction, Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
@@ -588,7 +588,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         self.kd3 = kd3
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of three proteins."""
         loop = PhosphorylationLoopElement(
             'loop',
@@ -658,7 +658,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
                 km=lambda s: s.target.K3,
             ),
         ]
-        return System(self.label, elements=[loop], interactions=reactions)
+        return CompositeSystem(self.label, elements=[loop], interactions=reactions)
 
 
 class BiochemicalSystemsTheorySystem(BaseSystem):
@@ -746,7 +746,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         self.gamma = gamma
         self.orders = orders
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a biochemical system of power-law rates."""
         species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
         paths = [item.label for item in species]
@@ -770,7 +770,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         else:
             error_msg = f'Unknown form {self.form!r}. Use s-system or gma.'
             raise ValidationError(error_msg)
-        return System(self.label, elements=species, interactions=[rates])
+        return CompositeSystem(self.label, elements=species, interactions=[rates])
 
 
 class GoodwinOscillatorSystem(BaseSystem):
@@ -848,7 +848,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         self.n = n
         self.k = k
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Goodwin oscillator."""
         initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
         if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
@@ -879,7 +879,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         degradations = [
             ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=self.b) for label in labels
         ]
-        return System(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
+        return CompositeSystem(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
 
 
 class GlycolysisOscillationsSystem(BaseSystem):
@@ -926,10 +926,10 @@ class GlycolysisOscillationsSystem(BaseSystem):
         self.flow = flow
         self.V4 = V4
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the glycolysis of a yeast extract in a flow reactor."""
         variables = {
             'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
             'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
         }
-        return System(self.label, elements=[GlycolysisElement('extract', variables=variables)])
+        return CompositeSystem(self.label, elements=[GlycolysisElement('extract', variables=variables)])

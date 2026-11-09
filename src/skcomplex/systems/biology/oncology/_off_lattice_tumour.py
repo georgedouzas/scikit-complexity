@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
@@ -316,7 +316,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         self.lam = lam
         self.initial_radius = initial_radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cells on a hexagonal layout with a cancer cluster at the centre."""
         side = float(self.side)
         rows, columns = np.arange(0.5, side, ROW_SPACING), np.arange(0.5, side - 0.5)
@@ -341,7 +341,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
             location=[tuple(item) for item in positions],
             variable=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells],
             interactions=[TumourGrowthInteraction('growth', target='cells')],

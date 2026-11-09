@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import RelaxationTimeInteraction
@@ -185,7 +185,7 @@ class HasselmannSystem(BaseSystem):
         """Return the amplitude `sigma` of the weather noise."""
         return s.target.sigma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         feedback = RelaxationTimeInteraction(
             'feedback',
@@ -195,7 +195,7 @@ class HasselmannSystem(BaseSystem):
             time=self._get_damping_time,
             noise=self._get_weather,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ClimateAnomalyElement('ocean', T=self.T, lam=self.lam, sigma=self.sigma)],
             interactions=[feedback],
@@ -250,12 +250,12 @@ class ENSOSystem(BaseSystem):
         self.alpha = alpha
         self.delta = delta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the delayed oscillator of El Niño of Suarez and Schopf.
 
         The oscillator is `dT/dt = T - T^3 - alpha T(t - delta)`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[DelayedOscillatorElement('pacific', T=self.T, alpha=self.alpha, delta=self.delta)],
         )

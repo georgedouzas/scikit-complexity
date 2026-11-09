@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -408,7 +408,7 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
         self.beta = beta
         self.least_jump = least_jump
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ExplorationInteraction(
@@ -419,7 +419,7 @@ class ExplorationPreferentialReturnSystem(BaseSystem):
             beta=self.beta,
             least_jump=self.least_jump,
         )
-        return System(self.label, elements=[individuals], interactions=[displacement])
+        return CompositeSystem(self.label, elements=[individuals], interactions=[displacement])
 
 
 class ContainerMobilitySystem(BaseSystem):
@@ -483,7 +483,7 @@ class ContainerMobilitySystem(BaseSystem):
         self.travel = travel
         self.exponent = exponent
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
         displacement = ContainerMobilityInteraction(
@@ -494,4 +494,4 @@ class ContainerMobilitySystem(BaseSystem):
             travel=self.travel,
             exponent=self.exponent,
         )
-        return System(self.label, elements=[individuals], interactions=[displacement])
+        return CompositeSystem(self.label, elements=[individuals], interactions=[displacement])

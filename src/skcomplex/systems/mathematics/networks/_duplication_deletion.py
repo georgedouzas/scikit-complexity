@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
@@ -137,7 +137,7 @@ class DuplicationDeletionSystem(BaseSystem):
         space: NetworkSpace,
         links: int,
         changes: list[TopologyInteraction],
-    ) -> System:
+    ) -> CompositeSystem:
         """Return the network of variable groups on its nodes and links.
 
         The network has its changes and the map of the degrees.
@@ -145,9 +145,15 @@ class DuplicationDeletionSystem(BaseSystem):
         nodes = GroupElement('nodes', element=DuplicatingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
+        return CompositeSystem(
+            label,
+            elements=[nodes, edges],
+            interactions=[*changes, degree],
+            space=space,
+            time=DiscreteTime(),
+        )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the steady-state duplication-deletion network of Jensen."""
         graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=np.random.default_rng(self.random_state))
         death = TopologyInteraction('death', target='nodes', action='remove-node', one=True, probability=self.kill)

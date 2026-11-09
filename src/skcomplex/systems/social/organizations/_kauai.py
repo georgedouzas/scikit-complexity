@@ -23,7 +23,7 @@ from shapely.geometry import shape
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
@@ -544,7 +544,7 @@ class KauaiPopulationSystem(BaseSystem):
             weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
         return weights
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         regions = load_island_layers() if self.layers is None else self.layers
         counts = load_island_populations() if self.populations is None else self.populations
@@ -586,4 +586,4 @@ class KauaiPopulationSystem(BaseSystem):
             SentimentInteraction('sentiment', target='residents', events=self.events),
         ]
         space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
-        return System(self.label, elements=[residents], interactions=interactions, space=space)
+        return CompositeSystem(self.label, elements=[residents], interactions=interactions, space=space)

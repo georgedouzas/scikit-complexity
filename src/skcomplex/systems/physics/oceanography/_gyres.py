@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
@@ -191,7 +191,7 @@ class DoubleGyreSystem(BaseSystem):
         viscosity: Expression = s.target.nu
         return viscosity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the quasi-geostrophic double gyre.
 
         It is the wind-driven circulation of a closed ocean basin.
@@ -224,4 +224,4 @@ class DoubleGyreSystem(BaseSystem):
         )
         wind = RateInteraction('wind', target='basin', state='zeta', rate=self._wind)
         viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
-        return System(self.label, elements=[basin], interactions=[transport, wind, viscosity])
+        return CompositeSystem(self.label, elements=[basin], interactions=[transport, wind, viscosity])

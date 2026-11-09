@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, derivative
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.flows import LorenzElement
 from ..common.flows._rossler import RosslerElement
@@ -621,9 +621,9 @@ class LorenzSystem(BaseSystem):
         self.rho = rho
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 LorenzElement('lorenz', x=self.x, y=self.y, z=self.z, sigma=self.sigma, rho=self.rho, beta=self.beta),
@@ -691,12 +691,12 @@ class RosslerSystem(BaseSystem):
         self.b = b
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Rössler system.
 
         It is a chaotic flow with one folded band for its standard parameters.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[RosslerElement('rossler', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, c=self.c)],
         )
@@ -750,12 +750,12 @@ class SprottJerkSystem(BaseSystem):
         self.acceleration = acceleration
         self.A = A
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1`.
 
         The equation is chaotic near A = 0.6.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[JerkElement('jerk', x=self.x, x_d1=self.velocity, x_d2=self.acceleration, A=self.A)],
         )
@@ -806,9 +806,9 @@ class FiniteTimeBlowUpSystem(BaseSystem):
         self.a = a
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[BlowUpElement('growth', x=self.x, a=self.a, p=self.p)])
+        return CompositeSystem(self.label, elements=[BlowUpElement('growth', x=self.x, a=self.a, p=self.p)])
 
 
 class HyperchaoticRosslerSystem(BaseSystem):
@@ -883,9 +883,9 @@ class HyperchaoticRosslerSystem(BaseSystem):
         self.c = c
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 HyperchaoticRosslerElement(
@@ -951,9 +951,9 @@ class NoseHooverSystem(BaseSystem):
         self.y = y
         self.z = z
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[NoseHooverElement('oscillator', x=self.x, y=self.y, z=self.z)])
+        return CompositeSystem(self.label, elements=[NoseHooverElement('oscillator', x=self.x, y=self.y, z=self.z)])
 
 
 class SprottMixedFlowSystem(BaseSystem):
@@ -1006,12 +1006,12 @@ class SprottMixedFlowSystem(BaseSystem):
         self.y = y
         self.z = z
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Sprott's flow with a conservative torus and a dissipative attractor.
 
         The torus and the attractor lie side by side.
         """
-        return System(self.label, elements=[MixedFlowElement('flow', x=self.x, y=self.y, z=self.z)])
+        return CompositeSystem(self.label, elements=[MixedFlowElement('flow', x=self.x, y=self.y, z=self.z)])
 
 
 class LangfordSystem(BaseSystem):
@@ -1093,9 +1093,9 @@ class LangfordSystem(BaseSystem):
         self.e = e
         self.f = f
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 LangfordElement(
@@ -1166,12 +1166,12 @@ class ThomasSystem(BaseSystem):
         self.z = z
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Thomas flow `x' = -a x + sin y` with its cyclic permutations.
 
         The flow is chaotic for `a = 0.18`.
         """
-        return System(self.label, elements=[ThomasElement('thomas', x=self.x, y=self.y, z=self.z, a=self.a)])
+        return CompositeSystem(self.label, elements=[ThomasElement('thomas', x=self.x, y=self.y, z=self.z, a=self.a)])
 
 
 class IkedaSystem(BaseSystem):
@@ -1221,9 +1221,9 @@ class IkedaSystem(BaseSystem):
         self.a = a
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Ikeda delay equation `x' = a sin x(t - tau)`.
 
         The equation is in the form of Dilão (2023, Exercise 6.4).
         """
-        return System(self.label, elements=[IkedaElement('ikeda', x=self.x, a=self.a, tau=self.tau)])
+        return CompositeSystem(self.label, elements=[IkedaElement('ikeda', x=self.x, a=self.a, tau=self.tau)])

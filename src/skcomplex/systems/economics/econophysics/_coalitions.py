@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -354,7 +354,7 @@ class ElFarolCoalitionsSystem(BaseSystem):
         self.coalitions = coalitions
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         strategies = rng.uniform(-1.0, 1.0, (self.n_agents, self.n_strategies, self.memory + 1))
@@ -372,4 +372,4 @@ class ElFarolCoalitionsSystem(BaseSystem):
             smoothing=self.smoothing,
             coalitions=self.coalitions,
         )
-        return System(self.label, elements=[patrons], interactions=[bar])
+        return CompositeSystem(self.label, elements=[patrons], interactions=[bar])

@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws.utils import count, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 
 
 class TapCatalysisSystem(BaseSystem):
@@ -96,7 +96,7 @@ class TapCatalysisSystem(BaseSystem):
 
         return rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         growth = [
             TopologyInteraction(
@@ -112,7 +112,7 @@ class TapCatalysisSystem(BaseSystem):
             for order in range(1, self.parents + 1)
         ]
         links = int(3 * self.pc * self.goods * self.goods) + self.goods
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('goods', element=Element, on='sites', variable=True, capacity=self.goods),

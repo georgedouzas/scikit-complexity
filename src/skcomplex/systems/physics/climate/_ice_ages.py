@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -474,12 +474,12 @@ class SaltzmanGlaciationSystem(BaseSystem):
         self.u = u
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the glacial cycles of Saltzman and Maasch.
 
         The cycles are a self-sustained oscillation of ice, carbon, and ocean.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 SaltzmanMaaschElement(
@@ -553,9 +553,12 @@ class CarbonCycleSystem(BaseSystem):
         self.c_x = c_x
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[CarbonCycleElement('ocean', c=self.c, w=self.w, c_x=self.c_x, nu=self.nu)])
+        return CompositeSystem(
+            self.label,
+            elements=[CarbonCycleElement('ocean', c=self.c, w=self.w, c_x=self.c_x, nu=self.nu)],
+        )
 
 
 class VanDerPolIceAgesSystem(BaseSystem):
@@ -622,12 +625,12 @@ class VanDerPolIceAgesSystem(BaseSystem):
         self.gamma = gamma
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return glacial cycles as a Van der Pol relaxation oscillator.
 
         The oscillator is optionally paced by orbital forcing.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 VanDerPolIceAgesElement(

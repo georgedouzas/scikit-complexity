@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -368,7 +368,7 @@ class ElFarolSystem(BaseSystem):
         self.discount = discount
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         masks = [
@@ -406,7 +406,7 @@ class ElFarolSystem(BaseSystem):
             form='agent',
             phase='decide',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[patrons, pool],
             interactions=[scoring, choice],

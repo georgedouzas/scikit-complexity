@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
@@ -295,7 +295,7 @@ class EdwardsAndersonSystem(BaseSystem):
         self.disorder = disorder
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Edwards-Anderson spin glass on a periodic square lattice.
 
         The bonds are quenched and random.
@@ -318,7 +318,11 @@ class EdwardsAndersonSystem(BaseSystem):
             visual=SPIN_IMAGE,
             on='sites',
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return CompositeSystem(
+            self.label,
+            elements=[group],
+            interactions=[BondSamplingInteraction('sampling', target='spins')],
+        )
 
 
 class MattisSpinGlassSystem(BaseSystem):
@@ -386,7 +390,7 @@ class MattisSpinGlassSystem(BaseSystem):
         self.h = h
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = _square(self.size)
         rng = np.random.default_rng(self.random_state)
@@ -408,4 +412,8 @@ class MattisSpinGlassSystem(BaseSystem):
             visual=VisualSpec('image', {'states': ()}),
             on='sites',
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return CompositeSystem(
+            self.label,
+            elements=[group],
+            interactions=[BondSamplingInteraction('sampling', target='spins')],
+        )

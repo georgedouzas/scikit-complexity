@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -452,7 +452,7 @@ class ObesitySystem(BaseSystem):
         self.activity = activity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
@@ -510,7 +510,7 @@ class ObesitySystem(BaseSystem):
                 ),
             ]
         phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people, restaurants],
             interactions=interactions,

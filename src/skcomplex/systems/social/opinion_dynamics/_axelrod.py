@@ -15,7 +15,7 @@ from scipy import ndimage
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -239,7 +239,7 @@ def culture_observables(width: int, height: int) -> list[ObservableSpec]:
     ]
 
 
-def _get_culture_observables(system: System) -> list[ObservableSpec]:
+def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the culture observables of the grid of a system."""
     if not isinstance(system.space, LatticeSpace):
         return []
@@ -302,7 +302,7 @@ class AxelrodSystem(BaseSystem):
         self.traits = traits
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -316,7 +316,7 @@ class AxelrodSystem(BaseSystem):
             values={'culture': cultures, 'features': self.features, 'traits': self.traits},
             location=locations,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[villages],
             interactions=[CulturalInfluenceInteraction('influence', target='villages')],

@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -278,7 +278,7 @@ class NKCSSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the NKCS model of Kauffman and Johnsen."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.n_species).astype(float)
         species = GroupElement(
@@ -296,4 +296,4 @@ class NKCSSystem(BaseSystem):
             s=self.s,
             seed=self.seed,
         )
-        return System(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())

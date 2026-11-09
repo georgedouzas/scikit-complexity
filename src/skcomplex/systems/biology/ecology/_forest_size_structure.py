@@ -24,7 +24,7 @@ from ....core.components.laws.utils import (
     where,
 )
 from ....core.components.spaces import BaseSpace, LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec
@@ -79,7 +79,7 @@ class SizeGrowthInteraction(ConservationInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import SizeGrowthInteraction
@@ -92,7 +92,7 @@ class SizeGrowthInteraction(ConservationInteraction):
         >>> volumes = 'finite-volume'
         >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = SizeGrowthInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = System(elements=[field], interactions=[drift])
+        >>> system = CompositeSystem(elements=[field], interactions=[drift])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> total = trajectory.values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
@@ -249,7 +249,7 @@ class ForestSizeStructureSystem(BaseSystem):
         self.fecundity = fecundity
         self.resources = resources
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the McKendrick-von Foerster density of trees.
 
         The density is over position across a strip and height.
@@ -291,4 +291,4 @@ class ForestSizeStructureSystem(BaseSystem):
             limiter=None,
         )
         demographics = RateInteraction('demography', target='forest', state='x', rate=demography)
-        return System(self.label, elements=[forest], interactions=[grow, demographics])
+        return CompositeSystem(self.label, elements=[forest], interactions=[grow, demographics])

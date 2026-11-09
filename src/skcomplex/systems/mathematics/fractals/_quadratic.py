@@ -19,7 +19,7 @@ from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from .types import Window
 
@@ -170,14 +170,14 @@ def _plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
     return real[np.newaxis, :] + 1j * imaginary[:, np.newaxis]
 
 
-def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> System:
+def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> CompositeSystem:
     """Return the field of the quadratic map over a lattice.
 
     The field comes from the initial points and the constants.
     """
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
-    return System(
+    return CompositeSystem(
         label,
         elements=[FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE)],
     )
@@ -231,7 +231,7 @@ class MandelbrotSystem(BaseSystem):
         self.window = window
         self.radius = radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         points = _plane(self.shape, self.window)
         return _escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
@@ -290,7 +290,7 @@ class JuliaSystem(BaseSystem):
         self.window = window
         self.radius = radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         points = _plane(self.shape, self.window)
         return _escape_field(self.label, self.shape, points, complex(self.c), self.radius)
@@ -350,12 +350,12 @@ class InverseJuliaSystem(BaseSystem):
         self.n_points = n_points
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         start = rng.uniform(-1.0, 1.0, self.n_points) + 1j * rng.uniform(-1.0, 1.0, self.n_points)
         values = {'z': start, 'omega': complex(self.omega), 'p': self.p}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('points', element=InverseJuliaPointElement, size=self.n_points, values=values)],
         )

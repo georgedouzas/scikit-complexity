@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -224,7 +224,7 @@ class EnergyReturnSystem(BaseSystem):
         self.reinvestment = reinvestment
         self.birth_rate = birth_rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         sector = EnergySectorElement(
             'energy',
@@ -235,4 +235,4 @@ class EnergyReturnSystem(BaseSystem):
             reinvestment=self.reinvestment,
             birth_rate=self.birth_rate,
         )
-        return System(self.label, elements=[sector])
+        return CompositeSystem(self.label, elements=[sector])

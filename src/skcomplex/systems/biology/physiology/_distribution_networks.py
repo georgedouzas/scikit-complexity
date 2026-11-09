@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, EquationLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace, StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -177,7 +177,7 @@ class WestBrownEnquistSystem(BaseSystem):
         self.r_c = r_c
         self.l_c = l_c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the distribution network of West."""
         graph = nx.balanced_tree(self.n, self.depth)
         space = NetworkSpace(graph).prepare()
@@ -196,4 +196,4 @@ class WestBrownEnquistSystem(BaseSystem):
                 'l_c': self.l_c,
             },
         )
-        return System(self.label, elements=[vessels], space=space, time=StaticTime())
+        return CompositeSystem(self.label, elements=[vessels], space=space, time=StaticTime())

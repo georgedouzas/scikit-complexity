@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import lag, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 MAX_RECOVERY = 12
@@ -152,9 +152,9 @@ class DelayedSIRSSystem(BaseSystem):
         infected: Expression = home.a * (home.x + away.e * away.x) * (1 - self._infected_or_immune(home))
         return infected
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two cities."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 EpidemicCenterElement('first', x=self.first, a=self.a, recovery=self.recovery, e=self.e),

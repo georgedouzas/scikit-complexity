@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
@@ -102,7 +102,7 @@ class ElementaryAutomatonSystem(BaseSystem):
         self.size = size
         self.initial = initial
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an elementary cellular automaton by its Wolfram number.
 
         By default it starts from a single live cell.
@@ -110,7 +110,7 @@ class ElementaryAutomatonSystem(BaseSystem):
         values = np.zeros(self.size) if self.initial is None else np.asarray(self.initial, dtype=float)
         if self.initial is None:
             values[self.size // 2] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -196,7 +196,7 @@ class GameOfLifeSystem(BaseSystem):
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Conway's Game of Life, or another life-like rule, on a torus."""
         values = (
             self._random_cells(self.shape, self.density, self.random_state)
@@ -204,7 +204,7 @@ class GameOfLifeSystem(BaseSystem):
             else np.asarray(self.initial, dtype=float)
         )
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
@@ -275,11 +275,11 @@ class LangtonsAntSystem(BaseSystem):
             ant = np.where((ants[column] >= 0) & (turned == heading), turned, ant)
         return color, ant
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         ant = np.full(tuple(self.shape), -1.0)
         ant[self.shape[0] // 2, self.shape[1] // 2] = self.heading
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

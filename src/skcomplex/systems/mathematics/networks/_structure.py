@@ -15,7 +15,7 @@ import numpy as np
 from ....core.analysis import motifs, network_measures
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common._network_node import NetworkNodeElement
@@ -199,7 +199,7 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         values = nx.get_node_attributes(graph, attribute)
         return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a recorded network with centralities, mixing, communities, and motifs.
 
         The mixing is degree mixing, and the motifs are measured by the triangle z-score.
@@ -250,4 +250,4 @@ class NetworkStructureAnalysisSystem(BaseSystem):
             agreement=0.0 if found.agreement is None else float(found.agreement[0]),
             triangle_zscore=zscore,
         )
-        return System(self.label, elements=[group, measures], space=NetworkSpace(network))
+        return CompositeSystem(self.label, elements=[group, measures], space=NetworkSpace(network))

@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -148,7 +148,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> people = GroupElement(
@@ -159,7 +159,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         ...     on='sites',
         ... )
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        >>> system = System(elements=[people], interactions=[coupling], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[people], interactions=[coupling], time=DiscreteTime())
         >>> opinions = simulate(system, until=1).values('people.opinion')
         >>> np.round(opinions[-1], 6).tolist()
         [0.15, 0.15, 0.9]
@@ -306,7 +306,7 @@ class DeffuantSystem(BaseSystem):
         self.steepness = steepness
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         opinions = np.random.default_rng(self.random_state).random(self.n_agents)
         visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
@@ -318,7 +318,7 @@ class DeffuantSystem(BaseSystem):
             visual=visual,
         )
         encounters = EncountersInteraction('meetings', target='people', steepness=self.steepness)
-        return System(self.label, elements=[people], interactions=[encounters])
+        return CompositeSystem(self.label, elements=[people], interactions=[encounters])
 
 
 class HegselmannKrauseSystem(BaseSystem):
@@ -374,7 +374,7 @@ class HegselmannKrauseSystem(BaseSystem):
         self.graph = graph
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
         opinions = np.random.default_rng(self.random_state).random(space.size_)
@@ -386,4 +386,4 @@ class HegselmannKrauseSystem(BaseSystem):
             on='sites',
         )
         coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        return System(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())

@@ -19,7 +19,7 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -285,12 +285,12 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prey and predators that walk on a grid."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
         locations = [tuple(int(item) for item in cell) for cell in cells]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

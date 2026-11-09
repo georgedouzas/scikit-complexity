@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -243,7 +243,7 @@ class BitStringEvolutionSystem(BaseSystem):
         self.mutation = mutation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a population of bit strings on a random additive fitness landscape.
 
         The population evolves on the landscape.
@@ -260,7 +260,7 @@ class BitStringEvolutionSystem(BaseSystem):
             zero_values=tuple(zero_values.tolist()),
             one_values=tuple(one_values.tolist()),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

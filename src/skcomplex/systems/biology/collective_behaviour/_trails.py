@@ -22,7 +22,7 @@ from ....core.components.interactions import (
 from ....core.components.laws import Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -353,7 +353,7 @@ class ActiveWalkersSystem(BaseSystem):
             return 0.0
         return walker.intensity * (1 - system.field('target.G', cell) / walker.G_max)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         rng = np.random.default_rng(self.random_state)
         corners = self._corners(self.size, self.size)
@@ -378,11 +378,15 @@ class ActiveWalkersSystem(BaseSystem):
             space=LatticeSpace((self.size, self.size), boundary='reflecting'),
             values={'T': self.T},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('people', elements=[walkers], space=LatticeSpace((self.size, self.size), boundary='fixed')),
-                System(
+                CompositeSystem(
+                    'people',
+                    elements=[walkers],
+                    space=LatticeSpace((self.size, self.size), boundary='fixed'),
+                ),
+                CompositeSystem(
                     'land',
                     elements=[ground],
                     interactions=[

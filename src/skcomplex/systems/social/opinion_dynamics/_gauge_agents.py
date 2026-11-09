@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -174,7 +174,7 @@ def _twist(
     return float(np.abs(faces @ _differences(edges, values)).max(initial=0.0))
 
 
-def _agent_observables(system: System) -> list[ObservableSpec]:
+def _agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the energy of the transported differences and their twist.
 
     The twist is around the faces.
@@ -257,7 +257,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         self.graph = graph
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         network = nx.cycle_graph(self.n_agents) if self.graph is None else self.graph
         space = CellComplexSpace(NetworkSpace(network)).prepare()
@@ -284,7 +284,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
             values={'A': connection},
         )
         coupling = TransportedCouplingInteraction('coupling', target='agents', links='links', K=self.K)
-        return System(self.label, elements=[agents, links], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[agents, links], interactions=[coupling])
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.

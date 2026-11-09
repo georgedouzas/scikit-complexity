@@ -14,7 +14,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -297,7 +297,7 @@ class GrayScottSystem(BaseSystem):
             ReactionInteraction('decay', target='cells', reactants={'v': 1}, modifiers={'k': 1}),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the field seeded in its middle, its reactions, and its diffusions."""
         shape = tuple(self.shape)
         u, v = np.ones(shape), np.zeros(shape)
@@ -305,7 +305,7 @@ class GrayScottSystem(BaseSystem):
         u[middle], v[middle] = 0.5, 0.25
         noise = _noise(shape, 0.01, self.random_state)
         values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': self.Du, 'Dv': self.Dv, 'F': self.F, 'k': self.k}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
             interactions=[*self._get_reactions(), *_get_diffusions()],
@@ -390,7 +390,7 @@ class BrusselatorSystem(BaseSystem):
             ReactionInteraction('decay', target='cells', reactants={'u': 1}),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the field near its steady state, its reactions, and its diffusions."""
         shape = tuple(self.shape)
         values = {
@@ -401,7 +401,7 @@ class BrusselatorSystem(BaseSystem):
             'Du': self.Du,
             'Dv': self.Dv,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
             interactions=[*self._get_reactions(), *_get_diffusions()],
@@ -485,7 +485,7 @@ class SchnakenbergSystem(BaseSystem):
             ReactionInteraction('production_v', target='cells', products={'v': 1}, modifiers={'b': 1}),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the field near its steady state, its reactions, and its diffusions."""
         shape = tuple(self.shape)
         steady_u, steady_v = self.a + self.b, self.b / (self.a + self.b) ** 2
@@ -497,7 +497,7 @@ class SchnakenbergSystem(BaseSystem):
             'Du': self.Du,
             'Dv': self.Dv,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

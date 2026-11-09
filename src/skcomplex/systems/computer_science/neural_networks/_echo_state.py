@@ -19,7 +19,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -170,7 +170,7 @@ class EchoStateNetworkSystem(BaseSystem):
         drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
         return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         weights = self._recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
@@ -192,4 +192,4 @@ class EchoStateNetworkSystem(BaseSystem):
             state='r',
             function=functools.partial(self._leaky_tanh, weights=weights),
         )
-        return System(self.label, elements=[units], interactions=[reservoir])
+        return CompositeSystem(self.label, elements=[units], interactions=[reservoir])

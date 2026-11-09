@@ -21,7 +21,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
@@ -164,7 +164,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         """
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         hypergraph = self._simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
@@ -192,4 +192,4 @@ class HypergraphKuramotoSystem(BaseSystem):
             K1=self.K1 / mean_links,
             K2=self.K2 / mean_triangles,
         )
-        return System(self.label, elements=[oscillators], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[oscillators], interactions=[coupling])

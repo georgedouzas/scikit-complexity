@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from .types import AffineMap
@@ -230,7 +230,7 @@ class ChaosGameSystem(BaseSystem):
         weights: Sequence[float],
         n_points: int,
         random_state: int | np.random.Generator | None,
-    ) -> System:
+    ) -> CompositeSystem:
         """Return a group of points started uniformly in the unit square.
 
         The points iterate an iterated function system.
@@ -243,9 +243,9 @@ class ChaosGameSystem(BaseSystem):
             maps=tuple(map(tuple, maps)),
             weights=tuple(weights),
         )
-        return System(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return points that draw the attractor of an iterated function system.
 
         The points draw it by the chaos game.

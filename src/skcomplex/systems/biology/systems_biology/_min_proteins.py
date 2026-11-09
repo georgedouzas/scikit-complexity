@@ -18,7 +18,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -212,7 +212,7 @@ class MinProteinSkeletonSystem(BaseSystem):
 
         return RateInteraction(f'diffusion_{state}', target='cell', state=state, rate=rate)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the skeleton system of the Min proteins on a periodic line."""
         rng = np.random.default_rng(self.random_state)
         uniform = self._uniform_state(MinSkeletonElement('site'), self.total_D, self.total_E)
@@ -254,4 +254,4 @@ class MinProteinSkeletonSystem(BaseSystem):
         ]
         membrane = [self._get_diffusion(state, 'Dm') for state in ('md', 'mde')]
         cytosol = [self._get_diffusion(state, 'Dc') for state in ('cdt', 'cdd', 'ce')]
-        return System(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])
+        return CompositeSystem(self.label, elements=[cell], interactions=[*reactions, *membrane, *cytosol])

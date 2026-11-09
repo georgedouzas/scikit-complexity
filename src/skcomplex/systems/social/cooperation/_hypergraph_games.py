@@ -22,7 +22,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, ImitationInteraction
 from ....core.components.laws.utils import count, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ._contributor import ContributorElement
 
@@ -315,7 +315,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             hypergraph.add_edges_from(rng.choice(n_nodes, size, replace=False).tolist() for _ in range(number))
         return hypergraph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = self._hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
@@ -338,7 +338,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             intensity=1 / self.noise,
             phase='imitate',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[HyperedgeGoodsInteraction('play', target='players', phase='play'), imitation],
@@ -457,7 +457,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             triangles.append((min(first, second), max(first, second), node))
         return graph, triangles
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         graph, triangles = self._triangle_attachment(self.n_nodes, rng)
@@ -495,4 +495,4 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             phase='imitate',
         )
         time = DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES)))
-        return System(self.label, elements=[players], interactions=[play, imitation], time=time)
+        return CompositeSystem(self.label, elements=[players], interactions=[play, imitation], time=time)

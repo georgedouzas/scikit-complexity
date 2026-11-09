@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
@@ -337,7 +337,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         sizes = same.sum(axis=1, keepdims=True)
         return scipy.sparse.csr_array(np.where(same, 1.0 / np.maximum(sizes, 1), 0.0))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the agents of the synthetic population with their places and the case counts."""
         rng = np.random.default_rng(self.random_state)
         size = HOUSEHOLD_ADULTS + HOUSEHOLD_CHILDREN
@@ -370,7 +370,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
             hard=self.hard,
         )
         count = CaseCountInteraction('count', target='cases', source='people', children=children.astype(float))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people, CaseCountElement('cases')],
             interactions=[spread, count],

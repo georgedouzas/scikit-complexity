@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransitionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -202,10 +202,10 @@ class BrockMirmanGrowthSystem(BaseSystem):
         self.persistence = persistence
         self.regime = regime
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         chain = ((self.persistence, 1 - self.persistence), (1 - self.persistence, self.persistence))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StochasticGrowthElement(

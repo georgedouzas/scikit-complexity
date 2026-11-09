@@ -20,7 +20,7 @@ from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 CHUNK = 500
@@ -377,7 +377,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         hyperedges = [item + (item[0],) * (width - len(item)) for item in regulators]
         return hyperedges, np.asarray(negatives), np.asarray(positives)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._waxman_torus(round(self.density * self.side**2), self.side, self.c, self.structural_range, rng)
@@ -397,4 +397,4 @@ class SpatialTriadicPercolationSystem(BaseSystem):
             PercolationInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return System(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)

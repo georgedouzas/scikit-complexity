@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -322,7 +322,7 @@ class DiscreteMasterEquationSystem(BaseSystem):
         self.depth = depth
         self.w = w
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the discrete-time master equation of states on a ring.
 
         The equation relaxes to the Boltzmann distribution.
@@ -331,7 +331,7 @@ class DiscreteMasterEquationSystem(BaseSystem):
         probability = np.zeros(self.n_states)
         probability[0] = 1.0
         space = LatticeSpace(self.n_states)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -396,9 +396,9 @@ class TwoPhaseZoneExchangeSystem(BaseSystem):
         self.p = p
         self.k = k
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -477,12 +477,12 @@ class LandauRelaxationSystem(BaseSystem):
         self.h = h
         self.Gamma = Gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the relaxation of a Landau order parameter.
 
         The order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 OrderParameterElement(

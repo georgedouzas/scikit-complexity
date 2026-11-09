@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -258,7 +258,7 @@ class ForestDiebackSystem(BaseSystem):
         self.a = a
         self.gamma = gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         forest = ForestCoverElement(
             'forest',
@@ -271,7 +271,7 @@ class ForestDiebackSystem(BaseSystem):
             gamma=self.gamma,
         )
         growth = RateInteraction('growth', target='forest', state='v', rate=lambda s: _logistic(s.target, 1))
-        return System(self.label, elements=[forest], interactions=[growth])
+        return CompositeSystem(self.label, elements=[forest], interactions=[growth])
 
 
 class SocialForestDiebackSystem(BaseSystem):
@@ -374,7 +374,7 @@ class SocialForestDiebackSystem(BaseSystem):
         cost = people.fmax / (1 + exp(-people.w * (perceived - people.Tc)))
         return people.x * (1 - people.x) * (-people.alpha + cost + people.delta * (2 * people.x - 1))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         forest = ForestCoverElement('forest', v=self.v, Tv=self.Tv)
         people = MitigatorsElement(
@@ -402,4 +402,4 @@ class SocialForestDiebackSystem(BaseSystem):
             sources=['forest'],
             rate=self._replicator,
         )
-        return System(self.label, elements=[forest, people], interactions=[growth, mitigation])
+        return CompositeSystem(self.label, elements=[forest, people], interactions=[growth, mitigation])

@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -260,7 +260,7 @@ class DebtrankSystem(BaseSystem):
         lent = np.asarray(liabilities, dtype=float).sum(axis=0)
         return lent / lent.sum()
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.capital is None:
             matrix, capitals = self._random_exposures(
@@ -280,7 +280,7 @@ class DebtrankSystem(BaseSystem):
             size=size,
             values={'h': h, 'status': status, 'value': self._economic_values(matrix)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[banks],
             interactions=[

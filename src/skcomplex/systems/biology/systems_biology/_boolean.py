@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
@@ -148,7 +148,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
         self.bias = bias
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a Kauffman random Boolean network."""
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
@@ -166,7 +166,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
             )
             for index in range(self.n_nodes)
         ]
-        return System(self.label, elements=nodes, interactions=functions)
+        return CompositeSystem(self.label, elements=nodes, interactions=functions)
 
 
 class YeastCellCycleSystem(BaseSystem):
@@ -208,7 +208,7 @@ class YeastCellCycleSystem(BaseSystem):
         super().__init__(label)
         self.active = active
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Boolean network of the yeast cell cycle of Li et al.
 
         The yeast is the budding yeast.
@@ -224,4 +224,4 @@ class YeastCellCycleSystem(BaseSystem):
             )
             for name in YEAST_NODES
         ]
-        return System(self.label, elements=nodes, interactions=functions)
+        return CompositeSystem(self.label, elements=nodes, interactions=functions)

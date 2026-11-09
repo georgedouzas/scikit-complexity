@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -123,7 +123,7 @@ class EmploymentTakeoverSystem(BaseSystem):
         following = np.where(count >= TAKEOVER, 1.0, np.where(count == KEEP, colours[0], 0.0))
         return np.where(employers[0] > 0, following, colours[0])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rows, columns = np.indices((self.size, self.size))
@@ -150,4 +150,4 @@ class EmploymentTakeoverSystem(BaseSystem):
             )
             for label, rule in (('workers', self._follow_employer), ('employers', self._follow_workers))
         ]
-        return System(self.label, elements=[cells], interactions=phases)
+        return CompositeSystem(self.label, elements=[cells], interactions=phases)

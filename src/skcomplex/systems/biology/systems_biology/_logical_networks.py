@@ -17,7 +17,7 @@ from ....core.components.elements import Element, NonnegativeElement
 from ....core.components.interactions import Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 type Regulations = Mapping[str, tuple[Sequence[str], Sequence[int], Mapping[tuple[bool, ...], int]]]
@@ -214,11 +214,11 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
         self.regulations = regulations
         self.levels = levels
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a generalised logical network of Thomas."""
         network = NEGATIVE_CIRCUIT if self.regulations is None else self.regulations
         start = self.levels or {}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[LogicalVariableElement(name, level=float(start.get(name, 0))) for name in network],
             interactions=[
@@ -284,12 +284,12 @@ class PetriNetSystem(BaseSystem):
         self.transitions = transitions
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a Petri net."""
         marking = GENE_EXPRESSION_PLACES if self.places is None else self.places
         arcs = GENE_EXPRESSION_TRANSITIONS if self.transitions is None else self.transitions
         mode = 'jump' if self.stochastic else 'rate'
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[NonnegativeElement(name, x=float(tokens)) for name, tokens in marking.items()],
             interactions=[

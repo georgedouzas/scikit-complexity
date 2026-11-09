@@ -44,7 +44,7 @@ class DiffusivityInteraction(RateInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.systems.physics.common.fields import DiffusivityInteraction
@@ -55,7 +55,7 @@ class DiffusivityInteraction(RateInteraction):
         >>> space = LatticeSpace((40,), spacing=0.1, boundary='periodic')
         >>> field = FieldElement('rod', element=CellElement, space=space, values={'u': np.eye(40)[20]})
         >>> heat = DiffusivityInteraction('heat', target='rod', state='u', coefficient=0.1)
-        >>> trajectory = simulate(System(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
+        >>> trajectory = simulate(CompositeSystem(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
         >>> round(float(trajectory.values('rod.u')[-1].sum()), 6)
         1.0
     """

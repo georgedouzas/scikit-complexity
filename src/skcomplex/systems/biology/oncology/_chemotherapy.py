@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -769,9 +769,9 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.r1 = r1
         self.a2 = a2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the de Pillis-Radunskaya system of immune."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 TumourImmuneChemotherapyElement(
@@ -850,7 +850,7 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u2 = u2
         self.u3 = u3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour of eight populations resistant to three drugs.
 
         The populations are resistant to subsets of the drugs.
@@ -939,7 +939,7 @@ class MultidrugResistanceSystem(BaseSystem):
         ]
         kills = [kill(name, drug) for _, name, drug in sensitivities]
         drugs = [interaction for drug in DRUGS for interaction in pharmacokinetics(drug)]
-        return System(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
+        return CompositeSystem(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
 
 
 class DrugResistanceSwitchingSystem(BaseSystem):
@@ -1023,7 +1023,7 @@ class DrugResistanceSwitchingSystem(BaseSystem):
         self.r2 = r2
         self.r3 = r3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         tumour = ResistanceSwitchingElement(
             'tumour',
@@ -1037,7 +1037,7 @@ class DrugResistanceSwitchingSystem(BaseSystem):
             r2=self.r2,
             r3=self.r3,
         )
-        return System(self.label, elements=[tumour])
+        return CompositeSystem(self.label, elements=[tumour])
 
 
 class DelayedRestingHuntingChemotherapySystem(BaseSystem):
@@ -1103,7 +1103,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.tau = tau
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the tumour-immune system of resting and hunting cells.
 
         The conversion of the cells is delayed.
@@ -1191,7 +1191,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
             ),
             *drug_effects,
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
 
 
 class DelayedMetastasisSystem(BaseSystem):
@@ -1265,7 +1265,7 @@ class DelayedMetastasisSystem(BaseSystem):
         self.us = us
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of normal and tumour cells at a primary and a secondary site."""
         patient = MetastasisChemotherapyElement(
             'patient',
@@ -1357,4 +1357,4 @@ class DelayedMetastasisSystem(BaseSystem):
                 rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)

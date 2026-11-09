@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
@@ -267,7 +267,7 @@ class StandardizedAgentsSystem(BaseSystem):
         """Return the spin of the configuration of an agent."""
         return float(StandardizationInteraction._spins_of(np.array(agent.configuration)))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         marked = rng.random(self.agents) < self.standardized
@@ -277,7 +277,7 @@ class StandardizedAgentsSystem(BaseSystem):
             rng.integers(MARKED, self.H + MARKED, size=self.agents),
         )
         configurations = configurations.astype(float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

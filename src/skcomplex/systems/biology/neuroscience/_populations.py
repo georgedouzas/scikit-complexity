@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.excitable import ThetaNeuronElement
@@ -484,7 +484,7 @@ class WilsonCowanSystem(BaseSystem):
         )
         return inhibition
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         cortex = WilsonCowanElement(
             'cortex',
@@ -513,7 +513,7 @@ class WilsonCowanSystem(BaseSystem):
                 time=lambda s: s.target.tau_i,
             ),
         ]
-        return System(self.label, elements=[cortex], interactions=relaxations)
+        return CompositeSystem(self.label, elements=[cortex], interactions=relaxations)
 
 
 class ThetaNeuronsSystem(BaseSystem):
@@ -586,7 +586,7 @@ class ThetaNeuronsSystem(BaseSystem):
         levels = (np.arange(size) + 0.5) / size
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a network of theta neurons."""
         phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
         neurons = GroupElement(
@@ -598,7 +598,7 @@ class ThetaNeuronsSystem(BaseSystem):
                 'eta': np.asarray(self._lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[neurons],
             interactions=[PulseCouplingInteraction('coupling', neurons='neurons', kappa=self.kappa, n=self.n)],
@@ -660,7 +660,7 @@ class WinnersTakeAllSystem(BaseSystem):
         self.tau = tau
         self.x = x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a winner-take-all network of units.
 
         The units have self-limited growth and mutual inhibition.
@@ -669,7 +669,7 @@ class WinnersTakeAllSystem(BaseSystem):
             RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
         ]
         inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=self.beta)
-        return System(self.label, elements=units, interactions=[inhibition])
+        return CompositeSystem(self.label, elements=units, interactions=[inhibition])
 
 
 class PolyhomeostaticNeuronSystem(BaseSystem):
@@ -746,7 +746,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu
         return gradient
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a neuron."""
         neuron = PolyhomeostaticNeuronElement(
             'neuron',
@@ -778,4 +778,4 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
                 rate=lambda s: -s.target.eps_b * s.target.a * self._kl_gradient(s),
             ),
         ]
-        return System(self.label, elements=[neuron], interactions=interactions)
+        return CompositeSystem(self.label, elements=[neuron], interactions=interactions)

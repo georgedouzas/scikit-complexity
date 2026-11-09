@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import lag, series
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.populations import (
     ExponentialGrowthInteraction,
@@ -357,12 +357,12 @@ class ExponentialGrowthSystem(BaseSystem):
         self.n = n
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a population that grows at a constant per-capita rate.
 
         The population grows or declines.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[ExponentialGrowthInteraction('growth', target='population', r=self.r)],
@@ -412,12 +412,12 @@ class LogisticGrowthSystem(BaseSystem):
         self.r = r
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a population that grows logistically.
 
         It grows towards its carrying capacity.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K)],
@@ -480,9 +480,9 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         self.amplitude = amplitude
         self.period = period
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of logistic growth under a seasonal carrying capacity."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[
@@ -548,9 +548,9 @@ class HutchinsonSystem(BaseSystem):
         self.K = K
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Hutchinson's delayed logistic equation."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K, tau=self.tau)],
@@ -620,7 +620,7 @@ class LotkaVolterraSystem(BaseSystem):
         self.d = d
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prey and predators whose populations oscillate.
 
         Their populations oscillate through predation.
@@ -630,7 +630,7 @@ class LotkaVolterraSystem(BaseSystem):
             if self.K is None
             else LogisticGrowthInteraction('growth', target='prey', r=self.r, K=self.K)
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
@@ -682,7 +682,7 @@ class FibonacciRabbitsSystem(BaseSystem):
         self.pairs = pairs
         self.previous = previous
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Fibonacci's rabbits."""
         breeding = MapInteraction(
             'breeding',
@@ -690,7 +690,7 @@ class FibonacciRabbitsSystem(BaseSystem):
             state='pairs',
             function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[RabbitsElement('rabbits', pairs=self.pairs, pairs_lag1=self.previous)],
             interactions=[breeding],
@@ -739,9 +739,9 @@ class RickerSystem(BaseSystem):
         self.n = n
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Ricker's map of a population in discrete generations."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[RickerGrowthInteraction('growth', target='population', r=self.r)],
@@ -817,9 +817,9 @@ class PenaeidShrimpSystem(BaseSystem):
         self.L_inf = L_inf
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the growth of one penaeid shrimp from the juvenile stage."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 ShrimpElement(

@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.mechanics import ReflectionInteraction
@@ -420,7 +420,7 @@ class BilliardsSystem(BaseSystem):
 
         return _wall(label, guard, -1)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle moving freely on a billiard table.
 
         The particle reflects specularly off the walls of the table.
@@ -442,7 +442,7 @@ class BilliardsSystem(BaseSystem):
                 _wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
                 _wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
             ]
-            return System(self.label, elements=[table], interactions=walls)
+            return CompositeSystem(self.label, elements=[table], interactions=walls)
         if self.shape == 'mushroom':
             table = MushroomBilliardElement(
                 'particle',
@@ -461,7 +461,7 @@ class BilliardsSystem(BaseSystem):
                 _wall('left_stem_wall', lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
                 _wall('stem_floor', lambda s: s.target.y + s.target.height, -1),
             ]
-            return System(self.label, elements=[table], interactions=walls)
+            return CompositeSystem(self.label, elements=[table], interactions=walls)
         if self.shape == 'three_disk':
             table = ThreeDiskBilliardElement(
                 'particle',
@@ -473,6 +473,6 @@ class BilliardsSystem(BaseSystem):
                 radius=self.disc_radius,
             )
             walls = [self._disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
-            return System(self.label, elements=[table], interactions=walls)
+            return CompositeSystem(self.label, elements=[table], interactions=walls)
         error_msg = f'Unknown billiard shape {self.shape!r}. Use one of {", ".join(SHAPES)}.'
         raise ValidationError(error_msg)

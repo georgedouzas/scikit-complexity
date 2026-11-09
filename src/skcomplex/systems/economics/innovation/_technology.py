@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -444,7 +444,7 @@ class NkTechnologySystem(BaseSystem):
             matrix[others, column] = 1.0
         return matrix
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         dependencies = self._design_structure(self.n_components, self.d, rng)
@@ -454,7 +454,7 @@ class NkTechnologySystem(BaseSystem):
             size=self.n_components,
             values={'cost': rng.random(self.n_components)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[components],
             interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
@@ -502,7 +502,7 @@ class ArthurPolakSystem(BaseSystem):
         self.max_components = max_components
         self.max_inputs = max_inputs
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         primitives = (NAND, FALSE, TRUE)
         technologies = GroupElement(
@@ -522,4 +522,4 @@ class ArthurPolakSystem(BaseSystem):
             max_components=float(self.max_components),
             max_inputs=float(self.max_inputs),
         )
-        return System(self.label, elements=[technologies], interactions=[invention])
+        return CompositeSystem(self.label, elements=[technologies], interactions=[invention])

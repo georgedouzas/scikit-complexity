@@ -25,7 +25,7 @@ from ....core.components.interactions import (
 from ....core.components.laws import Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -571,7 +571,7 @@ class TumourAngiogenesisSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour."""
         rng = np.random.default_rng(self.random_state)
         center = (3 * self.width // 4, self.height // 2)
@@ -605,11 +605,15 @@ class TumourAngiogenesisSystem(BaseSystem):
             element=TissueElement,
             space=LatticeSpace((self.width, self.height), boundary='reflecting'),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('cells', elements=groups, space=LatticeSpace((self.width, self.height), boundary='fixed')),
-                System('tissue', elements=[tissue], interactions=self._get_tissue()),
+                CompositeSystem(
+                    'cells',
+                    elements=groups,
+                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
+                ),
+                CompositeSystem('tissue', elements=[tissue], interactions=self._get_tissue()),
             ],
             interactions=self._get_cells(),
         )

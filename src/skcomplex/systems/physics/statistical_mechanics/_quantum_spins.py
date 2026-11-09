@@ -18,7 +18,7 @@ from ....core.components.interactions import BaseInteraction, Interaction, Neigh
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -394,7 +394,7 @@ class QuantumHeisenbergSystem(BaseSystem):
             settings['initial_state'] = {f'{self.label}.state': 'ground'}
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a chain of spins one half with the XXZ Hamiltonian.
 
         The chain has a field and optional dephasing.
@@ -414,4 +414,4 @@ class QuantumHeisenbergSystem(BaseSystem):
         ]
         if self.gamma > 0:
             interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
-        return System(self.label, elements=[chain], interactions=interactions)
+        return CompositeSystem(self.label, elements=[chain], interactions=interactions)

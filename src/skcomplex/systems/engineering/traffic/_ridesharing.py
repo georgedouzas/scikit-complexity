@@ -18,7 +18,7 @@ from ....core.components.interactions import BirthDeathInteraction, MapInteracti
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ArgumentError
 from ....core.specs import (
@@ -496,7 +496,7 @@ class RidesharingSystem(BaseSystem):
         cab.rider = float(rider.id)
         cab.task = PICKING_UP
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers((self.width, self.height), size=(self.n_cabs + 1, 2))
@@ -518,7 +518,7 @@ class RidesharingSystem(BaseSystem):
             values={'base_fare': self.base_fare, 'block_fare': self.block_fare},
             location=[(int(x), int(y)) for x, y in cells[1:]],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[riders, cabs],
             interactions=[

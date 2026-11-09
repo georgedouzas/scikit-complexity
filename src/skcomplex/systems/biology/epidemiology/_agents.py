@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction, TransitionInteraction
 from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -518,7 +518,7 @@ class AgentBasedSIRSystem(BaseSystem):
             )
         return transitions
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of people who walk on a grid and infect those in their cell."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.people, 2))
@@ -546,7 +546,7 @@ class AgentBasedSIRSystem(BaseSystem):
             accept=self._get_person_step,
         )
         space = LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[walk, *self._get_person_transitions(self.incubation)],
@@ -647,7 +647,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         """
         return float(other.infection) if isinstance(other, WalkerView) and other.health == SICK else 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of random walkers among whom a sick walker starts an epidemic.
 
         The epidemic is deadly.
@@ -704,7 +704,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
                 form='agent',
             ),
         ]
-        return System(self.label, elements=[group], interactions=interactions, space=space)
+        return CompositeSystem(self.label, elements=[group], interactions=interactions, space=space)
 
 
 class NetworkSIRSystem(BaseSystem):
@@ -785,7 +785,7 @@ class NetworkSIRSystem(BaseSystem):
         """
         return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of SIR epidemics in cities at the nodes of a network."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -822,7 +822,7 @@ class NetworkSIRSystem(BaseSystem):
             form='agent',
         )
         travel = MovementInteraction('travel', target='travellers', accept=self._get_traveller_step)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[infection, recovery, travel],

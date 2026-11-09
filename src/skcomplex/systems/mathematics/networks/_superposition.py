@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -147,7 +147,7 @@ class NetworkSuperpositionSystem(BaseSystem):
         power = 1 - exponent
         return (low**power + uniform * (high**power - low**power)) ** (1 / power)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if not 0 < self.low <= self.high <= 1:
             error_msg = (
@@ -172,4 +172,4 @@ class NetworkSuperpositionSystem(BaseSystem):
             },
             location=list(graph),
         )
-        return System(self.label, elements=[nodes], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[nodes], space=NetworkSpace(graph))

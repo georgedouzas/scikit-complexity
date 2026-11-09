@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -212,7 +212,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
         return where(gap > 0, gap, 0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         region = RiceBalanceElement(
             'region',
@@ -255,4 +255,4 @@ class RiceFoodBalanceSystem(BaseSystem):
                 ('population', Sink('deaths'), lambda s: s.source.population / s.source.life_expectancy, 'death_rate'),
             ],
         )
-        return System(self.label, elements=[region], interactions=[land, people])
+        return CompositeSystem(self.label, elements=[region], interactions=[land, people])

@@ -42,10 +42,10 @@ class LogisticGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=50.0)],
         ... )

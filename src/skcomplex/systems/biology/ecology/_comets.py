@@ -14,7 +14,7 @@ from ....core.components.elements import FieldElement, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import VisualSpec
 from ..common.metabolism import (
@@ -142,7 +142,7 @@ class CometsSystem(BaseSystem):
         self.km = km
         self.interval = interval
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of an expanding colony of the E. coli core system on a lattice."""
         source = load_network('textbook', 'cell', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
@@ -158,7 +158,7 @@ class CometsSystem(BaseSystem):
             'default_objective': source.default_objective,
             'infeasible': 'zero',
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

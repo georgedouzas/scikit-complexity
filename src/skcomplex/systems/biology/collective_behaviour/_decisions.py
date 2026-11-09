@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Stoichiometry
 from ..common.kinetics import CompartmentElement
@@ -112,11 +112,11 @@ class TrailChoiceInteraction(ReactionInteraction):
             Whether ants are random events.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
-        >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
+        >>> system = CompositeSystem(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
         >>> trajectory = simulate(system, until=2.0, dt=0.1)
         >>> round(float(trajectory.values('left.x')[-1]), 3)
         1.025
@@ -210,12 +210,12 @@ class AlarmInteraction(ReactionInteraction):
             Whether changes are random events.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.collective_behaviour import AlarmInteraction, RatsElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)
         >>> rats = [RatsElement('calm', x=90.0), RatsElement('nervous', x=10.0)]
-        >>> system = System(elements=rats, interactions=[alarm])
+        >>> system = CompositeSystem(elements=rats, interactions=[alarm])
         >>> trajectory = simulate(system, until=5.0, dt=0.1)
         >>> round(float(trajectory.values('calm.x')[-1] + trajectory.values('nervous.x')[-1]), 6)
         100.0
@@ -335,7 +335,7 @@ class BinaryAntDecisionSystem(BaseSystem):
         self.evaporation = evaporation
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that choose between two equal branches to food.
 
         The branches lead to a food source.
@@ -362,7 +362,7 @@ class BinaryAntDecisionSystem(BaseSystem):
             )
             for chosen, other in (('left', 'right'), ('right', 'left'))
         ]
-        return System(self.label, elements=branches, interactions=[*evaporations, *choices])
+        return CompositeSystem(self.label, elements=branches, interactions=[*evaporations, *choices])
 
 
 class RatsSystem(BaseSystem):
@@ -427,7 +427,7 @@ class RatsSystem(BaseSystem):
         self.calming = calming
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a colony of calm and nervous rats."""
         groups = [
             RatsElement('calm', x=float(self.n_rats - self.nervous)),
@@ -448,4 +448,4 @@ class RatsSystem(BaseSystem):
             k=self.calming,
             mode=MODES[self.stochastic],
         )
-        return System(self.label, elements=groups, interactions=[alarm, calming_reaction])
+        return CompositeSystem(self.label, elements=groups, interactions=[alarm, calming_reaction])

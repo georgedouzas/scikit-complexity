@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, maximum, mod, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common._network_node import NetworkNodeElement
@@ -273,7 +273,7 @@ class NetworkAttackSystem(BaseSystem):
         hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
         return (1 - s.source.targeted) * s.source.rate + hub
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
@@ -288,7 +288,7 @@ class NetworkAttackSystem(BaseSystem):
             targeted=targeted,
         )
         removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=self._get_removal)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=groups,
             interactions=[_get_degree(), removal],
@@ -363,7 +363,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         self.rewiring = rewiring
         self.steps = steps
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.ensemble not in ENSEMBLES:
             error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
@@ -383,7 +383,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
                 action='add-edge',
                 probability=lambda s: s.source.rate,
             )
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=groups,
                 interactions=[_get_degree(), linking],
@@ -394,7 +394,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
         groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
         rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=groups,
             interactions=[_get_degree(), rewiring],
@@ -452,7 +452,7 @@ class KroneckerGraphSystem(BaseSystem):
         self.second = second
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Kronecker graph of two graphs.
 
         Its adjacency matrix is the Kronecker product of theirs.
@@ -461,7 +461,7 @@ class KroneckerGraphSystem(BaseSystem):
         first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if self.first is None else self.first
         second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if self.second is None else self.second
         graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
-        return System(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
 
 
 class ConfigurationModelSystem(BaseSystem):
@@ -571,7 +571,7 @@ class ConfigurationModelSystem(BaseSystem):
         error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
         raise ValidationError(error_msg)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the configuration model.
 
         It is the maximally random network of a given degree sequence.
@@ -592,7 +592,7 @@ class ConfigurationModelSystem(BaseSystem):
         graph = nx.Graph()
         graph.add_nodes_from(range(drawn.size))
         graph.add_edges_from(links)
-        return System(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[_node_group(graph)], space=NetworkSpace(graph))
 
 
 class InterdependentNetworkCascadeSystem(BaseSystem):
@@ -653,7 +653,7 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cascade of failures between two networks.
 
         The nodes of the networks depend on each other.
@@ -680,4 +680,4 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
             return s.target.active * where(mod(s.t, 2) < 1, first_giant, second_giant)
 
         cascade = MapInteraction('cascade', target='nodes', state='active', function=_get_cascade)
-        return System(self.label, elements=[nodes], interactions=[cascade], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[nodes], interactions=[cascade], time=DiscreteTime())

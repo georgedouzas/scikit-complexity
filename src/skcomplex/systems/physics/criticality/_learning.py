@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -167,7 +167,7 @@ class SKGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _observables(system: System) -> list[ObservableSpec]:
+    def _observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observable of the mean reward per agent of the SK game."""
         agents = system.elements[0]
         if not isinstance(agents, GroupElement) or agents.values is None:
@@ -187,7 +187,7 @@ class SKGameSystem(BaseSystem):
         settings['observables'] = tuple(self._observables(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_agents), (self.n_agents, self.n_agents)), 1)
@@ -203,4 +203,4 @@ class SKGameSystem(BaseSystem):
                 'couplings': upper + upper.T,
             },
         )
-        return System(self.label, elements=[agents])
+        return CompositeSystem(self.label, elements=[agents])

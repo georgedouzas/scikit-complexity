@@ -15,7 +15,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, pulse_train
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.pharmacokinetics import DosingInteraction
@@ -476,7 +476,7 @@ class HahnfeldtSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Hahnfeldt system."""
         tumour = AngiogenicTumourElement(
             'tumour',
@@ -535,7 +535,7 @@ class HahnfeldtSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.U,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class VascularCorePeripherySystem(BaseSystem):
@@ -613,7 +613,7 @@ class VascularCorePeripherySystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour with a live core."""
         tumour = VascularizedSpheroidElement(
             'tumour',
@@ -625,4 +625,4 @@ class VascularCorePeripherySystem(BaseSystem):
             width=self.width,
             start=self.start,
         )
-        return System(self.label, elements=[tumour])
+        return CompositeSystem(self.label, elements=[tumour])

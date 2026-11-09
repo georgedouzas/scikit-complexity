@@ -24,7 +24,7 @@ from ....core.components.interactions import (
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, MatchingRule, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
@@ -637,7 +637,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -675,7 +675,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
             herders='herders',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[meadow, herd, herders],
             interactions=[grazing, *self._get_investment(), regulator],

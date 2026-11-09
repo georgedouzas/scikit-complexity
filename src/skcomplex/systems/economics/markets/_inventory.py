@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -216,7 +216,7 @@ class CarDealerSystem(BaseSystem):
         dealer = _dealer(s)
         return distributed_delay(_orders(dealer), order=3, time=dealer.delivery_delay)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         dealer = CarDealershipElement(
             'dealer',
@@ -239,4 +239,4 @@ class CarDealerSystem(BaseSystem):
             flow='deliveries',
             legs=[('inventory', Sink('customers'), lambda s: _sales(_dealer(s)), 'sales')],
         )
-        return System(self.label, elements=[dealer], interactions=[cars])
+        return CompositeSystem(self.label, elements=[dealer], interactions=[cars])

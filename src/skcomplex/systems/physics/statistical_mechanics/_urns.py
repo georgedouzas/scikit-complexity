@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -125,7 +125,7 @@ class EhrenfestUrnSystem(BaseSystem):
         self.n_balls = n_balls
         self.in_first = in_first
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         n = self.n_balls if self.in_first is None else self.in_first
-        return System(self.label, elements=[EhrenfestUrnElement('urn', n=n, N=self.n_balls)])
+        return CompositeSystem(self.label, elements=[EhrenfestUrnElement('urn', n=n, N=self.n_balls)])

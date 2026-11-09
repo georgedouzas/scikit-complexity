@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import (
     LogisticGrowthInteraction,
@@ -263,12 +263,12 @@ class CompetitionSystem(BaseSystem):
         self.alpha12 = alpha12
         self.alpha21 = alpha21
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two species that compete for the same resources.
 
         They coexist or exclude each other.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
@@ -363,9 +363,9 @@ class MutualismSystem(BaseSystem):
         self.b = b
         self.handling = handling
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two species that grow logistically and feed each other."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
@@ -435,7 +435,7 @@ class FoodWebsSystem(BaseSystem):
         self.mortality = mortality
         self.links = links
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a food web."""
         populations = self.populations
         growth = self.growth
@@ -453,7 +453,7 @@ class FoodWebsSystem(BaseSystem):
             PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
             for predator, prey, a, b in links
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement(name, x=n) for name, n in populations.items()],
             interactions=interactions,

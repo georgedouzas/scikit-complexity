@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 
@@ -210,14 +210,14 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.n = n
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of yearly strains that infect less resistant residents.
 
         A strain infects every resident less resistant than its strength.
         """
         resistance = np.random.default_rng(self.seed).random(self.n)
         residents = GroupElement('residents', element=ResidentElement, size=self.n, values={'R': resistance})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[residents, PathogenElement('pathogen')],
             interactions=[ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen')],

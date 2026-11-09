@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, ExtremalLaw
 from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -151,7 +151,7 @@ class BakSneppenSystem(BaseSystem):
         self.updates = updates
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Bak-Sneppen system."""
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)
@@ -168,4 +168,4 @@ class BakSneppenSystem(BaseSystem):
             visual=FITNESS_VISUAL if self.graph is None else FITNESS_SITES,
             on='sites',
         )
-        return System(self.label, elements=[species])
+        return CompositeSystem(self.label, elements=[species])

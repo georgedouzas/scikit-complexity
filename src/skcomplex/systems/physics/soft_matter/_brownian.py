@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import DoubleWellElement
 
@@ -155,12 +155,12 @@ class StochasticResonanceSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle in a double well.
 
         The particle follows `dx = (x - x^3 + A cos(2 pi f t)) dt + sqrt(2 D) dW`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 DoubleWellElement('particle', x=self.x, amplitude=self.amplitude, frequency=self.frequency, D=self.D),
@@ -227,7 +227,7 @@ class BrownianNearWallSystem(BaseSystem):
         self.drift = drift
         self.convention = convention
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         mobility = RateInteraction(
             'mobility',
@@ -238,4 +238,4 @@ class BrownianNearWallSystem(BaseSystem):
             convention=self.convention,
         )
         particle = WallParticleElement('particle', z=self.z, D0=self.D0, a=self.a, drift=self.drift)
-        return System(self.label, elements=[particle], interactions=[mobility])
+        return CompositeSystem(self.label, elements=[particle], interactions=[mobility])

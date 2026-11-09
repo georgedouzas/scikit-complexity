@@ -20,7 +20,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.kinetics import ActivityDensityElement
 
@@ -407,7 +407,7 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-def _sizes_of(system: System) -> tuple[int, int]:
+def _sizes_of(system: CompositeSystem) -> tuple[int, int]:
     """Return the number of rooms and of speed classes of a system.
 
     They are read from its crowding interaction.
@@ -511,13 +511,13 @@ class EvacuationSystem(BaseSystem):
         self.crowding = crowding
         self.recovery = recovery
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rooms = building_of(self.branching, self.depth).number_of_nodes()
         initial = np.zeros((rooms + 1, self.speeds))
         initial[:rooms, self.speeds // 2] = 1.0 / rooms
         crowd_space = LatticeSpace((rooms + 1, self.speeds), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

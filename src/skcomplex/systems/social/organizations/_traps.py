@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -299,7 +299,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         """
         return s.source.b / s.source.lifetime
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         allocation = TransferInteraction(
             'allocation',
@@ -315,7 +315,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
                 ('b', Sink('depreciation'), self._depreciation_b, 'depreciation_b'),
             ],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ContestElement('contest', a=self.a, b=self.b, budget=self.budget, lifetime=self.lifetime)],
             interactions=[allocation],
@@ -410,7 +410,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
         """Return the erosion of capability by the intervention."""
         return s.source.erosion * s.source.intervention * s.source.capability
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         burden = BurdenElement(
             'burden',
@@ -435,7 +435,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
                 ('capability', Sink('atrophy'), self._erosion, 'erosion'),
             ],
         )
-        return System(self.label, elements=[burden], interactions=[flows])
+        return CompositeSystem(self.label, elements=[burden], interactions=[flows])
 
 
 class EscalationSystem(BaseSystem):
@@ -516,7 +516,7 @@ class EscalationSystem(BaseSystem):
         desired = _desired_b(race)
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         race = ArmsRaceElement(
             'race',
@@ -536,7 +536,7 @@ class EscalationSystem(BaseSystem):
             flow='build_a',
             legs=[(Source('production'), 'b', self._build_b, 'build_b')],
         )
-        return System(self.label, elements=[race], interactions=[build])
+        return CompositeSystem(self.label, elements=[race], interactions=[build])
 
 
 class PolicyResistanceSystem(BaseSystem):
@@ -632,7 +632,7 @@ class PolicyResistanceSystem(BaseSystem):
         """
         return _pull(s.source, 'c') / s.source.intensification_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         standoff = StandoffElement(
             'standoff',
@@ -659,7 +659,7 @@ class PolicyResistanceSystem(BaseSystem):
                 (Source('actors'), 'effort_c', self._intensify_c, 'intensify_c'),
             ],
         )
-        return System(self.label, elements=[standoff], interactions=[actions])
+        return CompositeSystem(self.label, elements=[standoff], interactions=[actions])
 
 
 class DriftToLowPerformanceSystem(BaseSystem):
@@ -758,7 +758,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         performance = s.source
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         element = PerformanceElement(
             'performance',
@@ -784,4 +784,4 @@ class DriftToLowPerformanceSystem(BaseSystem):
                 (Source('standards'), 'desired', self._goal_erosion, 'goal_erosion'),
             ],
         )
-        return System(self.label, elements=[element], interactions=[flows])
+        return CompositeSystem(self.label, elements=[element], interactions=[flows])

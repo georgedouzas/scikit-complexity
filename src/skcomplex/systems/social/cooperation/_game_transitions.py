@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -373,7 +373,7 @@ class GameTransitionsSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_players, seed=int(rng.integers(2**31)))
@@ -395,4 +395,4 @@ class GameTransitionsSystem(BaseSystem):
             transitions=self.transitions,
             update=self.update,
         )
-        return System(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))

@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import abs_symbolic
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -147,12 +147,12 @@ class StommelSystem(BaseSystem):
         self.eta2 = eta2
         self.eta3 = eta3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Stommel's two-box thermohaline circulation.
 
         The circulation is bistable between a thermal and a haline mode.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[StommelBoxesElement('ocean', T=self.T, S=self.S, eta1=self.eta1, eta2=self.eta2, eta3=self.eta3)],
         )

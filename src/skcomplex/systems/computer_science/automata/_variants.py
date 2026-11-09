@@ -23,7 +23,7 @@ from ....core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
 )
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -185,7 +185,7 @@ class HighlifeSystem(BaseSystem):
             raise ParameterError(error_msg)
         return tuple(int(digit) for digit in match['born']), tuple(int(digit) for digit in match['survive'])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
 
         The automaton is given by its rule and runs on a torus.
@@ -197,7 +197,7 @@ class HighlifeSystem(BaseSystem):
             else np.asarray(self.initial, dtype=float)
         )
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
@@ -284,14 +284,14 @@ class NoisyAutomataSystem(BaseSystem):
 
         return noisy
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an elementary cellular automaton whose outputs are flipped at random.
 
         The outputs are flipped with a small probability.
         """
         values = _random_cells((self.size,), self.density, self.random_state)
         space = LatticeSpace(self.size)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -367,7 +367,7 @@ class DiffusionAutomatonSystem(BaseSystem):
         """
         return level + r * (sum(around) - len(around) * level)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`.
 
         It starts from a square of ones.
@@ -375,7 +375,7 @@ class DiffusionAutomatonSystem(BaseSystem):
         level = np.zeros(tuple(self.shape))
         rows, columns = (self.shape[0] - self.width) // 2, (self.shape[1] - self.width) // 2
         level[rows : rows + self.width, columns : columns + self.width] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -441,14 +441,14 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         """Return the sum of a cell and its left neighbour."""
         return left + center
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an additive automaton over the nonnegative integers.
 
         Its rule is `x'(n) = x(n - 1) + x(n)`. It starts from a single 1.
         """
         value = np.zeros(self.size)
         value[self.size // 2] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

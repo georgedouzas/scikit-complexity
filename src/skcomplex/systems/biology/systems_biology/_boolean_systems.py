@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
@@ -176,7 +176,7 @@ def _rule_network(
     rules: dict[str, tuple[tuple[str, ...], Rule]],
     active: Sequence[str],
     knockouts: Sequence[str] = (),
-) -> System:
+) -> CompositeSystem:
     """Return the labelled Boolean network of rules.
 
     The active nodes are on and the knocked-out nodes kept off.
@@ -195,7 +195,7 @@ def _rule_network(
         )
         for name, (inputs, rule) in rules.items()
     ]
-    return System(label, elements=nodes, interactions=functions)
+    return CompositeSystem(label, elements=nodes, interactions=functions)
 
 
 class ThreeGeneBooleanNetworkSystem(BaseSystem):
@@ -233,7 +233,7 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
         super().__init__(label)
         self.x = x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the three-gene Boolean network of Raman.
 
         The network is updated synchronously.
@@ -289,7 +289,7 @@ class MammalianCellCycleSystem(BaseSystem):
         self.active = active
         self.knockouts = knockouts
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Boolean system of the mammalian cell cycle.
 
         The system is the one of Faure et al.
@@ -345,7 +345,7 @@ class BooleanRepressilatorSystem(BaseSystem):
         self.x = x
         self.delay = delay
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Boolean repressilator."""
         if self.delay < 0:
             error_msg = f'The delay must be a nonnegative number of steps, not {self.delay}.'
@@ -370,7 +370,7 @@ class BooleanRepressilatorSystem(BaseSystem):
             functions.append(
                 BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
             )
-        return System(self.label, elements=[*genes, *relays], interactions=functions)
+        return CompositeSystem(self.label, elements=[*genes, *relays], interactions=functions)
 
 
 class NoisyBooleanNetworkSystem(BaseSystem):
@@ -431,7 +431,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         self.eta = eta
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Boolean network of Huepe and Aldana-González."""
         if self.k % 2 == 0:
             error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
@@ -447,4 +447,4 @@ class NoisyBooleanNetworkSystem(BaseSystem):
             values={'sigma': np.ones(self.n), 'eta': self.eta},
         )
         majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
-        return System(self.label, elements=[nodes], interactions=[majority], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[nodes], interactions=[majority], time=DiscreteTime())

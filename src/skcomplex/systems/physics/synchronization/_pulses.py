@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import maximum, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
@@ -199,7 +199,7 @@ class WinfreeSystem(BaseSystem):
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         oscillators = GroupElement(
             'oscillators',
@@ -210,7 +210,7 @@ class WinfreeSystem(BaseSystem):
                 'omega': np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[oscillators],
             interactions=[WinfreeMeanFieldInteraction('coupling', target='oscillators', K=self.K)],
@@ -276,7 +276,7 @@ class MirolloStrogatzSystem(BaseSystem):
         self.epsilon = epsilon
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return integrate-and-fire oscillators coupled by pulses.
 
         The oscillators end up firing in unison.
@@ -301,4 +301,4 @@ class MirolloStrogatzSystem(BaseSystem):
             },
             direction=1,
         )
-        return System(self.label, elements=[oscillators], interactions=[fire])
+        return CompositeSystem(self.label, elements=[oscillators], interactions=[fire])

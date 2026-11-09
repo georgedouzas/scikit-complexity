@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import ZZ
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -181,7 +181,7 @@ class HopfieldSystem(BaseSystem):
         np.fill_diagonal(weights, 0.0)
         return weights
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         stored: Array = np.asarray(
@@ -196,7 +196,7 @@ class HopfieldSystem(BaseSystem):
             size=size,
             values={'spin': spins, 'weights': self._hebbian_weights(stored)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[neurons],
             interactions=[HopfieldUpdateInteraction('update', target='neurons')],

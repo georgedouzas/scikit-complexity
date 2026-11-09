@@ -19,7 +19,7 @@ from ....core.components.interactions import GradientInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -256,7 +256,7 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         self.c = c
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the complex Ginzburg-Landau equation.
 
         The equation is `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
@@ -265,7 +265,7 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': self.b, 'c': self.c}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -331,12 +331,12 @@ class SwiftHohenbergSystem(BaseSystem):
         self.r = r
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         values = {'u': _noise(shape, 0.01, self.random_state)}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

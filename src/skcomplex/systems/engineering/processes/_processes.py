@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import step, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -121,9 +121,9 @@ class BathtubSystem(BaseSystem):
         self.inflow = inflow
         self.outflow = outflow
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[TubElement('tub', water=self.water, inflow=self.inflow, outflow=self.outflow)],
         )
@@ -185,7 +185,7 @@ class CascadeClassifierSystem(BaseSystem):
         self.feed_stage = feed_stage
         self.feed = feed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         entry = (self.n_stages + 1) // 2 if self.feed_stage is None else self.feed_stage
         stages = [
@@ -212,7 +212,7 @@ class CascadeClassifierSystem(BaseSystem):
             )
             for index in range(1, self.n_stages + 1)
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[StageElement('fine'), *stages, StageElement('coarse')],
             interactions=interactions,

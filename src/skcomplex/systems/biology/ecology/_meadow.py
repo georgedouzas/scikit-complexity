@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -346,12 +346,12 @@ class MeadowCapacitySystem(BaseSystem):
         self.threshold = threshold
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of cows that graze a summer of 25 weeks on a meadow."""
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         picks = rng.choice(len(cells), size=self.cows, replace=False)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

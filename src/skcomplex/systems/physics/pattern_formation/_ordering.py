@@ -19,7 +19,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -139,7 +139,7 @@ def _ordering(
     random_state: int | np.random.Generator | None,
     conserved: bool,
     temperature: float = 0.0,
-) -> System:
+) -> CompositeSystem:
     """Return a system of a label with a phase field that relaxes.
 
     The field starts from small noise around a mean.
@@ -170,7 +170,7 @@ def _ordering(
         values=values,
         discretization=discretization,
     )
-    return System(label, elements=[field], interactions=interactions)
+    return CompositeSystem(label, elements=[field], interactions=interactions)
 
 
 class AllenCahnSystem(BaseSystem):
@@ -233,7 +233,7 @@ class AllenCahnSystem(BaseSystem):
         self.kappa = kappa
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         return _ordering(
             self.label,
@@ -317,7 +317,7 @@ class CahnHilliardSystem(BaseSystem):
         self.temperature = temperature
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         return _ordering(
             self.label,

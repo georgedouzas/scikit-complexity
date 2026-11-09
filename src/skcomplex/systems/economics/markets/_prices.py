@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -154,7 +154,7 @@ class RiccatiPricesSystem(BaseSystem):
         supply = market.delta + market.alpha * market.P + market.gamma * market.P**2
         return market.k * (demand - supply)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         market = QuadraticSupplyMarketElement(
             'market',
@@ -167,4 +167,4 @@ class RiccatiPricesSystem(BaseSystem):
             gamma=self.gamma,
         )
         adjustment = RateInteraction('adjustment', target='market', state='P', rate=self._excess_demand)
-        return System(self.label, elements=[market], interactions=[adjustment])
+        return CompositeSystem(self.label, elements=[market], interactions=[adjustment])

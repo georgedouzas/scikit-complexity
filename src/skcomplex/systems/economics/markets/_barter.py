@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..common._exchange import cobb_douglas
 from ..common._exchange_interaction import ExchangeInteraction
@@ -213,7 +213,7 @@ class BarterSystem(BaseSystem):
         self.quantity = quantity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.n_barterers < EDGEWORTH_BARTERERS:
             error_msg = f'Barter needs at least two barterers, but got {self.n_barterers}.'
@@ -238,7 +238,7 @@ class BarterSystem(BaseSystem):
             values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
             variable=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[barterers],
             interactions=[

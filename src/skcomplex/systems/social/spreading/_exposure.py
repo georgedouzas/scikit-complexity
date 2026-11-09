@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, uniform, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -211,7 +211,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.share = share
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = xgi.Hypergraph()
@@ -229,4 +229,4 @@ class HypergraphExposureSisSystem(BaseSystem):
             on='sites',
         )
         exposure = ExposureInteraction('exposure', target='participants', rate=self.rate, exponent=self.exponent)
-        return System(self.label, elements=[participants], interactions=[exposure])
+        return CompositeSystem(self.label, elements=[participants], interactions=[exposure])

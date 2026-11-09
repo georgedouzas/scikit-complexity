@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import delayed, hill, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction
@@ -1214,7 +1214,7 @@ class KirschnerPanettaSystem(BaseSystem):
         self.u1 = u1
         self.u2 = u2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Kirschner-Panetta system of effector cells."""
         site = KirschnerPanettaTumourElement(
             'site',
@@ -1279,7 +1279,7 @@ class KirschnerPanettaSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.C,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class DendriticCellVaccineSystem(BaseSystem):
@@ -1359,7 +1359,7 @@ class DendriticCellVaccineSystem(BaseSystem):
         self.start = start
         self.doses = doses
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of helper and cytotoxic T cells."""
         site = VaccinatedTumourElement(
             'site',
@@ -1458,7 +1458,7 @@ class DendriticCellVaccineSystem(BaseSystem):
                 propensity=lambda s: s.target.d3 * s.target.C,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class AntiPD1CheckpointSystem(BaseSystem):
@@ -1539,7 +1539,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
         self.b = b
         self.c_l = c_l
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of activated T cells."""
         site = CheckpointTumourElement(
             'site',
@@ -1614,7 +1614,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
                 propensity=lambda s: s.target.du2 * s.target.UAP,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class DelayedDCVaccineSystem(BaseSystem):
@@ -1697,7 +1697,7 @@ class DelayedDCVaccineSystem(BaseSystem):
         self.tau2 = tau2
         self.tau3 = tau3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour and eight innate and adaptive immune populations."""
         site = DelayedVaccinatedTumourElement(
             'site',
@@ -1932,7 +1932,7 @@ class DelayedDCVaccineSystem(BaseSystem):
                 / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class TumourImmuneSuppressionSystem(BaseSystem):
@@ -2005,7 +2005,7 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         self.EMH = EMH
         self.EMR = EMR
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour against dendritic."""
         site = SuppressedTumourElement(
             'site',
@@ -2219,4 +2219,4 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 propensity=lambda s: s.target.C3 / s.target.tau3,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)

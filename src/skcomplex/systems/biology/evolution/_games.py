@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.populations import ReplicatorInteraction
@@ -149,7 +149,7 @@ class ReplicatorDynamicsSystem(BaseSystem):
         self.V = V
         self.C = C
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the replicator dynamics of a game."""
         matrix = (
             (((self.V - self.C) / 2, self.V), (0.0, self.V / 2))
@@ -165,7 +165,7 @@ class ReplicatorDynamicsSystem(BaseSystem):
             target='population',
             fitness=lambda s: total(s.target.x, weights=weights),
         )
-        return System(self.label, elements=[population], interactions=[replication])
+        return CompositeSystem(self.label, elements=[population], interactions=[replication])
 
 
 class RockPaperScissorsSystem(BaseSystem):
@@ -220,12 +220,12 @@ class RockPaperScissorsSystem(BaseSystem):
         beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
         return np.where(beaten, neighbor, strategy)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of rock, paper, and scissors on a lattice."""
         strategies = (
             np.random.default_rng(self.random_state).integers(0, STRATEGIES, size=tuple(self.shape)).astype(float)
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

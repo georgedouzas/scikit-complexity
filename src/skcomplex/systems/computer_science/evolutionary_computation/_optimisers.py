@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction, OptimizationInteractio
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import (
     CovarianceAdaptationSpec,
@@ -294,7 +294,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         generations: float,
         *,
         label: str,
-    ) -> System:
+    ) -> CompositeSystem:
         """Return candidates that anneal one state at a time, and the best-energy element.
 
         The element keeps the lowest energy the candidates reach.
@@ -321,17 +321,17 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             )
             for state in ('x', 'y')
         ]
-        return System(
+        return CompositeSystem(
             label,
             systems=[
-                System('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
-                System('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
+                CompositeSystem('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
+                CompositeSystem('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
             ],
             interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
             time=DiscreteTime(),
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a population of candidates that searches a two-dimensional landscape.
 
         Each step is one generation.
@@ -361,7 +361,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             bounds=(-bound, bound),
             algorithm=ALGORITHMS[self.algorithm],
         )
-        return System(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.

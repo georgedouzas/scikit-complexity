@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
@@ -186,9 +186,9 @@ class BrusselatorODESystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the reactor and the four reactions of the Brusselator."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BrusselatorReactionElement('reactor', u=self.u, v=self.v, a=self.a, b=self.b)],
             interactions=[
@@ -311,7 +311,7 @@ class OregonatorSystem(BaseSystem):
         """Return the propensity `x^2` of the disproportionation of bromous acid."""
         return s.target.x**2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the reactor and the five reactions of the Oregonator."""
         reactor = OregonatorElement(
             'reactor',
@@ -323,7 +323,7 @@ class OregonatorSystem(BaseSystem):
             q=self.q,
             f=self.f,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[reactor],
             interactions=[
@@ -420,12 +420,12 @@ class CubicAutocatalysisSystem(BaseSystem):
         """Return the residence time `1 / F` of the continuously fed reactor."""
         return 1 / s.target.F
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the reactor, the autocatalysis, the decay, and the flows.
 
         The flows run through the reactor.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[CubicAutocatalysisElement('reactor', a=self.a, b=self.b, F=self.F, k=self.k)],
             interactions=[

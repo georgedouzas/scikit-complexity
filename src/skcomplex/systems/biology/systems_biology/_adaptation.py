@@ -16,7 +16,7 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -329,7 +329,7 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         self.change = change
         self.at = at
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a circuit of three enzymes A, B, and C of Ma et al."""
         signs = np.asarray(self.links)
         if signs.shape != (3, 3) or not np.isin(signs, (-1, 0, 1)).all():
@@ -371,4 +371,8 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
                             K=float(self.K_basal[index]),
                         ),
                     )
-        return System(self.label, elements=[EnzymeNodeElement(node) for node in NODES], interactions=interactions)
+        return CompositeSystem(
+            self.label,
+            elements=[EnzymeNodeElement(node) for node in NODES],
+            interactions=interactions,
+        )

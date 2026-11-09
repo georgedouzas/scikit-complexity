@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
@@ -316,7 +316,7 @@ DYNAMICS = ('static', 'fictitious-play')
 DUOPOLY = 2
 
 
-def _price_observables(system: System) -> list[ObservableSpec]:
+def _price_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the lowest and the highest expected profit over the prices.
 
     Under learning, it returns the prices charged.
@@ -420,7 +420,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         self.dynamics = dynamics
 
     @staticmethod
-    def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> System:
+    def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> CompositeSystem:
         """Return two firms that best respond to the payoffs of every price so far.
 
         The payoffs are summed against the rival.
@@ -452,9 +452,14 @@ class OligopolyEquilibriaSystem(BaseSystem):
             phase='learn',
         )
         schedule = PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('learn')])
-        return System(label, elements=[firms], interactions=[choice, beliefs], time=DiscreteTime(schedule=schedule))
+        return CompositeSystem(
+            label,
+            elements=[firms],
+            interactions=[choice, beliefs],
+            time=DiscreteTime(schedule=schedule),
+        )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
             error_msg = (
@@ -480,7 +485,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             lambda_i=self.lambda_i,
             lambda_j=self.lambda_j,
         )
-        return System(self.label, elements=[cournot, points], time=StaticTime())
+        return CompositeSystem(self.label, elements=[cournot, points], time=StaticTime())
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.

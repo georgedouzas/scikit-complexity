@@ -13,7 +13,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ._mass_exchange import MassExchangeInteraction
 
@@ -234,12 +234,12 @@ class CatalystPelletSystem(BaseSystem):
         """
         return 1 / s.target.h
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the pellet, the mass transfer, and the reaction at the surface.
 
         The mass transfer is from the bulk.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[CatalystPelletElement('pellet', c=self.c, h=self.h, k=self.k, K=self.K)],
             interactions=[
@@ -328,7 +328,7 @@ class PulsedElectrochemicalReactorSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the electrode.
 
         Its own laws charge the double layer and balance the reactant.
@@ -345,4 +345,4 @@ class PulsedElectrochemicalReactorSystem(BaseSystem):
             period=self.period,
             width=self.width,
         )
-        return System(self.label, elements=[electrode])
+        return CompositeSystem(self.label, elements=[electrode])

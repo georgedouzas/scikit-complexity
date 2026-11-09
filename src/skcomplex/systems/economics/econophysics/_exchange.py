@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 
@@ -79,7 +79,7 @@ class BoltzmannWealthSystem(BaseSystem):
         super().__init__(label)
         self.n_agents = n_agents
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         gifts = TransferInteraction(
             'gifts',
@@ -91,7 +91,7 @@ class BoltzmannWealthSystem(BaseSystem):
             guard=lambda giver, receiver, system: giver.wealth > 0,
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('traders', element=TraderElement, size=self.n_agents)],
             interactions=[gifts],

@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
 from ....core.components.laws.utils import clip, series
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 PROFITABILITY_EFFECT = (
@@ -332,7 +332,7 @@ class CocoaSystem(BaseSystem):
             ],
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         plantation = PlantationElement(
             'cocoa',
@@ -342,4 +342,4 @@ class CocoaSystem(BaseSystem):
             insect_growth=self.insect_growth,
             subsidy=self.subsidy,
         )
-        return System(self.label, elements=[plantation], interactions=[self._land_use()])
+        return CompositeSystem(self.label, elements=[plantation], interactions=[self._land_use()])

@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common import SandpileCellElement
@@ -224,14 +224,14 @@ class FixedEnergySandpileSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         size = int(np.prod(self.shape))
         rng = np.random.default_rng(self.random_state)
         grains = rng.integers(size, size=round(self.density * size))
         heights = np.bincount(grains, minlength=size).reshape(tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='periodic')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
@@ -301,7 +301,7 @@ class ZhangSandpileSystem(BaseSystem):
         following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
         return following
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Zhang sandpile.
 
         It is a continuous sandpile whose unstable sites give away all their energy.
@@ -317,7 +317,7 @@ class ZhangSandpileSystem(BaseSystem):
             mode='reset',
             drive=partial(self._load, self.threshold),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('pile', element=EnergySiteElement, space=space, values={'energy': energies}, on='sites'),
@@ -396,12 +396,12 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         dissipated = where(s.target.g >= generations, s.target.z, 0)
         return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley.
 
         It is a mean-field sandpile.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BranchingTreeElement('tree', p=self.p)],
             interactions=[

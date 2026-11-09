@@ -20,7 +20,7 @@ from ....core.components.interactions import LocalRuleInteraction, TransferInter
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
 from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -412,7 +412,7 @@ class Q2rSystem(BaseSystem):
         """Return 1 on the sites of even coordinate sum and 0 on the others."""
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
@@ -431,7 +431,7 @@ class Q2rSystem(BaseSystem):
             rule=self._flip_without_cost,
             neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
         )
-        return System(self.label, elements=[group], interactions=[flip])
+        return CompositeSystem(self.label, elements=[group], interactions=[flip])
 
 
 class SitePercolationSystem(BaseSystem):
@@ -480,13 +480,13 @@ class SitePercolationSystem(BaseSystem):
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
         space = LatticeSpace(shape, boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -556,12 +556,12 @@ class ContactProcessSystem(BaseSystem):
         self.infected = infected
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
         space = LatticeSpace(shape)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -671,7 +671,7 @@ class TASEPSystem(BaseSystem):
         """
         return s.source.occupied * bernoulli('exit', s.source.beta)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the totally asymmetric simple exclusion process with parallel update.
 
         The process runs on an open line or a ring.
@@ -698,7 +698,7 @@ class TASEPSystem(BaseSystem):
             boundary=boundary,
         )
         if self.ring:
-            return System(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
+            return CompositeSystem(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
         first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
         entry = TransferInteraction(
             'entry',
@@ -716,7 +716,7 @@ class TASEPSystem(BaseSystem):
             into=Sink(),
             amount=self._leave,
         )
-        return System(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
 class DiffusionLimitedAggregationSystem(BaseSystem):
@@ -765,7 +765,7 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         middle = self.size // 2
@@ -780,7 +780,7 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
             values={'stuck': stuck},
             location=[tuple(map(int, cell)) for cell in cells],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
             space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),

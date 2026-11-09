@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -151,7 +151,7 @@ class DrugToxicitySystem(BaseSystem):
         self.width = width
         self.doses = doses
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the toxicity a weekly drug accumulates in the body."""
         patient = DrugToxicityElement(
             'patient',
@@ -186,4 +186,4 @@ class DrugToxicitySystem(BaseSystem):
                 propensity=lambda s: s.target.eta * s.target.T,
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)

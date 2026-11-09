@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SpaceError
@@ -399,7 +399,7 @@ class TraffickingSystem(BaseSystem):
         """Return the bills at the start of a quarter."""
         return 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         n_places = self.n_houses + self.n_brothels
@@ -474,7 +474,7 @@ class TraffickingSystem(BaseSystem):
             PhaseSpec(BILLING, activation='sequential'),
             PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[premises, women],
             interactions=[day, *bills],

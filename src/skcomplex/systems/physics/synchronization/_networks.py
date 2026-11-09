@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
@@ -139,7 +139,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         >>> import networkx as nx
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> maps = GroupElement(
@@ -150,7 +150,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         ...     on='sites',
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
-        >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[maps], interactions=[coupling], time=DiscreteTime())
         >>> simulate(system, until=1).values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
@@ -276,7 +276,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = _network(self.network, self.n_oscillators, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
@@ -294,7 +294,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         )
         links = GroupElement('links', element=LinkElement, space=space, on='edges')
         coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
-        return System(self.label, elements=[oscillators, links], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[oscillators, links], interactions=[coupling])
 
 
 class CoupledMapLatticesOnNetworksSystem(BaseSystem):
@@ -371,7 +371,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         self.epsilon = epsilon
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return chaotic logistic maps on the nodes of a network.
 
         Each map is pulled towards the mean of its neighbours.
@@ -387,4 +387,4 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
             on='sites',
         )
         coupling = LogisticCouplingInteraction('coupling', target='maps')
-        return System(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())

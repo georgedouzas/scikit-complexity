@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction, MapInteraction
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -401,7 +401,7 @@ class SznajdSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         graph = nx.cycle_graph(50) if graph is None else graph
@@ -412,7 +412,7 @@ class SznajdSystem(BaseSystem):
             size=size,
             values={'opinion': _shares(size, self.share, self.random_state)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[PersuasionInteraction('persuasion', target='people')],
@@ -467,7 +467,7 @@ class GalamMajoritySystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         citizens = GroupElement(
             'citizens',
@@ -475,7 +475,7 @@ class GalamMajoritySystem(BaseSystem):
             size=self.n_agents,
             values={'opinion': _shares(self.n_agents, self.share, self.random_state)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[citizens],
             interactions=[DiscussionsInteraction('talks', target='citizens', size=self.group_size)],
@@ -539,7 +539,7 @@ class SocialImpactSystem(BaseSystem):
         self.noise = noise
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -556,7 +556,7 @@ class SocialImpactSystem(BaseSystem):
             },
             location=[(column, row) for column in range(self.width) for row in range(self.height)],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[SocialImpactInteraction('impact', target='people')],

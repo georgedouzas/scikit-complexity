@@ -27,7 +27,7 @@ from ....core.components.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -469,7 +469,7 @@ def _flock(
     v0: float,
     alignment: BaseInteraction | None = None,
     **values: float,
-) -> System:
+) -> CompositeSystem:
     """Return a system of flockers of a type in a periodic box.
 
     The system has a label, and the flockers have uniform positions and headings.
@@ -481,7 +481,7 @@ def _flock(
         **values,
     }
     flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
-    return System(
+    return CompositeSystem(
         label,
         elements=[flock],
         interactions=[
@@ -595,7 +595,7 @@ class VicsekSystem(BaseSystem):
         self.delay = delay
         self.memory = memory
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.neighbors is not None and self.vision is not None:
             error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
@@ -703,7 +703,7 @@ class GregoireChateSystem(BaseSystem):
         self.beta = beta
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Grégoire-Chaté system.
 
         Aligning particles also attract and repel, forming cohesive flocks.
@@ -782,7 +782,7 @@ class GinelliNematicsSystem(BaseSystem):
         self.eta = eta
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
         return _flock(

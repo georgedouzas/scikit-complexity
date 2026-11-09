@@ -17,7 +17,7 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import both, where
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -254,11 +254,11 @@ class BeamBeamMapSystem(BaseSystem):
         safe = where(position == 0, 1, position)
         return momentum - 8 * pi * s.target.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rotation = MapInteraction('x_map', target='particle', state='x', function=lambda s: _rotate(s)[0])
         kick = MapInteraction('y_map', target='particle', state='y', function=self._kick)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BeamElement('particle', x=self.x, y=self.y, nu=self.nu, c=self.c)],
             interactions=[rotation, kick],
@@ -347,7 +347,7 @@ class FrictionOscillatorSystem(BaseSystem):
         self.g = g
         self.v_stick = v_stick
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a mass on a linear spring with static, Coulomb, and viscous friction.
 
         The mass follows `m x'' + c x' + k x + f = 0`.
@@ -364,4 +364,4 @@ class FrictionOscillatorSystem(BaseSystem):
             g=self.g,
             v_stick=self.v_stick,
         )
-        return System(self.label, elements=[mass])
+        return CompositeSystem(self.label, elements=[mass])

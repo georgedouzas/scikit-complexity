@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import pulse_train, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -228,7 +228,7 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         self.width = width
         self.period = period
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a system that meets recurring demands by stimulus-response."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
@@ -300,4 +300,4 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
             ),
         ]
-        return System(self.label, elements=[organism], interactions=interactions)
+        return CompositeSystem(self.label, elements=[organism], interactions=interactions)

@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import delayed, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -444,7 +444,7 @@ class LightSeekingRobotsSystem(BaseSystem):
         self.tau = tau
         self.R = R
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
         robots = GroupElement(
@@ -464,7 +464,7 @@ class LightSeekingRobotsSystem(BaseSystem):
                 'delay': self.delay,
             },
         )
-        return System(self.label, elements=[robots])
+        return CompositeSystem(self.label, elements=[robots])
 
 
 class SwarmtaxisSystem(BaseSystem):
@@ -538,7 +538,7 @@ class SwarmtaxisSystem(BaseSystem):
         self.avoid_shadowed = avoid_shadowed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         start = np.array([self.size / 5, self.size / 2])
@@ -560,4 +560,4 @@ class SwarmtaxisSystem(BaseSystem):
             },
             location=[tuple(map(float, point)) for point in points],
         )
-        return System(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))
+        return CompositeSystem(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))

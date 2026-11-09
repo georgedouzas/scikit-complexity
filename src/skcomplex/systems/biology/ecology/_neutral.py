@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import CompartmentElement
 
@@ -133,9 +133,9 @@ class NeutralMacroecologySystem(BaseSystem):
         self.d0 = d0
         self.d1 = d1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of many species under neutral birth."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, Sink, Source, TransferLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -180,7 +180,7 @@ class GrainStorageSystem(BaseSystem):
         self.receiving_delay = receiving_delay
         self.adjustment_delay = adjustment_delay
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         store = GrainStoreElement(
             'store',
@@ -191,4 +191,4 @@ class GrainStorageSystem(BaseSystem):
             receiving_delay=self.receiving_delay,
             adjustment_delay=self.adjustment_delay,
         )
-        return System(self.label, elements=[store])
+        return CompositeSystem(self.label, elements=[store])

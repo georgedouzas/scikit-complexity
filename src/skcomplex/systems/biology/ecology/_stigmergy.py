@@ -22,7 +22,7 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -783,7 +783,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         bounds = np.cumsum([0, *counts])
         return [cells[start:end] for start, end in itertools.pairwise(bounds)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of plants, prey, and predators on a grid."""
         rng = np.random.default_rng(self.random_state)
         plant_cells, prey_cells, predator_cells = self._random_cells(
@@ -793,7 +793,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
             [self.plants, self.prey, self.predators],
         )
         flag = float(self.emotions)
-        life = System(
+        life = CompositeSystem(
             'life',
             elements=[
                 GroupElement(
@@ -833,9 +833,9 @@ class StigmergicPredatorPreySystem(BaseSystem):
             EvaporationInteraction(f'evaporation_{mark}', target='marks', state=mark, evaporation='decay')
             for mark in EMOTIONS
         ]
-        return System(
+        return CompositeSystem(
             self.label,
-            systems=[life, System('ground', elements=[marks], interactions=evaporations)],
+            systems=[life, CompositeSystem('ground', elements=[marks], interactions=evaporations)],
             interactions=[
                 *self._get_plants('life', PLANTS),
                 *self._get_animals('life', PREY, StigmergicPreyElement, self._get_fear),

@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SatisfiabilityInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import CardinalitySpec, StateSpec
 
@@ -93,7 +93,7 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         self.load = load
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.n_weights % 2 == 0:
             error_msg = (
@@ -110,4 +110,4 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
         ]
         weights = GroupElement('weights', element=BinaryWeightElement, size=self.n_weights)
         decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=constraints)
-        return System(self.label, elements=[weights], interactions=[decide], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[weights], interactions=[decide], time=DiscreteTime())

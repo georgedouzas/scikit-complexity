@@ -19,7 +19,7 @@ from ....core.components.elements import FieldElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
 from ....core.components.spaces import LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, RoleSpec, VisualSpec
@@ -161,7 +161,7 @@ class BoltzmannEquationSystem(BaseSystem):
         self.knudsen = knudsen
         self.half_width = half_width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Boltzmann equation of Maxwell molecules.
 
         The equation is over one position and two velocity axes.
@@ -174,7 +174,7 @@ class BoltzmannEquationSystem(BaseSystem):
             cross_section=_get_maxwell_molecules,
             factor=lambda _: frequency,
         )
-        return System(self.label, elements=[gas], interactions=[stream, collide])
+        return CompositeSystem(self.label, elements=[gas], interactions=[stream, collide])
 
 
 class EnskogSystem(BaseSystem):
@@ -236,7 +236,7 @@ class EnskogSystem(BaseSystem):
         self.diameter = diameter
         self.half_width = half_width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         gas, frequency = _get_uniform_gas(self.positions, self.velocities, self.knudsen, self.half_width)
         area = math.pi * self.diameter**2 / 4
@@ -247,7 +247,7 @@ class EnskogSystem(BaseSystem):
 
         stream = AdvectionInteraction('stream', target='gas', state='x', drift=_get_plane_streaming)
         collide = EncounterInteraction('collide', candidate='gas', cross_section=_get_maxwell_molecules, factor=contact)
-        return System(self.label, elements=[gas], interactions=[stream, collide])
+        return CompositeSystem(self.label, elements=[gas], interactions=[stream, collide])
 
 
 class BGKEquationSystem(BaseSystem):
@@ -321,7 +321,7 @@ class BGKEquationSystem(BaseSystem):
         """Return the drift of free streaming over one position and one velocity axis."""
         return [coordinate('v'), 0]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the BGK equation of the Sod shock tube.
 
         The equation is over one position and one velocity axis.
@@ -342,7 +342,7 @@ class BGKEquationSystem(BaseSystem):
         )
         stream = AdvectionInteraction('stream', target='gas', state='x', drift=self._get_streaming)
         relax = BhatnagarGrossKrookInteraction('relax', target='gas', axes=('v',), time=self.knudsen)
-        return System(self.label, elements=[gas], interactions=[stream, relax])
+        return CompositeSystem(self.label, elements=[gas], interactions=[stream, relax])
 
 
 class VlasovEquationSystem(BaseSystem):
@@ -417,7 +417,7 @@ class VlasovEquationSystem(BaseSystem):
         density = moment(s.target.x, 0, axes=('v',))
         return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.setup not in SETUPS:
             error_msg = f'Unknown set-up {self.setup!r} of the Vlasov equation. Use one of {", ".join(SETUPS)}.'
@@ -441,7 +441,7 @@ class VlasovEquationSystem(BaseSystem):
             discretization='finite-volume',
             visual=VLASOV_VISUAL,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[gas],
             interactions=[AdvectionInteraction('vlasov', target='gas', state='x', drift=self._get_poisson_drift)],

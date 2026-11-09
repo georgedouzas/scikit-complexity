@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -186,7 +186,7 @@ class ActivePolymerSystem(BaseSystem):
         self.D_r = D_r
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, self.n_beads)
         chain = FieldElement(
@@ -204,4 +204,4 @@ class ActivePolymerSystem(BaseSystem):
                 'D_r': self.D_r,
             },
         )
-        return System(self.label, elements=[chain])
+        return CompositeSystem(self.label, elements=[chain])

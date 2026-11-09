@@ -15,7 +15,7 @@ from sklearn.base import clone
 
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem, System
+from .....core.components.systems import BaseSystem, CompositeSystem
 from .....core.engine.problems import ProblemSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
@@ -52,7 +52,7 @@ class FluxVariabilityResult:
     """
 
     network: MetabolicNetworkElement
-    system: System
+    system: CompositeSystem
     optimum: float
     ranges: pd.DataFrame
 
@@ -85,7 +85,7 @@ def flux_variability(source: Source, *, fraction: float = 1.0, network: str | No
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import (
         ...     ReactionSpec,
         ...     flux_variability,
@@ -97,7 +97,7 @@ def flux_variability(source: Source, *, fraction: float = 1.0, network: str | No
         ...     'two': ReactionSpec({'A': -1.0}),
         ... }
         >>> network = metabolic_network_type('TwoWaysElement', reactions, {'in': 1.0})('net')
-        >>> system = System(elements=[network], time=StaticTime())
+        >>> system = CompositeSystem(elements=[network], time=StaticTime())
         >>> flux_variability(system).ranges.loc['one'].tolist()
         [0.0, 4.0]
     """
@@ -139,7 +139,7 @@ class ProductionScanResult:
     """
 
     network: MetabolicNetworkElement
-    system: System
+    system: CompositeSystem
     levels: Array
     objectives: Array
     fluxes: pd.DataFrame
@@ -184,7 +184,7 @@ def production_scan(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import (
         ...     ReactionSpec,
         ...     metabolic_network_type,
@@ -197,7 +197,7 @@ def production_scan(
         ...     'out': ReactionSpec({'P': -1.0}),
         ... }
         >>> network = metabolic_network_type('ScanElement', reactions, {'grow': 1.0})('net')
-        >>> system = System(elements=[network], time=StaticTime())
+        >>> system = CompositeSystem(elements=[network], time=StaticTime())
         >>> production_scan(system, target='out', steps=2).reactions
         ['make', 'out']
     """
@@ -316,9 +316,9 @@ def cobra_measures(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import cobra_measures, load_network
-        >>> system = System(elements=[load_network('textbook', 'cell')], time=StaticTime())
+        >>> system = CompositeSystem(elements=[load_network('textbook', 'cell')], time=StaticTime())
         >>> round(float(cobra_measures(system, kind='parsimonious').total), 3)
         518.422
     """
@@ -474,7 +474,7 @@ def _check_choice(analysis: str, name: str, value: object, choices: tuple[object
         raise AnalysisError(error_msg)
 
 
-def _networks_of(system: System) -> list[MetabolicNetworkElement]:
+def _networks_of(system: CompositeSystem) -> list[MetabolicNetworkElement]:
     """Return the metabolic networks of a system and its nested systems."""
     found = [item for item in system.elements if isinstance(item, MetabolicNetworkElement)]
     for nested in system.systems:
@@ -482,7 +482,11 @@ def _networks_of(system: System) -> list[MetabolicNetworkElement]:
     return found
 
 
-def _read_network(source: Source, network: str | None, analysis: str) -> tuple[System, MetabolicNetworkElement]:
+def _read_network(
+    source: Source,
+    network: str | None,
+    analysis: str,
+) -> tuple[CompositeSystem, MetabolicNetworkElement]:
     """Return a system and its metabolic network with a label, or its first one.
 
     Args:
@@ -506,9 +510,9 @@ def _read_network(source: Source, network: str | None, analysis: str) -> tuple[S
         AnalysisError:
             The source is not a system with the network.
     """
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         source = source.prepare().system_
-    if not isinstance(source, System):
+    if not isinstance(source, CompositeSystem):
         error_msg = f'{analysis} reads a system that holds a metabolic network element, not {type(source).__name__}.'
         raise AnalysisError(error_msg)
     chosen = [item for item in _networks_of(source) if network is None or item.label == network]
@@ -533,7 +537,7 @@ def _compiled_network(
     kept = (
         [] if floor is None else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
     )
-    problem = simulate(System(elements=[element], interactions=kept, time=StaticTime()), until=0).problem
+    problem = simulate(CompositeSystem(elements=[element], interactions=kept, time=StaticTime()), until=0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)

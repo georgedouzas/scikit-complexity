@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -159,7 +159,7 @@ class BiasedTrapWalkSystem(BaseSystem):
         next_occupied = (stays | arrives).astype(float)
         return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = (self.n_walkers, self.n_sites)
         tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
@@ -181,4 +181,4 @@ class BiasedTrapWalkSystem(BaseSystem):
             neighborhood=ALONG_ROW,
             reads=('occupied', 'visited', 'clock', 'tau'),
         )
-        return System(self.label, elements=[traps], interactions=[hops])
+        return CompositeSystem(self.label, elements=[traps], interactions=[hops])

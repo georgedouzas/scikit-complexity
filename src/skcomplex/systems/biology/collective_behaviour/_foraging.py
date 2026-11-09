@@ -16,7 +16,7 @@ from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -333,7 +333,7 @@ class PheromoneForagingSystem(BaseSystem):
             return 0.0
         return float(not self._homes(ant, system) and not self._searches(ant, system))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that find food and lay a pheromone trail home."""
         nest, food = (5, self.height // 2), (self.width - 6, self.height // 2)
         ants = GroupElement(
@@ -356,11 +356,15 @@ class PheromoneForagingSystem(BaseSystem):
             boundary={'level': 'zero-flux'},
             values={'D': self.D, 'evaporation': self.evaporation},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('colony', elements=[ants], space=LatticeSpace((self.width, self.height), boundary='fixed')),
-                System(
+                CompositeSystem(
+                    'colony',
+                    elements=[ants],
+                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
+                ),
+                CompositeSystem(
                     'ground',
                     elements=[pheromone],
                     interactions=[

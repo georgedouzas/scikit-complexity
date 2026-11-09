@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -333,7 +333,7 @@ class CropLivestockHouseholdSystem(BaseSystem):
         self.max_livestock = max_livestock
         self.sale_fraction = sale_fraction
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         sale = int(self.livestock * self.sale_fraction)
         affordable = int(self.wealth / self.purchase_price)
@@ -351,4 +351,4 @@ class CropLivestockHouseholdSystem(BaseSystem):
             max_livestock=self.max_livestock,
             sale_fraction=self.sale_fraction,
         )
-        return System(self.label, elements=[household])
+        return CompositeSystem(self.label, elements=[household])

@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -279,7 +279,7 @@ class HouseholdDemandSystem(BaseSystem):
         quintiles = np.minimum((np.argsort(np.argsort(budgets)) * 5) // len(budgets), 4)
         return np.asarray(means, dtype=float)[quintiles] + deviation * rng.normal(size=len(budgets))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         budgets = self._budgets(self.n_households, self.minimum, rng)
@@ -305,4 +305,4 @@ class HouseholdDemandSystem(BaseSystem):
                 'kind': self.demand,
             },
         )
-        return System(self.label, elements=[households])
+        return CompositeSystem(self.label, elements=[households])

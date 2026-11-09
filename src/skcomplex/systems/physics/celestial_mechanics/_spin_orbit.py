@@ -18,7 +18,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -352,7 +352,7 @@ class KeplerianDumbbellSystem(BaseSystem):
         kinetic, potential = _get_dumbbell_parts(d, rates)
         return kinetic - potential
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Keplerian dumbbell.
 
         Two masses on a rigid massless arm orbit a primary under gravity.
@@ -379,7 +379,7 @@ class KeplerianDumbbellSystem(BaseSystem):
             states=COORDINATES,
             lagrangian=self._get_dumbbell_lagrangian,
         )
-        return System(self.label, elements=[dumbbell], interactions=[motion])
+        return CompositeSystem(self.label, elements=[dumbbell], interactions=[motion])
 
 
 class RelativisticOrbitSystem(BaseSystem):
@@ -439,12 +439,12 @@ class RelativisticOrbitSystem(BaseSystem):
         self.alpha = alpha
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet.
 
         The perihelion of the planet precesses.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RelativisticOrbitElement('planet', u=self.u, u_d1=self.du, alpha=self.alpha, epsilon=self.epsilon),

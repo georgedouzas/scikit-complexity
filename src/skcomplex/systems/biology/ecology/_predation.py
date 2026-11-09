@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import (
@@ -355,7 +355,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.phi_end = phi_end
         self.rate = rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of fast prey and slow predators.
 
         Their carrying capacity shrinks at a rate.
@@ -368,7 +368,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         phi_end = 1 - self.eta if phi_end is None else phi_end
         prey = 1 / (1 - self.eta) if prey is None else prey
         predators = (1 - phi * prey) * (1 + self.eta * prey) if predators is None else predators
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('prey', x=prey), PopulationElement('predators', x=predators)],
             interactions=[
@@ -442,9 +442,9 @@ class NicholsonBaileySystem(BaseSystem):
         self.a = a
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of hosts and parasitoids in discrete generations."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('hosts', x=self.hosts), PopulationElement('parasitoids', x=self.parasitoids)],
             interactions=[
@@ -533,12 +533,12 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         self.prey_harvest = prey_harvest
         self.predator_harvest = predator_harvest
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Lotka-Volterra predation with harvesting.
 
         Both species are harvested with a constant effort.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
@@ -628,9 +628,9 @@ class StochasticPredatorPreySystem(BaseSystem):
         self.m = m
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prey and predators born and killed one at a time."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[

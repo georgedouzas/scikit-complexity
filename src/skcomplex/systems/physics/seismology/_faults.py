@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CascadeInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -114,14 +114,14 @@ class EarthquakesSystem(BaseSystem):
         following[np.unravel_index(np.argmax(force), force.shape)] = THRESHOLD
         return following
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Olami-Feder-Christensen earthquake system with open edges.
 
         The system starts from random forces.
         """
         forces = np.random.default_rng(self.random_state).random(tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('fault', element=FaultElement, space=space, values={'force': forces}, on='sites')],
             interactions=[

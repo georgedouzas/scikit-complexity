@@ -19,7 +19,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import StokesianMobilityInteraction
 
@@ -234,7 +234,7 @@ class SquirmersSystem(BaseSystem):
         self.spacing = spacing
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return spherical squirmers that swim at `2 B1 / 3`.
 
         The squirmers stir each other as pushers or pullers.
@@ -259,4 +259,4 @@ class SquirmersSystem(BaseSystem):
             radius=self.radius,
             viscosity=self.viscosity,
         )
-        return System(self.label, elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
+        return CompositeSystem(self.label, elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))

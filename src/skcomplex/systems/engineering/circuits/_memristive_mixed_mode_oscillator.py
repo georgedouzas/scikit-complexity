@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -216,7 +216,7 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         circuit = MemristiveCircuitElement(
             'circuit',
@@ -232,4 +232,4 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
             a=self.a,
             b=self.b,
         )
-        return System(self.label, elements=[circuit])
+        return CompositeSystem(self.label, elements=[circuit])

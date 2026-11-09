@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, vector
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -304,9 +304,9 @@ class Lorenz84System(BaseSystem):
         self.F = F
         self.G = G
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
@@ -360,11 +360,11 @@ class Lorenz96System(BaseSystem):
         self.F = F
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         values = np.full(self.n_sites, float(self.F))
         values[0] += self.perturbation
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[Lorenz96Element('ring', x=values, F=self.F)],
             space=ContinuousSpace(n_dim=self.n_sites),
@@ -431,9 +431,9 @@ class GeodynamoSystem(BaseSystem):
         self.nu = nu
         self.Gamma = Gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Gissinger's geodynamo, whose dipole field reverses at irregular times."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GeodynamoElement('dynamo', Q=self.Q, D=self.D, V=self.V, mu=self.mu, nu=self.nu, Gamma=self.Gamma),

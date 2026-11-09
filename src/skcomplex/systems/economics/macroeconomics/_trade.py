@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -295,7 +295,7 @@ class ExchangeRatesSystem(BaseSystem):
             for state, function in (('PH', _home_price), ('E', _exchange_rate), ('X', _exports), ('M', _imports))
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rate = self.imports * self.world_price / (self.exports * self.home_price)
         home = TradingEconomyElement(
@@ -318,4 +318,4 @@ class ExchangeRatesSystem(BaseSystem):
             demand=self.demand,
             government=self.government,
         )
-        return System(self.label, elements=[home], interactions=self._adjustments())
+        return CompositeSystem(self.label, elements=[home], interactions=self._adjustments())

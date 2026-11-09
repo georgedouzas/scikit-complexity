@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ....core.types import Array
@@ -27,9 +27,9 @@ def _random_cells(size: int, density: float, random_state: int | np.random.Gener
     return (np.random.default_rng(random_state).random(size) < density).astype(float)
 
 
-def _line_system(label: str, rule: object, offsets: range, values: Array) -> System:
+def _line_system(label: str, rule: object, offsets: range, values: Array) -> CompositeSystem:
     """Return a binary automaton on a ring that reads a window of offsets."""
-    return System(
+    return CompositeSystem(
         label,
         elements=[
             GroupElement(
@@ -127,7 +127,7 @@ class NilpotentAutomatonSystem(BaseSystem):
         killed = np.all(window == 1, axis=0) | ((left == 0) & (center == 1))
         return np.where(killed, 0.0, center)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.n < MIN_NILPOTENT_CLASS:
             error_msg = f'The nilpotency class of the automaton is at least 2, but it is {self.n}.'
@@ -216,7 +216,7 @@ class InvolutiveAutomatonSystem(BaseSystem):
         center = window[1]
         return np.where(np.all(window == alpha, axis=0), 0.0, np.where(np.all(window == beta, axis=0), 1.0, center))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.n < MIN_INVOLUTION_RUN:
             error_msg = f'The run length of the involutive automaton is at least 3, but it is {self.n}.'

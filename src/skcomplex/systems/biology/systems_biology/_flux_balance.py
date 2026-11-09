@@ -7,7 +7,7 @@ The Escherichia coli core system needs the extra.
 # License: MIT
 
 from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ..common.metabolism import ToyNetworkElement, load_network
 
@@ -71,13 +71,13 @@ class FluxBalanceSystem(BaseSystem):
         self.oxygen = oxygen
         self.parsimonious = parsimonious
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of flux balance analysis of a metabolic network."""
         if self.network not in NETWORKS:
             error_msg = f'Unknown network {self.network!r}. Use one of {", ".join(NETWORKS)}.'
             raise ValidationError(error_msg)
         if self.network == 'toy':
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[ToyNetworkElement('cell', parsimonious=self.parsimonious)],
                 time=StaticTime(),
@@ -86,4 +86,4 @@ class FluxBalanceSystem(BaseSystem):
         element.parsimonious = self.parsimonious
         identifier = f'lower_{element._identifier(OXYGEN_EXCHANGE)}'
         element.set_params(**{identifier: -float(self.oxygen)})
-        return System(self.label, elements=[element], time=StaticTime())
+        return CompositeSystem(self.label, elements=[element], time=StaticTime())

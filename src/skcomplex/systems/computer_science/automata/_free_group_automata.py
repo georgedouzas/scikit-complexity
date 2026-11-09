@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -100,7 +100,7 @@ def _pair_system(
     modulus: int,
     initial: npt.ArrayLike | None,
     random_state: int | np.random.Generator | None,
-) -> System:
+) -> CompositeSystem:
     """Return an automaton of pairs on a ball of the free group of rank 2.
 
     It reads `a`, `a^-1`, `b`, and `b^-1`.
@@ -108,7 +108,7 @@ def _pair_system(
     space = CayleySpace(free_group(2), ball=radius)
     pairs = _pair_cells(space, modulus, initial, random_state)
     values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
-    return System(
+    return CompositeSystem(
         label,
         elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
         interactions=[
@@ -194,7 +194,7 @@ class MullerAutomatonSystem(BaseSystem):
         total = first[0] + first[1] + second[2] + second[3]
         return total % modulus, np.zeros_like(total)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Muller's automaton on the free group F2.
 
         It is pre-injective but not surjective.
@@ -280,7 +280,7 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         first = values[:4]
         return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a linear automaton over `K^2` on the free group F2.
 
         It is surjective but not pre-injective.
@@ -348,7 +348,7 @@ class LifeInATreeSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Game of Life on the free group F4, surjective but not pre-injective.
 
         The free group F4 is a tree of degree 8.
@@ -359,7 +359,7 @@ class LifeInATreeSystem(BaseSystem):
             cells = (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
         else:
             cells = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),

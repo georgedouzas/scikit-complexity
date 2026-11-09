@@ -19,7 +19,7 @@ from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import lag, mod
 from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -55,10 +55,10 @@ class LorenzElement(Element):
             The geometric factor.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.synchronization._chaos import LorenzElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
+        >>> system = CompositeSystem(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
         >>> trajectory = simulate(system, until=1.0, dt=0.5)
         >>> [round(float(value), 4) for value in trajectory.values('lorenz.z')]
         [2.0, 1.5576, 1.2131]
@@ -513,7 +513,7 @@ class CoupledRosslerSystem(BaseSystem):
         self.c = c
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return chaotic Rössler oscillators on a ring.
 
         The oscillators are diffusively coupled through their second variable.
@@ -546,7 +546,7 @@ class CoupledRosslerSystem(BaseSystem):
             for first, second in links
             for source, target in ((first, second), (second, first))
         ]
-        return System(self.label, elements=oscillators, interactions=couplings)
+        return CompositeSystem(self.label, elements=oscillators, interactions=couplings)
 
 
 class AggregateAveragingSynchronizationSystem(BaseSystem):
@@ -620,7 +620,7 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         self.kind = kind
         self.delay = delay
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two chaotic maps coupled by aggregate averaging.
 
         The maps synchronize their chaos for strong coupling.
@@ -644,7 +644,7 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
             )
             for source, target in (('second', 'first'), ('first', 'second'))
         ]
-        return System(self.label, elements=units, interactions=averaging, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=units, interactions=averaging, time=DiscreteTime())
 
 
 class RosslerDrivenLorenzSystem(BaseSystem):
@@ -699,7 +699,7 @@ class RosslerDrivenLorenzSystem(BaseSystem):
         self.auxiliary = auxiliary
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a chaotic Rössler system that drives a Lorenz-63 system.
 
         The drive acts through the second variable.
@@ -718,4 +718,4 @@ class RosslerDrivenLorenzSystem(BaseSystem):
             )
             for response in responses
         ]
-        return System(self.label, elements=[drive, *responses], interactions=couplings)
+        return CompositeSystem(self.label, elements=[drive, *responses], interactions=couplings)

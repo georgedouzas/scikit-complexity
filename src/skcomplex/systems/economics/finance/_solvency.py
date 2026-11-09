@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import FeedbackInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
@@ -281,7 +281,7 @@ class DefaultCascadeSystem(BaseSystem):
         capital = np.full(n_banks, 100.0 * capital_ratio)
         return liabilities, external, capital
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.equity is None:
             rng = np.random.default_rng(self.random_state)
@@ -314,7 +314,7 @@ class DefaultCascadeSystem(BaseSystem):
             threshold=self.threshold,
             recovery=self.recovery,
         )
-        return System(self.label, elements=[banks], interactions=[cascade])
+        return CompositeSystem(self.label, elements=[banks], interactions=[cascade])
 
 
 class EisenbergNoeClearingSystem(BaseSystem):
@@ -379,7 +379,7 @@ class EisenbergNoeClearingSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.external is None:
             rng = np.random.default_rng(self.random_state)
@@ -396,4 +396,4 @@ class EisenbergNoeClearingSystem(BaseSystem):
             values={'external': assets, 'payment': matrix.sum(axis=1)},
         )
         clearing = PaymentClearingInteraction('clearing', banks='banks', liabilities=matrix.tolist())
-        return System(self.label, elements=[banks], interactions=[clearing])
+        return CompositeSystem(self.label, elements=[banks], interactions=[clearing])

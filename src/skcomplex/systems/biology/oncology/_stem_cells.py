@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import delayed, pulse
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -705,7 +705,7 @@ class StemCellDifferentiationSystem(BaseSystem):
             )
         return target.d2, SR(1)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the eight-compartment system of stem-cell lineages.
 
         The lineages are normal and malignant.
@@ -863,7 +863,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 propensity=lambda s: s.target.d8 * s.target.AD,
             ),
         ]
-        return System(self.label, elements=[tissue], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
 
 
 class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
@@ -925,7 +925,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         self.tau1 = tau1
         self.tau2 = tau2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the bone marrow and blood system of leukaemia."""
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
@@ -1029,7 +1029,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 rate=lambda s: -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS,
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
 
 
 class LeukaemiaStemCellsSystem(BaseSystem):
@@ -1107,7 +1107,7 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.m3 = m3
         self.d4 = d4
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of normal and leukaemic stem cells."""
         niche = LeukaemiaStemCellsElement(
             'niche',
@@ -1209,4 +1209,4 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 propensity=lambda s: s.target.d5 * s.target.AD,
             ),
         ]
-        return System(self.label, elements=[niche], interactions=interactions)
+        return CompositeSystem(self.label, elements=[niche], interactions=interactions)

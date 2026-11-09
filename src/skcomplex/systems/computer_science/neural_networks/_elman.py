@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import (
     DatasetSpec,
     ObservableSpec,
@@ -422,14 +422,14 @@ class ElmanNetworkSystem(BaseSystem):
             weights={'xor_error': xor, 'random_error': 1.0 - xor},
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Elman's simple recurrent network.
 
         It learns to predict the next bit of a temporal XOR stream.
         """
         rng = np.random.default_rng(self.random_state)
         data = self._dataset(self._temporal_xor(self.n_bits, rng), self.window)
-        net = System(
+        net = CompositeSystem(
             'net',
             elements=[
                 GroupElement('inputs', element=InputUnitElement, size=1),
@@ -471,4 +471,4 @@ class ElmanNetworkSystem(BaseSystem):
                 ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._squared_error),
             ),
         )
-        return System(self.label, systems=[net], interactions=[training], time=DiscreteTime())
+        return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())

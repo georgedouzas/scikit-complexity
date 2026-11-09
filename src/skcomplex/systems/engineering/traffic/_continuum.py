@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.traffic import SpeedAdaptationInteraction
@@ -270,7 +270,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         road = s.target
         return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
@@ -285,7 +285,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         )
         flux = self._get_lighthill_whitham_richards_flux
         density = ConservationInteraction('density', target='road', state='rho', flux=flux, riemann='godunov')
-        return System(self.label, elements=[road], interactions=[density])
+        return CompositeSystem(self.label, elements=[road], interactions=[density])
 
 
 class PayneSystem(BaseSystem):
@@ -351,7 +351,7 @@ class PayneSystem(BaseSystem):
         self.rho_max = rho_max
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
         rho = _density_bump(self.n, density, self.bump)
@@ -384,7 +384,7 @@ class PayneSystem(BaseSystem):
             goal=lambda s: s.target.rho * s.target.vmax * (1 - s.target.rho / s.target.rho_max),
             time=lambda s: s.target.tau,
         )
-        return System(self.label, elements=[road], interactions=[density, flow, relaxation])
+        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation])
 
 
 class KernerKonhauserSystem(BaseSystem):
@@ -478,7 +478,7 @@ class KernerKonhauserSystem(BaseSystem):
         """Return the equilibrium speed of the Kerner-Konhäuser system."""
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
         rho = _density_bump(self.n, density, self.bump)
@@ -519,7 +519,7 @@ class KernerKonhauserSystem(BaseSystem):
             state='q',
             rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
         )
-        return System(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
+        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
 
 
 class GktTrafficSystem(BaseSystem):
@@ -660,7 +660,7 @@ class GktTrafficSystem(BaseSystem):
         squared = prefactors[1] / prefactors[0] * ((1 / rho - 1 / road.rho_max) / road.T) ** 2
         return np.asarray(squared / (2 * road.V0) * (np.sqrt(1 + 4 * road.V0**2 / squared) - 1))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         centers = (np.arange(self.n) + 0.5) * self.length / self.n
         start, width, wake = 0.3 * self.length, 0.20125, 0.805
@@ -691,4 +691,4 @@ class GktTrafficSystem(BaseSystem):
             flux=self._get_gkt_momentum_flux,
             source=self._get_gkt_relaxation,
         )
-        return System(self.label, elements=[road], interactions=[vehicles, momentum])
+        return CompositeSystem(self.label, elements=[road], interactions=[vehicles, momentum])

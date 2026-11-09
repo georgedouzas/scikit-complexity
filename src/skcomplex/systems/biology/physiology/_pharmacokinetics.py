@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 
@@ -108,7 +108,7 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         self.k12 = k12
         self.k21 = k21
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         reactions = [
             ReactionInteraction(
@@ -125,4 +125,8 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
             ),
             ReactionInteraction('elimination', reactants={('patient', 'Uc'): 1}, k=self.k10),
         ]
-        return System(self.label, elements=[TwoCompartmentElement('patient', Uc=self.c0)], interactions=reactions)
+        return CompositeSystem(
+            self.label,
+            elements=[TwoCompartmentElement('patient', Uc=self.c0)],
+            interactions=reactions,
+        )

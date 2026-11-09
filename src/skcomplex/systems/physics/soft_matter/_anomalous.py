@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
 from ....core.components.laws.utils import draw, normal
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -330,7 +330,7 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         self.sigma = sigma
         self.n_dim = n_dim
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         walkers = GroupElement(
             'walkers',
@@ -353,7 +353,12 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
                 ],
             },
         )
-        return System(self.label, elements=[walkers], interactions=[jumps], space=ContinuousSpace(n_dim=self.n_dim))
+        return CompositeSystem(
+            self.label,
+            elements=[walkers],
+            interactions=[jumps],
+            space=ContinuousSpace(n_dim=self.n_dim),
+        )
 
 
 class LevyWalkSystem(BaseSystem):
@@ -419,7 +424,7 @@ class LevyWalkSystem(BaseSystem):
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         directions = np.random.default_rng(self.random_state).standard_normal((self.n_walkers, self.n_dim))
         velocities = self.speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
@@ -442,7 +447,7 @@ class LevyWalkSystem(BaseSystem):
             waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
             reset={'v': lambda s: [s.target.speed * item for item in _direction('direction', len(list(s.target.v)))]},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
             interactions=[flight, turns],
@@ -509,7 +514,7 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         coefficients = np.random.default_rng(self.random_state).beta(self.sigma, 1.0, self.n_walkers)
         walkers = GroupElement(
@@ -530,7 +535,7 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
             waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
             reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
             interactions=[noise, changes],
@@ -591,7 +596,7 @@ class FractionalBrownianMotionSystem(BaseSystem):
         self.D = D
         self.n_dim = n_dim
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
 
         Along every axis `<x^2> = 2 D t^(2 H)`.
@@ -608,7 +613,12 @@ class FractionalBrownianMotionSystem(BaseSystem):
             noise=lambda s: sqrt(2 * s.target.D),
             hurst=lambda s: s.target.H,
         )
-        return System(self.label, elements=[walkers], interactions=[noise], space=ContinuousSpace(n_dim=self.n_dim))
+        return CompositeSystem(
+            self.label,
+            elements=[walkers],
+            interactions=[noise],
+            space=ContinuousSpace(n_dim=self.n_dim),
+        )
 
 
 class LevyFlightSystem(BaseSystem):
@@ -675,7 +685,7 @@ class LevyFlightSystem(BaseSystem):
         steps = _direction('direction', len(list(s.target.x)))
         return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Lévy flight.
 
         The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
@@ -687,4 +697,9 @@ class LevyFlightSystem(BaseSystem):
             values={'x': np.zeros((self.n_walkers, self.n_dim)), 'mu': self.mu, 'l0': self.l0},
         )
         flights = MapInteraction('flights', target='walkers', state='x', function=self._get_flight)
-        return System(self.label, elements=[walkers], interactions=[flights], space=ContinuousSpace(n_dim=self.n_dim))
+        return CompositeSystem(
+            self.label,
+            elements=[walkers],
+            interactions=[flights],
+            space=ContinuousSpace(n_dim=self.n_dim),
+        )

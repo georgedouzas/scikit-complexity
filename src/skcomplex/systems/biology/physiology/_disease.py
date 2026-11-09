@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -349,7 +349,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.connectivity = connectivity
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the two-layer model of tumour disease and sepsis."""
         rng = np.random.default_rng(self.seed)
         n = self.n_cells
@@ -388,7 +388,7 @@ class TwoLayerSepsisSystem(BaseSystem):
             layer='immune',
             values={'kappa': rng.uniform(-1, 1, edges)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells, parenchymal_links, immune_links],
             interactions=[

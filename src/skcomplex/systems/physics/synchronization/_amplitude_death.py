@@ -17,7 +17,7 @@ from scipy import stats
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import CouplingInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.oscillators import StuartLandauElement
@@ -206,7 +206,7 @@ class OscillatorDeathSystem(BaseSystem):
         message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
         raise ValidationError(message)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         omegas = self._frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = _spread_on_circle(self.n_oscillators, self.random_state)
@@ -216,7 +216,7 @@ class OscillatorDeathSystem(BaseSystem):
             size=self.n_oscillators,
             values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[oscillators],
             interactions=[
@@ -300,7 +300,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         self.heterogeneity = heterogeneity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
         x, y = _spread_on_circle(self.n_systems, self.random_state)
@@ -311,7 +311,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
             size=self.n_systems,
             values={'x': radius * x, 'y': radius * y, 'mu': self.beta, 'omega': self.gamma, 'tau': taus},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[systems],
             interactions=[

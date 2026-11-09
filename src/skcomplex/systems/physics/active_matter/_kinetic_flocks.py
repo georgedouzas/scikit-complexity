@@ -18,7 +18,7 @@ from ....core.components.elements import FieldElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import LatticeSpace, PhaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec, RoleSpec
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
@@ -244,7 +244,7 @@ class BertinDrozGregoireSystem(BaseSystem):
         self.noise = noise
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the kinetic theory of flocking.
 
         Its polar order grows above a transition density.
@@ -265,7 +265,7 @@ class BertinDrozGregoireSystem(BaseSystem):
         def drift(_: SimpleNamespace) -> list[Expression]:
             return [self.speed * cos(coordinate('theta')), self.speed * sin(coordinate('theta')), 0]
 
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=[

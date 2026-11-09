@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -222,7 +222,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.inflow = inflow
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a square grid of vessels.
 
         It is fed at one corner and drained at every other node.
@@ -251,4 +251,4 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
             alpha2=self.alpha2,
             gamma=self.gamma,
         )
-        return System(self.label, elements=[vessels], interactions=[adaptation])
+        return CompositeSystem(self.label, elements=[vessels], interactions=[adaptation])

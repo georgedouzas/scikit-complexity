@@ -23,7 +23,7 @@ from ....core.components.elements import Element, GroupElement, WordElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -261,7 +261,7 @@ class GapSubshiftSystem(BaseSystem):
         drawn = (random < hazards[np.minimum(gap, hazards.size - 1)]).astype(float)
         return np.where(right == OUTSIDE, drawn, right)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the shift on the S-gap subshift.
 
         The S-gap subshift holds the binary sequences whose runs of zeros between ones lie in `S`.
@@ -269,7 +269,7 @@ class GapSubshiftSystem(BaseSystem):
         _, probabilities, hazards = self._gap_law(self._gap_lengths(self.size, self.gaps))
         cells = self._renewal_cells(self.size, probabilities, self.random_state)
         neighborhood = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -398,7 +398,7 @@ class ContextFreeSubshiftSystem(BaseSystem):
         """
         return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.initial is None:
             generator = np.random.default_rng(self.random_state)
@@ -414,7 +414,7 @@ class ContextFreeSubshiftSystem(BaseSystem):
         if not self._is_context_free(symbols):
             error_msg = f'The initial ring {symbols.tolist()} holds a block 0 1^h 2^k 0 with h != k.'
             raise ParameterError(error_msg)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -473,9 +473,9 @@ class MorseSubshiftSystem(BaseSystem):
         super().__init__(label)
         self.axiom = axiom
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
+        return CompositeSystem(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
 
 
 class AddingMachineSystem(BaseSystem):
@@ -542,7 +542,7 @@ class AddingMachineSystem(BaseSystem):
         carried = np.all(window[:-1] == base - 1, axis=0)
         return np.where(carried, (window[-1] + 1) % base, window[-1])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the adding machine `r → r + 1` on the q-adic integers.
 
         It is the odometer acting on the q-ary tree.
@@ -551,7 +551,7 @@ class AddingMachineSystem(BaseSystem):
             error_msg = f'The base of the adding machine is at least 2, but it is {self.base}.'
             raise ParameterError(error_msg)
         values = np.zeros(self.digits) if self.initial is None else np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

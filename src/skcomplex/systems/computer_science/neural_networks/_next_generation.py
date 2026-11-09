@@ -20,7 +20,7 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.runtime import simulate
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
@@ -180,7 +180,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
             'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
         }
-        system = System(
+        system = CompositeSystem(
             elements=[LorenzFlowElement('flow')],
             interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
             time=ContinuousTime(),
@@ -263,7 +263,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             dt=step,
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a next-generation reservoir computer.
 
         Its variables follow the ridge readout of their monomials.
@@ -309,4 +309,4 @@ class NextGenerationReservoirSystem(BaseSystem):
             )
             for index, name in enumerate(names)
         ]
-        return System(self.label, elements=[element], interactions=maps, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[element], interactions=maps, time=DiscreteTime())

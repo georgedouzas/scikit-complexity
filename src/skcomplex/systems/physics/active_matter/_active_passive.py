@@ -22,7 +22,7 @@ from ....core.components.elements import GroupElement, PointElement
 from ....core.components.interactions import PairCouplingInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
@@ -266,7 +266,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return s.target.active * amplitude
 
     @staticmethod
-    def _observables(system: System) -> list[ObservableSpec]:
+    def _observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observables of the agents.
 
         They are the velocity of the active agents, their polarization, and the mean distance within each kind.
@@ -298,7 +298,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         settings['observables'] = tuple(self._observables(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the active and passive agents of Charbonneau (2017) in a periodic box.
 
         The system is that of section 10.4.
@@ -330,7 +330,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
             radius=self.radius,
             exponent=self.exponent,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[agents],
             interactions=[

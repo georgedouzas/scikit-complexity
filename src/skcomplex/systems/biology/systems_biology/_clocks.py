@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
 from ....core.components.laws.utils import hill
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import MichaelisMentenInteraction
 
@@ -203,7 +203,7 @@ class CircadianClockSystem(BaseSystem):
         self.k_s = k_s
         self.n = n
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Goldbeter's system of the Drosophila circadian clock."""
         clock = PerClockElement('clock', v_s=self.v_s, v_d=self.v_d, k_s=self.k_s, n=self.n)
         reactions = [
@@ -286,4 +286,4 @@ class CircadianClockSystem(BaseSystem):
                 km=lambda s: s.target.K_d,
             ),
         ]
-        return System(self.label, elements=[clock], interactions=reactions)
+        return CompositeSystem(self.label, elements=[clock], interactions=reactions)

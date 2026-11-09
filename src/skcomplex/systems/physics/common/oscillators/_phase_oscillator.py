@@ -36,10 +36,10 @@ class PhaseOscillatorElement(Element):
             The visual of the oscillator when it sets none.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.oscillators import PhaseOscillatorElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[PhaseOscillatorElement('clock', omega=2.0)])
+        >>> system = CompositeSystem(elements=[PhaseOscillatorElement('clock', omega=2.0)])
         >>> float(simulate(system, until=1.0, dt=0.5).values('clock.theta')[-1])
         2.0
     """

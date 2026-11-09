@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -320,7 +320,7 @@ class GibratProcessSystem(BaseSystem):
         self.mu = mu
         self.sigma = sigma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
@@ -328,7 +328,7 @@ class GibratProcessSystem(BaseSystem):
             size=self.n_firms,
             values={'x': self.x, 'previous': self.x, 'mu': self.mu, 'sigma': self.sigma},
         )
-        return System(self.label, elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
 
 
 class MultiplicativeProcessSystem(BaseSystem):
@@ -386,7 +386,7 @@ class MultiplicativeProcessSystem(BaseSystem):
         self.sigma = sigma
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
@@ -394,7 +394,7 @@ class MultiplicativeProcessSystem(BaseSystem):
             size=self.n_firms,
             values={'x': self.x, 'previous': self.x, 'mu': self.mu, 'sigma': self.sigma},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[firms],
             interactions=[*_get_gibrat_growth(), ReflectingFloorInteraction('floor', target='firms', c=self.c)],
@@ -462,7 +462,7 @@ class KestenProcessSystem(BaseSystem):
         self.b_low = b_low
         self.b_high = b_high
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
@@ -483,4 +483,4 @@ class KestenProcessSystem(BaseSystem):
             function=KestenFirmElement.get_growth,
             form='agent',
         )
-        return System(self.label, elements=[firms], interactions=[growth], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[firms], interactions=[growth], time=DiscreteTime())

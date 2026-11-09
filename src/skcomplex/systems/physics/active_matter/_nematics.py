@@ -32,7 +32,7 @@ from ....core.components.laws.utils import (
     vector_gradient,
 )
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
@@ -660,7 +660,7 @@ class DryActiveNematicsSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a dry active nematic.
 
         A conserved density is coupled to a symmetric traceless alignment tensor.
@@ -700,7 +700,7 @@ class DryActiveNematicsSystem(BaseSystem):
             limiter=None,
             riemann=None,
         )
-        return System(self.label, elements=[nematic], interactions=[energy, transport])
+        return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
 
 
 class ActiveGelsSystem(BaseSystem):
@@ -848,7 +848,7 @@ class ActiveGelsSystem(BaseSystem):
             settings['solver'] = RK4Solver(dt=0.05)
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.order not in GEL_ORDERS:
             error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
@@ -888,4 +888,4 @@ class ActiveGelsSystem(BaseSystem):
             discretization='spectral',
             symmetry=symmetry,
         )
-        return System(self.label, elements=[gel])
+        return CompositeSystem(self.label, elements=[gel])

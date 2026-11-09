@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill, pulse
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -437,7 +437,7 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
         self.exercise_time = exercise_time
         self.duration = duration
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of blood glucose stabilised by antagonistic hormone loops."""
         k_n = 1.0 if self.glucagon else 0.0
         insulin, glucagon_level = 2.0 * 0.5, 1.0 * 0.5
@@ -511,7 +511,7 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
                 propensity=lambda s: s.target.d_n * s.target.N,
             ),
         ]
-        return System(self.label, elements=[organism], interactions=interactions)
+        return CompositeSystem(self.label, elements=[organism], interactions=interactions)
 
 
 class CoagulationPositiveFeedbackSystem(BaseSystem):
@@ -570,7 +570,7 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
         self.duration = duration
         self.ka = ka
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the coagulation cascade."""
         blood = CoagulationElement(
             'blood',
@@ -643,7 +643,7 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
                 propensity=lambda s: s.target.d_p * s.target.P,
             ),
         ]
-        return System(self.label, elements=[blood], interactions=interactions)
+        return CompositeSystem(self.label, elements=[blood], interactions=interactions)
 
 
 class SteerableFeedbackLoopSystem(BaseSystem):
@@ -726,7 +726,7 @@ class SteerableFeedbackLoopSystem(BaseSystem):
         self.start = start
         self.duration = duration
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a receptor-effector loop."""
         loop = FeedbackLoopElement(
             'loop',
@@ -740,4 +740,4 @@ class SteerableFeedbackLoopSystem(BaseSystem):
             start=self.start,
             duration=self.duration,
         )
-        return System(self.label, elements=[loop])
+        return CompositeSystem(self.label, elements=[loop])

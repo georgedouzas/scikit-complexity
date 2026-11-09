@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 
 SIZE_VISUAL = VisualSpec('sites', {'states': ['size']})
@@ -112,7 +112,7 @@ class ExplosivePercolationSystem(BaseSystem):
         """
         return node.size * node.source.size
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return explosive percolation.
 
         The Achlioptas product rule delays and sharpens the giant component.
@@ -124,4 +124,10 @@ class ExplosivePercolationSystem(BaseSystem):
             TopologyInteraction('linking', action='add-edge', candidates=self.candidates, score=self._get_product),
         ]
         space = NetworkSpace(nx.empty_graph(self.n_nodes))
-        return System(self.label, elements=[nodes, links], interactions=interactions, space=space, time=DiscreteTime())
+        return CompositeSystem(
+            self.label,
+            elements=[nodes, links],
+            interactions=interactions,
+            space=space,
+            time=DiscreteTime(),
+        )

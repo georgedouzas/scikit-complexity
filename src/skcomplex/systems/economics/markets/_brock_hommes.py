@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, FeedbackInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -334,7 +334,7 @@ class BrockHommesSystem(BaseSystem):
         self.noise = noise
         self.initial = initial
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         traders = GroupElement('traders', element=HeuristicTraderElement, size=self.n_traders)
         learning = PayoffLearningInteraction(
@@ -367,7 +367,7 @@ class BrockHommesSystem(BaseSystem):
             noise=self.noise,
             initial=self.initial,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[learning, choice, pricing],

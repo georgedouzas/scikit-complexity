@@ -20,7 +20,7 @@ from ....core.components.interactions import Interaction, MapInteraction, Topolo
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
@@ -187,7 +187,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         self.threshold = threshold
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of an ecosystem."""
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
@@ -217,7 +217,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
             values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
             visual=HIDDEN,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species, influences],
             interactions=[

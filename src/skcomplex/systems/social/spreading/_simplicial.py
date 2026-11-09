@@ -22,7 +22,7 @@ from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -220,7 +220,7 @@ class SimplicialContagionSystem(BaseSystem):
         graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
         return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         pairs = math.comb(self.n_nodes - 1, PAIR - 1)
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
@@ -246,4 +246,4 @@ class SimplicialContagionSystem(BaseSystem):
             beta=self.infectivity * self.recovery / degree,
             beta_triangle=self.triangle_infectivity * self.recovery / shared,
         )
-        return System(self.label, elements=[nodes], interactions=[infection])
+        return CompositeSystem(self.label, elements=[nodes], interactions=[infection])

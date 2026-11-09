@@ -19,7 +19,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..common.oscillators import LinkElement, PhaseOscillatorElement
@@ -177,7 +177,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         return coupling * (_order_of(nodes.theta, nodes) * order_up * down - order_down * up)
 
     @staticmethod
-    def _topological_observables(system: System) -> list[ObservableSpec]:
+    def _topological_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the order parameters of the node phases and the link phase projections."""
         space = system.elements[0].space.prepare()
         return [
@@ -194,7 +194,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         settings['observables'] = tuple(self._topological_observables(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.model not in MODELS:
             error_msg = f'Unknown model {self.model!r}. Use one of {", ".join(MODELS)}.'
@@ -238,7 +238,7 @@ class TopologicalKuramotoSystem(BaseSystem):
                 sources=['nodes'],
                 rate=partial(self._link_rate, self.coupling),
             )
-            return System(self.label, elements=[nodes, links], interactions=[*interactions, link_coupling])
+            return CompositeSystem(self.label, elements=[nodes, links], interactions=[*interactions, link_coupling])
         triangles = GroupElement('triangles', element=LinkElement, space=space, on='hyperedges')
         link_coupling = RateInteraction(
             'link_coupling',
@@ -247,4 +247,8 @@ class TopologicalKuramotoSystem(BaseSystem):
             sources=['nodes', 'triangles'],
             rate=partial(self._triangle_link_rate, self.coupling),
         )
-        return System(self.label, elements=[nodes, links, triangles], interactions=[*interactions, link_coupling])
+        return CompositeSystem(
+            self.label,
+            elements=[nodes, links, triangles],
+            interactions=[*interactions, link_coupling],
+        )

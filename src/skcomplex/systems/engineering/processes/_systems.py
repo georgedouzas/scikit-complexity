@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -502,7 +502,7 @@ class RiceMillingSystem(BaseSystem):
         self.capacity = capacity
         self.expansion_time = expansion_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         mill = RiceMillElement(
             'mill',
@@ -517,7 +517,7 @@ class RiceMillingSystem(BaseSystem):
             outturn=self.outturn,
             expansion_time=self.expansion_time,
         )
-        return System(self.label, elements=[mill])
+        return CompositeSystem(self.label, elements=[mill])
 
 
 class SolidWasteSystem(BaseSystem):
@@ -596,7 +596,7 @@ class SolidWasteSystem(BaseSystem):
         self.composting_share = composting_share
         self.landfill_capacity = landfill_capacity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         city = WasteSystemElement(
             'city',
@@ -608,7 +608,7 @@ class SolidWasteSystem(BaseSystem):
             composting_share=self.composting_share,
             landfill_capacity=self.landfill_capacity,
         )
-        return System(self.label, elements=[city])
+        return CompositeSystem(self.label, elements=[city])
 
 
 class FoodReliefSystem(BaseSystem):
@@ -683,7 +683,7 @@ class FoodReliefSystem(BaseSystem):
         self.cover = cover
         self.stock_time = stock_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         relief = ReliefPipelineElement(
             'relief',
@@ -694,7 +694,7 @@ class FoodReliefSystem(BaseSystem):
             cover=self.cover,
             stock_time=self.stock_time,
         )
-        return System(self.label, elements=[relief])
+        return CompositeSystem(self.label, elements=[relief])
 
 
 class IrrigationSystem(BaseSystem):
@@ -773,7 +773,7 @@ class IrrigationSystem(BaseSystem):
         self.canal_loss = canal_loss
         self.pump_capacity = pump_capacity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         scheme = IrrigationSchemeElement(
             'scheme',
@@ -784,4 +784,4 @@ class IrrigationSystem(BaseSystem):
             canal_loss=self.canal_loss,
             pump_capacity=self.pump_capacity,
         )
-        return System(self.label, elements=[scheme])
+        return CompositeSystem(self.label, elements=[scheme])

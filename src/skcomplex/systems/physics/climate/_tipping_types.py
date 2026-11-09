@@ -18,7 +18,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import ramp
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -461,7 +461,7 @@ class SuteraFraedrichTippingSystem(BaseSystem):
         root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
         return math.sqrt(root / 2)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.tipping not in TIPPING_TYPES:
             error_msg = f'Unknown tipping type {self.tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
@@ -478,7 +478,7 @@ class SuteraFraedrichTippingSystem(BaseSystem):
             a_ini=values['a_ini'],
             nu=values['nu'] if self.nu is None else self.nu,
         )
-        return System(self.label, elements=[earth])
+        return CompositeSystem(self.label, elements=[earth])
 
 
 class RampedStochasticFoldSystem(BaseSystem):
@@ -547,7 +547,7 @@ class RampedStochasticFoldSystem(BaseSystem):
         self.phi0 = phi0
         self.phi1 = phi1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a stochastic fold whose control is ramped through a tipping point.
 
         The tipping point is that of its lower branch.
@@ -562,7 +562,7 @@ class RampedStochasticFoldSystem(BaseSystem):
             phi1=self.phi1,
             rate=self.rate,
         )
-        return System(self.label, elements=[fold])
+        return CompositeSystem(self.label, elements=[fold])
 
 
 class LeadingFollowingCascadeSystem(BaseSystem):
@@ -653,7 +653,7 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         self.mu = mu
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.follower not in FOLLOWERS:
             error_msg = f'Unknown follower {self.follower!r}. Use one of {", ".join(FOLLOWERS)}.'
@@ -694,4 +694,4 @@ class LeadingFollowingCascadeSystem(BaseSystem):
                     rate=lambda s: self.coupling * s.sources[0].x * s.target.z,
                 ),
             ]
-        return System(self.label, elements=[leader, follows], interactions=forcing)
+        return CompositeSystem(self.label, elements=[leader, follows], interactions=forcing)

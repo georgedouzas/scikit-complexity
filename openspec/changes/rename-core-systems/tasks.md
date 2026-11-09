@@ -23,9 +23,9 @@
 
 ## 5. Systems library
 
-- [ ] 5.1 With a throwaway script outside the repository, rename the imported name `System` and its bare uses, never a name joined to a word character or a dot, in every module of `src/skcomplex/systems` that imports it from the systems package, in code and doctests, and verify `git diff --stat` touches no module that does not import it
-- [ ] 5.2 Rename `MassActionSystem` in `systems/chemistry/kinetics/_reactions.py` and `systems/biology/epidemiology/_factories.py`, and verify `grep -rn "MassActionSystem" src` finds nothing
-- [ ] 5.3 Review every remaining hit of the bare word `System` in `src` by hand, rename those that name the core class, keep prose and other names, and verify `pytest --doctest-modules src/skcomplex/systems` and `pytest tests/systems` pass with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set to 1
+- [x] 5.1 With a throwaway script outside the repository, rename the imported name `System` and its bare uses, never a name joined to a word character or a dot, in every module of `src/skcomplex/systems` that imports it from the systems package, in code and doctests, and verify `git diff --stat` touches no module that does not import it
+- [x] 5.2 Rename `MassActionSystem` in `systems/chemistry/kinetics/_reactions.py` and `systems/biology/epidemiology/_factories.py`, and verify `grep -rn "MassActionSystem" src` finds nothing
+- [x] 5.3 Review every remaining hit of the bare word `System` in `src` by hand, rename those that name the core class, keep prose and other names, and verify `pytest --doctest-modules src/skcomplex/systems` and `pytest tests/systems` pass with `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and the BLAS threads set to 1
 
 ## 6. Tests
 

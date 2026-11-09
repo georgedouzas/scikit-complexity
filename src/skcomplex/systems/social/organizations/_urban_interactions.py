@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 
@@ -179,7 +179,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
@@ -230,7 +230,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
             state='meetings',
             function=lambda s: draw('meet', 'binom', n=s.target.degree, p=self.meeting),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[residents, links],
             interactions=[growth, bridging, ageing, degree, meetings],

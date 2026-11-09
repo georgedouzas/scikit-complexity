@@ -18,7 +18,7 @@ from ....core.components.interactions import CouplingInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, logistic
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -483,7 +483,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
         """Return the directed links of a random network without self-links."""
         return list(nx.gnp_random_graph(n_neurons, probability, seed=rng, directed=True).edges)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a random network of leaky integrate-and-fire neurons."""
         rng = np.random.default_rng(self.random_state)
         potentials = rng.uniform(10.0, 20.0, self.n_neurons)
@@ -531,7 +531,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
             )
             for source, target in self._random_connections(self.n_neurons, self.probability, rng)
         ]
-        return System(self.label, elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
+        return CompositeSystem(self.label, elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
 
 
 class LegionSystem(BaseSystem):
@@ -616,7 +616,7 @@ class LegionSystem(BaseSystem):
         neighbours = convolve(stimulus, NEAREST, mode='constant')
         return total / np.maximum(neighbours, 1.0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a LEGION network."""
         marks = np.asarray(self.stimulus, dtype=float)
         rng = np.random.default_rng(self.random_state)
@@ -649,7 +649,7 @@ class LegionSystem(BaseSystem):
             oscillators='oscillators',
             W_z=self.W_z,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[oscillators, InhibitorElement('inhibitor')],
             interactions=[excitation, drive, inhibition],

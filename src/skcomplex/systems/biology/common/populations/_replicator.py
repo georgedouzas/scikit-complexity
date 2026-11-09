@@ -48,7 +48,7 @@ class ReplicatorInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import total
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.evolution import ReplicatorInteraction, StrategyElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> population = GroupElement('population', element=StrategyElement, size=2, values={'x': [0.5, 0.5]})
@@ -56,7 +56,7 @@ class ReplicatorInteraction(RateInteraction):
         >>> replication = ReplicatorInteraction(
         ...     'replication', target='population', fitness=lambda s: total(s.target.x, weights=payoff)
         ... )
-        >>> system = System(elements=[population], interactions=[replication])
+        >>> system = CompositeSystem(elements=[population], interactions=[replication])
         >>> trajectory = simulate(system, until=20.0, dt=0.1)
         >>> [round(float(share), 3) for share in trajectory.values('population.x')[-1]]
         [1.0, 0.0]

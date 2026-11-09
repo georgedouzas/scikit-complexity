@@ -19,7 +19,7 @@ from ....core.components.interactions import CouplingInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -232,7 +232,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a network with power-law degrees."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
@@ -256,7 +256,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
                 include_self=True,
             ),
         ]
-        return System(self.label, elements=[classes], interactions=interactions)
+        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
 
 
 class MetapopulationSystem(BaseSystem):
@@ -322,7 +322,7 @@ class MetapopulationSystem(BaseSystem):
         self.gamma = gamma
         self.D = D
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of SIR epidemics in subpopulations at the nodes of a network."""
         graph = self.graph
         graph = nx.barabasi_albert_graph(30, 2, seed=0) if graph is None else graph
@@ -337,7 +337,7 @@ class MetapopulationSystem(BaseSystem):
             'gamma': self.gamma,
             'D': self.D,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('cities', element=SubpopulationElement, space=NetworkSpace(graph), values=values)],
         )

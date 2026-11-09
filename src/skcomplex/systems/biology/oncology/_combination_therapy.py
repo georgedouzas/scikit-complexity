@@ -17,7 +17,7 @@ from ....core.components.interactions import RateInteraction, ReactionInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -1174,7 +1174,7 @@ class ChemoimmunotherapySystem(BaseSystem):
         kill: Expression = target.a1 * ratio / (target.g1 * abs(target.A) ** target.l + ratio)
         return kill
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour with NK cells."""
         tumour = ChemoimmunotherapyTumourElement(
             'tumour',
@@ -1347,7 +1347,7 @@ class ChemoimmunotherapySystem(BaseSystem):
                 count=tumour.doses,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ClonalChemoimmunotherapySystem(BaseSystem):
@@ -1425,7 +1425,7 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
         self.u_chemo2 = u_chemo2
         self.u_vaccine = u_vaccine
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two competing tumour clones."""
         tumour = ClonalTumourElement(
             'tumour',
@@ -1518,7 +1518,7 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
                 rate=lambda s: (s.target.s1 * s.target.A1 + s.target.s2 * s.target.A2) * s.target.E / s.target.theta,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ChemovirotherapySystem(BaseSystem):
@@ -1590,7 +1590,7 @@ class ChemovirotherapySystem(BaseSystem):
         shape: Expression = shapes[infusion]
         return shape
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of tumour cells, an oncolytic virus, and a drug.
 
         The tumour cells are uninfected and infected, and the drug is chemotherapeutic.
@@ -1662,7 +1662,7 @@ class ChemovirotherapySystem(BaseSystem):
                 rate=lambda s: s.target.u1 * self._infusion_shape(s, self.infusion),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class GliomaChemovirotherapySystem(BaseSystem):
@@ -1723,7 +1723,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         )
         return rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         brain = GliomaBrainElement('brain', AU=self.AU, V=self.V, u1=self.u1)
         interactions = [
@@ -1821,7 +1821,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
             ),
             DosingInteraction('infusion', target='brain', state='U', dose=lambda s: s.target.u1),
         ]
-        return System(self.label, elements=[brain], interactions=interactions)
+        return CompositeSystem(self.label, elements=[brain], interactions=interactions)
 
 
 class HER2TargetedTherapySystem(BaseSystem):
@@ -1896,7 +1896,7 @@ class HER2TargetedTherapySystem(BaseSystem):
         self.t_p = t_p
         self.sigma = sigma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of HER2+ breast cancer cells under trastuzumab and paclitaxel."""
         tumour = Her2TumourElement(
             'tumour',
@@ -1908,7 +1908,7 @@ class HER2TargetedTherapySystem(BaseSystem):
             t_p=self.t_p,
             sigma=self.sigma,
         )
-        return System(self.label, elements=[tumour])
+        return CompositeSystem(self.label, elements=[tumour])
 
 
 class AngiogenesisImmunotherapySystem(BaseSystem):
@@ -2015,7 +2015,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         effect: Expression = c**target.g / (((1 + target.delta_r * R) * u50) ** target.g + c**target.g)
         return effect
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Hahnfeldt tumour."""
         tumour = AngiogenesisImmunotherapyTumourElement(
             'tumour',
@@ -2152,4 +2152,4 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 rate=lambda s: where(s.target.c_im < s.target.u_theta, s.target.u_theta - s.target.c_im, 0),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)

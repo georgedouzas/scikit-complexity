@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -425,7 +425,7 @@ class CharbonneauTrafficSystem(BaseSystem):
         self.speed_limit = speed_limit
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         positions = np.cumsum(rng.uniform(3.0, 17.0, self.n_cars))
@@ -441,7 +441,7 @@ class CharbonneauTrafficSystem(BaseSystem):
                 'speed_limit': self.speed_limit,
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cars],
             interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=self.probability)],
@@ -498,7 +498,7 @@ class RingRoadDriversSystem(BaseSystem):
         self.eps = eps
         self.speed_limit = speed_limit
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         positions = np.linspace(0.0, self.length, self.n_cars, endpoint=False)
         drivers = GroupElement(
@@ -508,7 +508,7 @@ class RingRoadDriversSystem(BaseSystem):
             values={'rank': np.arange(self.n_cars, dtype=float), 'eps': self.eps, 'speed_limit': self.speed_limit},
             location=[(float(position), ROAD_WIDTH / 2) for position in positions],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[drivers],
             space=ContinuousSpace(extent=(self.length, ROAD_WIDTH), boundary='periodic'),

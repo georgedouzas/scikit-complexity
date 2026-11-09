@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -369,7 +369,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.cut = cut
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that find the shortest path on a Delaunay road network.
 
         The path joins two points of the network.
@@ -399,4 +399,4 @@ class AntColonyOptimizationSystem(BaseSystem):
             Q=self.Q,
             cut=self.cut,
         )
-        return System(self.label, elements=[roads], interactions=[search], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[roads], interactions=[search], time=DiscreteTime())

@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import NN, ZZ
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
@@ -168,7 +168,7 @@ class TuringMachineSystem(BaseSystem):
 
         return rule
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Turing machine, a head that reads, writes, and moves on a tape.
 
         The tape holds symbols. The head has an internal state.
@@ -187,7 +187,7 @@ class TuringMachineSystem(BaseSystem):
             values={'head': head},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[tape],
             interactions=[

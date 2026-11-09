@@ -21,7 +21,7 @@ from ....core.components.spaces import (
     LatticeSpace,
     MemoryNeighborhood,
 )
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
@@ -127,10 +127,10 @@ def _majority_system(
     memory: MemoryNeighborhood,
     density: float,
     random_state: int | np.random.Generator | None,
-) -> System:
+) -> CompositeSystem:
     """Return the majority automaton on a group space from random cells."""
     cells = _random_cells(space.prepare().size_, density, random_state)
-    return System(
+    return CompositeSystem(
         label,
         elements=[GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites')],
         interactions=[
@@ -190,7 +190,7 @@ class FreeGroupAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(free_group(self.rank), ball=self.radius)
         return _majority_system(
@@ -248,12 +248,12 @@ class LamplighterAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(lamplighter(), ball=self.radius)
         cells = _random_cells(space.prepare().size_, self.density, self.random_state)
         parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
@@ -315,7 +315,7 @@ class HeisenbergAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(heisenberg(), ball=self.radius)
         return _majority_system(
@@ -383,7 +383,7 @@ class BaumslagSolitarAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the majority automaton on a ball of a Baumslag-Solitar group.
 
         The group is `BS(m, n)`, of exponential growth.
@@ -450,14 +450,14 @@ class LinearRingAutomatonSystem(BaseSystem):
         """
         return (left + right - 2 * center) % modulus
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the discrete Laplacian as a linear automaton on a ring.
 
         It runs over the field of `modulus` elements.
         """
         values = np.zeros(self.size)
         values[self.size // 2] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -529,7 +529,7 @@ class SubshiftsSystem(BaseSystem):
         blocked = (flipped == 1) & ((left == 1) | (right == 1))
         return np.where(blocked, center, flipped)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         flips = LocalRuleInteraction(
             'flips',
@@ -540,7 +540,7 @@ class SubshiftsSystem(BaseSystem):
             schedule='random-sequential',
             stochastic=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('cells', element=GoldenCellElement, space=LatticeSpace(self.size), on='sites')],
             interactions=[flips],
@@ -593,7 +593,7 @@ class GrigorchukAutomatonSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the majority automaton on a ball of the Grigorchuk group.
 
         The group has intermediate growth.

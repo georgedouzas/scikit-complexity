@@ -19,7 +19,7 @@ from ....core.components.interactions import TopologyInteraction, TransitionInte
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.networks import HostElement, SpreadingInteraction
 
@@ -193,14 +193,14 @@ class QuenchedMeanFieldSISSystem(BaseSystem):
         self.p = p
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a fixed network in quenched mean field."""
         space = (
             NetworkSpace(self.graph)
             if self.graph is not None
             else NetworkSpace(nx.barabasi_albert_graph(self.n, self.m, seed=self.seed))
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -314,7 +314,7 @@ class AdaptiveSISSystem(BaseSystem):
         """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a network."""
         space = self._random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
@@ -339,7 +339,7 @@ class AdaptiveSISSystem(BaseSystem):
             visual=HIDDEN,
         )
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[hosts, contacts],
             interactions=[spreading, self._get_rewiring('source'), self._get_rewiring('target')],
@@ -439,7 +439,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         probability: Expression = s.target.mu
         return probability
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of SIS spreading on an activity-driven temporal network.
 
         The edges of the network last one step.
@@ -467,7 +467,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
             capacity=2 * self.m * self.n,
             visual=HIDDEN,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[hosts, contacts],
             interactions=[

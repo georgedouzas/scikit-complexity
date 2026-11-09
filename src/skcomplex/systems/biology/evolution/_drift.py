@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -134,7 +134,7 @@ class KimuraDiffusionSystem(BaseSystem):
         self.Ns = Ns
         self.replicates = replicates
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of replicate populations."""
         alleles = GroupElement(
             'alleles',
@@ -142,4 +142,4 @@ class KimuraDiffusionSystem(BaseSystem):
             size=self.replicates,
             values={'x': self.x, 'Ns': self.Ns},
         )
-        return System(self.label, elements=[alleles])
+        return CompositeSystem(self.label, elements=[alleles])

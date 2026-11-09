@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -157,7 +157,7 @@ class DilutedHopfieldSystem(BaseSystem):
         """
         return s.target.beta * option * total(s.target.spin, weights=couplings)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the asymmetric diluted Hopfield network.
 
         It recalls a stored pattern below its memory capacity.
@@ -183,4 +183,4 @@ class DilutedHopfieldSystem(BaseSystem):
             options=(-1.0, 1.0),
             utility=functools.partial(self._alignment, couplings=self._couplings(patterns, self.connectivity, rng)),
         )
-        return System(self.label, elements=[neurons], interactions=[glauber])
+        return CompositeSystem(self.label, elements=[neurons], interactions=[glauber])

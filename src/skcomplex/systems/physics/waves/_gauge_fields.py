@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -281,7 +281,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.amplitude = amplitude
         self.seed = seed
 
-    def _maxwell_system(self, space: CellComplexSpace) -> System:
+    def _maxwell_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return a lattice Maxwell field on the links.
 
         The field comes from static charges and a transverse wave.
@@ -308,9 +308,9 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         )
         sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
         rate = RateInteraction('maxwell', target='links', state='A', rate=_curl_of_curl)
-        return System(self.label, elements=[links, sites], interactions=[rate])
+        return CompositeSystem(self.label, elements=[links, sites], interactions=[rate])
 
-    def _monte_carlo_system(self, space: CellComplexSpace) -> System:
+    def _monte_carlo_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
         rng = np.random.default_rng(self.seed)
         size = space.incidences_[0].shape[0]
@@ -326,10 +326,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         )
         move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
         sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
-        return System(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
-    def _gauge_observables(system: System) -> list[ObservableSpec]:
+    def _gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
@@ -364,7 +364,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             settings['solver'] = VelocityVerletSolver(dt=0.02)
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return link variables on the cell complex of a periodic lattice.
 
         The variables are sampled or evolved in real time.

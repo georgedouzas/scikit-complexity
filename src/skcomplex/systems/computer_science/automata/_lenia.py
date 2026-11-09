@@ -21,7 +21,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, Array
@@ -330,7 +330,7 @@ class LeniaSystem(BaseSystem):
             raise ParameterError(error_msg)
         return values
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Lenia, a continuous automaton of ring-kernel convolutions.
 
         Its convolutions grow solitons. The solitons are gliding and lifelike.
@@ -370,4 +370,4 @@ class LeniaSystem(BaseSystem):
             for index in range(self.channels)
             if any(kernel[1] == index for kernel in rings)
         ]
-        return System(self.label, elements=[world], interactions=updates, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[world], interactions=updates, time=DiscreteTime())

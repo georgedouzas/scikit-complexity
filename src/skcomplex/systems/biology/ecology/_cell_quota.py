@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -178,7 +178,7 @@ class DroopCellQuotaSystem(BaseSystem):
         self.R = R
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Droop system."""
         algae = QuotaPhytoplanktonElement(
             'algae',
@@ -191,4 +191,4 @@ class DroopCellQuotaSystem(BaseSystem):
             R=self.R,
             d=self.d,
         )
-        return System(self.label, elements=[algae])
+        return CompositeSystem(self.label, elements=[algae])

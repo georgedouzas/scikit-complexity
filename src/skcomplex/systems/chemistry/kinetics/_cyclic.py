@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -125,11 +125,11 @@ class CyclicCellularAutomatonSystem(BaseSystem):
         successors = sum((item == following).astype(float) for item in around)
         return np.where(successors >= threshold, following, level)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the lattice of cells with random levels and the rule that advances them."""
         shape = tuple(self.shape)
         levels = np.random.default_rng(self.random_state).integers(0, self.n, size=shape).astype(float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

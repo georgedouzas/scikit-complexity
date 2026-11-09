@@ -16,7 +16,7 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.excitable import FitzHughNagumoInteraction
@@ -186,7 +186,7 @@ class FitzhughNagumoSystem(BaseSystem):
         self.b = b
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the FitzHugh-Nagumo excitable medium."""
         rows, columns = self.shape
         u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
@@ -206,7 +206,7 @@ class FitzhughNagumoSystem(BaseSystem):
         diffusion = RateInteraction(
             'diffusion', target='medium', state='u', rate=lambda s: self.D * laplacian(s.target.u),
         )
-        return System(self.label, elements=[medium], interactions=[kinetics, diffusion])
+        return CompositeSystem(self.label, elements=[medium], interactions=[kinetics, diffusion])
 
 
 class MackeyGlassSystem(BaseSystem):
@@ -265,9 +265,9 @@ class MackeyGlassSystem(BaseSystem):
         self.n = n
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],
         )

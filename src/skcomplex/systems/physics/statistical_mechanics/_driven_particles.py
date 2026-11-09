@@ -19,7 +19,7 @@ from ....core.components.interactions import BaseInteraction, TransferInteractio
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -456,7 +456,7 @@ class ZeroRangeProcessSystem(BaseSystem):
         sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
         return np.bincount(sites, minlength=n_sites).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
         sites = GroupElement(
@@ -466,7 +466,7 @@ class ZeroRangeProcessSystem(BaseSystem):
             values={'n': occupations},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[sites],
             interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
@@ -569,7 +569,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
             rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
         return np.concatenate(rings)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         n_nodes = self._level_start(self.n_levels + 1, self.branches)
         nodes = GroupElement(
@@ -599,7 +599,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
             ),
             ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
         ]
-        return System(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
 
 class ASEPSystem(BaseSystem):
@@ -670,7 +670,7 @@ class ASEPSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the asymmetric simple exclusion process on an open line.
 
         The process runs in continuous time.
@@ -688,4 +688,4 @@ class ASEPSystem(BaseSystem):
             ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
             ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
         ]
-        return System(self.label, elements=[lane], interactions=interactions)
+        return CompositeSystem(self.label, elements=[lane], interactions=interactions)

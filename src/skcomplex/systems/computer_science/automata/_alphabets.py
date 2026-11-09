@@ -19,7 +19,7 @@ from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
@@ -201,7 +201,7 @@ class SelfIndexedShiftSystem(BaseSystem):
         """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
         return value
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(free_group(2) if self.group is None else self.group, ball=self.radius, fill=NO_ELEMENT)
         size = space.prepare().size_
@@ -209,7 +209,7 @@ class SelfIndexedShiftSystem(BaseSystem):
             values = np.random.default_rng(self.random_state).integers(0, size, size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=GroupCellElement, space=space, values={'value': values}, on='sites'),
@@ -287,7 +287,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         """
         return ring.reduce(here - ring.multiply(variable, right))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         ring = PowerSeriesSpec(self.order, self.field)
         if self.initial is None:
@@ -300,7 +300,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
             ring=ring,
             variable=ring.coefficients_of(ring.ring.gen()),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -373,7 +373,7 @@ class SubtractionAutomatonSystem(BaseSystem):
         """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
         return np.maximum(0.0, here - right)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals.
 
         Its image is not closed.
@@ -387,7 +387,7 @@ class SubtractionAutomatonSystem(BaseSystem):
             values = np.where(steps < 0, self.height, np.maximum(0, self.height - steps)).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -466,13 +466,13 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         """Return `x(n + 1) - x(n)^2`."""
         return right - here**2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = x(n + 1) - x(n)^2` over the reals on a ring."""
         if self.initial is None:
             values = np.random.default_rng(self.random_state).uniform(-self.amplitude, self.amplitude, self.size)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -555,7 +555,7 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         """
         return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = x(n)^-1 x(n + 1)` over a finite group.
 
         The finite group is its alphabet. It runs on a ring.
@@ -568,7 +568,7 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         else:
             values = np.asarray(self.initial, dtype=float)
         rule = functools.partial(self._group_difference, product=product, inverse=inverse)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

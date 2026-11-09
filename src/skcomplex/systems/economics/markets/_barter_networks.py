@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import MatchingRule
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -432,7 +432,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
             graph.add_edge(int(rng.choice(groups[first])), int(rng.choice(groups[second])))
         return graph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
@@ -449,7 +449,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
             },
             location=list(range(self.n_agents)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[

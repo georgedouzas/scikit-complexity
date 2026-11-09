@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -188,7 +188,7 @@ class SimonYuleSystem(BaseSystem):
         self.innovation = innovation
         self.words_per_step = words_per_step
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         words = GroupElement(
             'words',
@@ -197,7 +197,7 @@ class SimonYuleSystem(BaseSystem):
             values={'count': 1.0, 'innovation': self.innovation},
             variable=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[words],
             interactions=[WritingInteraction('writing', target='words', words_per_step=self.words_per_step)],

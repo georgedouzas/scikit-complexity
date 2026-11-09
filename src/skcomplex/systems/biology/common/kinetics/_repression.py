@@ -62,14 +62,14 @@ class RepressionInteraction(ReactionInteraction):
             and a state name with a positive coefficient.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = simulate(System(elements=species, interactions=[repression]), until=1.0, dt=0.1)
+        >>> trajectory = simulate(CompositeSystem(elements=species, interactions=[repression]), until=1.0, dt=0.1)
         >>> round(float(trajectory.values('mRNA.x')[-1]), 3)
         1.0
     """

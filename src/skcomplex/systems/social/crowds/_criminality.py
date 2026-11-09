@@ -19,7 +19,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction, RateInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import ActivityDensityElement
 
@@ -383,7 +383,7 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
     return moment(s.x, 0, np.arange(forces, dtype=float))
 
 
-def _sizes_of(system: System) -> tuple[int, int]:
+def _sizes_of(system: CompositeSystem) -> tuple[int, int]:
     """Return the number of criminality classes and of efficacy classes of a system."""
     sizes = {item.label: int(item.size or 0) for item in system.elements}
     return sizes['citizens'], sizes['security']
@@ -500,11 +500,11 @@ class CriminalitySystem(BaseSystem):
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

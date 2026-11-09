@@ -35,10 +35,10 @@ class ExponentialGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )

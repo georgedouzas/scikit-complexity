@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import periodic_guard, pulse_train
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -392,7 +392,7 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of normal and tumour cells in Lotka-Volterra competition."""
         tissue = RadiationCompetitionElement(
             'tissue',
@@ -447,7 +447,7 @@ class RadiotherapyCompetitionSystem(BaseSystem):
                 propensity=lambda s: s.target.a2 * pulse_train(s.t, self.period, self.width) * s.target.A,
             ),
         ]
-        return System(self.label, elements=[tissue], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
 
 
 class LQRadiosensitizerSystem(BaseSystem):
@@ -560,7 +560,7 @@ class LQRadiosensitizerSystem(BaseSystem):
         self.start = start
         self.fractions = fractions
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a xenograft tumour irradiated in fractions.
 
         The linear-quadratic system scores the fractions.
@@ -642,4 +642,4 @@ class LQRadiosensitizerSystem(BaseSystem):
             ),
             irradiation,
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)

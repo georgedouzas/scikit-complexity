@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
 
@@ -161,13 +161,13 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         super().__init__(label)
         self.n_words = n_words
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         costs = np.log(np.arange(1, self.n_words + 1) + 1.0)
         visual = VisualSpec('histograms', {'color_by': 'probability'})
         words = GroupElement('words', element=WordElement, size=self.n_words, values={'cost': costs}, visual=visual)
         effort = LeastEffortInteraction('effort', target='language', words='words')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[words, LanguageElement('language')],
             interactions=[effort],

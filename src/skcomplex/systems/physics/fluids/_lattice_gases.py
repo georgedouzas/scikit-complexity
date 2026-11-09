@@ -17,7 +17,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -270,7 +270,7 @@ class FHPLatticeGasSystem(BaseSystem):
         """Return the channels after every particle moves one site along its direction."""
         return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), geometry='triangular').prepare()
         positions = space.positions_
@@ -290,7 +290,7 @@ class FHPLatticeGasSystem(BaseSystem):
             visual=DENSITY_VISUAL,
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[gas],
             interactions=[
@@ -411,7 +411,7 @@ class HPPLatticeGasSystem(BaseSystem):
         """
         return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), boundary='periodic').prepare()
         rng = np.random.default_rng(self.random_state)
@@ -433,7 +433,7 @@ class HPPLatticeGasSystem(BaseSystem):
             visual=DENSITY_VISUAL,
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[gas],
             interactions=[

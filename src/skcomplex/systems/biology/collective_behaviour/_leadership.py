@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -368,7 +368,7 @@ class CouzinLeadershipSystem(BaseSystem):
         """
         return float(system.rng.normal(0.0, agent.noise))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Couzin shoal."""
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
@@ -390,7 +390,7 @@ class CouzinLeadershipSystem(BaseSystem):
             },
             location=[tuple(point) for point in locations],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[shoal],
             interactions=[

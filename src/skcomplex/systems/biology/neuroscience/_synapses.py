@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -204,7 +204,7 @@ class AdaptrodeSystem(BaseSystem):
         )
         return pulse
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of an Adaptrode synapse driven by a train of input pulses.
 
         The train stops after a while.
@@ -246,4 +246,4 @@ class AdaptrodeSystem(BaseSystem):
                 - s.target.delta2 * s.target.w2,
             ),
         ]
-        return System(self.label, elements=[synapse], interactions=levels)
+        return CompositeSystem(self.label, elements=[synapse], interactions=levels)

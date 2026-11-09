@@ -17,7 +17,7 @@ from ....core.components.spaces import (
     BallNeighborhood,
     LatticeSpace,
 )
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ._binary_cell import BinaryCellElement
 from ._codes import life
 
@@ -74,7 +74,7 @@ class FredkinReplicatorSystem(BaseSystem):
         self.initial = initial
         self.radius = radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Fredkin's parity automaton.
 
         Its local law copies any initial pattern into translated replicas.
@@ -86,7 +86,7 @@ class FredkinReplicatorSystem(BaseSystem):
         else:
             values = np.asarray(self.initial, dtype=float)
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),

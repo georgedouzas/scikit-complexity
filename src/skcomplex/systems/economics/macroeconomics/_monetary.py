@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -368,9 +368,9 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         """Return the sales of the firms of a period, the consumption of the households."""
         return CircuitInteraction._consumption(s.sources[0], s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 HouseholdsElement(

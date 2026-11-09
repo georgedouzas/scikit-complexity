@@ -15,7 +15,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.kinetics import CompartmentElement
@@ -190,7 +190,7 @@ class NeutralClusteringSystem(BaseSystem):
                 pairs.extend(zip(indices.ravel().tolist(), neighbours.ravel().tolist(), strict=True))
         return pairs
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of organisms that divide."""
         lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
         patches = GroupElement(
@@ -209,7 +209,7 @@ class NeutralClusteringSystem(BaseSystem):
             interactions.append(
                 HoppingInteraction('hopping', patches=members, links=self._neighbor_pairs(lattice), beta=self.beta),
             )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[patches],
             interactions=interactions,

@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -233,7 +233,7 @@ class PhoneAdoptionSystem(BaseSystem):
             queue.extend(((column + dx) % width) * height + (row + dy) % height for dx, dy in MOORE)
         return owners
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         growth = self.growth
         width, height = (int(side) for side in self.shape)
@@ -272,7 +272,7 @@ class PhoneAdoptionSystem(BaseSystem):
             schedule='random-sequential',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[households],
             interactions=[growth, adoption],

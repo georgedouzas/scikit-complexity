@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
@@ -403,7 +403,7 @@ class FractionalReserveBankingSystem(BaseSystem):
         self.repayment = repayment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         owners = rng.integers(self.banks, size=self.customers)
@@ -456,7 +456,7 @@ class FractionalReserveBankingSystem(BaseSystem):
             new_ratio=self.ratio if self.new_ratio is None else self.new_ratio,
             change_at=self.change_at,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[depositors, lenders],
             interactions=[regulator, payments, repayments],

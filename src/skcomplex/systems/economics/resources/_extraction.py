@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import clip, series
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 FISH_YIELD = (0.0, 0.01, 0.04, 0.09, 0.16, 0.25, 0.36, 0.49, 0.64, 0.81, 1.0)
@@ -285,7 +285,7 @@ class OilEconomySystem(BaseSystem):
         """Return the price of the oil, constant or a table of the yield."""
         return holder.price if prices is None else series(_efficiency(holder, yields), YIELD_LEVELS, prices)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         economy = OilEconomyElement(
             'oil',
@@ -319,7 +319,7 @@ class OilEconomySystem(BaseSystem):
             ),
             flow='investment',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[economy],
             interactions=[extraction, investment, _capital('depreciation', 'oil')],
@@ -392,7 +392,7 @@ class FisheryCapitalSystem(BaseSystem):
         """Return the revenue of the harvest at the price, a table of the yield."""
         return series(_efficiency(holder, yields), YIELD_LEVELS, prices) * _harvest(holder, yields)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         fishery = FisheryElement(
             'fishery',
@@ -423,7 +423,7 @@ class FisheryCapitalSystem(BaseSystem):
             amount=lambda s: _investment(s.source, self._fish_revenue(s.source, yields, prices)),
             flow='investment',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[fishery],
             interactions=[fish, investment, _capital('depreciation', 'fishery')],

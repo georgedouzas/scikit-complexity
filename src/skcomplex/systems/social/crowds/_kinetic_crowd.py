@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
@@ -468,7 +468,7 @@ class KineticCrowdSystem(BaseSystem):
         self.panic_stress = panic_stress
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         target = (np.arange(self.n_walkers) % 2).astype(float)
@@ -499,4 +499,4 @@ class KineticCrowdSystem(BaseSystem):
             panic_time=self.panic_time,
             panic_stress=self.panic_stress,
         )
-        return System(self.label, elements=[walkers], interactions=[decisions])
+        return CompositeSystem(self.label, elements=[walkers], interactions=[decisions])

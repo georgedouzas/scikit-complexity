@@ -10,7 +10,7 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import ContinuousSpace, StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 
@@ -89,13 +89,13 @@ class ContinuumPercolationSystem(BaseSystem):
         self.radius = radius
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         size = round(self.filling * self.side**2 / (np.pi * self.radius**2))
         positions = np.random.default_rng(self.random_state).uniform(0.0, self.side, (size, 2))
         visual = VisualSpec('points', {'position': 'x', 'radius': self.radius, 'states': ()})
         disks = GroupElement('disks', element=DiskElement, size=size, values={'x': positions}, visual=visual)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[disks],
             space=ContinuousSpace(extent=[self.side, self.side]),

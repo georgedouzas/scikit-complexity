@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import log_sum_exp, total
 from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -196,7 +196,7 @@ class RandomEnergySystem(BaseSystem):
         self.temperature = temperature
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the random energy system.
 
         It has `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
@@ -218,7 +218,7 @@ class RandomEnergySystem(BaseSystem):
             temperature=self.temperature,
             n_spins=float(self.n_spins),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[levels, BoltzmannAverageElement('ensemble')],
             interactions=[sums],

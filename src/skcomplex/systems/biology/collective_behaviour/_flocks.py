@@ -21,7 +21,7 @@ from ....core.components.interactions import (
     RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
@@ -637,7 +637,7 @@ class BoidsSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Reynolds' boids in two dimensions.
 
         The boids are birds that flock by local rules without a leader.
@@ -661,7 +661,7 @@ class BoidsSystem(BaseSystem):
             location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 2))],
         )
         interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -734,7 +734,7 @@ class Boids3dSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Boids in three dimensions.
 
         The boids are birds that flock by local rules in a periodic cube.
@@ -758,7 +758,7 @@ class Boids3dSystem(BaseSystem):
             HeadingInteraction('heading', target='flock'),
             SpatialFlightInteraction('flight', target='flock'),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -838,7 +838,7 @@ class BirdSwarmSystem(BaseSystem):
         self.l_r = l_r
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a swarm of self-propelled birds.
 
         A pair potential holds the birds together.
@@ -862,4 +862,9 @@ class BirdSwarmSystem(BaseSystem):
             l_r=self.l_r,
         )
         flight = SelfPropulsionInteraction('flight', target='birds', alpha=self.alpha, beta=self.beta)
-        return System(self.label, elements=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(
+            self.label,
+            elements=[birds],
+            interactions=[potential, flight],
+            space=ContinuousSpace(n_dim=2),
+        )

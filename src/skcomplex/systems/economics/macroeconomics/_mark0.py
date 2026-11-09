@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -583,7 +583,7 @@ class Mark0System(BaseSystem):
         self.credit = credit
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         firms = GroupElement(
@@ -614,4 +614,4 @@ class Mark0System(BaseSystem):
             kappa=self.kappa,
             credit=self.credit,
         )
-        return System(self.label, elements=[firms], interactions=[economy])
+        return CompositeSystem(self.label, elements=[firms], interactions=[economy])

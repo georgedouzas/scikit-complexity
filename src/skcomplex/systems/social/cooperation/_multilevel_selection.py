@@ -18,7 +18,7 @@ from ....core.components.elements import FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
 from ....core.components.spaces import BaseSpace, LatticeSpace, PhaseSpace, SimplexSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import AxisSpec, VisualSpec
@@ -125,7 +125,7 @@ class SelectionDriftInteraction(ConservationInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.cooperation import SelectionDriftInteraction
@@ -138,7 +138,7 @@ class SelectionDriftInteraction(ConservationInteraction):
         >>> volumes = 'finite-volume'
         >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = SelectionDriftInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = System(elements=[field], interactions=[drift])
+        >>> system = CompositeSystem(elements=[field], interactions=[drift])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> total = trajectory.values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
@@ -321,7 +321,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         own_share, other_share = (own - lowest) ** (1 / exponent), (other - lowest) ** (1 / exponent)
         return own_share / (own_share + other_share)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         _check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
@@ -367,7 +367,7 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
-        return System(self.label, elements=[groups], interactions=[within, between])
+        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
 
 
 class TwoLevelReplicatorSystem(BaseSystem):
@@ -465,7 +465,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
         values = np.asarray(_get_pairwise_payoff(centres, payoffs), dtype=float)
         return _get_pairwise_payoff(z, payoffs) / float(values.max() - values.min())
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         _check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
@@ -495,7 +495,7 @@ class TwoLevelReplicatorSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
         )
-        return System(self.label, elements=[groups], interactions=[within, between])
+        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
 
 
 class TrimorphicMultilevelSelectionSystem(BaseSystem):
@@ -604,7 +604,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         exploited = cost + fixed - punishment + punishment * x + (punishment + interaction) * y
         return [0, x * ((1 - x) * punished - y * exploited), y * ((1 - y) * exploited - x * punished)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         _check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
@@ -627,4 +627,4 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
             state='x',
             rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
         )
-        return System(self.label, elements=[groups], interactions=[within, between])
+        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])

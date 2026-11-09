@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, series, step
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
@@ -278,7 +278,7 @@ class CommodityCycleSystem(BaseSystem):
         market = _market(s)
         return distributed_delay(_capacity_orders(market), order=3, time=market.construction_delay)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         market = CommodityMarketElement(
             'market',
@@ -315,4 +315,4 @@ class CommodityCycleSystem(BaseSystem):
             flow='completions',
             legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
         )
-        return System(self.label, elements=[market], interactions=[commodity, capacity_flows])
+        return CompositeSystem(self.label, elements=[market], interactions=[commodity, capacity_flows])

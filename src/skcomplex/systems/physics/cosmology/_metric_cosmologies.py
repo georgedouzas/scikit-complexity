@@ -24,7 +24,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, partial
 from ....core.components.spaces import BaseSpace, LatticeSpace, PseudoRiemannianSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import SpaceError, ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -115,7 +115,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.systems.physics.cosmology import EinsteinFieldEquationsInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class UniverseElement(Element):
@@ -130,7 +130,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         >>> vacuum = EinsteinFieldEquationsInteraction(
         ...     'vacuum', target='universe', states='a', space=flat, components=[(1, 1)], cosmological_constant=3.0
         ... )
-        >>> system = System(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
+        >>> system = CompositeSystem(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
         >>> trajectory = simulate(system, until=1.0, dt=0.001)
         >>> round(float(trajectory.values('universe.a')[-1]), 4)
         2.7183
@@ -654,7 +654,7 @@ class FLRWCosmologySystem(BaseSystem):
         pressure = critical * (radiation / 3 - universe.omega_lambda)
         return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         curvature = 1 - self.omega_matter - self.omega_radiation - self.omega_lambda
         square = self.H0**2 * (
@@ -684,7 +684,7 @@ class FLRWCosmologySystem(BaseSystem):
             source=self._get_perfect_fluid,
             coupling=COUPLING,
         )
-        return System(self.label, elements=[universe], interactions=[einstein])
+        return CompositeSystem(self.label, elements=[universe], interactions=[einstein])
 
 
 class OppenheimerSnyderCollapseSystem(BaseSystem):
@@ -745,7 +745,7 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         self.radius = radius
         self.mass = mass
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.radius <= 2 * self.mass:
             error_msg = (
@@ -770,4 +770,4 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
             coupling=COUPLING,
             axes={1: 0},
         )
-        return System(self.label, elements=[ball], interactions=[einstein])
+        return CompositeSystem(self.label, elements=[ball], interactions=[einstein])

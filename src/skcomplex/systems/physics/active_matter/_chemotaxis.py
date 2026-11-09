@@ -18,7 +18,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -181,7 +181,7 @@ class KellerSegelSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Keller-Segel system of diffusing cells climbing a chemical gradient.
 
         The cells secrete the chemical.
@@ -197,7 +197,7 @@ class KellerSegelSystem(BaseSystem):
             'k': self.k,
         }
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('colony', element=ChemotaxisElement, space=space, values=values)],
         )

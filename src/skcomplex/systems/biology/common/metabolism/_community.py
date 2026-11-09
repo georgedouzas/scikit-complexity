@@ -21,7 +21,7 @@ from .....core.analysis.types import Source
 from .....core.components.elements import DeclaredElement
 from .....core.components.laws import LinearProgramLaw
 from .....core.components.spaces import StaticTime
-from .....core.components.systems import BaseSystem, System
+from .....core.components.systems import BaseSystem, CompositeSystem
 from .....core.engine.problems import ProblemSpec
 from .....core.engine.runtime import simulate
 from .....core.errors import AnalysisError
@@ -133,7 +133,7 @@ def community_growth(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import (
         ...     ReactionSpec,
         ...     community_growth,
@@ -144,7 +144,7 @@ def community_growth(
         ...     'grow': ReactionSpec({'a': -1.0}),
         ... }
         >>> element_type = metabolic_network_type('MemberElement', reactions, {'grow': 1.0})
-        >>> system = System(elements=[element_type('one'), element_type('two')], time=StaticTime())
+        >>> system = CompositeSystem(elements=[element_type('one'), element_type('two')], time=StaticTime())
         >>> result = community_growth(system)
         >>> round(result.growth, 6), round(sum(result.abundances.values()), 6)
         (2.0, 1.0)
@@ -152,9 +152,9 @@ def community_growth(
     _check_choice('community_growth', 'kind', kind, COMMUNITY_KINDS)
     if kind == 'tradeoff':
         load_extra(f'community_growth(kind={kind!r})')
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         source = source.prepare().system_
-    members = _networks_of(source) if isinstance(source, System) else []
+    members = _networks_of(source) if isinstance(source, CompositeSystem) else []
     if not members:
         error_msg = 'community_growth reads a system that holds a metabolic network element.'
         raise AnalysisError(error_msg)
@@ -237,7 +237,7 @@ def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[s
     variables['rate'] = DeclaredVariableSpec(0.0, ParameterSpec())
     law = partial(_community_law, members, medium)
     element = _SteadyComElement(ELEMENT_LABEL, variables=variables, law=law)
-    problem = simulate(System(elements=[element], time=StaticTime()), until=0).problem
+    problem = simulate(CompositeSystem(elements=[element], time=StaticTime()), until=0).problem
     if not isinstance(problem, ProblemSpec):
         error_msg = f'The community compiles to a {type(problem).__name__}, not a linear program.'
         raise AnalysisError(error_msg)

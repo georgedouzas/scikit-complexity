@@ -15,7 +15,7 @@ import numpy as np
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
@@ -272,7 +272,7 @@ class DNAComputationSystem(BaseSystem):
         self.end = end
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Adleman's DNA computation of a Hamiltonian path.
 
         It runs by random ligation of edge oligos in a test tube.
@@ -285,7 +285,7 @@ class DNAComputationSystem(BaseSystem):
         paths = np.full((self.n_strands, len(nodes)), EMPTY)
         paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
         strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[strands],
             interactions=[LigationInteraction('ligation', target='strands', edges=self.edges)],

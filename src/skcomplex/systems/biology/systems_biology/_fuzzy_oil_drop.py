@@ -23,7 +23,7 @@ from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.problems import BaseProblemSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
@@ -619,7 +619,7 @@ class FuzzyOilDropSystem(BaseSystem):
         positions = geometry.run(row).read_effective_atoms()
         return _read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the fuzzy oil drop of a protein."""
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
@@ -628,7 +628,7 @@ class FuzzyOilDropSystem(BaseSystem):
         structure = read_structure(self.entry)
         if self.dynamics == 'replay':
             ensemble = structure.effective_atoms
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[
                     GroupElement(
@@ -645,7 +645,7 @@ class FuzzyOilDropSystem(BaseSystem):
             )
         angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
         angles[angles.size // 2 :] = EXTENDED_PSI
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

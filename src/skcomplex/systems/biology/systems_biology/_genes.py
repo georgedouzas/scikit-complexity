@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ..common.kinetics import RepressionInteraction
 
@@ -96,7 +96,7 @@ def _circuit(
     mode: str,
     *,
     label: str,
-) -> System:
+) -> CompositeSystem:
     """Return labelled genes with initial protein counts.
 
     The first gene of each edge represses the second.
@@ -107,7 +107,7 @@ def _circuit(
         for source, target in edges
     ]
     expressions = [interaction for gene in genes for interaction in _express(gene.label, mode=mode, **expression)]
-    return System(label, elements=genes, interactions=[*repressions, *expressions])
+    return CompositeSystem(label, elements=genes, interactions=[*repressions, *expressions])
 
 
 class RepressilatorSystem(BaseSystem):
@@ -188,7 +188,7 @@ class RepressilatorSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the repressilator of Elowitz and Leibler."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
@@ -273,7 +273,7 @@ class ToggleSwitchSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the genetic toggle switch of Gardner."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
@@ -351,7 +351,7 @@ class NegativeAutoregulationSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a gene that represses its own transcription.
 
         The gene makes its protein in bursts.
@@ -365,4 +365,8 @@ class NegativeAutoregulationSystem(BaseSystem):
             mode,
         )
         expression = _express('gene', self.b, self.beta, self.delta, mode)
-        return System(self.label, elements=[GeneElement('gene', p=self.p)], interactions=[feedback, *expression])
+        return CompositeSystem(
+            self.label,
+            elements=[GeneElement('gene', p=self.p)],
+            interactions=[feedback, *expression],
+        )

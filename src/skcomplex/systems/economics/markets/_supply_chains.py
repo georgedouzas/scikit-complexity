@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -707,7 +707,7 @@ class BeerGameSystem(BaseSystem):
             rate=lambda s: BreweryInteraction._orders(s.target) - BreweryInteraction._completions(s.target),
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         throughput = self.demand * self.dispatch_time
         echelons: list[EchelonElement] = []
@@ -745,4 +745,4 @@ class BeerGameSystem(BaseSystem):
         ]
         customers = [*self._get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
         brewery = [self._get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
-        return System(self.label, elements=echelons, interactions=[*links, *customers, *brewery])
+        return CompositeSystem(self.label, elements=echelons, interactions=[*links, *customers, *brewery])

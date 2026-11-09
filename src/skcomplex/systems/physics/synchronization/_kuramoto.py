@@ -18,7 +18,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..common.oscillators import (
     KuramotoCouplingInteraction,
@@ -152,7 +152,7 @@ class DelayedKuramotoSystem(BaseSystem):
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Kuramoto phase oscillators coupled all to all through delayed signals.
 
         The signals arrive after a delay.
@@ -180,7 +180,7 @@ class DelayedKuramotoSystem(BaseSystem):
             for target in range(self.n_oscillators)
             if source != target
         ]
-        return System(self.label, elements=elements, interactions=interactions)
+        return CompositeSystem(self.label, elements=elements, interactions=interactions)
 
 
 class KuramotoSystem(BaseSystem):
@@ -239,7 +239,7 @@ class KuramotoSystem(BaseSystem):
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         oscillators = GroupElement(
@@ -259,7 +259,7 @@ class KuramotoSystem(BaseSystem):
             reduce='mean',
             include_self=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[oscillators],
             interactions=[coupling],
@@ -331,7 +331,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
@@ -365,7 +365,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
             for target in ('first', 'second')
             for source in ('first', 'second')
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=populations,
             interactions=interactions,
@@ -431,7 +431,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         self.omega = omega
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return identical phase oscillators on a ring.
 
         Each oscillator is coupled to its `R` nearest neighbours on both sides.
@@ -448,7 +448,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
             },
             visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ring],
             interactions=[
@@ -519,12 +519,12 @@ class OttAntonsenSystem(BaseSystem):
         self.Delta = Delta
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Ott-Antonsen equation of the order parameter of Kuramoto oscillators.
 
         The oscillators are infinitely many.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StuartLandauElement(

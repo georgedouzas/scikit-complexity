@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Pair
@@ -528,7 +528,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         players = GroupElement(
             'players',
@@ -541,7 +541,7 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
             },
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=self.imitation)],
@@ -604,7 +604,7 @@ class PublicGoodsGameSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         strategies = _random_strategies(self.shape, self.share, self.random_state)
         players = GroupElement(
@@ -624,7 +624,7 @@ class PublicGoodsGameSystem(BaseSystem):
             phase='imitate',
         )
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
@@ -716,7 +716,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         self.extremes = extremes
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         if self.extremes:
@@ -739,7 +739,7 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
             },
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[IteratedDilemmaInteraction('play', target='players')],

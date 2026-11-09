@@ -71,9 +71,9 @@ class GrowthInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.systems.biology.common.populations import GrowthInteraction
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('population', x=1.0)],
         ...     interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
         ... )

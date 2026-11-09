@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.excitable import FitzHughNagumoInteraction
 from .types import GateRates
@@ -241,10 +241,10 @@ class HodgkinHuxleySystem(BaseSystem):
         """Return the steady-state opening of every gate at a fixed potential in mV."""
         return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in self._gate_rates(v).items()}
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Hodgkin-Huxley neuron."""
         gates = self._resting_gates(self.v)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 HodgkinHuxleyElement(
@@ -354,7 +354,7 @@ class FitzhughNagumoODESystem(BaseSystem):
         self.epsilon = epsilon
         self.I = I
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the FitzHugh-Nagumo neuron."""
         kinetics = FitzHughNagumoInteraction(
             'kinetics',
@@ -364,7 +364,7 @@ class FitzhughNagumoODESystem(BaseSystem):
             epsilon=self.epsilon,
             I=self.I,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FitzHughNagumoNeuronElement('neuron', v=self.v, w=self.w)],
             interactions=[kinetics],

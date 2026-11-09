@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform
 from ....core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
@@ -219,7 +219,7 @@ class NonreciprocalVicsekSystem(BaseSystem):
         self.eta = eta
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two species of Vicsek movers in a periodic box, aligning nonreciprocally.
 
         The alignment of each species with the other differs between the two.
@@ -239,7 +239,7 @@ class NonreciprocalVicsekSystem(BaseSystem):
                 'eta': self.eta,
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[movers],
             interactions=[PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],

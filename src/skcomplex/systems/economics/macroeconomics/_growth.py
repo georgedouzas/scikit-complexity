@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -204,9 +204,9 @@ class SolowSystem(BaseSystem):
         self.alpha = alpha
         self.delta = delta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[EconomyElement('economy', k=self.k)],
             interactions=[
@@ -278,9 +278,9 @@ class MultiplierAcceleratorSystem(BaseSystem):
         )
         return income
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[IncomeElement('economy', Y=self.income, Y_lag1=self.previous, c=self.c, v=self.v, G=self.G)],
             interactions=[MapInteraction('cycle', target='economy', state='Y', function=self._next_income)],

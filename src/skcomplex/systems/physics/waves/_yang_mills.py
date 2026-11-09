@@ -17,7 +17,7 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
@@ -447,7 +447,7 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _yang_mills_observables(system: System) -> list[ObservableSpec]:
+    def _yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the mean plaquette and the Polyakov loop of the links."""
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
@@ -466,7 +466,7 @@ class LatticeYangMillsSystem(BaseSystem):
         settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return SU(2) or SU(3) matrices on the links of a periodic lattice.
 
         The matrices are sampled by the Wilson action.
@@ -507,4 +507,4 @@ class LatticeYangMillsSystem(BaseSystem):
             group=group,
             hits=self.hits,
         )
-        return System(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())

@@ -19,7 +19,7 @@ from ....core.components.elements import GroupElement, NonnegativeElement
 from ....core.components.interactions import BaseInteraction, EncounterInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -326,7 +326,7 @@ def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expressi
     return moment(s.x, 1, wealth, normalized=True)
 
 
-def _classes_of(system: System) -> int:
+def _classes_of(system: CompositeSystem) -> int:
     """Return the number of wealth classes of a system, the size of its distribution."""
     return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
 
@@ -418,7 +418,7 @@ class KineticWealthWelfareSystem(BaseSystem):
         self.eta = eta
         self.tax = tax
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
         components: list[GroupElement] = [
@@ -452,7 +452,7 @@ class KineticWealthWelfareSystem(BaseSystem):
                     tax=self.tax,
                 ),
             )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=components,
             interactions=interactions,

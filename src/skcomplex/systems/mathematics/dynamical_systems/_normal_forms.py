@@ -8,7 +8,7 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -294,12 +294,12 @@ class SaddleNodeFormSystem(BaseSystem):
         self.x = x
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the saddle-node normal form `x' = μ - x²`.
 
         Its two equilibria `±√μ` meet and vanish at μ = 0.
         """
-        return System(self.label, elements=[SaddleNodeElement('form', x=self.x, mu=self.mu)])
+        return CompositeSystem(self.label, elements=[SaddleNodeElement('form', x=self.x, mu=self.mu)])
 
 
 class HopfFormSystem(BaseSystem):
@@ -358,9 +358,9 @@ class HopfFormSystem(BaseSystem):
         self.omega = omega
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[HopfElement('form', x=self.x, y=self.y, mu=self.mu, omega=self.omega, a=self.a)],
         )
@@ -421,9 +421,9 @@ class TakensBogdanovFormSystem(BaseSystem):
         self.beta2 = beta2
         self.sign = sign
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 TakensBogdanovElement('form', x=self.x, y=self.y, beta1=self.beta1, beta2=self.beta2, sign=self.sign),
@@ -476,9 +476,9 @@ class CuspFormSystem(BaseSystem):
         self.beta1 = beta1
         self.beta2 = beta2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cusp normal form `x' = β1 + β2 x - x³`.
 
         The form is bistable inside the cusp `27 β1² < 4 β2³`.
         """
-        return System(self.label, elements=[CuspElement('form', x=self.x, beta1=self.beta1, beta2=self.beta2)])
+        return CompositeSystem(self.label, elements=[CuspElement('form', x=self.x, beta1=self.beta1, beta2=self.beta2)])

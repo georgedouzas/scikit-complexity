@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import normal
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -168,7 +168,7 @@ class NetworkHerdingSystem(BaseSystem):
         rows = links.sum(axis=1, keepdims=True)
         return np.divide(herding * links, rows, out=np.zeros_like(links), where=rows > 0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         weights = (
@@ -196,4 +196,4 @@ class NetworkHerdingSystem(BaseSystem):
             form='map',
             combine=self._choice,
         )
-        return System(self.label, elements=[agents], interactions=[herding_map])
+        return CompositeSystem(self.label, elements=[agents], interactions=[herding_map])

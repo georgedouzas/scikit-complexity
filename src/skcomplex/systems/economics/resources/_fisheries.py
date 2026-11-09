@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 TONNES_PER_MILLION_KG = 1e3
@@ -398,7 +398,7 @@ class HilsaFisherySystem(BaseSystem):
             inflow *= 1 - losses.get(name, fraction)
         return {**stages, 'spawners': spawners}
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         hilsa = HilsaElement(
             'hilsa',
@@ -416,4 +416,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return System(self.label, elements=[hilsa], interactions=self._birth_death())
+        return CompositeSystem(self.label, elements=[hilsa], interactions=self._birth_death())

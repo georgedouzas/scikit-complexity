@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -249,7 +249,7 @@ class CubicChaoticMapSystem(BaseSystem):
         self.n_walkers = n_walkers
         self.lam = lam
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Bertin's cubic chaotic map and the chaotic walk it drives.
 
         The walk spreads like a random walk.
@@ -261,7 +261,7 @@ class CubicChaoticMapSystem(BaseSystem):
             size=self.n_walkers,
             values={'x': start, 'y': 0.0, 'lam': self.lam},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
         )
@@ -326,10 +326,10 @@ class SkewTentMapSystem(BaseSystem):
         self.spread = spread
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         start = _draw_cloud(self.n_points, self.x, self.spread, self.random_state)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -402,10 +402,10 @@ class DoublingMapSystem(BaseSystem):
         self.q = q
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         start = np.floor(self.q * _draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2) / self.q
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

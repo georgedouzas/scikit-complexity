@@ -20,7 +20,7 @@ from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, Tags, VisualSpec
 from ....core.types import Array
 
@@ -193,7 +193,7 @@ def _genome_fitness(s: SimpleNamespace) -> Expression:
     return s.substitution.F0 + s.field_share + s.coupling_share
 
 
-def _walk_observables(system: System) -> list[ObservableSpec]:
+def _walk_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the shares of the fields and the couplings, and the genome fitness.
 
     The shares are those in the fitness of the genome.
@@ -298,7 +298,7 @@ class OriginFixationWalkSystem(BaseSystem):
         settings['observables'] = _walk_observables(self._build_system())
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a monomorphic population."""
         rng = np.random.default_rng(self.random_state)
         fields = rng.normal(0.0, self.field_scale, self.loci)
@@ -312,7 +312,7 @@ class OriginFixationWalkSystem(BaseSystem):
             values={'s': -np.ones(self.loci), 'h': fields},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[genome],
             interactions=[

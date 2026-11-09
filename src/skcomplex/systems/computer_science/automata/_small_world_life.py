@@ -17,7 +17,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import both, either, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ....core.types import AnyArray
@@ -123,7 +123,7 @@ class SmallWorldLifeSystem(BaseSystem):
         alive: Expression = where(born_or_kept, 1, 0)
         return alive
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Conway's Game of Life on a small-world network.
 
         The network is rewired from the Moore lattice of a torus.
@@ -144,7 +144,7 @@ class SmallWorldLifeSystem(BaseSystem):
             values={'alive': alive},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells],
             interactions=[MapInteraction('life', target='cells', state='alive', function=self._life)],

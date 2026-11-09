@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -493,7 +493,7 @@ class EnergyBalanceSystem(BaseSystem):
         self.T_ice = T_ice
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the zero-dimensional energy balance of the Earth.
 
         The balance is bistable through the ice-albedo feedback.
@@ -509,7 +509,7 @@ class EnergyBalanceSystem(BaseSystem):
             T_ice=self.T_ice,
             width=self.width,
         )
-        return System(self.label, elements=[climate])
+        return CompositeSystem(self.label, elements=[climate])
 
 
 class BudykoSellersSystem(BaseSystem):
@@ -581,7 +581,7 @@ class BudykoSellersSystem(BaseSystem):
         self.D = D
         self.C = C
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Budyko-Sellers energy balance of one hemisphere.
 
         The balance is resolved in the sine of latitude.
@@ -602,7 +602,7 @@ class BudykoSellersSystem(BaseSystem):
                 'C': self.C,
             },
         )
-        return System(self.label, elements=[bands])
+        return CompositeSystem(self.label, elements=[bands])
 
 
 class DaisyworldSystem(BaseSystem):
@@ -659,9 +659,9 @@ class DaisyworldSystem(BaseSystem):
         self.L = L
         self.gamma = gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[DaisyworldElement('planet', white=self.white, black=self.black, L=self.L, gamma=self.gamma)],
         )

@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ConnectorSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
@@ -558,7 +558,7 @@ class ThermostatSystem(BaseSystem):
         self.outside = outside
         self.swing = swing
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         room = RoomElement(
             'room',
@@ -569,7 +569,7 @@ class ThermostatSystem(BaseSystem):
             outside=self.outside,
             swing=self.swing,
         )
-        return System(self.label, elements=[room])
+        return CompositeSystem(self.label, elements=[room])
 
 
 class PidLoopSystem(BaseSystem):
@@ -650,7 +650,7 @@ class PidLoopSystem(BaseSystem):
         self.change = change
         self.disturbance = disturbance
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         process = ControlledProcessElement(
             'process',
@@ -665,7 +665,7 @@ class PidLoopSystem(BaseSystem):
             change=self.change,
             disturbance=self.disturbance,
         )
-        return System(self.label, elements=[process])
+        return CompositeSystem(self.label, elements=[process])
 
 
 class PendulumSwingUpSystem(BaseSystem):
@@ -721,7 +721,7 @@ class PendulumSwingUpSystem(BaseSystem):
         self.omega = omega
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         pendulum = SwingingPendulumElement(
             'pendulum',
@@ -732,7 +732,7 @@ class PendulumSwingUpSystem(BaseSystem):
             omega=self.omega,
             mu=self.mu,
         )
-        return System(self.label, elements=[pendulum])
+        return CompositeSystem(self.label, elements=[pendulum])
 
 
 class SatelliteTransferSystem(BaseSystem):
@@ -802,7 +802,7 @@ class SatelliteTransferSystem(BaseSystem):
         self.epsilon = epsilon
         self.H_final = H_final
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         satellite = SatelliteElement(
             'satellite',
@@ -813,7 +813,7 @@ class SatelliteTransferSystem(BaseSystem):
             epsilon=self.epsilon,
             H_final=self.H_final,
         )
-        return System(self.label, elements=[satellite])
+        return CompositeSystem(self.label, elements=[satellite])
 
 
 class HeatedRoomSystem(BaseSystem):
@@ -898,10 +898,10 @@ class HeatedRoomSystem(BaseSystem):
         self.wall_conductance = wall_conductance
         self.surface_conductance = surface_conductance
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         upper, lower = self.setting + self.band / 2, self.setting - self.band / 2
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 VoltageSourceElement('source', V=self.V),

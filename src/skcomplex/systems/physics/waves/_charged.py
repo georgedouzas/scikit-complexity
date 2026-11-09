@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, ramp
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -201,7 +201,7 @@ class ChargedSchrodingerSystem(BaseSystem):
         self.E = E
         self.duration = duration
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         spacing = self.length / self.n_sites
         positions = spacing * np.arange(self.n_sites) - self.length / 2
@@ -218,7 +218,7 @@ class ChargedSchrodingerSystem(BaseSystem):
             'duration': self.duration,
         }
         space = LatticeSpace(self.n_sites, spacing=spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

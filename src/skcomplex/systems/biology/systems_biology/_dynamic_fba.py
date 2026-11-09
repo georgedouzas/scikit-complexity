@@ -5,7 +5,7 @@
 
 
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
 from ..common.metabolism import (
@@ -111,7 +111,7 @@ class DynamicFBASystem(BaseSystem):
         )
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a batch culture of the E. coli core system.
 
         It needs the extra `metabolism`.
@@ -139,9 +139,12 @@ class DynamicFBASystem(BaseSystem):
             GrowthInteraction('growth', cell=cell_path, biomass=biomass_path, reaction=GROWTH),
         ]
         if static:
-            return System(
+            return CompositeSystem(
                 self.label,
-                systems=[System('fba', elements=[cell], time=DiscreteTime()), System('culture', elements=amounts)],
+                systems=[
+                    CompositeSystem('fba', elements=[cell], time=DiscreteTime()),
+                    CompositeSystem('culture', elements=amounts),
+                ],
                 interactions=interactions,
             )
-        return System(self.label, elements=[cell, *amounts], interactions=interactions)
+        return CompositeSystem(self.label, elements=[cell, *amounts], interactions=interactions)

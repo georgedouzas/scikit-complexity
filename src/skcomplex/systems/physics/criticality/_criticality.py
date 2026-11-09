@@ -24,7 +24,7 @@ from ....core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common import SandpileCellElement
@@ -241,14 +241,14 @@ class SandpileSystem(BaseSystem):
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Bak-Tang-Wiesenfeld sandpile on a lattice with open edges.
 
         The pile starts from random stable heights.
         """
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
@@ -298,7 +298,7 @@ class MannaSandpileSystem(BaseSystem):
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Manna sandpile.
 
         It is a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
@@ -307,7 +307,7 @@ class MannaSandpileSystem(BaseSystem):
             np.random.default_rng(self.random_state).integers(0, MANNA_THRESHOLD, size=tuple(self.shape)).astype(float)
         )
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
@@ -371,14 +371,14 @@ class ForestFireSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Drossel-Schwabl forest fire.
 
         Slow growth and rare lightning give fires of every size.
         """
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -463,7 +463,7 @@ class HexagonalForestFireSystem(BaseSystem):
         self.cover = cover
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = (
             LatticeSpace(tuple(self.shape), geometry='triangular') if self.graph is None else NetworkSpace(self.graph)
@@ -482,7 +482,7 @@ class HexagonalForestFireSystem(BaseSystem):
             on='sites',
         )
         neighborhood = SITE_NEIGHBORHOODS['triangular' if self.graph is None else 'graph']
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[forest],
             interactions=[FireInteraction('fire', target='forest', neighborhood=neighborhood)],

@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common._exchange import cobb_douglas
@@ -177,7 +177,7 @@ class GoodsTradersSystem(BaseSystem):
         self.high = high
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.goods not in (2, 3):
             error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
@@ -197,7 +197,7 @@ class GoodsTradersSystem(BaseSystem):
             variable=True,
             location=locations,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[

@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
@@ -347,7 +347,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         self.tau_a = tau_a
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         shelf = max(round(self.stock * self.customers), 1)
@@ -395,7 +395,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             form='agent',
             phase=PHASE,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

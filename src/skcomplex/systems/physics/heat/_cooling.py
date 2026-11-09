@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import RelaxationTimeInteraction
 
@@ -106,7 +106,7 @@ class CoolingCoffeeSystem(BaseSystem):
         self.room = room
         self.k = k
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a cup of coffee whose temperature relaxes to that of the room.
 
         The temperature follows `T' = -k (T - T_room)`.
@@ -118,7 +118,7 @@ class CoolingCoffeeSystem(BaseSystem):
             goal=lambda s: s.target.room,
             time=lambda s: 1 / s.target.k,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[CoffeeCupElement('coffee', T=self.T, room=self.room, k=self.k)],
             interactions=[cooling],

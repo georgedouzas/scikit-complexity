@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -346,9 +346,9 @@ class RlcCircuitSystem(BaseSystem):
         self.V = V
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 CircuitElement(
@@ -436,7 +436,7 @@ class ChuaSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.nonlinearity not in CHUA_NONLINEARITIES:
             error_msg = f"Unknown nonlinearity {self.nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
@@ -444,7 +444,7 @@ class ChuaSystem(BaseSystem):
         element = ChuaCircuitElement if self.nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
         initial = {'x': self.x, 'y': self.y, 'alpha': self.alpha, 'beta': self.beta}
         values: dict[str, float] = {name: value for name, value in initial.items() if value is not None}
-        return System(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
+        return CompositeSystem(self.label, elements=[element('circuit', z=self.z).set_params(**values)])
 
 
 class MixedModeChuaSystem(BaseSystem):
@@ -529,7 +529,7 @@ class MixedModeChuaSystem(BaseSystem):
         self.beta = beta
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         circuit = MixedModeChuaCircuitElement(
             'circuit',
@@ -544,7 +544,7 @@ class MixedModeChuaSystem(BaseSystem):
             beta=self.beta,
             c=self.c,
         )
-        return System(self.label, elements=[circuit])
+        return CompositeSystem(self.label, elements=[circuit])
 
 
 class MemristorOscillatorSystem(BaseSystem):
@@ -613,9 +613,9 @@ class MemristorOscillatorSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 MemristorCircuitElement(
@@ -693,9 +693,9 @@ class TunnelDiodeOscillatorSystem(BaseSystem):
         self.alpha = alpha
         self.gamma = gamma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 TunnelDiodeCircuitElement(
@@ -777,9 +777,9 @@ class ImpulsiveCircuitsSystem(BaseSystem):
         self.A = A
         self.T = T
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         circuit = KickedCircuitElement('circuit', x=self.x, x_d1=self.current, L=self.L, R=self.R, C=self.C, A=self.A)
         kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
         impulse = PulseInteraction('impulse', target='circuit', reset=kick, period=self.T)
-        return System(self.label, elements=[circuit], interactions=[impulse])
+        return CompositeSystem(self.label, elements=[circuit], interactions=[impulse])

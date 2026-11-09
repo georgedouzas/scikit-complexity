@@ -8,7 +8,7 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -114,7 +114,7 @@ class SoilTemperatureSystem(BaseSystem):
         self.r = r
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the coupled maps of the surface and deeper temperatures of the soil."""
         surface = MapInteraction(
             'surface',
@@ -128,7 +128,7 @@ class SoilTemperatureSystem(BaseSystem):
             state='y',
             function=lambda s: s.target.epsilon * (s.target.x + s.target.y),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[SoilTemperatureElement('soil', x=self.x, y=self.y, r=self.r, epsilon=self.epsilon)],
             interactions=[surface, depth],

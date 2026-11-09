@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
@@ -306,7 +306,7 @@ class IsingSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = _square(self.size)
         spins = (
@@ -322,7 +322,7 @@ class IsingSystem(BaseSystem):
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[IsingSamplingInteraction('sampling', target='spins', rule=self.sampler)],
@@ -389,7 +389,7 @@ class PottsSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the q-state Potts system on a torus.
 
         The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
@@ -404,7 +404,7 @@ class PottsSystem(BaseSystem):
             values={'color': colors, 'J': self.J, 'temperature': self.temperature},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q, rule=self.sampler)],
@@ -466,7 +466,7 @@ class XYSystem(BaseSystem):
         self.width = width
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = _square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
@@ -478,7 +478,7 @@ class XYSystem(BaseSystem):
             values={'theta': angles, 'J': self.J, 'temperature': self.temperature},
             on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[XYSamplingInteraction('sampling', target='spins', width=self.width)],

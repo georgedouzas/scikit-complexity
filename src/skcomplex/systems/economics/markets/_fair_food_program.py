@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -282,7 +282,7 @@ class FairFoodProgramSystem(BaseSystem):
         weights = rng.random(count)
         return weights, weights / weights.sum() * acres
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         _, needs = self._sizes(self.n_shops, self.acres, rng)
@@ -295,4 +295,4 @@ class FairFoodProgramSystem(BaseSystem):
         )
         farms = GroupElement('farms', element=ProgramMemberElement, size=self.n_farms, values={'acres': np.ceil(grown)})
         market = FairFoodMarketInteraction('market', shops='shops', farms='farms', pressure=self.pressure)
-        return System(self.label, elements=[shops, farms], interactions=[market])
+        return CompositeSystem(self.label, elements=[shops, farms], interactions=[market])

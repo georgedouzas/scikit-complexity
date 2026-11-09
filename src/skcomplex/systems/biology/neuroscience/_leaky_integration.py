@@ -48,11 +48,11 @@ class LeakyIntegrationInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.neuroscience import LeakyIntegrationInteraction
         >>> relaxation = LeakyIntegrationInteraction('relaxation', target='stock', goal=10.0, time=0.5)
-        >>> system = System(elements=[NonnegativeElement('stock')], interactions=[relaxation])
+        >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
         >>> round(float(trajectory.values('stock.x')[-1]), 3)
         10.0

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TransferInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -203,7 +203,7 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         """Return the recovery `mu i_k` of a degree class."""
         return namespace.source.mu * namespace.source.i
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIR epidemic on an uncorrelated power-law network."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
@@ -253,4 +253,4 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
                 amount=self._recovery,
             ),
         ]
-        return System(self.label, elements=[classes], interactions=interactions)
+        return CompositeSystem(self.label, elements=[classes], interactions=interactions)

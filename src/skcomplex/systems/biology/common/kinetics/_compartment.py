@@ -29,10 +29,10 @@ class CompartmentElement(NonnegativeElement):
             The initial amount, a nonnegative count or fraction.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> system = System(elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10)])
+        >>> system = CompositeSystem(elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10)])
         >>> simulate(system, until=2, dt=1.0).values('S.x').tolist()
         [990.0, 990.0, 990.0]
     """

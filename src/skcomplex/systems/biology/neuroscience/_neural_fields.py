@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import convolve, displacement, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -158,7 +158,7 @@ class AmariNeuralFieldSystem(BaseSystem):
         rate: Expression = (-site.u + convolve(where(site.u > 0, 1, 0), kernel) + site.h) / site.tau
         return rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Amari neural field.
 
         Its lateral inhibition holds a stationary bump of activity.
@@ -179,4 +179,4 @@ class AmariNeuralFieldSystem(BaseSystem):
             values=values,
         )
         rate = RateInteraction('rate', target='field', state='u', rate=self._amari_rate)
-        return System(self.label, elements=[field], interactions=[rate])
+        return CompositeSystem(self.label, elements=[field], interactions=[rate])

@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import MatchingRule
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -439,7 +439,7 @@ class OrderBookSystem(BaseSystem):
         self.imitation = imitation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -470,7 +470,7 @@ class OrderBookSystem(BaseSystem):
             )
             for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[

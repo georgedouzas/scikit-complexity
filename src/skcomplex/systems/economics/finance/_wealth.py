@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
@@ -140,7 +140,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
         """Return the amplitude `sigma W` of the random returns."""
         return s.target.sigma * s.target.W
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
         if self.graph is None:
@@ -165,4 +165,4 @@ class BouchaudMezardWealthSystem(BaseSystem):
             function=self._exchange,
             mode=mode,
         )
-        return System(self.label, elements=[agents], interactions=[exchange, returns])
+        return CompositeSystem(self.label, elements=[agents], interactions=[exchange, returns])

@@ -21,7 +21,7 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import (
@@ -366,7 +366,7 @@ class BrownianMotionSystem(BaseSystem):
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return free Brownian particles with or without inertia.
 
         With inertia they follow `m x'' = -gamma x' + sqrt(2 kT gamma) W`.
@@ -379,7 +379,7 @@ class BrownianMotionSystem(BaseSystem):
                 size=self.n_particles,
                 values={'x': np.zeros((self.n_particles, self.n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
             )
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[beads],
                 interactions=[ThermalNoiseInteraction('bath', target='beads')],
@@ -398,7 +398,7 @@ class BrownianMotionSystem(BaseSystem):
             visual=POINTS,
         )
         bath = LangevinThermostatInteraction('bath', target='beads', temperature=self.kT, gamma=self.gamma)
-        return System(self.label, elements=[beads], interactions=[bath], space=space)
+        return CompositeSystem(self.label, elements=[beads], interactions=[bath], space=space)
 
 
 class OpticalTrapSystem(BaseSystem):
@@ -473,7 +473,7 @@ class OpticalTrapSystem(BaseSystem):
         self.blink_period = blink_period
         self.duty = duty
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return overdamped particles in a harmonic optical trap.
 
         The trap is still, oscillating, or blinking.
@@ -495,7 +495,12 @@ class OpticalTrapSystem(BaseSystem):
             duty=self.duty,
         )
         bath = ThermalNoiseInteraction('bath', target='beads')
-        return System(self.label, elements=[beads], interactions=[trap, bath], space=ContinuousSpace(n_dim=n_dim))
+        return CompositeSystem(
+            self.label,
+            elements=[beads],
+            interactions=[trap, bath],
+            space=ContinuousSpace(n_dim=n_dim),
+        )
 
 
 class KramersEscapeSystem(BaseSystem):
@@ -561,7 +566,7 @@ class KramersEscapeSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         positions = -1.0 + np.random.default_rng(self.random_state).normal(0.0, 0.1, self.n_particles)
         group = GroupElement(
@@ -570,7 +575,11 @@ class KramersEscapeSystem(BaseSystem):
             size=self.n_particles,
             values={'x': positions, 'amplitude': 0.0, 'D': self.D},
         )
-        return System(self.label, elements=[group], interactions=self._get_double_well_interactions('particles'))
+        return CompositeSystem(
+            self.label,
+            elements=[group],
+            interactions=self._get_double_well_interactions('particles'),
+        )
 
 
 class MultiplicativeNoiseSystem(BaseSystem):
@@ -630,7 +639,7 @@ class MultiplicativeNoiseSystem(BaseSystem):
         self.L = L
         self.convention = convention
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         group = GroupElement(
             'particles',
@@ -644,7 +653,7 @@ class MultiplicativeNoiseSystem(BaseSystem):
             noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
             convention=self.convention,
         )
-        return System(self.label, elements=[group], interactions=[noise])
+        return CompositeSystem(self.label, elements=[group], interactions=[noise])
 
 
 class ScaledBrownianMotionSystem(BaseSystem):
@@ -700,12 +709,12 @@ class ScaledBrownianMotionSystem(BaseSystem):
         self.K = K
         self.t0 = t0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`.
 
         Its mean squared displacement is `<x^2> ~ 2 K t^alpha`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -797,7 +806,7 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
         self.D = D
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         centers = rng.uniform(0.0, self.size, (self.n_hotspots, 2))
@@ -819,4 +828,9 @@ class DiffusionInASpeckleFieldSystem(BaseSystem):
             values={'x': positions, 'gamma': 1.0, 'temperature': self.D},
         )
         bath = ThermalNoiseInteraction('bath', target='beads')
-        return System(self.label, elements=[beads], interactions=[speckle, bath], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(
+            self.label,
+            elements=[beads],
+            interactions=[speckle, bath],
+            space=ContinuousSpace(n_dim=2),
+        )

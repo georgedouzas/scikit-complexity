@@ -16,7 +16,7 @@ from ....core.base import BaseConfig
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RowScoreSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -352,7 +352,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         """Return the sum of the local energies of the cells of the residues of a chain."""
         return float(energies[amino.astype(int), row.astype(int)].sum())
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
         if self.temperature <= 0:
@@ -361,7 +361,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         names = [residue for _, _, residue in read_structure(self.entry).residues]
         amino = np.array([AMINO_ACIDS.index(name) for name in names], dtype=float)
         energies = -np.log(read_cell_probabilities(self.cells))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

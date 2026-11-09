@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -257,7 +257,7 @@ class CccModelSystem(BaseSystem):
         triples = rng.integers(size, size=(count, 3))
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         entities = GroupElement(
@@ -273,4 +273,4 @@ class CccModelSystem(BaseSystem):
             destruction=self._random_sets(self.n_entities, self.r_minus, rng),
             p=self.p,
         )
-        return System(self.label, elements=[entities], interactions=[update])
+        return CompositeSystem(self.label, elements=[entities], interactions=[update])

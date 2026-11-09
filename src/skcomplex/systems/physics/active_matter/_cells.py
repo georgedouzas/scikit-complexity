@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -253,7 +253,7 @@ class SzaboCellsSystem(BaseSystem):
         """Return the amplitude `eta / sqrt(12)` of the angular noise."""
         return s.target.eta / sqrt(12)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cells of Szabó (2006) in a periodic box.
 
         The cells move together above a critical density.
@@ -286,7 +286,7 @@ class SzaboCellsSystem(BaseSystem):
             rate=functools.partial(self._turning, reach=self.R_0),
             noise=self._angular_noise,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells],
             interactions=[motion, turning],

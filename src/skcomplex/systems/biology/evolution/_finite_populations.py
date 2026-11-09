@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BirthDeathInteraction, EvolutionInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
@@ -579,11 +579,11 @@ class MoranProcessSystem(BaseSystem):
         self.selection = selection
         self.mutation = mutation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Moran process."""
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -672,7 +672,7 @@ class TangledNatureSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Tangled Nature system."""
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
@@ -686,7 +686,7 @@ class TangledNatureSystem(BaseSystem):
             seed=self.seed,
         )
         visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -756,10 +756,10 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.length = length
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a finite population."""
         fitness = AdaptiveClimbingInteraction._random_fitness(0, self.seed)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -838,7 +838,7 @@ class NKLandscapeSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
         fitness = [ClimberElement._nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
@@ -855,4 +855,4 @@ class NKLandscapeSystem(BaseSystem):
             },
             variable=True,
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])

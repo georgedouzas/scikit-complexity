@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -195,7 +195,7 @@ class CournotDuopolySystem(BaseSystem):
         self.b = b
         self.error = error
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
@@ -203,7 +203,7 @@ class CournotDuopolySystem(BaseSystem):
             size=N_FIRMS,
             values={'output': list(self.outputs), 'cost': list(self.costs)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[firms],
             interactions=[CournotAdjustmentInteraction('market', target='firms', a=self.a, b=self.b, error=self.error)],

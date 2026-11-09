@@ -71,7 +71,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.oscillators import (
         ...     KuramotoCouplingInteraction,
         ...     PhaseOscillatorElement,
@@ -79,7 +79,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> phases = GroupElement('phases', element=PhaseOscillatorElement, size=4, values={'theta': [0, 1, 2, 3]})
         >>> coupling = KuramotoCouplingInteraction('coupling', target='phases', K=2.0, mode='group', reduce='mean')
-        >>> system = System(elements=[phases], interactions=[coupling])
+        >>> system = CompositeSystem(elements=[phases], interactions=[coupling])
         >>> theta = simulate(system, until=20.0, dt=1.0).values('phases.theta')
         >>> round(float(np.ptp(theta[-1])), 6)
         0.0

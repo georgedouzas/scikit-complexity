@@ -14,7 +14,7 @@ from scipy.special import comb
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import contraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import LogisticGrowthInteraction, PopulationElement
 
@@ -158,7 +158,7 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
             tensor[i, j, k] = tensor[i, k, j] = values[:, position]
         return tensor
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a random Lotka-Volterra community of third order.
 
         Its interactions are of third order.
@@ -171,7 +171,7 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
             size=self.size,
             values={'x': rng.random(self.size)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species],
             interactions=[

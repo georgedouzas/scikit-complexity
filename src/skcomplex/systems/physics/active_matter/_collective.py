@@ -20,7 +20,7 @@ from ....core.components.interactions import PairCouplingInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -379,7 +379,7 @@ def _active_disks(
     speed: float,
     D_r: float,
     random_state: int | np.random.Generator | None,
-) -> System:
+) -> CompositeSystem:
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
     group = GroupElement(
@@ -389,7 +389,7 @@ def _active_disks(
         values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
     )
     propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-    return System(
+    return CompositeSystem(
         elements=[group],
         interactions=[propulsion],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
@@ -459,7 +459,7 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return repulsive active Brownian disks of unit diameter.
 
         The disks phase separate into clusters at high speed.
@@ -474,7 +474,7 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
             period=size,
             k=self.k,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=system.elements,
             interactions=[*system.interactions, repulsion],
@@ -555,7 +555,7 @@ class LivingCrystalsSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         system = _active_disks(self.n_particles, self.size, self.speed, self.D_r, self.random_state)
         repulsion = SoftSphereInteraction(
@@ -576,7 +576,7 @@ class LivingCrystalsSystem(BaseSystem):
             R=1.0,
         )
         interactions = [*system.interactions, repulsion, attraction]
-        return System(self.label, elements=system.elements, interactions=interactions, space=system.space)
+        return CompositeSystem(self.label, elements=system.elements, interactions=interactions, space=system.space)
 
 
 class CuckerSmaleFlockingSystem(BaseSystem):
@@ -636,7 +636,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Cucker-Smale flocking.
 
         Every agent aligns its velocity with all others, weighted by distance.
@@ -661,7 +661,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
             beta=self.beta,
             n_agents=self.n_agents,
         )
-        return System(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
 
 
 class TonerTuSystem(BaseSystem):
@@ -746,7 +746,7 @@ class TonerTuSystem(BaseSystem):
         self.spacing = spacing
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
@@ -764,7 +764,7 @@ class TonerTuSystem(BaseSystem):
             'D': self.D,
         }
         space = LatticeSpace(shape, spacing=self.spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('flock', element=PolarFluidElement, space=space, values={**values, **parameters})],
         )

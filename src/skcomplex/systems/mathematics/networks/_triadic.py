@@ -19,7 +19,7 @@ from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..common._regulated_node import RegulatedNodeElement
 
@@ -258,7 +258,7 @@ class TriadicPercolationSystem(BaseSystem):
         signs = np.where(rng.uniform(size=len(hyperedges)) < negative, -1, 1)
         return hyperedges, signs
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return triadic percolation.
 
         Regulating nodes switch links on and off from the giant component.
@@ -274,4 +274,4 @@ class TriadicPercolationSystem(BaseSystem):
             GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return System(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)

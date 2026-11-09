@@ -14,7 +14,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -130,11 +130,11 @@ class FisherKPPSystem(BaseSystem):
         self.spacing = spacing
         self.front = front
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Fisher-KPP equation."""
         u = (np.arange(self.length) < self.front * self.length).astype(float)
         space = LatticeSpace(self.length, spacing=self.spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

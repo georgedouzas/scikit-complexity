@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, pulse_train, sign
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.mechanics import SpringDamperInteraction
 
@@ -290,7 +290,7 @@ class RegenerativeBrakingSystem(BaseSystem):
         self.alpha = alpha
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         car = RegenerativeCarElement(
             'car',
@@ -305,7 +305,7 @@ class RegenerativeBrakingSystem(BaseSystem):
             alpha=self.alpha,
             beta=self.beta,
         )
-        return System(self.label, elements=[car])
+        return CompositeSystem(self.label, elements=[car])
 
 
 class FaradayDiskSystem(BaseSystem):
@@ -402,7 +402,7 @@ class FaradayDiskSystem(BaseSystem):
         self.L = L
         self.C = C
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         charger = FaradayDiskElement(
             'charger',
@@ -417,7 +417,7 @@ class FaradayDiskSystem(BaseSystem):
             L=self.L,
             C=self.C,
         )
-        return System(self.label, elements=[charger])
+        return CompositeSystem(self.label, elements=[charger])
 
 
 class WheelRailContactSystem(BaseSystem):
@@ -487,7 +487,7 @@ class WheelRailContactSystem(BaseSystem):
         self.Mr = Mr
         self.Ms = Ms
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rail = RailSegmentElement(
             'rail',
@@ -507,4 +507,4 @@ class WheelRailContactSystem(BaseSystem):
             damping='br',
             divisor={'z': 'Mr', 'zs': 'Ms'},
         )
-        return System(self.label, elements=[rail], interactions=[pad])
+        return CompositeSystem(self.label, elements=[rail], interactions=[pad])

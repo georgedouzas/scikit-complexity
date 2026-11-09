@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     MatchSpec,
@@ -586,7 +586,7 @@ class CreditNetworksSystem(BaseSystem):
         firm.rate = trade.value
         bank.lent += trade.quantity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         lenders = GroupElement(
@@ -667,7 +667,7 @@ class CreditNetworksSystem(BaseSystem):
                 for name, function in FirmElement.get_default()
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[borrowers, lenders],
             interactions=[*plan, market, *settlement],

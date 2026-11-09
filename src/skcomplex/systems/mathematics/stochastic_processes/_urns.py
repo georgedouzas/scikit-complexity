@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 
@@ -110,7 +110,7 @@ class PolyaUrnSystem(BaseSystem):
         self.blue = blue
         self.added = added
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         urns = GroupElement(
             'urns',
@@ -130,4 +130,4 @@ class PolyaUrnSystem(BaseSystem):
             changes={'blue': self.added},
             rate=lambda s: s.target.blue / (s.target.red + s.target.blue),
         )
-        return System(self.label, elements=[urns], interactions=[red_draws, blue_draws])
+        return CompositeSystem(self.label, elements=[urns], interactions=[red_draws, blue_draws])

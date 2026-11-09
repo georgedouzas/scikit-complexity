@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -455,7 +455,7 @@ class GuruOrderBookSystem(BaseSystem):
         self.opening = opening
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         links = rng.integers(self.n_traders - 1, size=self.n_traders)
@@ -479,4 +479,4 @@ class GuruOrderBookSystem(BaseSystem):
             beta_step=self.beta_step,
             opening=self.opening,
         )
-        return System(self.label, elements=[traders], interactions=[market])
+        return CompositeSystem(self.label, elements=[traders], interactions=[market])

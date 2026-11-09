@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -122,7 +122,7 @@ class CapitalStockSystem(BaseSystem):
         rate: Expression = stock.investment_fraction * stock.output_per_capital * stock.K - stock.K / stock.lifetime
         return rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         economy = CapitalStockElement(
             'economy',
@@ -131,7 +131,7 @@ class CapitalStockSystem(BaseSystem):
             output_per_capital=self.output_per_capital,
             lifetime=self.lifetime,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[economy],
             interactions=[RateInteraction('investment', target='economy', state='K', rate=self._net_investment)],

@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
 
@@ -175,7 +175,7 @@ class KinouchiCopelliSystem(BaseSystem):
             for phase in range(EXCITED, n_states)
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Kinouchi-Copelli network of excitable elements."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -202,7 +202,7 @@ class KinouchiCopelliSystem(BaseSystem):
             destination=EXCITED,
             probability=self._get_excitation,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[neurons],
             interactions=[excitation, *self._get_cycle(self.n_states)],

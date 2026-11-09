@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, periodic_guard
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -480,10 +480,10 @@ class VanDerPolElement(Element):
             The visual of the oscillator when it sets none.
 
     Examples:
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)])
+        >>> system = CompositeSystem(elements=[VanDerPolElement('oscillator', x=0.1)])
         >>> trajectory = simulate(system, until=50.0, dt=0.1)
         >>> round(float(abs(trajectory.values('oscillator.x')[-300:]).max()), 1)
         2.0
@@ -613,7 +613,7 @@ class DuffingSystem(BaseSystem):
         self.gamma = gamma
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         acceleration = RateInteraction(
             'acceleration',
@@ -626,7 +626,7 @@ class DuffingSystem(BaseSystem):
                 + s.target.gamma * cos(s.target.omega * s.t)
             ),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 DuffingElement(
@@ -689,12 +689,12 @@ class VanDerPolSystem(BaseSystem):
         self.v = v
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
 
         The oscillator settles on a limit cycle for `μ > 0`.
         """
-        return System(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+        return CompositeSystem(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
 
 
 class HenonHeilesSystem(BaseSystem):
@@ -756,9 +756,9 @@ class HenonHeilesSystem(BaseSystem):
         """Return the Hénon-Heiles Hamiltonian of the target."""
         return _get_henon_heiles_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
             interactions=[
@@ -830,9 +830,9 @@ class StuartLandauSystem(BaseSystem):
         self.omega = omega
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StuartLandauElement('oscillator', x=self.x, y=self.y, mu=self.mu, omega=self.omega, beta=self.beta),
@@ -897,12 +897,12 @@ class ForcedVanDerPolSystem(BaseSystem):
         self.A = A
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Van der Pol oscillator driven by a periodic force.
 
         The oscillator follows `x'' = μ (1 - x²) x' - x + A cos(ω t)`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu, A=self.A, omega=self.omega)],
         )
@@ -954,12 +954,12 @@ class AdlerEquationSystem(BaseSystem):
         self.detuning = detuning
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Adler equation `Δφ' = Δω + ε sin Δφ`.
 
         The equation is that of the phase difference of an oscillator and its drive.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[AdlerPhaseElement('difference', phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
         )
@@ -1032,12 +1032,12 @@ class NuclearQuadrupoleSystem(BaseSystem):
         """Return the quadrupole Hamiltonian of the target."""
         return _get_quadrupole_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the quadrupole vibrations of a nuclear surface.
 
         The vibrations are a Hamiltonian system of two degrees of freedom.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[QuadrupoleElement('nucleus', q1=self.q1, q2=self.q2, p1=self.p1, p2=self.p2, B=self.B)],
             interactions=[
@@ -1111,9 +1111,9 @@ class ForcedTodaSystem(BaseSystem):
         self.a = a
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[TodaElement('toda', x=self.x, x_d1=self.v, d=self.d, a=self.a, omega=self.omega)],
         )
@@ -1199,7 +1199,7 @@ class ImpulsiveOscillatorSystem(BaseSystem):
         self.spring = spring
         self.omega0 = omega0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an oscillator kicked by a periodic train of impulses of alternating sign."""
         if self.spring not in SPRINGS:
             error_msg = f'Unknown spring {self.spring!r}. Use one of {", ".join(SPRINGS)}.'
@@ -1227,7 +1227,7 @@ class ImpulsiveOscillatorSystem(BaseSystem):
         jump = 2 / (1 - self.gamma**2)
         pull = {'x_d1': lambda s: s.target.x_d1 - jump * s.target.H}
         push = {'x_d1': lambda s: s.target.x_d1 + jump * s.target.H}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ImpulsiveOscillatorElement('oscillator', x=self.x, x_d1=self.v, H=self.H, omega0=self.omega0)],
             interactions=[

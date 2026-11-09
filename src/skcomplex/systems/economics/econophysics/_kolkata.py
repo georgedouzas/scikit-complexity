@@ -18,7 +18,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, GroupingInteraction
 from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
@@ -299,7 +299,7 @@ class KolkataRestaurantSystem(BaseSystem):
         self.strategy = strategy
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         n_restaurants = self.n_restaurants
         if self.strategy not in STRATEGIES:
@@ -323,4 +323,4 @@ class KolkataRestaurantSystem(BaseSystem):
             )
         )
         restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
-        return System(self.label, elements=[diners], interactions=[choice, restaurants])
+        return CompositeSystem(self.label, elements=[diners], interactions=[choice, restaurants])

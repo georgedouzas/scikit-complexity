@@ -21,7 +21,7 @@ from ....core.components.interactions import Interaction, MapInteraction, Topolo
 from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.types import Array
@@ -437,7 +437,7 @@ class SoleManrubiaSystem(BaseSystem):
         self.noise = noise
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the ecosystem of Solé and Manrubia."""
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
@@ -470,7 +470,7 @@ class SoleManrubiaSystem(BaseSystem):
             values={'w': couplings, 'fresh': 0.0},
             visual=HIDDEN,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species, edge_group],
             interactions=[
@@ -549,7 +549,7 @@ class JainKrishnaSystem(BaseSystem):
         self.period = period
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system of Jain and Krishna."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
@@ -581,7 +581,7 @@ class JainKrishnaSystem(BaseSystem):
             capacity=self.n * self.n,
             visual=HIDDEN,
         )
-        return System(self.label, elements=[species, links], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[species, links], time=DiscreteTime())
 
 
 class CompetitiveJainKrishnaSystem(BaseSystem):
@@ -638,7 +638,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         self.duration = duration
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Jain-Krishna model with signed interactions."""
         rng = np.random.default_rng(self.seed)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
@@ -650,4 +650,4 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
             values={'x': np.full(self.n, 1 / self.n), 'links': matrix},
         )
         selection = CompetitiveSelectionInteraction('selection', species='species', p=self.p, duration=self.duration)
-        return System(self.label, elements=[species], interactions=[selection], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[species], interactions=[selection], time=DiscreteTime())

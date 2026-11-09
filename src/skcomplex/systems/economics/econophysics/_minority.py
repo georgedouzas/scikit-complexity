@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, EvolutionInteraction, Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import IntArray
@@ -340,7 +340,7 @@ class MinorityGameSystem(BaseSystem):
         self.fraction = fraction
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.n_agents % 2 == 0:
             error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
@@ -386,7 +386,7 @@ class MinorityGameSystem(BaseSystem):
             reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
             phase='score',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[choice, game, scoring, *([evolution] if self.evolutionary else [])],

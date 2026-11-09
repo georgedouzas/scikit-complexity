@@ -22,7 +22,7 @@ from ....core.components.interactions import BaseInteraction, Interaction, Match
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BaseSpec,
@@ -1052,7 +1052,7 @@ def _money_gini(money: object) -> float:
     return 0.0 if gini is None else gini
 
 
-def _metaphoria_observables(system: System) -> list[ObservableSpec]:
+def _metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the population, the Gini coefficient of money, and the bank balance.
 
     The population is the living one, of a monetary economy.
@@ -1169,7 +1169,7 @@ class MetaphoriaSystem(BaseSystem):
         self.n_firms = n_firms
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         shape = self.shape
         if self.mode not in MODES:
@@ -1261,7 +1261,7 @@ class MetaphoriaSystem(BaseSystem):
             if self.mode == 'hunter_gatherer'
             else [jobs, dividends, shops]
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[patches, people, *economy],
             interactions=[

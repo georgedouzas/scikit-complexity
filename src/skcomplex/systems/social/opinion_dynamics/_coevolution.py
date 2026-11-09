@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
@@ -223,7 +223,7 @@ def _coevolving(
     opinions: np.ndarray,
     choice: MapInteraction,
     **values: object,
-) -> System:
+) -> CompositeSystem:
     """Return a coevolving network of agents with opinions and its variable ties.
 
     The ties are rewired by separation.
@@ -247,7 +247,7 @@ def _coevolving(
             for opinion in (1.0, 0.0)
         ),
     ]
-    return System(label, elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
+    return CompositeSystem(label, elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
 
 
 class CoevolvingVoterSystem(BaseSystem):
@@ -319,7 +319,7 @@ class CoevolvingVoterSystem(BaseSystem):
         copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
         return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
@@ -410,7 +410,7 @@ class JoinAClubSystem(BaseSystem):
         choice = where(uniform('u') < joining, 1, 0)
         return where(uniform('d') < agent.deciding, choice, agent.opinion)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))

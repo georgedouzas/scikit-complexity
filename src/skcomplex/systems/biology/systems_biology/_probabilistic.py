@@ -20,7 +20,7 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from .types import Candidates
@@ -250,7 +250,7 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         self.inputs = inputs
         self.active = active
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a probabilistic Boolean network."""
         chosen = SHMULEVICH_NETWORK if self.network is None else self.network
         nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
@@ -264,4 +264,4 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
             )
             for name, candidates in chosen.items()
         ]
-        return System(self.label, elements=nodes, interactions=functions)
+        return CompositeSystem(self.label, elements=nodes, interactions=functions)

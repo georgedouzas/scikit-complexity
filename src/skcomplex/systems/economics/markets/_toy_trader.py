@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -459,7 +459,7 @@ class ToyTraderSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         places = rng.uniform(0, self.size, (self.n_traders, 2))
@@ -480,4 +480,4 @@ class ToyTraderSystem(BaseSystem):
             n_goods=self.n_goods,
             fitness=self.fitness,
         )
-        return System(self.label, elements=[traders], interactions=[market])
+        return CompositeSystem(self.label, elements=[traders], interactions=[market])

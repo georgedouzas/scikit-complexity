@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BirthDeathInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -370,7 +370,7 @@ class InsiderSabotageSystem(BaseSystem):
         """
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
@@ -429,7 +429,7 @@ class InsiderSabotageSystem(BaseSystem):
                 form='agent',
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[employees, supervisors],
             interactions=[wandering, *work],

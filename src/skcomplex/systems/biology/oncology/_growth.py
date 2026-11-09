@@ -14,7 +14,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.populations import (
     ExponentialGrowthInteraction,
@@ -268,10 +268,10 @@ class GompertzGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('tumour', x=1.0)],
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
@@ -327,10 +327,10 @@ class PowerLawGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('tumour', x=1.0)],
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
@@ -410,9 +410,9 @@ class ExponentialLinearGrowthSystem(BaseSystem):
         self.r0 = r0
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=self.r0, r=self.r)],
@@ -465,12 +465,12 @@ class PowerLawGrowthSystem(BaseSystem):
         self.r = r
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour whose proliferating part scales as a power of its size.
 
         The growth is `dn/dt = r n^p`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=self.r, p=self.p)],
@@ -528,12 +528,12 @@ class VonBertalanffySystem(BaseSystem):
         self.p = p
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour that grows by the balance of anabolism and catabolism.
 
         The growth is `dn/dt = r n^p - d n`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[
@@ -594,9 +594,9 @@ class GeneralizedLogisticSystem(BaseSystem):
         self.K = K
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour that saturates at a carrying capacity."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[GrowthInteraction('growth', target='tumour', r=self.r, K=self.K, p=self.p, form='logistic')],
@@ -649,12 +649,12 @@ class GompertzSystem(BaseSystem):
         self.r = r
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour whose growth slows as the room left shrinks.
 
         The growth slows as the logarithm of the room left.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[GompertzGrowthInteraction('growth', target='tumour', r=self.r, K=self.K)],
@@ -713,9 +713,9 @@ class DynamicCarryingCapacitySystem(BaseSystem):
         self.r = r
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Gompertz growth under a carrying capacity."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n), VasculatureElement('vessels', K=self.K)],
             interactions=[
@@ -786,9 +786,9 @@ class SkipperLogKillSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the log-kill system."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[
@@ -877,9 +877,9 @@ class NortonSimonSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Norton-Simon system."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[

@@ -20,7 +20,7 @@ from ....core.components.interactions import HyperedgeInteraction, MapInteractio
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common._vertex import VertexElement
 
@@ -224,7 +224,7 @@ class HypergraphRandomWalkSystem(BaseSystem):
         self.source = source
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the size-biased random walk on a hypergraph.
 
         The walk `p_j' = sum_i p_i T_ij - p_j` starts from one node.
@@ -247,7 +247,11 @@ class HypergraphRandomWalkSystem(BaseSystem):
             visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
             on='sites',
         )
-        return System(self.label, elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])
+        return CompositeSystem(
+            self.label,
+            elements=[nodes],
+            interactions=[SizeBiasedMoveInteraction('moves', target='nodes')],
+        )
 
 
 class GrowingSimplicialComplexSystem(BaseSystem):
@@ -300,7 +304,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
             MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a simplicial complex that grows by gluing one triangle per step.
 
         Every triangle is glued along an edge drawn uniformly.
@@ -323,7 +327,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
         )
         growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
         ageing = SimplexAgeingInteraction('triangle_ageing', nodes='nodes', triangles='triangles')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[nodes, links, triangles],
             interactions=[growth, ageing, *self._get_bookkeeping()],

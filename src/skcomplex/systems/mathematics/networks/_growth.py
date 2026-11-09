@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common._vertex import DEGREE_VISUAL, VertexElement
@@ -257,13 +257,13 @@ def _grown(
     interactions: Sequence[BaseInteraction] = (),
     *,
     label: str,
-) -> System:
+) -> CompositeSystem:
     """Return a growing network of a group on its nodes.
 
     The network has a variable edge group, the arrival of nodes, and its maps.
     """
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-    return System(
+    return CompositeSystem(
         label,
         elements=[nodes, links],
         interactions=[growth, *_get_bookkeeping(), *interactions],
@@ -342,7 +342,7 @@ class BarabasiAlbertSystem(BaseSystem):
         self.fitness = fitness
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Barabási-Albert growth.
 
         By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
@@ -428,7 +428,7 @@ class HolmeKimSystem(BaseSystem):
             attaching,
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Holme-Kim growth.
 
         The network is scale-free like Barabási-Albert growth but with clustering that stays high.
@@ -505,7 +505,7 @@ class VertexCopyingSystem(BaseSystem):
         self.randomness = randomness
         self.seed_nodes = seed_nodes
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         nodes = _nodes(CopyingVertexElement, self.n_nodes)
@@ -616,7 +616,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return popularity-similarity growth, scale-free and clustered.
 
         Its nodes attach by hyperbolic distance.
@@ -703,7 +703,7 @@ class GraphletArrivalSystem(BaseSystem):
         self.n_nodes = n_nodes
         self.alpha = alpha
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return growth by the arrival of three-node graphlets.
 
         The tree has a degree exponent that rises with `alpha`.

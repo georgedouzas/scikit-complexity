@@ -22,7 +22,7 @@ from ....core.components.interactions import NeighborInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -190,7 +190,7 @@ def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str
     return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
 
 
-def _market_observables(system: System) -> list[ObservableSpec]:
+def _market_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the total of the good and the Gauss residual against its excess density."""
     space = system.elements[0].space.prepare()
     return [
@@ -292,7 +292,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         )[0]
         return np.asarray(field, dtype=float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
@@ -318,7 +318,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             RateInteraction('field', target='links', state='E', rate=self._field_rate),
             TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
         ]
-        return System(self.label, elements=[sites, links], interactions=interactions)
+        return CompositeSystem(self.label, elements=[sites, links], interactions=interactions)
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.

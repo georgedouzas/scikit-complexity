@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import series
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -290,11 +290,11 @@ class PartialAdjustmentInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import PartialAdjustmentInteraction
         >>> relaxation = PartialAdjustmentInteraction('relaxation', target='stock', goal=10.0, time=0.5)
-        >>> system = System(elements=[NonnegativeElement('stock')], interactions=[relaxation])
+        >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
         >>> round(float(trajectory.values('stock.x')[-1]), 3)
         10.0
@@ -437,7 +437,7 @@ class FoodSecuritySystem(BaseSystem):
         self.training_target = training_target
         self.intensity_target = intensity_target
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         sector = RiceSectorElement(
             'rice',
@@ -491,4 +491,4 @@ class FoodSecuritySystem(BaseSystem):
                 time=lambda s: s.target.implementation_time,
             ),
         ]
-        return System(self.label, elements=[sector], interactions=[*transfers, *relaxations])
+        return CompositeSystem(self.label, elements=[sector], interactions=[*transfers, *relaxations])

@@ -15,7 +15,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.signals import PulseInteraction
@@ -212,7 +212,7 @@ class MinimumTimeControlSystem(BaseSystem):
         self.plant = plant
         self.interval = interval
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
@@ -222,7 +222,7 @@ class MinimumTimeControlSystem(BaseSystem):
             raise ParameterError(error_msg)
         start = float(BangBangPlantElement._control(self.plant, self.x, self.v))
         sample = {'u': lambda s: BangBangPlantElement._control(self.plant, s.target.x, s.target.y)}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
             interactions=[

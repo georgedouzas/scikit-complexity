@@ -28,7 +28,7 @@ from ....core.components.spaces import (
     LatticeSpace,
     NetworkSpace,
 )
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RegionScoreSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
@@ -288,7 +288,7 @@ def _area_deviation(sizes: Array, target_area: float, t: float, values: Mapping[
     return float(np.abs(areas - target_area).mean() / target_area)
 
 
-def _cellular_potts_observables(system: System) -> list[ObservableSpec]:
+def _cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
     """Return the share of homotypic contacts and the deviation of the areas.
 
     The deviation is that of the areas from their target.
@@ -447,7 +447,7 @@ class CellularPottsSystem(BaseSystem):
             data['weight'] = data.pop('length') / mean
         return graph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the cellular Potts model of a confluent tissue."""
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
@@ -492,4 +492,4 @@ class CellularPottsSystem(BaseSystem):
             target_perimeter=self.target_perimeter,
             hits=self.hits,
         )
-        return System(self.label, elements=[tissue], interactions=[sampling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[tissue], interactions=[sampling], time=DiscreteTime())

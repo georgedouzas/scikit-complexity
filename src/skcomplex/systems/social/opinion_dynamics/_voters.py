@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
 from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
@@ -329,10 +329,10 @@ class MajorityRuleSystem(BaseSystem):
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         values = self._random_cells(self.shape, self.density, self.random_state)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -398,14 +398,14 @@ class VoterSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
         size = nx.number_of_nodes(graph)
         opinions = (rng.random(size) < self.share).astype(float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
             interactions=[VoterImitationInteraction('imitation', target='voters')],
@@ -467,7 +467,7 @@ class VoterVariantsSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -483,7 +483,7 @@ class VoterVariantsSystem(BaseSystem):
                 'threshold': self.threshold,
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[voters],
             interactions=[VariantVotingInteraction('voting', target='voters')],

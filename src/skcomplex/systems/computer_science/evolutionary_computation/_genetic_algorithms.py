@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction, Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -498,7 +498,7 @@ class RobbyGASystem(BaseSystem):
         self.switch = switch
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
@@ -538,8 +538,8 @@ class RobbyGASystem(BaseSystem):
                 size=self.n_strategies,
                 values={'actions': actions, 'score': scores, 'age': ages},
             )
-            return System(self.label, elements=[strategies], interactions=[circumstance, scoring])
-        return System(
+            return CompositeSystem(self.label, elements=[strategies], interactions=[circumstance, scoring])
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

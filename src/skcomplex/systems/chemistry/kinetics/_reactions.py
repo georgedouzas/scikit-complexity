@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import BaseSystem, MassActionSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem, ReactionNetworkSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import ReactionTable
@@ -99,7 +99,7 @@ class SchloglElement(Element):
         self.B = B
 
 
-class MichaelisMentenSystem(MassActionSystem):
+class MichaelisMentenSystem(ReactionNetworkSystem):
     """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten.
 
     It runs as rate equations or as jumps.
@@ -273,7 +273,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         reactor = s.reactants[0]
         return reactor.c4 * reactor.x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the reactor and the four channels of Schlögl's reaction.
 
         The channels are chemical Langevin equations.
@@ -288,7 +288,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
             A=self.A,
             B=self.B,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[reactor],
             interactions=[
@@ -312,7 +312,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         )
 
 
-class ChemicalLangevinNetworkSystem(MassActionSystem):
+class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
     """The chemical Langevin equation of the enzyme reaction `E + S <-> C -> E + P`.
 
     Every reaction adds its rate times its change of every species to the drift, and one Wiener process with the

@@ -20,7 +20,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousTime, NetworkSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 FOLD = math.sqrt(4 / 27)
@@ -151,7 +151,7 @@ class TippingCascadeNetworkSystem(BaseSystem):
         """
         return s.member.d * (s.other.x + 1)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         graph = nx.path_graph(4) if self.graph is None else self.graph
         size = graph.number_of_nodes()
@@ -162,4 +162,4 @@ class TippingCascadeNetworkSystem(BaseSystem):
         }
         elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
         coupling = CouplingInteraction('coupling', target='elements', function=self._push)
-        return System(self.label, elements=[elements], interactions=[coupling], time=ContinuousTime())
+        return CompositeSystem(self.label, elements=[elements], interactions=[coupling], time=ContinuousTime())

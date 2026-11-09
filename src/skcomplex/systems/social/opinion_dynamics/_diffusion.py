@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction, TransitionInteraction
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
@@ -323,7 +323,7 @@ class InfluentialsSystem(BaseSystem):
         """Return the level an agent cares at, the index of its largest weight."""
         return float(np.argmax(agent.belief))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -356,7 +356,7 @@ class InfluentialsSystem(BaseSystem):
             schedule='member',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[learning, caring],
@@ -437,7 +437,7 @@ class ThresholdAdoptionSystem(BaseSystem):
         position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
         return np.mod(position, size)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         drawn = (
@@ -455,7 +455,7 @@ class ThresholdAdoptionSystem(BaseSystem):
             values={'adopted': adopted, 'threshold': drawn, 'reach': self.reach},
             location=rng.uniform(0, self.size, (self.n_agents, 2)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[

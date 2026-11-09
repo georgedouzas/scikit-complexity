@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import CollocationSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
@@ -184,9 +184,9 @@ class OptimalConsumptionSystem(BaseSystem):
         rate: Expression = economy.A * economy.k**economy.alpha - economy.delta * economy.k - economy.c
         return rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RamseyEconomyElement(

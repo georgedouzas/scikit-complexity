@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
@@ -186,10 +186,10 @@ class NeutralBiodiversitySystem(BaseSystem):
         self.species = species
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a neutral community of constant size."""
         labels = np.random.default_rng(self.random_state).integers(self.species, size=self.individuals).astype(float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('community', element=OrganismElement, size=self.individuals, values={'species': labels}),

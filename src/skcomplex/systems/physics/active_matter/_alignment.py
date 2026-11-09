@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairCouplingInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
@@ -186,7 +186,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         self.D_t = D_t
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return active Brownian particles in a periodic box whose headings align.
 
         A particle aligns with its neighbours within `d0`.
@@ -212,7 +212,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
             period=self.size,
             gamma=self.gamma,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[swimmers],
             interactions=[alignment, SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)],

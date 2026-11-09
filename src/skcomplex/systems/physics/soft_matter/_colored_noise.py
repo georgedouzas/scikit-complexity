@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import RelaxationTimeInteraction
@@ -133,7 +133,7 @@ class ColoredNoiseLangevinSystem(BaseSystem):
         self.tau = tau
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return particles whose velocity is driven by Ornstein-Uhlenbeck noise `xi`.
 
         The velocity follows `dv/dt = -gamma v + xi`.
@@ -158,4 +158,4 @@ class ColoredNoiseLangevinSystem(BaseSystem):
             time=lambda s: s.target.tau,
             noise=lambda s: sqrt(2 * s.target.D) / s.target.tau,
         )
-        return System(self.label, elements=[particles], interactions=[drag, noise])
+        return CompositeSystem(self.label, elements=[particles], interactions=[drag, noise])

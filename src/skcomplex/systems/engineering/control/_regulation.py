@@ -19,7 +19,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -476,7 +476,7 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.m = m
         self.l = l
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
         controller = PIDInteraction(
@@ -490,7 +490,7 @@ class PidInvertedPendulumSystem(BaseSystem):
             kd=self.kd,
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return System(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+        return CompositeSystem(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
 
 
 class LqrOscillatorSystem(BaseSystem):
@@ -551,11 +551,11 @@ class LqrOscillatorSystem(BaseSystem):
         self.q = q
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
         linear = linearization(
-            System(elements=[oscillator]),
+            CompositeSystem(elements=[oscillator]),
             controls=['oscillator.force'],
             state_weights=self.q * np.eye(2),
             control_weights=[[self.r]],
@@ -573,4 +573,4 @@ class LqrOscillatorSystem(BaseSystem):
             gain=tuple(float(value) for value in gain[0]),
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return System(self.label, elements=[oscillator], interactions=[regulator])
+        return CompositeSystem(self.label, elements=[oscillator], interactions=[regulator])

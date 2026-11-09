@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -315,7 +315,7 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         self.selling = selling
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         holdings = np.zeros((self.n_banks, self.n_assets))
@@ -338,4 +338,4 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
             leverage=self.leverage,
             selling=self.selling,
         )
-        return System(self.label, elements=[banks, assets], interactions=[sales])
+        return CompositeSystem(self.label, elements=[banks, assets], interactions=[sales])

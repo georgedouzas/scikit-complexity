@@ -20,7 +20,7 @@ from scipy.stats import chi2
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.problems import ProblemSpec
 from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
@@ -561,7 +561,7 @@ def labelling(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
         >>> from skcomplex.systems.biology.systems_biology import (
         ...     AtomMapSpec,
@@ -571,7 +571,7 @@ def labelling(
         ... )
         >>> reactions = {'in': ReactionSpec({'B': 1.0}), 'out': ReactionSpec({'B': -1.0})}
         >>> network = metabolic_network_type('ChainElement', reactions)('net')
-        >>> system = System(elements=[network], time=StaticTime())
+        >>> system = CompositeSystem(elements=[network], time=StaticTime())
         >>> result = labelling(
         ...     system,
         ...     atoms=[AtomMapSpec('in', [('A', 'ab')], [('B', 'ba')])],
@@ -585,9 +585,9 @@ def labelling(
     _check_choice('kind', kind, KINDS)
     _check_choice('intervals', intervals, INTERVALS)
     atom_counts = _atom_counts(atoms)
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         source = source.prepare().system_
-    if not isinstance(source, System):
+    if not isinstance(source, CompositeSystem):
         error_msg = f'labelling reads a system, not a {type(source).__name__}.'
         raise AnalysisError(error_msg)
     units = _collect_units(
@@ -647,7 +647,7 @@ def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
     return {metabolite: count for metabolite, (count, _) in counts.items()}
 
 
-def _network_of(system: System) -> MetabolicNetworkElement:
+def _network_of(system: CompositeSystem) -> MetabolicNetworkElement:
     """Return the metabolic network of a system."""
     for element in system.elements:
         if isinstance(element, MetabolicNetworkElement):
@@ -928,7 +928,7 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
             reactions=network.reactions,
             default_objective=network.default_objective,
         ).set_params(**identifiers)
-        problem = simulate(System(elements=[element], time=StaticTime()), until=0).problem
+        problem = simulate(CompositeSystem(elements=[element], time=StaticTime()), until=0).problem
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)
@@ -1217,9 +1217,9 @@ class Carbon13MFASystem(BaseSystem):
         super().__init__(label)
         self.network = network
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a metabolic network that `labelling` fits to labelling data."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[TcaNetworkElement('tca') if self.network is None else self.network],
             time=StaticTime(),

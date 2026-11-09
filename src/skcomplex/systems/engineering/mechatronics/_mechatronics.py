@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
@@ -355,9 +355,9 @@ class DcMotorSystem(BaseSystem):
         dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
         return dissipation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 VoltageSourceElement('source', V=self.V),
@@ -450,7 +450,7 @@ class QuarterCarSystem(BaseSystem):
         self.b = b
         self.kt = kt
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         car = QuarterCarElement(
             'car',
@@ -470,4 +470,4 @@ class QuarterCarSystem(BaseSystem):
             damping='b',
             divisor={'y1': 'm1', 'y2': 'm2'},
         )
-        return System(self.label, elements=[car], interactions=[suspension])
+        return CompositeSystem(self.label, elements=[car], interactions=[suspension])

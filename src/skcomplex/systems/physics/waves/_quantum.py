@@ -20,7 +20,7 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -407,7 +407,7 @@ class SchrodingerSystem(BaseSystem):
             settings['solver'] = None
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Gaussian wave packet that follows the Schrödinger equation.
 
         The packet is written as its real and imaginary parts.
@@ -433,7 +433,7 @@ class SchrodingerSystem(BaseSystem):
                 interactions.append(
                     PositionDephasingInteraction('dephasing', target='packet', gamma=self.gamma, n_sites=self.n_sites),
                 )
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[
                     SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=self.gamma > 0)),
@@ -447,4 +447,4 @@ class SchrodingerSystem(BaseSystem):
             values={'u': psi.real, 'w': psi.imag, 'D': self.D, 'V': potential},
             discretization='spectral',
         )
-        return System(self.label, elements=[packet])
+        return CompositeSystem(self.label, elements=[packet])

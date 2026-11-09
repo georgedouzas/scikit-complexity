@@ -297,7 +297,7 @@ class StokesianMobilityInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class SphereElement(Element):
@@ -306,7 +306,7 @@ class StokesianMobilityInteraction(Interaction):
         ...         self.x = x
         >>> pull = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
         >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
-        >>> system = System(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
+        >>> system = CompositeSystem(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
         >>> trajectory = simulate(system, until=1.0, dt=1.0)
         >>> (trajectory.values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]

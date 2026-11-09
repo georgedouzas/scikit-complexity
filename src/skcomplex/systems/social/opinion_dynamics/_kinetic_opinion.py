@@ -19,7 +19,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.kinetics import ActivityDensityElement
 
@@ -189,7 +189,7 @@ class OpinionEncountersInteraction(EncounterInteraction):
         return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
 
 
-def _levels_of(system: System) -> int:
+def _levels_of(system: CompositeSystem) -> int:
     """Return the number of opinion levels of a system, the size of its distribution."""
     return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
 
@@ -279,10 +279,10 @@ class KineticOpinionSystem(BaseSystem):
         self.repulsion = repulsion
         self.eta = eta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         initial = 1.0 + 0.1 * opinion_grid(self.levels)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

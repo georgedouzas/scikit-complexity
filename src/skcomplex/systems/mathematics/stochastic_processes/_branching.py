@@ -10,7 +10,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BirthDeathInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -112,12 +112,12 @@ class GaltonWatsonSystem(BaseSystem):
         self.n_individuals = n_individuals
         self.m = m
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Galton-Watson branching process with Poisson offspring.
 
         Every step is one generation.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

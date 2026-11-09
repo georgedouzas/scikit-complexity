@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -176,12 +176,12 @@ class SubcriticalHopfFormSystem(BaseSystem):
         self.gamma = gamma
         self.s = s
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the subcritical Hopf normal form.
 
         A stable focus coexists with a stable limit cycle.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 SubcriticalHopfElement(

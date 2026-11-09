@@ -14,7 +14,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.specs import RoleSpec
 from ..common.metabolism import (
@@ -167,7 +167,7 @@ class RegulatoryFBASystem(BaseSystem):
         self.acetate_vmax = acetate_vmax
         self.km = km
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a batch culture with Boolean catabolite repression.
 
         The culture grows on glucose and acetate.
@@ -188,11 +188,11 @@ class RegulatoryFBASystem(BaseSystem):
             )
             for position in range(1, self.lag + 1)
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('control', elements=[cell, *nodes], time=DiscreteTime()),
-                System(
+                CompositeSystem('control', elements=[cell, *nodes], time=DiscreteTime()),
+                CompositeSystem(
                     'culture',
                     elements=[
                         BiomassElement('biomass', x=self.biomass),

@@ -31,10 +31,10 @@ class MortalityInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import MortalityInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[CompartmentElement('foxes', x=8.0)],
         ...     interactions=[MortalityInteraction('death', target='foxes', d=0.5)],
         ... )

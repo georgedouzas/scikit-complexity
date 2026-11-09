@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -178,7 +178,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         """Return the intrinsic growth `b x` of a species."""
         return namespace.target.b * namespace.target.x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the generalized Lotka-Volterra microbial community."""
         size = len(self.b)
         abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
@@ -194,7 +194,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
             values={'x': abundances, 'b': [float(value) for value in self.b]},
         )
         matrix = tuple(tuple(float(value) for value in row) for row in self.a)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species],
             interactions=[

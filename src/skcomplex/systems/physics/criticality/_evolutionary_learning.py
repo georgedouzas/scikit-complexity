@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, total, uniform, where
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -226,7 +226,7 @@ class EvolutionarySKGameSystem(BaseSystem):
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
         return upper + upper.T
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         couplings = self._sk_couplings(self.n_agents, rng)
@@ -250,4 +250,4 @@ class EvolutionarySKGameSystem(BaseSystem):
             },
             visual=TEMPERATURE_VISUAL,
         )
-        return System(self.label, elements=[agents])
+        return CompositeSystem(self.label, elements=[agents])

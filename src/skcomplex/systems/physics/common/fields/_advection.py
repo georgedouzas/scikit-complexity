@@ -63,7 +63,7 @@ class AdvectionInteraction(ConservationInteraction):
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.physics.common.fields import AdvectionInteraction
@@ -76,7 +76,7 @@ class AdvectionInteraction(ConservationInteraction):
         >>> volumes = 'finite-volume'
         >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = AdvectionInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = System(elements=[field], interactions=[drift])
+        >>> system = CompositeSystem(elements=[field], interactions=[drift])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> total = trajectory.values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)

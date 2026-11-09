@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -132,7 +132,7 @@ class BassDiffusionSystem(BaseSystem):
         market = s.source
         return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         adoption = TransferInteraction(
             'adoption',
@@ -143,7 +143,7 @@ class BassDiffusionSystem(BaseSystem):
             amount=self._adoption,
             flow='adoption',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BassMarketElement('market', P=self.market - self.adopters, A=self.adopters, p=self.p, q=self.q)],
             interactions=[adoption],

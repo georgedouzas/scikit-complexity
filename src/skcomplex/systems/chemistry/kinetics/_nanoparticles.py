@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import NonnegativeElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import StateSpec, VisualSpec
 
@@ -133,7 +133,7 @@ class NanoparticleCoronaSystem(BaseSystem):
         """
         return 4 * (radius + protein_radius) ** 2 / protein_radius**2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the nanoparticles, the proteins, and the binding and release reactions.
 
         The proteins are free and bound, and every protein binds and is released.
@@ -167,4 +167,4 @@ class NanoparticleCoronaSystem(BaseSystem):
                     k=delta,
                 ),
             ]
-        return System(self.label, elements=elements, interactions=interactions)
+        return CompositeSystem(self.label, elements=elements, interactions=interactions)

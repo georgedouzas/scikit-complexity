@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -282,7 +282,7 @@ class ProduceMarketSystem(BaseSystem):
         masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
         return np.array(masks, dtype=float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         stocks = self._random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
@@ -295,7 +295,7 @@ class ProduceMarketSystem(BaseSystem):
             values={'stall': np.arange(self.n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
         )
         shoppers = GroupElement('shoppers', element=ShopperElement, size=self.n_shoppers, values={'wanted': lists})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[stalls, shoppers],
         )

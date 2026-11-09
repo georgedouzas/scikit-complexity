@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
@@ -216,7 +216,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         diffusion: Expression = s.target.D
         return diffusion
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a one-dimensional active viscoelastic gel.
 
         Contractile cells concentrate by dragging the gel.
@@ -248,4 +248,4 @@ class ActiveViscoelasticGelSystem(BaseSystem):
         )
         diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._diffusion)
         displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
-        return System(self.label, elements=[gel], interactions=[transport, diffusion, displacement])
+        return CompositeSystem(self.label, elements=[gel], interactions=[transport, diffusion, displacement])
