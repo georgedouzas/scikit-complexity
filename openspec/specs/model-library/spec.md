@@ -118,7 +118,7 @@ logistic ODE, and the harvest depends on the number of farmers through an aggreg
 - **THEN** the resource stock settles at a positive level
 
 ### Requirement: Ready-made systems are classes
-Every ready-made system SHALL be a class on `BaseSystem`, or on a general core system such as `MassActionSystem`, in
+Every ready-made system SHALL be a class on `BaseSystem`, or on a general core system such as `ReactionNetworkSystem`, in
 the module of its subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its field
 path, topics, references, and tuned run settings as class attributes. `all_systems()` SHALL find every such class.
 
@@ -1189,7 +1189,7 @@ twice.
 
 ### Requirement: Repeated agent economy systems
 The library SHALL provide `GoodsTradersSystem`, `shops`, `barter`, `order_book`, `TragedyOfTheCommonsSystem`, and
-`ridesharing` as system classes, each with a curated gallery example. Each SHALL be a `System` under discrete
+`ridesharing` as system classes, each with a curated gallery example. Each SHALL be a `CompositeSystem` under discrete
 time with a phases schedule, with agents as elements with rule laws in groups, built on the core's matching, transfer,
 and invariant laws and on the trading realizations of `skcomplex.systems.economics.realizations`, and none SHALL add a
 core primitive.

@@ -27,7 +27,7 @@ No module of `skcomplex.core.components` or `skcomplex.core.engine` SHALL import
 SHALL compile and simulate with the engine and no formalism imported.
 
 #### Scenario: Shared core alone
-- **WHEN** a user builds, compiles, and simulates a logistic growth system written with `Element`, `Rate`, and `System`
+- **WHEN** a user builds, compiles, and simulates a logistic growth system written with `Element`, `Rate`, and `CompositeSystem`
 - **THEN** the run succeeds and no module of `skcomplex.formalisms` is loaded
 
 #### Scenario: Planted import

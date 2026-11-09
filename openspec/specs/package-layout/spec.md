@@ -177,7 +177,7 @@ package.
 - **THEN** every import succeeds, and none of them imports from `skcomplex.core.base`
 
 ### Requirement: Bases are unrelated
-No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System`
+No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `CompositeSystem`
 SHALL derive from `BasePart`, which derives from scikit-learn's `BaseEstimator`. `BaseSpace`, `BaseTime`, `BaseSolver`,
 and `BaseBackend` SHALL derive from the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
 
@@ -186,11 +186,11 @@ and `BaseBackend` SHALL derive from the framework's `BaseEstimator`, and `BaseDo
 - **THEN** no base is a subclass of another, except the bases of parts, which are subclasses of `BasePart`
 
 #### Scenario: System and interaction
-- **WHEN** a test checks `System` and `BaseInteraction` against `BaseElement`
+- **WHEN** a test checks `CompositeSystem` and `BaseInteraction` against `BaseElement`
 - **THEN** neither is a subclass, and a system built with a nested system and an interaction compiles and runs
 
 ### Requirement: Classes are named after their base
-Every class whose ancestry reaches a base, or the concrete roots `Problem`, `Solver`, `System`, and `Schedule`, SHALL
+Every class whose ancestry reaches a base, or the concrete roots `Problem`, `Solver`, `CompositeSystem`, and `Schedule`, SHALL
 end with that concept's name, such as `Element`, `Interaction`, `Space`, `Time`, `Law`, `Domain`, `Problem`,
 `Solver`, or `Backend`, in the library, its systems, its tests, its documents, and the names given to `define`.
 
@@ -352,11 +352,11 @@ Compilers and problem forms SHALL be private, with one documented hook for a sys
 ### Requirement: Systems of the core form a components package
 The systems of the core SHALL live in the package `skcomplex.core.components.systems`, laid out like the other parts
 of a system: a `_base` module with the base, one private module per class, and an `__init__` that re-exports the
-public names. The package SHALL re-export `BaseSystem`, `RunSettings`, `System`, and `MassActionSystem`.
+public names. The package SHALL re-export `BaseSystem`, `RunSettings`, `CompositeSystem`, and `ReactionNetworkSystem`.
 `skcomplex.core.components` SHALL hold no module of systems outside this package.
 
 #### Scenario: Import the systems of the core
-- **WHEN** a user imports `BaseSystem`, `RunSettings`, `System`, and `MassActionSystem` from
+- **WHEN** a user imports `BaseSystem`, `RunSettings`, `CompositeSystem`, and `ReactionNetworkSystem` from
   `skcomplex.core.components.systems`
 - **THEN** every import succeeds, and the modules of the package are `_base` and one private module per concrete
   system
@@ -365,8 +365,12 @@ public names. The package SHALL re-export `BaseSystem`, `RunSettings`, `System`,
 - **WHEN** a user imports `skcomplex.core.components.system` or `skcomplex.core.components.mass_action`
 - **THEN** the import fails with `ModuleNotFoundError`, since the project ships no alias for a moved module
 
+#### Scenario: Former class names are gone
+- **WHEN** a user imports `System` or `MassActionSystem` from `skcomplex.core.components.systems`
+- **THEN** the import fails with `ImportError`, since the project ships no alias for a renamed class
+
 #### Scenario: Systems import the public package
-- **WHEN** a module of `skcomplex.systems` imports `BaseSystem`, `RunSettings`, or `System`
+- **WHEN** a module of `skcomplex.systems` imports `BaseSystem`, `RunSettings`, or `CompositeSystem`
 - **THEN** it imports them from `skcomplex.core.components.systems`, and the import contracts of the checks session
   pass
 
@@ -376,7 +380,7 @@ no other module of its package. A concrete system module SHALL import the base d
 
 #### Scenario: Base module stands alone
 - **WHEN** the imports of `skcomplex.core.components.systems._base` are listed
-- **THEN** none of them names `_system`, `_mass_action`, or any other module of the package
+- **THEN** none of them names `_composite`, `_reaction_network`, or any other module of the package
 
 #### Scenario: Building a system that is not a composite
 - **WHEN** a subclass of `BaseSystem` builds its parts as a `BaseSystem` that is not its own composite and is prepared
@@ -384,7 +388,7 @@ no other module of its package. A concrete system module SHALL import the base d
 
 #### Scenario: Composite of a ready-made system
 - **WHEN** `LotkaVolterraSystem().prepare().system_` is read
-- **THEN** it is an instance of `System` imported from `skcomplex.core.components.systems`
+- **THEN** it is an instance of `CompositeSystem` imported from `skcomplex.core.components.systems`
 
 ### Requirement: Core elements and neighbourhoods hold no parametrised copies
 The elements and spaces of the core SHALL hold no class that only fixes the arguments, the state name, or the order of

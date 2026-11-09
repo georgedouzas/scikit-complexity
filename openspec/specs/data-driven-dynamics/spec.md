@@ -20,7 +20,7 @@ Lets a user fit runnable surrogate systems to trajectories, by mode decompositio
 - **THEN** it recovers the seven nonzero terms of the Lorenz system with coefficients within 1%
 
 ### Requirement: Surrogates are systems
-The result of every surrogate function SHALL hold `system`, a `System` of one element with ordinary laws and a declared
+The result of every surrogate function SHALL hold `system`, a `CompositeSystem` of one element with ordinary laws and a declared
 time, continuous for mode decomposition and sparse identification and discrete for reservoirs, and that system SHALL
 validate and run through `simulate` like a hand-written system.
 

@@ -436,12 +436,12 @@ else. A system SHALL accept no argument about how it runs: no solver, backend, f
 activation schedule outside its time, or observables.
 
 #### Scenario: Four-part system
-- **WHEN** a user builds `System('ecology', components=[rabbits, foxes], interactions=[predation],
+- **WHEN** a user builds `CompositeSystem('ecology', components=[rabbits, foxes], interactions=[predation],
   space=None, time=ContinuousTime())`
 - **THEN** the system compiles and runs, and its parameters list only the parameters of its components and interactions
 
 #### Scenario: Execution arguments are rejected
-- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `System`
+- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `CompositeSystem`
 - **THEN** a `TypeError` is raised as for any unknown argument
 
 ### Requirement: Groups have a fixed or variable size and live on parts of the space
@@ -618,7 +618,7 @@ and time, and `laws`, each exporting the general primitives of its part of a sys
 formalism SHALL live in that formalism's package under `skcomplex.formalisms`, never in a modelling package.
 
 #### Scenario: Primitives by part
-- **WHEN** a user imports `System`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
+- **WHEN** a user imports `CompositeSystem`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
 - **THEN** they come from `core.system`, `core.components`, `core.interactions`, `core.space`, `core.space`, and
   `core.laws`
 
@@ -693,7 +693,7 @@ interaction. Two direct children of a system with the same label SHALL be report
 - **THEN** validation reports one issue whose path is the system and whose message names the duplicated label
 
 #### Scenario: System is not a component
-- **WHEN** a user checks whether a `System` instance is an instance of `BaseComponent`
+- **WHEN** a user checks whether a `CompositeSystem` instance is an instance of `BaseComponent`
 - **THEN** the check is false, and the instance is an instance of `BaseSystem`
 
 ### Requirement: Noise processes are not elements
@@ -711,7 +711,7 @@ returns laws. A modeller SHALL define a type of element by subclassing `Element`
 
 #### Scenario: Hierarchy
 - **WHEN** a user checks `Element`, `GroupElement`, and `FieldElement` against `BaseElement`
-- **THEN** each is a subclass of `BaseElement`, and `System` and `BaseInteraction` are not
+- **THEN** each is a subclass of `BaseElement`, and `CompositeSystem` and `BaseInteraction` are not
 
 ### Requirement: A system is defined by elements, interactions, and laws
 A system SHALL be defined by its elements, its interactions, and the laws they return, and SHALL declare no other

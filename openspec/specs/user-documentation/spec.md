@@ -117,7 +117,7 @@ single compatibility page SHALL be removed.
   naming the tag
 
 ### Requirement: The documentation explains the system hierarchy
-The documentation SHALL hold a systems page that explains `BaseSystem`, the composite `System`, general systems of the
+The documentation SHALL hold a systems page that explains `BaseSystem`, the composite `CompositeSystem`, general systems of the
 core, and field realizations, with an executed example of a subclass that changes a ready-made system. The catalog
 pages SHALL show, for each system, its class, its import path, its model parameters, and its capability tags.
 
