@@ -19,7 +19,7 @@ when other agents run tests at the same time.
   `FractionalNoiseLaw` from its laws, set `EulerMaruyamaSolver`, `HeunSolver`, and `CoSimulationSolver` to every kind
   but `FRACTIONAL`, and remove `FractionalNoiseLaw` from the numpy and numba backends, and verify
   `pytest tests/core/engine/solvers/test_fractional_euler_maruyama.py` passes, including the wrong stepper error
-- [ ] 1.5 Emit `NoiseLaw(..., hurst=)` in `interactions/_rate.py` and `_relaxation.py` (if it still exists), drop
+- [x] 1.5 Emit `NoiseLaw(..., hurst=)` in `interactions/_rate.py` and `_relaxation.py` (if it still exists), drop
   `FractionalNoiseLaw` from their `law_classes` and from the docstring of `specs/_interaction_requirement_spec.py`, and
   verify `pytest tests/core/components/interactions` passes
 - [ ] 1.6 Update `anomalous_processes.md` and `kinds_of_dynamics.md` in `docs/overview/user_guide/build_a_custom_system`

@@ -209,7 +209,7 @@ class ProblemSpec(BaseProblemSpec):
             The renewal laws, whose members renew on their own clocks.
 
         fractional:
-            The noise rows that fractional noise laws drive, with their Hurst indices.
+            The noise rows that noise laws with a Hurst index drive, with their indices.
 
         orders:
             The order of the Caputo derivative that the drift gives for every state component of a problem of the

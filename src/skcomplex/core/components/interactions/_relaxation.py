@@ -13,7 +13,7 @@ from typing import Annotated, ClassVar
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
-from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
+from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ._base import RATE_DOMAINS
 from ._rate import RateInteraction
 
@@ -62,7 +62,7 @@ class RelaxationInteraction(RateInteraction):
         10.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw)
 
     def __init__(
         self,

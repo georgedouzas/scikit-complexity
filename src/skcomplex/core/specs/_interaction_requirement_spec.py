@@ -36,7 +36,7 @@ class InteractionRequirementSpec(RequirementSpec):
         >>> needs.roles['target'].states
         ('n',)
         >>> [law.__name__ for law in needs.laws]
-        ['RateLaw', 'NoiseLaw', 'FractionalNoiseLaw']
+        ['RateLaw', 'NoiseLaw']
         >>> [time.__name__ for time in needs.time]
         ['ContinuousTime']
     """
