@@ -138,7 +138,7 @@ when other agents run tests at the same time.
 - [x] 8.1 Run `grep -rnw` over `src`, `tests`, `docs`, and `README.md` for every removed name, `FractionalNoiseLaw`,
   `EmissionLaw`, `EncounterLaw`, `DriveLaw`, `KineticLaw`, `lookup`, `delay1`, `delay3`, `smooth`, `inverse_laplacian`,
   `random_pairing`, and `cross_section` on a law, and verify it finds no use
-- [ ] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, with ruff, mypy, and the import contracts, and fix every
+- [x] 8.2 Run `nox -s checks` for `src`, `tests`, and `docs`, with ruff, mypy, and the import contracts, and fix every
   finding without a suppression
 - [ ] 8.3 Run `nox -s tests` with the doctests, and verify it passes
 - [ ] 8.4 Run `nox -s docs` and `nox -s gallery`, and verify the strict build and the inventory check pass with no

@@ -269,7 +269,7 @@ class MatchLaw(BaseLaw):
         left: Sequence[AgentViewProtocol],
         right: Sequence[AgentViewProtocol],
         rng: np.random.Generator,
-    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
+    ) -> list[tuple[object, object]]:
         """Return pairs drawn uniformly at random.
 
         Each member is in at most `capacity` pairs and never paired with itself.
@@ -289,7 +289,7 @@ class MatchLaw(BaseLaw):
                 The pairs of members.
         """
         capacity = self.capacity
-        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
+        pairs: list[tuple[object, object]] = []
         seen: set[tuple[int, int]] = set()
         if left is right:
             for _ in range(capacity):

@@ -270,7 +270,7 @@ def series(x: object, points: Sequence[float], values: Sequence[float], kind: st
         >>> [float(fertility.subs({food: value})) for value in (-1, 0.5, 1.5, 5)]
         [0.0, 1.0, 2.5, 3.0]
     """
-    x = SR(x)
+    value = SR(x)
     levels = [float(item) for item in values]
     points = [float(item) for item in points]
     if len(points) != len(levels) or not points or any(b <= a for a, b in itertools.pairwise(points)):
@@ -279,4 +279,4 @@ def series(x: object, points: Sequence[float], values: Sequence[float], kind: st
     if kind not in {'linear', 'previous'}:
         error_msg = f"Unknown series kind {kind!r}. Use 'linear' or 'previous'."
         raise ValueError(error_msg)
-    return where(x < points[0], levels[0], _search(x, points, levels, kind, (0, len(points) - 1)))
+    return where(value < points[0], levels[0], _search(value, points, levels, kind, (0, len(points) - 1)))
