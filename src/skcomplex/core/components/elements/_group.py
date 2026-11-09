@@ -241,15 +241,21 @@ class GroupElement(BaseElement):
         """Return the values with one row per member.
 
         On the sites of a space, mappings from node to value on a network and arrays of the shape of a lattice become
-        one row per site. Without such a space the group takes its values as given.
+        one row per site, except the declared variables of a member that declares them from data. Without such a space
+        the group takes its values as given.
         """
         values = dict(self.values or {})
         if space is None:
             return values
         if isinstance(space, NetworkSpace):
             nodes = list(space.graph.nodes)
+            declared = issubclass(self.element, DeclaredElement)
             values = {
-                name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
+                name: (
+                    np.asarray([value[node] for node in nodes])
+                    if isinstance(value, Mapping) and not (declared and name == 'variables')
+                    else value
+                )
                 for name, value in values.items()
             }
         return {

@@ -9,8 +9,8 @@ time.
 
 from collections.abc import Mapping, Sequence
 
-from ....core.components.elements import DeclaredElement
-from ....core.components.interactions import MapInteraction, RateInteraction
+from ....core.components.elements import BaseElement, DeclaredElement
+from ....core.components.interactions import BaseInteraction, MapInteraction, RateInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
@@ -245,6 +245,20 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
             for state in [*equations, *noisy]
         ]
 
+    def _get_element(self) -> BaseElement:
+        """Return the element that holds the states and the parameters.
+
+        It is a `DeclaredElement` here, and a field on the sites of a space in the subclasses that place the states.
+        """
+        return DeclaredElement(self._get_element_label(), variables=self._get_variables())
+
+    def _get_interactions(self) -> list[BaseInteraction]:
+        """Return the interactions of the system, the equations here.
+
+        The subclasses that place the states add their couplings or their diffusion.
+        """
+        return list(self._get_equation_interactions())
+
     def _build_system(self) -> CompositeSystem:
         """Return the element of the states and the parameters, and their equations.
 
@@ -253,8 +267,4 @@ class DynamicalSystem(BaseSystem[CompositeSystem]):
                 The composite of the element and its equations.
         """
         self._check_equations()
-        return CompositeSystem(
-            self.label,
-            elements=[DeclaredElement(self._get_element_label(), variables=self._get_variables())],
-            interactions=list(self._get_equation_interactions()),
-        )
+        return CompositeSystem(self.label, elements=[self._get_element()], interactions=self._get_interactions())

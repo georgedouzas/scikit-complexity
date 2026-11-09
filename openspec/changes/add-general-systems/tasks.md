@@ -72,11 +72,11 @@ Same procedure as group 3, with `time='discrete'`.
 
 ## 5. NetworkDynamicalSystem
 
-- [ ] 5.1 Add `NetworkDynamicalSystem(DynamicalSystem)` in
+- [x] 5.1 Add `NetworkDynamicalSystem(DynamicalSystem)` in
   `src/skcomplex/systems/general/dynamics/_network_dynamical.py` with the signature and hooks of design.md, and export
   it from the subpackage, without a layers contract. Its docstring carries runnable examples of diffusion on a graph and
   of gap-junction exchange between cells. Verify with the doctests of the module.
-- [ ] 5.2 Add `tests/systems/general/dynamics/test_network_dynamical.py` with the scenarios of `general-systems`:
+- [x] 5.2 Add `tests/systems/general/dynamics/test_network_dynamical.py` with the scenarios of `general-systems`:
   diffusion on a path, the missing graph, initial values per node and broadcast, and the tags. Verify they pass.
 
 ## 6. Rebases onto NetworkDynamicalSystem
