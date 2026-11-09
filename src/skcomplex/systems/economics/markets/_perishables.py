@@ -15,18 +15,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    ChoiceInteraction,
-    MovementInteraction,
-    ReinforcementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import ChoiceInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ..common.learning import PayoffLearningInteraction
 
 
 class CustomerView(AgentView):
@@ -388,7 +384,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             partners=1,
             phase=PHASE,
         )
-        satisfaction_update = ReinforcementInteraction(
+        satisfaction_update = PayoffLearningInteraction(
             'satisfaction',
             target='customers',
             scores=('s1', 's2'),

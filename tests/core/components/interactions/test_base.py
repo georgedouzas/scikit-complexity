@@ -31,9 +31,7 @@ from skcomplex.core.components.interactions import (
     PairInteraction,
     RateInteraction,
     ReactionInteraction,
-    ReinforcementInteraction,
     SamplingInteraction,
-    SignAdjustmentInteraction,
     TopologyInteraction,
     TransferInteraction,
     TransitionInteraction,
@@ -64,11 +62,6 @@ RENAMED = {
         False,
     ),
     'map': (MapInteraction, lambda role: {'state': 'x', 'function': lambda n: getattr(n, role).x / 2 + 1}, True),
-    'sign_adjustment': (
-        SignAdjustmentInteraction,
-        lambda role: {'state': 'x', 'signal': lambda n: 1.0, 'mode': 'additive'},
-        True,
-    ),
     'transition': (TransitionInteraction, lambda role: {'state': 'x', 'rate': lambda n: 1.0}, False),
     'local_rule': (
         LocalRuleInteraction,
@@ -89,14 +82,12 @@ RENAMED = {
         lambda role: {'state': 'x', 'objective': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
         True,
     ),
-    'reinforcement': (ReinforcementInteraction, lambda role: {'scores': ('x',), 'payoff': lambda n, index: 1.0}, True),
 }
 AGENTS = {
     'choice': (
         ChoiceInteraction,
         {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda agent, system, option: option},
     ),
-    'reinforcement': (ReinforcementInteraction, {'scores': ('x',), 'payoff': lambda agent, system, index: 1.0}),
     'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
     'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
@@ -104,14 +95,12 @@ AGENTS = {
 AGENT_ALIASES = {
     'choice-intensity': ('choice', 'intensity', 2.0),
     'choice-activity': ('choice', 'activity', 0.5),
-    'reinforcement-rate': ('reinforcement', 'rate', 0.3),
     'reaction-k': ('reaction', 'k', 0.4),
     'imitation-probability': ('imitation', 'probability', 0.5),
 }
 SYMBOLIC_ALIASES = {
     'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
     'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
-    'reinforcement-rate': (ReinforcementInteraction, 'rate', 0.3, RENAMED['reinforcement'][1]('target'), True),
     'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
     'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
     'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),

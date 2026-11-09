@@ -1,6 +1,6 @@
-"""Define reinforcement interactions.
+"""Define payoff learning.
 
-They move the score of every option towards its realized payoff.
+Payoff learning moves the scores of options towards the payoffs they realized.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -8,44 +8,44 @@ They move the score of every option towards its realized payoff.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec, Tags
-from ...types import Array, ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, RuleLaw, UpdateLaw
-from ..laws.utils import where
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
-from ._interaction import Interaction
+from .....core.components.base import BasePart
+from .....core.components.interactions import MapInteraction
+from .....core.components.laws import UpdateLaw
+from .....core.components.laws.utils import where
+from .....core.components.spaces import BaseSpace
+from .....core.components.types import AgentViewProtocol, SystemViewProtocol
+from .....core.errors import ValidationError
+from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Array, ElementKind
 
-FORMS = ('symbolic', 'agent')
 RULES = ('average', 'cumulative')
 
 
-class ReinforcementInteraction(Interaction):
-    """Reinforcement of the scores of options.
+class PayoffLearningInteraction(MapInteraction):
+    """Payoff learning of the scores of options.
 
-    Each score moves towards the payoff its option realized in the step. Every step, the score `s_k` of option `k` of
-    every member moves towards the realized payoff `P_k` at the rate `a`, `s_k <- s_k + a (P_k - s_k)`, so a score is an
-    exponentially weighted mean of past payoffs, and the last payoff at the rate 1, by the rule `'average'`. By the rule
-    `'cumulative'` the score adds the payoff, `s_k <- s_k + P_k`, so it is the sum of past payoffs, such as a virtual
-    score. In the agent form the scores may be the components of one vector state, one per option, and a group of one
-    member holds scores that several groups share. In the `'symbolic'` form, `payoff(namespace, k)` returns the payoff
-    of option `k` as a symbolic expression, where `namespace.target` holds the states and parameters of the group. In
-    the `'agent'` form, the group is an agent group and `payoff(agent, system, k)` returns the payoff as a number, so it
-    can read the agent and the history and storage of the system view. With `chosen`, the name of a state that holds the
-    index of the option a member chose, only the score of that option moves, and the payoff of the other options is not
-    read. In the agent form every agent reinforces at once under the schedule `'synchronous'`, one after the other in
-    their order or in a new random order every step under `'sequential'` or `'random-sequential'`, and each in its own
-    activation under `'member'`, together with the rules of its element and the other member interactions, in the order
-    the system lists them, such as after a choice and a transfer in one visit.
+    Economics names it reinforcement learning of payoffs, as in fictitious play and the attractions of
+    experience-weighted learning. Each score moves towards the payoff its option realized in the step. Every step, the
+    score `s_k` of option `k` of every member moves towards the realized payoff `P_k` at the rate `a`, `s_k <- s_k + a
+    (P_k - s_k)`, so a score is an exponentially weighted mean of past payoffs, and the last payoff at the rate 1, by
+    the rule `'average'`. By the rule `'cumulative'` the score adds the payoff, `s_k <- s_k + P_k`, so it is the sum of
+    past payoffs, such as a virtual score. In the agent form the scores may be the components of one vector state, one
+    per option, and a group of one member holds scores that several groups share. In the `'symbolic'` form,
+    `payoff(namespace, k)` returns the payoff of option `k` as a symbolic expression, where `namespace.target` holds the
+    states and parameters of the group. In the `'agent'` form, the group is an agent group and `payoff(agent, system,
+    k)` returns the payoff as a number, so it can read the agent and the history and storage of the system view. With
+    `chosen`, the name of a state that holds the index of the option a member chose, only the score of that option
+    moves, and the payoff of the other options is not read. In the agent form every agent reinforces at once under the
+    schedule `'synchronous'`, one after the other in their order or in a new random order every step under
+    `'sequential'` or `'random-sequential'`, and each in its own activation under `'member'`, together with the rules of
+    its element and the other member interactions, in the order the system lists them, such as after a choice and a
+    transfer in one visit.
 
     Args:
         label:
@@ -88,28 +88,22 @@ class ReinforcementInteraction(Interaction):
             scores, or the payoff is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import ReinforcementInteraction
-        >>> reinforcement = ReinforcementInteraction(
+        >>> from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
+        >>> reinforcement = PayoffLearningInteraction(
         ...     'reinforcement', target='learners', scores=('first', 'second'), payoff=lambda s, k: k, rate=0.5
         ... )
         >>> reinforcement.rate
         0.5
-        >>> ReinforcementInteraction(
+        >>> PayoffLearningInteraction(
         ...     'virtual', target='players', scores='scores', payoff=lambda a, m, k: k, rule='cumulative', form='agent'
         ... ).rule
         'cumulative'
-        >>> ReinforcementInteraction(
+        >>> PayoffLearningInteraction(
         ...     'satisfaction', target='customers', scores=('s1', 's2'), payoff=lambda a, m, k: 1.0, chosen='shop',
         ...     schedule='member', form='agent',
         ... ).chosen
         'shop'
     """
-
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
-
-    def _get_tags(self) -> Tags:
-        """Return the tags of the agent-form rules or the symbolic reinforcement updates."""
-        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,
@@ -125,16 +119,21 @@ class ReinforcementInteraction(Interaction):
         chosen: str | None = None,
         schedule: str = 'synchronous',
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        first = scores if isinstance(scores, str) else next(iter(scores), '')
+        super().__init__(
+            label,
+            target=target,
+            state=first,
+            function=self._get_scores,
+            form=form,
+            phase=phase,
+            schedule=schedule,
+        )
         self.scores = scores
         self.payoff = payoff
         self.rate = rate
         self.rule = rule
-        self.form = form
-        self.phase = phase
         self.chosen = chosen
-        self.schedule = schedule
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for an unknown variant, no scores, or an uncallable payoff.
@@ -149,14 +148,12 @@ class ReinforcementInteraction(Interaction):
                 by member, there are no scores, or the payoff is not callable.
         """
         super()._prepare(context)
-        for name, value, variants in (
-            ('form', self.form, FORMS),
-            ('rule', self.rule, RULES),
-            ('schedule', self.schedule, SCHEDULES),
-        ):
-            if value not in variants:
-                error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
-                raise ValidationError(error_msg)
+        if self.rule not in RULES:
+            error_msg = f'Unknown rule {self.rule!r} of {self.label!r}. Use one of {RULES}.'
+            raise ValidationError(error_msg)
+        if self.form == 'symbolic' and self.schedule != 'synchronous':
+            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
+            raise ValidationError(error_msg)
         if self.form == 'symbolic' and self.schedule != 'synchronous':
             error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
             raise ValidationError(error_msg)
@@ -171,7 +168,7 @@ class ReinforcementInteraction(Interaction):
             error_msg = f'The payoff of {self.label!r} must be callable, but it is {self.payoff!r}.'
             raise ValidationError(error_msg)
 
-    def _read(self, agent: AgentViewProtocol) -> Array:
+    def _read_scores(self, agent: AgentViewProtocol) -> Array:
         """Return the scores of an agent, one per option."""
         if isinstance(self.scores, str):
             return np.array(getattr(agent, self.scores), dtype=float).ravel()
@@ -182,7 +179,7 @@ class ReinforcementInteraction(Interaction):
 
         Every score, or only that of its chosen option, moves by its payoff.
         """
-        old = self._read(agent)
+        old = self._read_scores(agent)
         options = range(len(old)) if self.chosen is None else [int(getattr(agent, self.chosen))]
         rate = 1.0 if self.rule == 'cumulative' else self._get_parameter_value('rate', system)
         change = np.zeros_like(old)
@@ -191,29 +188,18 @@ class ReinforcementInteraction(Interaction):
             change[k] = payoff if self.rule == 'cumulative' else rate * (payoff - old[k])
         return old + change
 
-    def _write(self, agent: AgentViewProtocol, scores: Array) -> None:
+    def _get_value(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
+        """Return the new scores of an agent, the next value of the map."""
+        return self._get_scores(agent, system)
+
+    def _set_value(self, agent: AgentViewProtocol, value: object) -> None:
         """Set the scores of an agent."""
+        scores = np.asarray(value, dtype=float)
         if isinstance(self.scores, str):
             setattr(agent, self.scores, scores)
             return
-        for name, value in zip(self.scores, scores, strict=True):
-            setattr(agent, name, float(value))
-
-    def _reinforce_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Move the scores of one agent towards its payoffs, in its own activation."""
-        if agent.alive:
-            self._write(agent, self._get_scores(agent, system))
-
-    def reinforce(self, system: SystemViewProtocol) -> None:
-        """Move the scores of every agent towards the payoffs of its options.
-
-        The agents follow the schedule.
-
-        Args:
-            system:
-                The system view of the interaction.
-        """
-        self._update_agents(system, self.schedule, self._get_scores, self._write)
+        for name, score in zip(self.scores, scores, strict=True):
+            setattr(agent, name, float(score))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the update of every score towards its payoff, or the agent-form rule.
@@ -226,10 +212,8 @@ class ReinforcementInteraction(Interaction):
             laws:
                 The update laws of the scores, or the rule that reinforces the scores of the agents.
         """
-        if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._reinforce_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
-            return [RuleLaw(self.reinforce, phase=self.phase)]
+            return super()._get_laws(namespace)
         laws: list[BasePart] = []
         for index, name in enumerate(self.scores):
             score = getattr(self._get_member(namespace, 'target'), name)

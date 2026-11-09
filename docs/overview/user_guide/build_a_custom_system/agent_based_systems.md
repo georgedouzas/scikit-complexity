@@ -326,8 +326,8 @@ phase with its method `act`.
 - In `skcomplex.core.components.interactions`, `ChoiceInteraction(form='agent')` draws an option by the logit,
   Metropolis, Fermi, or best rule, from a utility `utility(agent, system, option)` that can read `system.history` and
   `system.storage`.
-- `ReinforcementInteraction` moves the scores of options towards their realized payoffs, or with `chosen` only the
-  score of the option a member chose.
+- The economics `PayoffLearningInteraction` moves the scores of options towards their realized payoffs, or with
+  `chosen` only the score of the option a member chose.
 - Both run with `schedule='member'` in the activation of every member, such as one visit.
 - `EvolutionInteraction` replaces strategies by selection, crossover, and mutation, with the system's random stream.
 - `ImitationInteraction(rule='best')` copies the best neighbour.

@@ -1,6 +1,6 @@
-"""Define mobility.
+"""Define the Stokesian mobility.
 
-Mobility is the linear map of a Stokes fluid from the forces and torques on particles to their velocities.
+The mobility is the linear map of a Stokes fluid from the forces and torques on particles to their velocities.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -17,13 +17,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import CallSpec, ParameterSpec, RoleSpec, Tags
-from ...types import Array, ElementKind
-from ..laws import BaseLaw, RateLaw, UpdateLaw
-from ..spaces import BaseSpace
-from ..types import NamespaceFunction, PairPotential, Target
-from ._interaction import Interaction
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from .....core.components.spaces import BaseSpace
+from .....core.components.types import NamespaceFunction, PairPotential, Target
+from .....core.errors import ValidationError
+from .....core.specs import CallSpec, ParameterSpec, RoleSpec, Tags
+from .....core.types import Array, ElementKind
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
 FORMS = ('rate', 'map')
@@ -186,12 +186,12 @@ def _source_flows(x: Array, stresslet: Array, dipole: Array, eta: float) -> tupl
     return velocity, angular
 
 
-class MobilityInteraction(Interaction):
-    """Mobility of spheres in a Stokes fluid.
+class StokesianMobilityInteraction(Interaction):
+    """Stokesian mobility of spheres in a Stokes fluid.
 
-    It is the linear map from forces and torques to velocities and spins. Every member of the group `target` of spheres
-    of radius `a` in a fluid of viscosity `eta` moves at the velocity `U_i` and spins at the angular velocity `Omega_i`
-    of
+    Physics names it the mobility of Stokesian dynamics. It is the linear map from forces and torques to velocities and
+    spins. Every member of the group `target` of spheres of radius `a` in a fluid of viscosity `eta` moves at the
+    velocity `U_i` and spins at the angular velocity `Omega_i` of
 
     `(U_i, Omega_i) = sum_j M_ij (F_j, T_j) + (V_i, 0) + sum_{j != i} (u_j(x_i), w_j(x_i) / 2)`
 
@@ -295,7 +295,7 @@ class MobilityInteraction(Interaction):
         >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import vector
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.interactions import MobilityInteraction
+        >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.specs import StateSpec
@@ -304,7 +304,7 @@ class MobilityInteraction(Interaction):
         ...     def __init__(self, label, *, x: Annotated[list, StateSpec(vector=True, role='position')] = 0.0):
         ...         super().__init__(label)
         ...         self.x = x
-        >>> pull = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
+        >>> pull = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
         >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
         >>> system = System(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
         >>> trajectory = simulate(system, until=1.0, dt=1.0)

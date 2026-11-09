@@ -13,7 +13,6 @@ from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
-from ._einstein import EinsteinInteraction
 from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
 from ._evolution import EvolutionInteraction
@@ -30,7 +29,6 @@ from ._life_cycle import LifeCycleInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._matching import MatchingInteraction
-from ._mobility import MobilityInteraction
 from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
@@ -38,10 +36,8 @@ from ._pair import PairInteraction
 from ._pair_coupling import PairCouplingInteraction
 from ._rate import RateInteraction
 from ._reaction import ReactionInteraction
-from ._reinforcement import ReinforcementInteraction
 from ._sampling import SamplingInteraction
 from ._satisfiability import SatisfiabilityInteraction
-from ._sign_adjustment import SignAdjustmentInteraction
 from ._topology import TopologyInteraction
 from ._training import OPTIMIZERS, TrainingInteraction
 from ._transfer import TransferInteraction
@@ -56,7 +52,6 @@ __all__: list[str] = [
     'ConservationInteraction',
     'CouplingInteraction',
     'CrossingInteraction',
-    'EinsteinInteraction',
     'EncounterInteraction',
     'EulerLagrangeInteraction',
     'EvolutionInteraction',
@@ -73,7 +68,6 @@ __all__: list[str] = [
     'LocalRuleInteraction',
     'MapInteraction',
     'MatchingInteraction',
-    'MobilityInteraction',
     'MovementInteraction',
     'NeighborInteraction',
     'OptimizationInteraction',
@@ -81,10 +75,8 @@ __all__: list[str] = [
     'PairInteraction',
     'RateInteraction',
     'ReactionInteraction',
-    'ReinforcementInteraction',
     'SamplingInteraction',
     'SatisfiabilityInteraction',
-    'SignAdjustmentInteraction',
     'TopologyInteraction',
     'TrainingInteraction',
     'TransferInteraction',

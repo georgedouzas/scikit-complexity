@@ -13,18 +13,14 @@ from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    ChoiceInteraction,
-    EvolutionInteraction,
-    Interaction,
-    ReinforcementInteraction,
-)
+from ....core.components.interactions import ChoiceInteraction, EvolutionInteraction, Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import IntArray
+from ..common.learning import PayoffLearningInteraction
 
 
 @dataclass(frozen=True)
@@ -159,7 +155,7 @@ class MinorityGameInteraction(Interaction):
     assigns to the last `m` winning sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule
     `'best'` chooses before. The side with fewer agents wins, and every agent on it gains one point and every other
     loses one. The game reports the attendance `A = sum_i a_i` and the code of the history the strategies read, so a
-    cumulative `ReinforcementInteraction` gives every strategy one virtual point when it would have played the winning
+    cumulative `PayoffLearningInteraction` gives every strategy one virtual point when it would have played the winning
     side, by the payoff `payoff`. The volatility `sigma^2 / N` of the attendance has a minimum below the value of random
     play near `alpha = 2^m / N ~ 0.34`.
 
@@ -367,7 +363,7 @@ class MinorityGameSystem(BaseSystem):
             phase='choose',
         )
         game = MinorityGameInteraction('game', players='players', memory=self.memory, phase='play')
-        scoring = ReinforcementInteraction(
+        scoring = PayoffLearningInteraction(
             'scoring',
             target='players',
             scores=('first_score', 'second_score'),
