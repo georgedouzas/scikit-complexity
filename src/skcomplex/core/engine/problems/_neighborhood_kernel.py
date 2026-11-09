@@ -162,8 +162,8 @@ class NeighborhoodKernel(BaseKernel):
     def _gather(self, x: Array, q: Array, readers: Indices, others: Indices, edges: Indices | None) -> list[Array]:
         """Return the values of every symbol for every pair.
 
-        For a reduction over neighbour hyperedges, the pairs are the sets of neighbours, with one column of `others`
-        per other member.
+        For a reduction over neighbour hyperedges, the pairs are the sets of neighbours, with one column of `others` per
+        other member.
         """
         values = []
         differences: dict[int | None, Array] = {}

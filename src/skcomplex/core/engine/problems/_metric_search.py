@@ -146,9 +146,9 @@ class MetricSearch(BaseSearch):
     def _delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
         """Return the pairs of members joined by an edge of the Delaunay triangulation of the positions.
 
-        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge
-        joins the members of its two ends. Too few members, or members in a degenerate position, give every member all
-        the others.
+        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge joins
+        the members of its two ends. Too few members, or members in a degenerate position, give every member all the
+        others.
         """
         size, dimension = positions.shape
         if periods is None:

@@ -279,7 +279,10 @@ class NetworkDiffusionSystem(BaseSystem):
             values={'u': initial, 'D': self.D},
         )
         diffusion = RateInteraction(
-            'diffusion', target='nodes', state='u', rate=lambda s: s.target.D * laplacian(s.target.u),
+            'diffusion',
+            target='nodes',
+            state='u',
+            rate=lambda s: s.target.D * laplacian(s.target.u),
         )
         return CompositeSystem(self.label, elements=[nodes], interactions=[diffusion])
 

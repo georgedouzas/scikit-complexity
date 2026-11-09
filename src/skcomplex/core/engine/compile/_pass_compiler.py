@@ -1532,9 +1532,7 @@ class PassCompiler(BaseCompiler):
         The phase space must have two interval class axes.
         """
         space = record.space
-        reads = any(
-            BasePass._calls_of(value, 'collision_integral') for value in PassCompiler._law_values(record)
-        )
+        reads = any(BasePass._calls_of(value, 'collision_integral') for value in PassCompiler._law_values(record))
         if not (isinstance(record.law, RateLaw) and reads):
             return None
         axes = space.axes if isinstance(space, PhaseSpace) else []

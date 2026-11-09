@@ -211,10 +211,16 @@ def _get_diffusions() -> list[RateInteraction]:
     """
     return [
         RateInteraction(
-            'u_diffusion', target='cells', state='u', rate=lambda s: _get_u_diffusion(s) * laplacian(s.target.u),
+            'u_diffusion',
+            target='cells',
+            state='u',
+            rate=lambda s: _get_u_diffusion(s) * laplacian(s.target.u),
         ),
         RateInteraction(
-            'v_diffusion', target='cells', state='v', rate=lambda s: _get_v_diffusion(s) * laplacian(s.target.v),
+            'v_diffusion',
+            target='cells',
+            state='v',
+            rate=lambda s: _get_v_diffusion(s) * laplacian(s.target.v),
         ),
     ]
 

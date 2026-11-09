@@ -36,7 +36,6 @@ class AmountElement(Element):
         self.x = x
 
 
-
 def test_prepare_holds_one_value_per_point_of_the_product() -> None:
     """Hold 8192 values for 64 positions and 128 class points, with initial values over position and class."""
     space = PhaseSpace(LatticeSpace((64,)), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
@@ -147,7 +146,11 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
         discretization=discretization,
     )
     drift = ConservationInteraction(
-        'stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], **options,
+        'stream',
+        target='gas',
+        state='x',
+        flux=lambda s: [coordinate('v') * s.target.x, 0],
+        **options,
     )
     trajectory = simulate(CompositeSystem(elements=[field], interactions=[drift]), until=1.0, solver=RK4Solver(dt=0.01))
     final = trajectory.values('gas.x')[-1].reshape(size, 16)

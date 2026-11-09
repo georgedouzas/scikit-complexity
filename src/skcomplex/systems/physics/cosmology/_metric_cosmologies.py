@@ -37,7 +37,6 @@ COUPLING = 8 * math.pi
 COORDINATES = ('t', 'r', 'theta', 'phi')
 """The comoving coordinates of the spherical ansatzes."""
 
-
 MAX_ORDER = 2
 
 

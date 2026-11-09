@@ -145,8 +145,8 @@ class SystemViewProtocol(Protocol):
     def draw(self, name: str, distribution: str, **arguments: npt.ArrayLike) -> float:
         """Return a value drawn by name from a distribution, which runs record and replay.
 
-        The distribution is `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`,
-        `'bernoulli'` with `p`, `'categorical'` with `weights`, or a `scipy.stats` distribution with its keywords.
+        The distribution is `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`, `'bernoulli'`
+        with `p`, `'categorical'` with `weights`, or a `scipy.stats` distribution with its keywords.
         """
 
     @property

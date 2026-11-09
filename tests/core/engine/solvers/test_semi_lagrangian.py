@@ -36,7 +36,6 @@ class AmountElement(Element):
         self.x = x
 
 
-
 def poisson_drift(namespace: SimpleNamespace) -> list[object]:
     """Return the drift of a Vlasov-Poisson field."""
     density = moment(namespace.target.x, 0, axes=('v',))
@@ -96,7 +95,10 @@ def test_partial_cells_raise_a_named_error() -> None:
         discretization='finite-volume',
     )
     flow = ConservationInteraction(
-        'flow', target='groups', state='x', flux=lambda s: [0, 1.0 * s.target.x, -1.0 * s.target.x],
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [0, 1.0 * s.target.x, -1.0 * s.target.x],
     )
     with pytest.raises(SolverError, match='partial cells'):
         simulate(
@@ -122,7 +124,10 @@ def test_landau_damping_with_large_steps() -> None:
         discretization='finite-volume',
     )
     drift = ConservationInteraction(
-        'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in poisson_drift(s)],
+        'vlasov',
+        target='gas',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in poisson_drift(s)],
     )
     system = CompositeSystem(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)

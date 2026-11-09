@@ -46,7 +46,6 @@ class AmountElement(Element):
         self.x = x
 
 
-
 def density(namespace: SimpleNamespace) -> object:
     """Return the density moment of the field over its velocity axis."""
     return moment(namespace.x, 0, axes=('v',))
@@ -92,7 +91,11 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
     start = np.outer(2.0 + np.sin(np.arange(8)), np.ones(4))
     gas = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     stream = ConservationInteraction(
-        's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], riemann=None,
+        's',
+        target='gas',
+        state='x',
+        flux=lambda s: [coordinate('v') * s.target.x, 0],
+        riemann=None,
     )
     grow = RateInteraction('g', target='gas', state='x', rate=lambda s: coordinate('v') * s.target.x)
     system = CompositeSystem(elements=[gas], interactions=[stream, grow])
@@ -185,7 +188,10 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
         discretization='finite-volume',
     )
     drift = ConservationInteraction(
-        'vlasov', target='gas', state='x', flux=lambda s: [component * s.target.x for component in potential_force(s)],
+        'vlasov',
+        target='gas',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in potential_force(s)],
     )
     system = CompositeSystem(elements=[field], interactions=[drift])
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.05)).values('gas.x')[-1]
@@ -206,7 +212,11 @@ def test_drift_reads_field_over_position_through_sources() -> None:
     )
     force = FieldElement('force', element=AmountElement, space=lattice, values={'x': [1.0, 0.0]})
     drift = ConservationInteraction(
-        'push', target='gas', state='x', flux=lambda s: [0, s.sources[0].x * s.target.x], sources=['force'],
+        'push',
+        target='gas',
+        state='x',
+        flux=lambda s: [0, s.sources[0].x * s.target.x],
+        sources=['force'],
     )
     system = CompositeSystem(elements=[gas, force], interactions=[drift], space=space)
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.01))

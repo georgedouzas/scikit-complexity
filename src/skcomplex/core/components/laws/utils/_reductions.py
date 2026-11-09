@@ -827,9 +827,7 @@ def hyperedges(
         )
         raise ValidationError(error_msg)
     if over is not None and size is None:
-        error_msg = (
-            f'A hyperedge reduction over {over!r} forms hyperedges of one size. Give it a size of 2 or more.'
-        )
+        error_msg = f'A hyperedge reduction over {over!r} forms hyperedges of one size. Give it a size of 2 or more.'
         raise ValidationError(error_msg)
     if reduce == 'circular-mean':
         sines = hyperedges(sin(SR(expression)), 'sum', size, weight, over)

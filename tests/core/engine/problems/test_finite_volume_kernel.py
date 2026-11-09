@@ -157,7 +157,10 @@ def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     space = space_type(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
     groups = FieldElement('groups', element=AmountElement, space=space, discretization='finite-volume')
     flow = ConservationInteraction(
-        'flow', target='groups', state='x', flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
     )
     problem, volume = _volume(CompositeSystem(elements=[groups], interactions=[flow]))
     speed = volume.max_speed(problem.initial_state, problem.initial_parameters)
