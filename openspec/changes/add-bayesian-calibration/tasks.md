@@ -64,4 +64,4 @@
 ## 10. Integration
 
 - [x] 10.1 Add a changelog entry for the new methods and the breaking fields of `CalibrationResult`, and verify the docs build includes it (the changelog is generated from conventional commits, so the `feat` commits of this change cover it and no entry is written by hand)
-- [ ] 10.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
+- [x] 10.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
