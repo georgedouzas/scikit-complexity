@@ -1,36 +1,40 @@
 ## ADDED Requirements
 
 ### Requirement: Module constants lead the module under public names
-Every module constant of `src/skcomplex` SHALL have a public `UPPER_CASE` name and SHALL sit in one block right after
-the imports, before the type aliases and the first definition. The block SHALL hold no blank line and no comment, and
-no constant SHALL carry an attribute docstring. A value built from a class or function of its own module SHALL follow
-the same rules in one block right after the last definition it reads.
+Every module constant of a Python file of the sources, the tests, and the documents, without the generated pages,
+SHALL have a public `UPPER_CASE` name and SHALL sit in one block right after the imports, before the type aliases and
+the first definition. The block SHALL hold no blank line and no comment, and no constant SHALL carry an attribute
+docstring. A value built from a definition of its own module SHALL follow the same rules right after that definition.
 
 #### Scenario: Constant after a class
 - **WHEN** a module defines a literal constant below its first class or function
-- **THEN** the source test fails and names the module, the line, and the constant
+- **THEN** the source test fails and names the file, the line, and the constant
 
 #### Scenario: Private constant
 - **WHEN** a module defines a constant whose name begins with an underscore
-- **THEN** the source test fails and names the module, the line, and the constant
+- **THEN** the source test fails and names the file, the line, and the constant
 
 #### Scenario: Gap in the block
 - **WHEN** a blank line, a comment, or a string sits between two constants of a block, or a comment sits right above it
-- **THEN** the source test fails and names the module and the line
+- **THEN** the source test fails and names the file and the line
+
+#### Scenario: Test and example files
+- **WHEN** a test module or a gallery example defines a constant after its first function
+- **THEN** the source test fails and names the file, the line, and the constant
 
 #### Scenario: Derived value
-- **WHEN** a module builds a Sage symbolic function with a print hook defined in the same module
-- **THEN** the value sits right after the hook under a public name, and the source test passes
+- **WHEN** a module builds a dispatch table from functions defined in the same module
+- **THEN** the table sits right after the last of them under a public name, and the source test passes
 
 #### Scenario: Renamed constants stay off the surface
 - **WHEN** a test lists the names every package re-exports, before and after the renames
 - **THEN** the two lists are equal
 
 ### Requirement: Classes own the functions they read
-A module function that a class reads, directly or through other module functions, in its module or in a module that
-imports it, SHALL be a method of one owning class, which the other readers call through. Only three kinds of module
-functions SHALL stay: Numba-compiled kernels, helpers of public functions that no class reads, and hooks that a
-derived value reads. A public function SHALL be re-exported by its package, live in a `_utils` module, or be compiled.
+A module function of the sources that a class reads, directly or through other module functions, in its module or in
+a module that imports it, SHALL be a method of one owning class, which the other readers call through. Only
+Numba-compiled kernels, helpers that only public functions read, and functions a derived value reads SHALL stay module
+functions. A public function SHALL be re-exported by its package, live in a `_utils` module, or be compiled.
 
 #### Scenario: Helper of one class
 - **WHEN** a private module function is read only by one class of its module
@@ -61,6 +65,44 @@ derived value reads. A public function SHALL be re-exported by its package, live
 #### Scenario: Behaviour after the move
 - **WHEN** the test suite runs after the helpers move into classes
 - **THEN** every test that passed before passes, with only imports of moved private names changed
+
+### Requirement: Methods begin with a verb
+Every method of the sources SHALL begin with a verb, as the constitution asks, apart from magic methods, the hooks a
+library calls by a fixed name, properties, and names a base class of another library defines. A helper moved into a
+class whose name begins with a noun SHALL take a verb name.
+
+#### Scenario: Moved helper with a noun name
+- **WHEN** the private function `_noise` of a reaction-diffusion module becomes a method of its system class
+- **THEN** it is named `_get_noise`, and every call site uses the new name
+
+#### Scenario: Method that begins with a noun
+- **WHEN** a class of the sources defines a method whose first word is not a known verb
+- **THEN** the source test fails and names the file, the line, and the method
+
+#### Scenario: Library hook
+- **WHEN** a symbolic function class defines `_eval_` or `_print_`
+- **THEN** the source test passes
+
+### Requirement: Symbolic functions are BuiltinFunction subclasses
+Every symbolic function the library defines SHALL be an instance of a private `BuiltinFunction` subclass whose
+printing, evaluation, and derivative are methods. Sage's `function` factory SHALL be used only to declare an unknown
+function of an equation by its name. Expressions SHALL print and compile as before.
+
+#### Scenario: Function with a print hook
+- **WHEN** a reviewer reads how the neighbour reduction prints
+- **THEN** it is the `_print_` method of its subclass, and no module function holds it
+
+#### Scenario: Factory call with a hook
+- **WHEN** a module of the sources calls Sage's `function` at module level or with a hook keyword
+- **THEN** the source test fails and names the file and the line
+
+#### Scenario: Unknown function
+- **WHEN** a cosmology declares the scale factor with `function('a')` inside a method
+- **THEN** the source test passes and the metric reads it as an unknown
+
+#### Scenario: Printing unchanged
+- **WHEN** the printer and compile tests run after the conversion
+- **THEN** every expression prints, differentiates, and compiles as before
 
 ## MODIFIED Requirements
 
