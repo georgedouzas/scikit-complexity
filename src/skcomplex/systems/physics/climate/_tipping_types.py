@@ -356,6 +356,10 @@ class SuteraFraedrichTippingSystem(DynamicalSystem):
     def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
         """Return the states and the parameters of the type of tipping with their specs.
 
+        Returns:
+            variables:
+                The temperature, the controls, and the parameters of the type of tipping.
+
         Raises:
             ValidationError:
                 The type of tipping is unknown.

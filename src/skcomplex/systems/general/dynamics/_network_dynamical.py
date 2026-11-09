@@ -135,6 +135,10 @@ class NetworkDynamicalSystem(DynamicalSystem):
 
         A subclass with a graph of its own returns it.
 
+        Returns:
+            graph:
+                The graph given to the system.
+
         Raises:
             ValidationError:
                 No graph is given.
