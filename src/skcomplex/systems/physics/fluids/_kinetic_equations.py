@@ -17,7 +17,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.elements import FieldElement
 from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
-from ....core.components.laws.utils import coordinate, gradient, inverse_laplacian, maximum_entropy, moment
+from ....core.components.laws.utils import coordinate, gradient, inverse_helmholtz, maximum_entropy, moment
 from ....core.components.spaces import LatticeSpace, PhaseSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import RK4Solver, SemiLagrangianSolver, SSPRKSolver, StrangSplittingSolver
@@ -415,7 +415,7 @@ class VlasovEquationSystem(BaseSystem):
         The potential is that of the density.
         """
         density = moment(s.target.x, 0, axes=('v',))
-        return [coordinate('v'), -gradient(inverse_laplacian(1 - density), 1)[0]]
+        return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""

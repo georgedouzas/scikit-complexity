@@ -22,7 +22,7 @@ from ._operators import (
     advection,
     divergence,
     gradient,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     partial,
     upwind,
@@ -230,7 +230,7 @@ def antisymmetric_part(tensor: Matrix) -> Matrix:
 def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleElement:
     """Return the divergence-free part of a vector of field expressions.
 
-    It is `v - grad(inverse_laplacian(div(v)))`.
+    It is `v - grad(inverse_helmholtz(div(v)))`.
 
     Args:
         field:
@@ -251,5 +251,5 @@ def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleE
         3
     """
     components = _check_vector('leray_projection', field)
-    potential = inverse_laplacian(divergence(components))
+    potential = inverse_helmholtz(divergence(components))
     return components - gradient(potential, len(components))

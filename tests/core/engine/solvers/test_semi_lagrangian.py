@@ -10,7 +10,7 @@ import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
-from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
+from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
@@ -22,7 +22,7 @@ from skcomplex.core.specs import AxisSpec
 def poisson_drift(namespace: SimpleNamespace) -> list[object]:
     """Return the drift of a Vlasov-Poisson field."""
     density = moment(namespace.target.x, 0, axes=('v',))
-    return [coordinate('v'), -gradient(inverse_laplacian(1 - density), 1)[0]]
+    return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
 
 def test_large_transport_steps_stay_stable_and_conserve_total() -> None:

@@ -101,17 +101,18 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
     return sum((upwind(SR(expression), SR(axis), SR(item)) for axis, item in enumerate(velocity)), SR(0))
 
 
-def inverse_helmholtz(expression: object, screening: object, boundary: object = None) -> Expression:
+def inverse_helmholtz(expression: object, screening: object = 0, boundary: object = None) -> Expression:
     """Return the solution `psi` of a modified-Helmholtz equation.
 
-    The equation is `(laplacian - screening**2) psi = expression`.
+    The equation is `(laplacian - screening**2) psi = expression`. Without screening it is the Poisson equation
+    `laplacian(psi) = expression`, the inverse Laplacian.
 
     Args:
         expression:
             An expression of the states and parameters of a field.
 
         screening:
-            The screening, a non-negative expression of the parameters.
+            The screening, a non-negative expression of the parameters, or 0 for the Poisson equation.
 
         boundary:
             The boundary condition of the solution, `'periodic'`, `'zero-flux'`, or `('fixed', value)`, or `None` for
@@ -131,6 +132,8 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
         >>> from skcomplex.core.components.laws.utils import inverse_helmholtz
         >>> inverse_helmholtz(var('q'), 2)
         inverse_helmholtz(q, 2)
+        >>> inverse_helmholtz(var('q'))
+        inverse_helmholtz(q, 0)
         >>> inverse_helmholtz(var('q'), 2, ('fixed', 0.5))
         inverse_helmholtz(q, 2, 2, 0.5)
     """
@@ -144,28 +147,6 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
         raise ValidationError(error_msg)
     code = SR(INVERSION_BOUNDARIES.index(kind))
     return INVERSE_HELMHOLTZ(SR(expression), SR(screening), code, SR(values[0] if values else 0))
-
-
-def inverse_laplacian(expression: object) -> Expression:
-    """Return the solution of the Poisson equation `laplacian(psi) = expression`.
-
-    It is the unscreened inverse Helmholtz.
-
-    Args:
-        expression:
-            An expression of the states and parameters of a field.
-
-    Returns:
-        solution:
-            The call `inverse_helmholtz(expression, 0)`.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import inverse_laplacian
-        >>> inverse_laplacian(var('q'))
-        inverse_helmholtz(q, 0)
-    """
-    return INVERSE_HELMHOLTZ(SR(expression), SR(0))
 
 
 def collision_integral(density: object, kernel: Callable[[Expression, Expression], object]) -> Expression:

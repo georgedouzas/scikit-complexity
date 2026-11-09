@@ -24,7 +24,7 @@ from ....core.components.laws.utils import (
     advection,
     antisymmetric_part,
     gradient,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     leray_projection,
     symmetric_part,
@@ -196,7 +196,7 @@ class PolarGelSiteElement(Element):
         stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
         stress -= s.zeta * s.p.outer_product(s.p)
         force = tensor_divergence(stress)
-        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+        return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the polarisation.
@@ -300,7 +300,7 @@ class NematicGelSiteElement(Element):
         field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
         stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
         force = tensor_divergence(stress)
-        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+        return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the tensor, its transport in the flow and its relaxation.

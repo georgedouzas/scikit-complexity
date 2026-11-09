@@ -19,7 +19,6 @@ from skcomplex.core.components.laws.utils import (
     divergence,
     gradient,
     inverse_helmholtz,
-    inverse_laplacian,
     laplacian,
     shifted,
 )
@@ -410,19 +409,19 @@ def test_inverse_helmholtz_converges_in_a_closed_basin():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_has_zero_mean_on_a_periodic_lattice():
+def test_inverse_helmholtz_has_zero_mean_on_a_periodic_lattice():
     """Test that an unscreened periodic inversion has zero mean and its Laplacian is the field minus its mean."""
     n, spacing = 32, 2 * np.pi / 32
     x, y = np.meshgrid(np.arange(n) * spacing, np.arange(n) * spacing, indexing='ij')
     field = 1 + np.sin(x) + np.cos(2 * y) * np.sin(x)
     space = LatticeSpace((n, n), spacing=spacing)
-    solution = _rate(lambda s: inverse_laplacian(s.u), space, {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), space, {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), space, {'u': np.reshape(solution, (n, n))})
     assert abs(solution.mean()) < 1e-10
     assert np.abs(curvature - np.ravel(field - field.mean())).max() < 1e-10
 
 
-def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
+def test_inverse_helmholtz_has_zero_mean_at_zero_flux_edges():
     """Test that an unscreened inversion at zero-flux edges recovers a cosine with zero mean at second order."""
     errors = []
     for n in (40, 80):
@@ -430,7 +429,7 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
         solution = np.cos(np.pi * x)
         space = LatticeSpace(n, spacing=1 / n)
         rate = _rate(
-            lambda s: inverse_laplacian(s.u),
+            lambda s: inverse_helmholtz(s.u),
             space,
             {'u': 3 - np.pi**2 * solution},
             boundary={'u': 'zero-flux'},
@@ -440,11 +439,11 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_on_a_network_has_zero_mean():
+def test_inverse_helmholtz_on_a_network_has_zero_mean():
     """Test that an unscreened inversion on a network has zero mean and inverts the graph Laplacian."""
     graph = nx.connected_watts_strogatz_graph(30, 4, 0.2, seed=1)
     field = np.random.default_rng(0).random(30)
-    solution = _rate(lambda s: inverse_laplacian(s.u), NetworkSpace(graph), {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), NetworkSpace(graph), {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), NetworkSpace(graph), {'u': solution})
     assert abs(solution.mean()) < 1e-12
     assert np.abs(curvature - (field - field.mean())).max() < 1e-12
@@ -695,8 +694,8 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     positions = np.arange(n) * spacing
 
     def law(s):
-        solution = inverse_laplacian(s.u)
-        return inverse_laplacian(s.u) ** 2 + solution + laplacian(solution**2)
+        solution = inverse_helmholtz(s.u)
+        return inverse_helmholtz(s.u) ** 2 + solution + laplacian(solution**2)
 
     field = FieldElement(
         'm',

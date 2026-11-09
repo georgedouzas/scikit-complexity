@@ -108,7 +108,7 @@ when other agents run tests at the same time.
 - [x] 6.5 Delete `laws/utils/_lookups.py`, `delay1`, `delay3`, and `smooth`, with their re-exports, move the delay
   docstrings into `distributed_delay`, and update `test_delays.py`, and verify
   `pytest tests/core/components/laws/utils` passes
-- [ ] 6.6 Give `inverse_helmholtz` the default screening `0`, remove `inverse_laplacian`, use `inverse_helmholtz` in
+- [x] 6.6 Give `inverse_helmholtz` the default screening `0`, remove `inverse_laplacian`, use `inverse_helmholtz` in
   `leray_projection`, `physics/active_matter/_nematics`, `physics/fluids/_kinetic_equations`, and
   `physics/fluids/_flows`, and update the tests that name it, and verify `pytest tests/core/components/laws/utils
   tests/core/engine tests/systems/physics` passes

@@ -9,16 +9,15 @@ from skcomplex.core.components.laws.utils import (
     convolve,
     displacement,
     inverse_helmholtz,
-    inverse_laplacian,
     shifted,
 )
 from skcomplex.core.errors import ValidationError
 
 
-def test_inverse_laplacian_is_the_unscreened_inverse_helmholtz():
-    """Test that the inverse Laplacian is the inverse Helmholtz operator with zero screening."""
+def test_inverse_helmholtz_has_no_screening_by_default():
+    """Test that the inverse Helmholtz operator without a screening is the inverse Laplacian."""
     q = var('q')
-    assert bool(inverse_laplacian(q) == inverse_helmholtz(q, 0))
+    assert bool(inverse_helmholtz(q) == inverse_helmholtz(q, 0))
 
 
 def test_convolve_defaults_to_an_infinite_radius():
