@@ -17,7 +17,6 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BirthDeathInteraction, EvolutionInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -25,6 +24,7 @@ from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import BirthDeathInteraction, EvolutionInteraction
 
 ORGANISMS = 'organisms'
 

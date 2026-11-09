@@ -12,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MovementInteraction, TransitionInteraction
+from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -20,6 +20,7 @@ from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
 
 
 class BelieverView(AgentView):

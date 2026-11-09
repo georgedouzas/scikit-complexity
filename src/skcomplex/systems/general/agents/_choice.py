@@ -16,16 +16,15 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
-from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ...types import ElementKind
-from ..base import BasePart
-from ..laws import BaseLaw, RuleLaw, UpdateLaw
-from ..laws.utils import categorical, uniform, where
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
-from ._interaction import Interaction
+from ....core.components.base import BasePart
+from ....core.components.interactions import SCHEDULES, Interaction
+from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.components.laws.utils import categorical, uniform, where
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
+from ....core.types import ElementKind
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 FORMS = ('symbolic', 'agent')
@@ -105,7 +104,7 @@ class ChoiceInteraction(Interaction):
             the symbolic form, there are fewer than two options, or the utility is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import ChoiceInteraction
+        >>> from skcomplex.systems.general.agents import ChoiceInteraction
         >>> from skcomplex.core.components.laws.utils import mean
         >>> choice = ChoiceInteraction(
         ...     'choice', target='spins', state='spin', options=(-1, 1), utility=lambda s, o: o * mean(s.target.spin)

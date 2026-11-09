@@ -1,4 +1,4 @@
-"""Test the `_evolution` module of `skcomplex.core.components.interactions`."""
+"""Test the `_evolution` module of `skcomplex.systems.general.agents`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import EvolutionInteraction
 from skcomplex.core.components.laws import BaseLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -15,6 +14,7 @@ from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.general.agents import EvolutionInteraction
 
 NEUTRAL_RUNS = 100
 

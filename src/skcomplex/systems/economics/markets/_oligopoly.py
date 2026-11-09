@@ -18,7 +18,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.base import BasePart
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
@@ -26,6 +25,7 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from ....core.types import Array
+from ...general.agents import ChoiceInteraction
 from ..common.learning import PayoffLearningInteraction
 
 

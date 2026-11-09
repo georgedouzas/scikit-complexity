@@ -17,7 +17,8 @@ Rename a role or a parameter of a general interaction, or fix a parameter to a v
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction, RateInteraction
+from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate

@@ -14,13 +14,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.real_set import RealSet
 
-from ...errors import SimulationError, ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec
-from ...types import Array, ElementKind
-from ..laws import BaseLaw, RuleLaw
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._interaction import Interaction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import SimulationError, ValidationError
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
+from ....core.types import Array, ElementKind
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
 REPLACEMENTS = ('generational', 'moran', 'death-birth', 'truncation', 'best-mutant')
@@ -133,7 +133,7 @@ class EvolutionInteraction(Interaction):
 
     Examples:
         >>> from types import SimpleNamespace
-        >>> from skcomplex.core.components.interactions import EvolutionInteraction
+        >>> from skcomplex.systems.general.agents import EvolutionInteraction
         >>> evolution = EvolutionInteraction('evolution', target='agents', selection='roulette', phase='breeding')
         >>> evolution.prepare().run(SimpleNamespace()).laws_[0].phase
         'breeding'

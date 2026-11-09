@@ -1,4 +1,4 @@
-"""Test the `_imitation` module of `skcomplex.core.components.interactions`."""
+"""Test the `_imitation` module of `skcomplex.systems.general.agents`."""
 
 from typing import Annotated
 
@@ -8,12 +8,12 @@ import pytest
 from scipy.special import expit
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ImitationInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.general.agents import ImitationInteraction
 
 SIZE = 50
 RUNS = 200

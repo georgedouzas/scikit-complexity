@@ -1,4 +1,4 @@
-"""Test the `_birth_death` module of `skcomplex.core.components.interactions`."""
+"""Test the `_birth_death` module of `skcomplex.systems.general.agents`."""
 
 from typing import Annotated
 
@@ -7,13 +7,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import BirthDeathInteraction, TransferInteraction
+from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import Sink, Source
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.systems.general.agents import BirthDeathInteraction
 
 
 class ResourceElement(Element):
@@ -377,3 +378,16 @@ def test_live_culls_a_random_member_of_its_group_after_a_replacement():
     )
     trajectory = simulate(system, until=1, random_state=0)
     assert len(trajectory.agents('parents', 1).ids) == 4
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'message'),
+    [
+        ({'placement': PartnerSpec()}, 'Unknown placement .*a function'),
+        ({'pick': PartnerSpec()}, "Unknown pick .*'first', 'random'"),
+    ],
+)
+def test_variant_refuses_a_spec_and_lists_what_it_takes(arguments, message):
+    """Test that a placement and a pick refuse a spec, and list their names and functions."""
+    with pytest.raises(ValidationError, match=message):
+        BirthDeathInteraction('a', target='b', **arguments).prepare()

@@ -11,22 +11,17 @@ from skcomplex.core.components import interactions
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
-    BirthDeathInteraction,
     CascadeInteraction,
-    ChoiceInteraction,
     CouplingInteraction,
     CrossingInteraction,
-    EvolutionInteraction,
     GradientInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
-    ImitationInteraction,
     Interaction,
     JumpInteraction,
     LocalRuleInteraction,
     MapInteraction,
     MatchingInteraction,
-    MovementInteraction,
     NeighborInteraction,
     PairInteraction,
     RateInteraction,
@@ -49,6 +44,13 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
 from skcomplex.core.types import ElementKind
+from skcomplex.systems.general.agents import (
+    BirthDeathInteraction,
+    ChoiceInteraction,
+    EvolutionInteraction,
+    ImitationInteraction,
+    MovementInteraction,
+)
 from skcomplex.systems.general.reactions import ReactionInteraction
 
 from ....conftest import NodeElement

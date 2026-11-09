@@ -460,7 +460,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
+from skcomplex.core.components.interactions import GroupingInteraction
+from skcomplex.systems.general.agents import ImitationInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem

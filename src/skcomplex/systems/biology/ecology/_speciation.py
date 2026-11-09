@@ -15,12 +15,12 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
+from ...general.agents import EvolutionInteraction
 
 
 class OrganismView(AgentView):

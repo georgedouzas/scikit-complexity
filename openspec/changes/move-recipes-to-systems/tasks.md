@@ -79,16 +79,16 @@
 
 ## 6. Agents
 
-- [ ] 6.1 Move `MovementInteraction` and `BirthDeathInteraction` to `systems/general/agents`, with their tests. Rewrite
+- [x] 6.1 Move `MovementInteraction` and `BirthDeathInteraction` to `systems/general/agents`, with their tests. Rewrite
   `tests/core/engine/compile/test_validation.py` and `tests/core/engine/solvers/test_mesa_continuous_spaces.py` with a
   core `RuleLaw` interaction, or move the cases that test the movement itself to `tests/systems/general/agents`. Verify
   with those tests.
-- [ ] 6.2 Repoint the users of movement and birth-death in biology, economics, engineering, mathematics, and social.
+- [x] 6.2 Repoint the users of movement and birth-death in biology, economics, engineering, mathematics, and social.
   Verify with `tests/systems` of those fields.
-- [ ] 6.3 Move `ChoiceInteraction` and `ImitationInteraction` to `systems/general/agents` and
+- [x] 6.3 Move `ChoiceInteraction` and `ImitationInteraction` to `systems/general/agents` and
   `EvolutionInteraction` to `systems/general/agents` too, with their tests and the cases of `test_variants.py` and
   `conftest.py` that use them. Verify with `tests/systems/general` and `tests/core/components/interactions`.
-- [ ] 6.4 Repoint their users in biology, computer science, economics, and social. Verify with `tests/systems` of those
+- [x] 6.4 Repoint their users in biology, computer science, economics, and social. Verify with `tests/systems` of those
   fields.
 
 ## 7. Matching and encounters

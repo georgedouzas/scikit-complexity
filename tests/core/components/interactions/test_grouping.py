@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction, ImitationInteraction
+from skcomplex.core.components.interactions import GroupingInteraction
 from skcomplex.core.components.laws.utils import count, mean, total, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -24,6 +24,7 @@ from skcomplex.core.specs import (
     StateSpec,
     VisualSpec,
 )
+from skcomplex.systems.general.agents import ImitationInteraction
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 

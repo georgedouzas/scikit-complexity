@@ -14,18 +14,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    BirthDeathInteraction,
-    MapInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
 PLANTS = 'plants'

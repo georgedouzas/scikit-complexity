@@ -14,7 +14,6 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import (
     HyperedgeInteraction,
     Interaction,
-    MovementInteraction,
     NeighborInteraction,
     RateInteraction,
 )
@@ -39,7 +38,7 @@ from skcomplex.core.specs import (
     VisualSpec,
     WienerProcessSpec,
 )
-from skcomplex.core.types import FormKind, NoiseKind
+from skcomplex.core.types import ElementKind, FormKind, NoiseKind
 
 from ....conftest import HoldingElement, NodeElement, _correlated, _weighted
 from .conftest import PairElement
@@ -692,11 +691,28 @@ def test_role_element_reports_a_missing_state_a_role_declares():
     assert 'get_requirements()' in issues[0].fix
 
 
+class WalkInteraction(Interaction):
+    """Agent rule that acts on the agents of a group, like a movement."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s):
+        """Return a rule that leaves the agents in place."""
+        return [RuleLaw(lambda system: None)]
+
+
 def test_role_element_reports_a_kind_the_role_does_not_accept():
     """Test that a role that acts on the agents of a group reports a single element."""
     system = CompositeSystem(
         elements=[TankElement('tank')],
-        interactions=[MovementInteraction('walk', target='tank')],
+        interactions=[WalkInteraction('walk', target='tank')],
         time=DiscreteTime(),
     )
     issues = _role_issues(system)

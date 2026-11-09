@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -34,6 +34,7 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
+from ...general.agents import ImitationInteraction
 from ..common.forecasting import heuristics
 
 

@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BirthDeathInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
@@ -32,6 +32,7 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
+from ...general.agents import BirthDeathInteraction
 
 
 class CabView(AgentView):

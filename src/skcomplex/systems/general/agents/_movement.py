@@ -14,14 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
-from ...types import ElementKind
-from ..laws import BaseLaw, RuleLaw
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._interaction import Interaction
-from ._transfer import TransferInteraction
+from ....core.components.interactions import Interaction, TransferInteraction
+from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec
+from ....core.types import ElementKind
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -121,7 +120,7 @@ class MovementInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.interactions import MovementInteraction
+        >>> from skcomplex.systems.general.agents import MovementInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate

@@ -10,13 +10,13 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
-from ...errors import ValidationError
-from ...specs import RoleSpec, Tags
-from ...types import ElementKind
-from ..laws import BaseLaw, RuleLaw
-from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._interaction import Interaction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import RoleSpec, Tags
+from ....core.types import ElementKind
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -141,7 +141,7 @@ class BirthDeathInteraction(Interaction):
     Examples:
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.interactions import BirthDeathInteraction
+        >>> from skcomplex.systems.general.agents import BirthDeathInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec

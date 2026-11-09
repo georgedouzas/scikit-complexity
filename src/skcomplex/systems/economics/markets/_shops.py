@@ -16,11 +16,7 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    BirthDeathInteraction,
-    MapInteraction,
-    MatchingInteraction,
-)
+from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.laws.utils import clip, sign
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -37,6 +33,7 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
+from ...general.agents import BirthDeathInteraction
 
 STEPPINGS = ('multiplicative', 'additive')
 

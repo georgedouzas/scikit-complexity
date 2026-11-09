@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ChoiceInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
@@ -14,6 +13,7 @@ from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
+from skcomplex.systems.general.agents import ChoiceInteraction
 
 
 class LearnerView(AgentView):

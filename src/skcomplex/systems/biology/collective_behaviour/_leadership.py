@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, MapInteraction, MovementInteraction
+from ....core.components.interactions import CouplingInteraction, MapInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -30,6 +30,7 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
+from ...general.agents import MovementInteraction
 
 
 class ShoalMemberView(AgentView):

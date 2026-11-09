@@ -9,7 +9,6 @@ import pytest
 from shapely import Point, Polygon, box
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -19,6 +18,7 @@ from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import BackendError, SimulationError, SpaceError
 from skcomplex.core.specs import StateSpec
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+from skcomplex.systems.general.agents import MovementInteraction
 
 RECORDED_BOIDS = 'recorded_boids_two_dimensions.json'
 

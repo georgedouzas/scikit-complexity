@@ -1,4 +1,4 @@
-"""Test the `_movement` module of `skcomplex.core.components.interactions`."""
+"""Test the `_movement` module of `skcomplex.systems.general.agents`."""
 
 from typing import Annotated
 
@@ -7,13 +7,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction, TransferInteraction
+from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import Sink
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, PartnerSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.general.agents import MovementInteraction
 
 
 class BudgetElement(Element):
@@ -300,3 +301,9 @@ def test_get_parameter_value_reads_a_fixed_move_probability():
     trajectory = _lattice_walk(1, SureWalkInteraction('walk', target='walkers'), size=50)
     locations = np.asarray(trajectory.agents('walkers', 1).locations)
     assert (np.abs(locations - 4).sum(axis=1) == 1).all()
+
+
+def test_step_refuses_a_spec_and_lists_what_it_takes():
+    """Test that a step refuses a spec, and lists its names and functions."""
+    with pytest.raises(ValidationError, match=r'Unknown step .*a function'):
+        MovementInteraction('a', target='b', step=PartnerSpec()).prepare()

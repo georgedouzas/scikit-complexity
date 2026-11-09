@@ -354,3 +354,6 @@ Decisions taken while applying the change, by the placement rule.
 - Tests of `tests/core` that use a general realization only as a fixture of a base behaviour, such as the aliases and
   the grid checks of `test_base.py`, import it from `skcomplex.systems.general`, as they already import field systems.
   Tests of a realization itself move under `tests/systems/general`.
+- `test_validation.py` checks the role element error with a local agent rule on `RuleLaw`. The Mesa tests of continuous
+  spaces keep `MovementInteraction` as the fixture that moves agents, imported from `skcomplex.systems.general.agents`,
+  since they test the solver and not the movement. The variant cases of movement and birth-death moved to their tests.

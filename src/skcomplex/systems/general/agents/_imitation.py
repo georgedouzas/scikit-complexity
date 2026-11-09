@@ -15,15 +15,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ...types import ElementKind
-from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
-from ..laws.utils import categorical, neighbors, uniform, where
-from ..spaces import AdjacencyNeighborhood, BaseSpace
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
-from ._neighbor import NeighborInteraction
+from ....core.components.interactions import SCHEDULES, NeighborInteraction
+from ....core.components.laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
+from ....core.components.laws.utils import categorical, neighbors, uniform, where
+from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
+from ....core.types import ElementKind
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
 FORMS = ('rate', 'probability', 'agent')
@@ -102,7 +101,7 @@ class ImitationInteraction(NeighborInteraction):
             given outside the agent form, or the options are not distinct.
 
     Examples:
-        >>> from skcomplex.core.components.interactions import ImitationInteraction
+        >>> from skcomplex.systems.general.agents import ImitationInteraction
         >>> ImitationInteraction('imitation', target='voters', rule='majority').options
         (0.0, 1.0)
         >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').form

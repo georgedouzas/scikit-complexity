@@ -13,13 +13,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
+from ...general.agents import EvolutionInteraction
 
 N_SITUATIONS = 243
 

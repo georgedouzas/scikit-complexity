@@ -916,7 +916,8 @@ moving and then counting its steps:
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MapInteraction, MovementInteraction
+from skcomplex.core.components.interactions import MapInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -957,7 +958,7 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ChoiceInteraction
+from skcomplex.systems.general.agents import ChoiceInteraction
 from skcomplex.core.components.laws.utils import mean
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -991,7 +992,7 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import ImitationInteraction
+from skcomplex.systems.general.agents import ImitationInteraction
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1067,7 +1068,7 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import EvolutionInteraction
+from skcomplex.systems.general.agents import EvolutionInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
@@ -1121,7 +1122,7 @@ Use `MovementInteraction` to move agents. Here two walkers each take one step to
 
 ```python
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1222,7 +1223,7 @@ the size between parent and offspring:
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import BirthDeathInteraction
+from skcomplex.systems.general.agents import BirthDeathInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1355,7 +1356,7 @@ Agents can live in a box of three dimensions, or move between named regions such
 
 ```python
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -1383,7 +1384,7 @@ To place agents in regions, give the space layers of polygons:
 from shapely import Point, box
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MovementInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate

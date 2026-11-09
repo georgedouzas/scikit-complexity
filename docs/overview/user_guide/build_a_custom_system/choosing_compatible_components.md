@@ -20,7 +20,8 @@ An interaction states the time and the space its laws run in, and an empty `spac
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import MapInteraction, MovementInteraction, RateInteraction
+from skcomplex.core.components.interactions import MapInteraction, RateInteraction
+from skcomplex.systems.general.agents import MovementInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import StateSpec

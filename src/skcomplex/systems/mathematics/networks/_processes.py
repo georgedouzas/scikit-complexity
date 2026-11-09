@@ -15,13 +15,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, MovementInteraction, RateInteraction
+from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
 
 
 class NodeContentElement(Element):

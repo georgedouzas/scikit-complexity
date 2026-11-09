@@ -16,10 +16,10 @@ from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws.utils import total
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import ChoiceInteraction
 
 
 def _overlap(member: SimpleNamespace) -> Expression:

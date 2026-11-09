@@ -13,19 +13,14 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    CouplingInteraction,
-    MapInteraction,
-    MovementInteraction,
-    PairInteraction,
-    RateInteraction,
-)
+from ....core.components.interactions import CouplingInteraction, MapInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
 from ...general.elements import PointElement
 
 

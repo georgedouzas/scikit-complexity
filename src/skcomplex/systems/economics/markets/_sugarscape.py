@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BirthDeathInteraction, MovementInteraction, TransferInteraction
+from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
@@ -24,6 +24,7 @@ from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
 
 
