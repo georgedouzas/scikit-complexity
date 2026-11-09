@@ -49,7 +49,7 @@ when other agents run tests at the same time.
   and move the docstring of the gain and loss equation of `EncounterLaw` into it, and verify
   `tests/core/components/laws/test_bilinear.py` holds the law tests of `test_encounter.py` for conserved laws and
   passes
-- [ ] 3.2 In `CompileEncountersPass` and `PassCompiler._unnormalized`, read the kind of a `BilinearLaw` from
+- [x] 3.2 In `CompileEncountersPass` and `PassCompiler._unnormalized`, read the kind of a `BilinearLaw` from
   `law.conserved` and the linear case from `law.second is None`, and list `BilinearLaw` in `StrangSplittingSolver`,
   and verify new cases of `tests/core/engine/compile/passes/test_compile_encounters.py` for conserved bilinear laws
   match the encounter cases

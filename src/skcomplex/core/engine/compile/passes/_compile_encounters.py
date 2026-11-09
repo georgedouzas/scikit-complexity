@@ -231,7 +231,7 @@ class CompileEncountersPass(BasePass):
         bilinear = isinstance(law, BilinearLaw)
         first, second = (law.first, law.second) if bilinear else (law.candidate, law.field)
         candidate = CompileEncountersPass._group_indices(first, references, owner)
-        linear = not bilinear and second is None
+        linear = second is None
         empty = np.zeros(0, dtype=np.intp)
         field_indices = empty if linear else CompileEncountersPass._group_indices(second, references, owner)
         space = (phases or {}).get(references[first].entry.name)
@@ -255,7 +255,7 @@ class CompileEncountersPass(BasePass):
         )
         return EncounterKernel(
             owner,
-            'bilinear' if bilinear else 'transition',
+            'bilinear' if bilinear and not law.conserved else 'transition',
             candidate,
             field_indices,
             test,
