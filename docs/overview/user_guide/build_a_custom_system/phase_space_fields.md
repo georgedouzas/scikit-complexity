@@ -59,11 +59,11 @@ Read the density, mean velocity, or temperature at every position, and feed them
 Vlasov-Poisson drift accelerates the gas by the field of its own charge density:
 
 ```python
-from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
+from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
 
 
 def poisson_drift(s):
-    return [coordinate('v'), -gradient(inverse_laplacian(1 - moment(s.target.x, 0, axes=('v',))), 1)[0]]
+    return [coordinate('v'), -gradient(inverse_helmholtz(1 - moment(s.target.x, 0, axes=('v',))), 1)[0]]
 
 
 poisson_drift.__name__

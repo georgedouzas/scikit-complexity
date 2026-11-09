@@ -112,7 +112,7 @@ when other agents run tests at the same time.
   `leray_projection`, `physics/active_matter/_nematics`, `physics/fluids/_kinetic_equations`, and
   `physics/fluids/_flows`, and update the tests that name it, and verify `pytest tests/core/components/laws/utils
   tests/core/engine tests/systems/physics` passes
-- [ ] 6.7 Update `stocks_and_flows.md`, `fields.md`, `general_interactions.md`, and `phase_space_fields.md`, and verify
+- [x] 6.7 Update `stocks_and_flows.md`, `fields.md`, `general_interactions.md`, and `phase_space_fields.md`, and verify
   their markdown doctests pass and `grep -rnw "lookup\|delay1\|delay3\|smooth\|inverse_laplacian"` over the law
   utilities, the systems, and the user guide finds no call
 

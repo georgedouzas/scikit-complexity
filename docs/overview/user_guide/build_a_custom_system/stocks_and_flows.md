@@ -8,14 +8,14 @@ from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import Sink, Source, TransferLaw
-from skcomplex.core.components.laws.utils import lookup
+from skcomplex.core.components.laws.utils import series
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
 
 
 def birth_rate(s):
-    return s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)])
+    return s.b * s.n * series(s.n, (0, 100, 200), (1.0, 1.0, 0.0))
 
 
 class PeopleElement(Element):
@@ -57,8 +57,8 @@ Trajectories record every flow under `<element path>.<label>`, such as `crowd.bi
 
 An intermediate expression, such as the birth rate, is a function of the namespace that the laws call.
 `ObservableSpec(label, function, element=element)` records the same function as the observable `<element>.<label>`,
-which Rerun logs under the element. `lookup(x, points)` is a table function, piecewise linear between its points and
-flat outside them.
+which Rerun logs under the element. `series(x, points, values)` is a table function of any value, piecewise linear
+between its points and flat outside them.
 
 ## Conservation and loops
 
@@ -84,8 +84,8 @@ loops(monitored, kind='flow-matrix').matrix.sum(axis=1).tolist()
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order. It is a chain of hidden stocks
 in series, and it returns their outflow. With `conserved=False` it is an information smoothing. It adds hidden stocks
 `<element path>.<kind>_delay<order>_<index>` to the rate laws of single elements and interactions, and they start in
-equilibrium with their input. The system dynamics names `delay1`, `delay3`, and `smooth` of
-`skcomplex.core.components.laws.utils` are its cases.
+equilibrium with their input. The `DELAY1` and `DELAY3` functions of system dynamics are `distributed_delay(value,
+time, 1)` and `distributed_delay(value, time, 3)`, and `SMOOTH` is `distributed_delay(value, time, conserved=False)`.
 
 `loops(system)` derives the signed dependency graph of a system from its laws, and lists its feedback loops with their
 polarity. `loops(trajectory, kind='dominance')` ranks the loops by their gains at every frame of a trajectory.
@@ -230,9 +230,9 @@ Time in the module runs from zero, and `Time` in the file becomes `t + START`. T
   `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a goal function and a time function.
 - An auxiliary is a private function `_name(s, t)` that the laws call, and an `ObservableSpec` under its snake-case
   name.
-- A lookup is a `lookup` table. The built-in functions are `where`, `step`, `ramp`, `pulse`, `pulse_train`, `delay1`,
-  `delay3`, `smooth`, `distributed_delay`, `delayed`, `minimum`, `maximum`, `clip`, and the draws `uniform` and
-  `normal`.
+- A lookup is a `series` of its input through its points. The built-in functions are `where`, `step`, `ramp`,
+  `pulse`, `pulse_train`, `distributed_delay` for the delays and smoothings, `delayed`, `minimum`, `maximum`, `clip`,
+  and the draws `uniform` and `normal`.
 - A system whose stocks are all subscripted over one range is a `GroupElement` with one member per subscript. `SUM` over
   the range is `total`, and a read of one subscript is a `total` over that member.
 

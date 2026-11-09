@@ -111,7 +111,7 @@ round(float(np.abs(trajectory.values('line.u')[-1]).max()), 1)
 The argument `FieldElement(..., discretization=...)` chooses how space is discretized:
 
 - `'spectral'` fields on periodic lattices multiply Fourier modes, and the two-thirds rule removes aliasing from every
-  operator, so `laplacian(u)` is exact for smooth fields. `inverse_laplacian(u)` solves Poisson equations.
+  operator, so `laplacian(u)` is exact for smooth fields. `inverse_helmholtz(u)` solves Poisson equations.
   `symmetry={'u': (None, 'odd')}` keeps a state odd or even along an axis, which represents walls on a doubled lattice.
   `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
 - `'finite-volume'` fields take `FluxLaw(state, flux)`s, `du/dt + divergence(flux) = 0`. They are updated with MUSCL
@@ -226,8 +226,8 @@ def look_ahead(s):
 The operators below of `skcomplex.core.components.laws.utils` read beyond the nearest sites, and a law writes them as a
 reference writes them:
 
-- `inverse_helmholtz(expression, screening, boundary=None)` is the solution of
-  `(laplacian - screening**2) psi = expression`, and `inverse_laplacian(u)` is its case without screening. It runs on
+- `inverse_helmholtz(expression, screening=0, boundary=None)` is the solution of
+  `(laplacian - screening**2) psi = expression`, and `inverse_helmholtz(u)` solves the Poisson equation. It runs on
   spectral fields, and on finite-difference lattices with periodic, zero-flux, or fixed edges, where the fast transforms
   of SciPy invert the stencil that `laplacian` uses. On networks and meshes it uses a sparse factorization. An operand
   that mixes states of different boundaries needs `boundary=`.

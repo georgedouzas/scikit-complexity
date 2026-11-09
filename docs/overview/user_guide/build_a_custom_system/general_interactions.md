@@ -1538,7 +1538,8 @@ float(hill(x, 2, 3).subs(x=2)), float(logistic(x, 1, 2).subs(x=1))
 - `minimum` and `maximum` of several expressions compare them. Of one expression, they reduce it over a group.
 - `total`, `mean`, `count`, and `circular_mean` reduce over a group. With `by=`, they reduce over the members that
   share the value of a state, such as the members of one household or one cell.
-- `delay1`, `delay3`, and `smooth` are the first- and third-order delays and the smoothing of stock-and-flow systems.
+- `distributed_delay(value, time, order, conserved=True)` is the material delay of stock-and-flow systems, and the
+  smoothing with `conserved=False`.
 - `pulse_train(t, period, width, height, start, count=None)` is a train of rectangular pulses, finite with a count.
 
 ## Tensor fields
@@ -1555,7 +1556,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     advection,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     leray_projection,
     tensor_divergence,
@@ -1573,7 +1574,7 @@ class StirredElement(Element):
 
     def _get_laws(self, s):
         force = tensor_divergence(s.Q)
-        velocity = leray_projection(force.apply_map(lambda item: inverse_laplacian(-item)))
+        velocity = leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item)))
         return [RateLaw(s.Q, -s.Q.apply_map(lambda item: advection(item, velocity)) + s.Q.apply_map(laplacian) - s.Q)]
 
 
@@ -1611,7 +1612,7 @@ The operations on vectors and tensors are:
 - The transport of a tensor or a vector by a flow advects it, rotates it with the vorticity, and aligns it with the
   strain rate. It is an expression of `advection`, `vector_gradient`, `symmetric_part`, and `antisymmetric_part`, and a
   law subtracts it from its rate.
-- `leray_projection(v)` is the divergence-free part of a vector, `v - gradient(inverse_laplacian(divergence(v)))`. It
+- `leray_projection(v)` is the divergence-free part of a vector, `v - gradient(inverse_helmholtz(divergence(v)))`. It
   is exact on spectral fields of periodic lattices. A velocity odd about the middle of an axis, set by the `symmetry`
   of the field, gives walls there.
 
