@@ -12,12 +12,13 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 INHIBITOR_CLEARANCE = math.log(2) / 3.9

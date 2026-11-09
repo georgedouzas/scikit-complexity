@@ -5,8 +5,10 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, NonnegativeElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
@@ -14,6 +16,20 @@ from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class OrnsteinUhlenbeckElement(Element):
@@ -87,7 +103,7 @@ def test_ensemble_of_a_deterministic_system_names_the_randomness():
 
 def test_ensemble_of_a_deterministic_system_with_a_solver_that_draws():
     """Test that a solver decides an ensemble of a deterministic system by whether it draws, as KineticSolver does."""
-    system = CompositeSystem(elements=[NonnegativeElement('stock', x=1.0)])
+    system = CompositeSystem(elements=[AmountElement('stock', x=1.0)])
     assert not ScipyODESolver.draws
     assert KineticSolver.draws
     with pytest.raises(TagError, match='randomness'):

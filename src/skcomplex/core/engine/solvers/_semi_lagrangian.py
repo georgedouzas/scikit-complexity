@@ -47,7 +47,13 @@ class SemiLagrangianSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -58,7 +64,7 @@ class SemiLagrangianSolver(Solver):
         >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
         >>> gas = FieldElement(
-        ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
+        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
         >>> stream = ConservationInteraction(
         ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]

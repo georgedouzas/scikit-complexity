@@ -1,16 +1,40 @@
 """Test the `_continuous` module of `skcomplex.core.components.spaces`."""
 
+from typing import Annotated
+
 import numpy as np
+import numpy.typing as npt
 import pytest
 from shapely import Point, Polygon, box
 from sklearn.base import clone
 
-from skcomplex.core.components.elements import PointElement
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.specs import StateSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 @pytest.mark.parametrize(
@@ -99,7 +123,7 @@ def test_continuous_space_keeps_regions_in_two_dimensions():
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
     system = CompositeSystem(
-        elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
+        elements=[BallElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
@@ -110,7 +134,7 @@ def test_reflecting_box_reverses_crossing_particle():
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
     system = CompositeSystem(
-        elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
+        elements=[BallElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
@@ -122,7 +146,7 @@ def test_periodic_box_wraps_leaving_particle():
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
     system = CompositeSystem(
-        elements=[PointElement('p', x=[0.5], x_d1=[1.0])],
+        elements=[BallElement('p', x=[0.5], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = simulate(system, until=5, solver=solver, dt=5.0)

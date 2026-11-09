@@ -9,11 +9,10 @@ times the product of the reactant amounts, each raised to its stoichiometric coe
 
 from collections.abc import Mapping, Sequence
 
-from ...types import ReactionTable
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..elements import NonnegativeElement
-from ..interactions import ReactionInteraction
-from ._base import BaseSystem
-from ._composite import CompositeSystem
+from ._reaction import ReactionInteraction
+from .types import ReactionTable
 
 
 class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
@@ -50,7 +49,7 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
     Examples:
         The reversible isomerization `A <-> B`, whose amounts relax to `k_back / (k_forth + k_back)` of the total:
 
-        >>> from skcomplex.core.components.systems import ReactionNetworkSystem
+        >>> from skcomplex.systems.general.reactions import ReactionNetworkSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> isomerization = ReactionNetworkSystem(
         ...     species={'A': 10.0, 'B': 0.0},

@@ -6,7 +6,8 @@ neurons of a network. You write the laws once for one member, and they run over 
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -366,7 +367,8 @@ Use a pair interaction for forces between members that depend on their distance,
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem

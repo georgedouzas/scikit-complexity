@@ -1,4 +1,4 @@
-"""Test the `_reaction` module of `skcomplex.core.components.interactions`."""
+"""Test the `_reaction` module of `skcomplex.systems.general.reactions`."""
 
 from types import SimpleNamespace
 from typing import Annotated
@@ -8,14 +8,16 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement, NonnegativeElement
-from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement
+from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 UNITS = 100_000
 SEEDS = range(4)

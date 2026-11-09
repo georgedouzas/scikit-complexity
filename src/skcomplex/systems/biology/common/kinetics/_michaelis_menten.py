@@ -12,11 +12,11 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from .....core.components.interactions import ReactionInteraction
 from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
 from .....core.specs import RoleSpec
-from .....core.types import Stoichiometry
+from ....general.reactions import ReactionInteraction
+from ....general.reactions.types import Stoichiometry
 
 
 class MichaelisMentenInteraction(ReactionInteraction):

@@ -6,16 +6,18 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import CC, oo, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
 from skcomplex.core.components.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
+    BaseSpace,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
@@ -30,6 +32,27 @@ from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
+
 
 PAULI = HilbertSpec(
     2,
@@ -261,7 +284,7 @@ def test_static_time_rejects_dynamic_laws():
 def test_periodic_space_wraps_positions():
     """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
     system = CompositeSystem(
-        elements=[PointElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
+        elements=[BallElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = simulate(system, until=0.2, dt=0.2)
@@ -272,7 +295,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = CompositeSystem(
         elements=[
-            GroupElement('gas', element=PointElement, size=1, values={'x': [[0.95, 0.5]], 'x_d1': [[1.0, 0.0]]}),
+            GroupElement('gas', element=BallElement, size=1, values={'x': [[0.95, 0.5]], 'x_d1': [[1.0, 0.0]]}),
         ],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )

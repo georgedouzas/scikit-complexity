@@ -15,13 +15,14 @@ from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction, ReactionInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.reactions import ReactionInteraction
 
 
 class MinSkeletonElement(Element):

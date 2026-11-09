@@ -133,7 +133,7 @@ frames to a spawned viewer, a running viewer, or a `.rrd` file. Pass it to `simu
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.components.elements import PointElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem

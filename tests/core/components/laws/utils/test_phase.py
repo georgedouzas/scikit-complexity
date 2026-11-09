@@ -4,12 +4,14 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import var
+from sage.all__sagemath_symbolics import oo, var
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
@@ -27,7 +29,22 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec
+from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 
 def density(namespace: SimpleNamespace) -> object:
@@ -61,7 +78,7 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
     v = space.coordinates_['v']
     start = np.tile(np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi), (4, 1))
-    field = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
+    field = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     observables = [ObservableSpec('rho', density, group='gas')]
     trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.values('rho'))
@@ -73,7 +90,7 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
     """Stream by the same stencils and rates that read a coordinate on the NumPy and the Numba backends."""
     space = PhaseSpace(LatticeSpace((8,), spacing=0.5), [AxisSpec('v', 4, -1.0, 1.0)]).prepare()
     start = np.outer(2.0 + np.sin(np.arange(8)), np.ones(4))
-    gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     stream = ConservationInteraction(
         's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0], riemann=None,
     )
@@ -87,7 +104,7 @@ def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
 
 def test_coordinate_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a coordinate read by a law whose group lives on a lattice without class axes."""
-    field = FieldElement('gas', element=NonnegativeElement, space=LatticeSpace((4,)))
+    field = FieldElement('gas', element=AmountElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda _: coordinate('v'))
     report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' and 'class axes v' in issue.message for issue in report.issues)
@@ -96,7 +113,7 @@ def test_coordinate_outside_phase_space_is_a_law_space_issue() -> None:
 def test_coordinate_of_missing_axis_names_axes_held() -> None:
     """Report a coordinate of an axis the phase space does not hold, with the axes it holds."""
     space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 4, -1.0, 1.0)])
-    field = FieldElement('gas', element=NonnegativeElement, space=space)
+    field = FieldElement('gas', element=AmountElement, space=space)
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda _: coordinate('w'))
     report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     issues = [issue for issue in report.issues if issue.code == 'law-space']
@@ -106,7 +123,7 @@ def test_coordinate_of_missing_axis_names_axes_held() -> None:
 
 def test_moment_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a moment over axes in a law whose group lives on a lattice without class axes."""
-    field = FieldElement('gas', element=NonnegativeElement, space=LatticeSpace((4,)))
+    field = FieldElement('gas', element=AmountElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='x', rate=lambda s: moment(s.target.x, 0, axes=('v',)))
     report = PassCompiler().prepare(CompositeSystem(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' for issue in report.issues)
@@ -132,7 +149,7 @@ def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -
     space = PhaseSpace(LatticeSpace((size,)), [AxisSpec('v', 256, -16.0, 16.0)]).prepare()
     v = space.coordinates_['v']
     start = 2.0 * np.exp(-((v - 0.5) ** 2) / 3.0) / np.sqrt(3.0 * np.pi)
-    field = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': np.tile(start, (size, 1))})
+    field = FieldElement('gas', element=AmountElement, space=space, values={'x': np.tile(start, (size, 1))})
     observables = [
         ObservableSpec('rho', density, group='gas'),
         ObservableSpec('mean', mean_at, group='gas'),
@@ -162,7 +179,7 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',
@@ -182,12 +199,12 @@ def test_drift_reads_field_over_position_through_sources() -> None:
     start = np.tile(np.exp(-(space.coordinates_['v'] ** 2)), (2, 1))
     gas = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',
     )
-    force = FieldElement('force', element=NonnegativeElement, space=lattice, values={'x': [1.0, 0.0]})
+    force = FieldElement('force', element=AmountElement, space=lattice, values={'x': [1.0, 0.0]})
     drift = ConservationInteraction(
         'push', target='gas', state='x', flux=lambda s: [0, s.sources[0].x * s.target.x], sources=['force'],
     )
@@ -203,8 +220,8 @@ def test_rate_over_position_reads_moment_through_sources() -> None:
     lattice = LatticeSpace((3,))
     space = PhaseSpace(lattice, [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
     start = np.ones((3, 8)) * np.array([[1.0], [2.0], [3.0]])
-    gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
-    level = FieldElement('level', element=NonnegativeElement, space=lattice)
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
+    level = FieldElement('level', element=AmountElement, space=lattice)
     rate = RateInteraction(
         'grow',
         target='level',
@@ -229,7 +246,7 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
     v = space.coordinates_['v']
     width = space.spacings_[1]
     start = np.exp(-((v - 2.0) ** 2) / 2) + 0.5 * np.exp(-((v + 2.0) ** 2) / 2)
-    gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     relax = RateInteraction(
         'bgk',
         target='gas',
@@ -256,7 +273,7 @@ def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> N
     a, b = np.meshgrid(space.coordinates_['a'], space.coordinates_['b'], indexing='ij')
     first = np.exp(-((a - 1.0) ** 2) - b**2) + np.exp(-((a + 1.0) ** 2) - (b - 1.0) ** 2)
     start = np.stack([first, 2.0 * first[::-1]])
-    gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': start})
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': start})
     relax = RateInteraction(
         'bgk',
         target='gas',
@@ -279,7 +296,7 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-difference',

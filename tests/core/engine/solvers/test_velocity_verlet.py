@@ -4,19 +4,40 @@ import time
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import (
     VelocityVerletSolver,
 )
-from skcomplex.core.specs import ParameterSpec, StepSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, StepSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 class SoftSphereInteraction(PairInteraction):
@@ -59,7 +80,7 @@ def test_interacting_gas_of_100000_runs_in_real_time():
         elements=[
             GroupElement(
                 'gas',
-                element=PointElement,
+                element=BallElement,
                 size=n,
                 values={'x': rng.uniform(0, size, (n, 2)), 'x_d1': rng.normal(0, 1, (n, 2))},
             ),

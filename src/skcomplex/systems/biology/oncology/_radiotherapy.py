@@ -12,10 +12,11 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, RateInteraction, ReactionInteraction
+from ....core.components.interactions import CrossingInteraction, RateInteraction
 from ....core.components.laws.utils import periodic_guard, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

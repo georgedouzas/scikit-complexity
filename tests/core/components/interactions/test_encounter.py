@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.components.elements import FieldElement, GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import FieldElement, GroupElement
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -16,6 +16,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, RoleSpec
+from skcomplex.systems.general.elements import NonnegativeElement
 
 CLASSES = 3
 SIZE, HALF_WIDTH = 32, 8.0

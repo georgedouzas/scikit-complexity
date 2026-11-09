@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, matrix, sin
 
-from skcomplex.core.components.elements import PointElement
 from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, PseudoRiemannianSpace
@@ -14,6 +13,7 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.systems.general.elements import PointElement
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
 

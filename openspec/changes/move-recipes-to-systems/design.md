@@ -331,3 +331,26 @@ These are final.
 - General systems are recipes. The core keeps `BaseSystem` and `CompositeSystem` only.
 - `DialectSpec` is deleted in this change, and `GeometrySpec` is placed by the placement rule.
 - The placement rule below is the single source of truth for where any new part goes.
+
+## Implementation notes
+
+Decisions taken while applying the change, by the placement rule.
+
+- The source test of task 3.3 also flags `ReactionNetworkSystem`, which `rename-core-systems` named after the audit. It
+  is a recipe by step 3 and leaves with task 5.3, so the guard needs no allowlist.
+- `SCHEDULES`, the agent schedules every interaction checks, is now exported by `skcomplex.core.components.interactions`,
+  like `OPTIMIZERS`. The general reactions, choices, and imitations read it, and a realization imports only the public
+  modules of the core.
+- `PairInteraction` keeps the write default `'x'` of the former pair coupling. Its role declares the states `position`,
+  `write`, and `divisor`, as the coupling did, and with neither a function nor a potential it returns no laws.
+- The engine keys the cone filter on `isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi`, in the metric
+  search, the neighbourhood kernel, the Numba printer, and the compiler check of directions.
+- Tasks 4.1 and 4.2, and tasks 5.1 to 5.4, are committed together, since the systems import the merged or moved names
+  and a commit of one task alone would leave the package unimportable.
+- The core doctests that built a `NonnegativeElement` or a `PointElement` define `AmountElement` and `BallElement`, local
+  `Element` subclasses with the same states. The tests of `tests/core` that built them define the same two classes.
+- The user guide may import any public name of a concept subpackage of `skcomplex.systems.general`, besides the system
+  classes of a subfield, so `tests/test_sources.py` accepts these imports.
+- Tests of `tests/core` that use a general realization only as a fixture of a base behaviour, such as the aliases and
+  the grid checks of `test_base.py`, import it from `skcomplex.systems.general`, as they already import field systems.
+  Tests of a realization itself move under `tests/systems/general`.

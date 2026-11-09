@@ -9,9 +9,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ReactionInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 
 
 class TwoCompartmentElement(Element):

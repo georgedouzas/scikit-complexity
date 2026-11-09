@@ -3,8 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import NonnegativeElement
-from skcomplex.core.components.interactions import ReactionInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -15,6 +13,8 @@ from skcomplex.systems.chemistry.kinetics import (
     ChemicalLangevinNetworkSystem,
     MichaelisMentenSystem,
 )
+from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 from .conftest import _run
 

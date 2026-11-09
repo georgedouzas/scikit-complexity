@@ -55,7 +55,13 @@ class StrangSplittingSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -66,7 +72,7 @@ class StrangSplittingSolver(Solver):
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
-        ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
+        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
         >>> stream = ConservationInteraction(
         ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]

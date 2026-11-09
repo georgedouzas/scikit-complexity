@@ -1,10 +1,10 @@
-"""Test the `_reaction_network` module of `skcomplex.core.components.systems`."""
+"""Test the `_reaction_network` module of `skcomplex.systems.general.reactions`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 
 DIMERIZATION = {'binding': ({'A': 2}, {'D': 1}, 0.01), 'unbinding': ({'D': 1}, {'A': 2}, 0.1)}
 

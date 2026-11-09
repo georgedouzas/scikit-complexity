@@ -3,10 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Annotated
+
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace, PhaseSpace
@@ -15,7 +19,22 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 
 def test_prepare_holds_one_value_per_point_of_the_product() -> None:
@@ -23,7 +42,7 @@ def test_prepare_holds_one_value_per_point_of_the_product() -> None:
     space = PhaseSpace(LatticeSpace((64,)), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
     values = np.ones((64, 128))
     values[3, 5] = 2.0
-    field = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': values}).prepare()
+    field = FieldElement('gas', element=AmountElement, space=space, values={'x': values}).prepare()
     assert field.size_ == 8192
     assert space.class_axes_ == {'v': 1}
     assert space.position_axes_ == (0,)
@@ -59,7 +78,7 @@ def test_prepare_raises_above_limit() -> None:
 def test_check_reports_space_size_issue_with_size() -> None:
     """Report a phase space above its limit through the compile report, with the size it would take."""
     space = PhaseSpace(LatticeSpace((10,)), [AxisSpec('v', 10, -1.0, 1.0)], limit=50)
-    field = FieldElement('gas', element=NonnegativeElement, space=space)
+    field = FieldElement('gas', element=AmountElement, space=space)
     report = PassCompiler().prepare(CompositeSystem(elements=[field])).report_
     issues = [issue for issue in report.issues if issue.code == 'space-size']
     assert issues
@@ -90,7 +109,7 @@ def test_periodic_class_axis_returns_after_one_turn(discretization: str, options
     start = 1.0 + 0.5 * np.cos(space.coordinates_['theta'])
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization=discretization,
@@ -122,7 +141,7 @@ def test_free_streaming_shifts_every_class_slice(discretization: str, options: d
     start = np.outer(2.0 + np.sin(x), np.exp(-(v**2)))
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization=discretization,
@@ -143,7 +162,7 @@ def test_zero_drift_leaves_classes_unchanged() -> None:
     start = np.tile(np.exp(-(space.coordinates_['v'] ** 2)), (4, 1))
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',
@@ -159,7 +178,7 @@ def test_transport_conserves_total_through_interval_edges() -> None:
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('v', 32, 0.0, 1.0)]).prepare()
     field = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': 1.0},
         discretization='finite-volume',

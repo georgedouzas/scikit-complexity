@@ -58,7 +58,7 @@ class GeodesicInteraction(Interaction):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.systems.general.elements import PointElement
         >>> from skcomplex.core.components.interactions import GeodesicInteraction
         >>> from skcomplex.core.components.spaces import PseudoRiemannianSpace
         >>> from skcomplex.core.components.systems import CompositeSystem

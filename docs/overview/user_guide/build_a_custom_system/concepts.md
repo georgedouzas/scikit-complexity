@@ -4,7 +4,7 @@ Learn the few words every custom system is written in. You describe what the sys
 how to solve it.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate

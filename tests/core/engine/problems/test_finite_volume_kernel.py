@@ -6,8 +6,10 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
@@ -18,6 +20,21 @@ from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import AxisSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
@@ -138,7 +155,7 @@ def test_max_speed_rejects_states_outside_the_hyperbolic_region():
 def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     """Test that the wave speed of a field on a simplex is doubled by its half cells, and kept on a phase space."""
     space = space_type(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
-    groups = FieldElement('groups', element=NonnegativeElement, space=space, discretization='finite-volume')
+    groups = FieldElement('groups', element=AmountElement, space=space, discretization='finite-volume')
     flow = ConservationInteraction(
         'flow', target='groups', state='x', flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
     )

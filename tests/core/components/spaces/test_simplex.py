@@ -4,11 +4,14 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
@@ -16,7 +19,22 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec
+from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 SIZE = 12
 
@@ -81,7 +99,7 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     """Integrate a uniform density of two over the 2-simplex to one."""
     space = _simplex()
     start = 2.0 * (space.volumes_ > 0)
-    groups = FieldElement('groups', element=NonnegativeElement, space=space, values={'x': start})
+    groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
     observables = [ObservableSpec('total', total, group='groups')]
     trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
     values = np.asarray(trajectory.values('total'), dtype=float)
@@ -95,7 +113,7 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement(
         'groups',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',

@@ -64,7 +64,7 @@ class ReflectionInteraction(CrossingInteraction):
             The positions and the velocities have different numbers of names, or a function is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.systems.general.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.mechanics import ReflectionInteraction

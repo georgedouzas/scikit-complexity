@@ -9,16 +9,36 @@ import pytest
 from sage.all__sagemath_symbolics import exp, oo, sin, sqrt, var, vector
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import BoundaryLaw, RateLaw
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 class PopulationElement(Element):
@@ -83,7 +103,7 @@ def test_pair_interaction_needs_a_positive_cutoff():
 def test_pair_interaction_rejects_other_law_kinds():
     """Test that pair interactions take rate laws only."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=PointElement, size=3)],
+        elements=[GroupElement('gas', element=BallElement, size=3)],
         interactions=[AttractionInteraction('pull', first='gas', second='gas')],
         space=ContinuousSpace(n_dim=2),
     )
@@ -101,7 +121,7 @@ def test_pair_interaction_needs_vector_position():
         PassCompiler().prepare(system).run()
 
 
-class MassPointElement(PointElement):
+class MassPointElement(BallElement):
     """Point with a mass."""
 
     def __init__(
@@ -212,7 +232,7 @@ def test_pair_coupling_vanishes_beyond_the_cutoff():
 
 def test_pair_coupling_holds_members_at_the_potential_minimum():
     """Test that two members at the minimum of the potential stay at rest."""
-    group = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.0, 0.0]]})
+    group = GroupElement('pair', element=BallElement, size=2, values={'x': [[0.0, 0.0], [1.0, 0.0]]})
     system = CompositeSystem(
         elements=[group],
         interactions=[PairInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse)],
@@ -228,7 +248,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
     rng = np.random.default_rng(0)
     values = {'x': rng.uniform(0, 3, (200, 2)), 'x_d1': rng.normal(0, 1, (200, 2))}
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=PointElement, size=200, values=values)],
+        elements=[GroupElement('gas', element=BallElement, size=200, values=values)],
         interactions=[PairInteraction('soft', 'gas', 'gas', cutoff=0.2, potential=_soft)],
         space=ContinuousSpace(n_dim=2),
     )

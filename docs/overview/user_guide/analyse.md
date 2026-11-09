@@ -9,7 +9,7 @@ symbolic laws, so it needs no run.
 
 ```python
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.components.elements import PointElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem

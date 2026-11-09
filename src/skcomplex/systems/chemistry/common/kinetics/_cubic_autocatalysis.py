@@ -11,9 +11,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import ReactionInteraction
 from .....core.specs import ParameterSpec, RoleSpec
-from .....core.types import Stoichiometry
+from ....general.reactions import ReactionInteraction
+from ....general.reactions.types import Stoichiometry
 
 
 class CubicAutocatalysisInteraction(ReactionInteraction):

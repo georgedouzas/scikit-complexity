@@ -393,7 +393,6 @@ name = "System modules import only the modules listed after them"
 type = "layers"
 containers = ["skcomplex.core.components.systems"]
 layers = [
-    "_reaction_network",
     "_composite",
     "_base",
 ]

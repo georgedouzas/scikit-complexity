@@ -5,17 +5,38 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
-from skcomplex.core.components.elements import Element, GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 class PopulationElement(Element):
@@ -53,7 +74,7 @@ class CellElement(Element):
 def test_group_stores_arguments():
     """Test that a group stores its label, size, and values unmodified, and clones from them."""
     positions = np.zeros((1000, 2))
-    group = GroupElement('gas', element=PointElement, size=1000, values={'x': positions})
+    group = GroupElement('gas', element=BallElement, size=1000, values={'x': positions})
     assert (group.label, group.size) == ('gas', 1000)
     assert group.values['x'] is positions
     assert clone(group).size == 1000
@@ -78,7 +99,7 @@ def test_group_runs_into_the_laws_of_one_member():
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and values on the sites of a space pass the checks of a group."""
-    assert GroupElement('gas', element=PointElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
+    assert GroupElement('gas', element=BallElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
     sites = GroupElement('cells', element=PopulationElement, space=LatticeSpace((2, 3)), on='sites')
     assert sites.prepare().size_ == 6
 
@@ -101,7 +122,7 @@ def test_group_on_parts_without_a_space_raises_error():
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that preparing a group with the wrong number of values names the group, the variable, and both sizes."""
-    group = GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((999, 2))})
+    group = GroupElement('gas', element=BallElement, size=1000, values={'x': np.zeros((999, 2))})
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
         group.prepare()
 
@@ -149,7 +170,7 @@ def test_group_with_invalid_size_is_reported_with_its_path():
 def test_group_vector_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
     system = CompositeSystem(
-        elements=[GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((1000, 2))})],
+        elements=[GroupElement('gas', element=BallElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
     assert PassCompiler().prepare(system).run().problem_.states.entry('gas.x').shape == (1000, 2)

@@ -4,9 +4,11 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import coarse_grain, spectrum
-from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -14,6 +16,21 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 CLASSES = np.arange(9.0)
 
@@ -83,7 +100,7 @@ def test_density_over_a_state_starts_a_distribution():
     """Test that the densities of 1,000 traders start a distribution of density 1 whose mean is the traders' mean."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
     densities = coarse_grain(wealth, over=CLASSES).field
-    distribution = GroupElement('wealth', element=NonnegativeElement, size=9, on='sites', values={'x': densities})
+    distribution = GroupElement('wealth', element=AmountElement, size=9, on='sites', values={'x': densities})
     system = CompositeSystem(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
         ObservableSpec('density', density, group='wealth'),

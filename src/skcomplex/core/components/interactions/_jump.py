@@ -62,12 +62,18 @@ class JumpInteraction(Interaction):
             function is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import NonnegativeElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import JumpInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
-        >>> system = CompositeSystem(elements=[NonnegativeElement('queue')], interactions=[arrivals])
+        >>> system = CompositeSystem(elements=[AmountElement('queue')], interactions=[arrivals])
         >>> counts = simulate(system, until=5, dt=1.0, random_state=0).values('queue.x')
         >>> bool(all(count == round(count) for count in counts))
         True

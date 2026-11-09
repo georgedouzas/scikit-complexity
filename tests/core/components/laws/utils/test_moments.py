@@ -4,9 +4,10 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import var
+from sage.all__sagemath_symbolics import oo, var
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, RateLaw
 from skcomplex.core.components.laws.utils import moment
@@ -17,6 +18,21 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
@@ -104,7 +120,7 @@ OBSERVABLES = [
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
     return CompositeSystem(
-        elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE})],
+        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE})],
         interactions=[UpwardInteraction('upward', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -147,7 +163,7 @@ def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
     system = CompositeSystem(
         elements=[
-            GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE}),
+            GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE}),
             RecorderElement('recorder'),
         ],
         interactions=[ReadMeanInteraction('read', recorder='recorder', population='wealth')],
@@ -180,7 +196,7 @@ def test_moment_inside_a_group_law_is_shared():
             return [RateLaw(s.population.x, moment(s.population.x, 1, ACTIVITIES))]
 
     system = CompositeSystem(
-        elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': PROFILE})],
+        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': PROFILE})],
         interactions=[RelaxInteraction('relax', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),

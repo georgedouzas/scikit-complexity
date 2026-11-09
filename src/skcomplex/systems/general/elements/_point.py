@@ -7,9 +7,9 @@ from typing import Annotated
 
 import numpy.typing as npt
 
-from ...specs import StateSpec, VisualSpec
-from ..spaces import BaseSpace
-from ._element import Element
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace
+from ....core.specs import StateSpec, VisualSpec
 
 
 class PointElement(Element):
@@ -37,7 +37,7 @@ class PointElement(Element):
             Points at the values of `x`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.systems.general.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate

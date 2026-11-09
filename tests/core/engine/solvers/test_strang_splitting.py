@@ -4,12 +4,15 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -17,7 +20,21 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def equilibrium(namespace: SimpleNamespace) -> object:
@@ -36,7 +53,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
     )
     gas = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',
@@ -60,7 +77,7 @@ def test_splitting_is_second_order_in_the_time_step() -> None:
 def test_prepare_rejects_a_problem_without_fluxes() -> None:
     """Raise a named error for a problem with no flux to split from its sources."""
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
-    gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': 1.0})
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': 1.0})
     relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     with pytest.raises(SolverError, match='no flux'):
         simulate(CompositeSystem(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
@@ -71,7 +88,7 @@ def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
     gas = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': 1.0},
         discretization='finite-volume',

@@ -3,4 +3,10 @@
 They hold nonnegative amounts and points of a continuous space.
 """
 
-__all__: list[str] = []
+from ._nonnegative import NonnegativeElement
+from ._point import PointElement
+
+__all__: list[str] = [
+    'NonnegativeElement',
+    'PointElement',
+]

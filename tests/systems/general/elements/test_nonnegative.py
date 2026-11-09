@@ -1,4 +1,4 @@
-"""Test the `_nonnegative` module of `skcomplex.core.components.elements`."""
+"""Test the `_nonnegative` module of `skcomplex.systems.general.elements`."""
 
 from types import SimpleNamespace
 
@@ -6,11 +6,12 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.general.elements import NonnegativeElement
 
 
 def test_nonnegative_lists_its_value_as_a_parameter():

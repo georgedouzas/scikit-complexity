@@ -18,7 +18,7 @@ from sage.all__sagemath_symbolics import Expression, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import GroupElement, PointElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
@@ -28,6 +28,7 @@ from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.elements import PointElement
 
 SOFTENING = 1e-12
 SMALLEST_GROUP = 2

@@ -289,7 +289,7 @@ class PartialAdjustmentInteraction(RateInteraction):
             The state is not a name, or a function is neither callable nor a number.
 
     Examples:
-        >>> from skcomplex.core.components.elements import NonnegativeElement
+        >>> from skcomplex.systems.general.elements import NonnegativeElement
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import PartialAdjustmentInteraction

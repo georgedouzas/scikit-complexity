@@ -59,21 +59,21 @@
 
 ## 5. Elements and reaction networks
 
-- [ ] 5.1 Move `NonnegativeElement` to `systems/general/elements/_nonnegative.py` and `PointElement` to
+- [x] 5.1 Move `NonnegativeElement` to `systems/general/elements/_nonnegative.py` and `PointElement` to
   `systems/general/elements/_point.py`, with their tests under `tests/systems/general`. Replace their uses in core
   doctests and docstrings (`_jump.py`, `_rate.py`, `_gradient.py`, `_encounter.py`, `_geodesic.py`, `_gillespie.py`,
   `_semi_lagrangian.py`, `_strang_splitting.py`, `_velocity_verlet.py`, `_yoshida4.py`, `_lammps.py`, `viz/_points.py`)
   by a local `Element` subclass with the same state, and the same in `tests/core`. Verify with
   `pdm run pytest --doctest-modules src/skcomplex/core` and `tests/core`.
-- [ ] 5.2 Repoint every field realization of the two elements to `skcomplex.systems.general`. Verify with
+- [x] 5.2 Repoint every field realization of the two elements to `skcomplex.systems.general`. Verify with
   `tests/systems` of biology, chemistry, economics, engineering, physics, and social, and with `lint-imports`.
-- [ ] 5.3 Move `ReactionInteraction` to `systems/general/reactions/_reaction.py` and `ReactionNetworkSystem` to
+- [x] 5.3 Move `ReactionInteraction` to `systems/general/reactions/_reaction.py` and `ReactionNetworkSystem` to
   `systems/general/reactions/_reaction_network.py`, with `Stoichiometry` and `ReactionTable` in the public `types`
   module of the subpackage. Remove them from `core/types.py`, the core systems package, and its layers contract. Rewrite
   the doctest of `_gillespie.py` and `tests/core/analysis/test_stability.py` with `JumpInteraction` and
   `RateInteraction`. Move `test_reaction.py` and `test_reaction_network.py` under `tests/systems/general/reactions`.
   Verify with those tests and the core doctests.
-- [ ] 5.4 Repoint the reactions of biology and chemistry, including `biology/common/kinetics` and
+- [x] 5.4 Repoint the reactions of biology and chemistry, including `biology/common/kinetics` and
   `chemistry/common/kinetics`, and the reaction networks of `chemistry/kinetics/_reactions.py` and
   `biology/epidemiology/_factories.py`. Verify with `tests/systems/biology` and `tests/systems/chemistry`.
 

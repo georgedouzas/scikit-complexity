@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
 from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem, WealthDensityElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.social.crowds import EvacuationSystem
 from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
 

@@ -2,10 +2,10 @@
 
 import numpy as np
 
-from skcomplex.core.components.elements import NonnegativeElement
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem, SpeciesElement
+from skcomplex.systems.general.elements import NonnegativeElement
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 

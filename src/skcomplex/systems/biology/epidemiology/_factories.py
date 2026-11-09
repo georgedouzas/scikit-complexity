@@ -9,10 +9,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import ReactionInteraction
-from ....core.components.systems import ReactionNetworkSystem
 from ....core.specs import ParameterSpec, RoleSpec
-from ....core.types import Stoichiometry
+from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
+from ...general.reactions.types import Stoichiometry
 
 MODES = {False: 'rate', True: 'jump'}
 

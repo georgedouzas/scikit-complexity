@@ -1,24 +1,41 @@
 """Test the `GillespieSolver` class."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
-from skcomplex.core.specs import StepSpec
+from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction, SIRSystem
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
     system = CompositeSystem(
-        elements=[NonnegativeElement('I', x=50), NonnegativeElement('R')],
+        elements=[AmountElement('I', x=50), AmountElement('R')],
         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -33,7 +50,7 @@ def test_gillespie_conserves_individuals():
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
     return CompositeSystem(
-        elements=[NonnegativeElement('S', x=990), NonnegativeElement('I', x=10), NonnegativeElement('R')],
+        elements=[AmountElement('S', x=990), AmountElement('I', x=10), AmountElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),

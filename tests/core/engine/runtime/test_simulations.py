@@ -11,7 +11,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.elements import Element, GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -40,6 +40,20 @@ from skcomplex.systems.physics.common.particles import ConstantForceInteraction,
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def _pushed_gas(n=500):
@@ -80,7 +94,7 @@ def _growth(r=1.0):
 def _epidemic():
     """Return a stochastic SIR system."""
     return CompositeSystem(
-        elements=[NonnegativeElement('S', x=95), NonnegativeElement('I', x=5), NonnegativeElement('R')],
+        elements=[AmountElement('S', x=95), AmountElement('I', x=5), AmountElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),

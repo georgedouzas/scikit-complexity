@@ -4,7 +4,7 @@ Most processes you want to describe already exist as a general interaction. You 
 mathematical operation you need, bind it to your elements, and pass the functions that make it your process.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -102,7 +102,7 @@ system = LotkaVolterraSystem().prepare().system_
 The general interactions act on a few general elements, so you rarely need an element class of your own.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement, PointElement
+from skcomplex.systems.general.elements import NonnegativeElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -136,7 +136,7 @@ towards a goal.
 `noise(s) dW`, to the highest derivative of a state of any order. A Hurst index `hurst` makes the noise fractional.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -155,7 +155,7 @@ neuroscience `LeakyIntegrationInteraction`.
 Use `GradientInteraction` when a state moves down a potential. On a state of order 1 it is a gradient flow:
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement, PointElement
+from skcomplex.systems.general.elements import NonnegativeElement, PointElement
 from skcomplex.core.components.interactions import GradientInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -281,7 +281,7 @@ planet around a static mass in the Schwarzschild metric:
 ```python
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, pi, sin
 
-from skcomplex.core.components.elements import PointElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import GeodesicInteraction
 from skcomplex.core.components.spaces import PseudoRiemannianSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -559,7 +559,8 @@ Use `PairInteraction` for forces between pairs of points, such as a Morse potent
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
@@ -613,8 +614,9 @@ These classes change states by discrete, often random, events.
 Use `JumpInteraction` for random events that change states by fixed amounts, such as arrivals to a queue:
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
-from skcomplex.core.components.interactions import JumpInteraction, ReactionInteraction
+from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.core.components.interactions import JumpInteraction
+from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 
@@ -711,7 +713,8 @@ classes:
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import EncounterInteraction
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem

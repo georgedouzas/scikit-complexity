@@ -3,17 +3,39 @@
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.specs import ParameterSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
+
 
 CUTOFF = 2.5
 
@@ -70,7 +92,7 @@ def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
     system = CompositeSystem(
         elements=[
-            GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
+            GroupElement('gas', element=BallElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
         ],
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=3),
@@ -86,7 +108,7 @@ def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend
     rng = np.random.default_rng(0)
     system = CompositeSystem(
         elements=[
-            GroupElement('gas', element=PointElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
+            GroupElement('gas', element=BallElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
         ],
         interactions=[
             SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period),

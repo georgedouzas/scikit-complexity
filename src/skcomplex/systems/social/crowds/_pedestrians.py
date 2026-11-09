@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, PointElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import (
     BaseInteraction,
     GradientInteraction,
@@ -22,6 +22,7 @@ from ....core.components.spaces import ContinuousSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
+from ...general.elements import PointElement
 
 
 class MotivationInteraction(RateInteraction):

@@ -82,12 +82,18 @@ class GradientInteraction(Interaction):
             A state or the divisor is not a name, or the potential is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import NonnegativeElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import GradientInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
-        >>> system = CompositeSystem(elements=[NonnegativeElement('walker', x=1.0)], interactions=[well])
+        >>> system = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
         >>> round(float(trajectory.values('walker.x')[-1]), 4)
         0.3679

@@ -11,13 +11,14 @@ from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction, ReactionInteraction
+from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'

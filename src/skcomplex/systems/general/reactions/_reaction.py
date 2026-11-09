@@ -14,15 +14,15 @@ from typing import Annotated, ClassVar, SupportsFloat
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec, Tags
-from ...types import ElementKind, Stoichiometry
-from ..base import BasePart
-from ..laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
-from ..laws.utils import where
-from ..types import AgentViewProtocol, SystemViewProtocol
-from ._base import SCHEDULES
-from ._jump import JumpInteraction
+from ....core.components.base import BasePart
+from ....core.components.interactions import SCHEDULES, JumpInteraction
+from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
+from ....core.components.laws.utils import where
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, Tags
+from ....core.types import ElementKind
+from .types import Stoichiometry
 
 MODES = ('rate', 'jump', 'langevin')
 FORMS = ('symbolic', 'agent')
@@ -117,8 +117,8 @@ class ReactionInteraction(JumpInteraction):
             has an entry that is a pair, or has the mode `'langevin'`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> from skcomplex.core.components.interactions import ReactionInteraction
+        >>> from skcomplex.systems.general.elements import NonnegativeElement
+        >>> from skcomplex.systems.general.reactions import ReactionInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> infection = ReactionInteraction(

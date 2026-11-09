@@ -60,7 +60,7 @@ class LammpsSolver(ExternalSolver):
     """Solver that runs systems of points in LAMMPS.
 
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
-    order 2, such as `PointElement`, becomes an atom type, whose atoms move with the first derivative of the position as
+    order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as
     their velocity. The mass of an atom type is the parameter that the `divisor` of the interactions on its members
     names, and 1 without a divisor. Boxes become LAMMPS boundaries and `fix wall/reflect`. A `PairInteraction`
     with a potential becomes the native pair style `pairs` gives for its class, or a Lepton expression potential
@@ -110,7 +110,16 @@ class LammpsSolver(ExternalSolver):
             Whether the LAMMPS instance is closed.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement, PointElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element, GroupElement
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class BallElement(Element):
+        ...     def __init__(
+        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.x_d1 = x_d1
         >>> from skcomplex.core.components.interactions import PairInteraction
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
@@ -119,7 +128,7 @@ class LammpsSolver(ExternalSolver):
         >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)
         >>> system = CompositeSystem(
         ...     elements=[
-        ...         GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
+        ...         GroupElement('gas', element=BallElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
         ...     ],
         ...     interactions=[PairInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)],
         ...     space=ContinuousSpace(n_dim=2),

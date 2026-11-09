@@ -13,12 +13,14 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, SR, Expression
 
-from ....core.components.elements import Element, NonnegativeElement
-from ....core.components.interactions import Interaction, ReactionInteraction
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ...general.elements import NonnegativeElement
+from ...general.reactions import ReactionInteraction
 
 type Regulations = Mapping[str, tuple[Sequence[str], Sequence[int], Mapping[tuple[bool, ...], int]]]
 

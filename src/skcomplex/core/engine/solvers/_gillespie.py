@@ -25,19 +25,22 @@ class GillespieSolver(Solver):
     laws at the recorded times and sums the log-likelihood of the path under its own propensities.
 
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import JumpInteraction
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> from skcomplex.core.components.interactions import ReactionInteraction
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import GillespieSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(
-        ...     elements=[NonnegativeElement('I', x=10), NonnegativeElement('R', x=0)],
-        ...     interactions=[
-        ...         ReactionInteraction('rec', reactants={('I', 'x'): 1}, products={('R', 'x'): 1}, k=1.0, mode='jump')
-        ...     ],
-        ... )
+        >>> from skcomplex.core.specs import StateSpec, StepSpec
+        >>> class PopulationElement(Element):
+        ...     def __init__(
+        ...         self, label, i: Annotated[float, StateSpec()] = 10.0, r: Annotated[float, StateSpec()] = 0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.i = i
+        ...         self.r = r
+        >>> recovery = JumpInteraction('recovery', target='pop', changes={'i': -1, 'r': 1}, rate=lambda s: s.target.i)
+        >>> system = CompositeSystem(elements=[PopulationElement('pop')], interactions=[recovery])
         >>> problem = simulate(system, until=0).problem
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()

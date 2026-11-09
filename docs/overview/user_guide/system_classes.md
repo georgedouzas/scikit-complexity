@@ -20,7 +20,8 @@ The kinds mirror the linear models of scikit-learn, where `Ridge` and `Lasso` re
 parameters of their own.
 
 ```python
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem, ReactionNetworkSystem
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 (
@@ -89,7 +90,7 @@ initial amount of every species and a table of reactions. Every reaction maps it
 as coefficients by species name, and to its rate constant.
 
 ```python
-from skcomplex.core.components.systems import ReactionNetworkSystem
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 
 isomerization = ReactionNetworkSystem(
@@ -128,7 +129,7 @@ Add a process to a ready-made system, and keep everything else it does. A subcla
 susceptible individuals at the rate `nu` adds one parameter and one reaction:
 
 ```python
-from skcomplex.core.components.interactions import ReactionInteraction
+from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 

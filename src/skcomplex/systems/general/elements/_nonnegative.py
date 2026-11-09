@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ...specs import StateSpec, VisualSpec
-from ._element import Element
+from ....core.components.elements import Element
+from ....core.specs import StateSpec, VisualSpec
 
 
 class NonnegativeElement(Element):
@@ -34,7 +34,7 @@ class NonnegativeElement(Element):
             The visual of the element when it sets none.
 
     Examples:
-        >>> from skcomplex.core.components.elements import NonnegativeElement
+        >>> from skcomplex.systems.general.elements import NonnegativeElement
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = CompositeSystem(elements=[NonnegativeElement('A', x=990), NonnegativeElement('B', x=10)])

@@ -4,8 +4,10 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
@@ -15,7 +17,22 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.experiments import ensemble
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 CLASSES = 9
 HORIZON = 2.0
@@ -100,7 +117,7 @@ def _profile():
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
     return CompositeSystem(
-        elements=[GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()})],
+        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -153,8 +170,8 @@ def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
     system = CompositeSystem(
         elements=[
-            GroupElement('wealth', element=NonnegativeElement, on='sites', values={'x': _profile()}),
-            GroupElement('field', element=NonnegativeElement, on='sites', values={'x': np.full(CLASSES, 1 / CLASSES)}),
+            GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()}),
+            GroupElement('field', element=AmountElement, on='sites', values={'x': np.full(CLASSES, 1 / CLASSES)}),
         ],
         interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
         space=LatticeSpace(CLASSES, boundary='fixed'),

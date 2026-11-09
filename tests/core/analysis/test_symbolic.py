@@ -4,10 +4,11 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
+from sage.all__sagemath_symbolics import SR, cos, diff, function, oo, sin, sqrt
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.components.elements import Element, NonnegativeElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
@@ -33,6 +34,20 @@ from skcomplex.systems.physics.common.particles import (
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
 
 from ...conftest import CallableGrowthInteraction, HoldingElement
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def test_equations_of_logistic_growth():
@@ -67,7 +82,7 @@ def test_equations_of_group_with_numeric_derivatives_raises_error():
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
     system = CompositeSystem(
-        elements=[NonnegativeElement('I', x=1), NonnegativeElement('R')],
+        elements=[AmountElement('I', x=1), AmountElement('R')],
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):

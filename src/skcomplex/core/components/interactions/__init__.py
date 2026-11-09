@@ -6,7 +6,7 @@ Interactions are the parts of a system whose laws couple elements to each other 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._base import BaseInteraction
+from ._base import SCHEDULES, BaseInteraction
 from ._birth_death import BirthDeathInteraction
 from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
@@ -34,7 +34,6 @@ from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
 from ._pair import PairInteraction
 from ._rate import RateInteraction
-from ._reaction import ReactionInteraction
 from ._sampling import SamplingInteraction
 from ._satisfiability import SatisfiabilityInteraction
 from ._topology import TopologyInteraction
@@ -44,6 +43,7 @@ from ._transition import TransitionInteraction
 
 __all__: list[str] = [
     'OPTIMIZERS',
+    'SCHEDULES',
     'BaseInteraction',
     'BirthDeathInteraction',
     'CascadeInteraction',
@@ -72,7 +72,6 @@ __all__: list[str] = [
     'OptimizationInteraction',
     'PairInteraction',
     'RateInteraction',
-    'ReactionInteraction',
     'SamplingInteraction',
     'SatisfiabilityInteraction',
     'TopologyInteraction',

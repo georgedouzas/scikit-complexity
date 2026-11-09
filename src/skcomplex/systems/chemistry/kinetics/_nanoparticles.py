@@ -9,11 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import NonnegativeElement
-from ....core.components.interactions import ReactionInteraction
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import StateSpec, VisualSpec
+from ...general.elements import NonnegativeElement
+from ...general.reactions import ReactionInteraction
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9

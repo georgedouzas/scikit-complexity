@@ -13,6 +13,7 @@ USER_GUIDE = Path('docs') / 'overview' / 'user_guide'
 PYTHON_BLOCK = re.compile(r'^```python[^\n]*\n(.*?)^```$', re.MULTILINE | re.DOTALL)
 SYSTEMS = 'skcomplex.systems'
 CATALOG_FUNCTIONS = ('all_systems',)
+GENERAL = f'{SYSTEMS}.general'
 SUBFIELD_PACKAGE = re.compile(rf'{re.escape(SYSTEMS)}\.[a-z]\w*\.[a-z]\w*')
 SYSTEMS_PATH = re.compile(rf'{re.escape(SYSTEMS)}\.[\w<>.]*[\w>]')
 SUBFIELD_PLACEHOLDER = f'{SYSTEMS}.<field>.<subfield>'
@@ -71,9 +72,11 @@ def _imported_names(code: str) -> list[tuple[int, str, str]]:
 
 
 def _is_allowed_import(module: str, name: str) -> bool:
-    """Return whether an import takes a catalog function from the systems or a system class from its subfield."""
+    """Return whether an import takes a catalog function, a system class from its subfield, or a general realization."""
     if module == SYSTEMS:
         return name in CATALOG_FUNCTIONS
+    if module.startswith(f'{GENERAL}.'):
+        return SUBFIELD_PACKAGE.fullmatch(module) is not None
     if module.startswith(f'{SYSTEMS}.'):
         return SUBFIELD_PACKAGE.fullmatch(module) is not None and name.endswith('System')
     return not (module == 'skcomplex' and name == 'systems')

@@ -4,11 +4,12 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.social.common.kinetics import ActivityDensityElement
 
 

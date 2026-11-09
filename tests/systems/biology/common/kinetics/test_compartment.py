@@ -4,12 +4,13 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
+from skcomplex.systems.general.elements import NonnegativeElement
 
 
 def test_compartment_is_a_nonnegative_element_with_the_state_x():

@@ -47,10 +47,19 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.spaces import ContinuousSpace
         >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class BallElement(Element):
+        ...     def __init__(
+        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.x_d1 = x_d1
         >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
+        >>> system = CompositeSystem(elements=[BallElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = simulate(system, until=0).problem
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()

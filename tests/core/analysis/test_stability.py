@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import stability
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import Interaction, RateInteraction, ReactionInteraction
+from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
@@ -34,10 +34,11 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
     cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
     reactions = [
-        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
-        ReactionInteraction('conversion', target='cells', reactants={'u': 1}, products={'v': 1}, modifiers={'b': 1}),
+        RateInteraction('feed', target='cells', state='u', rate=lambda s: s.target.a),
+        RateInteraction('loss', target='cells', state='u', rate=lambda s: -s.target.b * s.target.u),
+        RateInteraction('gain', target='cells', state='v', rate=lambda s: s.target.b * s.target.u),
         CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
-        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+        RateInteraction('decay', target='cells', state='u', rate=lambda s: -s.target.u),
     ]
     diffusions = [
         RateInteraction('u_diffusion', target='cells', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),

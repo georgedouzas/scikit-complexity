@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, cos, identity_matri
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.interactions import (
     Interaction,
     PairInteraction,
@@ -92,6 +92,20 @@ from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement,
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed
 from .conftest import PairElement
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def _growth():
@@ -828,7 +842,7 @@ class RecorderInteraction(Interaction):
         ),
         (
             CompositeSystem(
-                elements=[NonnegativeElement('I', x=5), NonnegativeElement('R')],
+                elements=[AmountElement('I', x=5), AmountElement('R')],
                 interactions=[RecoveryInteraction('rec', infected='I', recovered='R', stochastic=True)],
             ),
             FormKind.JUMP,
@@ -990,7 +1004,7 @@ def test_compiler_double_update_raises_error():
 def test_compiler_jump_stoichiometry():
     """Test that jump changes become rows of the stoichiometry matrix."""
     system = CompositeSystem(
-        elements=[NonnegativeElement('S', x=9), NonnegativeElement('I', x=1)],
+        elements=[AmountElement('S', x=9), AmountElement('I', x=1)],
         interactions=[InfectionInteraction('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
     )
     problem = PassCompiler().prepare(system).run().problem_

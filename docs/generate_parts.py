@@ -125,7 +125,7 @@ their domains with them.
 A nonnegative element holds a real amount, and the `target` of a `RateInteraction` accepts real states.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -205,7 +205,7 @@ interaction returns the law kinds for the arguments you passed.
 A rate returns a `rate` law of continuous time, and its `target` accepts the real amount of a nonnegative element.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -223,7 +223,7 @@ A map returns an `update` law of discrete time. It cannot join the rate in one s
 so the system names the tag the two parts disagree on.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import MapInteraction, RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -267,7 +267,7 @@ each law class declares.
 An arrival that adds one unit at random times returns a `jump` law, which `GillespieSolver` supports.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -286,7 +286,7 @@ trajectory.values('queue.x')[-1]
 `EulerSolver` integrates rates and does not draw jumps, so it rejects the system and names the law kind.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import JumpInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -329,7 +329,7 @@ lists the supported tags of every solver, grouped by the mathematical form it so
 A rate with a noise term returns a `rate` and a `noise` law, and `EulerMaruyamaSolver` supports both.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -348,7 +348,7 @@ round(trajectory.values('tank.x')[-1], 2)
 `RK4Solver` integrates deterministic equations and does not support the `noise` law kind.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
@@ -383,7 +383,7 @@ A backend turns the compiled laws of a system into numeric functions, with NumPy
 `NumbaBackend` supports every tag of a decay, so it runs the system.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
@@ -400,7 +400,7 @@ round(trajectory.values('tank.x')[-1], 2)
 `JaxBackend` writes deterministic functions only, so it rejects a noise term and names the law kind.
 
 ```python
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
@@ -660,7 +660,7 @@ them by field, topic, or tag. The table lists the system classes of the core.
 A reaction network system in the mode `jump` has random reaction events, which `GillespieSolver` draws.
 
 ```python
-from skcomplex.core.components.systems import ReactionNetworkSystem
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 
@@ -677,7 +677,7 @@ In the default mode `rate` the same reactions are rate equations, which `Gillesp
 names the law kind.
 
 ```python
-from skcomplex.core.components.systems import ReactionNetworkSystem
+from skcomplex.systems.general.reactions import ReactionNetworkSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.errors import TagError

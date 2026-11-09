@@ -264,12 +264,24 @@ class PointsVisual(BaseVisual):
                 dimensions, followed by a time series view of the other logged states, if any.
 
         Examples:
-            >>> from skcomplex.core.components.elements import GroupElement, PointElement
+            >>> from typing import Annotated
+            >>> from skcomplex.core.components.elements import Element, GroupElement
+            >>> from skcomplex.core.specs import StateSpec
+            >>> class BallElement(Element):
+            ...     def __init__(
+            ...         self,
+            ...         label,
+            ...         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
+            ...         x_d1=0.0,
+            ...     ):
+            ...         super().__init__(label)
+            ...         self.x = x
+            ...         self.x_d1 = x_d1
             >>> from skcomplex.core.components.spaces import ContinuousSpace
             >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import PointsVisual
-            >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
+            >>> gas = GroupElement('gas', element=BallElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
             >>> problem = simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=3)), until=0).problem
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
             >>> views = visual.prepare(problem).views_

@@ -1,9 +1,13 @@
 """Test the explicit Euler integrator of ordinary differential equations."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import NonnegativeElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import delayed, step
 from skcomplex.core.components.systems import CompositeSystem
@@ -11,13 +15,27 @@ from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StepSpec
+from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def _relaxing_system():
     """Return a state that relaxes towards a goal."""
     relaxation = RateInteraction('relaxation', target='tank', state='x', rate=lambda s: (10.0 - s.target.x) / 2.0)
-    return CompositeSystem(elements=[NonnegativeElement('tank', x=0.0)], interactions=[relaxation])
+    return CompositeSystem(elements=[AmountElement('tank', x=0.0)], interactions=[relaxation])
 
 
 def test_run_takes_explicit_steps():
@@ -58,7 +76,7 @@ def _stepped_rate(s):
 def test_run_reads_delays_from_the_steps_of_the_run():
     """Test that a delayed value reads the state of the step that the delay names, the first state before the start."""
     system = CompositeSystem(
-        elements=[NonnegativeElement('tank', x=1.0)],
+        elements=[AmountElement('tank', x=1.0)],
         interactions=[RateInteraction('rate', target='tank', state='x', rate=_delayed_rate)],
     )
     trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)
@@ -69,7 +87,7 @@ def test_run_reads_delays_from_the_steps_of_the_run():
 def test_run_steps_over_a_signal():
     """Test that a signal of time takes its new value at the step that starts at its time."""
     system = CompositeSystem(
-        elements=[NonnegativeElement('tank', x=0.0)],
+        elements=[AmountElement('tank', x=0.0)],
         interactions=[RateInteraction('rate', target='tank', state='x', rate=_stepped_rate)],
     )
     trajectory = simulate(system, until=2, solver=EulerSolver(dt=0.25), dt=0.25)

@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, PointElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import (
     CouplingInteraction,
     MapInteraction,
@@ -26,6 +26,7 @@ from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.elements import PointElement
 
 
 class BoidView(AgentView):

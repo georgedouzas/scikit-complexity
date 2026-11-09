@@ -15,7 +15,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement, PointElement
+from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import PairInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian
@@ -24,6 +24,7 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.elements import PointElement
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 

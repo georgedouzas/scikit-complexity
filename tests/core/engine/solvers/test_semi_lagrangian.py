@@ -4,11 +4,14 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
@@ -16,7 +19,22 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 
 def poisson_drift(namespace: SimpleNamespace) -> list[object]:
@@ -33,7 +51,7 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     start = np.outer(2.0 + np.sin(np.arange(size) * spacing), np.ones(8))
     gas = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',
@@ -56,7 +74,7 @@ def test_nonlinear_flux_raises_a_named_error() -> None:
     """Raise a named error saying that the flux of Burgers' equation is not a linear drift."""
     space = LatticeSpace((16,), spacing=0.1)
     values = {'x': 1.0 + np.sin(2 * np.pi * np.arange(16) / 16)}
-    wave = FieldElement('wave', element=NonnegativeElement, space=space, values=values, discretization='finite-volume')
+    wave = FieldElement('wave', element=AmountElement, space=space, values=values, discretization='finite-volume')
     burgers = ConservationInteraction('b', target='wave', state='x', flux=lambda s: s.target.x**2 / 2)
     with pytest.raises(SolverError, match='not a linear drift'):
         simulate(
@@ -72,7 +90,7 @@ def test_partial_cells_raise_a_named_error() -> None:
     values = {'x': 2.0 * (space.prepare().volumes_ > 0)}
     groups = FieldElement(
         'groups',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values=values,
         discretization='finite-volume',
@@ -98,7 +116,7 @@ def test_landau_damping_with_large_steps() -> None:
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
     gas = FieldElement(
         'gas',
-        element=NonnegativeElement,
+        element=AmountElement,
         space=space,
         values={'x': start},
         discretization='finite-volume',

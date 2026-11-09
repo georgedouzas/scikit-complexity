@@ -19,7 +19,8 @@ Build a phase space from a position lattice and a velocity axis, and let a gas s
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import FieldElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -91,7 +92,8 @@ the density changes at the rate `f(z)` times the integral of `rho(z, u) - rho(u,
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import FieldElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
@@ -137,7 +139,8 @@ on the 2-simplex has the integral one:
 ```python
 import numpy as np
 
-from skcomplex.core.components.elements import FieldElement, NonnegativeElement
+from skcomplex.core.components.elements import FieldElement
+from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
 from skcomplex.core.components.systems import CompositeSystem

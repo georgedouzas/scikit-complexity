@@ -208,7 +208,8 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement, PointElement
+from skcomplex.core.components.elements import GroupElement
+from skcomplex.systems.general.elements import PointElement
 from skcomplex.core.components.interactions import PairInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import ContinuousSpace
