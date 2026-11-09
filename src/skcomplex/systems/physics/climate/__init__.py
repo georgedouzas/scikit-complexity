@@ -34,7 +34,6 @@ from ._tipping_types import (
     LeadingFollowingCascadeSystem,
     RampedFoldElement,
     RampedStochasticFoldSystem,
-    StochasticEnergyBalanceElement,
     SuteraFraedrichTippingSystem,
 )
 from ._variability import ClimateAnomalyElement, ENSOSystem, HasselmannSystem
@@ -69,7 +68,6 @@ __all__: list[str] = [
     'SaltzmanMaaschElement',
     'SocialForestDiebackSystem',
     'SoilTemperatureSystem',
-    'StochasticEnergyBalanceElement',
     'SuteraFraedrichTippingSystem',
     'TippingCascadeNetworkSystem',
     'TippingElementElement',

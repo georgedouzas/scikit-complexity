@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
@@ -21,7 +21,9 @@ from ....core.components.laws.utils import ramp
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations, Noises
 
 
 class FoldFollowerElement(Element):
@@ -258,120 +260,6 @@ C0 = 1.10869e-8
 C1 = 9.7137e9
 
 
-class StochasticEnergyBalanceElement(Element):
-    """Global mean surface temperature of the Sutera-Fraedrich energy balance.
-
-    The controls drift and ramp.
-
-    The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, in kelvin and years. The control
-    `mu` drifts at the rate `-drift`, and `b2 = b_ini + lam (b_fin - b_ini)` follows the logistic ramp
-    `dlam/dt = rho lam (1 - lam)`. The control `a2 = a_ini + c1 mu (b2^2 - b_ini^2) / 4` moves with `b2` so that the
-    discriminant `(c1 mu b2)^2 - 4 c1 mu a2` of the equilibria stays constant during the ramp.
-
-    Args:
-        label:
-            The label of the climate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        T:
-            The initial temperature in kelvin.
-
-        mu:
-            The initial relative solar input.
-
-        lam:
-            The initial progress of the ramp, between 0 and 1.
-
-        drift:
-            The rate at which `mu` decreases, per year.
-
-        rho:
-            The rate of the logistic ramp of `b2`, per year.
-
-        b_ini:
-            The initial value of `b2`, per square kelvin.
-
-        b_fin:
-            The final value of `b2`, per square kelvin.
-
-        a_ini:
-            The initial value of `a2`.
-
-        nu:
-            The variance of the noise per year, in square kelvin.
-
-        c0:
-            The scale of the energy balance, per cubic kelvin and year.
-
-        c1:
-            The scale of the absorbed radiation, in kelvin to the fourth.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import StochasticEnergyBalanceElement
-        >>> StochasticEnergyBalanceElement('earth').nu
-        1.0
-    """
-
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        T: Annotated[float, StateSpec()] = 290.0,
-        mu: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        lam: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        drift: Annotated[float, ParameterSpec()] = 0.0,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
-        b_fin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
-        a_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6927,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.T = T
-        self.mu = mu
-        self.lam = lam
-        self.drift = drift
-        self.rho = rho
-        self.b_ini = b_ini
-        self.b_fin = b_fin
-        self.a_ini = a_ini
-        self.nu = nu
-        self.c0 = c0
-        self.c1 = c1
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the energy balance with its noise, and the controls.
-
-        The control `mu` drifts, and `b2` and `a2` follow a logistic ramp.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        b2 = s.b_ini + s.lam * (s.b_fin - s.b_ini)
-        a2 = s.a_ini + s.c1 * s.mu * (b2**2 - s.b_ini**2) / 4
-        return [
-            RateLaw(s.T, s.c0 * (-(s.T**4) + s.c1 * s.mu * (b2 * s.T**2 - a2))),
-            NoiseLaw(s.T, s.nu**0.5),
-            RateLaw(s.mu, -s.drift),
-            RateLaw(s.lam, s.rho * s.lam * (1 - s.lam)),
-        ]
-
-
 REAL_TOLERANCE = 1e-9
 
 
@@ -394,7 +282,7 @@ def _lower_branch(a: float, b: float, phi: float) -> float:
     return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
 
 
-class SuteraFraedrichTippingSystem(BaseSystem):
+class SuteraFraedrichTippingSystem(DynamicalSystem):
     """The Sutera-Fraedrich stochastic energy balance set up for tipping.
 
     The tipping is bifurcation-, noise-, or rate-induced.
@@ -428,7 +316,7 @@ class SuteraFraedrichTippingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import SuteraFraedrichTippingSystem
-        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].T, 1)
+        >>> round(SuteraFraedrichTippingSystem('rate').prepare().system_.elements[0].get_value('T'), 1)
         291.6
     """
 
@@ -447,7 +335,7 @@ class SuteraFraedrichTippingSystem(BaseSystem):
         nu: float | None = None,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.tipping = tipping
         self.rho = rho
         self.nu = nu
@@ -461,24 +349,58 @@ class SuteraFraedrichTippingSystem(BaseSystem):
         root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
         return math.sqrt(root / 2)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'earth'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters of the type of tipping with their specs.
+
+        Raises:
+            ValidationError:
+                The type of tipping is unknown.
+        """
         if self.tipping not in TIPPING_TYPES:
             error_msg = f'Unknown tipping type {self.tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
             raise ValidationError(error_msg)
         values = TIPPING_TYPES[self.tipping]
-        earth = StochasticEnergyBalanceElement(
-            'earth',
-            T=self._warm_state(1.0, values['b_ini'], values['a_ini']),
-            lam=values['lam'],
-            drift=values['drift'],
-            rho=self.rho if self.tipping == 'rate' else 0.0,
-            b_ini=values['b_ini'],
-            b_fin=values['b_fin'],
-            a_ini=values['a_ini'],
-            nu=values['nu'] if self.nu is None else self.nu,
-        )
-        return CompositeSystem(self.label, elements=[earth])
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'T': DeclaredVariableSpec(self._warm_state(1.0, values['b_ini'], values['a_ini']), StateSpec()),
+            'mu': DeclaredVariableSpec(1.0, StateSpec(domain=nonnegative)),
+            'lam': DeclaredVariableSpec(values['lam'], StateSpec(domain=nonnegative)),
+            'drift': DeclaredVariableSpec(values['drift'], ParameterSpec()),
+            'rho': DeclaredVariableSpec(self.rho if self.tipping == 'rate' else 0.0, ParameterSpec(domain=nonnegative)),
+            'b_ini': DeclaredVariableSpec(values['b_ini'], ParameterSpec(domain=nonnegative)),
+            'b_fin': DeclaredVariableSpec(values['b_fin'], ParameterSpec(domain=nonnegative)),
+            'a_ini': DeclaredVariableSpec(values['a_ini'], ParameterSpec(domain=nonnegative)),
+            'nu': DeclaredVariableSpec(values['nu'] if self.nu is None else self.nu, ParameterSpec(domain=nonnegative)),
+            'c0': DeclaredVariableSpec(C0, ParameterSpec(domain=RealSet.open(0, oo))),
+            'c1': DeclaredVariableSpec(C1, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the energy balance and the controls.
+
+        The control `mu` drifts, and `b2` and `a2` follow a logistic ramp.
+        """
+        return {
+            'T': self._balance,
+            'mu': lambda s: -s.target.drift,
+            'lam': lambda s: s.target.rho * s.target.lam * (1 - s.target.lam),
+        }
+
+    def _get_noises(self) -> Noises:
+        """Return the noise amplitude of the temperature."""
+        return {'T': lambda s: s.target.nu**0.5}
+
+    @staticmethod
+    def _balance(s: SimpleNamespace) -> Expression:
+        """Return the absorbed minus the emitted radiation, with `b2` and `a2` on their ramp."""
+        earth = s.target
+        b2 = earth.b_ini + earth.lam * (earth.b_fin - earth.b_ini)
+        a2 = earth.a_ini + earth.c1 * earth.mu * (b2**2 - earth.b_ini**2) / 4
+        return earth.c0 * (-(earth.T**4) + earth.c1 * earth.mu * (b2 * earth.T**2 - a2))
 
 
 class RampedStochasticFoldSystem(BaseSystem):
