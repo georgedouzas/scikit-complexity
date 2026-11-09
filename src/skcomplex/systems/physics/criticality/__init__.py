@@ -18,7 +18,6 @@ from ._criticality import (
 from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement
 from ._learning import LearningAgentElement, SKGameSystem
 from ._sandpiles import (
-    BranchingTreeElement,
     EnergySiteElement,
     FixedEnergySandpileSystem,
     SelfOrganizedBranchingSystem,
@@ -29,7 +28,6 @@ from ._sandpiles import (
 __all__: list[str] = [
     'ActiveFieldElement',
     'AvalancheInteraction',
-    'BranchingTreeElement',
     'CracklingNoiseResult',
     'DirectedPercolationLangevinSystem',
     'EnergySiteElement',

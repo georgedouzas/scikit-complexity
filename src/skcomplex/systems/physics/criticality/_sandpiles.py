@@ -16,63 +16,15 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction, MapInteraction
+from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
-
-
-class BranchingTreeElement(Element):
-    """Self-organized branching process.
-
-    Avalanches on a binary tree tune its branching probability.
-
-    The probability `p` that an active site relaxes into two active sites of the next generation, the number `z` of
-    active sites of the current generation of the avalanche, and its generation `g`. Map interactions advance the
-    avalanche by one generation per step.
-
-    Args:
-        label:
-            The label of the tree.
-
-        visual:
-            How the tree is drawn, or `None` for `default_visual_`.
-
-        p:
-            The initial branching probability.
-
-        z:
-            The initial number of active sites.
-
-        g:
-            The initial generation.
-
-    Attributes:
-        default_visual_:
-            The visual of the tree when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.criticality import BranchingTreeElement
-        >>> BranchingTreeElement('tree').p
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.3,
-        z: Annotated[float, StateSpec(domain=NN)] = 1,
-        g: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.p = p
-        self.z = z
-        self.g = g
 
 
 class EnergySiteElement(Element):
@@ -326,7 +278,7 @@ class ZhangSandpileSystem(BaseSystem):
         )
 
 
-class SelfOrganizedBranchingSystem(BaseSystem):
+class SelfOrganizedBranchingSystem(DynamicalSystem):
     """The self-organized branching process of Zapperi, Lauritsen, and Stanley.
 
     It is a mean-field sandpile.
@@ -353,7 +305,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
-        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].p
+        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].get_value('p')
         0.4
     """
 
@@ -372,7 +324,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         generations: int = 10,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.p = p
         self.generations = generations
 
@@ -396,23 +348,26 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         dissipated = where(s.target.g >= generations, s.target.z, 0)
         return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'tree'
 
-        It is a mean-field sandpile.
-        """
-        return CompositeSystem(
-            self.label,
-            elements=[BranchingTreeElement('tree', p=self.p)],
-            interactions=[
-                MapInteraction('branching', target='tree', state='z', function=partial(self._branch, self.generations)),
-                MapInteraction(
-                    'generation',
-                    target='tree',
-                    state='g',
-                    function=partial(self._advance, self.generations),
-                ),
-                MapInteraction('tuning', target='tree', state='p', function=partial(self._tune, self.generations)),
-            ],
-            time=DiscreteTime(),
-        )
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'p': DeclaredVariableSpec(self.p, StateSpec(domain=RealSet.closed(0, 1))),
+            'z': DeclaredVariableSpec(1, StateSpec(domain=NN)),
+            'g': DeclaredVariableSpec(0, StateSpec(domain=NN)),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley."""
+        return {
+            'z': partial(self._branch, self.generations),
+            'g': partial(self._advance, self.generations),
+            'p': partial(self._tune, self.generations),
+        }
