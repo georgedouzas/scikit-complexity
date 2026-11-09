@@ -12,7 +12,7 @@ from ._commons import (
     TragedyOfTheCommonsSystem,
 )
 from ._crop_livestock import CropLivestockHouseholdSystem
-from ._extraction import FisheryCapitalSystem, FisheryElement, OilEconomyElement, OilEconomySystem
+from ._extraction import FisheryCapitalSystem, FisheryElement, OilEconomySystem
 from ._fisheries import HilsaElement, HilsaFisherySystem
 from ._food import FoodSecuritySystem, PartialAdjustmentInteraction, RiceSectorElement
 from ._food_balance import RiceBalanceElement, RiceFoodBalanceSystem
@@ -40,7 +40,6 @@ __all__: list[str] = [
     'HilsaFisherySystem',
     'LandCellElement',
     'MeasuredFisheryElement',
-    'OilEconomyElement',
     'OilEconomySystem',
     'OptimalHarvestingSystem',
     'PartialAdjustmentInteraction',
