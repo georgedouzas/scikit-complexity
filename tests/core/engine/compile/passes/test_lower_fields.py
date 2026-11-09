@@ -7,8 +7,9 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import DiffusionInteraction, Interaction
+from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import BaseLaw, LinearProgramLaw, RateLaw
+from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -66,7 +67,7 @@ def _system() -> System:
         ],
         interactions=[
             ChosenGrowthInteraction('growth', choice='choice', amount='amount'),
-            DiffusionInteraction('spread', target='amount', state='x', coefficient=1.0),
+            RateInteraction('spread', target='amount', state='x', rate=lambda s: laplacian(s.target.x)),
         ],
         space=space,
     )

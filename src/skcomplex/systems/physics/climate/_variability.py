@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.particles import RelaxationTimeInteraction
 
 
 class ClimateAnomalyElement(Element):
@@ -187,7 +187,7 @@ class HasselmannSystem(BaseSystem):
 
     def _build_system(self) -> System:
         """Return the parts of the system, built from its model parameters."""
-        feedback = RelaxationInteraction(
+        feedback = RelaxationTimeInteraction(
             'feedback',
             target='ocean',
             state='T',

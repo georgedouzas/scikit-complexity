@@ -1,6 +1,6 @@
-"""Define relaxation.
+"""Define mass exchange.
 
-Relaxation is rates that bring a state towards a goal over a time, with optional noise.
+A mass exchange brings a concentration towards a feed or a surface value over a residence or transfer time.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -8,24 +8,20 @@ Relaxation is rates that bring a state towards a goal over a time, with optional
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
 
-from ...errors import ValidationError
-from ...specs import RoleSpec
-from ...types import ElementKind
-from ..laws import BaseLaw, NoiseLaw, RateLaw
-from ._base import RATE_DOMAINS
-from ._rate import RateInteraction
+from ....core.components.interactions import RateInteraction
+from ....core.errors import ValidationError
 
 
-class RelaxationInteraction(RateInteraction):
-    """Relaxation `(goal(ns) - x) / time(ns)` of a state `x` of a target.
+class MassExchangeInteraction(RateInteraction):
+    """Mass exchange of a concentration towards a feed over a residence or transfer time.
 
-    The relaxation is towards a goal, with optional noise. With a constant goal and time and an additive noise of
-    amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) / time dt + sigma dW`, whose
-    stationary variance is `sigma**2 time / 2`. Without noise it is first-order smoothing, or adaptive expectation,
-    towards the goal. A goal or a time function takes the namespace of the interaction, as for `RateInteraction`, and a
-    number stands for a constant. A goal that is a number applies to every component of a vector state.
+    Chemical engineering names it the exchange of a reactor with its feed, or a mass transfer to a surface. The rate is
+    `(goal(ns) - x) / time(ns)` of a state `x` of a target, with optional noise. With a constant goal and time and an
+    additive noise of amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) / time dt +
+    sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal or a time function takes the namespace of the
+    interaction, as for `RateInteraction`, and a number stands for a constant. A goal that is a number applies to every
+    component of a vector state.
 
     Args:
         label:
@@ -52,23 +48,21 @@ class RelaxationInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.core.components.elements import NonnegativeElement
-        >>> from skcomplex.core.components.interactions import RelaxationInteraction
         >>> from skcomplex.core.components.systems import System
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> smoothing = RelaxationInteraction('smoothing', target='belief', state='x', goal=10.0, time=0.5)
-        >>> system = System(elements=[NonnegativeElement('belief', x=0.0)], interactions=[smoothing])
+        >>> from skcomplex.systems.chemistry.kinetics import MassExchangeInteraction
+        >>> relaxation = MassExchangeInteraction('relaxation', target='stock', goal=10.0, time=0.5)
+        >>> system = System(elements=[NonnegativeElement('stock')], interactions=[relaxation])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
-        >>> round(float(trajectory.values('belief.x')[-1]), 3)
+        >>> round(float(trajectory.values('stock.x')[-1]), 3)
         10.0
     """
-
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
+        target: str,
         state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,

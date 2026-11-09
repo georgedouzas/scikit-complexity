@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tan
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, RateInteraction, RelaxationInteraction
+from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.traffic import SpeedAdaptationInteraction
 
 
 class GasKineticTrafficElement(Element):
@@ -376,7 +377,7 @@ class PayneSystem(BaseSystem):
             flux=lambda s: s.target.q**2 / s.target.rho
             + s.target.vmax * s.target.rho / (2 * s.target.tau * s.target.rho_max),
         )
-        relaxation = RelaxationInteraction(
+        relaxation = SpeedAdaptationInteraction(
             'relaxation',
             target='road',
             state='q',
@@ -505,7 +506,7 @@ class KernerKonhauserSystem(BaseSystem):
             state='q',
             flux=lambda s: s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho,
         )
-        relaxation = RelaxationInteraction(
+        relaxation = SpeedAdaptationInteraction(
             'relaxation',
             target='road',
             state='q',

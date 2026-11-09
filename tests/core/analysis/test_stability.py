@@ -8,9 +8,9 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import stability
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import DiffusionInteraction, Interaction, ReactionInteraction
+from skcomplex.core.components.interactions import Interaction, RateInteraction, ReactionInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import total
+from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import System
 from skcomplex.core.errors import AnalysisError
@@ -40,8 +40,8 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
         ReactionInteraction('decay', target='cells', reactants={'u': 1}),
     ]
     diffusions = [
-        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=lambda s: s.target.Du),
-        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=lambda s: s.target.Dv),
+        RateInteraction('u_diffusion', target='cells', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
+        RateInteraction('v_diffusion', target='cells', state='v', rate=lambda s: s.target.Dv * laplacian(s.target.v)),
     ]
     return System(elements=[cells], interactions=[*reactions, *diffusions])
 
@@ -211,7 +211,7 @@ def test_dispersion_relation_rejects_an_interaction_on_another_part():
     """Test that an interaction binding a part other than the field has no place in the dispersion relation."""
     system = _brusselator(1.9)
     system.interactions.append(
-        DiffusionInteraction('elsewhere', target='other', state='u', coefficient=lambda s: s.target.Du),
+        RateInteraction('elsewhere', target='other', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
     )
     with pytest.raises(AnalysisError, match='other than the field'):
         _stability(system, kind='dispersion')

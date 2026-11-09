@@ -14,10 +14,11 @@ from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction, RelaxationInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.particles import RelaxationTimeInteraction
 
 
 class ColoredNoiseParticleElement(Element):
@@ -150,7 +151,7 @@ class ColoredNoiseLangevinSystem(BaseSystem):
             state='v',
             rate=lambda s: -s.target.gamma * s.target.v + s.target.xi,
         )
-        noise = RelaxationInteraction(
+        noise = RelaxationTimeInteraction(
             'noise',
             target='particles',
             state='xi',

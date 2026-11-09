@@ -9,7 +9,7 @@ They are steps, ramps, pulses, and series.
 import itertools
 from collections.abc import Sequence
 
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, pi, sin
 
 from ....errors import ValidationError
 from ._conditions import both, mod, where
@@ -178,6 +178,55 @@ def pulse_train(
         error_msg = f'A pulse train takes a positive integer count of pulses or None, but got {count!r}.'
         raise ValidationError(error_msg)
     return where(both(t >= start, t < start + count * period, mod(t - start, period) < width), height, 0)
+
+
+def periodic_guard(t: Expression, period: float, start: float = 0.0, count: int | None = None) -> Expression:
+    """Return a guard that crosses zero at periodic times.
+
+    The guard crosses zero once at every `start + j * period` for `j` from 0, `count` times or without end, and stays
+    away from zero between those times and after the last one. A crossing law with this guard and the direction 0 fires
+    at every such time.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        period:
+            The time between two crossings.
+
+        start:
+            The time of the first crossing.
+
+        count:
+            The number of crossings, or `None` for crossings without end.
+
+    Returns:
+        guard:
+            The symbolic guard.
+
+    Raises:
+        ValidationError:
+            The period is not positive, or the count is not a positive integer.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws.utils import periodic_guard
+        >>> t = var('t')
+        >>> guard = periodic_guard(t, 2.0, count=2)
+        >>> [round(float(guard.subs({t: time})), 6) for time in (0.0, 1.0, 2.0, 4.0)]
+        [0.0, 1.0, 0.0, -1.0]
+    """
+    if not period > 0:
+        error_msg = f'A periodic guard takes a positive period, but got {period!r}.'
+        raise ValidationError(error_msg)
+    guard = where(t < start - period / 2, -1, sin(pi * (t - start) / period))
+    if count is None:
+        return guard
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        error_msg = f'A periodic guard takes a positive integer count of crossings or None, but got {count!r}.'
+        raise ValidationError(error_msg)
+    last = count - SR(1) / 2
+    return where(t > start + last * period, sin(pi * last), guard)
 
 
 def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:

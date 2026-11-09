@@ -16,6 +16,7 @@ from ._lennard_jones import LennardJonesInteraction
 from ._mass_point import MassPointElement
 from ._potential_energy import PotentialEnergyInteraction
 from ._propulsion_step import PropulsionStepInteraction
+from ._relaxation_time import RelaxationTimeInteraction
 from ._self_propulsion import SelfPropulsionInteraction
 from ._spring import SpringInteraction
 from ._thermal_noise import ThermalNoiseInteraction
@@ -36,6 +37,7 @@ __all__: list[str] = [
     'MassPointElement',
     'PotentialEnergyInteraction',
     'PropulsionStepInteraction',
+    'RelaxationTimeInteraction',
     'SelfPropulsionInteraction',
     'SpringInteraction',
     'ThermalNoiseInteraction',

@@ -8,6 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import CrossingInteraction
 from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import periodic_guard
 from skcomplex.core.components.systems import System
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -100,3 +101,66 @@ def test_check_rejects_directions_and_functions_it_cannot_take(arguments, match)
     """Test that an unknown direction, or a guard or a new value that is not a function, raise errors."""
     with pytest.raises(ValidationError, match=match):
         CrossingInteraction('crossing', target='cell', **arguments).prepare()
+
+
+class DecayElement(Element):
+    """Amount `c` that decays at rate 1."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        c: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.c = c
+
+    def _get_laws(self, s):
+        return [RateLaw(s.c, -s.c)]
+
+
+def test_periodic_impulses_by_a_guard():
+    """Test that a periodic guard gives impulses at `start + j period`, `count` times."""
+    dose = CrossingInteraction(
+        'dose',
+        target='body',
+        guard=lambda s: periodic_guard(s.t, 2.0, start=1.0, count=3),
+        reset={'c': lambda s: s.target.c + 1.0},
+    )
+    trajectory = simulate(System(elements=[DecayElement('body')], interactions=[dose]), until=10.0, dt=0.25)
+    assert [event.time for event in trajectory.events] == pytest.approx([1.0, 3.0, 5.0], abs=1e-6)
+
+
+def test_impulses_at_given_times():
+    """Test that guards `t - t_k` give impulses at the given times."""
+    doses = [
+        CrossingInteraction(
+            f'dose_{index}',
+            target='body',
+            guard=lambda s, time=time: s.t - time,
+            reset={'c': lambda s: s.target.c + 1.0},
+            direction=1,
+        )
+        for index, time in enumerate((1.0, 2.5))
+    ]
+    trajectory = simulate(System(elements=[DecayElement('body')], interactions=doses), until=4.0, dt=0.25)
+    assert [event.time for event in trajectory.events] == pytest.approx([1.0, 2.5], abs=1e-6)
+    expected = np.exp(-(4.0 - 2.5)) * (1 + np.exp(-1.5))
+    assert trajectory.values('body.c')[-1] == pytest.approx(expected, rel=1e-3)
+
+
+def test_a_guard_that_reads_no_member_sets_every_member_of_a_group_at_once():
+    """Test that a time guard over a group sets every member from its own state at one event."""
+    bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
+    dose = CrossingInteraction(
+        'dose',
+        target='bodies',
+        guard=lambda s: s.t - 1.0,
+        reset={'c': lambda s: s.target.c + 1.0},
+        direction=1,
+    )
+    trajectory = simulate(System(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
+    assert len(trajectory.events) == 1
+    expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
+    np.testing.assert_allclose(trajectory.values('bodies.c')[-1], expected, rtol=1e-3)

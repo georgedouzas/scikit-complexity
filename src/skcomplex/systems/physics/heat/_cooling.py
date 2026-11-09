@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RelaxationInteraction
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.particles import RelaxationTimeInteraction
 
 
 class CoffeeCupElement(Element):
@@ -111,7 +111,7 @@ class CoolingCoffeeSystem(BaseSystem):
 
         The temperature follows `T' = -k (T - T_room)`.
         """
-        cooling = RelaxationInteraction(
+        cooling = RelaxationTimeInteraction(
             'cooling',
             target='coffee',
             state='T',

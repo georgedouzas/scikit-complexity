@@ -16,7 +16,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    DiffusionInteraction,
     LifeCycleInteraction,
     MapInteraction,
     MovementInteraction,
@@ -24,6 +23,7 @@ from ....core.components.interactions import (
     TransferInteraction,
 )
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -482,17 +482,22 @@ class TumourAngiogenesisSystem(BaseSystem):
         weights = np.exp(tip.chemotaxis * (levels - levels.max()) / level)
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 
-    def _get_tissue(self) -> list[DiffusionInteraction | RateInteraction]:
+    def _get_tissue(self) -> list[RateInteraction]:
         """Return the diffusion and the decay of oxygen and VEGF in the tissue."""
         return [
-            DiffusionInteraction(
+            RateInteraction(
                 'oxygen_diffusion',
                 target='tissue',
                 state='oxygen',
-                coefficient=self._get_oxygen_diffusion,
+                rate=lambda s: self._get_oxygen_diffusion(s) * laplacian(s.target.oxygen),
             ),
             RateInteraction('oxygen_decay', target='tissue', state='oxygen', rate=self._get_oxygen_decay),
-            DiffusionInteraction('vegf_diffusion', target='tissue', state='vegf', coefficient=self._get_vegf_diffusion),
+            RateInteraction(
+                'vegf_diffusion',
+                target='tissue',
+                state='vegf',
+                rate=lambda s: self._get_vegf_diffusion(s) * laplacian(s.target.vegf),
+            ),
             RateInteraction('vegf_decay', target='tissue', state='vegf', rate=self._get_vegf_decay),
         ]
 

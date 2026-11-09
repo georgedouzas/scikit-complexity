@@ -13,14 +13,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
-    DiffusionInteraction,
     LifeCycleInteraction,
     MapInteraction,
     MovementInteraction,
-    RelaxationInteraction,
+    RateInteraction,
     TransferInteraction,
 )
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
@@ -386,14 +386,23 @@ class ActiveWalkersSystem(BaseSystem):
                     'land',
                     elements=[ground],
                     interactions=[
-                        RelaxationInteraction('fading', target='ground', state='G', time=self._get_durability),
-                        DiffusionInteraction('spreading', target='ground', state='V', coefficient=self._get_diffusion),
-                        RelaxationInteraction(
+                        RateInteraction(
+                            'fading',
+                            target='ground',
+                            state='G',
+                            rate=lambda s: -s.target.G / self._get_durability(s),
+                        ),
+                        RateInteraction(
+                            'spreading',
+                            target='ground',
+                            state='V',
+                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.V),
+                        ),
+                        RateInteraction(
                             'smoothing',
                             target='ground',
                             state='V',
-                            goal=self._get_structure,
-                            time=self._get_relaxation,
+                            rate=lambda s: (self._get_structure(s) - s.target.V) / self._get_relaxation(s),
                         ),
                     ],
                 ),

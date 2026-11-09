@@ -11,7 +11,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import RateInteraction, RelaxationInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -185,11 +185,11 @@ class OUDrivenRosslerSystem(BaseSystem):
             rho=self.rho,
         )
         drive = RateInteraction('drive', target='rossler', state='y', rate=lambda s: s.target.eta)
-        control = RelaxationInteraction(
+        control = RateInteraction(
             'control',
             target='rossler',
             state='eta',
-            time=lambda s: s.target.tau,
+            rate=lambda s: -s.target.eta / s.target.tau,
             noise=lambda s: s.target.rho / s.target.tau,
         )
         return System(self.label, elements=[rossler], interactions=[drive, control])

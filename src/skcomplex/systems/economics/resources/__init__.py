@@ -14,7 +14,7 @@ from ._commons import (
 from ._crop_livestock import CropLivestockElement, CropLivestockHouseholdSystem
 from ._extraction import FisheryCapitalSystem, FisheryElement, OilEconomyElement, OilEconomySystem
 from ._fisheries import HilsaElement, HilsaFisherySystem
-from ._food import FoodSecuritySystem, RiceSectorElement
+from ._food import FoodSecuritySystem, PartialAdjustmentInteraction, RiceSectorElement
 from ._food_balance import RiceBalanceElement, RiceFoodBalanceSystem
 from ._harvesting import FarmerElement, HarvestingSystem, HarvestInteraction, StockElement
 from ._land_use import BidRentInteraction, LandCellElement, VonThunenSystem
@@ -45,6 +45,7 @@ __all__: list[str] = [
     'OilEconomyElement',
     'OilEconomySystem',
     'OptimalHarvestingSystem',
+    'PartialAdjustmentInteraction',
     'PastureElement',
     'PlantationElement',
     'QuotaRegulatorInteraction',

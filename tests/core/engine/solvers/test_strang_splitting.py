@@ -10,7 +10,7 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.components.elements import FieldElement, NonnegativeElement
-from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
+from skcomplex.core.components.interactions import AdvectionInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.components.systems import System
@@ -42,7 +42,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
         discretization='finite-volume',
     )
     stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda _: [coordinate('v'), 0])
-    relax = RelaxationInteraction('r', target='gas', state='x', goal=equilibrium, time=0.5)
+    relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
     system = System(elements=[gas], interactions=[stream, relax])
     return simulate(system, until=1.0, dt=1.0, solver=solver).values('gas.x')[-1]
@@ -61,7 +61,7 @@ def test_prepare_rejects_a_problem_without_fluxes() -> None:
     """Raise a named error for a problem with no flux to split from its sources."""
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
     gas = FieldElement('gas', element=NonnegativeElement, space=space, values={'x': 1.0})
-    relax = RelaxationInteraction('r', target='gas', state='x', goal=equilibrium, time=0.5)
+    relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     with pytest.raises(SolverError, match='no flux'):
         simulate(System(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
 

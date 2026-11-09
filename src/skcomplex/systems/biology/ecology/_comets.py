@@ -11,7 +11,8 @@ from dataclasses import replace
 import numpy as np
 
 from ....core.components.elements import FieldElement, GroupElement
-from ....core.components.interactions import DiffusionInteraction
+from ....core.components.interactions import RateInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import IMEXEulerSolver
@@ -189,17 +190,17 @@ class CometsSystem(BaseSystem):
                     threshold=0.0,
                 ),
                 GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-                DiffusionInteraction(
+                RateInteraction(
                     'biomass_spread',
                     target='biomass',
                     state='x',
-                    coefficient=self.biomass_diffusion * SECONDS_PER_HOUR,
+                    rate=lambda s: self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x),
                 ),
-                DiffusionInteraction(
+                RateInteraction(
                     'glucose_spread',
                     target='glucose',
                     state='c',
-                    coefficient=self.glucose_diffusion * SECONDS_PER_HOUR,
+                    rate=lambda s: self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c),
                 ),
             ],
             space=space,

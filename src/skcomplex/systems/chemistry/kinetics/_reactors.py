@@ -10,11 +10,12 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ReactionInteraction, RelaxationInteraction
+from ....core.components.interactions import ReactionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
 from ....core.components.systems import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ._mass_exchange import MassExchangeInteraction
 
 
 class CatalystPelletElement(Element):
@@ -242,7 +243,7 @@ class CatalystPelletSystem(BaseSystem):
             self.label,
             elements=[CatalystPelletElement('pellet', c=self.c, h=self.h, k=self.k, K=self.K)],
             interactions=[
-                RelaxationInteraction('transfer', target='pellet', state='c', goal=1.0, time=self._get_transfer_time),
+                MassExchangeInteraction('transfer', target='pellet', state='c', goal=1.0, time=self._get_transfer_time),
                 ReactionInteraction('reaction', reactants={('pellet', 'c'): 1}, propensity=self._get_surface_reaction),
             ],
         )

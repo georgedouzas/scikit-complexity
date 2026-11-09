@@ -10,11 +10,12 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ReactionInteraction, RelaxationInteraction
+from ....core.components.interactions import ReactionInteraction
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
+from ._mass_exchange import MassExchangeInteraction
 
 
 class CubicAutocatalysisElement(Element):
@@ -430,7 +431,7 @@ class CubicAutocatalysisSystem(BaseSystem):
             interactions=[
                 CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b'),
                 ReactionInteraction('decay', target='reactor', reactants={'b': 1}, modifiers={'k': 1}),
-                RelaxationInteraction('feed', target='reactor', state='a', goal=1.0, time=self._get_residence),
-                RelaxationInteraction('outflow', target='reactor', state='b', goal=0.0, time=self._get_residence),
+                MassExchangeInteraction('feed', target='reactor', state='a', goal=1.0, time=self._get_residence),
+                MassExchangeInteraction('outflow', target='reactor', state='b', goal=0.0, time=self._get_residence),
             ],
         )

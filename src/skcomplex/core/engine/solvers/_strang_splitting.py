@@ -56,7 +56,7 @@ class StrangSplittingSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import NonnegativeElement, FieldElement
-        >>> from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
+        >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.core.components.systems import System
@@ -68,10 +68,12 @@ class StrangSplittingSolver(Solver):
         >>> gas = FieldElement(
         ...     'gas', element=NonnegativeElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='x', drift=lambda s: [coordinate('v'), 0])
-        >>> relax = RelaxationInteraction(
-        ...     'r', target='gas', state='x', goal=lambda s: maximum_entropy(s.target.x, axes=('v',)), time=0.5
+        >>> stream = ConservationInteraction(
+        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
         ... )
+        >>> def relaxation(s):
+        ...     return (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
+        >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
         >>> final = simulate(system, until=0.2, solver=solver).values('gas.x')[-1]

@@ -16,19 +16,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import (
-    AdvectionInteraction,
-    ConservationInteraction,
-    DiffusionInteraction,
-    Interaction,
-    RateInteraction,
-)
+from ....core.components.interactions import AdvectionInteraction, ConservationInteraction, Interaction, RateInteraction
 from ....core.components.laws.utils import gradient, inverse_laplacian, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.systems import BaseSystem, System
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.fields import DiffusivityInteraction
 
 
 class BoussinesqElement(Element):
@@ -347,12 +342,12 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
         riemann=None,
     )
     if not buoyant:
-        viscosity = DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
+        viscosity = DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
         forcing = RateInteraction('forcing', target='flow', state='omega', rate=lambda s: s.target.f)
         return [advection, viscosity, forcing]
     return [
         advection,
-        DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
+        DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
         RateInteraction(
             'buoyancy',
             target='flow',
@@ -367,7 +362,7 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
             source=lambda s: _velocity(s.target.omega)[1],
             riemann=None,
         ),
-        DiffusionInteraction('conduction', target='flow', state='theta', coefficient=1.0),
+        DiffusivityInteraction('conduction', target='flow', state='theta', coefficient=1.0),
     ]
 
 

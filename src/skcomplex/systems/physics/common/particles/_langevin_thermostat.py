@@ -12,12 +12,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RelaxationInteraction
 from .....core.specs import ParameterSpec, RoleSpec
+from ._relaxation_time import RelaxationTimeInteraction
 from ._utils import velocity_of
 
 
-class LangevinThermostatInteraction(RelaxationInteraction):
+class LangevinThermostatInteraction(RelaxationTimeInteraction):
     """Langevin thermostat.
 
     The thermostat adds a drag `-gamma * v` and a random force that hold particles at a temperature.

@@ -51,9 +51,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
     defaults, builds its element and its interactions in `_build_system`, and holds as tuned run settings `until`, the
     length of the run, `dt`, the saving interval of the file, and `observables`, one per auxiliary and per goal-seeking
     stock. A flow variable of two stocks becomes a `TransferInteraction` between them, a flow variable of one stock a
-    `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a stock a `RelaxationInteraction`
-    or a `RateInteraction`. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
-    member per subscript.
+    `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a stock a `RateInteraction`, with
+    the rate `(goal - stock) / time` for a goal-seeking stock. A system whose stocks are all subscripted over one range
+    becomes a `GroupElement` with one member per subscript.
 
     Args:
         path:
