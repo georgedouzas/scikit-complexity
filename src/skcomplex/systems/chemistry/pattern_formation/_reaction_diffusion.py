@@ -170,7 +170,7 @@ class GrayScottSystem(ReactionDiffusionSystem):
         label: str = 'system',
     ) -> None:
         super().__init__(label=label)
-        self.shape = shape
+        self.shape: Sequence[int] = shape
         self.Du = Du
         self.Dv = Dv
         self.F = F
@@ -276,7 +276,7 @@ class BrusselatorSystem(BaseSystem):
         label: str = 'system',
     ) -> None:
         super().__init__(label)
-        self.shape = shape
+        self.shape: Sequence[int] = shape
         self.a = a
         self.b = b
         self.Du = Du
@@ -376,7 +376,7 @@ class SchnakenbergSystem(ReactionDiffusionSystem):
         label: str = 'system',
     ) -> None:
         super().__init__(label=label)
-        self.shape = shape
+        self.shape: Sequence[int] = shape
         self.a = a
         self.b = b
         self.Du = Du
