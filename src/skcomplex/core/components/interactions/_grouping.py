@@ -34,6 +34,7 @@ KEYED: dict[str, Callable[..., Expression]] = {
     'var': variance,
 }
 
+
 type Act = Callable[[list[AgentViewProtocol], SystemViewProtocol], None]
 type GroupFunction = Callable[[SimpleNamespace], object]
 
@@ -156,12 +157,12 @@ class GroupingInteraction(Interaction):
         """Return the tags of the agent-form rules or of the symbolic grouping updates."""
         return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the grouping draws.
 
         It draws by random groups or by acting on its groups in random order.
         """
-        return super()._draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
+        return super()._get_draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
 
     def __init__(
         self,
@@ -289,7 +290,8 @@ class GroupingInteraction(Interaction):
         for agent in agents:
             located.setdefault(agent.location_key, []).append(agent)
         return [
-            [agent, *(other for cell in agent.neighbor_cells() for other in located.get(cell, []))] for agent in agents
+            [agent, *(other for cell in agent.get_neighbor_cells() for other in located.get(cell, []))]
+            for agent in agents
         ]
 
     def _get_shared(
@@ -330,7 +332,7 @@ class GroupingInteraction(Interaction):
 
     def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return the groups of one step."""
-        agents = [agent for agent in system.agents(self._get_role('target')) if agent.alive]
+        agents = [agent for agent in system.get_agents(self._get_role('target')) if agent.alive]
         if self.groups == 'pairs':
             return self._get_partners(PartnerSpec('all', 'uniform', capacity=1), agents, system)
         if callable(self.groups) or isinstance(self.groups, PartnerSpec):
@@ -349,7 +351,7 @@ class GroupingInteraction(Interaction):
         for index in system.rng.permutation(len(groups)):
             self.act_on(groups[int(index)], system)
 
-    def _keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
+    def _get_keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
         """Return a reduction over the members of a group that share the value of `by`.
 
         The reduction is restricted to these members.
@@ -391,7 +393,7 @@ class GroupingInteraction(Interaction):
         group = SimpleNamespace(**names, member=target, members=target.other, others=())
         value = SR(self.function(group)) if self.function is not None else SR(0)
         keyed = {
-            reduction.call: self._keyed(reduction, target, target.other)
+            reduction.call: self._get_keyed(reduction, target, target.other)
             for reduction in reductions_in(value)
             if reduction.over is not None
         }

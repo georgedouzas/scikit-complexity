@@ -279,7 +279,7 @@ class SocialImpactInteraction(MapInteraction):
 
         The agent itself counts from distance 1.
         """
-        agents = [item for item in system.agents('target') if isinstance(item, InfluenceeView)]
+        agents = [item for item in system.get_agents('target') if isinstance(item, InfluenceeView)]
         locations = np.array([item.location for item in agents], dtype=float)
         distances = np.linalg.norm(locations - np.asarray(agent.location, dtype=float), axis=-1)
         distances[[item.id == agent.id for item in agents]] = 1.0
@@ -353,7 +353,7 @@ class PersuasionInteraction(GroupingInteraction):
         partner = neighbors[int(system.rng.integers(len(neighbors)))]
         if partner.opinion != agent.opinion:
             return
-        for other in [*neighbors, *partner.neighbors()]:
+        for other in [*neighbors, *partner.get_neighbors()]:
             if isinstance(other, PersuaderView):
                 other.opinion = agent.opinion
 

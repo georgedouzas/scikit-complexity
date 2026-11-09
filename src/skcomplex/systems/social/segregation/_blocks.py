@@ -163,7 +163,7 @@ class BlockMovesInteraction(MovementInteraction):
         """Return a random empty cell of another block than the agent's, or `None` to stay."""
         if not isinstance(agent, DwellerView) or not isinstance(system, SystemView):
             return None
-        cell = system.random_empty_cell()
+        cell = system.get_random_empty_cell()
         return (
             None if BlockMovesInteraction._block_of(cell, self.side, self.width // self.side) == agent.block else cell
         )
@@ -175,7 +175,7 @@ class BlockMovesInteraction(MovementInteraction):
         """
         if not isinstance(agent, DwellerView):
             return 0.0
-        counts = system.composition('target', 'block')
+        counts = system.get_composition('target', 'block')
         origin, destination = agent.block, float(
             BlockMovesInteraction._block_of(cell, self.side, self.width // self.side),
         )

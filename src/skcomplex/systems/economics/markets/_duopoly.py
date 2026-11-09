@@ -120,8 +120,8 @@ class CournotAdjustmentInteraction(MapInteraction):
 
         The belief is about the last output of its rival.
         """
-        a, b, error = (system.parameter(name) for name in ('a', 'b', 'error'))
-        rival = next(firm for firm in system.agents('target', DuopolistView) if firm.id != agent.id)
+        a, b, error = (system.get_parameter(name) for name in ('a', 'b', 'error'))
+        rival = next(firm for firm in system.get_agents('target', DuopolistView) if firm.id != agent.id)
         belief = rival.output * (1 + error * float(system.rng.uniform(-1.0, 1.0)))
         return max((a - agent.cost) / (2 * b) - belief / 2, 0.0)
 

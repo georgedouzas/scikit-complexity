@@ -378,7 +378,7 @@ class MoranStepInteraction(EvolutionInteraction):
             fitness:
                 The fitness of every trait.
         """
-        return (1 + system.parameter('advantage')) ** np.ravel(strategies)
+        return (1 + system.get_parameter('advantage')) ** np.ravel(strategies)
 
 
 class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
@@ -484,11 +484,11 @@ class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
             probability:
                 The probability of reproduction.
         """
-        composition = system.composition('target', 'trait')
+        composition = system.get_composition('target', 'trait')
         size = sum(composition.values())
         row = self._get_couplings(self.seed, self.length)[int(agent.trait)]
         coupling = sum(row[int(np.asarray(genome))] * count for genome, count in composition.items())
-        return float(expit(system.parameter('k') / size * coupling - system.parameter('mu') * size))
+        return float(expit(system.get_parameter('k') / size * coupling - system.get_parameter('mu') * size))
 
     def compute_kill(self, agent: IndividualView, system: SystemView) -> float:
         """Return the probability `p_kill` that a visit kills a random organism.
@@ -504,7 +504,7 @@ class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
             probability:
                 The probability of a death.
         """
-        return system.parameter('p_kill')
+        return system.get_parameter('p_kill')
 
     def mutate_genome(self, values: dict[str, object], system: SystemViewProtocol) -> dict[str, object]:
         """Return the values of an offspring with mutated genome bits.
@@ -523,7 +523,7 @@ class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
                 The values with the mutated genome.
         """
         genome = int(np.asarray(values['trait'], dtype=float))
-        flips = np.flatnonzero(system.rng.random(self.length) < system.parameter('p_mut'))
+        flips = np.flatnonzero(system.rng.random(self.length) < system.get_parameter('p_mut'))
         return {**values, 'trait': float(genome ^ sum(1 << int(locus) for locus in flips))}
 
 

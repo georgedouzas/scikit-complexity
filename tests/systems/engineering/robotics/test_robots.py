@@ -27,7 +27,7 @@ def test_light_seeking_robots_stay_in_the_well():
 def test_swarmtaxis_moves_towards_the_beacon():
     """Test that the centre of the swarm moves towards the beacon and the swarm stays together."""
     trajectory = simulate(SwarmtaxisSystem().prepare().system_, until=300, random_state=0)
-    start = np.asarray(trajectory.agents('robots', 0).locations).mean(axis=0)
-    end = np.asarray(trajectory.agents('robots', 300).locations)
+    start = np.asarray(trajectory.get_agents('robots', 0).locations).mean(axis=0)
+    end = np.asarray(trajectory.get_agents('robots', 300).locations)
     assert end.mean(axis=0)[0] - start[0] > 1.0
     assert end.std(axis=0).max() < 10.0

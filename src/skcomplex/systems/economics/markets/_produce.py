@@ -128,7 +128,9 @@ class ShopperElement(Element):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in system.agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1]
+        unvisited = [
+            stall for stall in system.get_agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1
+        ]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return

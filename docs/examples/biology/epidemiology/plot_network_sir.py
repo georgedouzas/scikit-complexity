@@ -36,7 +36,9 @@ trajectory = simulate(
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
 trajectory = simulate(NetworkSIRSystem(residents=20, random_state=0), dt=1, random_state=0)
-health = np.array([trajectory.agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))])
+health = np.array(
+    [trajectory.get_agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))],
+)
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label in [(0, 'susceptible'), (2, 'infected'), (3, 'recovered')]:
     ax.plot(trajectory.times, np.sum(health == value, axis=1), label=label)

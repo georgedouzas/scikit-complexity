@@ -34,7 +34,7 @@ trajectory = simulate(
 # Counting the health states of the people at every step, the infected should rise, peak, and decline while the
 # recovered accumulate, and part of the population should never be infected.
 
-health = np.array([trajectory.agents('people', frame).values['health'] for frame in range(len(trajectory.times))])
+health = np.array([trajectory.get_agents('people', frame).values['health'] for frame in range(len(trajectory.times))])
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label, color in [(0, 'susceptible', 'tab:blue'), (2, 'infected', 'tab:red'), (3, 'recovered', 'tab:green')]:
     ax.plot(trajectory.times, np.sum(health == value, axis=1), label=label, color=color)

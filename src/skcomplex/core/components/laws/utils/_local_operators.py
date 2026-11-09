@@ -23,6 +23,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ._operators import _OperatorFunction
 
 LOCAL_OPERATOR = _OperatorFunction('local_operator', nargs=2)
+
+
 operator_product = _OperatorFunction('operator_product')
 dagger = _OperatorFunction('dagger', nargs=1)
 

@@ -213,7 +213,7 @@ class ThreeStateOpinionSystem(BaseSystem):
     @staticmethod
     def _redraw(voter: UndecidedView, system: SystemViewProtocol) -> float:
         """Return the opinion a voter draws from the sum of the opinions of its neighbours."""
-        total = sum(neighbor.opinion for neighbor in voter.neighbors() if isinstance(neighbor, UndecidedView))
+        total = sum(neighbor.opinion for neighbor in voter.get_neighbors() if isinstance(neighbor, UndecidedView))
         against = _logistic_half(-voter.sensitivity * total)
         support = _logistic_half(voter.sensitivity * total)
         draw = float(system.rng.random())

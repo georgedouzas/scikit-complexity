@@ -340,7 +340,7 @@ class InsiderSabotageSystem(BaseSystem):
 
         The level is that in sight of a supervisor, an agent of another group, or out.
         """
-        supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
+        supervised = any(other.group != agent.group for other in [*agent.get_neighbors(), *agent.get_agents_here()])
         if supervised:
             return float(agent.alpha_seen * (agent.lambda_seen - agent.stress))
         return float(agent.alpha_unseen * (agent.lambda_unseen - agent.stress))

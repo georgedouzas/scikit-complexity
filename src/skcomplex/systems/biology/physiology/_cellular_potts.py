@@ -326,7 +326,7 @@ class RegionSamplingInteraction(SamplingInteraction):
             sizes:
                 The volume of every site.
         """
-        over = space._default_neighborhood() if neighborhood is None else neighborhood
+        over = space._get_default_neighborhood() if neighborhood is None else neighborhood
         size = space.size_
         sizes = np.ones(size)
         if isinstance(space, NetworkSpace):
@@ -343,7 +343,7 @@ class RegionSamplingInteraction(SamplingInteraction):
             values = np.zeros(table.shape)
             values[rows, slots] = edge_weights[edges] if edges.size else 0.0
         else:
-            table = space._index_table(over)
+            table = space._get_index_table(over)
             values = np.ones(table.shape)
         sites = np.arange(size)[:, None]
         valid = (table < size) & (table != sites)

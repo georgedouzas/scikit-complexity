@@ -35,7 +35,7 @@ def positive_share(links):
 
 
 frames = range(0, 401, 5)
-shares = [positive_share(trajectory.agents('species', frame).values['links']) for frame in frames]
+shares = [positive_share(trajectory.get_agents('species', frame).values['links']) for frame in frames]
 fig, ax = plt.subplots(figsize=(8, 4.5))
 ax.plot(list(frames), shares)
 ax.axhline(0.5, color='gray', linestyle='--')

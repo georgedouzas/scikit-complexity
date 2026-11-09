@@ -60,7 +60,7 @@ def _values(system, until, schedule_random_state=0):
 def test_translated_memory_reads_the_product_of_every_site_and_its_value():
     """Test that the compiled rule computes `x(g · x(g))` at every step on a finite group."""
     space = CayleySpace(SYMMETRIC).prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     values = np.random.default_rng(1).integers(0, space.size_, space.size_).astype(float)
     trajectory = _values(_translated(space, values), 3)
     sites = np.arange(space.size_)
@@ -71,7 +71,7 @@ def test_translated_memory_reads_the_product_of_every_site_and_its_value():
 def test_translated_memory_commutes_with_translations_of_a_finite_group():
     """Test that translating a configuration by a group element translates its image, the equivariance of the map."""
     space = CayleySpace(SYMMETRIC).prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     values = np.random.default_rng(2).integers(0, space.size_, space.size_).astype(float)
     element = 5
     inverse = int(np.flatnonzero(products[element] == 0)[0])

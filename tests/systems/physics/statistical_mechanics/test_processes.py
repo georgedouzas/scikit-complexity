@@ -76,7 +76,7 @@ def test_tasep_reports_the_hops_and_carries_the_exact_current_of_an_open_line():
 def test_diffusion_limited_aggregate_is_connected():
     """Test that the aggregate grows and every stuck walker touches another stuck walker."""
     trajectory = simulate(DiffusionLimitedAggregationSystem(200, size=31), until=100, random_state=0)
-    agents = trajectory.agents('walkers', 100)
+    agents = trajectory.get_agents('walkers', 100)
     cells = {tuple(location) for location, stuck in zip(agents.locations, agents.values['stuck'], strict=True) if stuck}
     assert len(cells) > 20
     steps = ((0, 1), (1, 0), (0, -1), (-1, 0))

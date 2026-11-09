@@ -27,7 +27,7 @@ def test_self_indexed_shift_reads_the_product_of_every_site_and_its_value():
         .system_
     )
     space = system.elements[0].space.prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     values = _run(system, 2).values('cells.value').astype(int)
     sites = np.arange(space.size_)
     np.testing.assert_array_equal(values[1], values[0][products[sites, values[0]]])

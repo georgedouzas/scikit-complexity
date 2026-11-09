@@ -149,15 +149,15 @@ class MatchLaw(BaseLaw):
         if spec.candidates == 'all':
             return [target for target in targets if target is not agent]
         if spec.candidates == 'local':
-            around = {agent.location_key, *agent.neighbor_cells()}
+            around = {agent.location_key, *agent.get_neighbor_cells()}
             return [target for target in targets if target is not agent and target.location_key in around]
         if spec.candidates in ('cell', 'neighbors'):
-            keys = [agent.location_key] if spec.candidates == 'cell' else agent.neighbor_cells()
+            keys = [agent.location_key] if spec.candidates == 'cell' else agent.get_neighbor_cells()
             return [target for key in keys for target in located.get(key, []) if target is not agent]
         radius = spec.candidates
         if isinstance(radius, str):
             radius = MatchLaw._read_state(agent, radius, 'radius')
-        return [target for target in targets if target is not agent and agent.distance_to(target) <= radius]
+        return [target for target in targets if target is not agent and agent.get_distance_to(target) <= radius]
 
     @staticmethod
     def _choose(
@@ -175,7 +175,7 @@ class MatchLaw(BaseLaw):
         if spec.choice == 'uniform':
             return [free[int(rng.integers(len(free)))]]
         if spec.choice == 'nearest':
-            return [min(free, key=agent.distance_to)]
+            return [min(free, key=agent.get_distance_to)]
         if spec.score is None:
             error_msg = 'The choice `score` of partners has no score. Give a function of the agent and the candidate.'
             raise ValidationError(error_msg)
@@ -233,7 +233,7 @@ class MatchLaw(BaseLaw):
         if free or spec.fallback != 'nearest':
             return free
         others = [item for item in right if item is not agent and self._is_free(spec, agent, item, taken, feasible)]
-        return [min(others, key=agent.distance_to)] if others else []
+        return [min(others, key=agent.get_distance_to)] if others else []
 
     def _get_partners(
         self,
@@ -322,8 +322,8 @@ class MatchLaw(BaseLaw):
         if not isinstance(inputs, SystemViewProtocol):
             error_msg = f'The match {self.label!r} runs on the system view of a step, but got {inputs!r}.'
             raise ValidationError(error_msg)
-        left = inputs.agents(self.left)
-        right = left if self.right is None else inputs.agents(self.right)
+        left = inputs.get_agents(self.left)
+        right = left if self.right is None else inputs.get_agents(self.right)
         pairs = self.get_pairs(left, right, inputs.rng)
         inputs.storage[f'match:{self.label}'] = pairs
         self.value_ = pairs

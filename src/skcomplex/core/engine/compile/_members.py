@@ -241,7 +241,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         The group has `rows` members.
         """
         lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).prepare()
-        table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
+        table = lattice._get_index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
         return NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])

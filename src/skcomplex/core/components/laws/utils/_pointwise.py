@@ -29,6 +29,9 @@ class _StopGradientFunction(BuiltinFunction):
         return SR(0)
 
 
+STOP_GRADIENT = _StopGradientFunction()
+
+
 def _smallest(values: tuple[object, ...]) -> Expression:
     """Return the smallest of several expressions, member by member, as nested choices.
 
@@ -212,7 +215,4 @@ def stop_gradient(x: object) -> Expression:
         >>> (x * stop_gradient(x)).diff(x)
         stop_gradient(x)
     """
-    return _STOP_GRADIENT(SR(x))
-
-
-_STOP_GRADIENT = _StopGradientFunction()
+    return STOP_GRADIENT(SR(x))

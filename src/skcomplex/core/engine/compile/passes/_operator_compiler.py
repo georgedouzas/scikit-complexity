@@ -477,7 +477,7 @@ class OperatorCompiler(BaseCompiler):
             if space is None:
                 error_msg = f'Neighbour interaction {node.path} binds {path}, which lives in no space.'
                 raise ValidationError(error_msg)
-            for source, target in space.prepare()._neighbor_pairs(interaction.layer):
+            for source, target in space.prepare()._get_neighbor_pairs(interaction.layer):
                 namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
                 OperatorCompiler._collect_laws(
                     generators,
@@ -635,7 +635,7 @@ class OperatorCompiler(BaseCompiler):
         for node in operator_nodes:
             for key, element in OperatorCompiler._members_of(node):
                 state = symbol(f'{element.state}_{OperatorCompiler._name_of(key)}', CC)
-                subsystems[key] = SubsystemSpec(key, element, len(subsystems), state, element.local_operators())
+                subsystems[key] = SubsystemSpec(key, element, len(subsystems), state, element.get_local_operators())
         return subsystems
 
     @staticmethod
@@ -696,7 +696,7 @@ class OperatorCompiler(BaseCompiler):
         """
         product = np.ones(1, dtype=complex)
         for item in subsystems.values():
-            product = np.kron(product, item.element.initial_vector())
+            product = np.kron(product, item.element.get_initial_vector())
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
@@ -774,7 +774,7 @@ class OperatorCompiler(BaseCompiler):
         subsystems = OperatorCompiler._subsystems_of(operator_nodes)
         dimensions = tuple(item.element.dimension for item in subsystems.values())
         OperatorCompiler._check_dimension(nodes, list(dimensions), max_dimension)
-        entries, values, symbols = OperatorCompiler._parameters(nodes)
+        entries, values, symbols = OperatorCompiler._get_parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
         arguments = OperatorCompiler._arguments_of(entries, symbols)
         lowering = OperatorLowering(time, subsystems, dimensions, arguments).prepare()
@@ -851,7 +851,7 @@ class OperatorCompiler(BaseCompiler):
         return '_'.join(part for part in re.split(r'\W+', path) if part)
 
     @staticmethod
-    def _parameters(nodes: list[NodeSpec]) -> tuple[list[EntrySpec], list[Array], dict[str, Expression]]:
+    def _get_parameters(nodes: list[NodeSpec]) -> tuple[list[EntrySpec], list[Array], dict[str, Expression]]:
         """Return the parameter entries, initial values, and symbols of every component.
 
         For groups, they are given per member.

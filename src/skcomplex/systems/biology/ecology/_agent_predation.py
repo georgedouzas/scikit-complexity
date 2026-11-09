@@ -209,7 +209,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         It is zero when other prey share its cell.
         """
         del system
-        if not isinstance(prey, PreyView) or prey.agents_here(prey.group):
+        if not isinstance(prey, PreyView) or prey.get_agents_here(prey.group):
             return 0.0
         return float(prey.birth)
 

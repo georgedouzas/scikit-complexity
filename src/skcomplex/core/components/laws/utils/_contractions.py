@@ -13,7 +13,6 @@ from ._operators import _OperatorFunction
 from ._reductions import _calls_in
 
 MIN_FACTORS = 1
-
 CONTRACTION = _OperatorFunction('contraction')
 
 

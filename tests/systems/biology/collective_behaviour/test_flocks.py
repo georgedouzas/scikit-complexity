@@ -27,7 +27,7 @@ def test_boids_align():
     trajectory = simulate(BoidsSystem().prepare().system_, until=100, dt=1, random_state=0)
 
     def polarization(frame):
-        snapshot = trajectory.agents('flock', frame)
+        snapshot = trajectory.get_agents('flock', frame)
         velocity = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
         return np.hypot(*(velocity / np.hypot(velocity[:, :1], velocity[:, 1:])).mean(axis=0))
 
@@ -41,13 +41,13 @@ def test_boids_3d_align_in_three_dimensions():
     trajectory = simulate(system, dt=1, random_state=0, until=200)
 
     def polarization(frame):
-        velocity = trajectory.agents('flock', frame).values['velocity']
+        velocity = trajectory.get_agents('flock', frame).values['velocity']
         return np.linalg.norm((velocity / np.linalg.norm(velocity, axis=1, keepdims=True)).mean(axis=0))
 
     assert polarization(0) < 0.3
     assert polarization(200) > 0.9
-    depths = trajectory.agents('flock', 200).locations[:, 2]
-    assert trajectory.agents('flock', 200).locations.shape == (50, 3)
+    depths = trajectory.get_agents('flock', 200).locations[:, 2]
+    assert trajectory.get_agents('flock', 200).locations.shape == (50, 3)
     assert np.ptp(depths) > system.space.extent[2] / 2
 
 
@@ -69,7 +69,7 @@ def _velocities(values, locations, interactions, until=1):
         until=until,
         random_state=0,
     )
-    return trajectory.agents('flock', until)
+    return trajectory.get_agents('flock', until)
 
 
 def test_spatial_flight_moves_boids_by_velocity_across_the_depth_boundary():
@@ -126,7 +126,7 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
         interactions=[FlockingInteraction('flocking', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = simulate(system, random_state=0, until=1).agents('flock', 1)
+    snapshot = simulate(system, random_state=0, until=1).get_agents('flock', 1)
     found = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
     pull = (0.1 - 0.5) * np.array([0.8, 0.0])
     steered = [np.array([0.5, 0.0]) + pull, np.array([0.0, 0.5]) - pull]
@@ -143,5 +143,5 @@ def test_flight_interaction_moves_boids_by_velocity_on_torus():
         interactions=[FlightInteraction('flight', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = simulate(system, random_state=0, until=1).agents('flock', 1)
+    snapshot = simulate(system, random_state=0, until=1).get_agents('flock', 1)
     np.testing.assert_allclose(snapshot.locations, [[0.5, 1.5], [29.0, 2.0]])

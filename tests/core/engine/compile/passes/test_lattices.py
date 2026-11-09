@@ -155,7 +155,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
     space = LatticeSpace((7, 9), geometry='triangular').prepare()
-    table = space._index_table(BallNeighborhood(metric='hexagonal'))
+    table = space._get_index_table(BallNeighborhood(metric='hexagonal'))
     for site in range(space.size_):
         for k in range(6):
             assert table[table[site, k], (k + 3) % 6] == site
@@ -190,7 +190,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
 def test_network_index_table_pads_with_size():
     """Test that the adjacency table of a star graph pads the leaves with the number of nodes."""
     space = NetworkSpace(nx.star_graph(3)).prepare()
-    table = space._index_table(AdjacencyNeighborhood(center=True))
+    table = space._get_index_table(AdjacencyNeighborhood(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
     with pytest.raises(ValidationError, match='adjacency neighbourhood'):
         space._get_neighbors(0, BallNeighborhood())
@@ -199,7 +199,7 @@ def test_network_index_table_pads_with_size():
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
     lattice = LatticeSpace((20, 20)).prepare()
-    table = lattice._index_table(BallNeighborhood())
+    table = lattice._get_index_table(BallNeighborhood())
     graph = nx.Graph()
     graph.add_nodes_from(range(lattice.size_))
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)

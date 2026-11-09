@@ -42,9 +42,9 @@ def test_weakening_ornstein_uhlenbeck_has_student_tails():
 
 def test_ageing_random_walk_slows_its_up_steps():
     """Test that up steps grow linearly without ageing and as the square root of the steps for `nu = 1`."""
-    ups = _run(AgeingRandomWalkSystem(200, nu=0.0), 100).agents('walkers', 100).values['ups']
+    ups = _run(AgeingRandomWalkSystem(200, nu=0.0), 100).get_agents('walkers', 100).values['ups']
     assert ups.mean() == pytest.approx(50, rel=0.05)
-    ups = _run(AgeingRandomWalkSystem(200, nu=1.0), 100).agents('walkers', 100).values['ups']
+    ups = _run(AgeingRandomWalkSystem(200, nu=1.0), 100).get_agents('walkers', 100).values['ups']
     assert ups.mean() == pytest.approx(math.sqrt(100) - 1, rel=0.2)
 
 

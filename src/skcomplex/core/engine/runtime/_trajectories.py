@@ -223,7 +223,7 @@ class Trajectory:
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """
-        frames = [self.agents(group, frame) for frame in range(len(self.times))]
+        frames = [self.get_agents(group, frame) for frame in range(len(self.times))]
         return [
             np.asarray(snapshot.locations) if snapshot.locations is not None else np.zeros((0, 0))
             for snapshot in frames
@@ -251,7 +251,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
 
-    def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
+    def get_agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame.
 
         They come with their ids, states, and locations.

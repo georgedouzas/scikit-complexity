@@ -191,8 +191,8 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the fire sales.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
-        assets = sorted(system.agents('assets', MarketAssetView), key=lambda asset: asset.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        assets = sorted(system.get_agents('assets', MarketAssetView), key=lambda asset: asset.id)
         initial = np.asarray(self.holdings, dtype=float)
         holdings = np.asarray(system.storage.get('holdings', initial))
         prices = np.array([asset.price for asset in assets])
@@ -204,7 +204,7 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
         equity = values - np.asarray(self.liabilities, dtype=float)
         failed = equity <= 0
         if self.selling == 'leverage':
-            excess = values - system.parameter('leverage') * equity
+            excess = values - system.get_parameter('leverage') * equity
             excess = np.where(excess > 1e-9 * values, excess, 0.0)
             risky = holdings @ prices
             share = np.divide(excess, risky, out=np.zeros_like(excess), where=risky > 0)
@@ -219,7 +219,7 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
             1.0,
             liquidated + np.divide(sold.sum(axis=0), totals, out=np.zeros_like(totals), where=totals > 0),
         )
-        prices = base * np.exp(-system.parameter('alpha') * liquidated)
+        prices = base * np.exp(-system.get_parameter('alpha') * liquidated)
         status = np.where(failed, DEFAULTED, status)
         equity = holdings @ prices + cash - np.asarray(self.liabilities, dtype=float)
         system.storage.update(holdings=holdings, base=base)

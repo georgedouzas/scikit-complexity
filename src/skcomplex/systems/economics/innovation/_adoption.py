@@ -136,7 +136,7 @@ class HouseholdElement(Element):
         """
         if agent.phone or agent.income < agent.threshold:
             return float(agent.phone)
-        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.neighbors()))
+        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.get_neighbors()))
 
 
 class PhoneAdoptionSystem(BaseSystem):

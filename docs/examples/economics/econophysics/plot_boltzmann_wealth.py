@@ -50,12 +50,12 @@ trajectory = simulate(system, until=STEPS, observables=observables, observers=[o
 # Lorenz curve, the share of wealth held by the poorest fraction of agents, should bow far below the line of equality.
 
 wealth = np.concatenate(
-    [trajectory.agents('traders', frame).values['wealth'] for frame in range(STEPS // 2, STEPS + 1)],
+    [trajectory.get_agents('traders', frame).values['wealth'] for frame in range(STEPS // 2, STEPS + 1)],
 )
 counts = np.bincount(wealth.astype(int)) / len(wealth)
 units = np.arange(len(counts))
 slope, intercept = np.polyfit(units[1:8], np.log(counts[1:8]), 1)
-final = np.sort(trajectory.agents('traders', STEPS).values['wealth'])
+final = np.sort(trajectory.get_agents('traders', STEPS).values['wealth'])
 fig, (law, lorenz) = plt.subplots(1, 2, figsize=(10, 4))
 law.semilogy(units, counts, 'o', label='simulation')
 law.semilogy(units, np.exp(intercept + slope * units), 'k--', lw=0.8, label=f'exp(-w / {-1 / slope:.2f})')

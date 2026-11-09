@@ -37,7 +37,7 @@ trajectory = simulate(
 def dead_share(walkers, seed):
     """Return the share of walkers dead at the end of a run."""
     run = simulate(RandomWalkerEpidemicsSystem(walkers=walkers, random_state=seed), until=300, dt=1, random_state=seed)
-    final = run.agents('walkers', len(run.times) - 1)
+    final = run.get_agents('walkers', len(run.times) - 1)
     return np.mean(final.values['health'] == 2)
 
 

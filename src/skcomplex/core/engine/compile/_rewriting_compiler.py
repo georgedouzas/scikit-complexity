@@ -126,7 +126,7 @@ class RewritingCompiler(BaseCompiler):
         return [law.prepare(node.path) for law in productions]
 
     @staticmethod
-    def _parameters(
+    def _get_parameters(
         nodes: list[NodeSpec],
     ) -> tuple[list[EntrySpec], list[float], dict[str, SimpleNamespace], dict[str, Expression]]:
         """Return the parameter entries and values of the rewritten elements.
@@ -260,7 +260,7 @@ class RewritingCompiler(BaseCompiler):
                     'rewriting system holds only rewritten elements, which rewrite themselves by their laws.'
                 )
                 raise IncompatibleLawsError(error_msg)
-        entries, values, namespaces, symbols = RewritingCompiler._parameters(nodes)
+        entries, values, namespaces, symbols = RewritingCompiler._get_parameters(nodes)
         parameters = ParametersSpec(tuple(symbols.values()), symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         compiled = tuple(

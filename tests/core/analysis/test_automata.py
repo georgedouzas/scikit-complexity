@@ -160,7 +160,7 @@ def test_laplacian_over_gf2_matches_its_circulant():
     assert _automaton('injective', laplacian).injective == expected
     assert _automaton('surjective', laplacian).surjective == expected
     configuration = np.array([1, 0, 0, 1, 0])
-    neighbours = space.prepare()._index_table(MemoryNeighborhood(('a^-1', 'a')))
+    neighbours = space.prepare()._get_index_table(MemoryNeighborhood(('a^-1', 'a')))
     np.testing.assert_array_equal(_step(laplacian, configuration), configuration[neighbours].sum(axis=1) % 2)
 
 
@@ -285,7 +285,7 @@ def test_reference_values_on_a_group():
     space = _cycle(6)
     rotation = _automaton_system(space, MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))
     assert _step(rotation, [1, 0, 0, 1, 1, 0]).tolist() == [0, 1, 1, 0, 0, 1]
-    assert space.prepare()._index_table(MemoryNeighborhood(('a',))).ravel().tolist() == [1, 3, 0, 5, 2, 4]
+    assert space.prepare()._get_index_table(MemoryNeighborhood(('a',))).ravel().tolist() == [1, 3, 0, 5, 2, 4]
     assert _automaton('injective', rotation).injective
     assert _automaton('surjective', rotation).surjective
     assert _automaton('pre-injective', rotation, window=[1, 2]).pre_injective

@@ -32,7 +32,7 @@ trajectory = simulate(OffLatticeTumourGrowthSystem(), until=480, dt=24, observer
 
 days = np.asarray(trajectory.times) / 24
 locations = trajectory.agent_locations('cells')[-1]
-cancer = trajectory.agents('cells', len(trajectory.times) - 1).values['cancer']
+cancer = trajectory.get_agents('cells', len(trajectory.times) - 1).values['cancer']
 fig, (area, tissue) = plt.subplots(1, 2, figsize=(10, 4.5))
 area.plot(days, trajectory.values('tumour_area'), color='tab:red')
 area.axvline(10, color='black', linestyle='--', label='switch')

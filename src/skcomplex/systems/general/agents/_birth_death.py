@@ -169,14 +169,14 @@ class BirthDeathInteraction(Interaction):
         """
         return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the cycle draws.
 
         It draws by its order or pick, events of a chance below 1, rates, or free cells.
         """
         chances = (self.birth, self.death, self.cull)
         return (
-            super()._draws()
+            super()._get_draws()
             or any(callable(chance) or (chance is not None and 0 < chance < 1) for chance in chances)
             or self.rate is not None
             or self.arrival is not None
@@ -317,7 +317,7 @@ class BirthDeathInteraction(Interaction):
             return [place for place in places if place is not None]
         if self.placement == 'here':
             return [agent.location] * count
-        free = [cell for cell in agent.neighbor_cells() if cell not in occupied]
+        free = [cell for cell in agent.get_neighbor_cells() if cell not in occupied]
         chosen = [free[int(index)] for index in system.rng.permutation(len(free))[:count]]
         occupied.update(chosen)
         return chosen
@@ -382,7 +382,7 @@ class BirthDeathInteraction(Interaction):
         """
         kin = self.kin
         group = self._get_role('target' if self.group is None else 'group')
-        members = (item for item in system.agents(group) if item.alive and (kin is None or kin(agent, item)))
+        members = (item for item in system.get_agents(group) if item.alive and (kin is None or kin(agent, item)))
         if self.pick == 'random':
             candidates = list(members)
             if candidates:
@@ -458,7 +458,7 @@ class BirthDeathInteraction(Interaction):
         if not agent.alive:
             return
         neighbor = self.placement == 'neighbor'
-        occupied = {other.location_key for other in system.agents(self._get_role('target'))} if neighbor else set()
+        occupied = {other.location_key for other in system.get_agents(self._get_role('target'))} if neighbor else set()
         self._act(agent, occupied, system)
 
     def _live(self, system: SystemViewProtocol) -> None:
@@ -466,7 +466,7 @@ class BirthDeathInteraction(Interaction):
 
         It follows the schedule, and creates the offspring of those that give birth.
         """
-        agents = system.agents(self._get_role('target'))
+        agents = system.get_agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
         births = deaths = 0
         order = system.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))

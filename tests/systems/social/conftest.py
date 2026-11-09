@@ -15,4 +15,4 @@ def _run(system: BaseSystem, until: float, *, dt: float | None = None) -> Trajec
 def _values(trajectory: Trajectory, group: str, name: str, frame: int = -1) -> npt.NDArray[np.float64]:
     """Return the values of an agent state at a frame."""
     frame = len(trajectory.times) - 1 if frame == -1 else frame
-    return np.asarray(trajectory.agents(group, frame).values[name], dtype=np.float64)
+    return np.asarray(trajectory.get_agents(group, frame).values[name], dtype=np.float64)

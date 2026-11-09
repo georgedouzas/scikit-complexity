@@ -15,7 +15,7 @@ def test_sugarscape_carrying_capacity_and_inequality():
         observables=SugarscapeSystem().get_run_settings()['observables'],
     )
     population, inequality = trajectory.values('population'), trajectory.values('gini')
-    initial = distribution(trajectory.agents('foragers', 0).values['sugar'], kind='gini')
+    initial = distribution(trajectory.get_agents('foragers', 0).values['sugar'], kind='gini')
     assert population[-1] < 200
     assert abs(population[-1] - population[-20]) <= 0.05 * population[-1]
     assert inequality[-1] > 0.3

@@ -38,7 +38,9 @@ class ProbeElement(Element):
 
     def read(self, agent, system):
         """Test helper rule that keeps the dimensions and counts the neighbours within radii."""
-        ProbeElement.seen.append((agent.id, system.dimensions, len(agent.neighbors(2.0)), len(agent.neighbors(4.0))))
+        ProbeElement.seen.append(
+            (agent.id, system.dimensions, len(agent.get_neighbors(2.0)), len(agent.get_neighbors(4.0))),
+        )
 
 
 class IdleElement(Element):
@@ -76,7 +78,7 @@ def test_two_dimensional_space_keeps_recorded_trajectories():
     for _ in range(2):
         trajectory = simulate(BoidsSystem(10).prepare().system_, until=20, dt=1, random_state=0)
         for frame, values in recorded.items():
-            snapshot = trajectory.agents('flock', int(frame))
+            snapshot = trajectory.get_agents('flock', int(frame))
             assert snapshot.ids.tolist() == values['ids']
             np.testing.assert_allclose(snapshot.locations, values['locations'], rtol=1e-9, atol=1e-9)
             np.testing.assert_allclose(snapshot.values['vx'], values['vx'], rtol=1e-9, atol=1e-9)
@@ -88,7 +90,7 @@ def test_three_dimensional_box_places_agents_inside():
     ProbeElement.seen = []
     group = GroupElement('probes', element=ProbeElement, size=200)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 5.0, 2.0)))
-    locations = _simulate(system, until=1).agents('probes', 0).locations
+    locations = _simulate(system, until=1).get_agents('probes', 0).locations
     assert ProbeElement.seen[0][1] == (10.0, 5.0, 2.0)
     assert locations.shape == (200, 3)
     assert locations.min() >= 0.0
@@ -104,11 +106,11 @@ def test_neighbours_across_the_depth_boundary():
 
         def read(self, agent, system):
             """Test helper rule."""
-            agent.near = float(len(agent.neighbors(0.5)))
+            agent.near = float(len(agent.get_neighbors(0.5)))
 
     group = GroupElement('probes', element=NearElement, size=2, location=[(5.0, 5.0, 0.2), (5.0, 5.0, 9.9)])
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'))
-    assert _simulate(system, until=1).agents('probes', 1).values['near'].tolist() == [1.0, 1.0]
+    assert _simulate(system, until=1).get_agents('probes', 1).values['near'].tolist() == [1.0, 1.0]
 
 
 def test_displacement_takes_the_minimum_image_in_depth():
@@ -119,12 +121,12 @@ def test_displacement_takes_the_minimum_image_in_depth():
 
         def read(self, agent, system):
             """Test helper rule."""
-            other = next(item for item in system.agents('probes') if item.id != agent.id)
-            agent.near = float(agent.displacement_to(other)[2])
+            other = next(item for item in system.get_agents('probes') if item.id != agent.id)
+            agent.near = float(agent.get_displacement_to(other)[2])
 
     group = GroupElement('probes', element=ShiftElement, size=2, location=[(5.0, 5.0, 0.2), (5.0, 5.0, 9.9)])
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'))
-    near = _simulate(system, until=1).agents('probes', 1).values['near']
+    near = _simulate(system, until=1).get_agents('probes', 1).values['near']
     np.testing.assert_allclose(near, [-0.3, 0.3])
 
 
@@ -146,10 +148,10 @@ def test_gaussian_steps_spread_in_depth():
         space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'),
     )
     trajectory = _simulate(system, until=100)
-    variances = [trajectory.agents('walkers', frame).locations[:, 2].var() for frame in (0, 10, 100)]
+    variances = [trajectory.get_agents('walkers', frame).locations[:, 2].var() for frame in (0, 10, 100)]
     assert variances[0] < variances[1] < variances[2]
     for frame in (1, 50, 100):
-        locations = trajectory.agents('walkers', frame).locations
+        locations = trajectory.get_agents('walkers', frame).locations
         assert locations.min() >= 0.0
         assert locations.max() <= 10.0
 
@@ -163,7 +165,7 @@ def test_trajectory_reports_three_coordinates_per_agent():
         interactions=[walk],
         space=ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic'),
     )
-    snapshot = _simulate(system, until=5).agents('walkers', 5)
+    snapshot = _simulate(system, until=5).get_agents('walkers', 5)
     assert snapshot.locations.shape == (7, 3)
     assert len(snapshot.ids) == 7
 
@@ -226,7 +228,7 @@ def test_agents_per_census_region():
     regions = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 5.0, 9.0, 9.0), box(0.0, 5.0, 4.0, 9.0)]
     group = GroupElement('people', element=IdleElement, size=150, location=[regions[0]] * 100 + [regions[1]] * 50)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), regions={'census': regions}))
-    snapshot = _simulate(system).agents('people', 0)
+    snapshot = _simulate(system).get_agents('people', 0)
     assert all(regions[0].contains(Point(point)) for point in snapshot.locations[:100])
     assert all(regions[1].contains(Point(point)) for point in snapshot.locations[100:])
 
@@ -236,7 +238,7 @@ def test_one_polygon_is_shared_by_every_member():
     region = box(1.0, 1.0, 2.0, 2.0)
     group = GroupElement('people', element=IdleElement, size=5, location=region)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
-    locations = _simulate(system).agents('people', 0).locations
+    locations = _simulate(system).get_agents('people', 0).locations
     assert all(region.contains(Point(point)) for point in locations)
     assert len({tuple(point) for point in locations}) == 5
 
@@ -247,7 +249,7 @@ def test_region_placement_is_reproducible():
     def start(random_state):
         group = GroupElement('people', element=IdleElement, size=20, location=box(0.0, 0.0, 4.0, 4.0))
         system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
-        return _simulate(system, random_state=random_state).agents('people', 0).locations
+        return _simulate(system, random_state=random_state).get_agents('people', 0).locations
 
     np.testing.assert_array_equal(start(0), start(0))
     assert not np.array_equal(start(0), start(1))
@@ -258,7 +260,7 @@ def test_placement_is_uniform_in_a_concave_polygon_with_a_hole():
     polygon, hole = _concave_polygon()
     group = GroupElement('people', element=IdleElement, size=20000, location=polygon)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(2.0, 2.0)))
-    locations = _simulate(system).agents('people', 0).locations
+    locations = _simulate(system).get_agents('people', 0).locations
     assert all(polygon.contains(Point(point)) for point in locations[:2000])
     x, y = locations[:, 0], locations[:, 1]
     assert not np.any((x > 0.2) & (x < 0.7) & (y > 0.2) & (y < 0.4))
@@ -274,11 +276,11 @@ def test_move_to_a_favourite_place():
     found = []
 
     def to_favourite(agent, system):
-        found.append(system.regions('places'))
-        return system.region('places', 1)
+        found.append(system.get_regions('places'))
+        return system.get_region('places', 1)
 
     def read(agent, system):
-        found.append(agent.regions_here('places'))
+        found.append(agent.get_regions_here('places'))
 
     class ReaderElement(Element):
         """Test helper that reads the regions of its agent."""
@@ -294,7 +296,7 @@ def test_move_to_a_favourite_place():
         interactions=[move],
         space=ContinuousSpace(extent=(10.0, 10.0), regions={'places': places}),
     )
-    locations = _simulate(system, until=2).agents('people', 2).locations
+    locations = _simulate(system, until=2).get_agents('people', 2).locations
     assert all(places[1].contains(Point(point)) for point in locations)
     assert 3 in found
     assert [0] in found
@@ -319,7 +321,7 @@ def test_created_agent_is_placed_in_a_polygon():
 
     group = GroupElement('people', element=SpawnerElement, size=1, location=(4.0, 4.0), variable=True)
     system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
-    locations = _simulate(system, until=1).agents('people', 1).locations
+    locations = _simulate(system, until=1).get_agents('people', 1).locations
     assert locations.shape == (2, 2)
     assert region.contains(Point(locations[1]))
 
@@ -327,8 +329,8 @@ def test_created_agent_is_placed_in_a_polygon():
 @pytest.mark.parametrize(
     ('step', 'error', 'message'),
     [
-        (lambda agent, system: agent.regions_here('absent'), SimulationError, 'no region layer'),
-        (lambda agent, system: system.region('places', 5), SimulationError, 'has 1 regions'),
+        (lambda agent, system: agent.get_regions_here('absent'), SimulationError, 'no region layer'),
+        (lambda agent, system: system.get_region('places', 5), SimulationError, 'has 1 regions'),
         (lambda agent, system: Polygon([(0, 0), (1, 1), (1, 0), (0, 1)]), SpaceError, 'invalid polygon'),
     ],
 )

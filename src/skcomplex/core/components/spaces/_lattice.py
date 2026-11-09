@@ -154,22 +154,22 @@ class LatticeSpace(BaseSpace):
             )
             raise ValidationError(error_msg)
 
-    def _axis_boundary(self, axis: int) -> str:
+    def _get_axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis, the one boundary of the lattice."""
         return self.boundary
 
-    def _with_edges(self, boundary: str, fill: float) -> LatticeSpace:
+    def _copy_with_edges(self, boundary: str, fill: float) -> LatticeSpace:
         """Return the sites of the lattice with other edges.
 
         The reads of a state with its own boundary use them.
         """
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
-    def _default_neighborhood(self) -> LatticeNeighborhood:
+    def _get_default_neighborhood(self) -> LatticeNeighborhood:
         """Return the neighbourhood agents query, the ball of radius 1 under the metric of the lattice."""
         return BallNeighborhood(metric=self.metric_, n_dim=self.n_dim_)
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the member index of every neighbour of every site.
 
         Sites outside fixed edges get `size_`.
@@ -190,7 +190,7 @@ class LatticeSpace(BaseSpace):
             shifted = coordinates + np.asarray(offset)[:, None]
             outside = np.zeros(self.size_, dtype=bool)
             for axis, size in enumerate(self.shape_):
-                edges = self._axis_boundary(axis)
+                edges = self._get_axis_boundary(axis)
                 if edges == 'periodic':
                     shifted[axis] %= size
                 elif edges == 'reflecting':
@@ -203,14 +203,14 @@ class LatticeSpace(BaseSpace):
             table[:, column] = np.where(outside, self.size_, flat)
         return table
 
-    def _ball(self, radius: int) -> LatticeNeighborhood:
+    def _get_ball(self, radius: int) -> LatticeNeighborhood:
         """Return the box of offsets within a radius along every dimension.
 
         It is the Chebyshev ball with the site itself in its lexicographic place, on both geometries.
         """
         return BallNeighborhood(radius, n_dim=self.n_dim_, center='inline')
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites one step apart along a dimension.
 
         Each pair comes once.
@@ -220,7 +220,7 @@ class LatticeSpace(BaseSpace):
         for axis, length in enumerate(self.shape_):
             shifted = np.roll(sites, -1, axis=axis)
             pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
-            if self._axis_boundary(axis) != 'periodic':
+            if self._get_axis_boundary(axis) != 'periodic':
                 edge = np.indices(self.shape_)[axis].ravel() == length - 1
                 pairs = pairs[~edge]
             for first, second in pairs.tolist():

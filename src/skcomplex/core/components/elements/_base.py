@@ -66,7 +66,7 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
             inputs:
                 The namespace of the symbols the laws can use.
         """
-        self.laws_ = self._laws_of(inputs)
+        self.laws_ = self._get_laws_of(inputs)
 
     def __init__(self, label: str, visual: VisualSpec | None = None) -> None:
         super().__init__(label)

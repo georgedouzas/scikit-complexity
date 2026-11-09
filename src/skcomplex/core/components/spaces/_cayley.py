@@ -358,14 +358,14 @@ class CayleySpace(BaseSpace):
         """Return the options lattices offer that a Cayley graph does not: image visuals."""
         return frozenset({'image'})
 
-    def _default_neighborhood(self) -> MemoryNeighborhood:
+    def _get_default_neighborhood(self) -> MemoryNeighborhood:
         """Return the memory set of the generators and their inverses.
 
         It leaves out the site itself.
         """
         return MemoryNeighborhood(tuple(word for name in self.generators_ for word in (name, f'{name}^-1')))
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site `g s` of every site `g` and element `s` of a memory set.
 
         A site outside the space gets `size_`.
@@ -385,7 +385,7 @@ class CayleySpace(BaseSpace):
             table[:, position] = np.where(sites >= 0, sites, size)
         return table
 
-    def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site of `g h s` for every site `g`, site `h`, and word `s`.
 
         A site outside the space gets `size_`. The product walks the shortest word of `h` and then the word `s` from
@@ -417,14 +417,14 @@ class CayleySpace(BaseSpace):
                 f'{MAX_PRODUCTS} entries. Ask for a smaller ball or a finite quotient.'
             )
             raise SpaceTooLargeError(error_msg)
-        products = self._index_table(MemoryNeighborhood(tuple(self.words_)))
+        products = self._get_index_table(MemoryNeighborhood(tuple(self.words_)))
         table = np.empty((size, size, len(words)), dtype=np.intp)
         for layer, word in enumerate(words):
-            right = np.append(self._index_table(MemoryNeighborhood((word,)))[:, 0], size)
+            right = np.append(self._get_index_table(MemoryNeighborhood((word,)))[:, 0], size)
             table[:, :, layer] = right[products]
         return table
 
-    def _ball(self, radius: int) -> MemoryNeighborhood:
+    def _get_ball(self, radius: int) -> MemoryNeighborhood:
         """Return the memory set of the shortest words of the sites within a radius.
 
         The identity comes first.
@@ -432,7 +432,7 @@ class CayleySpace(BaseSpace):
         sizes = self.ball_sizes_
         return MemoryNeighborhood(tuple(self.words_[: sizes[min(radius, len(sizes) - 1)]]))
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites joined by an edge of the Cayley graph.
 
         Each pair comes once.

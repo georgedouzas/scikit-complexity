@@ -422,7 +422,7 @@ class AgentBasedSIRSystem(BaseSystem):
             return False
         return any(
             isinstance(other, PersonView) and other.health == INFECTED and self._is_spreading(other, system)
-            for other in agent.agents_here(agent.group)
+            for other in agent.get_agents_here(agent.group)
         )
 
     @staticmethod

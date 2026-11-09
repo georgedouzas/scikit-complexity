@@ -206,7 +206,7 @@ class FairFoodSystem(BaseSystem):
             return 0.0
         if agent.budget < 1 + agent.premium:
             return -math.inf
-        neighbors = [neighbor for neighbor in agent.neighbors() if isinstance(neighbor, ConsumerView)]
+        neighbors = [neighbor for neighbor in agent.get_neighbors() if isinstance(neighbor, ConsumerView)]
         share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
         return float(
             agent.ethics_weight * agent.ethics

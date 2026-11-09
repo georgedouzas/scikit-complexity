@@ -857,7 +857,7 @@ walk = MapInteraction('walk', target='walkers', state='x', function=lambda a, m:
 count = MapInteraction('count', target='walkers', state='steps', function=lambda a, m: a.x, **member)
 walkers = GroupElement('walkers', element=WalkerElement, size=3)
 system = CompositeSystem(elements=[walkers], interactions=[walk, count], space=LatticeSpace((5, 5)))
-simulate(system, until=4, random_state=0).agents('walkers', 4).values['steps'].tolist()
+simulate(system, until=4, random_state=0).get_agents('walkers', 4).values['steps'].tolist()
 ```
 
 An agent rule may name the role whose members run it, `RuleLaw(function, members='target')`. The Mesa solver runs it
@@ -1025,7 +1025,7 @@ def adopt_majority(members, system):
 voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
 galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
 trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1)
-trajectory.agents('voters', 1).values['s'].tolist()
+trajectory.get_agents('voters', 1).values['s'].tolist()
 ```
 
 `GroupingInteraction(target, groups='pairs', act, size=2)` draws pairs, a random partition, neighbourhoods, or groups

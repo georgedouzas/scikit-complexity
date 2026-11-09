@@ -39,7 +39,7 @@ for density in densities:
         simulate(BonabeauHierarchiesSystem(density=density, random_state=seed), until=100, random_state=seed)
         for seed in range(3)
     ]
-    finals = [run.agents('contenders', len(run.times) - 1).values['strength'] for run in runs]
+    finals = [run.get_agents('contenders', len(run.times) - 1).values['strength'] for run in runs]
     spread_runs.append([np.std(final) for final in finals])
 spreads = np.asarray(spread_runs)
 fig, ax = plt.subplots(figsize=(6, 4))

@@ -99,7 +99,7 @@ class NamingGamesInteraction(RandomPairsInteraction):
         The new word is the first slot of the lexicon that no agent knows.
         """
         known = np.zeros_like(words)
-        for agent in system.agents('target'):
+        for agent in system.get_agents('target'):
             if isinstance(agent, NamerView):
                 known += np.asarray(agent.words, dtype=np.float64)
         words[int(np.flatnonzero(known == 0)[0])] = 1.0

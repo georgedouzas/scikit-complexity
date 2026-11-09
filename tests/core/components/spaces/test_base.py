@@ -41,11 +41,11 @@ class RingSpace(BaseSpace):
         self.positions_ = np.arange(self.n, dtype=float)[:, None]
         self.periodic_, self.default_visual_ = True, 'sites'
 
-    def _default_neighborhood(self):
+    def _get_default_neighborhood(self):
         """Return the two sides."""
         return SidesNeighborhood()
 
-    def _index_table(self, neighborhood):
+    def _get_index_table(self, neighborhood):
         """Return the site at every step of every site."""
         return np.array([[(site + step) % self.n for step in neighborhood.steps] for site in range(self.n)])
 
@@ -97,7 +97,12 @@ def test_space_contributes_no_laws_and_lacks_nothing():
 
 @pytest.mark.parametrize(
     ('hook', 'arguments'),
-    [('_default_neighborhood', ()), ('_index_table', (None,)), ('_ball', (1,)), ('_neighbor_pairs', ())],
+    [
+        ('_get_default_neighborhood', ()),
+        ('_get_index_table', (None,)),
+        ('_get_ball', (1,)),
+        ('_get_neighbor_pairs', ()),
+    ],
 )
 def test_space_without_sites_answers_no_neighbourhood_hook(hook, arguments):
     """Test that a space without sites raises a space error for every neighbourhood hook."""

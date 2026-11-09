@@ -48,7 +48,7 @@ def test_active_ornstein_uhlenbeck_particles_diffuse_with_the_active_coefficient
 def test_run_and_tumble_diffuses_with_the_persistence_of_runs():
     """Test that run-and-tumble agents diffuse with `v^2 (1 + q) / (4 (1 - q))` per step."""
     trajectory = simulate(RunAndTumbleSystem(200), until=200, random_state=0)
-    positions = np.array([trajectory.agents('bacteria', frame).locations for frame in range(len(trajectory.times))])
+    positions = np.array([trajectory.get_agents('bacteria', frame).locations for frame in range(len(trajectory.times))])
     steps = np.diff(positions.astype(float), axis=0)
     steps -= 10.0 * np.rint(steps / 10.0)
     paths = np.concatenate([np.zeros((1, *steps.shape[1:])), np.cumsum(steps, axis=0)])

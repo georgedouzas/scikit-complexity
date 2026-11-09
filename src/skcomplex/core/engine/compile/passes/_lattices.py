@@ -464,7 +464,7 @@ class LatticeProblemPass(BasePass):
         return members, counts
 
     @staticmethod
-    def _index_table(
+    def _get_index_table(
         space: BaseSpace,
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
         owner: str,
@@ -474,7 +474,7 @@ class LatticeProblemPass(BasePass):
         An error naming the law that reads it is raised without one.
         """
         try:
-            return space._index_table(neighborhood)
+            return space._get_index_table(neighborhood)
         except (ValueError, ValidationError) as error:
             error_msg = f'{owner}: {error}'
             raise ValidationError(error_msg) from error
@@ -609,7 +609,7 @@ class LatticeProblemPass(BasePass):
         return SR(expression).subs(replacements) if replacements else SR(expression)
 
     @staticmethod
-    def _coface_tables(
+    def _get_coface_tables(
         target: LatticeStateSpec,
         owner: str,
     ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
@@ -699,7 +699,7 @@ class LatticeProblemPass(BasePass):
         space = targets[0].space
         translations = LatticeProblemPass._translations_of(law, space, reads, owner)
         table = (
-            LatticeProblemPass._index_table(space, law.over, owner)
+            LatticeProblemPass._get_index_table(space, law.over, owner)
             if translations is None
             else translations.reshape(translations.shape[0], -1)
         )
@@ -797,7 +797,7 @@ class LatticeProblemPass(BasePass):
             error_msg = f'{owner} translates its memory by {reads[0].name}, which holds several components per site.'
             raise ValidationError(error_msg)
         try:
-            return space._translation_table(law.over)
+            return space._get_translation_table(law.over)
         except (ValueError, ValidationError, SpaceError) as error:
             error_msg = f'{owner}: {error}'
             raise ValidationError(error_msg) from error
@@ -868,7 +868,7 @@ class LatticeProblemPass(BasePass):
             error_msg = f'{owner} reads and updates states of different lattices.'
             raise ValidationError(error_msg)
         members, counts = LatticeProblemPass._extremal_members(
-            LatticeProblemPass._index_table(key.space, law.over, owner),
+            LatticeProblemPass._get_index_table(key.space, law.over, owner),
         )
         arguments = LatticeProblemPass._keywords(context, law.rule)
         maximum = law.extremum == 'max'
@@ -939,7 +939,7 @@ class LatticeProblemPass(BasePass):
                 f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
             )
             raise ValidationError(error_msg)
-        table = LatticeProblemPass._index_table(target.space, over, owner)
+        table = LatticeProblemPass._get_index_table(target.space, over, owner)
         classes = LatticeProblemPass._schedule_classes(sampler.schedule, target.space, over, table, owner)
         neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
@@ -966,7 +966,7 @@ class LatticeProblemPass(BasePass):
         The objective is on cofaces.
         """
         owner = f'The Monte Carlo laws of {context.owner}'
-        table, signs, boundary = LatticeProblemPass._coface_tables(target, owner)
+        table, signs, boundary = LatticeProblemPass._get_coface_tables(target, owner)
         if sampler.schedule == 'checkerboard':
             error_msg = f"{owner} sum over cofaces, which need the 'colored' or 'random-sequential' schedule."
             raise ValidationError(error_msg)

@@ -28,7 +28,7 @@ trajectory = simulate(TumourAngiogenesisSystem(random_state=0), observers=[obser
 # then grow while the hypoxic share falls.
 
 frames = range(len(trajectory.times))
-hypoxic = [np.mean(trajectory.agents('cells/tumour', frame).values['hypoxic']) for frame in frames]
+hypoxic = [np.mean(trajectory.get_agents('cells/tumour', frame).values['hypoxic']) for frame in frames]
 fig, (counts, share) = plt.subplots(1, 2, figsize=(11, 4))
 counts.plot(trajectory.times, trajectory.values('cells/tumour.count'), label='tumour cells')
 counts.plot(trajectory.times, trajectory.values('cells/vessels.count'), label='vessel cells')

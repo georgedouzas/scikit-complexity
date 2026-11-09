@@ -50,7 +50,7 @@ class RandomPairsInteraction(GroupingInteraction):
 
     def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return one random ordered pair of distinct agents per agent."""
-        agents = [agent for agent in system.agents('target') if agent.alive]
+        agents = [agent for agent in system.get_agents('target') if agent.alive]
         if len(agents) < PAIR:
             return []
         draws = [system.rng.choice(len(agents), size=PAIR, replace=False) for _ in agents]

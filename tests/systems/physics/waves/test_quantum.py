@@ -53,7 +53,7 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
 def test_site_operators_hold_projectors_and_the_adjacency():
     """Test that a particle on sites has projectors, the adjacency, and the Laplacian of its network."""
     site = SiteElement('p', hilbert=site_space(NetworkSpace(nx.cycle_graph(4)), projectors=True))
-    operators = OperatorCompiler._view_of(site).local_operators()
+    operators = OperatorCompiler._view_of(site).get_local_operators()
     assert operators['site_2'].matrix.toarray()[2, 2] == 1
     assert operators['adjacency'].matrix.sum() == 8
     assert operators['laplacian'].matrix.toarray()[0, 0] == -2

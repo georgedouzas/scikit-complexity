@@ -111,7 +111,7 @@ class HopfieldUpdateInteraction(MapInteraction):
         """
         del system
         weights = np.asarray(agent.weights)
-        neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
+        neighbors = [other for other in agent.get_neighbors() if isinstance(other, NeuronView)]
         field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
         return float(np.sign(field)) if field != 0 else float(agent.spin)
 

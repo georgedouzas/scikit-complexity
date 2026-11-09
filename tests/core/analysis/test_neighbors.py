@@ -28,7 +28,7 @@ def _schelling_grid(side: int) -> np.ndarray:
         until=100,
         random_state=0,
     )
-    residents = trajectory.agents('residents', -1)
+    residents = trajectory.get_agents('residents', -1)
     group = next(iter(residents.values.values()))
     grid = np.full((side, side), EMPTY)
     places = np.asarray(residents.locations).astype(int)
@@ -70,7 +70,7 @@ def test_neighbor_distances_of_every_frame_of_a_trajectory():
     """Test that a flock in a periodic box gives one distance per agent and frame and one ratio per frame."""
     trajectory = simulate(BoidsSystem(), until=3, random_state=0)
     distances = _neighbors('distances', trajectory).distances
-    assert distances.shape == (len(trajectory.times), trajectory.agents('flock', 0).ids.size)
+    assert distances.shape == (len(trajectory.times), trajectory.get_agents('flock', 0).ids.size)
     assert np.all(distances > 0)
     if trajectory.problem.agent_space.periodic_:
         assert _neighbors('clark-evans', trajectory).ratio.shape == (len(trajectory.times),)

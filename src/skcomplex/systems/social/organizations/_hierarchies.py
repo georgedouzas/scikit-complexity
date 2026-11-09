@@ -123,11 +123,11 @@ class ContenderElement(Element):
                 The system.
         """
         agent.strength *= 1 - agent.relaxation
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         cell = cells[int(system.rng.integers(len(cells)))]
         occupants = [
             other
-            for other in agent.neighbors()
+            for other in agent.get_neighbors()
             if isinstance(other, ContenderView)
             and tuple(np.ravel(np.asarray(other.location))) == tuple(np.ravel(np.asarray(cell)))
         ]

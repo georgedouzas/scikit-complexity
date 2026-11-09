@@ -132,7 +132,7 @@ class WritingInteraction(Interaction):
             system:
                 The system.
         """
-        words = system.agents(self.target, GrowingWordView)
+        words = system.get_agents(self.target, GrowingWordView)
         if not words:
             return
         innovation = words[0].innovation

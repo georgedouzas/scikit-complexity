@@ -268,8 +268,8 @@ class PastureElement(Element):
             system:
                 The system.
         """
-        stand = max(agent.grass, system.parameter('seed') * agent.capacity)
-        growth = system.parameter('regrowth') * stand * (1 - stand / agent.capacity)
+        stand = max(agent.grass, system.get_parameter('seed') * agent.capacity)
+        growth = system.get_parameter('regrowth') * stand * (1 - stand / agent.capacity)
         agent.grass = min(agent.capacity, agent.grass + growth)
 
 
@@ -357,7 +357,7 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
     @staticmethod
     def _get_herder(cow: CowView) -> HerderView:
         """Return the herder that owns a cow, which its reference state `owner` names."""
-        herder = cow.referenced('owner')
+        herder = cow.get_referenced('owner')
         if not isinstance(herder, HerderView):
             error_msg = f'Cow {cow.id} names no herder as its owner.'
             raise SimulationError(error_msg)
@@ -379,9 +379,9 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         if not isinstance(cow, CowView) or not isinstance(pasture, PastureView):
             return
         cow.move_to(pasture.location)
-        eaten = min(pasture.grass, system.parameter('appetite'))
+        eaten = min(pasture.grass, system.get_parameter('appetite'))
         transfer(pasture, cow, eaten, 'grass', 'energy')
-        self._get_herder(cow).income += system.parameter('milk') * eaten
+        self._get_herder(cow).income += system.get_parameter('milk') * eaten
 
     def match(self, system: SystemView) -> None:
         """Pair and feed the cows, then let every cow burn its metabolism.
@@ -393,8 +393,8 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
                 The system view of the grazing.
         """
         super().match(system)
-        for cow in system.agents('requesters', CowView):
-            cow.energy -= system.parameter('metabolism')
+        for cow in system.get_agents('requesters', CowView):
+            cow.energy -= system.get_parameter('metabolism')
             self._get_herder(cow).herd += 1
             if cow.energy < 0:
                 cow.remove()
@@ -454,14 +454,14 @@ class QuotaRegulatorInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the regulator.
         """
-        if not system.parameter('regulated'):
+        if not system.get_parameter('regulated'):
             return
-        pastures = system.agents('meadow', PastureView)
+        pastures = system.get_agents('meadow', PastureView)
         share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
-        for herder in system.agents('herders', HerderView):
-            if share < system.parameter('low'):
+        for herder in system.get_agents('herders', HerderView):
+            if share < system.get_parameter('low'):
                 herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
-            elif share > system.parameter('high'):
+            elif share > system.get_parameter('high'):
                 herder.quota += 1
 
 
@@ -491,7 +491,7 @@ def _owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
 
     The reference state `owner` of the cow names the herder.
     """
-    return cow.referenced('owner') is herder
+    return cow.get_referenced('owner') is herder
 
 
 def _get_calf(herder: AgentViewProtocol | None, system: SystemViewProtocol) -> dict[str, object]:

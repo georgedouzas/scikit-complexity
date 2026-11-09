@@ -75,7 +75,7 @@ class WorkerElement(Element):
 
     def accept(self, agent, system):
         """Test helper accept."""
-        best = max(employer.offer for employer in system.agents('employers', AgentView))
+        best = max(employer.offer for employer in system.get_agents('employers', AgentView))
         agent.stale += float(best != system.time + 1.0)
         agent.accepted = best
 
@@ -90,9 +90,9 @@ def test_offer_before_acceptance():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('acceptance')])),
     )
     trajectory = simulate(system, until=10, random_state=0)
-    workers = trajectory.agents('workers', 10)
+    workers = trajectory.get_agents('workers', 10)
     assert np.all(workers.values['stale'] == 0)
-    assert np.all(workers.values['accepted'] == trajectory.agents('employers', 10).values['offer'].max())
+    assert np.all(workers.values['accepted'] == trajectory.get_agents('employers', 10).values['offer'].max())
 
 
 def test_undeclared_phase_raises():
@@ -110,7 +110,7 @@ def test_run_reads_the_phases_of_a_nested_system():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers')])),
     )
     trajectory = simulate(CompositeSystem(systems=[nested]), until=3, random_state=0)
-    assert np.all(trajectory.agents('market/employers', 3).values['offer'] == 4.0)
+    assert np.all(trajectory.get_agents('market/employers', 3).values['offer'] == 4.0)
 
 
 def test_phases_keep_unphased_systems():
@@ -138,7 +138,7 @@ def test_phases_keep_unphased_systems():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('extra', repeat=2)])),
     )
     trajectory = simulate(system, until=4, random_state=0)
-    assert trajectory.agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
+    assert trajectory.get_agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
 
 
 def test_sequential_and_by_type_order():

@@ -116,7 +116,7 @@ class BarterTraderElement(Element):
         """
         if not isinstance(trader, BarterTraderView) or not isinstance(other, BarterTraderView):
             return False
-        return other.id != trader.id and other.location in trader.neighbor_cells()
+        return other.id != trader.id and other.location in trader.get_neighbor_cells()
 
     @staticmethod
     def get_rate_gap(trader: object, other: object) -> float:
@@ -267,7 +267,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             super()._settle(match, system)
             return
         if BarterTraderElement.is_partner(first, second):
-            traded = self._barter(first, second, int(system.parameter('units')))
+            traded = self._barter(first, second, int(system.get_parameter('units')))
             system.storage['trades'] = self._get_trades(system) + traded
         super()._settle(match, system)
 
@@ -289,7 +289,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         system.storage['trades'] = 0.0
         super().match(system)
         system.report('trades', self._get_trades(system))
-        traders = system.agents('requesters', BarterTraderView)
+        traders = system.get_agents('requesters', BarterTraderView)
         system.report('searches', float(sum(trader.links for trader in traders)))
 
 

@@ -158,7 +158,7 @@ class DebtRankCascadeInteraction(Interaction):
             system:
                 The system.
         """
-        banks = sorted(system.agents('banks', InterbankView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', InterbankView), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED

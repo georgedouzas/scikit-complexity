@@ -41,8 +41,8 @@ steps = np.arange(N_STALLS + 1)
 
 def expected_left(trajectory):
     """Return the expected mean number of items left after every visit, for the stocks of the market."""
-    stocks = trajectory.agents('stalls', 0).values['stock'].astype(int)
-    lists = trajectory.agents('shoppers', 0).values['wanted'].astype(int)
+    stocks = trajectory.get_agents('stalls', 0).values['stock'].astype(int)
+    lists = trajectory.get_agents('shoppers', 0).values['wanted'].astype(int)
     missing = np.array([sum(not stock >> kind & 1 for stock in stocks) for kind in range(N_KINDS)])
     wanted = np.array([[wish >> kind & 1 for kind in range(N_KINDS)] for wish in lists])
     survival = np.array([[comb(m, t) / comb(N_STALLS, t) for m in missing] for t in steps])

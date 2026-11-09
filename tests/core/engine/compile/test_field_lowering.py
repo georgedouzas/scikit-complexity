@@ -264,7 +264,7 @@ class MarkerElement(Element):
 
     def mark(self, agent, system):
         """Keep the field value at the cell and deposit one unit."""
-        agent.seen = system.field('ground/level.u', agent.location)
+        agent.seen = system.get_field('ground/level.u', agent.location)
         system.deposit('ground/level.u', agent.location, 1.0)
 
 
@@ -305,7 +305,7 @@ def test_agents_read_and_deposit_fields():
     level = trajectory.lattice('ground/level.u')[-1]
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
-    assert trajectory.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
+    assert trajectory.get_agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
 
 
 class GrowthElement(Element):

@@ -250,7 +250,7 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        free = [woman for woman in system.agents('women', TravellerView) if not woman.victim]
+        free = [woman for woman in system.get_agents('women', TravellerView) if not woman.victim]
         if not free:
             return
         width, height = self._shape(system)
@@ -266,10 +266,10 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        women = system.agents('women', TravellerView)
+        women = system.get_agents('women', TravellerView)
         brothels = [
             DailyMovementsInteraction._cell(place.location)
-            for place in system.agents('premises', PremisesView)
+            for place in system.get_agents('premises', PremisesView)
             if place.brothel
         ]
         width = self._shape(system)[0]
@@ -381,7 +381,7 @@ class TraffickingSystem(BaseSystem):
 
         It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
         """
-        people = system.occupancy('sources').get(place.location_key, 0)
+        people = system.get_occupancy('sources').get(place.location_key, 0)
         return float(1 / (1 + np.exp(place.efficiency - people)))
 
     @staticmethod

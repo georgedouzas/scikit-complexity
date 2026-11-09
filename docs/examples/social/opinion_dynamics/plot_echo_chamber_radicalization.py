@@ -37,7 +37,7 @@ cases = {
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for axis, (name, system) in zip(axes, cases.items(), strict=True):
     trajectory = simulate(system, until=100, random_state=0)
-    opinions = np.array([trajectory.agents('agents', frame).values['opinion'] for frame in range(101)])
+    opinions = np.array([trajectory.get_agents('agents', frame).values['opinion'] for frame in range(101)])
     axis.plot(np.asarray(trajectory.times) / 10, opinions[:, ::5], linewidth=0.6)
     axis.set_xlabel('time')
     axis.set_title(name)

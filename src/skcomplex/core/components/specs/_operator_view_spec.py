@@ -74,7 +74,7 @@ class OperatorViewSpec(BaseSpec):
         """
         return self.space.display
 
-    def local_operators(self) -> dict[str, LocalOperatorSpec]:
+    def get_local_operators(self) -> dict[str, LocalOperatorSpec]:
         """Return the local operators of the element by name.
 
         Returns:
@@ -86,7 +86,7 @@ class OperatorViewSpec(BaseSpec):
             for name, (matrix, hermitian) in self.space.operators.items()
         }
 
-    def basis_index(self, label: object) -> int:
+    def get_basis_index(self, label: object) -> int:
         """Return the index of the basis state of a label or an index.
 
         Args:
@@ -113,7 +113,7 @@ class OperatorViewSpec(BaseSpec):
         )
         raise ValidationError(error_msg)
 
-    def initial_vector(self) -> npt.NDArray[np.complex128]:
+    def get_initial_vector(self) -> npt.NDArray[np.complex128]:
         """Return the initial state of the element as a normalised vector.
 
         Returns:
@@ -127,7 +127,7 @@ class OperatorViewSpec(BaseSpec):
         initial = getattr(self.element, self.state)
         if isinstance(initial, str | int | np.integer):
             vector = np.zeros(self.dimension, dtype=complex)
-            vector[self.basis_index(initial)] = 1.0
+            vector[self.get_basis_index(initial)] = 1.0
             return vector
         vector = np.asarray(initial, dtype=complex).ravel()
         norm = float(np.linalg.norm(vector))

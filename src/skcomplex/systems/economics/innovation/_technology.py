@@ -167,8 +167,8 @@ class InventionInteraction(Interaction):
         The circuit wires technologies of the pool.
         """
         rng = system.rng
-        n_inputs = int(rng.integers(1, int(system.parameter('max_inputs')) + 1))
-        n_parts = int(rng.integers(2, int(system.parameter('max_components')) + 1))
+        n_inputs = int(rng.integers(1, int(system.get_parameter('max_inputs')) + 1))
+        n_parts = int(rng.integers(2, int(system.get_parameter('max_components')) + 1))
         signals, cost = InventionInteraction._input_signals(n_inputs), 0
         for _ in range(n_parts):
             part = pool[int(rng.integers(len(pool)))]
@@ -199,7 +199,7 @@ class InventionInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.agents('technologies', TechnologyView)
+        pool = system.get_agents('technologies', TechnologyView)
         arity, table, cost = self._wire(pool, system)
         if (arity, table) not in GOALS:
             return
@@ -288,7 +288,7 @@ class RedesignInteraction(Interaction):
             system:
                 The system.
         """
-        components = sorted(system.agents('components', PartView), key=lambda component: component.id)
+        components = sorted(system.get_agents('components', PartView), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = RedesignInteraction._components(
             cost,

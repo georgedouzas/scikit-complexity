@@ -389,8 +389,8 @@ class ImitationInteraction(NeighborInteraction):
 
         It returns `None` for the agent to keep its own.
         """
-        groups = set(system.groups(self._get_role('target')))
-        neighbours = [other for other in agent.neighbors(layer=self.layer) if other.group in groups]
+        groups = set(system.get_groups(self._get_role('target')))
+        neighbours = [other for other in agent.get_neighbors(layer=self.layer) if other.group in groups]
         if not neighbours or system.rng.random() >= self._get_parameter_value('probability', system):
             return None
         return self._choose(agent, neighbours, system)

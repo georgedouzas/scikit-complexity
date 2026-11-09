@@ -132,7 +132,7 @@ def net_worth(agent):
 
 
 def lend(agent, system):
-    borrower = system.agents('traders')[0]
+    borrower = system.get_agents('traders')[0]
     if borrower != agent:
         transfer(agent, borrower, 1.0, 'cash')
         transfer(borrower, agent, 1.0, 'claims')
@@ -159,7 +159,7 @@ class TraderElement(Element):
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
 market = CompositeSystem(elements=[GroupElement('traders', element=TraderElement, size=3)])
 traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
-float(traders.agents('traders', 3).values['cash'].sum())
+float(traders.get_agents('traders', 3).values['cash'].sum())
 ```
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an

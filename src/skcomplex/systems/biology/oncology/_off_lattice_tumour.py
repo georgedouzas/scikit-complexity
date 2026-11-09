@@ -165,7 +165,7 @@ class TumourGrowthInteraction(Interaction):
         """Age a cell, divide and invade if it is a cancer cell, and move it by its springs."""
         cell = cast('SpringCellView', agent)
         cell.age += 1.0
-        neighbours = [cast('SpringCellView', item) for item in cell.neighbors(over=DELAUNAY)]
+        neighbours = [cast('SpringCellView', item) for item in cell.get_neighbors(over=DELAUNAY)]
         if cell.cancer:
             self._divide(cell, system)
             self._invade(cell, neighbours, system)
@@ -176,7 +176,7 @@ class TumourGrowthInteraction(Interaction):
         """Return the distance of a cell to the nearest healthy cell, from a tree kept for the step."""
         storage = system.storage
         if storage.get('time') != system.time:
-            cells = [cast('SpringCellView', item) for item in system.agents('target')]
+            cells = [cast('SpringCellView', item) for item in system.get_agents('target')]
             healthy = [item.location for item in cells if not item.cancer]
             storage['time'] = system.time
             storage['tree'] = cKDTree(np.asarray(healthy, dtype=float)) if healthy else None

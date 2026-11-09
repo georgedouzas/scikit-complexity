@@ -204,9 +204,9 @@ class CommuteInteraction(MovementInteraction):
             resident.home = np.asarray(resident.location, dtype=float)
         stop = int(system.time) % STOPS
         if stop == AT_WORK:
-            return system.region('facilities', int(resident.work))
+            return system.get_region('facilities', int(resident.work))
         if stop == AT_PLACE:
-            return system.region('places', int(resident.favourite))
+            return system.get_region('places', int(resident.favourite))
         return resident.home
 
 
@@ -243,7 +243,7 @@ class PlaceVisitsInteraction(MapInteraction):
     def _count(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return 1 for a resident that stands in its favourite place and 0 for any other."""
         resident = cast(ResidentView, agent)
-        return float(int(resident.favourite) in resident.regions_here('places'))
+        return float(int(resident.favourite) in resident.get_regions_here('places'))
 
 
 AGE_RANGE = 100.0
@@ -341,7 +341,7 @@ class SentimentInteraction(MapInteraction):
         """
         diagonal = resident.cell_size * np.sqrt(2.0)
         cell = self._read_grid_cell(resident)
-        around = [cast(ResidentView, other) for other in resident.neighbors(diagonal)]
+        around = [cast(ResidentView, other) for other in resident.get_neighbors(diagonal)]
         here = [other for other in around if self._read_grid_cell(other) == cell]
         count = min(int(resident.partners), len(here))
         if count == 0:

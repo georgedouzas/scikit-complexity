@@ -330,13 +330,13 @@ def _agent_decay(mode, size=2000):
 def test_reaction_agent_form_steps_every_member_by_its_rate():
     """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
     trajectory = simulate(_agent_decay('rate', size=3), until=3)
-    np.testing.assert_allclose(trajectory.agents('cells', 3).values['x'], 3 * 0.9**3)
+    np.testing.assert_allclose(trajectory.get_agents('cells', 3).values['x'], 3 * 0.9**3)
 
 
 def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
     """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
     trajectory = simulate(_agent_decay('jump'), until=1, random_state=0)
-    counts = trajectory.agents('cells', 1).values['x']
+    counts = trajectory.get_agents('cells', 1).values['x']
     assert set(counts.tolist()) <= {2.0, 3.0}
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
@@ -347,10 +347,10 @@ def test_reaction_agent_schedules_react_in_every_member_once(schedule):
     rate = _agent_decay('rate', size=3)
     rate.interactions[0].set_params(schedule=schedule)
     trajectory = simulate(rate, until=3)
-    np.testing.assert_allclose(trajectory.agents('cells', 3).values['x'], 3 * 0.9**3)
+    np.testing.assert_allclose(trajectory.get_agents('cells', 3).values['x'], 3 * 0.9**3)
     jump = _agent_decay('jump')
     jump.interactions[0].set_params(schedule=schedule)
-    counts = simulate(jump, until=1, random_state=0).agents('cells', 1).values['x']
+    counts = simulate(jump, until=1, random_state=0).get_agents('cells', 1).values['x']
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
 

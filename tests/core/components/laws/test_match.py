@@ -65,8 +65,8 @@ def test_random_matching_pairs_every_member_at_most_once():
         interactions=[ExchangeInteraction('market')],
     )
     trajectory = simulate(system, until=1, random_state=0)
-    sellers = np.asarray(trajectory.agents('sellers', 1).values['paired'])
-    buyers = np.asarray(trajectory.agents('buyers', 1).values['paired'])
+    sellers = np.asarray(trajectory.get_agents('sellers', 1).values['paired'])
+    buyers = np.asarray(trajectory.get_agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30
     assert buyers.sum() == 30
     assert buyers.max() == 1
@@ -93,8 +93,8 @@ def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
     traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
     system = CompositeSystem(elements=[traders], interactions=[PairedInteraction('market')])
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
-    assert trajectory.agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
+    assert trajectory.get_agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
+    assert trajectory.get_agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
 
 
 def test_check_validates_a_partner_spec():

@@ -101,6 +101,7 @@ VERBS = frozenset(
         'contains',
         'continues',
         'controls',
+        'contract',
         'convolve',
         'coerce',
         'copy',
@@ -228,6 +229,7 @@ VERBS = frozenset(
         'operate',
         'pad',
         'parse',
+        'partition',
         'pick',
         'place',
         'plan',
@@ -352,9 +354,9 @@ VERBS = frozenset(
     ],
 )
 SYMBOLIC_CHECKED = ('skcomplex',)
-CONSTANTS_CHECKED: tuple[str, ...] = ()
-HELPERS_CHECKED: tuple[str, ...] = ()
-VERBS_CHECKED: tuple[str, ...] = ()
+CONSTANTS_CHECKED = ('src/skcomplex/core/components',)
+HELPERS_CHECKED = ('skcomplex.core.components',)
+VERBS_CHECKED = ('skcomplex.core.components',)
 
 
 def _sources(root: Path) -> list[Path]:
@@ -832,7 +834,7 @@ def _is_property(node: ast.FunctionDef) -> bool:
     for decorator in node.decorator_list:
         if isinstance(decorator, ast.Name) and decorator.id in PROPERTIES:
             return True
-        if isinstance(decorator, ast.Attribute) and decorator.attr in ('setter', 'getter', 'deleter'):
+        if isinstance(decorator, ast.Attribute) and decorator.attr in ('setter', 'getter', 'deleter', *PROPERTIES):
             return True
     return False
 

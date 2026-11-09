@@ -328,7 +328,7 @@ walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2,
 walk = MovementInteraction('walk', target='walkers', step='neighbor')
 system = CompositeSystem(elements=[walkers], interactions=[walk], space=LatticeSpace((5, 5), metric='manhattan'))
 trajectory = simulate(system, until=1, random_state=0)
-[int(abs(cell - 2).sum()) for cell in trajectory.agents('walkers', 1).locations]
+[int(abs(cell - 2).sum()) for cell in trajectory.get_agents('walkers', 1).locations]
 ```
 
 `MovementInteraction(target, step='neighbor', ...)` moves agents by a neighbour, Gaussian, Lévy, best-cell, or user
@@ -350,7 +350,7 @@ swim = MovementInteraction('swim', target='divers', step='gaussian', scale=0.1)
 space = ContinuousSpace(extent=(10.0, 5.0, 2.0), boundary='periodic')
 system = CompositeSystem(elements=[divers], interactions=[swim], space=space)
 trajectory = simulate(system, until=5, random_state=0)
-trajectory.agents('divers', 5).locations.shape
+trajectory.get_agents('divers', 5).locations.shape
 ```
 
 `MesaSolver` runs agents in a `ContinuousSpace` of two or three sides. Placement, `MovementInteraction` steps, radius
@@ -376,11 +376,11 @@ from skcomplex.core.engine.runtime import simulate
 census = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 0.0, 9.0, 4.0)]
 places = [box(1.0, 6.0, 3.0, 8.0)]
 people = GroupElement('people', element=Element, size=3, location=[census[0], census[0], census[1]])
-outing = MovementInteraction('outing', target='people', step=lambda agent, system: system.region('places', 0))
+outing = MovementInteraction('outing', target='people', step=lambda agent, system: system.get_region('places', 0))
 space = ContinuousSpace(extent=(10.0, 10.0), regions={'census': census, 'places': places})
 system = CompositeSystem(elements=[people], interactions=[outing], space=space)
 trajectory = simulate(system, until=1, random_state=0)
-all(places[0].contains(Point(point)) for point in trajectory.agents('people', 1).locations)
+all(places[0].contains(Point(point)) for point in trajectory.get_agents('people', 1).locations)
 ```
 
 `ContinuousSpace(regions=...)` holds layers of regions in a space of two sides. It is a mapping from the name of a
@@ -390,8 +390,8 @@ layer to a sequence of Shapely polygons in the coordinates of the space. `prepar
 - A polygon is a location in `GroupElement(location=...)`, `SystemView.create`, and `AgentView.move_to`. The solver
   draws a uniform point inside it from the generator of the run. It chooses a triangle of the constrained
   Delaunay triangulation of the polygon with a probability proportional to its area.
-- `AgentView.regions_here(layer)` returns the indices of the regions of a layer that contain the agent.
-- `SystemView.region(layer, index)` returns the polygon of a region, and `SystemView.regions(layer)` the number of
+- `AgentView.get_regions_here(layer)` returns the indices of the regions of a layer that contain the agent.
+- `SystemView.get_region(layer, index)` returns the polygon of a region, and `SystemView.get_regions(layer)` the number of
   regions of a layer.
 - A `MovementInteraction` step that returns the polygon of a region moves an agent into it.
 - `AgentsVisual` draws every layer once as static `LineStrips2D` under the agents.
@@ -552,7 +552,7 @@ evolution = EvolutionInteraction('evolution', target='agents', phase='evolution'
 schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
 system = CompositeSystem(elements=[agents], interactions=[evolution], time=DiscreteTime(schedule=schedule))
 trajectory = simulate(system, until=30, random_state=0)
-final = np.array(trajectory.agents('agents', 30).values['strategy'].tolist())
+final = np.array(trajectory.get_agents('agents', 30).values['strategy'].tolist())
 final.sum(axis=1).mean() > initial.sum(axis=1).mean() + 4
 ```
 
@@ -588,7 +588,7 @@ class CellElement(Element):
 cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
 division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
 system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-simulate(system, until=2, random_state=0).agents('cells', 2).values['size'].tolist()
+simulate(system, until=2, random_state=0).get_agents('cells', 2).values['size'].tolist()
 ```
 
 `BirthDeathInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
@@ -688,7 +688,7 @@ class ClerkInteraction(Interaction):
         return [RuleLaw(self.act, phase='trade')]
 
     def act(self, system):
-        traded = sum(agent.goods for agent in system.agents('buyers'))
+        traded = sum(agent.goods for agent in system.get_agents('buyers'))
         system.report('traded', traded)
         system.set_parameter('fee', 0.01 * traded)
 

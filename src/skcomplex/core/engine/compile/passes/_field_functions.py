@@ -548,7 +548,7 @@ class FieldFunctionsPass(BasePass):
         if not isinstance(space, PhaseSpace):
             return ()
         return tuple(
-            None if axis in space.position_axes_ else space._axis_boundary(axis) for axis in range(space.n_dim_)
+            None if axis in space.position_axes_ else space._get_axis_boundary(axis) for axis in range(space.n_dim_)
         )
 
     @staticmethod

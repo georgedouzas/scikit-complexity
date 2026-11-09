@@ -26,7 +26,7 @@ N = 100
 
 def spins(trajectory, frame):
     """Return the states of the neurons at one frame, in the order of their ids."""
-    snapshot = trajectory.agents('neurons', frame)
+    snapshot = trajectory.get_agents('neurons', frame)
     return snapshot.values['spin'][np.argsort(snapshot.ids)]
 
 

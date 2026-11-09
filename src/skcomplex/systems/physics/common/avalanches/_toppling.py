@@ -81,13 +81,13 @@ class TopplingInteraction(NeighborInteraction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, ArrayUpdateLaw, LocalRuleLaw)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the cascade draws.
 
         It draws by parcels sent at random, or by a drive that names the generator.
         """
         drive = self.drive is not None and 'random' in inspect.signature(self.drive).parameters
-        return super()._draws() or self.mode == 'random' or drive
+        return super()._get_draws() or self.mode == 'random' or drive
 
     def __init__(
         self,

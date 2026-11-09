@@ -60,7 +60,7 @@ def attitudes(graph, positive, seed=0):
     """Return the attitudes of the thinkers at every step."""
     system = CognitiveConsistencySystem(graph=graph, positive=positive, random_state=seed)
     trajectory = simulate(system, until=STEPS, random_state=seed)
-    return np.array([trajectory.agents('thinkers', frame).values['attitude'] for frame in range(STEPS + 1)])
+    return np.array([trajectory.get_agents('thinkers', frame).values['attitude'] for frame in range(STEPS + 1)])
 
 
 fig, (shares, spread) = plt.subplots(1, 2, figsize=(10, 4))

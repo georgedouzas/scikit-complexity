@@ -208,7 +208,9 @@ def _get_patches(system: SystemViewProtocol) -> Mapping[tuple[int, int], SugarPa
     cached = system.storage.get('patches')
     if not isinstance(cached, _PatchMapSpec):
         patches = {
-            _cell_of(patch.location): patch for patch in system.agents('patches') if isinstance(patch, SugarPatchView)
+            _cell_of(patch.location): patch
+            for patch in system.get_agents('patches')
+            if isinstance(patch, SugarPatchView)
         }
         cached = _PatchMapSpec(patches)
         system.storage['patches'] = cached

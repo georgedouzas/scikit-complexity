@@ -136,7 +136,7 @@ class MotoristElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(agent.group, MotoristView)
+        cars = system.get_agents(agent.group, MotoristView)
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -259,7 +259,7 @@ class DriverElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(agent.group, DriverView)
+        cars = system.get_agents(agent.group, DriverView)
         if system.dimensions is None:
             error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
             raise SimulationError(error_msg)
@@ -287,7 +287,7 @@ class DriverElement(Element):
         """
         rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
         return next(
-            (car for car in system.agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
+            (car for car in system.get_agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
             None,
         )
 
@@ -354,13 +354,13 @@ class CarelessBrakingInteraction(Interaction):
             system:
                 The system.
         """
-        cars = sorted(system.agents('cars', MotoristView), key=lambda car: car.rank)
+        cars = sorted(system.get_agents('cars', MotoristView), key=lambda car: car.rank)
         if not cars:
             return
-        if system.rng.random() < system.parameter('probability'):
+        if system.rng.random() < system.get_parameter('probability'):
             careless = cars[int(system.rng.integers(len(cars)))]
             careless.v = max(careless.v - careless.braking, 0.0)
-        gap = system.parameter('gap')
+        gap = system.get_parameter('gap')
         positions = [car.x for car in cars]
         for index, car in enumerate(cars):
             moved = car.x + car.v

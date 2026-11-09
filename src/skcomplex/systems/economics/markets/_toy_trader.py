@@ -290,7 +290,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
 
         The traders buy in random order.
         """
-        rng, sight, size = system.rng, system.parameter('sight'), system.parameter('size')
+        rng, sight, size = system.rng, system.get_parameter('sight'), system.get_parameter('size')
         places, sold = state['places'], []
         for buyer in rng.permutation(len(places)):
             gap = np.abs(places - places[buyer])
@@ -322,7 +322,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
         The imitation passes the fitness test.
         """
         rng, count = system.rng, len(state['money'])
-        mutation = system.parameter('mutation')
+        mutation = system.get_parameter('mutation')
         for name, low, high in (('up', 1.0, np.inf), ('down', 0.001, 1.0)):
             mutating = rng.random(count) < mutation
             shift = rng.uniform(0, 0.01, count) - rng.uniform(0, 0.01, count)
@@ -331,8 +331,8 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             return
         wealth = state['money'] + (state['stocks'][:, 0] * average if self.fitness == 'assets' else 0.0)
         order = np.argsort(wealth)
-        poor, rich = order[: count // 2], order[-max(1, int(system.parameter('elite') * count)) :]
-        for trader in poor[rng.random(len(poor)) < system.parameter('imitation')]:
+        poor, rich = order[: count // 2], order[-max(1, int(system.get_parameter('elite') * count)) :]
+        for trader in poor[rng.random(len(poor)) < system.get_parameter('imitation')]:
             model = int(rich[rng.integers(len(rich))])
             state['prices'][trader, 0] = state['prices'][model, 0]
             if rng.random() < COPY:
@@ -347,7 +347,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the market.
         """
-        traders = sorted(system.agents('traders', ToyTraderView), key=lambda trader: trader.id)
+        traders = sorted(system.get_agents('traders', ToyTraderView), key=lambda trader: trader.id)
         prices_of = ('toy_price', 'crayon_price', 'blackboard_price')
         state = {
             'places': np.array([[trader.x, trader.y] for trader in traders]),
@@ -358,13 +358,13 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             'down': np.array([trader.price_down for trader in traders]),
         }
         sold = self._trade(system, state)
-        last = system.history('average_price', 1)
+        last = system.get_history('average_price', 1)
         fallback = float(last[-1]) if len(last) else float(state['prices'][:, 0].mean())
         average = float(np.mean(sold)) if sold else fallback
         self._evolve(system, state, average)
         angles = system.rng.uniform(0, 2 * np.pi, len(traders))
         steps = np.column_stack((np.cos(angles), np.sin(angles)))
-        state['places'] = (state['places'] + steps) % system.parameter('size')
+        state['places'] = (state['places'] + steps) % system.get_parameter('size')
         for index, trader in enumerate(traders):
             trader.x, trader.y = (float(value) for value in state['places'][index])
             trader.money = float(state['money'][index])

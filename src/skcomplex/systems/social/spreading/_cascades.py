@@ -66,7 +66,7 @@ class ThresholdActivationInteraction(MapInteraction):
         It returns 0 for one that stays inactive.
         """
         del system
-        neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
+        neighbors = [item for item in agent.get_neighbors() if isinstance(item, ThresholdNodeView)]
         if agent.active or not neighbors:
             return float(agent.active)
         return float(sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold)

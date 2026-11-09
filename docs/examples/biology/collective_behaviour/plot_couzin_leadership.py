@@ -29,7 +29,7 @@ SIZE = 50.0
 
 def mean_heading(trajectory, frame):
     """Return the angle of the mean heading of the shoal at a frame."""
-    fish = trajectory.agents('shoal', frame)
+    fish = trajectory.get_agents('shoal', frame)
     return np.arctan2(np.mean(fish.values['vy']), np.mean(fish.values['vx']))
 
 

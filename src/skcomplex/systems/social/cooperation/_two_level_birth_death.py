@@ -181,7 +181,7 @@ class TwoLevelBirthDeathInteraction(Interaction):
             system:
                 The system.
         """
-        groups = system.agents(self.target, PunisherGroupView)
+        groups = system.get_agents(self.target, PunisherGroupView)
         size = len(groups)
         if size < PAIR:
             return

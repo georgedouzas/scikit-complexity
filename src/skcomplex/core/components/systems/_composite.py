@@ -334,8 +334,8 @@ class CompositeSystem(BaseSystem['CompositeSystem']):
         parts = {part.label: part.get_tags() for part in (*self.elements, *self.interactions)}
         nested = []
         for system in self.systems:
-            tags = system._pass_parameters()._get_joined_tags()
-            nested.append(replace(tags, randomness='stochastic') if system._draws() else tags)
+            tags = system._get_pass_parameters()._get_joined_tags()
+            nested.append(replace(tags, randomness='stochastic') if system._get_draws() else tags)
         nested_time = frozenset[str]().union(*(item.time for item in nested))
         nested_space = frozenset[str]().union(*(item.space for item in nested))
         time = self.time.get_tags().time if self.time is not None else self._join_tag('time', parts, nested_time)

@@ -60,7 +60,7 @@ ordinary differential equations, so every ODE solver and backend runs it.
   `dt` exceeds it warn before the run, with the limit.
 
 Agents on a grid of the same shape couple to a field in co-simulation. A rule reads the field at a cell with
-`system.field('ground/pheromone.level', cell)` and adds to it with `system.deposit(name, cell, amount)`. The deposits
+`system.get_field('ground/pheromone.level', cell)` and adds to it with `system.deposit(name, cell, amount)`. The deposits
 reach the field at the next synchronisation point. Lattice fields stream to Rerun as images.
 
 The library has `HeatDiffusionSystem`, `FisherKPPSystem`, `GrayScottSystem`, `BrusselatorSystem`,

@@ -29,6 +29,7 @@ from ._interaction import Interaction
 MODES = ('replace', 'increment')
 FORMS = ('symbolic', 'agent')
 
+
 type Value = float | npt.NDArray[np.float64]
 
 

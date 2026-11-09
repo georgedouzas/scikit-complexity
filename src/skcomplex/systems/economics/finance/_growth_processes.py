@@ -236,8 +236,8 @@ class ReflectingFloorInteraction(MapInteraction):
         cached = system.storage.get('floor')
         if isinstance(cached, tuple) and cached[0] == system.time:
             return float(cached[1])
-        previous = [firm.previous for firm in system.agents('target', GibratFirmView)]
-        floor = system.parameter('c') * float(np.mean(previous))
+        previous = [firm.previous for firm in system.get_agents('target', GibratFirmView)]
+        floor = system.get_parameter('c') * float(np.mean(previous))
         system.storage['floor'] = (system.time, floor)
         return floor
 

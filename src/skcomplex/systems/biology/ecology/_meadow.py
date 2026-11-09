@@ -265,12 +265,14 @@ class HerdingInteraction(MovementInteraction):
 
         It removes the cow that finds none.
         """
-        patches = [cast(PastureView, patch) for patch in system.agents('pasture')]
+        patches = [cast(PastureView, patch) for patch in system.get_agents('pasture')]
         cells = [self._cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         occupied = np.zeros(len(cells), dtype=bool)
-        occupied[[index[self._cell(cow)] for cow in system.agents('cows') if cow.alive and cow.id != agent.id]] = True
-        free = (np.asarray([patch.grass for patch in patches]) >= system.parameter('threshold')) & ~occupied
+        occupied[[index[self._cell(cow)] for cow in system.get_agents('cows') if cow.alive and cow.id != agent.id]] = (
+            True
+        )
+        free = (np.asarray([patch.grass for patch in patches]) >= system.get_parameter('threshold')) & ~occupied
         if not free.any():
             agent.remove()
             return None

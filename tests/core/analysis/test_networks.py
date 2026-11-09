@@ -19,7 +19,7 @@ def _network(kind: str, source: object, **settings: object) -> NetworkMeasuresRe
 def _schelling_contacts() -> nx.Graph:
     """Return the network of neighbouring residents of a relaxed Schelling system, with their groups."""
     trajectory = simulate(SchellingSystem(width=30, height=30, random_state=0), until=100, random_state=0)
-    residents = trajectory.agents('residents', -1)
+    residents = trajectory.get_agents('residents', -1)
     cells = {tuple(int(item) for item in place): index for index, place in enumerate(residents.locations)}
     group = next(iter(residents.values.values()))
     graph = nx.Graph()

@@ -199,7 +199,7 @@ class ColonySearchInteraction(Interaction):
             system:
                 The system.
         """
-        segments = system.agents(self.segments, TrailSegmentView)
+        segments = system.get_agents(self.segments, TrailSegmentView)
         tau = np.array([item.tau for item in segments])
         is_open = np.array([item.passable for item in segments]) > 0
         best = system.storage.get('best')

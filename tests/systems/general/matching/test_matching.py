@@ -79,8 +79,8 @@ def test_match_settles_transfers_and_realises_the_surplus():
     """Test that random quotes within budgets realise most of the surplus and the transfers conserve the money."""
     values, costs, system = _auction(50, np.random.default_rng(1))
     trajectory = simulate(system, until=30, random_state=0)
-    requesters = trajectory.agents('buyers', 30).values
-    providers = trajectory.agents('sellers', 30).values
+    requesters = trajectory.get_agents('buyers', 30).values
+    providers = trajectory.get_agents('sellers', 30).values
     bought, sold = requesters['goods'] > 0, providers['goods'] < 0
     realised = requesters['value'][bought].sum() - providers['value'][sold].sum()
     maximum = np.sum(np.maximum(np.sort(values)[::-1] - np.sort(costs), 0))

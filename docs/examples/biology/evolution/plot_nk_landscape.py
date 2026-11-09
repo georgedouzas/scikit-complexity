@@ -31,7 +31,7 @@ trajectory = simulate(NKLandscapeSystem(climbers=50, n=10, k=2, seed=0), dt=1, o
 def final_climbers(k):
     """Return the final genomes and fitnesses of a run with `k` interactions."""
     trajectory = simulate(NKLandscapeSystem(climbers=50, n=10, k=k, seed=0), until=150, dt=1, random_state=0)
-    climbers = trajectory.agents('climbers', len(trajectory.times) - 1)
+    climbers = trajectory.get_agents('climbers', len(trajectory.times) - 1)
     return climbers.values['genome'], climbers.values['fitness']
 
 

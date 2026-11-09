@@ -68,7 +68,7 @@ def direct(impact, values, bank):
 
 
 impact = np.asarray(system.prepare().system_.interactions[0].impact)
-values = trajectory.agents('banks', 0).values['value']
+values = trajectory.get_agents('banks', 0).values['value']
 fig, (check, importance) = plt.subplots(1, 2, figsize=(10, 4))
 check.plot(ranks, [direct(impact, values, bank) for bank in range(N_BANKS)], 'o')
 check.plot([0, ranks.max()], [0, ranks.max()], 'k:', lw=0.8)

@@ -34,6 +34,7 @@ EXTREMES = ('max', 'min')
 FORMS = ('rate', 'map')
 ENDS = ('source', 'target')
 
+
 type Weights = str | npt.ArrayLike | scipy.sparse.sparray | NamespaceFunction | None
 type Part = Callable[[Target, Target], Target]
 
@@ -246,7 +247,7 @@ class CouplingInteraction(NeighborInteraction):
                 'a separate source group.'
             )
             raise ValidationError(error_msg)
-        if self.reduce in EXTREMES and (self._has_matrix() or self._names_matrix()):
+        if self.reduce in EXTREMES and (self._has_matrix() or self._get_names_matrix()):
             error_msg = f'The {self.reduce} of coupling takes no matrix of weights. Give the weights as a callable.'
             raise ValidationError(error_msg)
 
@@ -263,14 +264,16 @@ class CouplingInteraction(NeighborInteraction):
                 'hyperedges.'
             )
             raise ValidationError(error_msg)
-        if isinstance(self.weights, str) and not self._is_per_edge() and not self._names_matrix():
+        if isinstance(self.weights, str) and not self._is_per_edge() and not self._get_names_matrix():
             error_msg = (
                 f'The weights {self.weights!r} of coupling name a state of the edges, which only the sum or mean rate '
                 'on the edges of a lattice or network reads, or a shaped parameter in the mode group. Give a matrix '
                 'in the mode group, or a callable.'
             )
             raise ValidationError(error_msg)
-        if self._names_matrix() and (self._excludes_self() or not isinstance(self.target, str) or self._is_separate()):
+        if self._get_names_matrix() and (
+            self._excludes_self() or not isinstance(self.target, str) or self._is_separate()
+        ):
             error_msg = (
                 f'The weights {self.weights!r} of coupling name a shaped parameter, whose matrix product runs over '
                 'every member of a group. Pass include_self=True or a separate source group, and bind groups.'
@@ -339,7 +342,7 @@ class CouplingInteraction(NeighborInteraction):
         """Return whether the weights are a matrix."""
         return self.weights is not None and not isinstance(self.weights, str) and not callable(self.weights)
 
-    def _names_matrix(self) -> bool:
+    def _get_names_matrix(self) -> bool:
         """Return whether the weights name a shaped parameter in the mode group."""
         return isinstance(self.weights, str) and self.mode == 'group'
 
@@ -365,7 +368,7 @@ class CouplingInteraction(NeighborInteraction):
         """
         return self.mode == 'edges' and self.form == 'rate' and self.neighborhood is None and self.reduce in SUMS
 
-    def _parameters(self, namespace: SimpleNamespace) -> dict[str, object]:
+    def _get_parameters(self, namespace: SimpleNamespace) -> dict[str, object]:
         """Return the parameters and the time of a namespace.
 
         It leaves out the ends and the edge.
@@ -393,7 +396,7 @@ class CouplingInteraction(NeighborInteraction):
             return other_values[self.read] - member_values[self.read]
         return self.function(
             SimpleNamespace(
-                **self._parameters(namespace),
+                **self._get_parameters(namespace),
                 member=SimpleNamespace(**member_values),
                 other=SimpleNamespace(**other_values),
                 edge=edge,
@@ -413,7 +416,7 @@ class CouplingInteraction(NeighborInteraction):
         """
         if not callable(self.weights):
             return SR(1)
-        return self.weights(SimpleNamespace(**self._parameters(namespace), member=member, other=other, edge=edge))
+        return self.weights(SimpleNamespace(**self._get_parameters(namespace), member=member, other=other, edge=edge))
 
     def _get_matrix(self, namespace: SimpleNamespace) -> npt.ArrayLike | scipy.sparse.sparray | Expression | None:
         """Return the matrix of weights, or `None`.
@@ -421,7 +424,7 @@ class CouplingInteraction(NeighborInteraction):
         The diagonal is zero unless the member is included. Weights that name a shaped parameter give the symbol of that
         parameter.
         """
-        if self._names_matrix():
+        if self._get_names_matrix():
             name = cast(str, self.weights)
             if not hasattr(namespace, name):
                 error_msg = (
@@ -452,7 +455,7 @@ class CouplingInteraction(NeighborInteraction):
         return operation(SR(value))
 
     @staticmethod
-    def _shifted(member: SimpleNamespace) -> SimpleNamespace:
+    def _get_shifted(member: SimpleNamespace) -> SimpleNamespace:
         """Return the namespace of the next member of the group in member order."""
         return SimpleNamespace(
             **{
@@ -550,7 +553,7 @@ class CouplingInteraction(NeighborInteraction):
     def _get_next_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the next member of the group."""
         target = self._get_member(namespace, 'target')
-        shifted = self._shifted(target)
+        shifted = self._get_shifted(target)
         reduction = self._get_term(namespace, target, shifted) * self._get_weight(namespace, target, shifted)
         if self.include_self:
             own = self._get_term(namespace, target, target) * self._get_weight(namespace, target, target)
@@ -599,7 +602,7 @@ class CouplingInteraction(NeighborInteraction):
             own = getattr(around.member, self.read)
             others = total(getattr(members, self.read), over=members) - own
             return others - (count(over=members) - 1) * getattr(member, self.read)
-        return self.function(SimpleNamespace(**self._parameters(namespace), **{**vars(around), 'member': member}))
+        return self.function(SimpleNamespace(**self._get_parameters(namespace), **{**vars(around), 'member': member}))
 
     def _get_hyperedge_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the hyperedges around the member.
@@ -631,7 +634,7 @@ class CouplingInteraction(NeighborInteraction):
         term = self._get_hyperedge_term(namespace, around)
         weight = None
         if callable(self.weights):
-            weight = self.weights(SimpleNamespace(**self._parameters(namespace), **vars(around)))
+            weight = self.weights(SimpleNamespace(**self._get_parameters(namespace), **vars(around)))
         return self._map(
             term,
             lambda item: hyperedges(item, reduce=self.reduce, size=self.size, weight=weight, over=self.neighborhood),
@@ -702,5 +705,5 @@ class CouplingInteraction(NeighborInteraction):
         state = getattr(target, self._get_written())
         if self.combine is None:
             return [UpdateLaw(state, reduction, phase=self.phase)]
-        member = SimpleNamespace(**self._parameters(namespace), member=target)
+        member = SimpleNamespace(**self._get_parameters(namespace), member=target)
         return [UpdateLaw(state, cast(Combination, self.combine)(member, reduction), phase=self.phase)]

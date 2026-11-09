@@ -303,7 +303,7 @@ class CompetitiveSelectionInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.agents(self.species, CompetingSpeciesView)
+        species = system.get_agents(self.species, CompetingSpeciesView)
         matrix = np.array([np.asarray(item.links, dtype=float) for item in species])
         populations = self._relax(matrix, np.array([item.x for item in species]))
         size = len(species)

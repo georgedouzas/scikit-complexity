@@ -1170,7 +1170,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         group = self._neighbor_group(reduction, spec, symbols)
         block = self.declarations_.blocks[group]
         over = (
-            reduction.over if reduction.over is not None else NeighborhoodKernel._default_neighborhood(block.node.space)
+            reduction.over
+            if reduction.over is not None
+            else NeighborhoodKernel._get_default_neighborhood(block.node.space)
         )
         if over is None:
             error_msg = (

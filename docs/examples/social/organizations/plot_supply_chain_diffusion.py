@@ -30,8 +30,8 @@ trajectory = simulate(SupplyChainDiffusionSystem(), observers=[observer], random
 # its business, is at least the inflow of each of its adopting buyers, so the firms that never adopt should be the
 # larger suppliers.
 
-adopted = [trajectory.agents('firms', frame).values['adopted'].sum() for frame in range(len(trajectory.times))]
-final = trajectory.agents('firms', len(trajectory.times) - 1).values
+adopted = [trajectory.get_agents('firms', frame).values['adopted'].sum() for frame in range(len(trajectory.times))]
+final = trajectory.get_agents('firms', len(trajectory.times) - 1).values
 fig, (spread, sizes) = plt.subplots(1, 2, figsize=(10, 4))
 spread.step(trajectory.times, adopted, where='post')
 spread.set_xlabel('time period')

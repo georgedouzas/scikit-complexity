@@ -294,7 +294,7 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
     prepared = space.prepare()
     size = int(prepared.size_)
     adjacency = np.zeros((size, size))
-    for first, second in prepared._neighbor_pairs():
+    for first, second in prepared._get_neighbor_pairs():
         adjacency[first, second] = adjacency[second, first] = 1.0
     laplacian = (
         _lattice_laplacian(prepared)

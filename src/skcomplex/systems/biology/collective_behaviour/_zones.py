@@ -227,13 +227,13 @@ class ZoneCouplingInteraction(CouplingInteraction):
 
         The radii are those of the highest priority that hold another agent.
         """
-        groups = set(system.groups(self._get_role('source' if self.source is not None else 'target')))
+        groups = set(system.get_groups(self._get_role('source' if self.source is not None else 'target')))
         found: dict[float, list[AgentViewProtocol]] = {}
         levels: dict[int, list[Array]] = {}
         for spec in self.radii:
             radius = self._get_bound(agent, spec.radius)
             if radius not in found:
-                found[radius] = [other for other in agent.neighbors(radius=radius) if other.group in groups]
+                found[radius] = [other for other in agent.get_neighbors(radius=radius) if other.group in groups]
             others = found[radius]
             if not others:
                 continue

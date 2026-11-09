@@ -46,7 +46,7 @@ phi = theta / abundances * np.cumprod((SIZE - abundances + 1) / (SIZE - abundanc
 times = trajectory.times
 counts = np.zeros(SIZE + 1)
 for frame in np.flatnonzero(times >= 200):
-    _, sizes = np.unique(trajectory.agents('community', int(frame)).values['species'], return_counts=True)
+    _, sizes = np.unique(trajectory.get_agents('community', int(frame)).values['species'], return_counts=True)
     counts += np.bincount(sizes, minlength=SIZE + 1)
 counts /= np.sum(times >= 200)
 bins = list(itertools.pairwise(2 ** np.arange(9)))

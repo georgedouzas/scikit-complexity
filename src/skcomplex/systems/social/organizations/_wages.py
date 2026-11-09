@@ -252,8 +252,8 @@ class HarvestInteraction(Interaction):
             system:
                 The system.
         """
-        farmers = system.agents(self.employers, FarmerView)
-        harvesters = system.agents(self.workers, HarvesterView)
+        farmers = system.get_agents(self.employers, FarmerView)
+        harvesters = system.get_agents(self.workers, HarvesterView)
         rng = system.rng
         for farmer in farmers:
             farmer.employed = 0.0

@@ -23,7 +23,7 @@ def test_directed_joining_builds_longer_polymers():
     lengths = {}
     for mode in ('undirected', 'directed'):
         trajectory = simulate(PolymerAssemblyPoolSystem(mode), random_state=0, until=100)
-        pool = trajectory.agents('pool', 100).values['length']
+        pool = trajectory.get_agents('pool', 100).values['length']
         assert pool.size == 101
         lengths[mode] = np.log2(pool.max())
     assert lengths['directed'] > 2 * lengths['undirected']

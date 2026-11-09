@@ -159,7 +159,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
                 equal = False
         return equal
 
-    def _pass_parameters(self) -> CompositeT:
+    def _get_pass_parameters(self) -> CompositeT:
         """Return the parts of the system built from its current model parameters.
 
         The parts are built again only when a model parameter differs by value from those of the last build, so a
@@ -195,7 +195,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
                 The space a nested system inherits from the system that holds it, or `None`.
         """
         super()._prepare(context)
-        self.system_ = self._pass_parameters().prepare(context)
+        self.system_ = self._get_pass_parameters().prepare(context)
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
@@ -204,7 +204,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
             inputs:
                 The namespace of the symbols the laws can use.
         """
-        self.laws_ = self._laws_of(inputs)
+        self.laws_ = self._get_laws_of(inputs)
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the laws of the prepared parts for a namespace of symbols.
@@ -221,7 +221,7 @@ class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
 
     def _get_tags(self) -> Tags:
         """Return the tags derived from the parts built from the current model parameters."""
-        return self._pass_parameters()._get_tags()
+        return self._get_pass_parameters()._get_tags()
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings of the system.

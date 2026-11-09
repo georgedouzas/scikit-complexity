@@ -47,7 +47,7 @@ trajectory = simulate(system, until=300, dt=1, observers=[observer], random_stat
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for n_cars in (10, 30, 60):
     run = simulate(RingRoadDriversSystem(n_cars=n_cars), until=300, dt=1, random_state=1)
-    speeds = [run.agents('drivers', frame).values['speed'].mean() for frame in range(len(run.times))]
+    speeds = [run.get_agents('drivers', frame).values['speed'].mean() for frame in range(len(run.times))]
     ax.plot(run.times, speeds, label=f'{n_cars} cars')
 ax.axhline(40.0, color='black', linestyle='--', linewidth=0.8, label='speed limit')
 ax.set_xlabel('step')

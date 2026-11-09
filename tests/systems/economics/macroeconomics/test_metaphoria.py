@@ -28,7 +28,7 @@ def test_metaphoria_monetary_money_is_stock_flow_consistent():
     assert trajectory.values('population')[-1] > 100
     assert np.nansum(trajectory.values('census.starvations')) > 0
     assert trajectory.values('money_gini')[-1] > 0.3
-    holders = [trajectory.agents(group, 100).values for group in ('people', 'businesses', 'bank')]
+    holders = [trajectory.get_agents(group, 100).values for group in ('people', 'businesses', 'bank')]
     money = sum(np.sum(values['money']) for values in holders)
     loans = sum(np.sum(values['loans']) for values in holders)
     assert abs(money) < 1e-6 * np.sum(holders[2]['loans'])

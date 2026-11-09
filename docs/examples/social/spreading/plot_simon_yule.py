@@ -31,10 +31,10 @@ trajectory = simulate(system, until=100, dt=1, observers=[observer], random_stat
 # away from the first word, which has been repeated since the start, and the number of distinct words should be close
 # to `innovation` times the length of the text.
 
-counts = np.sort(trajectory.agents('words', len(trajectory.times) - 1).values['count'])[::-1]
+counts = np.sort(trajectory.get_agents('words', len(trajectory.times) - 1).values['count'])[::-1]
 ranks = np.arange(1, len(counts) + 1)
 lengths = trajectory.times * 100
-distinct = [len(trajectory.agents('words', frame).ids) for frame in range(len(trajectory.times))]
+distinct = [len(trajectory.get_agents('words', frame).ids) for frame in range(len(trajectory.times))]
 fig, (zipf, growth) = plt.subplots(1, 2, figsize=(10, 4))
 zipf.loglog(ranks, counts, '.', label='simulation')
 zipf.loglog(ranks, counts[9] * (ranks / 10) ** (-1 / 0.9), color='black', label='slope -1 / (1 - 0.1)')

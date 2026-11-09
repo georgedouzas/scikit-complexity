@@ -374,7 +374,7 @@ class HeadingInteraction(MapInteraction):
     @staticmethod
     def _get_steering(boid: SpatialBoidView, others: list[SpatialBoidView]) -> Array:
         """Return the change of the velocity of a boid from the boids it sees."""
-        offsets = np.array([boid.displacement_to(other) for other in others])
+        offsets = np.array([boid.get_displacement_to(other) for other in others])
         velocities = np.array([other.velocity for other in others])
         close = np.linalg.norm(offsets, axis=1) < boid.separation_radius
         return (
@@ -390,7 +390,7 @@ class HeadingInteraction(MapInteraction):
         Its speed is clipped.
         """
         boid = cast(SpatialBoidView, agent)
-        others = [cast(SpatialBoidView, other) for other in boid.neighbors(boid.radius)]
+        others = [cast(SpatialBoidView, other) for other in boid.get_neighbors(boid.radius)]
         velocity = np.asarray(boid.velocity, dtype=float)
         if others:
             velocity = velocity + HeadingInteraction._get_steering(boid, others)

@@ -156,13 +156,13 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the update.
         """
-        entities = sorted(system.agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
+        entities = sorted(system.get_agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
         size, rng = len(entities), system.rng
         states = np.array([entity.exists for entity in entities])
         before = states.copy()
         plus, minus = self._sets(self.production, size), self._sets(self.destruction, size)
         fitness = np.array([entity.fitness for entity in entities])
-        flips = rng.random(size) < system.parameter('p')
+        flips = rng.random(size) < system.get_parameter('p')
         for entity in rng.permutation(size):
             gain = states[plus[entity][:, 0]] @ states[plus[entity][:, 1]]
             loss = states[minus[entity][:, 0]] @ states[minus[entity][:, 1]]

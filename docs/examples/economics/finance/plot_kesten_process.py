@@ -43,7 +43,7 @@ def moment(alpha):
 
 
 alpha = brentq(moment, 0.1, 10.0)
-sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS - 100, STEPS + 1)])
+sizes = np.array([trajectory.get_agents('firms', frame).values['x'] for frame in range(STEPS - 100, STEPS + 1)])
 ccdf = distribution(sizes.ravel(), kind='ccdf')
 values, probabilities = ccdf.support, ccdf.survival
 anchor = np.searchsorted(values, 100.0)

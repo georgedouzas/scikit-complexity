@@ -35,7 +35,7 @@ class ForagerElement(Element):
         return [RuleLaw(self.forage)]
 
     def forage(self, agent, system):
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
         agent.food += system.rng.poisson(0.8) - agent.hunger
         if agent.food <= 0:
@@ -50,7 +50,7 @@ foragers = CompositeSystem(
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = simulate(foragers, until=20, random_state=0)
-int(trajectory.values('foragers.count')[-1]), len(trajectory.agents('foragers', 20).ids)
+int(trajectory.values('foragers.count')[-1]), len(trajectory.get_agents('foragers', 20).ids)
 ```
 
 Agents are ordinary elements whose laws are rules written as code.
@@ -72,11 +72,11 @@ What an agent can do:
   parameter.
 - `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its population.
   Only the members of a group declared `variable=True` are created and removed during a run.
-- `agent.neighbors(group=path)` and `agent.agents_here(path)` read the agents of one group around the agent and at its
+- `agent.get_neighbors(group=path)` and `agent.get_agents_here(path)` read the agents of one group around the agent and at its
   place, so the agents of a variable group on the nodes of a network make a set of members per node that grows and
   that neighbours read, as the [networks](networks.md#sets-of-members-on-the-nodes) guide shows.
-- `agent.displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
-  `agent.distance_to(other)` its length, or the number of hops on a network.
+- `agent.get_displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
+  `agent.get_distance_to(other)` its length, or the number of hops on a network.
 - `agent.group` is the path of the agent's group, and `agent.group_label` its label.
 
 Where agents live:
@@ -89,16 +89,16 @@ Where agents live:
 
 What the system gives a rule:
 
-- the random generator `system.rng`, the other agents with `system.agents(name)` and `system.count(name)`, and the
+- the random generator `system.rng`, the other agents with `system.get_agents(name)` and `system.count(name)`, and the
   empty cells.
 - Every rule receives the system view scoped to the interaction or agent group that owns it.
-  `system.parameter('name')` reads the owner's parameter. `system.agents('role')` reads the group bound to a role of the
+  `system.get_parameter('name')` reads the owner's parameter. `system.get_agents('role')` reads the group bound to a role of the
   owner, then a group by its path relative to the owner's system, then by its path from the root. So a rule works
   unchanged in a subsystem.
 - Interactions with agent rules bind any number of agent groups, of any sizes, through their roles.
 
 What a run records: frames and trajectories hold every group's agents with their ids, states, and locations, through
-`trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
+`trajectory.get_agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
 
 The catalog has Schelling segregation as `SchellingSystem`, the voter system as `VoterSystem`, Boltzmann wealth exchange
 as `BoltzmannWealthSystem`, and the wolf and sheep system as `WolfSheepSystem`.
@@ -138,8 +138,8 @@ class SpreadInteraction(Interaction):
         return [RuleLaw(self.measure)]
 
     def measure(self, system):
-        walkers = system.agents('walkers')
-        close = [a for a in walkers for b in walkers if a != b and a.distance_to(b) < system.parameter('reach')]
+        walkers = system.get_agents('walkers')
+        close = [a for a in walkers for b in walkers if a != b and a.get_distance_to(b) < system.get_parameter('reach')]
         counts.append(len(close) // 2)
 
 
@@ -209,7 +209,7 @@ class ClerkInteraction(Interaction):
         return [RuleLaw(self.act, phase='settle')]
 
     def act(self, system):
-        best = max(agent.bid for agent in system.agents('traders'))
+        best = max(agent.bid for agent in system.get_agents('traders'))
         system.report('best', best)
         system.set_parameter('fee', 0.01 * best)
 
@@ -242,7 +242,7 @@ trajectory = simulate(market, until=3, random_state=0)
 
 - `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`.
   It runs as transfer laws with `form='symbolic'`, or between paired agents with `form='agent'`.
-- `system.composition(group, state)` counts the agents of a group by the value of a state, kept up to date as agents
+- `system.get_composition(group, state)` counts the agents of a group by the value of a state, kept up to date as agents
   change, so a birth probability can read the composition of the population.
 - `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step, and acts on each.
 - `TopologyInteraction` adds and removes nodes and edges of a network, and rewires edges towards a weight.
@@ -252,8 +252,8 @@ trajectory = simulate(market, until=3, random_state=0)
 **Institutions.** An `Interaction` whose law is `RuleLaw(self.act, phase=...)` acts once per round of its phase, as
 the clerk above does. Economics names such an institution `PolicyRuleInteraction`.
 
-- It reads `system.observable(name)`, the reporters and the observables of the run at the end of earlier steps through
-  `system.history(name, window)`, and the agents.
+- It reads `system.get_observable(name)`, the reporters and the observables of the run at the end of earlier steps through
+  `system.get_history(name, window)`, and the agents.
 - It sets parameters of any element or interaction with `system.set_parameter(name, value)`. Rules see the change at
   once, and the trajectory records it.
 - It declares its own parameters as annotated arguments of its `__init__`, as the clerk declares `fee`.
@@ -263,7 +263,7 @@ the clerk above does. Economics names such an institution `PolicyRuleInteraction
 
 **Learning.** Agents learn from their own past and from each other.
 
-- `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a state declared
+- `agent.get_lags(state, window)`, a method of the agent view a rule receives, returns the past values of a state declared
   with lags, `StateSpec(lags=m)`. A rule writes adaptive, trend-following, anchoring, and fundamentalist forecasts from
   these values.
 - A `MapInteraction(form='agent', schedule='member')` moves a score towards a realized payoff in the activation of
@@ -307,7 +307,7 @@ class CoinElement(Element):
 
 
 coins = CompositeSystem('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
-int(simulate(coins, until=10, random_state=0).agents('coins', 10).values['heads'].sum())
+int(simulate(coins, until=10, random_state=0).get_agents('coins', 10).values['heads'].sum())
 ```
 
 A Mesa model is ported to a system piece by piece:

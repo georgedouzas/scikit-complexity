@@ -201,7 +201,7 @@ class GameTransitionsInteraction(Interaction):
             {
                 (min(index[player.id], index[other.id]), max(index[player.id], index[other.id]))
                 for player in players
-                for other in player.neighbors()
+                for other in player.get_neighbors()
                 if isinstance(other, DonorView)
             },
         )
@@ -242,7 +242,7 @@ class GameTransitionsInteraction(Interaction):
             system:
                 The system.
         """
-        players = system.agents(self.target, DonorView)
+        players = system.get_agents(self.target, DonorView)
         storage = system.storage
         if 'first' not in storage:
             sources, targets = self._get_edges(players)

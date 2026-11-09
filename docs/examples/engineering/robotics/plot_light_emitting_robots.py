@@ -35,7 +35,7 @@ trajectory = simulate(LightEmittingRobotsSystem(), observers=[observer])
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, delay in zip(axes, (10.0, 0.0, -10.0), strict=True):
     trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600)
-    snapshot = trajectory.agents('robots', 600)
+    snapshot = trajectory.get_agents('robots', 600)
     positions = np.asarray(snapshot.locations)
     ax.scatter(positions[:, 0], positions[:, 1], c=snapshot.values['light'], vmin=0, vmax=10)
     ax.set_xlim(0, 10)

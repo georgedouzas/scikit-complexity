@@ -25,7 +25,7 @@ SYSTEM = 'galton_watson'
 
 def sizes(trajectory):
     """Return the size of the population at every generation."""
-    return np.array([len(trajectory.agents('population', frame).ids) for frame in range(len(trajectory.times))])
+    return np.array([len(trajectory.get_agents('population', frame).ids) for frame in range(len(trajectory.times))])
 
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -62,7 +62,7 @@ extinct = [
         [
             len(
                 simulate(GaltonWatsonSystem(n_individuals=1, m=m), until=12, dt=1, random_state=seed)
-                .agents('population', 12)
+                .get_agents('population', 12)
                 .ids,
             )
             == 0

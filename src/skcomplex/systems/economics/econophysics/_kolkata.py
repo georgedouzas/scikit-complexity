@@ -223,7 +223,7 @@ class RestaurantsInteraction(GroupingInteraction):
             system:
                 The system view of the restaurants.
         """
-        visited = {float(getattr(agent, str(self.by))) for agent in system.agents('target')}
+        visited = {float(getattr(agent, str(self.by))) for agent in system.get_agents('target')}
         system.report('utilization', len(visited) / self.n_restaurants)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:

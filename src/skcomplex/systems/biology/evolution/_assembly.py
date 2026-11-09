@@ -216,7 +216,7 @@ class PolymerJoiningInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.agents(self.polymers, PolymerView)
+        pool = system.get_agents(self.polymers, PolymerView)
         partner = pool[int(system.rng.integers(len(pool)))]
         if self.mode == 'directed':
             first = max(pool, key=lambda polymer: polymer.born)

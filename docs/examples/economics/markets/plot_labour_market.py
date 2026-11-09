@@ -55,7 +55,7 @@ hires, searching = trajectory.values('labour.volume'), trajectory.values('search
 window = slice(50, None)
 finding = np.nansum(hires[window]) / np.nansum(searching[window])
 balance = SEPARATION / (SEPARATION + finding)
-workers = trajectory.agents('workers', len(times) - 1)
+workers = trajectory.get_agents('workers', len(times) - 1)
 wages = workers.values['wage'][workers.values['employer'] >= 0]
 fig, (series, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(times, unemployment, label='simulation')

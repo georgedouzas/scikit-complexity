@@ -35,7 +35,7 @@ quarters = [90, 180, 270, 360]
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for index, day in enumerate(quarters):
     frame = int(np.argmin(np.abs(trajectory.times - day)))
-    premises = trajectory.agents('premises', frame).values
+    premises = trajectory.get_agents('premises', frame).values
     brothel = np.asarray(premises['brothel']) > 0
     bills = np.asarray(premises['last_bills'])
     jitter = np.random.default_rng(index).uniform(-0.15, 0.15, len(bills))

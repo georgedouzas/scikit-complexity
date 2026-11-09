@@ -173,13 +173,13 @@ class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
                 The system view of the market.
         """
         rng = system.rng
-        shops = sorted(system.agents('shops', ProgramMemberView), key=lambda shop: shop.id)
-        farms = sorted(system.agents('farms', ProgramMemberView), key=lambda farm: farm.id)
+        shops = sorted(system.get_agents('shops', ProgramMemberView), key=lambda shop: shop.id)
+        farms = sorted(system.get_agents('farms', ProgramMemberView), key=lambda farm: farm.id)
         need = np.array([shop.acres for shop in shops])
         shop_level = np.array([shop.level for shop in shops])
         acres = np.array([farm.acres for farm in farms])
         farm_level = np.array([farm.level for farm in farms])
-        joining = (shop_level == OUTSIDE) & (rng.random(len(shops)) < system.parameter('pressure'))
+        joining = (shop_level == OUTSIDE) & (rng.random(len(shops)) < system.get_parameter('pressure'))
         shop_level = np.where(joining, float(COMMITTED), shop_level)
         for shop in rng.permutation(len(shops)):
             member_acres = acres[farm_level == 1].sum()

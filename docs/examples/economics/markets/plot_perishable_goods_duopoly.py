@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
 system = PerishableGoodsDuopolySystem(customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 trajectory = simulate(system, observers=[observer], random_state=0)
-shops = np.array([trajectory.agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
+shops = np.array([trajectory.get_agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
 for shop, color in zip(SHOPS, COLORS, strict=True):
     observer.recording_.log(
         f'shares/shop_{shop + 1}',

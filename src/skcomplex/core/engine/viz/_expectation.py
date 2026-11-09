@@ -212,7 +212,7 @@ class ExpectationVisual(ImageVisual):
             values = [problem._expect([term], 0.0, x, np.zeros(0)) for term in terms]
             return {display: np.real(np.asarray(values))}
         names = [
-            name for name, local in ExpectationVisual._view_of(element).local_operators().items() if local.hermitian
+            name for name, local in ExpectationVisual._view_of(element).get_local_operators().items() if local.hermitian
         ]
         return {
             name: float(

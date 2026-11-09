@@ -30,7 +30,7 @@ trajectory = simulate(EpisimsCitySystem(), observers=[observer], random_state=0)
 
 
 def compartments(trajectory):
-    health = np.array([trajectory.agents('people', frame).values['health'] for frame in range(201)])
+    health = np.array([trajectory.get_agents('people', frame).values['health'] for frame in range(201)])
     return [(health == state).mean(axis=1) for state in (0, 1, 2)]
 
 

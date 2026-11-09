@@ -235,7 +235,7 @@ class MinorityGameInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.agents('players', MinorityPlayerView)
+        agents = system.get_agents('players', MinorityPlayerView)
         history = self._state(system).history
         for agent in agents:
             code = agent.second if agent.strategy else agent.first
@@ -268,8 +268,8 @@ class MinorityGameInteraction(Interaction):
             payoff:
                 `+1` when the strategy would have played the winning side, or `-1`.
         """
-        history = int(system.history(f'{self.label}.history')[-1])
-        winner = -1 if system.history(f'{self.label}.attendance')[-1] > 0 else 1
+        history = int(system.get_history(f'{self.label}.history')[-1])
+        winner = -1 if system.get_history(f'{self.label}.attendance')[-1] > 0 else 1
         code = agent.second if option else agent.first
         return float((2 * int(strategy_table(code, self.memory)[history]) - 1) * winner)
 

@@ -143,7 +143,7 @@ meal = TransferInteraction(
 )
 system = CompositeSystem(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
 trajectory = simulate(system, until=1, random_state=0)
-trajectory.agents('eaters', 1).values['level'].tolist()
+trajectory.get_agents('eaters', 1).values['level'].tolist()
 ```
 
 `PartnerSpec(candidates, choice, fallback, capacity, score)` says whom an agent pairs with:
@@ -186,7 +186,7 @@ class QueueElement(Element):
 group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
 queues = CompositeSystem(elements=[group], time=DiscreteTime())
 trajectory = simulate(queues, until=1, random_state=0)
-trajectory.agents('queues', 1).values['orders'].tolist()
+trajectory.get_agents('queues', 1).values['orders'].tolist()
 ```
 
 A state of an agent with `StateSpec(domain=None)` or `StateSpec(domain=object)` holds any hashable value, such as a

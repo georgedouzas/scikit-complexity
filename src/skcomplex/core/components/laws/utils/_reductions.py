@@ -53,11 +53,11 @@ PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
+NEIGHBOR = _OperatorFunction('neighbor', nargs=2)
 
 
 class _ReductionFunction(_OperatorFunction):
     """Reduction of a kind over the members of a group, printed with its keywords."""
-
 
     @staticmethod
     def _is_placeholder(item: Expression, value: int) -> bool:
@@ -90,9 +90,11 @@ class _ReductionFunction(_OperatorFunction):
         return f'{name}({", ".join(parts)})'
 
 
+REDUCTIONS = {name: _ReductionFunction(name, nargs=4) for name in KINDS}
+
+
 class _NeighborsFunction(_OperatorFunction):
     """Reduction over the neighbourhood of every member, printed with its keywords."""
-
 
     def _print_(self, argument: Expression, weight: Expression, over: Expression, kind: Expression) -> str:
         """Return a neighbourhood reduction call with its keywords.
@@ -108,9 +110,11 @@ class _NeighborsFunction(_OperatorFunction):
         return f'neighbors({", ".join(parts)})'
 
 
+NEIGHBORS = _NeighborsFunction('neighbors', nargs=4)
+
+
 class _HyperedgesFunction(_OperatorFunction):
     """Reduction over the hyperedges of every member, printed with its keywords."""
-
 
     def _print_(self, *operands: Expression) -> str:
         """Return a hyperedge reduction call with its keywords.
@@ -129,9 +133,11 @@ class _HyperedgesFunction(_OperatorFunction):
         return f'hyperedges({", ".join(parts)})'
 
 
+HYPEREDGES = _HyperedgesFunction('hyperedges', nargs=5)
+
+
 class _ComponentsFunction(_OperatorFunction):
     """Reduction over the connected components of the active members, printed with its keywords."""
-
 
     def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
         """Return a components reduction call with its keywords.
@@ -145,9 +151,11 @@ class _ComponentsFunction(_OperatorFunction):
         return f'components({", ".join(parts)})'
 
 
+COMPONENTS = _ComponentsFunction('components', nargs=3)
+
+
 class _ShortestPathsFunction(_OperatorFunction):
     """Reduction over the shortest paths between the active members, printed with its keywords."""
-
 
     def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
         """Return a shortest paths reduction call with its keywords.
@@ -161,9 +169,11 @@ class _ShortestPathsFunction(_OperatorFunction):
         return f'shortest_paths({", ".join(parts)})'
 
 
+SHORTEST_PATHS = _ShortestPathsFunction('shortest_paths', nargs=3)
+
+
 class _ShiftMemberFunction(_OperatorFunction):
     """Value of an expression at the member a lattice offset away."""
-
 
     def _eval_(
         self,
@@ -182,12 +192,6 @@ class _ShiftMemberFunction(_OperatorFunction):
         return None
 
 
-REDUCTIONS = {name: _ReductionFunction(name, nargs=4) for name in KINDS}
-NEIGHBORS = _NeighborsFunction('neighbors', nargs=4)
-NEIGHBOR = _OperatorFunction('neighbor', nargs=2)
-HYPEREDGES = _HyperedgesFunction('hyperedges', nargs=5)
-COMPONENTS = _ComponentsFunction('components', nargs=3)
-SHORTEST_PATHS = _ShortestPathsFunction('shortest_paths', nargs=3)
 SHIFT_MEMBER = _ShiftMemberFunction('shift_member', nargs=4)
 
 

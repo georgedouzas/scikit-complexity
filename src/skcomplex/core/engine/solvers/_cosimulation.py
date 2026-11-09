@@ -304,7 +304,7 @@ class CoSimulationSolver(Solver):
             for index in range(count)
         ]
 
-    def _size_of(self, group: str) -> int:
+    def _get_size_of(self, group: str) -> int:
         """Return the number of members of an element group."""
         return next(item.members or 1 for item in self.problem_.elements if item.path == group)
 
@@ -321,7 +321,7 @@ class CoSimulationSolver(Solver):
                 ]
             else:
                 columns = [np.ravel(states.read(x, f'{reduction.group}.{name}')) for name in reduction.variables]
-                members = columns[0] if columns else np.zeros(self._size_of(reduction.group))
+                members = columns[0] if columns else np.zeros(self._get_size_of(reduction.group))
             x[states.entry(f'{path}.value').indices] = reducer(t, columns, members)
 
     def _agents_of(self, group: str) -> list[object] | None:

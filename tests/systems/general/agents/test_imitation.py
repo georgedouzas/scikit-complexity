@@ -197,7 +197,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, random_state=SEED)
-    final = np.asarray(trajectory.agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
+    final = np.asarray(trajectory.get_agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.03)
 
@@ -246,7 +246,7 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=30, random_state=0)
-    final = dict(zip(cells, trajectory.agents('players', 30).values['state'], strict=True))
+    final = dict(zip(cells, trajectory.get_agents('players', 30).values['state'], strict=True))
     assert {cell for cell, state in final.items() if state} == {(1, 1), (0, 1), (2, 1), (1, 0), (1, 2)}
 
 
@@ -307,7 +307,7 @@ def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
     ):
         system = CompositeSystem(elements=[_grid_players()], interactions=[imitation], space=space, time=DiscreteTime())
         trajectory = simulate(system, until=10, random_state=SEED)
-        finals.append(trajectory.agents('players', 10).values['state'])
+        finals.append(trajectory.get_agents('players', 10).values['state'])
     np.testing.assert_array_equal(finals[1], finals[0])
 
 
@@ -331,7 +331,7 @@ def _chain(schedule: str, seed: int, ties: str = 'first', payoffs: tuple[float, 
     space = LatticeSpace((len(payoffs),), boundary='fixed')
     system = CompositeSystem(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=seed)
-    return trajectory.agents('players', 1).values['state'].tolist()
+    return trajectory.get_agents('players', 1).values['state'].tolist()
 
 
 def test_agent_imitation_sequential_and_member_schedules_read_the_states_set_before():
@@ -365,4 +365,4 @@ def test_agent_imitation_reads_the_neighbours_of_its_layer():
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', work)])
     system = CompositeSystem(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]
+    assert trajectory.get_agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]

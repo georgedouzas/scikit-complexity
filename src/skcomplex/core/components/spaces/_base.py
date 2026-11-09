@@ -129,12 +129,12 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         error_msg = f'{type(self).__name__} has no {on}.'
         raise SpaceError(error_msg)
 
-    def _default_neighborhood(self) -> BaseNeighborhood:
+    def _get_default_neighborhood(self) -> BaseNeighborhood:
         """Return the neighbourhood that `run` reads when it is given none."""
         error_msg = f'{type(self).__name__} has no sites, so it has no neighbourhood.'
         raise SpaceError(error_msg)
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site of every neighbour of every site.
 
         A neighbour outside the space gets `size_`.
@@ -150,7 +150,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         error_msg = f'{type(self).__name__} has no sites, so it has no neighbour table.'
         raise SpaceError(error_msg)
 
-    def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site of `g h s` for every site, group element, and word.
 
         The site is `g`, the group element `h`, and the word `s` of a translated memory set.
@@ -166,7 +166,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         error_msg = f'{type(self).__name__} is no group space, so it reads no memory translated by a group element.'
         raise SpaceError(error_msg)
 
-    def _ball(self, radius: int) -> BaseNeighborhood:
+    def _get_ball(self, radius: int) -> BaseNeighborhood:
         """Return the neighbourhood of every site within a radius.
 
         The site itself is included.
@@ -182,7 +182,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         error_msg = f'{type(self).__name__} has no sites, so it has no balls.'
         raise SpaceError(error_msg)
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct neighbouring sites, each pair once.
 
         Args:
@@ -212,8 +212,8 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
             sites:
                 The sites around the site, without those outside the space.
         """
-        reads = self._default_neighborhood() if neighborhood is None else neighborhood
-        row = self._index_table(reads)[site]
+        reads = self._get_default_neighborhood() if neighborhood is None else neighborhood
+        row = self._get_index_table(reads)[site]
         return row[row < self.size_]
 
 

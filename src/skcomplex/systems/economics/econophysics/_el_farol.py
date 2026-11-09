@@ -179,7 +179,7 @@ class PredictorPoolElement(Element):
         if not isinstance(seeded, np.ndarray):
             seeded = system.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
             system.storage['seeded'] = seeded
-        return np.concatenate([seeded, system.history(self.attendance)])
+        return np.concatenate([seeded, system.get_history(self.attendance)])
 
     def forecast(self, agent: PredictorPoolView, system: SystemView) -> None:
         """Forecast next week's attendance with every predictor of the pool.
@@ -213,7 +213,7 @@ class PredictorPoolElement(Element):
             error:
                 The absolute error of the forecast of the predictor.
         """
-        attendance = system.history(PredictorPoolElement.attendance)
+        attendance = system.get_history(PredictorPoolElement.attendance)
         if not len(attendance):
             return float(np.ravel(agent.errors)[index])
         return float(abs(np.ravel(agent.forecasts)[index] - attendance[-1]))
@@ -300,7 +300,7 @@ class PatronElement(Element):
             system:
                 The system.
         """
-        pool = system.agents(self.pool, PredictorPoolView)[0]
+        pool = system.get_agents(self.pool, PredictorPoolView)[0]
         errors, predicted = np.ravel(pool.errors), np.ravel(pool.forecasts)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]

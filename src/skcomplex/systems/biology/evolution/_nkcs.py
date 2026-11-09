@@ -164,7 +164,7 @@ class CoevolutionaryClimbingInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.agents(self.species, CoevolvingSpeciesView)
+        species = system.get_agents(self.species, CoevolvingSpeciesView)
         genomes = [int(item.genome) for item in species]
         for index, item in enumerate(species):
             mutant = genomes[index] ^ (1 << int(system.rng.integers(self.n)))

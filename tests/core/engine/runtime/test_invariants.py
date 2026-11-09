@@ -36,7 +36,7 @@ class TraderElement(Element):
 
     def give(self, agent, system):
         """Hand one unit of wealth to the next agent of the group."""
-        others = system.agents('traders', AgentView)
+        others = system.get_agents('traders', AgentView)
         receiver = others[(others.index(agent) + 1) % len(others)]
         if agent.wealth >= 1:
             transfer(agent, receiver, 1.0, 'wealth')

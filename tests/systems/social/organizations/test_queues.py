@@ -14,7 +14,7 @@ def _waits(trajectory, frames):
     """Return the waiting times of the tasks executed in a run of the priority queue."""
     waits = []
     for frame in range(1, frames + 1):
-        values = trajectory.agents('tasks', frame).values
+        values = trajectory.get_agents('tasks', frame).values
         waits += values['wait'][values['age'] == 0].tolist()
     return np.array(waits)
 

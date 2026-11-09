@@ -237,14 +237,14 @@ class ReserveBankElement(Element):
             system:
                 The system.
         """
-        excess = agent.reserves - system.parameter('reserve_ratio') * agent.deposits
-        customers = system.agents(self.customers, DepositorView)
-        own = [customer for customer in customers if customer.referenced('bank') is agent]
+        excess = agent.reserves - system.get_parameter('reserve_ratio') * agent.deposits
+        customers = system.get_agents(self.customers, DepositorView)
+        own = [customer for customer in customers if customer.get_referenced('bank') is agent]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(system.rng.integers(len(own)))]
         payee = customers[int(system.rng.integers(len(customers)))]
-        bank = payee.referenced('bank')
+        bank = payee.get_referenced('bank')
         if not isinstance(bank, ReserveBankView):
             return
         borrower.loan += excess
@@ -312,8 +312,8 @@ class PolicySwitchInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the regulator.
         """
-        before = system.time < system.parameter('change_at')
-        ratio = system.parameter('ratio') if before else system.parameter('new_ratio')
+        before = system.time < system.get_parameter('change_at')
+        ratio = system.get_parameter('ratio') if before else system.get_parameter('new_ratio')
         name = f'{self.banks}.reserve_ratio'
         if system.parameters[name] != ratio:
             system.set_parameter(name, ratio)

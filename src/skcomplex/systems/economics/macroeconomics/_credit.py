@@ -330,8 +330,8 @@ class LenderElement(Element):
         cached = system.storage.get('borrowers')
         if not (isinstance(cached, tuple) and cached[0] == step):
             borrowers: dict[int, list[FirmView]] = {}
-            for firm in system.agents('sources', FirmView):
-                bank = firm.referenced('partner') if firm.loan > 0 else None
+            for firm in system.get_agents('sources', FirmView):
+                bank = firm.get_referenced('partner') if firm.loan > 0 else None
                 if bank is not None:
                     borrowers.setdefault(bank.id, []).append(firm)
             cached = (step, borrowers)
@@ -440,8 +440,8 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
                 The system view of the market.
         """
         super()._report_matches(matches, unmatched, system)
-        cheapest = min((bank.ask for bank in system.agents('providers', LenderView) if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in system.agents('requesters', FirmView) if firm.loan > 0]
+        cheapest = min((bank.ask for bank in system.get_agents('providers', LenderView) if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in system.get_agents('requesters', FirmView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         system.report('spread', spread)
 

@@ -175,7 +175,7 @@ def _run_agents(interaction):
         space=LatticeSpace((2, 2)),
         time=DiscreteTime(),
     )
-    return simulate(system, until=5, random_state=0).agents('nodes', 5).values['x']
+    return simulate(system, until=5, random_state=0).get_agents('nodes', 5).values['x']
 
 
 def _get_renamed(interaction):
@@ -403,7 +403,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
     )
     system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
+    assert trajectory.get_agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
 
 
 def _run_variant(*interactions, space=None, time=None):

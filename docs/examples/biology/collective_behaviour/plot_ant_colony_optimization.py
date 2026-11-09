@@ -32,8 +32,8 @@ trajectory = simulate(system, observers=[observer], random_state=0, until=100)
 # jump up when the best route is cut, and settle again near the new shortest path.
 
 search = system.interactions[0]
-is_open = trajectory.agents('roads', 100).values['passable']
-tau = trajectory.agents('roads', 100).values['tau']
+is_open = trajectory.get_agents('roads', 100).values['passable']
+tau = trajectory.get_agents('roads', 100).values['tau']
 graph = nx.Graph()
 for (first, second), length, kept in zip(search.edges, search.lengths, is_open, strict=True):
     graph.add_edge(first, second, weight=length if kept else np.inf)

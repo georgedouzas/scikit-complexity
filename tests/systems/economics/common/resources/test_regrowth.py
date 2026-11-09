@@ -35,7 +35,7 @@ def _levels(*, relative: bool) -> AnyArray:
     regrowth = RegrowthInteraction('regrowth', target='stocks', state='level', growth='growth', relative=relative)
     system = CompositeSystem(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
     trajectory = simulate(system, until=3, random_state=0)
-    return np.array([trajectory.agents('stocks', frame).values['level'] for frame in range(4)])
+    return np.array([trajectory.get_agents('stocks', frame).values['level'] for frame in range(4)])
 
 
 def test_regrowth_adds_an_amount_up_to_the_capacity():

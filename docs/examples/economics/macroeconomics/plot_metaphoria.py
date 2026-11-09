@@ -56,7 +56,7 @@ monetary = MetaphoriaSystem(n_people=100, mode='monetary', random_state=0)
 scarce = simulate(monetary, until=150, random_state=0)
 rich = MetaphoriaSystem(n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
 abundant = simulate(rich, until=150, random_state=0)
-holders = [abundant.agents(group, 150).values for group in ('people', 'businesses', 'bank')]
+holders = [abundant.get_agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 
 fig, (populations, money) = plt.subplots(1, 2, figsize=(11, 4))

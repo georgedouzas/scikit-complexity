@@ -346,7 +346,7 @@ class ResidentElement(Element):
         """
         if not isinstance(shopper, ResidentView) or not isinstance(shop, StoreView):
             return -math.inf
-        return -(shop.ask + shopper.travel * shopper.distance_to(shop))
+        return -(shop.ask + shopper.travel * shopper.get_distance_to(shop))
 
 
 class StoreElement(Element):

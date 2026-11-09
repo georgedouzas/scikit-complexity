@@ -78,7 +78,7 @@ def _run(system: CompositeSystem, until: float) -> Trajectory:
 
 def _levels(trajectory: Trajectory, frame: int, group: str = 'cells') -> list[float]:
     """Return the levels of the members of a group at a frame."""
-    return trajectory.agents(group, frame).values['level'].tolist()
+    return trajectory.get_agents(group, frame).values['level'].tolist()
 
 
 def _refill(until: int, values: dict[str, object], amount: object, legs: tuple = ()) -> Trajectory:
@@ -235,8 +235,8 @@ def test_transfer_neighbor_pairs_are_disjoint_neighbours():
     )
     space = LatticeSpace((6, 1), metric='manhattan')
     trajectory = _run(CompositeSystem(elements=[traders], interactions=[give], space=space), 1)
-    levels = trajectory.agents('traders', 1).values['level'].tolist()
-    clocks = trajectory.agents('traders', 1).values['clock'].tolist()
+    levels = trajectory.get_agents('traders', 1).values['level'].tolist()
+    clocks = trajectory.get_agents('traders', 1).values['clock'].tolist()
     assert sorted(set(levels)) <= [0.0, 1.0]
     assert levels.count(0.0) == sum(clocks) >= 1
     assert all(level + clock <= 1.0 + 1.0 for level, clock in zip(levels, clocks, strict=True))
@@ -301,7 +301,7 @@ def test_transfer_legs_restore_the_capacity_after_a_delay():
     trajectory = _refill(3, values, restores, legs=(('clock', Sink(), ticks),))
     assert _levels(trajectory, 2) == [0.0, 1.0]
     assert _levels(trajectory, 3) == [1.0, 1.0]
-    assert trajectory.agents('cells', 3).values['clock'].tolist() == [5.0, 3.0]
+    assert trajectory.get_agents('cells', 3).values['clock'].tolist() == [5.0, 3.0]
 
 
 def test_transfer_moves_every_leg_between_two_agents():
@@ -431,9 +431,9 @@ def test_transfer_actors_take_one_partner_of_their_cell_and_remove_it():
     )
     system = CompositeSystem(elements=[prey, hunters], interactions=[eating], space=LatticeSpace((2, 2)))
     trajectory = _run(system, 2)
-    assert len(trajectory.agents('prey', 1).values['level']) == 2
-    assert len(trajectory.agents('prey', 2).values['level']) == 1
-    assert trajectory.agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]
+    assert len(trajectory.get_agents('prey', 1).values['level']) == 2
+    assert len(trajectory.get_agents('prey', 2).values['level']) == 1
+    assert trajectory.get_agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]
 
 
 class LevelElement(Element):
@@ -482,7 +482,7 @@ def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(sc
     trajectory = simulate(system, until=3, dt=1)
     level = trajectory.lattice('ground/level.u')[-1]
     assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
-    assert trajectory.agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
+    assert trajectory.get_agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
 
 
 class RelayInteraction(TransferInteraction):
@@ -963,8 +963,10 @@ def test_transfer_settlement_credits_both_ends_from_one_draw():
     trajectory = simulate(system, until=1, random_state=0)
     assert len(draws) == 3
     assert sum(_levels(trajectory, 1, 'eaters')) == pytest.approx(sum(draws))
-    assert trajectory.agents('providers', 1).values['sold'].tolist() == [3.0]
-    assert trajectory.agents('providers', 1).values['large'].tolist() == [float(sum(draw > 650.0 for draw in draws))]
+    assert trajectory.get_agents('providers', 1).values['sold'].tolist() == [3.0]
+    assert trajectory.get_agents('providers', 1).values['large'].tolist() == [
+        float(sum(draw > 650.0 for draw in draws)),
+    ]
 
 
 @pytest.mark.parametrize(

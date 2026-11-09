@@ -53,7 +53,7 @@ rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
     edgeworth = BarterSystem(chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
-    final = simulate(edgeworth, until=2, random_state=0).agents('barterers', 2).values
+    final = simulate(edgeworth, until=2, random_state=0).get_agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)
     box.scatter(x, y, color='C0', label=label[0])

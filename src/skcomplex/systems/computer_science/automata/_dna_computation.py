@@ -148,7 +148,7 @@ class LigationInteraction(Interaction):
 
         Every consumed strand is replaced with a fresh oligo.
         """
-        strands = system.agents('target', StrandView)
+        strands = system.get_agents('target', StrandView)
         rng = system.rng
         order = rng.permutation(len(strands))
         for first, second in zip(order[::2], order[1::2], strict=False):

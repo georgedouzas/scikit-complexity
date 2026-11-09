@@ -249,7 +249,7 @@ class LayoutPass(BasePass):
         )
         is_complex = declaration.domain is CC
         start = declarations.ends[is_state]
-        tensor = LayoutPass._tensor_of(declaration, node.space)
+        tensor = LayoutPass._get_tensor_of(declaration, node.space)
         entry = EntrySpec(name, start, shape, declaration.domain, members, is_complex, declaration.period, tensor)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         suffixes = tensor.names if tensor is not None else range(member_shape[0] if member_shape else 0)
@@ -577,7 +577,7 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
-    def _tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+    def _get_tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
         It is `None` for any other state.
@@ -629,7 +629,7 @@ class LayoutPass(BasePass):
         if not EntrySpec._contains(RealSet.open(0, oo), space.n_dim_) or not EntrySpec._contains(ZZ, space.n_dim_):
             error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
-        tensor = LayoutPass._tensor_of(declaration, space)
+        tensor = LayoutPass._get_tensor_of(declaration, space)
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
 
     @staticmethod

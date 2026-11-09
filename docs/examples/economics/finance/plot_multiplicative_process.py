@@ -34,7 +34,7 @@ trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 # cumulative distribution falls as `w^-alpha` with `alpha = 1 / (1 - c)`, about 1.43 here. Pooling the last 100
 # periods, the tail should run parallel to that line on log-log axes, while the log sizes spread no further.
 
-sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
+sizes = np.array([trajectory.get_agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 relative = sizes / sizes.mean(axis=1, keepdims=True)
 ccdf = distribution(relative[-100:].ravel(), kind='ccdf')
 values, probabilities = ccdf.support, ccdf.survival

@@ -141,7 +141,7 @@ class GroupElement(BaseElement):
         self.capacity = capacity
         self.rank = rank
 
-    def _size_of(self, space: BaseSpace | None = None) -> int:
+    def _get_size_of(self, space: BaseSpace | None = None) -> int:
         """Return the size of the group.
 
         The size is the number of parts of its own space or else of an inherited space.
@@ -212,7 +212,7 @@ class GroupElement(BaseElement):
         structure = frozenset({'variable membership'}) if self.variable else frozenset()
         return replace(tags, space=space, structure=structure)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the group draws.
 
         It draws when it declares it or the class of its members does.
@@ -360,7 +360,7 @@ class GroupElement(BaseElement):
         member = self._get_member()
         if member.visual is not None:
             self.default_visual_ = member.visual
-        self.size_ = self._size_of(context)
+        self.size_ = self._get_size_of(context)
         space = self._get_site_space(context)
         self.values_ = self._flatten_values(space)
         self._check_value_rows()

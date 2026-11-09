@@ -304,5 +304,5 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _observables(self._pass_parameters())
+        settings['observables'] = _observables(self._get_pass_parameters())
         return settings

@@ -117,7 +117,7 @@ class FieldElement(GroupElement):
         self.discretization = discretization
         self.symmetry = symmetry
 
-    def _tensor_of(self, state: str) -> TensorSpec | None:
+    def _get_tensor_of(self, state: str) -> TensorSpec | None:
         """Return the independent components of a tensor state of the element.
 
         The result is `None` for any other state.
@@ -155,7 +155,7 @@ class FieldElement(GroupElement):
         edges = 'reflecting' if isinstance(self.space, MeshSpace) else getattr(self.space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
-            tensor = self._tensor_of(state)
+            tensor = self._get_tensor_of(state)
             if tensor is not None and (isinstance(condition[1], Matrix) or np.ndim(condition[1]) == MATRIX_RANK):
                 return str(condition[0]), float(tensor.components_of(condition[1])[column])
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])

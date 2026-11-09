@@ -173,7 +173,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """Return the tags the declarations of the part show, none by default."""
         return Tags(laws=None, randomness=None)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the part draws random numbers its law kinds do not show.
 
         The default is `draws`.
@@ -209,7 +209,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             'stochastic'
         """
         tags = self._get_tags()
-        tags = replace(tags, randomness='stochastic') if self._draws() else tags
+        tags = replace(tags, randomness='stochastic') if self._get_draws() else tags
         return replace(tags, reparameterized=True) if self.reparameterized else tags
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
@@ -248,7 +248,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         A law contributes itself.
         """
 
-    def _laws_of(self, inputs: object) -> Sequence[BasePart]:
+    def _get_laws_of(self, inputs: object) -> Sequence[BasePart]:
         """Return the laws of the part for a namespace of symbols.
 
         Args:

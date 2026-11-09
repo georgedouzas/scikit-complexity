@@ -220,7 +220,7 @@ class VariantVotingInteraction(MapInteraction):
 
     def _get_opinion(self, agent: VariantVoterView, system: SystemViewProtocol) -> float:
         """Return the opinion of the voter's variant, inverted for a contrarian."""
-        neighbors = [item for item in agent.neighbors() if isinstance(item, VariantVoterView)]
+        neighbors = [item for item in agent.get_neighbors() if isinstance(item, VariantVoterView)]
         if not neighbors:
             return float(agent.opinion)
         choice = self._get_choice(agent, neighbors, system)
@@ -262,7 +262,7 @@ class VoterImitationInteraction(MapInteraction):
 
         Without one, it is the voter's own.
         """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, VoterView)]
+        neighbors = [item for item in agent.get_neighbors() if isinstance(item, VoterView)]
         if not neighbors:
             return float(agent.opinion)
         return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)

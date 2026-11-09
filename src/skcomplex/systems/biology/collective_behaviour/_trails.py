@@ -318,11 +318,11 @@ class ActiveWalkersSystem(BaseSystem):
         if not isinstance(walker, WalkerView):
             return None
         x, y = cast('tuple[int, int]', walker.location)
-        cells = cast('list[tuple[int, int]]', list(walker.neighbor_cells()))
+        cells = cast('list[tuple[int, int]]', list(walker.get_neighbor_cells()))
         goal = np.array([walker.goal_x - x, walker.goal_y - y])
         steps = np.array([(cell[0] - x, cell[1] - y) for cell in cells], dtype=float)
         lengths = np.hypot(steps[:, 0], steps[:, 1])
-        rises = np.array([system.field(TRAIL, cell) for cell in cells]) - system.field(TRAIL, (x, y))
+        rises = np.array([system.get_field(TRAIL, cell) for cell in cells]) - system.get_field(TRAIL, (x, y))
         slope = 2 * (steps / lengths[:, None] ** 2).T @ rises / len(cells)
         heading = goal / max(float(np.hypot(*goal)), 1e-12) + walker.attraction * slope
         alignment = steps @ heading / (lengths * max(float(np.hypot(*heading)), 1e-12))
@@ -346,7 +346,7 @@ class ActiveWalkersSystem(BaseSystem):
         """
         if not isinstance(walker, WalkerView):
             return 0.0
-        return walker.intensity * (1 - system.field('target.G', cell) / walker.G_max)
+        return walker.intensity * (1 - system.get_field('target.G', cell) / walker.G_max)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""

@@ -448,7 +448,7 @@ class SettlerElement(Element):
 
     def _feed_child(self, agent: SettlerView, system: SystemView) -> None:
         """Take food from the living parent and follow it."""
-        parent = agent.referenced('parent')
+        parent = agent.get_referenced('parent')
         if not isinstance(parent, SettlerView):
             return
         given = min(agent.need, max(parent.food - parent.need, 0.0))
@@ -479,7 +479,7 @@ class SettlerElement(Element):
             if system.rng.random() < agent.restlessness:
                 agent.employer = -1.0
             return agent.employer >= 0
-        if agent.agents_here('businesses') or SettlerElement._patch_here(agent).food <= 0:
+        if agent.get_agents_here('businesses') or SettlerElement._patch_here(agent).food <= 0:
             return False
         if system.rng.random() >= agent.enterprise:
             return False
@@ -519,7 +519,7 @@ class SettlerElement(Element):
     @staticmethod
     def _patch_here(agent: AgentView) -> PlotView:
         """Return the patch of the cell of an agent."""
-        return next(patch for patch in agent.agents_here('patches') if isinstance(patch, PlotView))
+        return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
     @staticmethod
     def _cell(agent: AgentView) -> tuple[int, ...]:
@@ -543,7 +543,7 @@ class SettlerElement(Element):
             x, y = SettlerElement._cell(agent)
             agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
             return
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
 
 
@@ -714,7 +714,7 @@ class BusinessElement(Element):
         """
         people = BusinessElement._people_by_id(system)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = system.agents('bank', CentralBankView)[0]
+        bank = system.get_agents('bank', CentralBankView)[0]
         patch = SettlerElement._patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
@@ -731,7 +731,7 @@ class BusinessElement(Element):
         self._service(agent, bank)
         self._adjust(agent, workers, patch, sold_out)
         agent.workers, agent.revenue = float(len(workers)), 0.0
-        owner = agent.referenced('owner')
+        owner = agent.get_referenced('owner')
         if not isinstance(owner, SettlerView) and workers:
             owner = workers[0]
             agent.owner = float(owner.id)
@@ -746,7 +746,7 @@ class BusinessElement(Element):
         """
         cached = system.storage.get('people')
         if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
-            people = {person.id: person for person in system.agents('people', SettlerView) if person.alive}
+            people = {person.id: person for person in system.get_agents('people', SettlerView) if person.alive}
             cached = _PeopleSpec(system.time, people)
             system.storage['people'] = cached
         return dict(cached.people)
@@ -803,7 +803,7 @@ class CommonsInteraction(Interaction):
                 The system view of the interaction.
         """
         cells: dict[tuple[int, ...], list[SettlerView]] = {}
-        for person in system.agents('people', SettlerView):
+        for person in system.get_agents('people', SettlerView):
             cells.setdefault(SettlerElement._cell(person), []).append(person)
         for group in cells.values():
             patch = SettlerElement._patch_here(group[0])
@@ -870,7 +870,7 @@ class EstateInteraction(Interaction):
             system:
                 The system view of the interaction.
         """
-        people = system.agents('people', SettlerView)
+        people = system.get_agents('people', SettlerView)
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         system.report('births', float(sum(person.age == 0 for person in living)))
@@ -1285,5 +1285,5 @@ class MetaphoriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _metaphoria_observables(self._pass_parameters())
+        settings['observables'] = _metaphoria_observables(self._get_pass_parameters())
         return settings

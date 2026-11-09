@@ -160,10 +160,10 @@ class CabElement(Element):
 
     def _pick_up(self, agent: CabView, system: SystemView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in system.agents('riders', RiderView) if item.id == int(agent.rider))
+        rider = next(item for item in system.get_agents('riders', RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
         blocks = CabElement._blocks(CabElement._cell(agent.location), destination)
-        fare = system.parameter('base_fare') + system.parameter('block_fare') * blocks
+        fare = system.get_parameter('base_fare') + system.get_parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
         new_target_x_value, new_target_y_value = destination
@@ -336,7 +336,7 @@ class ArrivalInteraction(BirthDeathInteraction):
             demand:
                 The demand.
         """
-        return system.parameter('demand')
+        return system.get_parameter('demand')
 
     def place(self, agent: RiderView | None, system: SystemView) -> tuple[int, int]:
         """Return a random cell of the grid for a new rider.

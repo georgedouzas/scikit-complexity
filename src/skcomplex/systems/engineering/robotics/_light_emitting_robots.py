@@ -176,7 +176,7 @@ class SensoryDelayInteraction(Interaction):
 
         The speeds follow the delayed or predicted light.
         """
-        robots = system.agents('target', LightEmittingRobotView)
+        robots = system.get_agents('target', LightEmittingRobotView)
         positions = np.array([np.asarray(robot.location, dtype=float) for robot in robots])
         light = self._light(positions)
         history = cast('list[Array]', system.storage.setdefault('light', []))

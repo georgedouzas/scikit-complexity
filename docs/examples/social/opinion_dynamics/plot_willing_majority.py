@@ -37,7 +37,7 @@ runs = {
 fig, (shares, groups) = plt.subplots(1, 2, figsize=(10, 4))
 for name, item in runs.items():
     trajectory = simulate(item, until=50, random_state=0)
-    share = [np.mean(trajectory.agents('voters', frame).values['opinion']) for frame in range(51)]
+    share = [np.mean(trajectory.get_agents('voters', frame).values['opinion']) for frame in range(51)]
     shares.plot(trajectory.times, share, label=name)
 shares.set_xlabel('sweeps')
 shares.set_ylabel('share of opinion A')
@@ -47,7 +47,7 @@ fractions = np.linspace(0.0, 0.4, 9)
 finals = []
 for fraction in fractions:
     trajectory = simulate(WillingMajoritySystem(zealots=fraction), random_state=0)
-    opinions = trajectory.agents('voters', 50).values['opinion']
+    opinions = trajectory.get_agents('voters', 50).values['opinion']
     finals.append(min(opinions.mean(), 1 - opinions.mean()))
 groups.plot(fractions, finals, 'o-')
 groups.set_xlabel('fraction of zealots f')

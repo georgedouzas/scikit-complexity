@@ -59,7 +59,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 times = trajectory.times
 inequality = trajectory.values('gini')
-wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])
+wealth = np.sort(trajectory.get_agents('foragers', len(times) - 1).values['sugar'])
 lorenz = np.r_[0.0, np.cumsum(wealth) / wealth.sum()]
 fig, (population, gini_axis, lorenz_axis) = plt.subplots(1, 3, figsize=(13, 4))
 population.plot(times, trajectory.values('population'))

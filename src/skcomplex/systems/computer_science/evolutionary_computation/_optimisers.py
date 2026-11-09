@@ -274,7 +274,7 @@ class OptimizationInteraction(Interaction):
 
         It does not advance once the algorithm has converged.
         """
-        agents = system.agents(self._get_role('target'))
+        agents = system.get_agents(self._get_role('target'))
         if 'algorithm' not in system.storage:
             candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)
             seed = int(system.rng.integers(SEEDS))

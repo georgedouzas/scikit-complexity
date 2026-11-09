@@ -267,7 +267,7 @@ def test_run_outer_rule_on_a_memory_set_reads_the_identity_first():
 def test_run_translated_memory_reads_the_product_of_a_site_and_its_value():
     """Test that `x(g · x(g))` reads the product of every site and its value, row by row of configurations."""
     space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     configurations = np.random.default_rng(0).integers(0, space.size_, (4, space.size_))
     images = _run(lambda value: value, StateTranslationNeighborhood(), space, configurations)
     sites = np.arange(space.size_)

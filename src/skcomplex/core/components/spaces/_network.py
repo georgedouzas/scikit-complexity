@@ -249,11 +249,11 @@ class NetworkSpace(BaseSpace):
             for start, stop in zip(self.incidence_.indptr[:-1], self.incidence_.indptr[1:], strict=True)
         )
 
-    def _default_neighborhood(self) -> AdjacencyNeighborhood:
+    def _get_default_neighborhood(self) -> AdjacencyNeighborhood:
         """Return the neighbours along the edges of the graph."""
         return AdjacencyNeighborhood()
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the node index of every neighbour of every node.
 
         It is padded with the number of nodes. The table has one row per node and one column per neighbour slot, as wide
@@ -272,7 +272,7 @@ class NetworkSpace(BaseSpace):
             return np.column_stack([np.arange(size, dtype=np.intp), table])
         return table
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct nodes joined by an edge of a layer.
 
         They come in the order of its edges.

@@ -102,7 +102,7 @@ def _run_evolution(evolution: EvolutionInteraction, strategies: np.ndarray, unti
 
 def _strategies(trajectory: Trajectory, frame: int) -> np.ndarray:
     """Return the strategies of the agents at a frame."""
-    return np.array(trajectory.agents('agents', frame).values['strategy'].tolist(), dtype=float)
+    return np.array(trajectory.get_agents('agents', frame).values['strategy'].tolist(), dtype=float)
 
 
 @pytest.mark.parametrize('selection', ['tournament', 'roulette', 'rank'])
@@ -219,7 +219,7 @@ def test_evolution_interaction_truncation_redraws_the_least_fit_every_period_and
     system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
     trajectory = simulate(system, until=2, random_state=0)
     assert np.all(_strategies(trajectory, 1) == -1.0)
-    final = trajectory.agents('agents', 2).values
+    final = trajectory.get_agents('agents', 2).values
     changed = _strategies(trajectory, 2).ravel() != -1.0
     assert changed.tolist() == [True, True] + [False] * 6
     assert final['fitness'].tolist()[:3] == [-1.0, -1.0, 2.0]
@@ -256,7 +256,7 @@ def test_evolution_interaction_best_mutant_climbs_an_evaluated_landscape():
     group = GroupElement('agents', element=TypeElement, size=5, values={'strategy': np.zeros((5, 10))})
     system = CompositeSystem(elements=[group], interactions=[evolution], time=DiscreteTime())
     trajectory = simulate(system, until=60, random_state=0)
-    fitness = [trajectory.agents('agents', frame).values['fitness'][0] for frame in range(1, 61)]
+    fitness = [trajectory.get_agents('agents', frame).values['fitness'][0] for frame in range(1, 61)]
     assert np.all(np.diff(fitness) >= 0)
     assert fitness[-1] > 2
     assert np.ptp(_strategies(trajectory, 60), axis=0).max() == 0.0

@@ -276,8 +276,8 @@ class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view scoped to the ledger.
         """
-        buyers = system.agents('buyers', ZeroIntelligenceBuyerView)
-        sellers = system.agents('sellers', ZeroIntelligenceSellerView)
+        buyers = system.get_agents('buyers', ZeroIntelligenceBuyerView)
+        sellers = system.get_agents('sellers', ZeroIntelligenceSellerView)
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])

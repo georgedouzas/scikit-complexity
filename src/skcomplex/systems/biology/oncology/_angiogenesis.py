@@ -395,14 +395,14 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView):
             return 0.0
-        return -min(cell.consumption, system.field('target.oxygen', site))
+        return -min(cell.consumption, system.get_field('target.oxygen', site))
 
     @staticmethod
     def _get_hypoxic(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return whether the oxygen at the site of a tumour cell is below `hypoxia`."""
         if not isinstance(cell, TumourCellView):
             return 0.0
-        return float(system.field(OXYGEN, cell.location) < cell.hypoxia)
+        return float(system.get_field(OXYGEN, cell.location) < cell.hypoxia)
 
     @staticmethod
     def _secretes(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> bool:
@@ -412,7 +412,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView):
             return False
-        return bool(cell.hypoxic) and system.field(OXYGEN, site) >= cell.necrosis
+        return bool(cell.hypoxic) and system.get_field(OXYGEN, site) >= cell.necrosis
 
     @staticmethod
     def _get_secretion(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> float:
@@ -426,7 +426,7 @@ class TumourAngiogenesisSystem(BaseSystem):
 
         Below it the cell dies.
         """
-        return isinstance(cell, TumourCellView) and system.field(OXYGEN, cell.location) < cell.necrosis
+        return isinstance(cell, TumourCellView) and system.get_field(OXYGEN, cell.location) < cell.necrosis
 
     @staticmethod
     def _get_division(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -436,7 +436,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView) or cell.hypoxic:
             return 0.0
-        return float(cell.division) if system.field(OXYGEN, cell.location) > cell.proliferation else 0.0
+        return float(cell.division) if system.get_field(OXYGEN, cell.location) > cell.proliferation else 0.0
 
     @staticmethod
     def _get_supply(vessel: AgentViewProtocol, site: object, system: SystemViewProtocol) -> float:
@@ -450,14 +450,14 @@ class TumourAngiogenesisSystem(BaseSystem):
 
         An activated tip moves.
         """
-        return isinstance(tip, SproutView) and system.field(VEGF, tip.location) >= tip.activation
+        return isinstance(tip, SproutView) and system.get_field(VEGF, tip.location) >= tip.activation
 
     def _lays(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether an active tip stands where there is no vessel segment.
 
         There the tip leaves one.
         """
-        return self._active(tip, system) and not tip.agents_here(VESSELS)
+        return self._active(tip, system) and not tip.get_agents_here(VESSELS)
 
     def _get_branching(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the probability `branching` that an active tip splits in two."""
@@ -471,9 +471,9 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(tip, SproutView):
             return None
-        level = system.field(VEGF, tip.location)
-        cells = cast('list[tuple[int, int]]', list(tip.neighbor_cells()))
-        levels = np.array([system.field(VEGF, cell) for cell in cells])
+        level = system.get_field(VEGF, tip.location)
+        cells = cast('list[tuple[int, int]]', list(tip.get_neighbor_cells()))
+        levels = np.array([system.get_field(VEGF, cell) for cell in cells])
         weights = np.exp(tip.chemotaxis * (levels - levels.max()) / level)
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 

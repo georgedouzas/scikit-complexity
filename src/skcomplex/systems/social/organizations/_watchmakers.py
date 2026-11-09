@@ -151,7 +151,7 @@ class AssemblyInteraction(Interaction):
             system:
                 The system.
         """
-        for watchmaker in system.agents(self.target, WatchmakerView):
+        for watchmaker in system.get_agents(self.target, WatchmakerView):
             if system.rng.random() < self.interruption:
                 watchmaker.progress = 0.0
                 continue

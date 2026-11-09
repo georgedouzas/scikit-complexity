@@ -81,7 +81,7 @@ class GridWalkerElement(Element):
 
     def step(self, agent: AgentView, system: SystemView) -> None:
         """Move to a random neighbouring cell."""
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
         agent.steps += 1
 

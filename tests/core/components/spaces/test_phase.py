@@ -87,8 +87,8 @@ def test_check_reports_space_size_issue_with_size() -> None:
 def test_index_table_keeps_edges_per_axis() -> None:
     """Join a periodic position axis and reflect at the ends of an interval class axis."""
     space = PhaseSpace(LatticeSpace(3), [AxisSpec('v', 2, 0.0, 1.0)]).prepare()
-    ahead = space._index_table(LatticeNeighborhood(((1, 0),)))[:, 0]
-    above = space._index_table(LatticeNeighborhood(((0, 1),)))[:, 0]
+    ahead = space._get_index_table(LatticeNeighborhood(((1, 0),)))[:, 0]
+    above = space._get_index_table(LatticeNeighborhood(((0, 1),)))[:, 0]
     assert ahead.tolist() == [2, 3, 4, 5, 0, 1]
     assert above.tolist() == [1, 1, 3, 3, 5, 5]
 

@@ -132,11 +132,11 @@ class PhaseSpace(LatticeSpace):
             for axis, width in zip(self.axes, widths, strict=True)
         }
         self.positions_ = np.indices(self.shape_).reshape(self.n_dim_, -1).T * np.asarray(self.spacings_)
-        self.axes_periodic_ = tuple(self._axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
+        self.axes_periodic_ = tuple(self._get_axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
         self.periodic_ = all(self.axes_periodic_)
         self.default_visual_ = 'image'
 
-    def _axis_boundary(self, axis: int) -> str:
+    def _get_axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis.
 
         They are those of the position lattice or those of the class axis.
@@ -145,7 +145,7 @@ class PhaseSpace(LatticeSpace):
             return self.boundary
         return 'periodic' if self.axes[axis - self.position.n_dim_].periodic else 'reflecting'
 
-    def _with_edges(self, boundary: str, fill: float) -> PhaseSpace:
+    def _copy_with_edges(self, boundary: str, fill: float) -> PhaseSpace:
         """Return the sites of the space with other edges of its position axes.
 
         The class axes keep theirs.

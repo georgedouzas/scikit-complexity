@@ -37,8 +37,8 @@ def test_competition_selects_cooperating_species():
         return float((matrix[matrix != 0] > 0).mean())
 
     trajectory = simulate(CompetitiveJainKrishnaSystem(), random_state=0, until=300)
-    assert positive_share(trajectory.agents('species', 0).values['links']) < 0.55
+    assert positive_share(trajectory.get_agents('species', 0).values['links']) < 0.55
     assert (
-        np.mean([positive_share(trajectory.agents('species', frame).values['links']) for frame in (200, 250, 300)])
+        np.mean([positive_share(trajectory.get_agents('species', frame).values['links']) for frame in (200, 250, 300)])
         > 0.65
     )

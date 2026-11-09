@@ -43,7 +43,7 @@ def _agent_values(group, interaction, until):
     """Return the values of the agents of a group at the last step."""
     system = CompositeSystem(elements=[group], interactions=[interaction], time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.agents(group.label, until).values['x']
+    return trajectory.get_agents(group.label, until).values['x']
 
 
 def test_logistic_map_settles_on_the_closed_form_two_cycle():
@@ -175,7 +175,7 @@ def test_agent_map_updates_agents_by_the_schedule(schedule, expected):
 
     def following(agent, system):
         """Return one plus the sum of the values of the agents."""
-        return 1.0 + sum(member.x for member in system.agents('target'))
+        return 1.0 + sum(member.x for member in system.get_agents('target'))
 
     group = GroupElement('value', element=ValueElement, size=3, values={'x': 1.0})
     agents = MapInteraction('map', target='value', state='x', function=following, schedule=schedule, form='agent')
@@ -197,13 +197,13 @@ def test_agent_map_reads_a_whole_group_bound_to_its_sources():
         'map',
         target='value',
         state='x',
-        function=lambda a, m: sum(other.x for other in m.agents('sources')),
+        function=lambda a, m: sum(other.x for other in m.get_agents('sources')),
         sources=['others'],
         form='agent',
     )
     system = CompositeSystem(elements=[group, others], interactions=[agents], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('value', 1).values['x'].tolist() == [6.0, 6.0]
+    assert trajectory.get_agents('value', 1).values['x'].tolist() == [6.0, 6.0]
 
 
 class VectorElement(Element):
@@ -237,7 +237,7 @@ def test_agent_map_sets_a_vector_state(mode, expected):
     )
     system = CompositeSystem(elements=[group], interactions=[doubling], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('vectors', 1).values['w'].tolist() == expected
+    assert trajectory.get_agents('vectors', 1).values['w'].tolist() == expected
 
 
 def test_agent_map_rejects_a_vector_of_another_shape():

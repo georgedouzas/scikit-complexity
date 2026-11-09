@@ -22,7 +22,7 @@ def test_labour_market_flow_balance():
     unemployment = trajectory.values('unemployment')[window].mean()
     assert 0.05 < finding < 0.95
     assert abs(unemployment - separation / (separation + finding)) < 0.03
-    workers = trajectory.agents('workers', 150)
+    workers = trajectory.get_agents('workers', 150)
     hired = workers.values['hired'] >= 0
     assert hired.sum() > 50
     np.testing.assert_array_equal(workers.values['hired'][hired], workers.values['offer'][hired])

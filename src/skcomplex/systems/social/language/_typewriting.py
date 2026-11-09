@@ -151,7 +151,7 @@ class TypingInteraction(Interaction):
         """
         storage = system.storage
         if 'words' not in storage:
-            storage['words'] = {int(word.code): word for word in system.agents(self.target, TypedWordView)}
+            storage['words'] = {int(word.code): word for word in system.get_agents(self.target, TypedWordView)}
         words, code, length = storage['words'], storage.get('code', 0), storage.get('length', 0)
         if not isinstance(words, dict) or not isinstance(code, int) or not isinstance(length, int):
             return

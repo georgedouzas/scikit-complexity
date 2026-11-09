@@ -416,11 +416,11 @@ class VascularCorePeripherySystem(DynamicalSystem):
 
     def _core(self, s: SimpleNamespace) -> Expression:
         """Return `core` from the namespace of an equation."""
-        return VascularCorePeripherySystem._ball(self._ratio(s) * s.target.Ar)
+        return VascularCorePeripherySystem._get_ball(self._ratio(s) * s.target.Ar)
 
     def _periphery(self, s: SimpleNamespace) -> Expression:
         """Return `periphery` from the namespace of an equation."""
-        return VascularCorePeripherySystem._ball(s.target.Ar) - self._core(s)
+        return VascularCorePeripherySystem._get_ball(s.target.Ar) - self._core(s)
 
     def _density(self, s: SimpleNamespace) -> Expression:
         """Return `density` from the namespace of an equation."""
@@ -432,11 +432,13 @@ class VascularCorePeripherySystem(DynamicalSystem):
 
     def _core_increment(self, s: SimpleNamespace) -> Expression:
         """Return `core_increment` from the namespace of an equation."""
-        return VascularCorePeripherySystem._ball(self._ratio(s) * (s.target.Ar + self._growth(s))) - self._core(s)
+        return VascularCorePeripherySystem._get_ball(self._ratio(s) * (s.target.Ar + self._growth(s))) - self._core(s)
 
     def _volume_increment(self, s: SimpleNamespace) -> Expression:
         """Return `volume_increment` from the namespace of an equation."""
-        return VascularCorePeripherySystem._ball(s.target.Ar + self._growth(s)) - VascularCorePeripherySystem._ball(
+        return VascularCorePeripherySystem._get_ball(
+            s.target.Ar + self._growth(s),
+        ) - VascularCorePeripherySystem._get_ball(
             s.target.Ar,
         )
 
@@ -484,7 +486,7 @@ class VascularCorePeripherySystem(DynamicalSystem):
         return s.target.dose * pulse_train(s.t, self.period, self.width, start=self.start)
 
     @staticmethod
-    def _ball(radius: Expression) -> Expression:
+    def _get_ball(radius: Expression) -> Expression:
         """Return the volume of a ball of a radius."""
         return 4 * pi * radius**3 / 3
 

@@ -223,8 +223,8 @@ class ShepherdingInteraction(Interaction):
             system:
                 The system.
         """
-        flock = system.agents(self.sheep, HerdedSheepView)
-        dogs = system.agents(self.shepherds, ShepherdView)
+        flock = system.get_agents(self.sheep, HerdedSheepView)
+        dogs = system.get_agents(self.shepherds, ShepherdView)
         sheep = np.array([np.asarray(item.location, dtype=float) for item in flock])
         shepherds = np.array([np.asarray(item.location, dtype=float) for item in dogs])
         headings = np.array([[item.hx, item.hy] for item in flock])

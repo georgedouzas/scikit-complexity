@@ -156,7 +156,7 @@ class SupplyChainDiffusionSystem(BaseSystem):
         del system
         if firm.adopted:
             return 1.0
-        buyers = [item for item in firm.neighbors() if isinstance(item, SupplierView)]
+        buyers = [item for item in firm.get_neighbors() if isinstance(item, SupplierView)]
         return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
 
     @staticmethod

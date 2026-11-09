@@ -334,7 +334,7 @@ class KineticCrowdInteraction(Interaction):
             system:
                 The system.
         """
-        views = system.agents(self.target, KineticWalkerView)
+        views = system.get_agents(self.target, KineticWalkerView)
         if not views:
             return
         walkers = {

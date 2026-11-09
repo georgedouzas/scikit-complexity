@@ -485,12 +485,12 @@ class StigmergicPredatorPreySystem(BaseSystem):
     @staticmethod
     def _occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
         """Return the agents around an agent by their cell."""
-        return {other.location: other for other in agent.neighbors()}
+        return {other.location: other for other in agent.get_neighbors()}
 
     def _empty_cells(self, agent: AgentViewProtocol) -> list[object]:
         """Return the neighbouring cells of an agent that no agent occupies."""
         occupied = self._occupants(agent)
-        return [cell for cell in agent.neighbor_cells() if cell not in occupied]
+        return [cell for cell in agent.get_neighbor_cells() if cell not in occupied]
 
     def _get_empty_cell(self, agent: AgentViewProtocol | None, system: SystemViewProtocol) -> object:
         """Return a random empty neighbouring cell of a parent, or `None`.
@@ -550,8 +550,8 @@ class StigmergicPredatorPreySystem(BaseSystem):
         meal = 1.0 if occupant is not None and self._kind(occupant) == food else 0.0
         if not animal.emotions:
             return meal
-        happiness = system.field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
-        distress = system.field(f'{MARKS}.{distress_mark}', cell) - animal.distress
+        happiness = system.get_field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
+        distress = system.get_field(f'{MARKS}.{distress_mark}', cell) - animal.distress
         return meal + happiness - distress
 
     def _get_preferred(
@@ -569,7 +569,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         occupants = self._occupants(animal)
         options = [
             (cell, occupants.get(cell))
-            for cell in animal.neighbor_cells()
+            for cell in animal.get_neighbor_cells()
             if cell not in occupants or self._kind(occupants[cell]) == marks[0]
         ]
         if not options:
@@ -590,7 +590,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     @staticmethod
     def _get_marked(animal: ForagerView, system: SystemViewProtocol, mark: str) -> float:
         """Return the mean of a mark over the cells around an animal."""
-        return float(np.mean([system.field(f'{MARKS}.{mark}', cell) for cell in animal.neighbor_cells()]))
+        return float(np.mean([system.get_field(f'{MARKS}.{mark}', cell) for cell in animal.get_neighbor_cells()]))
 
     def _get_happiness(self, animal: AgentViewProtocol, system: SystemViewProtocol, mark: str) -> float:
         """Return the next happiness of an animal.

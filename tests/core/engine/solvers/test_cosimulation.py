@@ -386,7 +386,10 @@ def test_agent_rules_read_other_partitions():
         ],
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert trajectory.agents('village/farmers', 1).values['seen'].tolist() == pytest.approx([5.0 * np.e] * 2, rel=1e-5)
+    assert trajectory.get_agents('village/farmers', 1).values['seen'].tolist() == pytest.approx(
+        [5.0 * np.e] * 2,
+        rel=1e-5,
+    )
 
 
 def test_sync_interval_must_divide_frame():
@@ -448,7 +451,7 @@ def test_mixed_trajectory_holds_states_and_agents():
     """Test that a co-simulation trajectory returns ODE states per frame and agent states per agent."""
     trajectory = simulate(HarvestingSystem(5).prepare().system_, until=10, random_state=0)
     assert trajectory.values('land/stock.n').shape == (11,)
-    snapshot = trajectory.agents('village/farmers', 10)
+    snapshot = trajectory.get_agents('village/farmers', 10)
     assert len(snapshot.values['wealth']) == 5
     assert np.all(snapshot.values['wealth'] > 0)
 

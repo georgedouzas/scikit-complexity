@@ -302,14 +302,14 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
 
     def _threshold(self, system: SystemView, month: int, fragility: float) -> float:
         """Return the bankruptcy threshold of the month under the credit policy."""
-        start, length = system.parameter('shock_time'), system.parameter('shock_length')
-        theta = system.parameter('theta')
+        start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
+        theta = system.get_parameter('theta')
         if self.credit == 'none' or length == 0 or month < start:
             return theta
         if month < start + length:
             return np.inf
         if self.credit == 'adaptive':
-            return max(system.parameter('offset') * fragility, theta)
+            return max(system.get_parameter('offset') * fragility, theta)
         return theta
 
     @staticmethod
@@ -335,17 +335,17 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
 
         The adjustment follows last month's demand and profit.
         """
-        rng, gamma = system.rng, system.parameter('gamma')
+        rng, gamma = system.rng, system.get_parameter('gamma')
         active = state['active'] > 0
         workforce, demand, price, wage, profit = (state[name] for name in ('n', 'd', 'p', 'w', 'profit'))
         production = zeta * workforce
         mean_price = self._weighted(price[active], production[active])
         mean_wage = self._weighted(wage[active], production[active])
-        attraction = np.where(active, np.exp(system.parameter('beta') * (wage / mean_wage - 1)), 0.0)
+        attraction = np.where(active, np.exp(system.get_parameter('beta') * (wage / mean_wage - 1)), 0.0)
         available = unemployment * len(workforce) * attraction / attraction.sum()
         under, over = active & (production < demand), active & (production > demand)
-        eta_minus = system.parameter('eta_minus')
-        eta_plus = min(1.0, system.parameter('ratio') * eta_minus)
+        eta_minus = system.get_parameter('eta_minus')
+        eta_plus = min(1.0, system.get_parameter('ratio') * eta_minus)
         hired = np.minimum(eta_plus * (demand - production), zeta * available) / zeta
         workforce = np.where(
             under,
@@ -376,7 +376,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the economy.
         """
-        firms = sorted(system.agents('firms', Mark0FirmView), key=lambda firm: firm.id)
+        firms = sorted(system.get_agents('firms', Mark0FirmView), key=lambda firm: firm.id)
         names = ('workforce', 'demand', 'price', 'wage', 'cash', 'profit', 'active')
         keys = ('n', 'd', 'p', 'w', 'e', 'profit', 'active')
         state = {key: np.array([getattr(firm, name) for firm in firms]) for key, name in zip(keys, names, strict=True)}
@@ -384,12 +384,12 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         month = int(self._stored(system, 'month', 0.0))
         savings, inflation_ema = self._stored(system, 'savings', 0.0), self._stored(system, 'inflation_ema', 0.0)
         rho_l, rho_d = self._stored(system, 'rho_l', 0.0), self._stored(system, 'rho_d', 0.0)
-        start, length = system.parameter('shock_time'), system.parameter('shock_length')
+        start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
         shocked = start <= month < start + length
-        zeta = system.parameter('zeta') * (1 - system.parameter('dzeta') * shocked)
-        c = system.parameter('c0') * (1 - system.parameter('dc') * shocked)
+        zeta = system.get_parameter('zeta') * (1 - system.get_parameter('dzeta') * shocked)
+        c = system.get_parameter('c0') * (1 - system.get_parameter('dc') * shocked)
         if length > 0 and month == start + length:
-            savings *= system.parameter('kappa')
+            savings *= system.get_parameter('kappa')
         size = len(firms)
         if month > 0:
             state['sales'] = np.asarray(store['sales'])
@@ -403,14 +403,14 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         mean_price = self._weighted(state['p'][active], production[active])
         mean_wage = self._weighted(state['w'][active], production[active])
         budget = c * (savings + wages + rho_d * savings)
-        weights = np.where(active, np.exp(-system.parameter('beta') * state['p'] / mean_price), 0.0)
+        weights = np.where(active, np.exp(-system.get_parameter('beta') * state['p'] / mean_price), 0.0)
         state['d'] = budget * weights / (state['p'] * weights.sum())
         sales = state['p'] * np.minimum(production, state['d'])
         interest = rho_d * np.maximum(state['e'], 0.0) + rho_l * np.minimum(state['e'], 0.0)
         state['e'] = state['e'] + sales + interest
         state['profit'] = sales - bill + interest
         savings += wages + rho_d * savings - float(sales.sum())
-        dividends = np.where((state['profit'] > 0) & (state['e'] > 0), system.parameter('delta') * state['e'], 0.0)
+        dividends = np.where((state['profit'] > 0) & (state['e'] > 0), system.get_parameter('delta') * state['e'], 0.0)
         state['e'] -= dividends
         savings += float(dividends.sum())
         fragility_of = np.divide(-state['e'], bill, out=np.zeros(size), where=bill > 0)
@@ -421,7 +421,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         for key in ('n', 'd', 'e', 'profit', 'active'):
             state[key] = np.where(defaulted, 0.0, state[key])
         unemployment = 1 - state['n'].sum() / size
-        revived = (state['active'] == 0) & ~defaulted & (system.rng.random(size) < system.parameter('phi'))
+        revived = (state['active'] == 0) & ~defaulted & (system.rng.random(size) < system.get_parameter('phi'))
         start_size = unemployment * system.rng.random(size)
         state['n'] = np.where(revived, start_size, state['n'])
         state['p'] = np.where(revived, mean_price, state['p'])
@@ -429,9 +429,9 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         state['active'] = np.where(revived, 1.0, state['active'])
         previous = self._stored(system, 'price', mean_price)
         inflation = (mean_price - previous) / previous
-        inflation_ema = system.parameter('omega') * inflation + (1 - system.parameter('omega')) * inflation_ema
+        inflation_ema = system.get_parameter('omega') * inflation + (1 - system.get_parameter('omega')) * inflation_ema
         debts, deposits = float(-np.minimum(state['e'], 0.0).sum()), float(np.maximum(state['e'], 0.0).sum())
-        f = system.parameter('f')
+        f = system.get_parameter('f')
         rho_l = f * losses / debts if debts > 0 else 0.0
         rho_d = -(1 - f) * losses / (savings + deposits) if savings + deposits > 0 else 0.0
         store.update(

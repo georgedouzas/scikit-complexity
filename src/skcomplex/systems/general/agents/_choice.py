@@ -129,13 +129,13 @@ class ChoiceInteraction(Interaction):
         """Return the tags of the agent-form rules or of the symbolic choice updates."""
         return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the choice draws.
 
         Every rule draws but the best option with the first of ties every step.
         """
         fixed = self.rule == 'best' and self.ties == 'first' and self.activity == 1
-        return super()._draws() or not fixed
+        return super()._get_draws() or not fixed
 
     def __init__(
         self,

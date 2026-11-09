@@ -133,7 +133,7 @@ class WillingMajorityInteraction(Interaction):
             system:
                 The system.
         """
-        voters = system.agents(self.target, WillingVoterView)
+        voters = system.get_agents(self.target, WillingVoterView)
         size = len(voters)
         group_size = int(self.group_size)
         if size <= group_size:

@@ -265,7 +265,7 @@ class PricingGameSpec(BaseSpec):
             payoff:
                 The profit of the price.
         """
-        rival = cast(PricingFirmView, next(item for item in system.agents(agent.group) if item.id != agent.id))
+        rival = cast(PricingFirmView, next(item for item in system.get_agents(agent.group) if item.id != agent.id))
         price, against = float(self.prices[k]), float(rival.price)
         share = 1.0 if price < against else 0.5 if price == against else 0.0
         return price * (self.alpha + self.beta * share)
@@ -493,5 +493,5 @@ class OligopolyEquilibriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _price_observables(self._pass_parameters())
+        settings['observables'] = _price_observables(self._get_pass_parameters())
         return settings

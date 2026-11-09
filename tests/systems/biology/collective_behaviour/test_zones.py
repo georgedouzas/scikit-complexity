@@ -43,7 +43,7 @@ def _velocities(locations, velocities, **arguments):
     coupling = ZoneCouplingInteraction('coupling', target='agents', write=('vx', 'vy'), **arguments)
     space = ContinuousSpace(extent=(10.0, 10.0))
     system = CompositeSystem(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
-    snapshot = simulate(system, until=1, random_state=0).agents('agents', 1)
+    snapshot = simulate(system, until=1, random_state=0).get_agents('agents', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

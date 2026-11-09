@@ -34,7 +34,7 @@ fig, (strategies, games) = plt.subplots(1, 2, figsize=(10, 4))
 for name, transitions in (('with transitions', True), ('game 1 only', False)):
     system = GameTransitionsSystem(transitions=transitions, **settings)
     trajectory = simulate(system, until=50, random_state=0)
-    share = [np.mean(trajectory.agents('players', frame).values['strategy']) for frame in range(51)]
+    share = [np.mean(trajectory.get_agents('players', frame).values['strategy']) for frame in range(51)]
     strategies.plot(trajectory.times, share, label=name)
     games.plot(trajectory.times[1:], trajectory.values('evolution.game_one')[1:], label=name)
 strategies.set_xlabel('generations')

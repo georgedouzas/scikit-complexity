@@ -173,13 +173,13 @@ class StandardizationInteraction(ChoiceInteraction):
 
         It is read from the counts of the configurations of the others.
         """
-        counts = system.composition('target', 'configuration')
+        counts = system.get_composition('target', 'configuration')
         up, down = counts.get(0.0, 0), counts.get(1.0, 0)
         spin, new = float(StandardizationInteraction._spins_of(np.array(agent.configuration))), float(
             StandardizationInteraction._spins_of(np.array(option)),
         )
-        standardizing = system.parameter('K') * abs(new) * (up + down - abs(spin))
-        ordering = system.parameter('J') * new * (up - down - spin)
+        standardizing = system.get_parameter('K') * abs(new) * (up + down - abs(spin))
+        ordering = system.get_parameter('J') * new * (up - down - spin)
         return (standardizing + ordering) / sum(counts.values())
 
     @staticmethod

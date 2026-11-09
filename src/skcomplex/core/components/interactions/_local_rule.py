@@ -73,12 +73,12 @@ class LocalRuleInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (LocalRuleLaw,)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the rule draws.
 
         It draws when it is stochastic or updates sites in a random order or at random.
         """
-        return super()._draws() or self.stochastic or self.schedule == 'random-site'
+        return super()._get_draws() or self.stochastic or self.schedule == 'random-site'
 
     def __init__(
         self,

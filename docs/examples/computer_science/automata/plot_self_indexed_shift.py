@@ -36,7 +36,7 @@ values = trajectory.values('cells.value')
 lost = (values == -1).mean(axis=1)
 finite = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, random_state=1)
 space = finite.prepare().system_.elements[0].space.prepare()
-products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
 start = finite.prepare().system_.elements[0].values['value']
 image = simulate(finite, until=1).values('cells.value')[-1]
 gaps = []

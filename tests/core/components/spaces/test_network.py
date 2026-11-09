@@ -105,10 +105,10 @@ def test_layers_hold_relations_over_the_same_nodes():
     assert list(space.graphs_) == [None, 'work']
     assert space.graphs_['work'] is work.graph
     assert len(space.edges_['work'][0]) == 6
-    assert space.prepare()._neighbor_pairs('work') == list(
+    assert space.prepare()._get_neighbor_pairs('work') == list(
         zip(*[item.tolist() for item in space.edges_['work']], strict=True),
     )
-    assert space._index_table(AdjacencyNeighborhood(layer='work')).shape == (4, 3)
+    assert space._get_index_table(AdjacencyNeighborhood(layer='work')).shape == (4, 3)
     assert space._get_neighbors(0, AdjacencyNeighborhood(layer='work')).tolist() == [1, 2, 3]
 
 
@@ -144,7 +144,7 @@ def test_network_space_counts_its_hyperedges():
 def test_network_space_reads_an_adjacency_neighbourhood_only():
     """Test that a network rejects a lattice neighbourhood."""
     with pytest.raises(ValidationError, match='adjacency neighbourhood'):
-        NetworkSpace(nx.path_graph(4)).prepare()._index_table(BallNeighborhood(metric='manhattan'))
+        NetworkSpace(nx.path_graph(4)).prepare()._get_index_table(BallNeighborhood(metric='manhattan'))
 
 
 def test_network_space_gives_the_neighbours_of_a_node():

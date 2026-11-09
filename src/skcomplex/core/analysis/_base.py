@@ -473,7 +473,7 @@ def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
 
     The snapshots are aligned on the agents present in every frame.
     """
-    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
+    frames = [trajectory.get_agents(group, frame) for frame in range(len(trajectory.times))]
     common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
     ids = np.asarray(sorted(common), dtype=np.int64)
     columns = [_get_columns(frame.ids, ids) for frame in frames]

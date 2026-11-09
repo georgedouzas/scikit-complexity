@@ -15,7 +15,7 @@ def test_order_book_chartists_raise_volatility_and_conserve_holdings():
         trajectory = simulate(OrderBookSystem(chartists=chartists, imitation=0.0), until=150)
         prices = trajectory.values('book.price')[1:]
         returns[chartists] = np.diff(np.log(prices))
-        traders = trajectory.agents('traders', 150).values
+        traders = trajectory.get_agents('traders', 150).values
         assert traders['money'].sum() == pytest.approx(400 * 1000.0)
         assert traders['shares'].sum() == pytest.approx(400 * 10.0)
     assert returns[0.5].std() > 1.5 * returns[0.0].std()

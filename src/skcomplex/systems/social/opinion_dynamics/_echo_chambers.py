@@ -185,7 +185,7 @@ class RadicalizationInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.agents(self.target, RadicalView)
+        agents = system.get_agents(self.target, RadicalView)
         if len(agents) < PAIR:
             return
         opinions = np.array([agent.opinion for agent in agents])

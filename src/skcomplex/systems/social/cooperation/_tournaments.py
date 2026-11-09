@@ -176,7 +176,7 @@ class TournamentInteraction(GroupingInteraction):
 
     def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return every agent of a random ring followed by its two neighbours in the ring."""
-        agents = [agent for agent in system.agents('target') if agent.alive]
+        agents = [agent for agent in system.get_agents('target') if agent.alive]
         if len(agents) < PAIR:
             return []
         ring = [agents[int(index)] for index in system.rng.permutation(len(agents))]

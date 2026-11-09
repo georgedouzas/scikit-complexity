@@ -599,7 +599,7 @@ def test_recovery_runs_once_per_member_beside_spreading_over_the_degree(space, b
         interactions=[RecoveryInteraction('sis', nodes='nodes')],
     )
     adjacency = np.zeros((8, 8))
-    for first, second in space.prepare()._neighbor_pairs():
+    for first, second in space.prepare()._get_neighbor_pairs():
         adjacency[first, second] = adjacency[second, first] = 1.0
     expected = adjacency @ infected * (1 - infected) / adjacency.sum(axis=1) - 0.5 * infected
     assert np.allclose(_drift(system, backend, 'nodes.i'), expected, atol=1e-12)

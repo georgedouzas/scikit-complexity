@@ -24,7 +24,7 @@ def test_colony_finds_a_short_path_and_heals_a_disruption():
         trajectory = simulate(system, random_state=seed, until=100)
         lengths = trajectory.values('search.shortest')
         assert lengths[49] < 1.1 * _shortest(search)
-        is_open = trajectory.agents('roads', 100).values['passable']
+        is_open = trajectory.get_agents('roads', 100).values['passable']
         assert (is_open == 0).sum() == 2
         assert np.nanmin(lengths[80:]) < 1.2 * _shortest(search, is_open)
         assert np.nanmin(lengths[80:]) >= _shortest(search, is_open) - 1e-9

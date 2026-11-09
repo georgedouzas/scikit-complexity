@@ -151,7 +151,7 @@ class SplitSolver(Solver):
                     triplets.append((term.target, term.source, self._term_matrix(term, coefficient)))
                 elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
                     groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
-            self.sparse_ = self._sparse(triplets, self.problem_)
+            self.sparse_ = self._get_sparse(triplets, self.problem_)
             self.blocks_ = [self._spectral_block(terms) for terms in groups.values()]
             self._inverses: dict[float, tuple[SuperLU | None, list[ComplexArray]]] = {}
             self._parameters = p.copy()
@@ -299,7 +299,7 @@ class SplitSolver(Solver):
 
         def shift(offset: tuple[int, ...]) -> csr_matrix:
             lattice = LatticeSpace(shape, boundary=LATTICE_BOUNDARIES[kind]).prepare()
-            table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
+            table = lattice._get_index_table(LatticeNeighborhood((offset,)))[:, 0]
             inside = table < size
             return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
 
@@ -334,7 +334,7 @@ class SplitSolver(Solver):
         return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
 
     @staticmethod
-    def _sparse(
+    def _get_sparse(
         triplets: list[tuple[ReferenceSpec, ReferenceSpec, csr_matrix]],
         problem: ProblemSpec,
     ) -> csr_matrix | None:

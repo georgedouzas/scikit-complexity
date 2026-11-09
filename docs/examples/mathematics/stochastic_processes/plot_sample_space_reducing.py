@@ -24,7 +24,7 @@ SYSTEM = 'sample_space_reducing'
 
 def levels(trajectory):
     """Return the levels of the balls, one row per step."""
-    return np.array([trajectory.agents('balls', frame).values['level'] for frame in range(len(trajectory.times))])
+    return np.array([trajectory.get_agents('balls', frame).values['level'] for frame in range(len(trajectory.times))])
 
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())

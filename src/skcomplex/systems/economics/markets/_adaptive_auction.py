@@ -161,9 +161,9 @@ class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the auction.
         """
-        rng, step = system.rng, system.parameter('step')
-        buyers = sorted(system.agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
-        sellers = sorted(system.agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
+        rng, step = system.rng, system.get_parameter('step')
+        buyers = sorted(system.get_agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
+        sellers = sorted(system.get_agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
         prices = []
         for buyer in (buyers[index] for index in rng.permutation(len(buyers))):
             stocked = [seller for seller in sellers if seller.units > 0]
@@ -180,7 +180,7 @@ class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
             else:
                 buyer.quote = min(buyer.quote + bid_step, buyer.value)
                 seller.quote = max(seller.quote - ask_step, seller.value)
-        last = system.history('price', 1)
+        last = system.get_history('price', 1)
         price = prices[-1] if prices else (float(last[-1]) if len(last) else float('nan'))
         system.report('price', price)
         system.report('volume', float(len(prices)))

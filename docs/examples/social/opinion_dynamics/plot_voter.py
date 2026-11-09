@@ -42,7 +42,7 @@ trajectory = simulate(system, until=60, observers=[observer], random_state=0)
 edges = np.array(lattice.edges)
 fractions, interfaces = [], []
 for frame in range(len(trajectory.times)):
-    voters = trajectory.agents('voters', frame)
+    voters = trajectory.get_agents('voters', frame)
     opinion = np.empty(len(voters.ids))
     opinion[np.ravel(voters.locations).astype(int)] = voters.values['opinion']
     fractions.append(opinion.mean())

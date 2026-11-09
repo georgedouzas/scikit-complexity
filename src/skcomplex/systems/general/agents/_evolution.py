@@ -557,7 +557,7 @@ class EvolutionInteraction(Interaction):
         calls = system.storage.get('calls', 0)
         calls = calls + 1 if isinstance(calls, int) else 1
         system.storage['calls'] = calls
-        agents = system.agents(self._get_role('target'))
+        agents = system.get_agents(self._get_role('target'))
         if not agents or calls % self.period:
             return
         strategies, fitness = self._read(agents, system)

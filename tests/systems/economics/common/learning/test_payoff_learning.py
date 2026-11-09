@@ -111,7 +111,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
         form='agent',
     )
     trajectory = _run([reinforcement, choice], {'value': np.array([0.5, 3.0])}, 2, 4)
-    frame = trajectory.agents('learners', 4).values
+    frame = trajectory.get_agents('learners', 4).values
     assert frame['choice'].tolist() == [0.0, 1.0]
     assert frame['second'].tolist() == pytest.approx([0.5 * (1 - 0.5**4), 3.0 * (1 - 0.5**4)])
 
@@ -142,7 +142,7 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
     group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
     system = CompositeSystem(elements=[group], interactions=[reinforcement], time=DiscreteTime())
     trajectory = simulate(system, until=2, random_state=0)
-    scores = np.array(trajectory.agents('pool', 2).values['scores'].tolist(), dtype=float)
+    scores = np.array(trajectory.get_agents('pool', 2).values['scores'].tolist(), dtype=float)
     assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
 
 
@@ -183,7 +183,7 @@ def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():
 
 def _scarce_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
     """Return a payoff of option 1 while no learner has scored it yet, and zero otherwise."""
-    scored = sum(learner.second for learner in system.agents('target', LearnerView))
+    scored = sum(learner.second for learner in system.get_agents('target', LearnerView))
     return float(index == 1 and scored == 0)
 
 
@@ -199,7 +199,7 @@ def test_reinforcement_interaction_sequential_schedule_reads_the_scores_set_befo
         schedule=schedule,
         form='agent',
     )
-    assert _run([reinforcement], {}, 2, 1).agents('learners', 1).values['second'].tolist() == expected
+    assert _run([reinforcement], {}, 2, 1).get_agents('learners', 1).values['second'].tolist() == expected
 
 
 def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_their_activation():
@@ -224,7 +224,7 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         schedule='member',
         form='agent',
     )
-    frame = _run([choice, reinforcement], {'value': 4.0}, 3, 2).agents('learners', 2).values
+    frame = _run([choice, reinforcement], {'value': 4.0}, 3, 2).get_agents('learners', 2).values
     assert frame['choice'].tolist() == [1.0, 1.0, 1.0]
     assert frame['first'].tolist() == [0.0, 0.0, 0.0]
     assert frame['second'].tolist() == [3.0, 3.0, 3.0]

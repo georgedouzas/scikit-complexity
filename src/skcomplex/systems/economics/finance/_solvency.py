@@ -85,13 +85,13 @@ class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the cascade.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
         status = np.array([bank.status for bank in banks])
         equity = np.array([bank.equity for bank in banks])
         defaulting = status == DEFAULTING
-        losses = (1 - system.parameter('recovery')) * np.asarray(self.liabilities, dtype=float).T @ defaulting
+        losses = (1 - system.get_parameter('recovery')) * np.asarray(self.liabilities, dtype=float).T @ defaulting
         equity = equity - losses
-        hit = (status == SOLVENT) & (equity < system.parameter('threshold'))
+        hit = (status == SOLVENT) & (equity < system.get_parameter('threshold'))
         status = np.where(defaulting, DEFAULTED, np.where(hit, DEFAULTING, status))
         for bank, value, code in zip(banks, equity, status, strict=True):
             bank.equity, bank.status = float(value), float(code)
@@ -151,7 +151,7 @@ class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the clearing.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
         matrix = np.asarray(self.liabilities, dtype=float)
         owed = matrix.sum(axis=1)
         shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)

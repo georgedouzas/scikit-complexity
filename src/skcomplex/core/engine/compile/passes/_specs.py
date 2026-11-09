@@ -619,7 +619,7 @@ class SpecsPass(BasePass):
             size = space.size_
         elif isinstance(space, LatticeSpace | CayleySpace) and edges is None and layer is None:
             size = int(space.size_ or 0)
-            pairs = np.array(space.prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
+            pairs = np.array(space.prepare()._get_neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
             sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         else:
             error_msg = (

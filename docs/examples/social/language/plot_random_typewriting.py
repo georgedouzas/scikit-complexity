@@ -29,7 +29,7 @@ trajectory = simulate(RandomTypewritingSystem(), until=100, observers=[observer]
 # 1.14, in steps, one step per word length, and the mean count of a word should fall by `letters / (1 - q) = 6.25` per
 # letter.
 
-words = trajectory.agents('words', len(trajectory.times) - 1).values
+words = trajectory.get_agents('words', len(trajectory.times) - 1).values
 counts = np.sort(words['count'])[::-1]
 ranks = np.arange(1, counts.size + 1)
 alpha = 1 - np.log(0.8) / np.log(5)

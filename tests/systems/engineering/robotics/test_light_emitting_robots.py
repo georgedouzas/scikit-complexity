@@ -23,7 +23,7 @@ def test_light_emitting_robots_cluster_with_a_delay_and_spread_with_a_prediction
 def test_light_emitting_robots_stay_in_the_periodic_arena():
     """Test that the robots stay inside the arena and move at speeds between the speeds in light and in the dark."""
     trajectory = simulate(LightEmittingRobotsSystem(), until=50)
-    snapshot = trajectory.agents('robots', 50)
+    snapshot = trajectory.get_agents('robots', 50)
     positions = np.asarray(snapshot.locations)
     assert positions.min() >= 0
     assert positions.max() <= 10

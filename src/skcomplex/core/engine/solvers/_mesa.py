@@ -115,7 +115,7 @@ class SystemView:
             error_msg = f'No role or agent group named {name!r} for {owner}. Its roles are: {roles}. {error}'
             raise SimulationError(error_msg) from error
 
-    def parameter(self, name: str) -> float:
+    def get_parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner.
 
         One component is read as `name[i]`.
@@ -248,12 +248,12 @@ class SystemView:
         return bool(getattr(self._stepper.space_, 'torus', False))
 
     @overload
-    def agents(self, name: str) -> list['AgentView']: ...
+    def get_agents(self, name: str) -> list['AgentView']: ...
 
     @overload
-    def agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
+    def get_agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
 
-    def agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
+    def get_agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
         """Return the views of the agents of a group bound to a role of the owner.
 
         A group may also be named by path.
@@ -285,7 +285,7 @@ class SystemView:
             return views
         return [item for item in views if isinstance(item, view)]
 
-    def groups(self, name: str) -> list[str]:
+    def get_groups(self, name: str) -> list[str]:
         """Return the paths of the groups a role of the owner binds.
 
         A group may also be named by relative or absolute path.
@@ -323,7 +323,7 @@ class SystemView:
         """
         return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
 
-    def composition(self, name: str, state: str) -> dict[Hashable, int]:
+    def get_composition(self, name: str, state: str) -> dict[Hashable, int]:
         """Return the number of agents of a group that hold every value of a state.
 
         Only the values some agent holds are counted. The stepper keeps the counts as agents are created, removed, and
@@ -350,7 +350,7 @@ class SystemView:
                 counts[value] = counts.get(value, 0) + count
         return {value: count for value, count in counts.items() if count}
 
-    def occupancy(self, name: str) -> dict[Hashable, int]:
+    def get_occupancy(self, name: str) -> dict[Hashable, int]:
         """Return the number of agents of a group in every cell or node that holds one.
 
         The counts are keyed by the key of the location.
@@ -375,7 +375,7 @@ class SystemView:
                 counts[key] = counts.get(key, 0) + 1
         return counts
 
-    def regions(self, layer: str) -> int:
+    def get_regions(self, layer: str) -> int:
         """Return the number of regions of a layer of the continuous space.
 
         Args:
@@ -392,7 +392,7 @@ class SystemView:
         """
         return len(self._stepper._index_of(layer).geometries)
 
-    def region(self, layer: str, index: int) -> Polygon:
+    def get_region(self, layer: str, index: int) -> Polygon:
         """Return the polygon of a region of a layer of the continuous space.
 
         A rule can pass the polygon to `move_to`.
@@ -445,7 +445,7 @@ class SystemView:
             raise KeyError(error_msg)
         return list(space.graph.nodes).index(cell)
 
-    def field(self, name: str, cell: object) -> float:
+    def get_field(self, name: str, cell: object) -> float:
         """Return the value of a field at a cell.
 
         It is the value at the last synchronisation point.
@@ -498,7 +498,7 @@ class SystemView:
         entry = self._stepper.problem_.states.entry(name)
         self._stepper.deposits_[entry.start + site * entry.columns] += amount
 
-    def random_empty_cell(self) -> object:
+    def get_random_empty_cell(self) -> object:
         """Return the coordinates of a random empty cell of the grid or network.
 
         Returns:
@@ -576,7 +576,7 @@ class SystemView:
         self._stepper.reports_[full] = kept
         self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(kept)
 
-    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter, or of an observable.
 
         An observable gives its values at the end of each earlier step, the last one last.
@@ -603,7 +603,7 @@ class SystemView:
         )
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
-    def observable(self, name: str) -> object:
+    def get_observable(self, name: str) -> object:
         """Return the current value of an observable of the system.
 
         An example is an aggregate of a group.
@@ -709,7 +709,7 @@ class AgentView:
         """Whether the agent has not been removed."""
         return not getattr(self._agent, 'removed_', False)
 
-    def displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
+    def get_displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
         """Return the vector from the agent to another agent or a location.
 
         On a torus, it is the shortest one.
@@ -741,7 +741,7 @@ class AgentView:
         size = np.asarray(dimensions, dtype=float)
         return delta - size * np.round(delta / size)
 
-    def distance_to(self, other: 'AgentView | object') -> float:
+    def get_distance_to(self, other: 'AgentView | object') -> float:
         """Return the distance to another agent or a location.
 
         On a network, it is the number of hops.
@@ -762,9 +762,9 @@ class AgentView:
         if isinstance(space, NetworkSpace):
             target = other.location if isinstance(other, AgentView) else other
             return float(nx.shortest_path_length(space.graph, self.location, target))
-        return float(np.linalg.norm(self.displacement_to(other)))
+        return float(np.linalg.norm(self.get_displacement_to(other)))
 
-    def neighbor_cells(self) -> list[object]:
+    def get_neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node.
 
         Returns:
@@ -773,7 +773,7 @@ class AgentView:
         """
         return [cell.coordinate for cell in self._agent.cell.neighborhood]
 
-    def neighbors(
+    def get_neighbors(
         self,
         radius: float | None = None,
         layer: str | None = None,
@@ -835,7 +835,7 @@ class AgentView:
         path = stepper._resolve_group(group, self.group) if group is not None else None
         return [MesaSolver._view_of(agent) for agent in agents if path is None or stepper._spec_of(agent).path == path]
 
-    def agents_here(self, group: str | None = None) -> list['AgentView']:
+    def get_agents_here(self, group: str | None = None) -> list['AgentView']:
         """Return the other agents in the agent's cell or node.
 
         They are of one group or of every group.
@@ -856,7 +856,7 @@ class AgentView:
             if agent is not self._agent and (path is None or stepper._spec_of(agent).path == path)
         ]
 
-    def regions_here(self, layer: str) -> list[int]:
+    def get_regions_here(self, layer: str) -> list[int]:
         """Return the indices of the regions of a layer that contain the agent.
 
         Regions with the agent on their boundaries count too.
@@ -954,7 +954,7 @@ class AgentView:
         place = location if location is not None else self.location
         return MesaSolver._view_of(stepper._create_agent(target, place, values))
 
-    def referenced(self, state: str) -> 'AgentView | None':
+    def get_referenced(self, state: str) -> 'AgentView | None':
         """Return the member of another group that a reference state of the agent names.
 
         The state names it by its id. A state declared with `StateSpec(reference=group)` holds the id of a member of the
@@ -982,7 +982,7 @@ class AgentView:
             return None
         return MesaSolver._view_of(agent)
 
-    def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a state of an agent.
 
         They are the values at the ends of the last steps, the last one last. An agent remembers a state declared with

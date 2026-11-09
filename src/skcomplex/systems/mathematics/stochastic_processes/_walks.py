@@ -464,7 +464,7 @@ class AgeingRandomWalkSystem(BaseSystem):
             'step',
             target='walkers',
             state='x',
-            function=lambda agent, system: 2 * (agent.ups - agent.lags('ups')[-1]) - 1,
+            function=lambda agent, system: 2 * (agent.ups - agent.get_lags('ups')[-1]) - 1,
             mode='increment',
             form='agent',
         )

@@ -33,7 +33,7 @@ sensitivities = [0.5, 1.0, 2.0, 4.0, 8.0]
 order, undecided = [], []
 for sensitivity in sensitivities:
     trajectory = simulate(ThreeStateOpinionSystem(sensitivity=sensitivity), until=100, random_state=0)
-    opinions = np.array([trajectory.agents('voters', frame).values['opinion'] for frame in range(50, 101)])
+    opinions = np.array([trajectory.get_agents('voters', frame).values['opinion'] for frame in range(50, 101)])
     order.append(np.mean(np.abs(opinions.mean(axis=1))))
     undecided.append(np.mean(opinions == 0))
 grid = np.linspace(0.3, 8, 100)

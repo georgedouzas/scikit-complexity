@@ -41,7 +41,7 @@ layout = nx.spring_layout(graph, seed=1)
 positions = np.array([layout[node] for node in graph.nodes]) * 300
 observer.recording_.log('club', rr.GraphEdges(list(graph.edges), graph_type='undirected'), static=True)
 for frame, time in enumerate(trajectory.times):
-    located = np.asarray(trajectory.agents('walkers', frame).locations).ravel().astype(int)
+    located = np.asarray(trajectory.get_agents('walkers', frame).locations).ravel().astype(int)
     crowd = np.bincount(located, minlength=graph.number_of_nodes())
     observer.recording_.set_time('sim_time', duration=time)
     observer.recording_.log(
@@ -64,7 +64,10 @@ observer.recording_.flush()
 # hubs 0 and 33 should hold about 5 and 6 times the share of a node of degree 3.
 
 nodes = np.concatenate(
-    [np.asarray(trajectory.agents('walkers', frame).locations).ravel() for frame in range(20, len(trajectory.times))],
+    [
+        np.asarray(trajectory.get_agents('walkers', frame).locations).ravel()
+        for frame in range(20, len(trajectory.times))
+    ],
 )
 share = np.bincount(nodes.astype(int), minlength=graph.number_of_nodes()) / nodes.size
 degree = np.array([graph.degree(node) for node in graph.nodes])

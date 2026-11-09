@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for frame, label in zip((0, 1, 2), ('home', 'work', 'favourite'), strict=True):
-    locations = trajectory.agents('residents', frame).locations
+    locations = trajectory.get_agents('residents', frame).locations
     axes[0].scatter(locations[:, 0], locations[:, 1], s=6, label=label)
 axes[0].set_aspect('equal')
 axes[0].set_title('One commuting cycle')

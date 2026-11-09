@@ -20,7 +20,7 @@ def _run(
 
 def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyArray]:
     """Return the states of a group's agents at a frame."""
-    return trajectory.agents(group, frame).values
+    return trajectory.get_agents(group, frame).values
 
 
 def _run_observed(

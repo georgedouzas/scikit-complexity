@@ -37,7 +37,7 @@ trajectory = simulate(system_system, until=18, observers=[observer], random_stat
 system_system = PhoneAdoptionSystem(random_state=0)
 trajectory = simulate(system_system, until=YEARS, random_state=0)
 frames = range(len(trajectory.times))
-households = [trajectory.agents('households', frame).values for frame in frames]
+households = [trajectory.get_agents('households', frame).values for frame in frames]
 classes = households[0]['social_class']
 fig, (by_class, overall) = plt.subplots(1, 2, figsize=(10, 4))
 for index, name in enumerate(np.unique(classes)):

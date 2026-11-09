@@ -266,7 +266,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if key not in self.tables_:
             space = place.space
             if isinstance(space, NetworkSpace):
-                table = space._index_table(AdjacencyNeighborhood())
+                table = space._get_index_table(AdjacencyNeighborhood())
                 sites = np.arange(table.shape[0])[:, None]
                 self.tables_[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
@@ -276,8 +276,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                         'lattice with a number outside fixed edges.'
                     )
                     raise ValidationError(error_msg)
-                lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
-                table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
+                lattice = space._copy_with_edges(LATTICE_BOUNDARIES[kind], value)
+                table = lattice._get_index_table(LatticeNeighborhood((offset,)))[:, 0]
                 self.tables_[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self.tables_[key]
         return table, ghost, self._read_mode(place.space, kind, offset)
@@ -409,7 +409,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         space = place.space
         if isinstance(space, NetworkSpace) and isinstance(offset, int):
-            table = space._index_table(AdjacencyNeighborhood())
+            table = space._get_index_table(AdjacencyNeighborhood())
             sites = np.arange(table.shape[0])[:, None]
             return np.asarray(np.where(table == table.shape[0], sites, table)[:, offset], dtype=np.intp)
         if not isinstance(space, LatticeSpace) or isinstance(offset, int) or not isinstance(value, float):
@@ -418,8 +418,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 'or a network with a number outside fixed edges.'
             )
             raise ValidationError(error_msg)
-        lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
-        return np.asarray(lattice._index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
+        lattice = space._copy_with_edges(LATTICE_BOUNDARIES[kind], value)
+        return np.asarray(lattice._get_index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
 
     def _shifted_derived(self, base: Expression, total: IntTuple | int) -> Expression:
         """Return the symbol of a derived value read at a neighbouring site.
@@ -509,7 +509,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """Return the stencil of the Laplacian of an expression."""
         space = self._space(expression)
         if isinstance(space, NetworkSpace):
-            width = space._index_table(AdjacencyNeighborhood()).shape[1]
+            width = space._get_index_table(AdjacencyNeighborhood()).shape[1]
             return sum((self._shift(expression, slot) - expression for slot in range(width)), SR(0))
         total = SR(0)
         for axis in range(space.n_dim_):
@@ -560,7 +560,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     def _lowered_call(self, name: str, operands: list[object]) -> Expression:
         """Return the value of one operator whose operands are lowered."""
         if name == 'shifted':
-            return self._shifted(SR(operands[0]), [SR(item) for item in operands[1:]])
+            return self._get_shifted(SR(operands[0]), [SR(item) for item in operands[1:]])
         if name in {'laplacian', 'partial', 'upwind'} and not SR(operands[0]).variables():
             return SR(0)
         place = self._place(SR(operands[0]))
@@ -815,7 +815,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             error_msg = f'A law of {self.spec.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
         screening = self._screening(SR(operands[1])) if name == 'inverse_helmholtz' else 0.0
-        if isinstance(space, PhaseSpace) and name == 'partial' and space._axis_boundary(axis) != 'periodic':
+        if isinstance(space, PhaseSpace) and name == 'partial' and space._get_axis_boundary(axis) != 'periodic':
             error_msg = (
                 f'A law of {self.spec.owner} takes a spectral derivative along axis {axis}, which is an interval. Use '
                 'a periodic class axis or the finite-volume discretization.'
@@ -1109,7 +1109,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             total = total + csr_matrix(selection, shape=(size, size))
         return csr_matrix(total)
 
-    def _shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
+    def _get_shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
         """Return an expression read at a physical displacement.
 
         A displacement of whole sites is a neighbour read, and others are interpolated.
@@ -1429,7 +1429,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return None
         if name == 'inverse_helmholtz':
             return space.position_axes_
-        return tuple(axis for axis in range(space.n_dim_) if space._axis_boundary(axis) == 'periodic')
+        return tuple(axis for axis in range(space.n_dim_) if space._get_axis_boundary(axis) == 'periodic')
 
     @staticmethod
     def _tag(offset: IntTuple | int) -> str:
@@ -1692,7 +1692,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply:
                 The function of the right-hand side at every node.
         """
-        table = space._index_table(AdjacencyNeighborhood())
+        table = space._get_index_table(AdjacencyNeighborhood())
         size = table.shape[0]
         rows = np.repeat(np.arange(size), table.shape[1])
         columns = table.ravel()

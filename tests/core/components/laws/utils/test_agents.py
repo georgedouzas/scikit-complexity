@@ -88,7 +88,7 @@ class BorrowerElement(Element):
         if agent.money > 0:
             return
         if agent.settles:
-            lender = system.agents('lenders', AgentView)[0]
+            lender = system.get_agents('lenders', AgentView)[0]
             transfer(agent, lender, agent.loans, 'loans')
         agent.remove()
 
@@ -129,9 +129,9 @@ class PaymentsInteraction(Interaction):
 
     def move(self, system):
         """Move one unit from the first holder to the second, and create money when the payments create it."""
-        first, second = system.agents('holders', AgentView)[:2]
+        first, second = system.get_agents('holders', AgentView)[:2]
         transfer(first, second, 1.0, 'money')
-        first.money += system.parameter('creates')
+        first.money += system.get_parameter('creates')
 
 
 def test_invariant_of_agents_names_the_observable_and_the_change():
@@ -149,8 +149,8 @@ def test_invariant_of_agents_names_the_observable_and_the_change():
 def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
     """Test that removed firms settle their debt with transfers and total loans stay zero."""
     trajectory = simulate(_credit_system(settles=True), until=1)
-    assert trajectory.agents('lenders', 1).values['loans'].tolist() == [0.0]
-    assert len(trajectory.agents('firms', 1).values['loans']) == 0
+    assert trajectory.get_agents('lenders', 1).values['loans'].tolist() == [0.0]
+    assert len(trajectory.get_agents('firms', 1).values['loans']) == 0
 
 
 def test_removing_an_unsettled_agent_destroys_its_holdings():
@@ -184,4 +184,4 @@ def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated)
             simulate(system, **settings)
         return
     trajectory = simulate(system, **settings)
-    assert trajectory.agents('holders', 3).values['money'].sum() == pytest.approx(15.0)
+    assert trajectory.get_agents('holders', 3).values['money'].sum() == pytest.approx(15.0)

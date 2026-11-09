@@ -51,7 +51,7 @@ def _queue_run(until=3):
 def test_snapshots_keep_tuples_as_they_were():
     """Test that each snapshot keeps one tuple per agent, in a one-dimensional array of objects."""
     trajectory = _queue_run()
-    first, last = trajectory.agents('queues', 0), trajectory.agents('queues', 3)
+    first, last = trajectory.get_agents('queues', 0), trajectory.get_agents('queues', 3)
     assert first.values['orders'].shape == (2,)
     assert first.values['orders'].dtype == object
     assert first.values['orders'].tolist() == [(), (7,)]
@@ -67,7 +67,7 @@ def test_composition_counts_agents_by_tuple():
 
         def _step(self, agent, system):
             """Record the composition, and then step."""
-            seen.append(dict(system.composition('queues', 'orders')))
+            seen.append(dict(system.get_composition('queues', 'orders')))
             super()._step(agent, system)
 
     group = GroupElement('queues', element=CountingElement, size=2, values={'orders': [(), (7,)]})

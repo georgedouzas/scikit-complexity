@@ -35,7 +35,7 @@ def test_meadow_capacity_carries_or_loses_the_whole_herd():
             25,
             random_state=0,
         )
-        return len(trajectory.agents('cows', len(trajectory.times) - 1).ids)
+        return len(trajectory.get_agents('cows', len(trajectory.times) - 1).ids)
 
     assert survivors(61, 0.0) == 61
     assert survivors(80, 0.0) == 0

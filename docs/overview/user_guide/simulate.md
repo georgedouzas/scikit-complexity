@@ -319,7 +319,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import HarvestingSystem
 
 trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
-round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size
+round(trajectory.values('land/stock.n')[-1]), trajectory.get_agents('village/farmers', 50).values['wealth'].size
 trajectory.values('village/farmers_count.value')[-1]
 ```
 

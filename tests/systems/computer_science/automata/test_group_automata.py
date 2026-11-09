@@ -30,7 +30,7 @@ def _run(system, until):
 
 def _majority_holds(space, memory, before, after):
     """Check that every interior cell takes the majority value of its memory set."""
-    table = space._index_table(memory)
+    table = space._get_index_table(memory)
     interior = (table < space.size_).all(axis=1)
     expected = before[table[interior]].sum(axis=1) > table.shape[1] / 2
     return bool(np.array_equal(after[interior], expected))
@@ -97,7 +97,7 @@ def test_lamplighter_automaton_is_linear():
     """Test that the parity automaton on the lamplighter ball maps a sum of configurations to the sum of images."""
     system = LamplighterAutomatonSystem(radius=5).prepare().system_
     space = system.elements[0].space
-    table = space._index_table(MemoryNeighborhood(('1', 'a', 'b')))
+    table = space._get_index_table(MemoryNeighborhood(('1', 'a', 'b')))
     interior = (table < space.size_).all(axis=1)
     rng = np.random.default_rng(0)
     first, second = rng.integers(2, size=(2, space.size_))

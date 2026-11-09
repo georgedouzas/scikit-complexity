@@ -155,7 +155,7 @@ class RoomCleaningInteraction(Interaction):
 
     def _score_agents(self, system: SystemView) -> None:
         """Set the score of every strategy of the target to its mean score in random rooms."""
-        agents = system.agents('target', StrategyView)
+        agents = system.get_agents('target', StrategyView)
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
@@ -375,7 +375,7 @@ class CircumstanceInteraction(Interaction):
 
         Their places are filled with children of survivors.
         """
-        agents = system.agents('target', AgedStrategyView)
+        agents = system.get_agents('target', AgedStrategyView)
         rng = system.rng
         ages = np.array([agent.age for agent in agents]) + 1
         scores = np.array([agent.score for agent in agents])

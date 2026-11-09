@@ -185,7 +185,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
 
         It returns the number of splits.
         """
-        rng, capacity, splits = system.rng, system.parameter('capacity'), 0
+        rng, capacity, splits = system.rng, system.get_parameter('capacity'), 0
         for label in rng.permutation(np.unique(labels)):
             members = np.flatnonzero(labels == label)
             excesses = [attendance - capacity for attendance, _ in records.get(int(label), []) if attendance > capacity]
@@ -211,7 +211,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
 
         Safely means without risking crowding, and it returns the joins.
         """
-        capacity, joins = system.parameter('capacity'), 0
+        capacity, joins = system.get_parameter('capacity'), 0
         present = [int(label) for label in system.rng.permutation(np.unique(labels[attended]))]
         merged: set[int] = set()
         for first in present:
@@ -239,9 +239,9 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the bar.
         """
-        patrons = sorted(system.agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
+        patrons = sorted(system.get_agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
         strategies = np.asarray(self.strategies, dtype=float)
-        memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.parameter('capacity')
+        memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.get_parameter('capacity')
         stored = system.storage.get('history')
         history = np.asarray(stored) if isinstance(stored, np.ndarray) else system.rng.integers(0, size + 1, 2 * memory)
         records = system.storage.get('records')
@@ -261,7 +261,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
         attendance = float(attends.sum())
         crowded = attendance > capacity
         good = np.where(attends, not crowded, crowded)
-        smoothing = system.parameter('smoothing')
+        smoothing = system.get_parameter('smoothing')
         scores = np.array([patron.score for patron in patrons]) * (1 - smoothing) + smoothing * good
         for label in np.unique(labels[attends]):
             records.setdefault(int(label), []).append((attendance, float(np.sum(labels == label))))

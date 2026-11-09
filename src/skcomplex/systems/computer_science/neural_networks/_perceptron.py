@@ -217,7 +217,7 @@ class SatisfiabilityInteraction(Interaction):
 
         The solution is a satisfying assignment, set when one exists.
         """
-        agents = system.agents(self._get_role('target'))
+        agents = system.get_agents(self._get_role('target'))
         if 'solver' not in system.storage:
             system.storage.update(
                 solver=Solver(name=self.solver),

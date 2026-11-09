@@ -27,6 +27,7 @@ OVERS = ('member', 'neighbors', 'cell')
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
+
 type SourceValues = float | Collection[float] | Callable[..., object]
 
 
@@ -158,14 +159,14 @@ class TransitionInteraction(Interaction):
             return self._get_variant_tags((JumpLaw,))
         return self._get_variant_tags((UpdateLaw,), stochastic=self._get_argument('probability') is not None)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the agent form draws.
 
         It draws by the rows of a matrix or by a probability or a rate of moving.
         """
         chance = self._get_argument('rate') is not None or self._get_argument('probability') is not None
         drawn = self._get_argument('matrix') is not None or (self._get_argument('condition') is None and chance)
-        return super()._draws() or (self._get_argument('form') == 'agent' and drawn)
+        return super()._get_draws() or (self._get_argument('form') == 'agent' and drawn)
 
     def __init__(
         self,
@@ -419,7 +420,7 @@ class TransitionInteraction(Interaction):
             return [] if value is None else [(agent, value)]
         return [
             (other, float(self.destination))
-            for other in agent.agents_here(agent.group)
+            for other in agent.get_agents_here(agent.group)
             if other is not agent
             and self._holds_source(float(getattr(other, self.state)))
             and self._moves_agent(other, system, agent)
@@ -449,7 +450,7 @@ class TransitionInteraction(Interaction):
             system:
                 The system view of the interaction.
         """
-        agents = list(system.agents(self._get_role('target')))
+        agents = list(system.get_agents(self._get_role('target')))
         if self.schedule == 'synchronous':
             moves = [move for agent in agents for move in self._get_moves(agent, system)]
             self._apply(moves, system)

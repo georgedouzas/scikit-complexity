@@ -57,7 +57,7 @@ trajectory = simulate(system, until=STEPS, observables=observables, observers=[o
 # capital should have a power-law tail, which a maximum-likelihood fit locates, and the share of the capital held by
 # the largest 1 percent of firms should keep growing while aggregate production rises.
 
-capital = trajectory.agents('firms', STEPS).values['K']
+capital = trajectory.get_agents('firms', STEPS).values['K']
 fit = fit_law(capital)
 ccdf = distribution(capital, kind='ccdf')
 values, probabilities = ccdf.support, ccdf.survival

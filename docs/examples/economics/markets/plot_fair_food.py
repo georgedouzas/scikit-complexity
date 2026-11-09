@@ -35,7 +35,7 @@ trajectory = simulate(system, until=30, observers=[observer], random_state=0)
 # ethics and budgets. Simulations without influence should follow this curve, and with influence the share should be
 # higher at every premium, since buyers of fair food make it more attractive to their neighbours.
 
-consumers = trajectory.agents('consumers', 0)
+consumers = trajectory.get_agents('consumers', 0)
 ethics, budgets = consumers.values['ethics'], consumers.values['budget']
 premiums = np.linspace(0.0, 1.0, 5)
 fine = np.linspace(0.0, 1.0, 101)

@@ -170,7 +170,7 @@ class StockTraderElement(Element):
     @staticmethod
     def _prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
         """Return the last two prices of the book, the fundamental value before the first."""
-        history = system.history('book.price', 2)
+        history = system.get_history('book.price', 2)
         prices = [value for value in history if math.isfinite(value)] or [agent.fundamental]
         return prices[-1], prices[0]
 
@@ -186,11 +186,15 @@ class StockTraderElement(Element):
         """
         price, previous = self._prices(agent, system)
         if agent.strategy:
-            expected = heuristics.trend([previous, price], strength=system.parameter('extrapolation'))
+            expected = heuristics.trend([previous, price], strength=system.get_parameter('extrapolation'))
         else:
-            reversion = 1 - system.parameter('reversion')
-            expected = heuristics.fundamental([price], fundamental=system.parameter('fundamental'), reversion=reversion)
-        expected = max(LOWEST_PRICE, expected * (1 + system.parameter('noise') * system.rng.normal()))
+            reversion = 1 - system.get_parameter('reversion')
+            expected = heuristics.fundamental(
+                [price],
+                fundamental=system.get_parameter('fundamental'),
+                reversion=reversion,
+            )
+        expected = max(LOWEST_PRICE, expected * (1 + system.get_parameter('noise') * system.rng.normal()))
         buying = expected > price
         new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)
         agent.bid = new_bid
@@ -332,7 +336,7 @@ class BookInteraction(MatchingInteraction[SystemView]):
                 The system view of the book.
         """
         del unmatched
-        last = system.history('price', 1)
+        last = system.get_history('price', 1)
         price = matches[-1].value if matches else (float(last[-1]) if len(last) else self.opening)
         system.report('price', price)
         system.report('volume', sum(match.quantity for match in matches))

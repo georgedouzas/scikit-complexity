@@ -153,6 +153,6 @@ class ReflectionInteraction(CrossingInteraction):
         scale = (1 + namespace.restitution) * speed / sum((n**2 for n in normal), SR(0))
         reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
         if self.region is not None:
-            region = self.region(namespace)
+            region = self.get_region(namespace)
             reset = {v: where(region, value, v) for v, value in reset.items()}
         return [CrossingLaw(guard, reset, self.direction, self.terminal, label=self.label)]

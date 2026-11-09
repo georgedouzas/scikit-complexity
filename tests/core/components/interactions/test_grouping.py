@@ -89,7 +89,7 @@ def test_act_on_galam_groups_of_three_adopt_their_majority():
     trajectory = _run(CompositeSystem(elements=[_voters({'s': opinions}, 300)], interactions=[galam]), 1)
     assert len(snapshots) == 100
     assert all(size == 3 and majority == float(sum(before) >= 2) for size, before, majority in snapshots)
-    assert trajectory.agents('voters', 1).values['s'].sum() == sum(3 * majority for _, _, majority in snapshots)
+    assert trajectory.get_agents('voters', 1).values['s'].sum() == sum(3 * majority for _, _, majority in snapshots)
 
 
 def test_act_on_a_subclass_drives_groups_to_consensus():
@@ -97,13 +97,13 @@ def test_act_on_a_subclass_drives_groups_to_consensus():
     opinions = np.r_[np.ones(70), np.zeros(30)]
     galam = MajorityGroupingInteraction('galam', target='voters', groups='partition', size=3)
     trajectory = _run(CompositeSystem(elements=[_voters({'s': opinions}, 100)], interactions=[galam]), 20)
-    assert trajectory.agents('voters', 20).values['s'].tolist() == [1.0] * 100
+    assert trajectory.get_agents('voters', 20).values['s'].tolist() == [1.0] * 100
 
 
 def test_act_on_pairs_leaves_an_odd_member_out():
     """Test that pairs are disjoint and an odd member joins no pair."""
     pairing = GroupingInteraction('pairing', target='voters', groups='pairs', act=_count)
-    values = _run(CompositeSystem(elements=[_voters({}, 5)], interactions=[pairing]), 1).agents('voters', 1).values
+    values = _run(CompositeSystem(elements=[_voters({}, 5)], interactions=[pairing]), 1).get_agents('voters', 1).values
     assert sorted(values['seen'].tolist()) == [0.0, 1.0, 1.0, 1.0, 1.0]
     assert set(values['s'][values['seen'] == 1].tolist()) == {2.0}
 
@@ -111,7 +111,9 @@ def test_act_on_pairs_leaves_an_odd_member_out():
 def test_act_on_the_remainder_of_a_partition_forms_a_smaller_group():
     """Test that a partition of seven into threes leaves a group of one."""
     partition = GroupingInteraction('partition', target='voters', groups='partition', size=3, act=_count)
-    values = _run(CompositeSystem(elements=[_voters({}, 7)], interactions=[partition]), 1).agents('voters', 1).values
+    values = (
+        _run(CompositeSystem(elements=[_voters({}, 7)], interactions=[partition]), 1).get_agents('voters', 1).values
+    )
     assert sorted(values['s'].tolist()) == [1.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
 
 
@@ -122,7 +124,7 @@ def test_act_on_neighborhoods_groups_every_member_with_its_neighbors():
     grouping = GroupingInteraction('local', target='voters', groups='neighborhood', act=_count)
     space = LatticeSpace((3, 3), metric='manhattan')
     values = (
-        _run(CompositeSystem(elements=[voters], interactions=[grouping], space=space), 1).agents('voters', 1).values
+        _run(CompositeSystem(elements=[voters], interactions=[grouping], space=space), 1).get_agents('voters', 1).values
     )
     assert values['seen'].tolist() == [5.0] * 9
 
@@ -131,7 +133,9 @@ def test_act_on_groups_by_state_take_at_most_the_capacity():
     """Test that members sharing a value form one group cut to the capacity."""
     sides = {'s': [0.0, 0.0, 0.0, 1.0, 1.0]}
     grouping = GroupingInteraction('sides', target='voters', groups='state', by='s', capacity=2, act=_count)
-    values = _run(CompositeSystem(elements=[_voters(sides, 5)], interactions=[grouping]), 1).agents('voters', 1).values
+    values = (
+        _run(CompositeSystem(elements=[_voters(sides, 5)], interactions=[grouping]), 1).get_agents('voters', 1).values
+    )
     assert sorted(values['seen'].tolist()) == [0.0, 1.0, 1.0, 1.0, 1.0]
 
 

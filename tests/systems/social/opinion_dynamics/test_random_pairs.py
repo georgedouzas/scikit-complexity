@@ -21,4 +21,4 @@ def test_random_pairs_draw_one_pair_per_agent():
     people = GroupElement('people', element=DiscussantElement, size=10, values={'opinion': 0.0})
     system = CompositeSystem(elements=[people], interactions=[CountingPairsInteraction('meetings', target='people')])
     trajectory = simulate(system, until=3, random_state=0)
-    assert trajectory.agents('people', 3).values['opinion'].sum() == 3 * 2 * 10
+    assert trajectory.get_agents('people', 3).values['opinion'].sum() == 3 * 2 * 10

@@ -35,7 +35,7 @@ for threshold in thresholds:
     finals = []
     for seed in range(30):
         run = simulate(WattsCascadesSystem(threshold=float(threshold), random_state=seed), dt=1)
-        finals.append(run.agents('nodes', len(run.times) - 1).values['active'].mean())
+        finals.append(run.get_agents('nodes', len(run.times) - 1).values['active'].mean())
     shares.extend(finals)
     probabilities.append(np.mean(np.array(finals) > 0.5))
 fig, (window, outcomes) = plt.subplots(1, 2, figsize=(10, 4))

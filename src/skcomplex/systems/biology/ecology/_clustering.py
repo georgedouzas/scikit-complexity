@@ -177,7 +177,7 @@ class NeutralClusteringSystem(BaseSystem):
         self.beta = beta
 
     @staticmethod
-    def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
         """Return the pairs of flat indices of every patch and its nearest neighbours.
 
         The lattice is periodic.
@@ -207,7 +207,7 @@ class NeutralClusteringSystem(BaseSystem):
         ]
         if self.beta:
             interactions.append(
-                HoppingInteraction('hopping', patches=members, links=self._neighbor_pairs(lattice), beta=self.beta),
+                HoppingInteraction('hopping', patches=members, links=self._get_neighbor_pairs(lattice), beta=self.beta),
             )
         return CompositeSystem(
             self.label,

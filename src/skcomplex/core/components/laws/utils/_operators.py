@@ -8,8 +8,8 @@ discretization of the field turns it into numbers.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copyreg
 from collections.abc import Callable, Sequence
-from typing import Self
 
 from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -27,16 +27,20 @@ class _OperatorFunction(BuiltinFunction):
     """Operator kept unevaluated in expressions until the compiler lowers it.
 
     The name, the number of operands, 0 for any number, and the LaTeX name are those of Sage's `BuiltinFunction`. Sage
-    pickles a `BuiltinFunction` by calling its class with no argument, so the operator pickles with the arguments it
-    was built with instead, which lets expressions that hold it reach other processes.
+    pickles a `BuiltinFunction` by calling its class with no argument, so every operator class registers with
+    `copyreg` a reduction that rebuilds it from the arguments it was built with, which lets expressions that hold it
+    reach other processes.
     """
+
+    @staticmethod
+    def _reduce(operator: '_OperatorFunction') -> tuple[type['_OperatorFunction'], tuple[str, int, str | None]]:
+        """Return the class and the arguments that rebuild an operator."""
+        return type(operator), operator._arguments
 
     def __init__(self, name: str, nargs: int = 0, latex_name: str | None = None) -> None:
         super().__init__(name, nargs=nargs, latex_name=latex_name)
         self._arguments = (name, nargs, latex_name)
-
-    def __reduce__(self) -> tuple[type[Self], tuple[str, int, str | None]]:
-        return type(self), self._arguments
+        copyreg.pickle(type(self), _OperatorFunction._reduce)
 
 
 laplacian = _OperatorFunction('laplacian', nargs=1, latex_name=r'\nabla^2')

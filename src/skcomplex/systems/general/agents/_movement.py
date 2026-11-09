@@ -135,14 +135,16 @@ class MovementInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the movement draws.
 
         It draws by its order, a random step, a probability or rate, or random ties.
         """
         ties = self.ties or ('random' if self.vision is None else 'nearest')
         drawn = self.step in ('neighbor', 'gaussian', 'levy') or (self.step == 'best' and ties == 'random')
-        return super()._draws() or drawn or self.probability != 1 or self.rate is not None or self.accept is not None
+        return (
+            super()._get_draws() or drawn or self.probability != 1 or self.rate is not None or self.accept is not None
+        )
 
     def __init__(
         self,
@@ -235,7 +237,7 @@ class MovementInteraction(Interaction):
 
     def _get_cells(self, agent: AgentViewProtocol, occupied: set[object]) -> list[object]:
         """Return the cells or nodes around an agent that it may move to."""
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         if not self.exclusive:
             return cells
         return [cell for cell in cells if cell not in occupied]
@@ -289,7 +291,7 @@ class MovementInteraction(Interaction):
         distances = [0]
         shifts = [
             self._shift(here, tuple(int(item) for item in np.atleast_1d(np.asarray(neighbor))), system)
-            for neighbor in agent.neighbor_cells()
+            for neighbor in agent.get_neighbor_cells()
         ]
         for shift in sorted(shifts, key=lambda step: tuple((item == 0, -item) for item in step)):
             for distance in range(1, reach + 1):
@@ -376,7 +378,9 @@ class MovementInteraction(Interaction):
         """Move one agent whose condition holds, in its own activation."""
         if agent.alive and (self.condition is None or self.condition(agent, system)):
             occupied = (
-                {other.location_key for other in system.agents(self._get_role('target'))} if self.exclusive else set()
+                {other.location_key for other in system.get_agents(self._get_role('target'))}
+                if self.exclusive
+                else set()
             )
             self._move(agent, system, self._get_parameter_value('probability', system), occupied)
 
@@ -385,7 +389,7 @@ class MovementInteraction(Interaction):
 
         They move in their order or in random order.
         """
-        agents = system.agents(self._get_role('target'))
+        agents = system.get_agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.exclusive else set()
         probability = self._get_parameter_value('probability', system)
         order = system.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))

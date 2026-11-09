@@ -31,7 +31,7 @@ trajectory = simulate(system, dt=1, observers=[observer], random_state=0)
 # The mean risk of the employees should rise steadily over the year, and the upper tail should rise faster than the
 # mean, so the distribution of risk at the end of the year should be wider and shifted to the right of the first day.
 
-risks = [np.asarray(trajectory.agents('employees', frame).values['risk']) for frame in range(len(trajectory.times))]
+risks = [np.asarray(trajectory.get_agents('employees', frame).values['risk']) for frame in range(len(trajectory.times))]
 fig, (trend, spread) = plt.subplots(1, 2, figsize=(10, 4))
 trend.plot(trajectory.times, [risk.mean() for risk in risks], label='mean')
 trend.plot(trajectory.times, [np.percentile(risk, 90) for risk in risks], label='90th percentile')

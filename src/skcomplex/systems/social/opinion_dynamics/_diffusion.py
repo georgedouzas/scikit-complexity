@@ -228,13 +228,13 @@ class AdoptionInteraction(TransitionInteraction):
 
         Without a circle, the adopters are those in society.
         """
-        circle = [item for item in agent.neighbors(agent.reach) if isinstance(item, AdopterView)]
+        circle = [item for item in agent.get_neighbors(agent.reach) if isinstance(item, AdopterView)]
         adopters = sum(item.adopted for item in circle)
         if self.mode == 'infection':
             return adopters > 0
         if circle:
             return 100 * adopters / len(circle) > agent.threshold
-        society = [item for item in system.agents('target') if isinstance(item, AdopterView)]
+        society = [item for item in system.get_agents('target') if isinstance(item, AdopterView)]
         return 100 * sum(item.adopted for item in society) / len(society) > agent.threshold
 
 
@@ -313,7 +313,7 @@ class InfluentialsSystem(BaseSystem):
         The influence is on the level the neighbour cares at.
         """
         belief = np.array(agent.belief, dtype=np.float64)
-        for neighbor in (item for item in agent.neighbors() if isinstance(item, BelieverView)):
+        for neighbor in (item for item in agent.get_neighbors() if isinstance(item, BelieverView)):
             weights = np.asarray(neighbor.belief, dtype=np.float64)
             levels = np.flatnonzero(weights == weights.max())
             belief[levels[int(system.rng.integers(len(levels)))]] += agent.learning * neighbor.influence

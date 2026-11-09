@@ -17,7 +17,7 @@ def test_voter_system_reaches_consensus():
     """Test that 20 voters on a connected network end with one opinion."""
     graph = nx.connected_watts_strogatz_graph(20, 4, 0.2, seed=0)
     trajectory = simulate(VoterSystem(graph, random_state=0).prepare().system_, until=500, random_state=0)
-    assert len(set(trajectory.agents('voters', 500).values['opinion'].tolist())) == 1
+    assert len(set(trajectory.get_agents('voters', 500).values['opinion'].tolist())) == 1
 
 
 def test_majority_rule_settles():

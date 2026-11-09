@@ -22,7 +22,7 @@ def test_wilhite_trade_networks_small_world_converges_with_few_searches():
     assert small_world.values('dispersion')[-1] < 0.1
     assert isolated.values('dispersion')[-1] > 2 * small_world.values('dispersion')[-1]
     assert complete.values('barter.searches')[1:].sum() > 4 * small_world.values('barter.searches')[1:].sum()
-    goods = [small_world.agents('traders', frame).values for frame in (0, 30)]
+    goods = [small_world.get_agents('traders', frame).values for frame in (0, 30)]
     for good in ('good1', 'good2'):
         np.testing.assert_allclose(np.sum(goods[1][good]), np.sum(goods[0][good]))
     assert small_world.values('utility')[-1] > small_world.values('utility')[0]

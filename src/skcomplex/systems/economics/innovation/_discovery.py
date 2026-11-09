@@ -191,8 +191,8 @@ class UrnElement(Element):
             system:
                 The view of the system.
         """
-        own = [ball for ball in agent.agents_here(BALLS) if isinstance(ball, BallView)]
-        social = [ball for ball in agent.neighbors(group=BALLS) if isinstance(ball, BallView)]
+        own = [ball for ball in agent.get_agents_here(BALLS) if isinstance(ball, BallView)]
+        social = [ball for ball in agent.get_neighbors(group=BALLS) if isinstance(ball, BallView)]
         colors = [ball.color for ball in own] + [ball.color for ball in social]
         weights = np.asarray([ball.count for ball in own] + [1.0] * len(social), dtype=float)
         if not colors:
@@ -216,8 +216,8 @@ class UrnElement(Element):
         """
         if agent.color < 0:
             return
-        rho, nu = system.parameter('rho'), system.parameter('nu')
-        own = [ball for ball in agent.agents_here(BALLS) if isinstance(ball, BallView)]
+        rho, nu = system.get_parameter('rho'), system.get_parameter('nu')
+        own = [ball for ball in agent.get_agents_here(BALLS) if isinstance(ball, BallView)]
         ball = next((ball for ball in own if ball.color == agent.color), None)
         if ball is None:
             agent.create(BALLS, color=agent.color, count=rho, drawn=1)
@@ -229,7 +229,9 @@ class UrnElement(Element):
         agent.novelties += 1
         stored = system.storage.get('colors')
         first = (
-            stored if isinstance(stored, int) else int(max(item.color for item in system.agents(BALLS, BallView))) + 1
+            stored
+            if isinstance(stored, int)
+            else int(max(item.color for item in system.get_agents(BALLS, BallView))) + 1
         )
         for color in range(first, first + int(nu) + 1):
             agent.create(BALLS, color=color, count=1, drawn=0)

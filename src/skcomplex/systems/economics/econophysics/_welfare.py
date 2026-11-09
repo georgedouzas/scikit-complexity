@@ -468,6 +468,6 @@ class KineticWealthWelfareSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        system = self._pass_parameters()
+        system = self._get_pass_parameters()
         settings['observables'] = wealth_observables(_classes_of(system))
         return settings

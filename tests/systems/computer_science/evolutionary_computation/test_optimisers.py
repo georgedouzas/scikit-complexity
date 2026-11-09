@@ -95,7 +95,7 @@ def test_run_differential_evolution_on_rastrigin() -> None:
     best = trajectory.values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
-    assert np.asarray(trajectory.agents('swarm', 50).values['x'].tolist()).shape == (40, 2)
+    assert np.asarray(trajectory.get_agents('swarm', 50).values['x'].tolist()).shape == (40, 2)
 
 
 @pytest.mark.parametrize(
@@ -106,8 +106,8 @@ def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
     first, second = (simulate(_system(algorithm), until=10, random_state=1) for _ in range(2))
     assert np.array_equal(first.values('search.best')[1:], second.values('search.best')[1:])
-    first_final = np.asarray(first.agents('swarm', 10).values['x'].tolist())
-    second_final = np.asarray(second.agents('swarm', 10).values['x'].tolist())
+    first_final = np.asarray(first.get_agents('swarm', 10).values['x'].tolist())
+    second_final = np.asarray(second.get_agents('swarm', 10).values['x'].tolist())
     assert np.array_equal(first_final, second_final)
     assert np.all(np.diff(first.values('search.best')[1:]) <= 0)
 
@@ -118,8 +118,8 @@ def test_run_algorithm_that_converges_keeps_its_population() -> None:
     best = trajectory.values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(
-        trajectory.agents('swarm', 399).values['x'].tolist(),
-        trajectory.agents('swarm', 400).values['x'].tolist(),
+        trajectory.get_agents('swarm', 399).values['x'].tolist(),
+        trajectory.get_agents('swarm', 400).values['x'].tolist(),
     )
 
 

@@ -79,19 +79,19 @@ class SimplexSpace(PhaseSpace):
         cells = int(self.axes[0].size)
         positions = (1,) * len(self.position_axes_)
         indices = np.indices((cells,) * dimensions).sum(axis=0)
-        self.volumes_ = np.reshape(self._fraction(cells - indices, dimensions), (*positions, *indices.shape))
+        self.volumes_ = np.reshape(self._get_fraction(cells - indices, dimensions), (*positions, *indices.shape))
         apertures = [np.ones((1,) * self.n_dim_) for _ in self.position_axes_]
         for axis in range(dimensions):
             faces = [cells] * dimensions
             faces[axis] = cells + 1
             grid = np.indices(faces)
             others = grid.sum(axis=0) - grid[axis]
-            fraction = self._fraction(cells - grid[axis] - others, dimensions - 1)
+            fraction = self._get_fraction(cells - grid[axis] - others, dimensions - 1)
             apertures.append(np.reshape(fraction, (*positions, *fraction.shape)))
         self.apertures_ = tuple(apertures)
 
     @staticmethod
-    def _fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:
+    def _get_fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:
         """Return the fraction of a unit cube whose coordinates sum to at most the room.
 
         The cube has a dimension, and the room is that of every cell.

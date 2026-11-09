@@ -162,7 +162,7 @@ class ExplorationInteraction(Interaction):
         """
         rng = system.rng
         memory = system.storage
-        for individual in system.agents(self.target, ExplorerView):
+        for individual in system.get_agents(self.target, ExplorerView):
             places = memory.setdefault(f'places {individual.id}', [(individual.x, individual.y)])
             visits = memory.setdefault(f'visits {individual.id}', [1.0])
             if not isinstance(places, list) or not isinstance(visits, list):
@@ -323,7 +323,7 @@ class ContainerMobilityInteraction(Interaction):
         memory = system.storage
         children, levels = int(self.side) ** 2, int(self.levels)
         travel = np.asarray(self.travel, dtype=float)
-        for individual in system.agents(self.target, ExplorerView):
+        for individual in system.get_agents(self.target, ExplorerView):
             if f'location {individual.id}' not in memory:
                 memory[f'attractiveness {individual.id}'] = self._get_attractiveness(rng)
                 memory[f'location {individual.id}'], memory[f'visited {individual.id}'] = 0, {0}

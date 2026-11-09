@@ -30,9 +30,9 @@ trajectory = simulate(ContainerMobilitySystem(), observers=[observer], random_st
 # and the shares of the levels should match the probabilities of travel.
 
 frames = range(1, len(trajectory.times))
-x = np.array([trajectory.agents('individuals', frame).values['x'] for frame in frames])
-y = np.array([trajectory.agents('individuals', frame).values['y'] for frame in frames])
-levels = np.array([trajectory.agents('individuals', frame).values['level'] for frame in frames])[1:]
+x = np.array([trajectory.get_agents('individuals', frame).values['x'] for frame in frames])
+y = np.array([trajectory.get_agents('individuals', frame).values['y'] for frame in frames])
+levels = np.array([trajectory.get_agents('individuals', frame).values['level'] for frame in frames])[1:]
 lengths = np.hypot(np.diff(x, axis=0), np.diff(y, axis=0))
 fig, (scales, shares) = plt.subplots(1, 2, figsize=(10, 4))
 bins = np.logspace(-0.1, 2, 40)

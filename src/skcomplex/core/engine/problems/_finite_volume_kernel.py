@@ -166,7 +166,7 @@ class FiniteVolumeKernel(BaseKernel):
         """Return the conserved states in lattice shape."""
         return [np.reshape(x[start : start + self.size], self.dimensions) for start in self.starts]
 
-    def _parameters(self, x: Array, p: Array, t: float = 0.0) -> list[float | Array]:
+    def _get_parameters(self, x: Array, p: Array, t: float = 0.0) -> list[float | Array]:
         """Return the other values the fluxes read.
 
         A value is a number when uniform and the values of the cells otherwise.
@@ -335,7 +335,7 @@ class FiniteVolumeKernel(BaseKernel):
         state = self._state_of(inputs)
         x, p = state.x, state.p
         states = self._states(x)
-        parameters = self._parameters(x, p, state.t)
+        parameters = self._get_parameters(x, p, state.t)
         totals = [np.zeros(self.dimensions) for _ in states]
         for axis in range(len(self.dimensions)):
             padded = self._pad(states, axis)
@@ -399,7 +399,7 @@ class FiniteVolumeKernel(BaseKernel):
                 The largest wave speed.
         """
         states = self._states(x)
-        parameters = self._parameters(x, p)
+        parameters = self._get_parameters(x, p)
         speed = max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
         if self.volumes is None:
             return speed
@@ -428,7 +428,7 @@ class FiniteVolumeKernel(BaseKernel):
             drifts:
                 The coefficient of every state, in lattice shape where it varies.
         """
-        values = ExpressionPrinter._values_of(self.drifts[axis](t, *states, *self._parameters(x, p, t)))
+        values = ExpressionPrinter._values_of(self.drifts[axis](t, *states, *self._get_parameters(x, p, t)))
         return [np.asarray(item, dtype=float) for item in values]
 
     def pattern(self, size: int) -> scipy.sparse.csr_array:

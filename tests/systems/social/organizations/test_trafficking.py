@@ -26,15 +26,15 @@ def test_trafficking_binds_both_groups_and_matches_recorded_run():
     assert (day.women, day.premises) == ('women', 'premises')
     assert not {'width', 'height'} & set(day.get_params())
     trajectory = _run(system, 90)
-    assert ''.join(str(int(trips)) for trips in trajectory.agents('women', 90).values['trips']) == TRAFFICKING_TRIPS
+    assert ''.join(str(int(trips)) for trips in trajectory.get_agents('women', 90).values['trips']) == TRAFFICKING_TRIPS
     bills = np.asarray(TRAFFICKING_BILLS.split(), dtype=float)
-    np.testing.assert_allclose(trajectory.agents('premises', 90).values['last_bills'], bills, atol=1e-6)
+    np.testing.assert_allclose(trajectory.get_agents('premises', 90).values['last_bills'], bills, atol=1e-6)
 
 
 def test_trafficking_victims_stay_in_brothels():
     """Test that victims are always in brothels and that brothels run higher bills than houses."""
     trajectory = _run(TraffickingSystem(random_state=0), 180)
-    premises, women = trajectory.agents('premises', 180), trajectory.agents('women', 180)
+    premises, women = trajectory.get_agents('premises', 180), trajectory.get_agents('women', 180)
     brothels = premises.values['brothel'] > 0
     cells = {tuple(location) for location in premises.locations[brothels].tolist()}
     victims = women.locations[women.values['victim'] > 0].tolist()

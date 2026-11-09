@@ -56,10 +56,10 @@ class ControllerInteraction(PolicyRuleInteraction):
 
     def act(self, system):
         """Report the total and raise the rate when it exceeds the target."""
-        total = system.observable('total')
+        total = system.get_observable('total')
         system.report('total', total)
         if total > self.target:
-            system.set_parameter('rate', system.parameter('rate') + 1.0)
+            system.set_parameter('rate', system.get_parameter('rate') + 1.0)
 
 
 def _report_total(system):

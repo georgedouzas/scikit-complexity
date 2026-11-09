@@ -30,8 +30,8 @@ trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 # bands that drift to the left, against the traffic, as cars leave a jam at its front and join it at its back.
 
 frames = range(len(trajectory.times))
-positions = np.array([trajectory.agents('cars', frame).values['x'] for frame in frames])
-speeds = np.array([trajectory.agents('cars', frame).values['v'] for frame in frames])
+positions = np.array([trajectory.get_agents('cars', frame).values['x'] for frame in frames])
+speeds = np.array([trajectory.get_agents('cars', frame).values['v'] for frame in frames])
 times = np.repeat(np.asarray(trajectory.times)[:, None], positions.shape[1], axis=1)
 fig, ax = plt.subplots(figsize=(8, 5))
 points = ax.scatter(positions, times, c=speeds, s=0.5, cmap='viridis')

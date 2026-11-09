@@ -125,7 +125,7 @@ class DebtExchangeInteraction(TransferInteraction):
 
     def _is_solvent(self, payer: SavingTraderView, payee: SavingTraderView, system: SystemViewProtocol) -> bool:
         """Return whether the payer stays above minus the debt limit after paying."""
-        return bool(payer.wealth - system.parameter('amount') >= -system.parameter('debt'))
+        return bool(payer.wealth - system.get_parameter('amount') >= -system.get_parameter('debt'))
 
 
 class SavingExchangeInteraction(TransferInteraction):
@@ -183,7 +183,7 @@ class SavingExchangeInteraction(TransferInteraction):
 
     def _get_amount(self, first: SavingTraderView, second: SavingTraderView, system: SystemViewProtocol) -> float:
         """Return the wealth the first trader transfers to the second, of either sign."""
-        saving = system.parameter('saving')
+        saving = system.get_parameter('saving')
         share = float(system.rng.random())
         return (1 - saving) * (first.wealth - share * (first.wealth + second.wealth))
 

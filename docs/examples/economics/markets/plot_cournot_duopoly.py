@@ -44,7 +44,7 @@ trajectory = simulate(system, until=60, observers=[observer], random_state=0)
 
 def outputs(trajectory):
     """Return the outputs of the two firms, one row per frame."""
-    return np.array([trajectory.agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
+    return np.array([trajectory.get_agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
 
 
 exact_system = CournotDuopolySystem(outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)

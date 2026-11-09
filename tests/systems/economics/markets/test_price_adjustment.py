@@ -75,13 +75,13 @@ def test_price_adjustment_agent_form_steps_every_agent_within_its_bound():
         form='agent',
     )
     trajectory = _run(quotes, search, 2)
-    assert trajectory.agents('quotes', 1).values['x'].tolist() == pytest.approx([0.8, 6.0])
-    assert trajectory.agents('quotes', 2).values['x'].tolist() == pytest.approx([0.8, 9.0])
+    assert trajectory.get_agents('quotes', 1).values['x'].tolist() == pytest.approx([0.8, 6.0])
+    assert trajectory.get_agents('quotes', 2).values['x'].tolist() == pytest.approx([0.8, 9.0])
 
 
 def _crowded(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
     """Return a signal that is positive while the quotes of the group sum to less than 2.5."""
-    return 2.5 - sum(other.x for other in system.agents('target'))
+    return 2.5 - sum(other.x for other in system.get_agents('target'))
 
 
 @pytest.mark.parametrize(
@@ -101,7 +101,7 @@ def test_price_adjustment_agent_schedules_read_the_states_set_before(schedule, e
         form='agent',
         schedule=schedule,
     )
-    values = _run(quotes, search, 1).agents('quotes', 1).values['x'].tolist()
+    values = _run(quotes, search, 1).get_agents('quotes', 1).values['x'].tolist()
     assert sorted(values) == sorted(expected)
     if schedule == 'sequential':
         assert values == expected

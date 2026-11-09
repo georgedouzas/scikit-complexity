@@ -336,7 +336,7 @@ def test_simulation_agent_parameters_follow_the_schedule():
     """Test that a scheduled agent group parameter is read by the rules of the run."""
     system = CompositeSystem(elements=[GroupElement('savers', element=SaverElement, size=3)])
     trajectory = simulate(system, until=2, schedule={'savers.rate': lambda t: 5.0})
-    assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
+    assert trajectory.get_agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
 
 
 def test_simulation_extend_runs_in_two_parts():
@@ -387,7 +387,7 @@ def test_trajectory_gives_agent_locations_over_frames():
     trajectory = simulate(BoidsSystem().prepare().system_, until=3, random_state=0)
     locations = trajectory.agent_locations('flock')
     assert len(locations) == len(trajectory.times)
-    np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory.times) - 1).locations)
+    np.testing.assert_allclose(locations[-1], trajectory.get_agents('flock', len(trajectory.times) - 1).locations)
 
 
 def test_initial_state_replaces_the_values_of_components():

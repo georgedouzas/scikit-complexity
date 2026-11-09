@@ -35,7 +35,7 @@ class ShopElement(Element):
 
     def inflate(self, agent, system):
         """Raise the price."""
-        agent.price *= 1 + system.parameter('drift') + system.rng.normal(0, 0.02) - system.parameters['bank.rate']
+        agent.price *= 1 + system.get_parameter('drift') + system.rng.normal(0, 0.02) - system.parameters['bank.rate']
 
 
 class CentralBankInteraction(PolicyRuleInteraction):
@@ -57,12 +57,12 @@ class CentralBankInteraction(PolicyRuleInteraction):
 
     def act(self, system):
         """Measure inflation and raise the rate above the target."""
-        level = system.observable('price_level')
+        level = system.get_observable('price_level')
         inflation = level / system.storage.get('level', 1.0) - 1
         system.storage['level'] = level
         system.report('inflation', inflation)
-        if inflation > system.parameter('target'):
-            system.set_parameter('rate', system.parameter('rate') + 0.005)
+        if inflation > system.get_parameter('target'):
+            system.set_parameter('rate', system.get_parameter('rate') + 0.005)
 
 
 def test_interest_rate_rule():

@@ -109,13 +109,13 @@ def _forage(
 
 def _reserves(trajectory: Trajectory, frame: int) -> list[float]:
     """Return the reserves of the foragers alive at a frame."""
-    return trajectory.agents('foragers', frame).values['reserve'].tolist()
+    return trajectory.get_agents('foragers', frame).values['reserve'].tolist()
 
 
 def test_live_forages_as_a_composition_of_transfers_and_a_life_cycle():
     """Test that a forager takes at most its uptake from its cell and gains it times the gain."""
     trajectory = _forage(2, [_feeding(uptake=2.0, gain=0.5), _life()], resource=3.0, reserve=0.0)
-    assert trajectory.agents('cells', 2).values['resource'].tolist() == [0.0]
+    assert trajectory.get_agents('cells', 2).values['resource'].tolist() == [0.0]
     assert _reserves(trajectory, 1) == [1.0]
     assert _reserves(trajectory, 2) == [1.5]
 
@@ -175,7 +175,7 @@ def test_live_feeds_foragers_on_the_nodes_of_a_network():
     )
     trajectory = simulate(system, until=1, random_state=0)
     assert _reserves(trajectory, 1) == [4.0]
-    assert trajectory.agents('cells', 1).values['resource'].tolist() == [1.0, 0.0]
+    assert trajectory.get_agents('cells', 1).values['resource'].tolist() == [1.0, 0.0]
 
 
 def test_live_rate_draws_a_poisson_number_of_births():
@@ -184,7 +184,7 @@ def test_live_rate_draws_a_poisson_number_of_births():
     births = BirthDeathInteraction('births', target='parents', rate=1.5, offspring=2)
     system = CompositeSystem(elements=[parents], interactions=[births])
     trajectory = simulate(system, until=1, random_state=0)
-    assert len(trajectory.agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
+    assert len(trajectory.get_agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
 
 
 def test_live_places_offspring_in_free_neighboring_cells():
@@ -193,7 +193,7 @@ def test_live_places_offspring_in_free_neighboring_cells():
     births = BirthDeathInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
     space = LatticeSpace((3, 3), metric='chebyshev')
     trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births], space=space), until=1)
-    locations = {tuple(cell) for cell in np.asarray(trajectory.agents('parents', 1).locations).tolist()}
+    locations = {tuple(cell) for cell in np.asarray(trajectory.get_agents('parents', 1).locations).tolist()}
     assert len(locations) == 9
 
 
@@ -213,7 +213,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
     )
     births = BirthDeathInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
     trajectory = simulate(CompositeSystem(elements=[parents], interactions=[births]), until=1)
-    values = trajectory.agents('parents', 1).values
+    values = trajectory.get_agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
 
@@ -236,8 +236,8 @@ def test_live_creates_offspring_in_another_group_with_given_values():
         values=lambda parent, system: {'trait': parent.trait * 10},
     )
     trajectory = _cycle(life, parents, young)
-    assert sorted(trajectory.agents('young', 1).values['trait'].tolist()) == [0.0, 10.0, 20.0]
-    assert len(trajectory.agents('parents', 1).values['trait']) == 2
+    assert sorted(trajectory.get_agents('young', 1).values['trait'].tolist()) == [0.0, 10.0, 20.0]
+    assert len(trajectory.get_agents('parents', 1).values['trait']) == 2
     assert trajectory.values('life.births')[-1] == 2
 
 
@@ -252,7 +252,7 @@ def test_live_replaces_parents_by_their_offspring():
         values=lambda parent, system: {'trait': parent.trait + 1},
         replace=True,
     )
-    values = _cycle(life, parents).agents('parents', 1).values
+    values = _cycle(life, parents).get_agents('parents', 1).values
     assert values['trait'].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
@@ -293,7 +293,7 @@ def test_live_renews_dying_agents_in_place():
         values=lambda agent, system: {'reserve': 1.0},
     )
     trajectory = _cycle(life, parents)
-    values = trajectory.agents('parents', 1).values
+    values = trajectory.get_agents('parents', 1).values
     assert values['reserve'].tolist() == [1.0, 2.0]
     assert values['trait'].tolist() == [7.0, 8.0]
     assert trajectory.values('life.deaths')[-1] == 1
@@ -310,7 +310,7 @@ def test_live_culls_kin_of_another_group():
         cull=lambda owner, system: owner.trait == 1.0,
         kin=lambda owner, member: member.trait == owner.trait,
     )
-    assert _cycle(life, owners, owned).agents('owned', 1).values['trait'].tolist() == [0.0, 1.0]
+    assert _cycle(life, owners, owned).get_agents('owned', 1).values['trait'].tolist() == [0.0, 1.0]
 
 
 def test_live_brings_arrivals_at_placed_locations():
@@ -324,7 +324,7 @@ def test_live_brings_arrivals_at_placed_locations():
         values=lambda parent, system: {'trait': float(system.rng.integers(5))},
     )
     trajectory = _cycle(life, members, until=4)
-    snapshot = trajectory.agents('members', 4)
+    snapshot = trajectory.get_agents('members', 4)
     assert (len(snapshot.values['trait']) - 1) / 4 == pytest.approx(50.0, rel=0.2)
     assert {tuple(cell) for cell in np.asarray(snapshot.locations).tolist()} == {(2, 1)}
     assert set(snapshot.values['trait'].tolist()) <= {0.0, 1.0, 2.0, 3.0, 4.0}
@@ -332,7 +332,7 @@ def test_live_brings_arrivals_at_placed_locations():
 
 def _reserves_of(trajectory: Trajectory) -> list[float]:
     """Return the sorted reserves of the parents at the first frame."""
-    return sorted(trajectory.agents('parents', 1).values['reserve'].tolist())
+    return sorted(trajectory.get_agents('parents', 1).values['reserve'].tolist())
 
 
 @pytest.mark.parametrize(
@@ -377,7 +377,7 @@ def test_live_culls_a_random_member_of_its_group_after_a_replacement():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('default', activation='visits', visits=0.5)])),
     )
     trajectory = simulate(system, until=1, random_state=0)
-    assert len(trajectory.agents('parents', 1).ids) == 4
+    assert len(trajectory.get_agents('parents', 1).ids) == 4
 
 
 @pytest.mark.parametrize(

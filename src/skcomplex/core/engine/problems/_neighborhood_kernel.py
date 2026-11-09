@@ -523,13 +523,13 @@ class NeighborhoodKernel(BaseKernel):
             >>> [item.tolist() for item in rows]
             [[0, 1, 3, 4], [1, 0, 2, 1]]
         """
-        table = space._index_table(neighborhood)
+        table = space._get_index_table(neighborhood)
         inside = table < len(table)
         indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(inside.sum(axis=1))]).astype(np.intp)
         return indptr, table[inside].astype(np.intp)
 
     @staticmethod
-    def _default_neighborhood(
+    def _get_default_neighborhood(
         space: object,
     ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
         """Return the neighbourhood that a reduction without one reads.
@@ -556,7 +556,7 @@ class NeighborhoodKernel(BaseKernel):
             ('a', 'a^-1', 'b', 'b^-1')
         """
         if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
-            return space._default_neighborhood()
+            return space._get_default_neighborhood()
         return None
 
     @staticmethod

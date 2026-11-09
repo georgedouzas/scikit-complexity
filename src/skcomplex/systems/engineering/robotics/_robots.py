@@ -337,7 +337,7 @@ class SwarmRobotElement(Element):
             system:
                 The system.
         """
-        neighbors = agent.neighbors(agent.radio_range)
+        neighbors = agent.get_neighbors(agent.radio_range)
         count = len(neighbors)
         agent.illuminated = 0.0 if self._is_shadowed(agent, neighbors) else 1.0
         heading = self._avoid(agent, neighbors, self._turn(agent, system, count))

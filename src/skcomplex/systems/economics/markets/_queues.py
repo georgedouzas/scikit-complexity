@@ -142,7 +142,7 @@ class WasherElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(self.cars, CarView)
+        cars = system.get_agents(self.cars, CarView)
         fronts = [
             car for car in (WasherElement._front(cars, WASH), WasherElement._front(cars, VALET)) if car is not None
         ]
@@ -359,15 +359,15 @@ class CarWashOperationInteraction(Interaction):
             system:
                 The system.
         """
-        values = {name: float(system.parameter(name)) for name in _PARAMETERS}
-        till = system.agents('till', TillView)[0]
-        for car in system.agents('cars', CarView):
+        values = {name: float(system.get_parameter(name)) for name in _PARAMETERS}
+        till = system.get_agents('till', TillView)[0]
+        for car in system.get_agents('cars', CarView):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, system, values)
         if system.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in system.agents('cars', CarView)) >= values['balk']:
+        if sum(car.stage == WASH for car in system.get_agents('cars', CarView)) >= values['balk']:
             till.turned_away += 1
             return
         system.create('cars', stage=WASH, work=values['wash_work'])

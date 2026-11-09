@@ -38,6 +38,7 @@ NAMED_PARTNERS = {
     'cell': PartnerSpec('cell', 'all'),
 }
 
+
 type Amount = float | Callable[..., object]
 type Leg = tuple[str | Source, str | Sink | None, Amount] | tuple[str | Source, str | Sink | None, Amount, str]
 type NamedLeg = tuple[str | Source, str | Sink | None, Amount, str]
@@ -217,7 +218,7 @@ class TransferInteraction(Interaction):
             return self._get_variant_tags((RuleLaw,))
         return self._get_variant_tags((TransferLaw,), stochastic=self._get_argument('rate') is not None)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the agent form draws.
 
         It draws by its order, random pairs or partners, or a number of partners.
@@ -225,7 +226,7 @@ class TransferInteraction(Interaction):
         if self._get_argument('form') != 'agent':
             return self.draws
         drawn = self.pairing in ('random', 'pairs', 'neighbor-pairs') or not isinstance(self.pairing, str | None)
-        return super()._draws() or drawn or self.partners is not None
+        return super()._get_draws() or drawn or self.partners is not None
 
     def __init__(
         self,
@@ -560,10 +561,10 @@ class TransferInteraction(Interaction):
 
     def _get_pairs(self, system: SystemViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
-        sources = system.agents(self._get_role('source'))
-        targets = sources if self.source == self.target else system.agents(self._get_role('target'))
+        sources = system.get_agents(self._get_role('source'))
+        targets = sources if self.source == self.target else system.get_agents(self._get_role('target'))
         if self.fallback is not None and not any(target.alive for target in targets):
-            targets = system.agents(self._get_role('fallback'))
+            targets = system.get_agents(self._get_role('fallback'))
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         if self.pairing == 'members':
             pairs = list(zip(sources, targets, strict=False))
@@ -616,16 +617,16 @@ class TransferInteraction(Interaction):
             return [agent]
         role = self._get_role('source' if self.actor == 'target' else 'target')
         if callable(self.pairing) or isinstance(self.pairing, PartnerSpec):
-            others = [other for other in system.agents(role) if other is not agent]
+            others = [other for other in system.get_agents(role) if other is not agent]
             pairs = self._get_pairing().get_pairs([agent], others, system.rng)
             return [cast(AgentViewProtocol, partner) for _, partner in pairs]
         if self.pairing == 'cell':
-            groups = set(system.groups(role))
-            others = [other for other in agent.agents_here() if other.group in groups]
+            groups = set(system.get_groups(role))
+            others = [other for other in agent.get_agents_here() if other.group in groups]
         else:
-            others = [other for other in system.agents(role) if other is not agent]
+            others = [other for other in system.get_agents(role) if other is not agent]
         if self.pairing == 'neighbors':
-            cells = set(agent.neighbor_cells())
+            cells = set(agent.get_neighbor_cells())
             others = [other for other in others if other.location_key in cells]
         elif self.pairing == 'random' and others:
             others = [others[int(system.rng.integers(len(others)))]]
@@ -649,7 +650,7 @@ class TransferInteraction(Interaction):
         The transfer may go into the sites of the source agents instead.
         """
         if self.pairing == 'site':
-            sources = system.agents(self._get_role('source'))
+            sources = system.get_agents(self._get_role('source'))
             for index in system.rng.permutation(len(sources)):
                 self._deposit(sources[int(index)], system)
             return
@@ -730,7 +731,7 @@ class TransferInteraction(Interaction):
         reference, _, state = name.rpartition('.')
         if not reference:
             return agent, name
-        holder = agent.referenced(reference)
+        holder = agent.get_referenced(reference)
         if holder is None:
             error_msg = (
                 f'A leg of {self.label!r} moves {name!r}, but the state {reference!r} of agent {agent.id} names no '

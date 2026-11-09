@@ -16,7 +16,7 @@ def test_network_random_walk_visits_nodes_in_proportion_to_degree():
     """Test that random walkers occupy the nodes of a connected graph in proportion to their degrees."""
     graph = nx.karate_club_graph()
     trajectory = _run(NetworkRandomWalkSystem(graph, n_walkers=200), 100)
-    nodes = np.concatenate([trajectory.agents('walkers', frame).locations for frame in range(20, 101)])
+    nodes = np.concatenate([trajectory.get_agents('walkers', frame).locations for frame in range(20, 101)])
     visits = np.bincount(np.ravel(nodes).astype(int), minlength=graph.number_of_nodes())
     degrees = np.array([degree for _, degree in graph.degree()])
     assert np.corrcoef(visits, degrees)[0, 1] > 0.95

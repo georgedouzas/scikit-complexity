@@ -86,14 +86,14 @@ def _agent_field(agent: ChooserView, system: SystemView, option: float) -> float
     """Return the option times the mean option of the group in the last step, read once per step."""
     cached = system.storage.get('mean')
     if not isinstance(cached, tuple) or cached[0] != system.time:
-        cached = (system.time, float(np.mean([member.option for member in system.agents('target', ChooserView)])))
+        cached = (system.time, float(np.mean([member.option for member in system.get_agents('target', ChooserView)])))
         system.storage['mean'] = cached
     return option * cached[1]
 
 
 def _last_payoff(agent: object, system: SystemView, option: float) -> float:
     """Return the last payoff of option 1 that the feedback reported, zero for option 0 and before any report."""
-    history = system.history('feedback.payoff', 1)
+    history = system.get_history('feedback.payoff', 1)
     return option * float(history[-1]) if len(history) else 0.0
 
 
@@ -132,7 +132,7 @@ def test_choice_interaction_agent_logit_reaches_mean_field():
     )
     initial = np.where(np.random.default_rng(0).random(400) < 0.7, 1.0, -1.0)
     trajectory = _run_choice(choice, initial, 30)
-    magnetization = [trajectory.agents('members', frame).values['option'].mean() for frame in range(20, 31)]
+    magnetization = [trajectory.get_agents('members', frame).values['option'].mean() for frame in range(20, 31)]
     assert abs(np.mean(magnetization) - GLAUBER_ROOT) < 0.03
 
 
@@ -175,7 +175,7 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
         form='agent',
     )
     trajectory = _run_choice(choice, np.zeros(2000), 40)
-    values = np.concatenate([trajectory.agents('members', frame).values['option'] for frame in range(30, 41)])
+    values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(30, 41)])
     expected = np.exp([0.0, 0.5, 1.0]) / np.exp([0.0, 0.5, 1.0]).sum()
     assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
 
@@ -198,7 +198,7 @@ def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(for
     if form == 'symbolic':
         values = trajectory.values('members.option')[-20:]
     else:
-        values = np.concatenate([trajectory.agents('members', frame).values['option'] for frame in range(40, 61)])
+        values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(40, 61)])
     expected = np.exp([0.0, 0.5, 1.0]) / np.exp([0.0, 0.5, 1.0]).sum()
     assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
 
@@ -216,7 +216,7 @@ def test_choice_interaction_heat_bath_proposals_keep_the_option_at_equal_utiliti
         form='agent',
         proposal='all',
     )
-    values = _run_choice(choice, np.zeros(3000), 1).agents('members', 1).values['option']
+    values = _run_choice(choice, np.zeros(3000), 1).get_agents('members', 1).values['option']
     assert np.mean(values == 0) == pytest.approx(1 / 3, abs=0.03)
 
 
@@ -245,7 +245,7 @@ def test_choice_interaction_agent_best_takes_the_largest_utility():
         rule='best',
         form='agent',
     )
-    assert _run_choice(choice, np.zeros(50), 1).agents('members', 1).values['option'].tolist() == [2.0] * 50
+    assert _run_choice(choice, np.zeros(50), 1).get_agents('members', 1).values['option'].tolist() == [2.0] * 50
 
 
 def test_choice_interaction_activity_revises_a_share_of_members():
@@ -275,7 +275,7 @@ def test_choice_interaction_agent_activity_revises_a_share_of_agents():
         activity=0.3,
         form='agent',
     )
-    values = _run_choice(choice, np.zeros(5000), 1).agents('members', 1).values['option']
+    values = _run_choice(choice, np.zeros(5000), 1).get_agents('members', 1).values['option']
     assert abs(values.mean() - 0.3) < 0.03
 
 
@@ -284,7 +284,7 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
 
     def attend(agent: ChooserView, system: SystemView, option: float) -> float:
         """Return a utility of option 1 that is larger than that of option 0 while fewer than two agents hold it."""
-        ones = sum(member.option for member in system.agents('target', ChooserView))
+        ones = sum(member.option for member in system.get_agents('target', ChooserView))
         return float(ones < 2) if option == 1 else 0.5
 
     sequential = ChoiceInteraction(
@@ -298,9 +298,11 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
         form='agent',
     )
     synchronous = ChoiceInteraction(**{**sequential.get_params(), 'schedule': 'synchronous'})
-    finals = [_run_choice(sequential, np.zeros(4), 1, seed).agents('members', 1).values['option'] for seed in range(5)]
+    finals = [
+        _run_choice(sequential, np.zeros(4), 1, seed).get_agents('members', 1).values['option'] for seed in range(5)
+    ]
     assert all(final.sum() == 2.0 for final in finals)
-    assert _run_choice(synchronous, np.zeros(4), 1).agents('members', 1).values['option'].tolist() == [1.0] * 4
+    assert _run_choice(synchronous, np.zeros(4), 1).get_agents('members', 1).values['option'].tolist() == [1.0] * 4
 
 
 def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
@@ -323,8 +325,8 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         time=DiscreteTime(schedule=schedule),
     )
     trajectory = simulate(system, until=5, random_state=0)
-    assert 0.0 < trajectory.agents('members', 1).values['option'].mean() < 1.0
-    assert trajectory.agents('members', 5).values['option'].mean() > 0.9
+    assert 0.0 < trajectory.get_agents('members', 1).values['option'].mean() < 1.0
+    assert trajectory.get_agents('members', 5).values['option'].mean() > 0.9
 
 
 def test_choice_interaction_keeps_values_among_options():
@@ -385,7 +387,7 @@ def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
     )
     agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'form': 'agent'})
     assert set(_run_choice(symbolic, np.zeros(200), 1).values('members.option')[1].tolist()) == {2.0}
-    assert set(_run_choice(agent, np.zeros(200), 1).agents('members', 1).values['option'].tolist()) == {2.0}
+    assert set(_run_choice(agent, np.zeros(200), 1).get_agents('members', 1).values['option'].tolist()) == {2.0}
 
 
 @pytest.mark.parametrize('form', ['symbolic', 'agent'])
@@ -401,7 +403,7 @@ def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(form):
         form=form,
     )
     trajectory = _run_choice(choice, np.zeros(6000), 1)
-    values = trajectory.values('members.option')[1] if form == 'symbolic' else trajectory.agents('members', 1)
+    values = trajectory.values('members.option')[1] if form == 'symbolic' else trajectory.get_agents('members', 1)
     options = values if form == 'symbolic' else values.values['option']
     np.testing.assert_allclose(_frequencies(np.asarray(options), 3), [1 / 3] * 3, atol=0.03)
 
@@ -411,7 +413,7 @@ def test_choice_sequential_schedule_reads_the_choices_of_the_members_before():
 
     def scarce(agent: ChooserView, system: SystemView, option: float) -> float:
         """Return a utility of option 1 that is positive while no agent holds it."""
-        ones = sum(member.option for member in system.agents('target', ChooserView))
+        ones = sum(member.option for member in system.get_agents('target', ChooserView))
         return option * (0.5 - ones)
 
     choice = ChoiceInteraction(
@@ -424,4 +426,4 @@ def test_choice_sequential_schedule_reads_the_choices_of_the_members_before():
         form='agent',
         schedule='sequential',
     )
-    assert _run_choice(choice, np.zeros(3), 1).agents('members', 1).values['option'].tolist() == [1.0, 0.0, 0.0]
+    assert _run_choice(choice, np.zeros(3), 1).get_agents('members', 1).values['option'].tolist() == [1.0, 0.0, 0.0]

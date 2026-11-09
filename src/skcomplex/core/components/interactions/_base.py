@@ -129,7 +129,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         return self._get_law_tags(self._get_declared_laws())
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the interaction draws.
 
         It draws, by `draws`, a random order of its agents, or random ties or picks.
@@ -147,7 +147,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             inputs:
                 The namespace of the symbols the laws can use.
         """
-        self.laws_ = self._laws_of(inputs)
+        self.laws_ = self._get_laws_of(inputs)
 
     def _get_role(self, role: str) -> str:
         """Return the role a subclass binds in place of a role of its general interaction.
@@ -220,7 +220,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         parameter = self._get_parameter(name)
         if self._declares(parameter):
-            return system.parameter(parameter)
+            return system.get_parameter(parameter)
         return float(getattr(self, parameter))
 
     def _get_parameter_symbol(self, name: str, namespace: SimpleNamespace) -> object:
@@ -333,7 +333,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             set_next:
                 The function that sets the next value of an agent.
         """
-        agents = list(system.agents(self._get_role('target')))
+        agents = list(system.get_agents(self._get_role('target')))
         if schedule == 'synchronous':
             values = [get_next(agent, system) for agent in agents]
             for agent, value in zip(agents, values, strict=True):

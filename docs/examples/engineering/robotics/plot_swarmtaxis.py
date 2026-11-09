@@ -44,9 +44,9 @@ trajectory = simulate(system, until=3000, dt=15, observers=[observer])
 # the robots keep radio contact, and at any time only part of the swarm should see the beacon.
 
 frames = range(len(trajectory.times))
-centres = np.array([trajectory.agents('robots', frame).locations.mean(axis=0) for frame in frames])
-spreads = [trajectory.agents('robots', frame).locations.std(axis=0).mean() for frame in frames]
-lit = [trajectory.agents('robots', frame).values['illuminated'].mean() for frame in frames]
+centres = np.array([trajectory.get_agents('robots', frame).locations.mean(axis=0) for frame in frames])
+spreads = [trajectory.get_agents('robots', frame).locations.std(axis=0).mean() for frame in frames]
+lit = [trajectory.get_agents('robots', frame).values['illuminated'].mean() for frame in frames]
 fig, (drift, shares) = plt.subplots(1, 2, figsize=(10, 4))
 drift.plot(trajectory.times, centres[:, 0], label='x of the centre')
 drift.plot(trajectory.times, spreads, label='spread of the swarm')

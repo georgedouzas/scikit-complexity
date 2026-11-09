@@ -696,7 +696,7 @@ def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
 
     The table includes the sites outside it.
     """
-    return _fitted(space)._index_table(automaton.law._get_neighborhood())
+    return _fitted(space)._get_index_table(automaton.law._get_neighborhood())
 
 
 def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
@@ -890,7 +890,7 @@ def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> Reach:
     if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.law.over, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
-    ball = automaton.space._ball(radius)
+    ball = automaton.space._get_ball(radius)
     if not isinstance(ball, LatticeNeighborhood | MemoryNeighborhood):
         error_msg = f'The space of the automaton gives a ball of {type(ball).__name__}, which an automaton cannot read.'
         raise AnalysisError(error_msg)
@@ -973,7 +973,7 @@ def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> CompositeSystem 
     images = _step(automaton, configurations)
     for radius in range(max_radius + 1):
         ball = _ball_neighborhood(automaton, radius)
-        table = automaton.space._index_table(ball)
+        table = automaton.space._get_index_table(ball)
         padded = np.concatenate([images, np.zeros((images.shape[0], 1), dtype=np.int64)], axis=1)
         patterns = _codes(padded[:, table], states).ravel()
         values = configurations.ravel()
@@ -1140,7 +1140,7 @@ def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, np
     if not isinstance(neighborhood, LatticeNeighborhood | MemoryNeighborhood):
         error_msg = f'A subshift covers offsets or a memory set, not {neighborhood!r}.'
         raise AnalysisError(error_msg)
-    table = _fitted(space)._index_table(neighborhood)
+    table = _fitted(space)._get_index_table(neighborhood)
     return table, (table < _size_of(space)).all(axis=1)
 
 

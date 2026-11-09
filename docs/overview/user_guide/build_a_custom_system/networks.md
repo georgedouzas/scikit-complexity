@@ -1015,8 +1015,8 @@ The catalog systems `ExplosivePercolationSystem`, `DavidsenEbelBornholdtSystem`,
 Give every node a collection that grows during the run, such as the balls of an urn, and let the neighbours read it.
 The members of a variable agent group placed on the nodes are the collection of each node:
 
-- `agent.agents_here(group)` reads the collection of the node of an agent,
-- `agent.neighbors(group=group)` reads the collections of the nodes around it, without the agents of other groups,
+- `agent.get_agents_here(group)` reads the collection of the node of an agent,
+- `agent.get_neighbors(group=group)` reads the collections of the nodes around it, without the agents of other groups,
 - `agent.create(group)` adds a member to the collection of its node, and `remove` takes one out.
 
 The catalog system `InteractingUrnsNetworkSystem` places an urn with triggering on every node of a network, with one

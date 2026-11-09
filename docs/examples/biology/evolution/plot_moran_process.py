@@ -39,7 +39,7 @@ trajectory = simulate(
 def mutants_of(trajectory):
     """Return the number of mutants at every frame."""
     frames = range(len(trajectory.times))
-    return np.array([np.sum(trajectory.agents('population', frame).values['trait'] > 0) for frame in frames])
+    return np.array([np.sum(trajectory.get_agents('population', frame).values['trait'] > 0) for frame in frames])
 
 
 rng = np.random.default_rng(1)

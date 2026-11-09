@@ -47,7 +47,7 @@ def _agent_values(element, interactions, until, state='s'):
     """Return the values of a state of the agents at the last step."""
     system = CompositeSystem(elements=[element], interactions=interactions, time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.agents('members', until).values[state]
+    return trajectory.get_agents('members', until).values[state]
 
 
 def _group(initial=1.0, size=MEMBERS):
@@ -320,7 +320,7 @@ def test_check_rejects_forms_it_cannot_take(arguments, match):
 
 def _empty(agent, system):
     """Return whether no member holds the value 1."""
-    return all(member.s != 1 for member in system.agents('target'))
+    return all(member.s != 1 for member in system.get_agents('target'))
 
 
 @pytest.mark.parametrize(
@@ -347,7 +347,7 @@ def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
     )
     system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+    assert trajectory.get_agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
 @pytest.mark.parametrize('source', [(0, 2), lambda value: value != 1])
@@ -367,7 +367,7 @@ def test_agent_transition_over_the_cell_moves_members_of_every_source_value(sour
     )
     system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+    assert trajectory.get_agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
 def test_agent_transition_member_schedule_lowers_to_a_member_rule():

@@ -47,7 +47,7 @@ trajectory = simulate(system, until=3, observers=[observer], random_state=2)
 def run(share, seed):
     """Return the share of opinion 1 after every step of a run."""
     trajectory = simulate(SznajdSystem(graph=lattice, share=share, random_state=seed), until=STEPS, random_state=seed)
-    return np.array([trajectory.agents('people', frame).values['opinion'].mean() for frame in range(STEPS + 1)])
+    return np.array([trajectory.get_agents('people', frame).values['opinion'].mean() for frame in range(STEPS + 1)])
 
 
 shares = np.linspace(0.3, 0.7, 9)

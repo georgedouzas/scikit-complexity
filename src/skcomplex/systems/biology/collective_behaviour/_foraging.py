@@ -289,11 +289,11 @@ class PheromoneForagingSystem(BaseSystem):
             return None
         x, y = cast('tuple[int, int]', ant.location)
         nest = self._get_nest(ant)
-        cells = cast('list[tuple[int, int]]', list(ant.neighbor_cells()))
+        cells = cast('list[tuple[int, int]]', list(ant.get_neighbor_cells()))
         distance = np.hypot(x - nest[0], y - nest[1])
         weights = np.asarray(
             [
-                (1.0 + ant.attraction * system.field(PHEROMONE, cell))
+                (1.0 + ant.attraction * system.get_field(PHEROMONE, cell))
                 * np.exp(ant.outward * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
                 for cell in cells
             ],

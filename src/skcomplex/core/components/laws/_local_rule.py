@@ -185,8 +185,8 @@ class LocalRuleLaw(BaseLaw):
         """
         neighborhood = self._get_neighborhood()
         if not isinstance(neighborhood, StateTranslationNeighborhood):
-            return space._index_table(neighborhood)
-        translations = space._translation_table(neighborhood)
+            return space._get_index_table(neighborhood)
+        translations = space._get_translation_table(neighborhood)
         size = translations.shape[0]
         elements = np.rint(np.asarray(values, dtype=float))
         named = (elements >= 0) & (elements < size)

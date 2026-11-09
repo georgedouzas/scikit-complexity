@@ -142,7 +142,7 @@ class ExecutionInteraction(Interaction):
             system:
                 The system.
         """
-        tasks = system.agents(self.target, TaskView)
+        tasks = system.get_agents(self.target, TaskView)
         if not tasks:
             return
         priorities = [task.priority for task in tasks]

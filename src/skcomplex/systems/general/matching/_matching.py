@@ -128,12 +128,12 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the rule draws.
 
         Every rule draws but a queue served in a fixed order.
         """
-        return super()._draws() or not (isinstance(self.rule, QueueSpec) and self.rule.order != 'random')
+        return super()._get_draws() or not (isinstance(self.rule, QueueSpec) and self.rule.order != 'random')
 
     def __init__(
         self,
@@ -238,7 +238,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 quantity=self._read(agent, quantities[0], 1.0),
                 cap=self._read(agent, self.cap, math.inf),
             )
-            for agent in system.agents(self._get_role('requesters'))
+            for agent in system.get_agents(self._get_role('requesters'))
         ]
         providers = [
             SimpleNamespace(
@@ -247,7 +247,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
                 quantity=self._read(agent, quantities[1], 1.0),
                 cap=math.inf,
             )
-            for agent in system.agents(self._get_role('providers'))
+            for agent in system.get_agents(self._get_role('providers'))
         ]
         return [offer for offer in requesters if offer.quantity > 0], [
             offer for offer in providers if offer.quantity > 0

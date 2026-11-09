@@ -36,7 +36,7 @@ def consensus_games(n_agents, seed):
     run = simulate(NamingGameSystem(n_agents=n_agents), until=200, random_state=seed)
     trajectory = run
     for frame in range(1, len(trajectory.times)):
-        words = trajectory.agents('namers', frame).values['words']
+        words = trajectory.get_agents('namers', frame).values['words']
         if np.all(words.sum(axis=1) == 1) and np.count_nonzero(words.sum(axis=0)) == 1:
             return frame * n_agents
     return np.nan

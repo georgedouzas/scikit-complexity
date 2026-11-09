@@ -37,7 +37,7 @@ trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 def like_share(trajectory, frame):
     """Return the like-neighbour share of the residents at a frame."""
-    residents = trajectory.agents('residents', frame)
+    residents = trajectory.get_agents('residents', frame)
     grid = np.full((SIDE, SIDE), -1.0)
     columns, rows = np.asarray(residents.locations, dtype=int).T
     grid[rows, columns] = residents.values['kind']

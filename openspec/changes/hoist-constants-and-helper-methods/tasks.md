@@ -43,12 +43,12 @@ site in the whole tree.
 
 ## 3. Core components
 
-- [ ] 3.1 In `core/components` (base, elements, spaces, interactions, laws, `laws/utils`, systems), hoist and rename
+- [x] 3.1 In `core/components` (base, elements, spaces, interactions, laws, `laws/utils`, systems), hoist and rename
   constants, mark the derived values of `laws/utils` and of the sampling interaction, move every helper a class reads
   into its owner, and give the package's methods verb names. Keep the Numba kernels of the mobility and sampling
   interactions as module functions. Verify the source tests pass with `skcomplex.core.components` added to the checked
   packages.
-- [ ] 3.2 Fold the attribute docstrings of the package's constants into the docstrings that read them. Verify the docs
+- [x] 3.2 Fold the attribute docstrings of the package's constants into the docstrings that read them. Verify the docs
   build shows no missing text for the re-exported law utilities.
 
 ## 4. Core engine

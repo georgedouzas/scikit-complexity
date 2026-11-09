@@ -154,7 +154,7 @@ class ColocationInteraction(Interaction):
             system:
                 The system.
         """
-        people = system.agents(self.people, CommuterView)
+        people = system.get_agents(self.people, CommuterView)
         at_work = round(system.time) % 2 == 1 and not self.closed
         places = np.array([int(person.work if at_work else person.home) for person in people])
         health = np.array([person.health for person in people])

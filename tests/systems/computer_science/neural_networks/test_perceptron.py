@@ -115,7 +115,7 @@ def test_run_small_perceptron_matches_enumeration() -> None:
         expected = any(_holds(candidate, *revealed).all() for candidate in candidates)
         assert bool(verdicts[step]) == expected
         if expected:
-            weights = np.asarray(trajectory.agents('weights', step).values['on'], dtype=float)
+            weights = np.asarray(trajectory.get_agents('weights', step).values['on'], dtype=float)
             assert _holds(2 * weights - 1, *revealed).all()
 
 

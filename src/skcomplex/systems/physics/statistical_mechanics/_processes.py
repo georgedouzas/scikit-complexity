@@ -343,10 +343,10 @@ class WalkerElement(Element):
         """
         if agent.stuck:
             return
-        if any(isinstance(other, WalkerView) and other.stuck for other in agent.neighbors()):
+        if any(isinstance(other, WalkerView) and other.stuck for other in agent.get_neighbors()):
             agent.stuck = 1.0
             return
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
 
 
