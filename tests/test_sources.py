@@ -133,3 +133,29 @@ assert loaded == [], loaded
     process.start()
     process.join()
     assert process.exitcode == 0
+
+
+def _imported_modules(path: Path, package: str) -> list[str]:
+    """Return the absolute names of the modules that a source file of a package imports, read from its syntax tree."""
+    found: list[str] = []
+    for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+        if isinstance(node, ast.Import):
+            found += [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            base = package.split('.')[: len(package.split('.')) - node.level + 1] if node.level else []
+            module = '.'.join([*base, *([node.module] if node.module else [])])
+            found += [module] + [f'{module}.{alias.name}' for alias in node.names]
+    return found
+
+
+def test_core_never_imports_the_systems(request):
+    """Test that no module under `src/skcomplex/core` imports `skcomplex.systems`."""
+    source = request.config.rootpath / 'src'
+    found = [
+        f'{path.relative_to(source)}: {module}'
+        for path in sorted((source / 'skcomplex' / 'core').rglob('*.py'))
+        for module in _imported_modules(path, '.'.join(path.relative_to(source).parent.parts))
+        if module == SYSTEMS or module.startswith(f'{SYSTEMS}.')
+    ]
+    assert not found, 'core modules import the systems:\n' + '\n'.join(found)
+
