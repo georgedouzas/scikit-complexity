@@ -1,6 +1,6 @@
-"""Pass that checks the Hurst index and amplitude of fractional noise laws.
+"""Pass that checks the Hurst index and amplitude of noise laws with one.
 
-Laws of Hurst index 1/2 become noise laws.
+Laws of Hurst index 1/2 become noise laws without one.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, FractionalNoiseLaw, NoiseLaw
+from ....components.laws import BaseLaw, NoiseLaw
 from ....errors import ValidationError
 from ..._utils import components_of, symbols_of
 from ...problems._declarations_spec import DeclarationsSpec
@@ -24,9 +24,9 @@ BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
-    """Pass that checks the Hurst index and amplitude of fractional noise laws.
+    """Pass that checks the Hurst index and amplitude of noise laws with one.
 
-    Laws of Hurst index 1/2 become noise laws.
+    Laws of Hurst index 1/2 become noise laws without one.
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -38,7 +38,7 @@ class CheckFractionalNoisePass(BasePass):
         return ('lowered',)
 
     def _run(self, inputs: object = None) -> None:
-        """Check the fractional noise laws."""
+        """Check the noise laws with a Hurst index."""
         compilation = self.compilation_
         declarations = Compilation._required(compilation.layout, 'layout')
         compilation.lowered = [
@@ -49,11 +49,11 @@ class CheckFractionalNoisePass(BasePass):
     @staticmethod
     def _checked_hurst(
         spec: KernelSpec,
-        law: FractionalNoiseLaw,
+        law: NoiseLaw,
         declarations: DeclarationsSpec,
         description: str,
     ) -> None:
-        """Raise an error for a bad Hurst index of a fractional noise law.
+        """Raise an error for a bad Hurst index of a noise law.
 
         The index must be a number or a parameter in `(0, 1)`.
         """
@@ -78,19 +78,19 @@ class CheckFractionalNoisePass(BasePass):
 
     @staticmethod
     def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
-        """Return laws with every fractional noise law of Hurst index 1/2 as a noise law.
+        """Return laws with every noise law of Hurst index 1/2 as a noise law without one.
 
         The others are checked first.
         """
         result: list[BaseLaw] = []
         for law in laws:
-            if not isinstance(law, FractionalNoiseLaw):
+            if not isinstance(law, NoiseLaw) or law.hurst is None:
                 result.append(law)
                 continue
             description = CheckFractionalNoisePass._fractional_description(spec, law)
             CheckFractionalNoisePass._checked_hurst(spec, law, declarations, description)
             if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == BROWNIAN_HURST:
-                result.append(NoiseLaw(law._get_targets()[0], law.value, law.order))
+                result.append(NoiseLaw(law._get_targets()[0], law.value, law.order, convention=law.convention))
                 continue
             values = [item for item in components_of(law.value) if isinstance(item, Expression)]
             if not isinstance(law.value, Expression | FreeModuleElement) and not SR(law.value).is_numeric():
@@ -114,7 +114,7 @@ class CheckFractionalNoisePass(BasePass):
         return result
 
     @staticmethod
-    def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
-        """Return the description of a fractional noise law by the states it drives."""
+    def _fractional_description(spec: KernelSpec, law: NoiseLaw) -> str:
+        """Return the description of a noise law with a Hurst index by the states it drives."""
         states = dict.fromkeys(spec._state_name(item) for item in components_of(law._get_targets()[0]))
         return f'fractional noise law of {", ".join(states)}'

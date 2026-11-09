@@ -11,7 +11,7 @@ when other agents run tests at the same time.
   `FractionalNoiseLaw` into it, and add the checks that reject a Hurst index with a process or on a conserved noise,
   and verify new tests in
   `tests/core/components/laws/test_noise.py` cover the range, the process, and the conserved checks
-- [ ] 1.3 In `CheckFractionalNoisePass`, `FractionalProblemPass`, and `PassCompiler._noise_needs`, test
+- [x] 1.3 In `CheckFractionalNoisePass`, `FractionalProblemPass`, and `PassCompiler._noise_needs`, test
   `law.hurst is not None` in place of the class, record `NoiseKind.FRACTIONAL` for such a law, and give the fix text of
   that kind the name of `FractionalEulerMaruyamaSolver`, and verify
   `pytest tests/core/engine/compile/passes/test_fractional_form.py` passes after its laws become `NoiseLaw(..., hurst=)`

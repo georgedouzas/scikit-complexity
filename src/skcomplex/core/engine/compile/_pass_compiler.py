@@ -107,6 +107,7 @@ from ._learning_compiler import _LearningCompiler
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
 from .passes._cells import DEGREES
 from .passes._census import CensusPass
+from .passes._check_fractional_noise import BROWNIAN_HURST
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import _PASSES
@@ -1923,6 +1924,17 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
+    def _is_fractional(law: NoiseLaw) -> bool:
+        """Return whether a noise law draws a fractional Brownian motion.
+
+        A Hurst index of 1/2 gives a Wiener process.
+        """
+        hurst = law.hurst
+        if hurst is None:
+            return False
+        return not (SR(hurst).is_numeric() and float(SR(hurst)) == BROWNIAN_HURST)
+
+    @staticmethod
     def _noise_needs(
         records: list[CensusRecordSpec],
         wieners: dict[str, WienerProcessSpec],
@@ -1938,6 +1950,9 @@ class PassCompiler(BaseCompiler):
         for record in PassCompiler._noise_records(records):
             if isinstance(record.law, NoiseLaw) and record.law.conserved:
                 needs.setdefault(NoiseKind.CONSERVED, record)
+                continue
+            if isinstance(record.law, NoiseLaw) and PassCompiler._is_fractional(record.law):
+                needs.setdefault(NoiseKind.FRACTIONAL, record)
                 continue
             for key, state in zip(record.processes, record.driven, strict=True):
                 if key is None:
@@ -1973,6 +1988,8 @@ class PassCompiler(BaseCompiler):
 
         The solver or backend passed does not support the structure.
         """
+        if term == NoiseKind.FRACTIONAL:
+            return 'Use the fractional Euler-Maruyama stepper, FractionalEulerMaruyamaSolver.'
         return f'Pass a solver and a backend that support {term} noise.'
 
     @staticmethod
