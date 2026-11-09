@@ -92,11 +92,11 @@ Same procedure as group 3.
 
 ## 7. ReactionDiffusionSystem
 
-- [ ] 7.1 Add `ReactionDiffusionSystem(DynamicalSystem)` in
+- [x] 7.1 Add `ReactionDiffusionSystem(DynamicalSystem)` in
   `src/skcomplex/systems/general/dynamics/_reaction_diffusion.py` with the signature and hooks of design.md, and export
   it from the subpackage, without a layers contract. Its docstring carries runnable examples of the
   Gray-Scott model and of the Fisher-Kolmogorov front. Verify with the doctests of the module.
-- [ ] 7.2 Add `tests/systems/general/dynamics/test_reaction_diffusion.py` with the scenarios of `general-systems`: the
+- [x] 7.2 Add `tests/systems/general/dynamics/test_reaction_diffusion.py` with the scenarios of `general-systems`: the
   front speed, a field with no diffusivity, the boundaries per field, a spectral discretization, noise, and an
   override of `_get_equation_interactions`. Verify they pass.
 

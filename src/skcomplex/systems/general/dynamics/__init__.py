@@ -6,8 +6,10 @@ stocks that change through named flows.
 
 from ._dynamical import DynamicalSystem
 from ._network_dynamical import NetworkDynamicalSystem
+from ._reaction_diffusion import ReactionDiffusionSystem
 
 __all__: list[str] = [
     'DynamicalSystem',
     'NetworkDynamicalSystem',
+    'ReactionDiffusionSystem',
 ]
