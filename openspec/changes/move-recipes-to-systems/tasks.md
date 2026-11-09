@@ -1,10 +1,10 @@
 ## 1. Preconditions
 
-- [ ] 1.1 Confirm that `rename-core-systems` is archived and that `CompositeSystem` and `ReactionNetworkSystem` import
+- [x] 1.1 Confirm that `rename-core-systems` is archived and that `CompositeSystem` and `ReactionNetworkSystem` import
   from `skcomplex.core.components.systems`. Verify with `pdm run python -c` importing both names.
-- [ ] 1.2 Read "Decisions by the user" and "The placement rule" in design.md. Verify that every path the tasks below
+- [x] 1.2 Read "Decisions by the user" and "The placement rule" in design.md. Verify that every path the tasks below
   name follows them.
-- [ ] 1.3 Before running pytest from several agents, set `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and
+- [x] 1.3 Before running pytest from several agents, set `NUMBA_NUM_THREADS`, `OMP_NUM_THREADS`, and
   `OPENBLAS_NUM_THREADS` to 1. Verify with `env` in the shell of each agent.
 
 ## 2. The cross-domain package
