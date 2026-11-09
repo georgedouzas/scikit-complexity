@@ -31,7 +31,7 @@
   `engineering/common/traffic`, `mathematics/common/_network_node.py`, `_regulated_node.py`, and `_vertex.py` into
   `mathematics/common/networks`, and `physics/common/_sandpile_cell.py` into `physics/common/avalanches`, with their
   tests and imports. Verify with the new test, `tests/systems` of those fields, and `lint-imports`.
-- [ ] 3.3 Add to `tests/test_sources.py` the test that every public class of `skcomplex.core.components` is a structural
+- [x] 3.3 Add to `tests/test_sources.py` the test that every public class of `skcomplex.core.components` is a structural
   base, is named in the code of another core module, or is the general form of a law, with the three proxies of
   design.md and no allowlist. Run it and verify that it fails for exactly `MovementInteraction`,
   `BirthDeathInteraction`, `ImitationInteraction`, `EvolutionInteraction`, `FeedbackInteraction`,
@@ -114,7 +114,7 @@
 - [x] 8.2 Move `FeedbackInteraction` to `economics/common/policy/_policy_rule.py` as `PolicyRuleInteraction`, with its
   tests and the case of `tests/core/components/test_types.py`, and repoint its users. Verify with
   `tests/systems/economics`.
-- [ ] 8.3 Move `OptimizationInteraction` and its four algorithm specs into
+- [x] 8.3 Move `OptimizationInteraction` and its four algorithm specs into
   `computer_science/evolutionary_computation/_optimisers.py`, with their tests. Verify with
   `tests/systems/computer_science/evolutionary_computation`.
 - [ ] 8.4 Move `SatisfiabilityInteraction`, `ClauseSpec`, and `CardinalitySpec` into

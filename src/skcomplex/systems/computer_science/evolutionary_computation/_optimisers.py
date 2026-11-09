@@ -4,31 +4,309 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
+from pymoo.algorithms.soo.nonconvex.cmaes import CMAES
+from pymoo.algorithms.soo.nonconvex.de import DE
+from pymoo.algorithms.soo.nonconvex.es import ES
+from pymoo.algorithms.soo.nonconvex.pso import PSO
+from pymoo.core.algorithm import Algorithm
+from pymoo.core.problem import Problem
+from pymoo.core.termination import NoTermination
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
 from ....core.components.base import BasePart
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, OptimizationInteraction, SamplingInteraction
-from ....core.components.laws import UpdateLaw
+from ....core.components.interactions import Interaction, SamplingInteraction
+from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from ....core.components.spaces import BallNeighborhood, BaseSpace, DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.types import SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import (
-    CovarianceAdaptationSpec,
-    DifferentialEvolutionSpec,
-    EvolutionStrategySpec,
-    ObservableSpec,
-    ParticleSwarmSpec,
-    RoleSpec,
-    StateSpec,
-)
-from ....core.types import Array
+from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
+from ....core.types import Array, ElementKind
+
+
+@dataclass(frozen=True)
+class DifferentialEvolutionSpec(BaseSpec):
+    """Settings of differential evolution.
+
+    Args:
+        variant:
+            The scheme of pymoo's differential evolution, such as `'DE/best/1/bin'`, its default.
+
+        weight:
+            The differential weight of the mutation, by default that of pymoo.
+
+        crossover:
+            The crossover probability, by default that of pymoo.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import DifferentialEvolutionSpec
+        >>> DifferentialEvolutionSpec().variant
+        'DE/best/1/bin'
+    """
+
+    variant: str = 'DE/best/1/bin'
+    weight: float = 0.5
+    crossover: float = 0.2
+
+
+@dataclass(frozen=True)
+class ParticleSwarmSpec(BaseSpec):
+    """Settings of particle swarm optimisation.
+
+    Args:
+        inertia:
+            The weight of the previous velocity.
+
+        cognitive:
+            The attraction to the best position of a particle.
+
+        social:
+            The attraction to the best position of the swarm.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import ParticleSwarmSpec
+        >>> ParticleSwarmSpec().inertia
+        0.9
+    """
+
+    inertia: float = 0.9
+    cognitive: float = 2.0
+    social: float = 2.0
+
+
+@dataclass(frozen=True)
+class EvolutionStrategySpec(BaseSpec):
+    """Settings of an evolution strategy.
+
+    Args:
+        offspring:
+            The number of offspring per generation, or `None` for pymoo's default.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import EvolutionStrategySpec
+        >>> EvolutionStrategySpec(offspring=200).offspring
+        200
+    """
+
+    offspring: int | None = None
+
+
+@dataclass(frozen=True)
+class CovarianceAdaptationSpec(BaseSpec):
+    """Settings of covariance matrix adaptation.
+
+    Args:
+        sigma:
+            The initial step size, relative to the box of the candidates.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import CovarianceAdaptationSpec
+        >>> CovarianceAdaptationSpec().sigma
+        0.1
+    """
+
+    sigma: float = 0.1
+
+
+type AlgorithmSpec = DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec
+
+ALGORITHM_SPECS = (DifferentialEvolutionSpec, ParticleSwarmSpec, EvolutionStrategySpec, CovarianceAdaptationSpec)
+SEEDS = 2**31
+
+
+class OptimizationInteraction(Interaction):
+    """Move a group of candidates on an objective.
+
+    It runs one generation of a pymoo algorithm per step of discrete time. Every candidate holds a vector state in a
+    box, from which the first generation starts. Every step asks the algorithm for candidates, evaluates the objective
+    on their array, tells the algorithm the values, and writes the candidates of the generation into the members. The
+    interaction reports `best`, the lowest value so far, and `mean`, the mean value of the generation, every step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of candidates.
+
+        state:
+            The name of the vector state of the candidates.
+
+        objective:
+            The function of the array of candidates, one row per candidate, that returns their values.
+
+        bounds:
+            The lower and the upper bounds of the box, each a number or one number per component.
+
+        algorithm:
+            The settings of the algorithm, which select it.
+
+        phase:
+            The name of the phase of the step the rule runs in, or `None` for the default phase.
+
+    Raises:
+        ValidationError:
+            The algorithm is not an algorithm spec, or the objective is not callable, raised by `prepare`.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import OptimizationInteraction
+        >>> objective = lambda values: (values**2).sum(axis=1)
+        >>> search = OptimizationInteraction('search', target='swarm', state='x', objective=objective, bounds=(-1, 1))
+        >>> search.label
+        'search'
+    """
+
+    reports: ClassVar[tuple[str, ...]] = ('best', 'mean')
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
+    draws = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
+        state: str,
+        objective: Callable[[Array], npt.ArrayLike],
+        bounds: tuple[npt.ArrayLike, npt.ArrayLike],
+        algorithm: AlgorithmSpec = DifferentialEvolutionSpec(),
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.objective = objective
+        self.bounds = bounds
+        self.algorithm = algorithm
+        self.phase = phase
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an algorithm that is not a spec, or an uncallable objective.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
+
+        Raises:
+            ValidationError:
+                The algorithm is not an algorithm spec, or the objective is not callable.
+        """
+        super()._prepare(context)
+        if not isinstance(self.algorithm, ALGORITHM_SPECS):
+            names = ', '.join(item.__name__ for item in ALGORITHM_SPECS)
+            error_msg = f'The algorithm {self.algorithm!r} of {self.label!r} is no algorithm spec. Use one of {names}.'
+            raise ValidationError(error_msg)
+        if not callable(self.objective):
+            error_msg = f'The objective of {self.label!r} must be a function of the array of candidates.'
+            raise ValidationError(error_msg)
+
+    def _differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
+        """Return differential evolution from the candidates."""
+        return DE(
+            pop_size=len(candidates),
+            sampling=candidates,
+            variant=spec.variant,
+            F=spec.weight,
+            CR=spec.crossover,
+        )
+
+    def _particle_swarm(self, spec: ParticleSwarmSpec, candidates: Array) -> Algorithm:
+        """Return particle swarm optimisation from the candidates."""
+        return PSO(
+            pop_size=len(candidates),
+            sampling=candidates,
+            w=spec.inertia,
+            c1=spec.cognitive,
+            c2=spec.social,
+            adaptive=False,
+        )
+
+    def _evolution_strategy(self, spec: EvolutionStrategySpec, candidates: Array) -> Algorithm:
+        """Return an evolution strategy from the candidates."""
+        return ES(pop_size=len(candidates), n_offsprings=spec.offspring, sampling=candidates)
+
+    def _covariance_adaptation(self, spec: CovarianceAdaptationSpec, candidates: Array) -> Algorithm:
+        """Return covariance matrix adaptation from the mean of the candidates."""
+        return CMAES(x0=candidates.mean(axis=0), sigma=spec.sigma, pop_size=len(candidates))
+
+    def _get_algorithm(self, candidates: Array, seed: int) -> Algorithm:
+        """Return the algorithm of the spec.
+
+        It is set up on the box of the candidates with a seed.
+        """
+        makers: dict[type, Callable[..., Algorithm]] = {
+            DifferentialEvolutionSpec: self._differential_evolution,
+            ParticleSwarmSpec: self._particle_swarm,
+            EvolutionStrategySpec: self._evolution_strategy,
+            CovarianceAdaptationSpec: self._covariance_adaptation,
+        }
+        size = candidates.shape[1]
+        lower, upper = (np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in self.bounds)
+        problem = Problem(n_var=size, n_obj=1, xl=lower, xu=upper)
+        algorithm = makers[type(self.algorithm)](self.algorithm, candidates)
+        algorithm.setup(problem, termination=NoTermination(), seed=seed, verbose=False)
+        return algorithm
+
+    @staticmethod
+    def _members_of(generation: Array, size: int) -> Array:
+        """Return one row per member from the candidates of a generation.
+
+        It repeats them when they are fewer.
+        """
+        return generation[np.arange(size) % len(generation)]
+
+    def _write(self, agents: Sequence[object], candidates: Array) -> None:
+        """Write the candidates into the members."""
+        for agent, row in zip(agents, self._members_of(candidates, len(agents)), strict=True):
+            setattr(agent, self.state, row)
+
+    def _advance(self, system: SystemViewProtocol) -> None:
+        """Advance the population by one generation and report its values.
+
+        It does not advance once the algorithm has converged.
+        """
+        agents = system.agents(self._get_role('target'))
+        if 'algorithm' not in system.storage:
+            candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)
+            seed = int(system.rng.integers(SEEDS))
+            system.storage.update(algorithm=self._get_algorithm(candidates, seed), best=np.inf)
+        algorithm = cast(Algorithm, system.storage['algorithm'])
+        if not algorithm.has_next():
+            system.report('best', cast(float, system.storage['best']))
+            system.report('mean', cast(float, system.storage['mean']))
+            return
+        population = algorithm.ask()
+        generation = population.get('X')
+        values = np.asarray(self.objective(generation), dtype=float).ravel()
+        population.set('F', values[:, None])
+        algorithm.tell(infills=population)
+        best = min(cast(float, system.storage['best']), float(values.min()))
+        system.storage.update(best=best, mean=float(values.mean()))
+        self._write(agents, generation)
+        system.report('best', best)
+        system.report('mean', float(values.mean()))
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule of one generation.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use, which the rule does not read.
+
+        Returns:
+            laws:
+                The rule that advances the population.
+        """
+        return [RuleLaw(self._advance, phase=self.phase)]
 
 
 class AnnealedCandidateElement(Element):

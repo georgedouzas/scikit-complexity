@@ -21,18 +21,15 @@ from ._clamp_spec import ClampSpec
 from ._clause_spec import ClauseSpec
 from ._connector_spec import ConnectorSpec
 from ._control_solution_spec import ControlSolutionSpec
-from ._covariance_adaptation_spec import CovarianceAdaptationSpec
 from ._dataset_spec import DatasetSpec
 from ._declared_variable_spec import DeclaredVariableSpec
 from ._dialect_spec import DialectSpec
-from ._differential_evolution_spec import DifferentialEvolutionSpec
 from ._direction_spec import DirectionSpec
 from ._draw_log_spec import DrawLogSpec
 from ._draw_record_spec import DrawRecordSpec
 from ._draw_spec import DrawSpec
 from ._entry_spec import EntrySpec
 from ._event_record_spec import EventRecordSpec
-from ._evolution_strategy_spec import EvolutionStrategySpec
 from ._extremal_record_spec import ExtremalRecordSpec
 from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
@@ -67,7 +64,6 @@ from ._outer_totalistic_spec import OuterTotalisticSpec
 from ._pair_read_spec import PairReadSpec
 from ._parameter_spec import ParameterSpec
 from ._parameters_spec import ParametersSpec
-from ._particle_swarm_spec import ParticleSwarmSpec
 from ._partner_spec import PartnerSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._phase_spec import PhaseSpec
@@ -147,18 +143,15 @@ __all__ = [
     'ClauseSpec',
     'ConnectorSpec',
     'ControlSolutionSpec',
-    'CovarianceAdaptationSpec',
     'DatasetSpec',
     'DeclaredVariableSpec',
     'DialectSpec',
-    'DifferentialEvolutionSpec',
     'DirectionSpec',
     'DrawLogSpec',
     'DrawRecordSpec',
     'DrawSpec',
     'EntrySpec',
     'EventRecordSpec',
-    'EvolutionStrategySpec',
     'ExtremalRecordSpec',
     'FractionalRowsSpec',
     'FractionalStateSpec',
@@ -194,7 +187,6 @@ __all__ = [
     'PairReadSpec',
     'ParameterSpec',
     'ParametersSpec',
-    'ParticleSwarmSpec',
     'PartnerSpec',
     'PatchStructureSpec',
     'PhaseSpec',

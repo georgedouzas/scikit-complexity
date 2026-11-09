@@ -1,11 +1,16 @@
 """Test the sources of the repository: the package, its tests, and its documentation hide no finding of the checks."""
 
 import ast
+import importlib
 import multiprocessing
 import re
 from pathlib import Path
+from typing import is_typeddict
 
 import pytest
+
+from skcomplex.core.components.interactions import BaseInteraction
+from skcomplex.core.components.laws import RuleLaw
 
 FOLDERS = ('src', 'tests', 'docs')
 README = 'README.md'
@@ -175,3 +180,79 @@ def test_shared_packages_hold_only_subpackages(request):
     ]
     assert not found, 'loose modules at the root of a shared package:\n' + '\n'.join(found)
 
+
+def _public_classes() -> list[type]:
+    """Return the public classes of the subpackages of `skcomplex.core.components`, without typed dictionaries."""
+    found: dict[str, type] = {}
+    for name in ('elements', 'interactions', 'laws', 'spaces', 'specs', 'systems'):
+        package = importlib.import_module(f'skcomplex.core.components.{name}')
+        for item in package.__all__:
+            value = getattr(package, item)
+            if isinstance(value, type) and not is_typeddict(value):
+                found[item] = value
+    return list(found.values())
+
+
+def _named_classes(path: Path) -> tuple[set[str], set[str]]:
+    """Return the names a core module uses in its code, and the names of the bases of the classes it defines."""
+    tree = ast.parse(path.read_text(encoding='utf-8'))
+    names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+    names |= {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+    bases = {
+        base.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+        for base in node.bases
+        if isinstance(base, ast.Name)
+    }
+    return names, bases
+
+
+def _is_structural_base(klass: type, classes: list[type]) -> bool:
+    """Return whether a class is a base, by its name or because another public class of the core subclasses it."""
+    return klass.__name__.startswith('Base') or any(
+        other is not klass and issubclass(other, klass) for other in classes
+    )
+
+
+def _is_handled_by_type(klass: type, modules: dict[Path, tuple[set[str], set[str]]]) -> bool:
+    """Return whether a core module other than its own and those of its subclasses names a class in its code."""
+    own = Path(str(importlib.import_module(klass.__module__).__file__))
+    return any(
+        klass.__name__ in names and klass.__name__ not in bases
+        for path, (names, bases) in modules.items()
+        if path != own
+    )
+
+
+def _is_general_form(klass: type, classes: list[type]) -> bool:
+    """Return whether an interaction lists the fewest law classes among those of its base that list one of its laws.
+
+    `RuleLaw` counts for no class, since a law of arbitrary code is never a mathematical operation the engine lowers.
+    """
+    if not issubclass(klass, BaseInteraction):
+        return False
+    laws = klass._get_law_classes()
+    siblings = [other for other in classes if issubclass(other, BaseInteraction) and other.__base__ is klass.__base__]
+    return any(
+        len(laws) == min(len(other._get_law_classes()) for other in siblings if law in other._get_law_classes())
+        for law in laws
+        if law is not RuleLaw
+    )
+
+
+def test_core_components_obey_the_placement_rule(request):
+    """Test that every public class of the core components is a base, is handled by type, or is a law's general form."""
+    core = request.config.rootpath / 'src' / 'skcomplex' / 'core'
+    modules = {path: _named_classes(path) for path in sorted(core.rglob('*.py'))}
+    classes = _public_classes()
+    found = [
+        klass.__name__
+        for klass in classes
+        if not (
+            _is_structural_base(klass, classes)
+            or _is_handled_by_type(klass, modules)
+            or _is_general_form(klass, classes)
+        )
+    ]
+    assert not found, 'core classes that are recipes:\n' + '\n'.join(sorted(found))

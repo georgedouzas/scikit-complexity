@@ -22,7 +22,6 @@ from ._jump import JumpInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._neighbor import NeighborInteraction
-from ._optimization import OptimizationInteraction
 from ._pair import PairInteraction
 from ._rate import RateInteraction
 from ._sampling import SamplingInteraction
@@ -51,7 +50,6 @@ __all__: list[str] = [
     'LocalRuleInteraction',
     'MapInteraction',
     'NeighborInteraction',
-    'OptimizationInteraction',
     'PairInteraction',
     'RateInteraction',
     'SamplingInteraction',

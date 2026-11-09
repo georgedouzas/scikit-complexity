@@ -360,3 +360,6 @@ Decisions taken while applying the change, by the placement rule.
 - `TopplingInteraction` keeps its default `BallNeighborhood(metric='manhattan', center='first')`. The default
   neighbourhood of a lattice leaves out the site itself, which the relaxation reads first, and the toppling builds its
   laws without the space. `BallNeighborhood` stays in the core, so the physics family imports it publicly.
+- The tuple of algorithm specs that `OptimizationInteraction` checks is `ALGORITHM_SPECS` in `_optimisers.py`, since
+  the module already names its table of algorithms `ALGORITHMS`. `pymoo` stays a runtime dependency, as the change
+  decides no extra for it.
