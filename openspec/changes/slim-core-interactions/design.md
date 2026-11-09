@@ -72,6 +72,14 @@ That copy is the rule of the user: realizations are never shared across fields. 
 rate. Alternative considered: keep `RelaxationInteraction` as a shared core convenience. Rejected, since it is a
 parametrised `RateInteraction` and gives two ways to write one law.
 
+### Realizations on MapInteraction
+
+`PriceAdjustmentInteraction` and `PayoffLearningInteraction` subclass `MapInteraction` and pass it their next value as
+its function, so the forms and the schedules of the map run them. `MapInteraction` already names its replace or
+increment rule `mode`, so the multiplicative or additive step of `PriceAdjustmentInteraction` is the argument
+`stepping`. `PayoffLearningInteraction` writes several scores, so it keeps its own symbolic laws and gives the map its
+agent value and setter.
+
 ### Pure math forms get no class
 
 The driven flows of mathematics write the Ornstein-Uhlenbeck control as `RateInteraction` with the rate
