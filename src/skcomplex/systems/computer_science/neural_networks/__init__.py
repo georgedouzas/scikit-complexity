@@ -16,10 +16,18 @@ from ._elman import (
 )
 from ._hopfield import HopfieldSystem, HopfieldUpdateInteraction, NeuronElement
 from ._next_generation import LorenzFlowElement, NextGenerationReservoirSystem
-from ._perceptron import BinaryWeightElement, PerceptronSatisfiabilitySystem
+from ._perceptron import (
+    BinaryWeightElement,
+    CardinalitySpec,
+    ClauseSpec,
+    PerceptronSatisfiabilitySystem,
+    SatisfiabilityInteraction,
+)
 
 __all__: list[str] = [
     'BinaryWeightElement',
+    'CardinalitySpec',
+    'ClauseSpec',
     'DilutedHopfieldSystem',
     'DilutedNeuronElement',
     'EchoStateNetworkSystem',
@@ -37,4 +45,5 @@ __all__: list[str] = [
     'ReadoutCouplingInteraction',
     'RecurrenceCouplingInteraction',
     'ReservoirUnitElement',
+    'SatisfiabilityInteraction',
 ]

@@ -117,7 +117,7 @@
 - [x] 8.3 Move `OptimizationInteraction` and its four algorithm specs into
   `computer_science/evolutionary_computation/_optimisers.py`, with their tests. Verify with
   `tests/systems/computer_science/evolutionary_computation`.
-- [ ] 8.4 Move `SatisfiabilityInteraction`, `ClauseSpec`, and `CardinalitySpec` into
+- [x] 8.4 Move `SatisfiabilityInteraction`, `ClauseSpec`, and `CardinalitySpec` into
   `computer_science/neural_networks/_perceptron.py`, with their tests. Remove `_satisfiability_issues` from
   `_pass_compiler.py`, and turn its test into the scenario "Real state" with `RoleElementError`. Verify with
   `tests/systems/computer_science/neural_networks` and `tests/core/engine/compile/test_pass_compiler.py`.

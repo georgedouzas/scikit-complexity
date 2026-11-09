@@ -25,7 +25,6 @@ from ._neighbor import NeighborInteraction
 from ._pair import PairInteraction
 from ._rate import RateInteraction
 from ._sampling import SamplingInteraction
-from ._satisfiability import SatisfiabilityInteraction
 from ._topology import TopologyInteraction
 from ._training import OPTIMIZERS, TrainingInteraction
 from ._transfer import TransferInteraction
@@ -53,7 +52,6 @@ __all__: list[str] = [
     'PairInteraction',
     'RateInteraction',
     'SamplingInteraction',
-    'SatisfiabilityInteraction',
     'TopologyInteraction',
     'TrainingInteraction',
     'TransferInteraction',

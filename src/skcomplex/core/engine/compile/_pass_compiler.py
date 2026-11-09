@@ -26,7 +26,6 @@ from ...components.interactions import (
     ConnectionInteraction,
     HyperedgeInteraction,
     NeighborInteraction,
-    SatisfiabilityInteraction,
 )
 from ...components.laws import (
     BilinearLaw,
@@ -77,7 +76,6 @@ from ...errors import (
     ValidationError,
 )
 from ...specs import (
-    EntrySpec,
     IssueSpec,
     NeighborReductionSpec,
     ObservableSpec,
@@ -706,7 +704,6 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
         issues += PassCompiler._algebraic_issues(compilation)
         issues += PassCompiler._equation_issues(compilation)
-        issues += PassCompiler._satisfiability_issues(nodes)
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records, compilation.backend)
         issues += PassCompiler._draw_issues(records, compilation.backend)
@@ -1202,33 +1199,6 @@ class PassCompiler(BaseCompiler):
             message = f'The EquationLaw of {record.path} {problem}. An equation under static time solves for one state.'
             fix = 'Pass the symbol of a state of the system as `target`.'
             issues.append(IssueSpec('equation-target', record.path, message, fix))
-        return issues
-
-    @staticmethod
-    def _satisfiability_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
-        """Return the satisfiability interactions that bind a state that is not Boolean."""
-        by_path = {node.path: node for node in nodes}
-        issues = []
-        for node in nodes:
-            component = node.component
-            if not isinstance(component, SatisfiabilityInteraction):
-                continue
-            scope = node.path.rpartition('/')[0]
-            role = getattr(component, component._get_role('target'))
-            group = by_path.get(f'{scope}/{role}' if scope else role)
-            declaration = (
-                None
-                if group is None
-                else declarations_of(group.component_type, VariableKind.STATE).get(component.state)
-            )
-            if declaration is None or EntrySpec._domain_kind(declaration.domain) == DomainKind.BOOLEAN:
-                continue
-            message = (
-                f'The SatisfiabilityInteraction {node.path} decides the state {component.state} of {role}, which is '
-                'not Boolean.'
-            )
-            fix = 'Declare the state with `StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.'
-            issues.append(IssueSpec('law-domain', node.path, message, fix))
         return issues
 
     @staticmethod

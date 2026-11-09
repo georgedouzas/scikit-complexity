@@ -15,10 +15,8 @@ from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._call_spec import CallSpec
 from ._capacity_rows_spec import CapacityRowsSpec
-from ._cardinality_spec import CardinalitySpec
 from ._cascade_record_spec import CascadeRecordSpec
 from ._clamp_spec import ClampSpec
-from ._clause_spec import ClauseSpec
 from ._connector_spec import ConnectorSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._dataset_spec import DatasetSpec
@@ -137,10 +135,8 @@ __all__ = [
     'BaseStructureSpec',
     'CallSpec',
     'CapacityRowsSpec',
-    'CardinalitySpec',
     'CascadeRecordSpec',
     'ClampSpec',
-    'ClauseSpec',
     'ConnectorSpec',
     'ControlSolutionSpec',
     'DatasetSpec',

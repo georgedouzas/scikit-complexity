@@ -10,11 +10,12 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SatisfiabilityInteraction
+from skcomplex.systems.computer_science.neural_networks import SatisfiabilityInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import CardinalitySpec, ClauseSpec, StateSpec
+from skcomplex.core.specs import StateSpec
+from skcomplex.systems.computer_science.neural_networks import CardinalitySpec, ClauseSpec
 
 
 class BitElement(Element):
