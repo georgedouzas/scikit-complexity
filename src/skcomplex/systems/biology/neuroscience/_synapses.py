@@ -4,122 +4,17 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
-class AdaptrodeElement(Element):
-    """Adaptrode of Mobus, a synaptic weight with three levels of memory.
-
-    The levels learn on increasing time scales.
-
-    At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the slower
-    weight `w1`, which rises toward `w0` and decays toward the slowest weight `w2`, which rises toward `w1` and decays
-    toward zero. The input is a train of pulses of height `amplitude`, `width` steps long, every `period` steps, until
-    the step `stop`, so the weights record recent, medium-term, and long-term activity. The element holds the states and
-    parameters and has no laws of its own: the maps of `AdaptrodeSystem`, one per level, read its parameters.
-
-    Args:
-        label:
-            The label of the synapse.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        w0:
-            The initial fast weight.
-
-        w1:
-            The initial medium weight.
-
-        w2:
-            The initial slow weight.
-
-        w_max:
-            The largest weight.
-
-        alpha0:
-            The learning rate of the fast weight.
-
-        alpha1:
-            The learning rate of the medium weight.
-
-        alpha2:
-            The learning rate of the slow weight.
-
-        delta0:
-            The decay rate of the fast weight.
-
-        delta1:
-            The decay rate of the medium weight.
-
-        delta2:
-            The decay rate of the slow weight.
-
-        amplitude:
-            The height of the input pulses.
-
-        period:
-            The number of steps between the starts of two pulses.
-
-        width:
-            The number of steps of each pulse.
-
-        stop:
-            The step after which the input stays off.
-
-    Examples:
-        >>> from skcomplex.systems.biology.neuroscience import AdaptrodeElement
-        >>> AdaptrodeElement('synapse').w_max
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        w0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        w1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        w2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        w_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        delta0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        delta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        delta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        stop: Annotated[float, ParameterSpec()] = 150.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.w0 = w0
-        self.w1 = w1
-        self.w2 = w2
-        self.w_max = w_max
-        self.alpha0 = alpha0
-        self.alpha1 = alpha1
-        self.alpha2 = alpha2
-        self.delta0 = delta0
-        self.delta1 = delta1
-        self.delta2 = delta2
-        self.amplitude = amplitude
-        self.period = period
-        self.width = width
-        self.stop = stop
-
-
-class AdaptrodeSystem(BaseSystem):
+class AdaptrodeSystem(DynamicalSystem):
     """An Adaptrode synapse driven by a train of input pulses that stops after a while.
 
     While the pulses arrive the fast weight follows each pulse, the medium weight builds up, and the slow weight builds
@@ -157,7 +52,7 @@ class AdaptrodeSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
-        >>> AdaptrodeSystem(stop=50.0).prepare().system_.elements[0].stop
+        >>> AdaptrodeSystem(stop=50.0).prepare().system_.elements[0].get_value('stop')
         50.0
     """
 
@@ -180,7 +75,7 @@ class AdaptrodeSystem(BaseSystem):
         stop: float = 150.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.alpha0 = alpha0
         self.alpha1 = alpha1
         self.alpha2 = alpha2
@@ -204,46 +99,46 @@ class AdaptrodeSystem(BaseSystem):
         )
         return pulse
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of an Adaptrode synapse driven by a train of input pulses.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'synapse'
 
-        The train stops after a while.
-        """
-        synapse = AdaptrodeElement(
-            'synapse',
-            alpha0=self.alpha0,
-            alpha1=self.alpha1,
-            alpha2=self.alpha2,
-            delta0=self.delta0,
-            delta1=self.delta1,
-            delta2=self.delta2,
-            period=self.period,
-            stop=self.stop,
-        )
-        levels = [
-            MapInteraction(
-                'fast_level',
-                target='synapse',
-                state='w0',
-                function=lambda s: s.target.w0
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the three weights and the parameters with their specs."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'w0': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'w1': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'w2': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'w_max': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.open(0, oo))),
+            'alpha0': DeclaredVariableSpec(self.alpha0, ParameterSpec(domain=nonnegative)),
+            'alpha1': DeclaredVariableSpec(self.alpha1, ParameterSpec(domain=nonnegative)),
+            'alpha2': DeclaredVariableSpec(self.alpha2, ParameterSpec(domain=nonnegative)),
+            'delta0': DeclaredVariableSpec(self.delta0, ParameterSpec(domain=nonnegative)),
+            'delta1': DeclaredVariableSpec(self.delta1, ParameterSpec(domain=nonnegative)),
+            'delta2': DeclaredVariableSpec(self.delta2, ParameterSpec(domain=nonnegative)),
+            'amplitude': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
+            'period': DeclaredVariableSpec(self.period, ParameterSpec(domain=RealSet.open(0, oo))),
+            'width': DeclaredVariableSpec(3.0, ParameterSpec(domain=nonnegative)),
+            'stop': DeclaredVariableSpec(self.stop, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the next fast, medium, and slow weights, the fast one driven by the input pulses."""
+        return {
+            'w0': lambda s: (
+                s.target.w0
                 + s.target.alpha0 * self._input(s) * (s.target.w_max - s.target.w0)
-                - s.target.delta0 * (s.target.w0 - s.target.w1),
+                - s.target.delta0 * (s.target.w0 - s.target.w1)
             ),
-            MapInteraction(
-                'medium_level',
-                target='synapse',
-                state='w1',
-                function=lambda s: s.target.w1
+            'w1': lambda s: (
+                s.target.w1
                 + s.target.alpha1 * (s.target.w0 - s.target.w1)
-                - s.target.delta1 * (s.target.w1 - s.target.w2),
+                - s.target.delta1 * (s.target.w1 - s.target.w2)
             ),
-            MapInteraction(
-                'slow_level',
-                target='synapse',
-                state='w2',
-                function=lambda s: s.target.w2
-                + s.target.alpha2 * (s.target.w1 - s.target.w2)
-                - s.target.delta2 * s.target.w2,
-            ),
-        ]
-        return CompositeSystem(self.label, elements=[synapse], interactions=levels)
+            'w2': lambda s: s.target.w2 + s.target.alpha2 * (s.target.w1 - s.target.w2) - s.target.delta2 * s.target.w2,
+        }

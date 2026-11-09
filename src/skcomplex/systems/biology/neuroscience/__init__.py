@@ -52,11 +52,10 @@ from ._populations import (
     WilsonCowanSystem,
     WinnersTakeAllSystem,
 )
-from ._synapses import AdaptrodeElement, AdaptrodeSystem
+from ._synapses import AdaptrodeSystem
 
 __all__: list[str] = [
     'AdaptiveDelayNetworkSystem',
-    'AdaptrodeElement',
     'AdaptrodeSystem',
     'AmariNeuralFieldSystem',
     'AssociativeSiteElement',
