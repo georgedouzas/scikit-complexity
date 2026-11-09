@@ -21,7 +21,7 @@ from ._orbits import (
     SitnikovSystem,
     TwoBodyOrbitSystem,
 )
-from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitElement, RelativisticOrbitSystem
+from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitSystem
 
 __all__: list[str] = [
     'DipoleChargeElement',
@@ -33,7 +33,6 @@ __all__: list[str] = [
     'KerrSpace',
     'LightBendingSystem',
     'NBodySystem',
-    'RelativisticOrbitElement',
     'RelativisticOrbitSystem',
     'RestrictedThreeBodySystem',
     'RotatingFrameBodyElement',
