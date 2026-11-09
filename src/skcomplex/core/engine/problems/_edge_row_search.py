@@ -66,10 +66,10 @@ class EdgeRowSearch(BaseSearch):
         """Set the neighbours of every node along the active edges."""
         state = self._get_state_of(inputs)
         q = state.p
-        keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
+        keep = self.active.get_view(q)[:, 0] > ACTIVE_THRESHOLD
         edges = np.flatnonzero(keep).astype(np.intp)
-        sources = self.source.view(q)[keep, 0].astype(np.intp)
-        targets = self.target.view(q)[keep, 0].astype(np.intp)
+        sources = self.source.get_view(q)[keep, 0].astype(np.intp)
+        targets = self.target.get_view(q)[keep, 0].astype(np.intp)
         readers = sources if self.directed else np.concatenate([sources, targets])
         others = targets if self.directed else np.concatenate([targets, sources])
         ids = edges if self.directed else np.concatenate([edges, edges])

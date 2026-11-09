@@ -1,6 +1,8 @@
 """Coarse-grain networks across scales.
 
 The coarse-graining is by their Laplacian or by the angles of their nodes.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -29,8 +31,6 @@ SETTINGS = {
     'laplacian': {'steps', 'time'},
     'geometric': {'steps', 'block', 'angle', 'beta'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 MIN_BLOCK = 2
 DENSE_NODES = 3000
 SMALLEST_EIGENVALUE = 1e-10
@@ -38,7 +38,6 @@ TIMES = 200
 SMALLEST_TIME_SCALE = 0.1
 LARGEST_TIME_SCALE = 10.0
 SMALLEST_PEAK = 1e-3
-
 TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
@@ -200,7 +199,7 @@ def _read_frame(trajectory: Trajectory) -> nx.Graph:
     topology = trajectory.problem.topology
     if topology is None:
         return _read_networks(trajectory)[-1]
-    graph = trajectory.get_network(-1).graph()
+    graph = trajectory.get_network(-1).get_graph()
     for name, (entry, _) in topology.networks[0].nodes[0].variables.items():
         values = np.asarray(trajectory.get_values(entry.name)[-1])
         nx.set_node_attributes(graph, {node: values[node] for node in graph}, name)

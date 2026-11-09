@@ -31,7 +31,7 @@ probabilities = trajectory.get_values('words.probability')[0]
 
 sizes = [5, 10, 20, 50, 100, 200, 400]
 result = sweep(MandelbrotLeastEffortSystem(), {'n_words': sizes}, until=1.0, outputs=['language.exponent'])
-exponents = result.series('language.exponent')[:, 0]
+exponents = result.get_series('language.exponent')[:, 0]
 ranks = np.arange(1, probabilities.size + 1)
 fig, (law, trend) = plt.subplots(1, 2, figsize=(10, 4))
 law.loglog(ranks + 1, probabilities, '.')

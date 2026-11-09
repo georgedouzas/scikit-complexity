@@ -21,7 +21,6 @@ from ._base import _read_series
 from .types import Source
 
 PAIR_SAMPLE = 200_000
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

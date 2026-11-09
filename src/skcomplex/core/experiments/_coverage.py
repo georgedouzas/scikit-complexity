@@ -16,7 +16,8 @@ from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ..types import Array
 from ._calibration import LOSSES, CalibrationResult, Summary, _check_priors, _series_of, calibrate
-from ._runs import EXECUTORS, _build, _check_count, _check_source
+from ._runs import EXECUTORS, _check_count, _check_source
+from ._utils import build_system
 from .types import Bounds, Source
 
 POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
@@ -89,7 +90,7 @@ def _calibrate_truth(
 ) -> CalibrationResult:
     """Return the calibration of data simulated at one true parameter vector, with Gaussian noise."""
     rng = np.random.default_rng(seed)
-    trajectory = simulate(_build(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
+    trajectory = simulate(build_system(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
     names = list(paths) if paths is not None else list(_series_of(trajectory))
     data = {}
     for path in names:

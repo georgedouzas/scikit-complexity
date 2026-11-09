@@ -20,7 +20,7 @@ from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SamplesSpec
 from ..types import Array, ComplexArray, DataKind
-from ._base import _import, _read_samples
+from ._base import _read_samples
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -30,10 +30,10 @@ from ._sparse_identification import (
     _surrogate_system,
     _symbols_of,
 )
+from ._utils import load_module
 from .types import Runs
 
 SMALL_EXPONENT = 1e-12
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -311,7 +311,7 @@ def _fit_operators(
             The matrices `A` and `B`, the modes, and the eigenvalues of `A`.
     """
     svd_rank = -1 if rank is None else rank
-    pydmd = _import('pydmd')
+    pydmd = load_module('pydmd')
     if not len(controls):
         fitted = pydmd.DMD(svd_rank=svd_rank, exact=True).fit(before, after)
         modes = np.asarray(fitted.modes, dtype=complex)

@@ -106,7 +106,7 @@ class AxisVisual(BaseVisual):
         """
         name = str(getattr(element, 'states', {}).get(self.state))
         shape = problem.get_lattice_shape(name)
-        if shape is None or len(shape) != IMAGE_RANK or not problem.states.entry(name).member_shape:
+        if shape is None or len(shape) != IMAGE_RANK or not problem.states.get_entry(name).member_shape:
             error_msg = f'{self.path}.{self.state} is no tensor or vector state of a two-dimensional lattice.'
             raise ValidationError(error_msg)
         rows, columns = np.meshgrid(
@@ -141,10 +141,10 @@ class AxisVisual(BaseVisual):
         """
         name = element.states[self.state]
         values = np.asarray(frame.get_lattice(name), dtype=float)[self.sites_[:, 0], self.sites_[:, 1]]
-        tensor = frame.problem.states.entry(name).tensor
+        tensor = frame.problem.states.get_entry(name).tensor
         path = f'{element.path}/{self.state}'
         if tensor is not None:
-            axes, _ = tensor.principal_of(values)
+            axes, _ = tensor.get_principal_of(values)
             recording.log(f'{path}/axes', rr.LineStrips2D(self._get_segments(axes[:, :IMAGE_RANK])))
         else:
             centres = self.sites_[:, ::-1].astype(float)

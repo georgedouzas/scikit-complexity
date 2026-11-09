@@ -50,7 +50,7 @@ for rate in rates:
         observables=observables,
         random_state=0,
     )
-    meetings = result.series('total_meetings')[:, -1]
+    meetings = result.get_series('total_meetings')[:, -1]
     samples = dict(zip(sizes, meetings.reshape(len(sizes), len(seeds)), strict=True))
     fit = scaling(samples, kind='allometric', resamples=500)
     label = f'internal {rate}: exponent {fit.exponent:.2f} [{fit.interval[0]:.2f}, {fit.interval[1]:.2f}]'

@@ -8,10 +8,8 @@ from dataclasses import dataclass, field
 from ..errors import SkcomplexError, ValidationError
 from ._base_spec import BaseSpec
 
-_ERROR = 'error'
-
-
-_WARNING = 'warning'
+ERROR = 'error'
+WARNING = 'warning'
 
 
 @dataclass(frozen=True)
@@ -43,7 +41,7 @@ class IssueSpec(BaseSpec):
     path: str
     message: str
     fix: str
-    severity: str = _ERROR
+    severity: str = ERROR
     error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
 
     @property

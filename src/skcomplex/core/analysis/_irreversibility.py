@@ -1,6 +1,8 @@
 """Measure irreversibility.
 
 The measures are entropy production, detailed balance, fluctuation theorems, and responses.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -46,8 +48,6 @@ SETTINGS = {
     'response': {'unperturbed', 'field'},
     'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'intensity'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 PATH_KINDS = ('jump-entropy-production', 'count-entropy-production', 'detailed-balance')
 ENSEMBLE_KINDS = (
     'langevin-entropy-production',
@@ -56,7 +56,6 @@ ENSEMBLE_KINDS = (
     'response',
     'fluctuation-dissipation',
 )
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'langevin-entropy-production': AnalysisTags(DataKind.ENSEMBLE),

@@ -170,7 +170,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         for name, value in block.symbols.items():
             entry = block.entries.get(name)
             if entry is not None and entry.tensor is not None:
-                symbols[name] = entry.tensor.matrix_of(value)
+                symbols[name] = entry.tensor.get_matrix_of(value)
             else:
                 symbols[name] = tuple(value) if name in block.per else value
         return SimpleNamespace(**symbols)

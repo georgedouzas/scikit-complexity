@@ -50,7 +50,7 @@ class ExperimentResult:
             for run in self.runs
         ]
 
-    def column(self, name: str) -> npt.NDArray[np.generic]:
+    def get_column(self, name: str) -> npt.NDArray[np.generic]:
         """Return one column of the rows.
 
         Args:
@@ -63,7 +63,7 @@ class ExperimentResult:
         """
         return np.asarray([row[name] for row in self.rows])
 
-    def series(self, name: str) -> npt.NDArray[np.generic]:
+    def get_series(self, name: str) -> npt.NDArray[np.generic]:
         """Return a kept series of every run.
 
         The series are stacked when all runs have the same number of frames.
@@ -83,7 +83,7 @@ class ExperimentResult:
         array[:] = values
         return array
 
-    def ensemble(
+    def get_ensemble(
         self,
         name: str,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
@@ -109,7 +109,7 @@ class ExperimentResult:
             >>> from skcomplex.core.experiments import ensemble
             >>> from skcomplex.systems.biology.epidemiology import SIRSystem
             >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
-            >>> times, values, seeds = result.ensemble('I.x')
+            >>> times, values, seeds = result.get_ensemble('I.x')
             >>> values.shape == (3, times.size), seeds.tolist()
             (True, [0, 1, 2])
         """
@@ -123,7 +123,7 @@ class ExperimentResult:
         seeds = np.asarray([run.seed for run in self.runs], dtype=np.int64)
         return times, values, seeds
 
-    def summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, object]]:
+    def get_summary(self, quantiles: Sequence[float] = (0.05, 0.5, 0.95)) -> list[dict[str, object]]:
         """Return statistics of every numeric scalar output per row and scenario.
 
         They are the mean, the standard deviation, and the quantiles.
@@ -155,7 +155,7 @@ class ExperimentResult:
             summary.append(entry)
         return summary
 
-    def to_frame(self) -> pd.DataFrame:
+    def convert_to_frame(self) -> pd.DataFrame:
         """Return the rows as a pandas data frame.
 
         Returns:

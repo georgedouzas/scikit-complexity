@@ -252,7 +252,8 @@ class ImageVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            if (self.states is not None and state not in self.states) or frame.problem.states.entry(name).member_shape:
+            shaped = frame.problem.states.get_entry(name).member_shape
+            if (self.states is not None and state not in self.states) or shaped:
                 continue
             values = np.asarray(frame.get_lattice(name))
             path = f'{element.path}/{state}'
@@ -264,7 +265,7 @@ class ImageVisual(BaseVisual):
             if magnitudes.ndim == 1:
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                cyclic = frame.problem.states.entry(name).period is not None
+                cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
@@ -310,7 +311,7 @@ class ImageVisual(BaseVisual):
         histories: list[rrb.View] = []
         views: list[rrb.View] = []
         for state, name in element.states.items():
-            if (self.states is not None and state not in self.states) or problem.states.entry(name).member_shape:
+            if (self.states is not None and state not in self.states) or problem.states.get_entry(name).member_shape:
                 continue
             path, shape = (
                 f'{element.path}/{state}',
@@ -322,7 +323,7 @@ class ImageVisual(BaseVisual):
                 )
             kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
             views += self._get_moment_views(element, path)
-            if problem.states.entry(name).is_complex:
+            if problem.states.get_entry(name).is_complex:
                 views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
             else:
                 views.append(kind(origin=path, name=state))

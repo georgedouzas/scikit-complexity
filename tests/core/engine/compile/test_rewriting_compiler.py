@@ -223,7 +223,7 @@ def test_parametric_growth():
     assert trajectory.get_structure('plant', 5).text == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
     assert trajectory.get_structure('plant', 6).text == trajectory.get_structure('plant', 5).text
     assert trajectory.get_values('plant.R')[0] == 0.5
-    assert trajectory.get_structure('plant', 1).modules()[1] == ModuleSpec('A', (0.5,))
+    assert trajectory.get_structure('plant', 1).get_modules()[1] == ModuleSpec('A', (0.5,))
 
 
 def test_parameter_change_between_generations():
@@ -315,7 +315,7 @@ def test_koch_curve_length():
     curve = trajectory.get_structure('koch', 4)
     segments = curve.segments()
     assert segments.shape == (256, 2, 2)
-    assert curve.length() == pytest.approx((4 / 3) ** 4, abs=1e-12)
+    assert curve.get_length() == pytest.approx((4 / 3) ** 4, abs=1e-12)
     assert np.allclose(segments[0, 0], [0, 0], atol=1e-12)
     assert np.allclose(segments[-1, 1], [1, 0], atol=1e-12)
     assert trajectory.get_values('koch.length')[-1] == pytest.approx((4 / 3) ** 4, abs=1e-12)
@@ -338,7 +338,7 @@ def test_three_dimensional_word_geometry():
     segments = curve.get_structure('plant', 0).segments()
     assert segments.shape == (3, 2, 3)
     assert np.allclose(segments[1, 1], [1, 0, -1])
-    assert curve.get_structure('plant', 0).length() == pytest.approx(3.0)
+    assert curve.get_structure('plant', 0).get_length() == pytest.approx(3.0)
 
 
 def test_module_parameters_override_the_word_geometry():
@@ -377,7 +377,7 @@ def test_cantor_intervals():
     """Test the intervals of the Cantor substitution after 5 generations."""
     patch = _cantor(5).get_structure('cantor', 5)
     assert patch.parts == 32
-    assert patch.length() == pytest.approx((2 / 3) ** 5, abs=1e-12)
+    assert patch.get_length() == pytest.approx((2 / 3) ** 5, abs=1e-12)
     lefts = np.sort(patch.segments()[:, 0, 0])
     expected = sorted(
         sum(digit * 3.0 ** -(place + 1) for place, digit in enumerate(digits)) for digits in np.ndindex(*(2,) * 5)
@@ -392,7 +392,7 @@ def test_structure_of_a_generation():
     assert isinstance(patch, PatchStructureSpec)
     assert patch.parts == 4
     assert not patch.matrices.flags.writeable
-    assert patch.length() == pytest.approx(4 / 9)
+    assert patch.get_length() == pytest.approx(4 / 9)
 
 
 def test_unknown_element():
@@ -424,7 +424,7 @@ def test_sierpinski_triangle_area():
 
 def test_gasket_box_counting():
     """Test the box-counting dimension of the raster of the Sierpiński triangle at generation 8."""
-    grid = _sierpinski(8).get_structure('gasket', 8).raster(1024)
+    grid = _sierpinski(8).get_structure('gasket', 8).get_raster(1024)
     boxes = scaling(grid, kind='box-counting', scales=[4, 8, 16, 32, 64, 128])
     assert boxes.exponent == pytest.approx(np.log(3) / np.log(2), abs=0.05)
 
@@ -435,7 +435,7 @@ def test_measures_and_raster_errors():
     assert patch.parts == 3
     assert patch.bounds() == pytest.approx((0, 0, 1, np.sqrt(3) / 2))
     with pytest.raises(ValidationError, match='positive integer'):
-        patch.raster(0)
+        patch.get_raster(0)
 
 
 def test_chair_tiling_covers_its_chair():

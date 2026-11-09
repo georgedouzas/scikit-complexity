@@ -41,7 +41,7 @@ class SupportSpec(BaseSpec):
     Examples:
         >>> from skcomplex.core.components.laws import NoiseLaw, RateLaw
         >>> from skcomplex.core.specs import SupportSpec
-        >>> SupportSpec(laws={RateLaw}).missing('laws', [RateLaw, NoiseLaw])
+        >>> SupportSpec(laws={RateLaw}).get_missing('laws', [RateLaw, NoiseLaw])
         ['NoiseLaw']
         >>> sorted(SupportSpec(laws={RateLaw, NoiseLaw}).get_tags().laws)
         ['noise', 'rate']
@@ -62,7 +62,7 @@ class SupportSpec(BaseSpec):
             return any(isinstance(item, type) and issubclass(term, item) for item in supported)
         return term in supported
 
-    def missing(self, category: str, terms: Iterable[object]) -> list[str]:
+    def get_missing(self, category: str, terms: Iterable[object]) -> list[str]:
         """Return the names of the terms of a category that are not supported, sorted.
 
         Args:

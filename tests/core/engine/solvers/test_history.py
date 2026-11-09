@@ -335,7 +335,7 @@ def test_pulse_train_and_series_breakpoints():
 
     system = CompositeSystem(elements=[DrivenElement('d')])
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.breakpoints.between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
+    assert problem.breakpoints.get_between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
     trajectory = simulate(system, until=5, dt=0.5)
     assert trajectory.get_values('d.y')[-1] == pytest.approx(1.5 + 2.0, abs=1e-6)
 
@@ -511,7 +511,7 @@ def test_periodic_breakpoints_over_unbounded_runs():
 
     system = CompositeSystem(elements=[DosedElement('a')])
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.breakpoints.next_after(1.0) == 21.0
+    assert problem.breakpoints.get_next_after(1.0) == 21.0
     trajectory = simulate(system, until=10, dt=0.5)
     expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
     assert trajectory.get_values('a.c')[-1] == pytest.approx(expected, rel=1e-5)

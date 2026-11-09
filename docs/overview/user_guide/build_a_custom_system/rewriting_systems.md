@@ -100,7 +100,7 @@ class KochElement(WordElement):
 
 koch = CompositeSystem(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
 curve = simulate(koch, until=4).get_structure('koch', 4)
-len(curve.segments()), round(curve.length(), 6)
+len(curve.segments()), round(curve.get_length(), 6)
 ```
 
 A `GeometrySpec`, from `skcomplex.core.specs`, draws a word as line segments in two or three dimensions, as the turtle
@@ -128,7 +128,7 @@ class CantorElement(PatchElement):
 cantor = CompositeSystem(elements=[CantorElement('cantor', prototiles=[interval])])
 trajectory = simulate(cantor, until=5)
 trajectory.get_values('cantor.size')[-1], round(trajectory.get_values('cantor.length')[-1], 6)
-grid = trajectory.get_structure('cantor', 5).raster(729)
+grid = trajectory.get_structure('cantor', 5).get_raster(729)
 round(scaling(grid, kind='box-counting', scales=[3, 9, 27]).exponent, 2)
 ```
 

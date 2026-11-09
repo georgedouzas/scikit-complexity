@@ -119,7 +119,7 @@ class OperatorSolver(BaseSolver[OperatorProblemSpec]):
     def _get_stored(self, state: qutip.Qobj) -> Array:
         """Return a QuTiP state as a state vector of the problem."""
         problem = self.operator_
-        entry = problem.states.entry(problem.states.names[0])
+        entry = problem.states.get_entry(problem.states.names[0])
         values = state.full()
         if problem.pure:
             return entry.encode(values.ravel())

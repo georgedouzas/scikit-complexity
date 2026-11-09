@@ -318,7 +318,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             function, operands = operator_product, [operands[0]] * int(operands[1])
         parts = [OperatorLowering._get_operator_of(item, subsystems) for item in operands]
         if function == dagger:
-            return parts[0].adjoint()
+            return parts[0].get_adjoint()
         if function == operator_product:
             return functools.reduce(OperatorSpec.multiply, parts)
         if function is add_vararg:

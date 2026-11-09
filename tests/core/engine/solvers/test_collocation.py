@@ -69,4 +69,4 @@ def test_collocation_rejects_unknown_scheme(linear_quadratic, quadratic_cost):
 
 def test_collocation_declares_rate_laws():
     """Test that the collocation solver declares that it supports rate laws."""
-    assert not CollocationSolver._get_support().missing('laws', [RateLaw])
+    assert not CollocationSolver._get_support().get_missing('laws', [RateLaw])

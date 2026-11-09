@@ -1,4 +1,7 @@
-"""Measure first passages, absorption, returns, and committors of paths."""
+"""Measure first passages, absorption, returns, and committors of paths.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,10 +30,7 @@ SETTINGS = {
     'committor': {'origin', 'target', 'lag'},
     'mean-first-passage': {'origin', 'target', 'lag', 'dt'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MATRIX_KINDS = ('committor', 'mean-first-passage')
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'return-times': AnalysisTags(DataKind.SERIES),

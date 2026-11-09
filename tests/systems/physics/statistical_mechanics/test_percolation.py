@@ -26,7 +26,7 @@ def _spanning_shares(side: float) -> np.ndarray:
         analyses=[bind_analysis(clusters, kind='percolation', radius=1.0)],
         outputs=[],
     )
-    spans = result.column('clusters.spanning').astype(float)
+    spans = result.get_column('clusters.spanning').astype(float)
     return spans.reshape(len(FILLINGS), len(SEEDS)).mean(axis=1)
 
 

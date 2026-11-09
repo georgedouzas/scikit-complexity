@@ -45,7 +45,7 @@ def _check_support(runner: BaseConfig, kind: str, tags: Tags) -> None:
         error_msg = f'The {kind} {runner!r} is not a {kind} of the engine.'
         raise ValidationError(error_msg)
     supported: Tags = get_supported()
-    missing = supported.missing(tags)
+    missing = supported.get_missing(tags)
     if missing:
         name, values = next(iter(missing.items()))
         error_msg = (
@@ -90,7 +90,7 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
     """
     if tags.laws is None or 'noise' in tags.laws:
         return None
-    fitting = {solver for solver in DEFAULT_SOLVERS.values() if not solver.get_supported_tags().missing(tags)}
+    fitting = {solver for solver in DEFAULT_SOLVERS.values() if not solver.get_supported_tags().get_missing(tags)}
     return fitting.pop()() if len(fitting) == 1 else None
 
 

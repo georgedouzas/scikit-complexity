@@ -302,8 +302,8 @@ class WilsonSamplingInteraction(SamplingInteraction):
         if callable(self.move):
             return np.asarray(self.move(matrices.copy(), rng), dtype=complex)
         if self.move == 'random-value':
-            return group.uniform_of(rng, len(matrices))
-        return group.near_identity_of(rng, self.width, len(matrices)) @ matrices
+            return group.get_uniform_of(rng, len(matrices))
+        return group.get_near_identity_of(rng, self.width, len(matrices)) @ matrices
 
     def _accept_changes(self, changes: Array, intensity: float, rng: np.random.Generator) -> npt.NDArray[np.bool_]:
         """Return whether the rule accepts every change of an objective at the intensity."""
@@ -341,7 +341,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
         if self.cooling is not None:
             intensity /= float(SR(self.cooling(time)))
         group = score.group
-        matrices = group.matrices_of(values)
+        matrices = group.get_matrices_of(values)
         classes, edges, signs, orientations, real = self._get_staples(space)
         keywords = self._get_keywords(score.function, parameters)
         order = classes if self.schedule == 'colored' else tuple(random.permutation(values.shape[0])[:, None])
@@ -354,7 +354,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
                 )
                 for name, value in keywords.items()
             }
-            staples = group.holonomy_of(matrices, edges[links], signs[links])
+            staples = group.get_holonomy_of(matrices, edges[links], signs[links])
             current = self._get_local_scores(matrices[links], staples, orientations[links], real[links], local)
             for _ in range(score.hits):
                 proposal = self._propose_matrices(matrices[links], group, random)
@@ -362,7 +362,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
                 accepted = self._accept_changes(proposed - current, intensity, random)
                 matrices[links[accepted]] = proposal[accepted]
                 current = np.where(accepted, proposed, current)
-        return group.components_of(group.projection_of(matrices))
+        return group.get_components_of(group.get_projection_of(matrices))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the heat bath of the matrices with a holonomy score, or the Monte Carlo sweep otherwise.

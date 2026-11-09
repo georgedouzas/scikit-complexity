@@ -26,7 +26,6 @@ from .types import Source
 
 SERIES_COLUMNS = 3
 PLANE = 2
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 

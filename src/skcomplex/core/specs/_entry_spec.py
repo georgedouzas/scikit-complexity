@@ -21,12 +21,8 @@ from ._subshift_spec import SubshiftSpec
 from ._tensor_spec import TensorSpec
 
 PARTS = 2
-
-
-_PART_NAMES = ('real', 'imag')
-
-
-_BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
+PART_NAMES = ('real', 'imag')
+BOOLEAN_LABELS = (frozenset({0, 1}), frozenset({False, True}))
 BOOLEAN_THRESHOLD = 0.5
 
 
@@ -80,14 +76,14 @@ class EntrySpec(BaseSpec):
     period: float | None = None
     tensor: TensorSpec | None = None
 
-    def _parts(self, names: list[str]) -> list[str]:
+    def _get_parts(self, names: list[str]) -> list[str]:
         """Return names with the suffixes of the real and imaginary parts.
 
         The suffixes are added for a complex variable.
         """
         if not self.is_complex:
             return names
-        return [f'{name}.{part}' for name in names for part in _PART_NAMES]
+        return [f'{name}.{part}' for name in names for part in PART_NAMES]
 
     @functools.cached_property
     def size(self) -> int:
@@ -131,11 +127,11 @@ class EntrySpec(BaseSpec):
             return [f'{name}[{member}]' for member in range(self.rows) for name in names]
         if self.members is None:
             if not self.shape:
-                return self._parts([self.name])
-            return self._parts([f'{self.name}[{index}]' for index in range(components)])
+                return self._get_parts([self.name])
+            return self._get_parts([f'{self.name}[{index}]' for index in range(components)])
         if not self.member_shape:
-            return self._parts([f'{self.name}[{member}]' for member in range(self.rows)])
-        return self._parts(
+            return self._get_parts([f'{self.name}[{member}]' for member in range(self.rows)])
+        return self._get_parts(
             [f'{self.name}[{member}, {index}]' for member in range(self.rows) for index in range(components)],
         )
 
@@ -147,10 +143,10 @@ class EntrySpec(BaseSpec):
         if self.tensor is not None:
             return [f'{self.name}_{name}[i]' for name in self.tensor.names]
         if not self.member_shape:
-            return self._parts([f'{self.name}[i]'])
-        return self._parts([f'{self.name}[i, {index}]' for index in range(math.prod(self.member_shape))])
+            return self._get_parts([f'{self.name}[i]'])
+        return self._get_parts([f'{self.name}[i, {index}]' for index in range(math.prod(self.member_shape))])
 
-    def view(self, vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def get_view(self, vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the variable's components of a flat vector as a view.
 
         The view has one row per member.
@@ -218,7 +214,7 @@ class EntrySpec(BaseSpec):
         """
         if self.tensor is not None:
             return DomainKind.TENSOR
-        return EntrySpec._domain_kind(self.domain, self.period)
+        return EntrySpec._get_domain_kind(self.domain, self.period)
 
     def contains(self, value: object) -> bool:
         """Check that every component of a value belongs to the domain of the variable.
@@ -281,7 +277,7 @@ class EntrySpec(BaseSpec):
         return isinstance(item, int | float) or getattr(item, 'is_numeric', lambda: False)()
 
     @staticmethod
-    def _labels_of(domain: object) -> tuple[object, ...] | None:
+    def _get_labels_of(domain: object) -> tuple[object, ...] | None:
         """Return the labels of a finite domain stored as indices.
 
         It returns `None` for a numeric or a boolean domain. A finite set of numbers, such as the spins
@@ -295,14 +291,14 @@ class EntrySpec(BaseSpec):
             labels:
                 The labels in order, or `None`.
         """
-        if not isinstance(domain, FiniteEnumeratedSet) or frozenset(domain) in _BOOLEAN_LABELS:
+        if not isinstance(domain, FiniteEnumeratedSet) or frozenset(domain) in BOOLEAN_LABELS:
             return None
         if all(EntrySpec._is_number(item) for item in domain):
             return None
         return tuple(domain)
 
     @staticmethod
-    def _cell_domain(domain: object) -> object:
+    def _get_cell_domain(domain: object) -> object:
         """Return the Sage set of one component.
 
         It is the alphabet of a subshift or a power series, or the domain itself.
@@ -310,7 +306,7 @@ class EntrySpec(BaseSpec):
         return domain.alphabet if isinstance(domain, SubshiftSpec | PowerSeriesSpec) else domain
 
     @staticmethod
-    def _domain_kind(domain: object, period: object = None) -> DomainKind:
+    def _get_domain_kind(domain: object, period: object = None) -> DomainKind:
         """Return the kind of value a Sage set holds, with an angle for a periodic state.
 
         Args:
@@ -326,19 +322,19 @@ class EntrySpec(BaseSpec):
         """
         if period is not None:
             return DomainKind.ANGLE
-        domain = EntrySpec._cell_domain(domain)
+        domain = EntrySpec._get_cell_domain(domain)
         if domain is CC:
             return DomainKind.COMPLEX
         if isinstance(domain, FiniteEnumeratedSet):
-            if EntrySpec._labels_of(domain) is not None:
+            if EntrySpec._get_labels_of(domain) is not None:
                 return DomainKind.CATEGORICAL
-            return DomainKind.BOOLEAN if frozenset(domain) in _BOOLEAN_LABELS else DomainKind.INTEGER
+            return DomainKind.BOOLEAN if frozenset(domain) in BOOLEAN_LABELS else DomainKind.INTEGER
         if domain is ZZ or domain is NN:
             return DomainKind.INTEGER
         return DomainKind.REAL
 
     @staticmethod
-    def _sage_assumption(domain: object) -> str:
+    def _get_sage_assumption(domain: object) -> str:
         """Return the Sage domain of the symbols of a Sage set.
 
         The domain is real, positive, integer, or complex.
@@ -351,7 +347,7 @@ class EntrySpec(BaseSpec):
             assumption:
                 The Sage domain of the symbols.
         """
-        kind = EntrySpec._domain_kind(domain)
+        kind = EntrySpec._get_domain_kind(domain)
         if kind == DomainKind.COMPLEX:
             return 'complex'
         if kind in {DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL}:
@@ -381,7 +377,7 @@ class EntrySpec(BaseSpec):
             array:
                 The stored numbers.
         """
-        labels = EntrySpec._labels_of(domain)
+        labels = EntrySpec._get_labels_of(domain)
         if labels is not None:
             array = np.asarray(value, dtype=object)
             index = np.vectorize(lambda item: float(labels.index(item) if item in labels else item), otypes=[float])
@@ -409,11 +405,11 @@ class EntrySpec(BaseSpec):
             values:
                 The values.
         """
-        labels = EntrySpec._labels_of(domain)
+        labels = EntrySpec._get_labels_of(domain)
         if labels is not None:
             indices = np.rint(np.asarray(values)).astype(int)
             return np.asarray(labels, dtype=object)[np.clip(indices, 0, len(labels) - 1)]
-        if EntrySpec._domain_kind(domain) == DomainKind.BOOLEAN:
+        if EntrySpec._get_domain_kind(domain) == DomainKind.BOOLEAN:
             return np.asarray(values) > BOOLEAN_THRESHOLD
         return np.asarray(values)
 
@@ -466,11 +462,11 @@ class EntrySpec(BaseSpec):
             is_contained:
                 Whether every component belongs to the set.
         """
-        domain = EntrySpec._cell_domain(domain)
+        domain = EntrySpec._get_cell_domain(domain)
         numbers = EntrySpec._contains_numbers(domain, value)
         if numbers is not None:
             return numbers
-        labels = EntrySpec._labels_of(domain)
+        labels = EntrySpec._get_labels_of(domain)
         items = np.asarray(value, dtype=object).ravel()
         if labels is not None:
             return all(item in labels or (isinstance(item, int) and 0 <= item < len(labels)) for item in items)

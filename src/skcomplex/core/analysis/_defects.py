@@ -18,9 +18,7 @@ from ._base import _read_fields
 from .types import Source
 
 FIELD_RANK = 2
-
 CHARGE_TOLERANCE = 1e-6
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 

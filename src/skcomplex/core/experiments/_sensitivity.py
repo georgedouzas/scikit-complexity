@@ -1,6 +1,8 @@
 """Rank the inputs of a system by their effect on an output.
 
 The methods are one at a time, Morris screening, and Sobol.
+
+`SIZES` holds the default number of Morris trajectories or of base points of every method.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -25,7 +27,6 @@ from .types import Bounds, Source
 
 METHODS = ('oat', 'morris', 'sobol')
 SIZES = {'oat': 0, 'morris': 10, 'sobol': 1024}
-"""The default number of Morris trajectories or of base points of every method."""
 
 
 @dataclass(frozen=True)
@@ -188,7 +189,7 @@ def sensitivity(
     )
     names = list(bounds)
     inputs = np.asarray([[row[name] for name in names] for row in rows], dtype=float)
-    outputs = np.asarray(result.column(output), dtype=float)
+    outputs = np.asarray(result.get_column(output), dtype=float)
     problem = {'num_vars': len(names), 'names': names}
     if method == 'oat':
         effects = dict(zip(names, map(float, outputs[1::2] - outputs[0::2]), strict=True))

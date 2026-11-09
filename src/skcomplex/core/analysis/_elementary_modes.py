@@ -31,7 +31,6 @@ from .types import Source
 KINDS = ('modes', 'pathways')
 MAXIMUM_DENOMINATOR = 10**6
 ROUNDING_LIMIT = 1e-9
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

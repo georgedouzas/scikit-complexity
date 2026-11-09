@@ -20,9 +20,7 @@ from ._base import _check_choice, _read_snapshots
 from .types import Source
 
 SHAPE_KINDS = ('gyration', 'end-to-end', 'rmsd')
-
 FRAME_DIMENSIONS = 3
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 
 

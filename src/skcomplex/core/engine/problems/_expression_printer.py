@@ -254,7 +254,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         if number is None:
             if not self.dialect_.complex_numbers:
                 name = f'complex number {value}'
-                raise self.dialect_.unknown(name)
+                raise self.dialect_.get_unknown(name)
             return PrintedSpec(repr(complex(value)), ATOM)
         return PrintedSpec(repr(number), ATOM if number >= 0 else NEGATION)
 
@@ -262,7 +262,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         """Return the code of a function or relation from its template."""
         templates = {**self.dialect_.functions, **self.dialect_.relations}
         if name not in templates:
-            raise self.dialect_.unknown(name)
+            raise self.dialect_.get_unknown(name)
         call = CALL.fullmatch(templates[name]) is not None
         codes = [
             self._print(argument).code if call else self._wrap(self._print(argument), ATOM) for argument in arguments

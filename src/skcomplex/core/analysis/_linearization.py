@@ -18,8 +18,9 @@ from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind, FormKind
-from ._base import _compiled_problem, _composite, _read_system
-from ._stability import _dynamics_of
+from ._base import _composite, _read_system
+from ._stability import StabilityResult
+from ._utils import compile_problem
 from .types import Source
 
 TAGS = AnalysisTags(DataKind.SYSTEM)
@@ -161,14 +162,14 @@ def linearization(
             'linearization computes the regulator from both state_weights and control_weights. Give both, or neither.'
         )
         raise AnalysisError(error_msg)
-    problem = _compiled_problem(_read_system(source), 'Linearization')
+    problem = compile_problem(_read_system(source), 'Linearization')
     if problem.form != FormKind.ODE:
         error_msg = f'linearization takes systems under continuous time, but the system is a {problem.form}.'
         raise ValidationError(error_msg)
     adaptive = problem.adaptive_parameters
     chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
     inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
-    dynamics = _dynamics_of(problem)
+    dynamics = StabilityResult._get_dynamics_of(problem)
     states = [name for name in dynamics.names if name not in inputs]
     observed = _checked_names(states if outputs is None else outputs, [*states, *inputs], 'states or controls')
     values = _initial_values(problem)

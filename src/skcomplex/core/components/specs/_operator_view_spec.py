@@ -82,7 +82,7 @@ class OperatorViewSpec(BaseSpec):
                 A mapping from name to local operator.
         """
         return {
-            name: LocalOperatorSpec(name, LocalOperatorSpec._sparse_matrix(matrix), hermitian=hermitian)
+            name: LocalOperatorSpec(name, LocalOperatorSpec._get_sparse_matrix(matrix), hermitian=hermitian)
             for name, (matrix, hermitian) in self.space.operators.items()
         }
 

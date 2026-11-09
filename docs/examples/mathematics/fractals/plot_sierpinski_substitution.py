@@ -56,7 +56,7 @@ for name, structure, dimension in [
     ('gasket', trajectory.get_structure('sierpinski', 6), np.log(3) / np.log(2)),
     ('carpet', carpet.get_structure('sierpinski', 4), np.log(8) / np.log(3)),
 ]:
-    grid = structure.raster(512)
+    grid = structure.get_raster(512)
     counts = np.array([grid.reshape(512 // size, size, 512 // size, size).any(axis=(1, 3)).sum() for size in sizes])
     boxes.loglog(sizes, counts, 'o', label=f'{name}, slope -{dimension:.3f}')
     boxes.loglog(sizes, counts[0] * (sizes / sizes[0]) ** -dimension, '--', color='black')

@@ -162,11 +162,11 @@ class TopologyKernel(BaseKernel):
         """
         network = item.network
         if item.rows == 'edge':
-            present = network.edges[item.request.layer].present(p)
+            present = network.edges[item.request.layer].get_present(p)
         elif item.rows == 'node':
-            present = network.present(p)
+            present = network.get_present(p)
         elif item.rows == 'hyperedge' and network.hyperedges is not None:
-            present = network.hyperedges.present(p)
+            present = network.hyperedges.get_present(p)
         else:
             present = np.ones(1, dtype=bool)
         rows = np.flatnonzero(present)
@@ -250,7 +250,7 @@ class TopologyKernel(BaseKernel):
             (item for item in self.networks if nodes is None or nodes in {group.path for group in item.nodes}),
             self.networks[0],
         )
-        return network.snapshot(p, layer)
+        return network.get_snapshot(p, layer)
 
     @property
     def variable_names(self) -> frozenset[str]:
@@ -289,7 +289,7 @@ class TopologyKernel(BaseKernel):
             hyperedges = () if network.hyperedges is None else (network.hyperedges,)
             for group in (*network.nodes, *network.edges.values(), *hyperedges):
                 if any(entry.name == name for entry, _ in group.variables.values()):
-                    return group.present(p)
+                    return group.get_present(p)
         return None
 
     def _get_weights(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
@@ -351,14 +351,14 @@ class TopologyKernel(BaseKernel):
         the node, or its predecessors for edges into it.
         """
         network, layer = item.network, item.request.layer
-        allowed = network.present(p).copy()
+        allowed = network.get_present(p).copy()
         allowed[[end, *excluded]] = False
         if incoming and network.directed[layer]:
             edges = network.edges[layer]
-            sources, targets = edges.ends(p)
-            allowed[sources[edges.present(p) & (targets == end)]] = False
+            sources, targets = edges.get_ends(p)
+            allowed[sources[edges.get_present(p) & (targets == end)]] = False
         else:
-            allowed[network.neighbours(layer, end, p)] = False
+            allowed[network.get_neighbours(layer, end, p)] = False
         return allowed
 
     @staticmethod
@@ -555,12 +555,12 @@ class TopologyKernel(BaseKernel):
                 The source and target node rows, or `None` when every draw met joined nodes.
         """
         network, layer = item.network, item.request.layer
-        nodes = np.flatnonzero(network.present(p))
+        nodes = np.flatnonzero(network.get_present(p))
         if nodes.size < MIN_EDGE_HYPEREDGE:
             return None
         for _ in range(tries):
             first, second = (int(node) for node in rng.choice(nodes, size=2, replace=False))
-            if second not in network.neighbours(layer, first, p):
+            if second not in network.get_neighbours(layer, first, p):
                 return first, second
         return None
 
@@ -600,19 +600,19 @@ class TopologyKernel(BaseKernel):
                 The random number generator.
         """
         request, network = item.request, item.network
-        neighbours = np.unique(network.neighbours(request.layer, node, p))
+        neighbours = np.unique(network.get_neighbours(request.layer, node, p))
         edges = network.edges[request.layer]
-        sources, targets = edges.ends(p)
-        inside = edges.present(p) & np.isin(sources, neighbours) & np.isin(targets, neighbours)
+        sources, targets = edges.get_ends(p)
+        inside = edges.get_present(p) & np.isin(sources, neighbours) & np.isin(targets, neighbours)
         joined = {
-            network.order_ends(None, int(a), int(b)) for a, b in zip(sources[inside], targets[inside], strict=True)
+            network.get_order_ends(None, int(a), int(b)) for a, b in zip(sources[inside], targets[inside], strict=True)
         }
         if len(joined) >= neighbours.size * (neighbours.size - 1) // 2:
             self._join(item, node, t, x, p, rng=rng)
             return
         while True:
             first, second = (int(other) for other in rng.choice(neighbours, size=2, replace=False))
-            if network.order_ends(None, first, second) not in joined:
+            if network.get_order_ends(None, first, second) not in joined:
                 values = self._get_initial_values(request, rng)
                 self._add_edge(network, request.layer, (first, second), x, p, values=values)
                 return
@@ -621,8 +621,8 @@ class TopologyKernel(BaseKernel):
     def _get_adjacent(network: NetworkRowsSpec, layer: str | None, node: int, p: Array) -> Indices:
         """Return the node rows joined to a node in a layer in either direction."""
         edges = network.edges[layer]
-        sources, targets = edges.ends(p)
-        present = edges.present(p)
+        sources, targets = edges.get_ends(p)
+        present = edges.get_present(p)
         return np.unique(np.concatenate([targets[present & (sources == node)], sources[present & (targets == node)]]))
 
     def _contract(
@@ -669,12 +669,12 @@ class TopologyKernel(BaseKernel):
             return
         other = drawn[0]
         for layer, edges in network.edges.items():
-            sources, targets = edges.ends(p)
-            present = edges.present(p)
+            sources, targets = edges.get_ends(p)
+            present = edges.get_present(p)
             links = {(int(a), int(b)) for a, b in zip(sources[present], targets[present], strict=True)}
             for row in np.flatnonzero(present & ((sources == other) | (targets == other))):
                 first, second = (node if end == other else int(end) for end in (sources[row], targets[row]))
-                ends = network.order_ends(layer, first, second)
+                ends = network.get_order_ends(layer, first, second)
                 if first == second or ends in links:
                     self._clear(edges, int(row), p)
                     continue
@@ -727,9 +727,9 @@ class TopologyKernel(BaseKernel):
             }
             self._write(group, copy, x, p, {**values, **drawn})
         edges = network.edges[layer]
-        sources, targets = edges.ends(p)
+        sources, targets = edges.get_ends(p)
         parents = self._get_adjacent(network, layer, node, p)
-        for row in np.flatnonzero(edges.present(p) & ((sources == node) | (targets == node))):
+        for row in np.flatnonzero(edges.get_present(p) & ((sources == node) | (targets == node))):
             if rng.random() >= request.inherit:
                 continue
             ends = tuple(copy if end == node else int(end) for end in (sources[row], targets[row]))
@@ -792,12 +792,12 @@ class TopologyKernel(BaseKernel):
         members: list[int] = []
         if anchored and size > MIN_EDGE_HYPEREDGE:
             edges = network.edges[request.layer]
-            present = np.flatnonzero(edges.present(p))
+            present = np.flatnonzero(edges.get_present(p))
             if present.size:
-                sources, targets = edges.ends(p)
+                sources, targets = edges.get_ends(p)
                 row = int(rng.choice(present))
                 members = [int(sources[row]), int(targets[row])]
-        allowed = network.present(p).copy()
+        allowed = network.get_present(p).copy()
         allowed[[node, *members]] = False
         members += self._draw(self._get_weights(item, node, t, x, p), allowed, size - 1 - len(members), rng)
         if len(members) == size - 1:
@@ -857,14 +857,14 @@ class TopologyKernel(BaseKernel):
         """Move the free end of an edge row to a node drawn by the weights of a request."""
         request, network = item.request, item.network
         edges = network.edges[request.layer]
-        sources, targets = edges.ends(p)
+        sources, targets = edges.get_ends(p)
         kept = int(sources[row] if request.keep == 'source' else targets[row])
         allowed = self._get_allowed(item, kept, p)
         chosen = self._draw(self._get_weights(item, kept, t, x, p), allowed, 1, rng)
         if not chosen:
             return
         ends = (kept, chosen[0]) if request.keep == 'source' else (chosen[0], kept)
-        first, second = network.order_ends(request.layer, *ends)
+        first, second = network.get_order_ends(request.layer, *ends)
         self._set_ends(edges, row, (first, second), p)
 
     def _execute(
@@ -951,11 +951,11 @@ class TopologyKernel(BaseKernel):
         """
         network = item.network
         if item.rows == 'edge':
-            return bool(network.edges[item.request.layer].present(p)[row])
+            return bool(network.edges[item.request.layer].get_present(p)[row])
         if item.rows == 'node':
-            return bool(network.present(p)[row])
+            return bool(network.get_present(p)[row])
         if item.rows == 'hyperedge':
-            return network.hyperedges is not None and bool(network.hyperedges.present(p)[row])
+            return network.hyperedges is not None and bool(network.hyperedges.get_present(p)[row])
         return True
 
     @staticmethod
@@ -1089,7 +1089,7 @@ class TopologyKernel(BaseKernel):
         """
         edges = network.edges[layer]
         row = edges.take_row(p)
-        first, second = network.order_ends(layer, *ends)
+        first, second = network.get_order_ends(layer, *ends)
         self._write(edges, row, x, p, values)
         self._set_ends(edges, row, (first, second), p)
 
@@ -1135,12 +1135,12 @@ class TopologyKernel(BaseKernel):
         for group in network.nodes:
             self._clear(group, row, p)
         for edges in network.edges.values():
-            sources, targets = edges.ends(p)
-            for edge in np.flatnonzero(edges.present(p) & ((sources == row) | (targets == row))):
+            sources, targets = edges.get_ends(p)
+            for edge in np.flatnonzero(edges.get_present(p) & ((sources == row) | (targets == row))):
                 self._clear(edges, int(edge), p)
         hyperedges = network.hyperedges
         if hyperedges is not None and hyperedges.members is not None:
-            holding = hyperedges.present(p) & (hyperedges.hyperedges(p) == row).any(axis=1)
+            holding = hyperedges.get_present(p) & (hyperedges.get_hyperedges(p) == row).any(axis=1)
             for hyperedge in np.flatnonzero(holding):
                 self._clear(hyperedges, int(hyperedge), p)
 

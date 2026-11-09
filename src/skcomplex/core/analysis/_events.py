@@ -1,6 +1,8 @@
 """Detect and measure events in series.
 
 The module detects events, counts them in windows, times laminar phases, finds excursions, and estimates branching.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -15,7 +17,8 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, CascadeRecordSpec
 from ..types import Array, DataKind
-from ._base import _check_choice, _check_settings, _import, _read_path, _read_real, _read_series
+from ._base import _check_choice, _check_settings, _read_path, _read_real, _read_series
+from ._utils import load_module
 from .types import Source
 
 SETTINGS = {
@@ -25,10 +28,7 @@ SETTINGS = {
     'excursions': {'threshold'},
     'branching': {'max_step', 'dt'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 KINDS = ('detect', 'counts', 'laminar-durations', 'excursions', 'branching')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'counts': AnalysisTags(DataKind.PATH),
@@ -323,7 +323,7 @@ def _branching_ratio(values: Array, max_step: int, dt: float) -> float:
 
     It is found by the multistep regression of `mrestimator`.
     """
-    mrestimator = _import('mrestimator')
+    mrestimator = load_module('mrestimator')
     coefficients = mrestimator.coefficients(
         values.T,
         method='ts',

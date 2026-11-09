@@ -15,7 +15,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.resources import HarvestingSystem
 
 replicated = ensemble(SIRSystem(stochastic=True), replicates=10, until=60, random_state=0)
-round(float(replicated.summary()[0]['I.x.mean']), 1)
+round(float(replicated.get_summary()[0]['I.x.mean']), 1)
 
 swept = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.x'])
 [row['gamma'] for row in swept.rows]

@@ -41,7 +41,7 @@ class AnalysisTags(BaseSpec):
     Examples:
         >>> from skcomplex.core.specs import AnalysisTags, Tags
         >>> needed = AnalysisTags('system', randomness='deterministic')
-        >>> needed.missing(Tags(time=frozenset({'continuous'}), randomness='stochastic'))
+        >>> needed.get_missing(Tags(time=frozenset({'continuous'}), randomness='stochastic'))
         {'randomness': ['stochastic']}
     """
 
@@ -69,7 +69,7 @@ class AnalysisTags(BaseSpec):
                 error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {", ".join(map(repr, known))}.'
                 raise ValidationError(error_msg)
 
-    def missing(self, tags: Tags) -> dict[str, list[str]]:
+    def get_missing(self, tags: Tags) -> dict[str, list[str]]:
         """Return the tags of a system that do not give what the analysis needs, by field.
 
         The system needs one of the needed times and one of the needed spaces, and the needed randomness. A field of

@@ -124,7 +124,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:
-                reporters[f'{path}.length'] = structure.length()
-                reporters[f'{path}.area'] = structure.area()
+                reporters[f'{path}.get_length'] = structure.get_length()
+                reporters[f'{path}.get_area'] = structure.get_area()
         self.events_ = []
         self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)

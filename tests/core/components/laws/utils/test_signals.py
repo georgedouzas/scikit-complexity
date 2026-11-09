@@ -59,7 +59,7 @@ def test_series_interpolates_long_linear_data(backend):
     probes = np.linspace(-3.0, 1003.0, 2501)
     rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
     np.testing.assert_allclose(rates, np.interp(probes, times, values), rtol=0, atol=1e-12)
-    assert problem.breakpoints.between(-1.0, 1000.0) == list(times)
+    assert problem.breakpoints.get_between(-1.0, 1000.0) == list(times)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])

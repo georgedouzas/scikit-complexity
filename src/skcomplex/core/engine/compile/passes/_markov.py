@@ -96,12 +96,12 @@ class MarkovPass(BasePass):
             error_msg = f'The {description} must target a scalar state of its component.'
             raise ValidationError(error_msg)
         domain = reference.entry.domain
-        labels = EntrySpec._labels_of(domain)
+        labels = EntrySpec._get_labels_of(domain)
         if labels is not None:
             return len(labels)
-        if EntrySpec._domain_kind(domain) == DomainKind.BOOLEAN:
+        if EntrySpec._get_domain_kind(domain) == DomainKind.BOOLEAN:
             return 2
-        if EntrySpec._domain_kind(domain) == DomainKind.INTEGER:
+        if EntrySpec._get_domain_kind(domain) == DomainKind.INTEGER:
             return None
         error_msg = (
             f'The {description} moves {reference.entry.name}, whose domain {domain} is not a finite alphabet. Declare '

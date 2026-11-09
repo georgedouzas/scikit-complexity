@@ -29,11 +29,13 @@ from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
 from ._results import ExperimentResult
+from ._utils import build_system
 from .specs._task_spec import _TaskSpec
 from .types import Output, Row, Source
 
 EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
+
 
 type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver]]
 
@@ -86,47 +88,6 @@ def _check_count(name: str, value: object) -> None:
     if isinstance(value, bool) or not isinstance(value, int | np.integer) or value < 1:
         error_msg = f'{name} = {value!r} must be a positive integer.'
         raise ValidationError(error_msg)
-
-
-def _build(source: Source, arguments: Mapping[str, object]) -> BaseSystem:
-    """Return the system of a source with model parameters set.
-
-    It is a copy of a system, or what a factory builds.
-
-    Args:
-        source:
-            The system, whose copy takes the arguments through `set_params`, or the factory, which takes them as
-            keyword arguments.
-
-        arguments:
-            The model parameters by name.
-
-    Returns:
-        system:
-            The system with the model parameters.
-
-    Raises:
-        ValidationError:
-            A model parameter is not one of the system.
-
-        ExperimentError:
-            The factory returns no system.
-    """
-    if isinstance(source, BaseSystem):
-        unknown = sorted(set(arguments) - set(source.get_params(deep=False)))
-        if unknown:
-            names = ', '.join(sorted(source.get_params(deep=False)))
-            error_msg = (
-                f'{", ".join(unknown)} is not a model parameter of {type(source).__name__}. Its model parameters are '
-                f'{names}, and dotted paths such as `growth.r` name the states and parameters of its parts.'
-            )
-            raise ValidationError(error_msg)
-        return clone(source).set_params(**arguments)
-    system = source(**arguments)
-    if not isinstance(system, BaseSystem):
-        error_msg = f'The factory of an experiment returns a system, not {type(system).__name__}.'
-        raise ExperimentError(error_msg)
-    return system
 
 
 def _name_analyses(
@@ -211,8 +172,8 @@ def _split_paths(problem: BaseProblemSpec, paths: Mapping[str, object]) -> tuple
             names = ', '.join([*problem.states.names, *problem.parameters.names])
             error_msg = f'{name} is neither a state nor a parameter of the system. Available paths are: {names}.'
             raise ValidationError(error_msg)
-        if not layout.entry(name).contains(value):
-            error_msg = f'{name} = {value!r} is not in its domain {layout.entry(name).domain}.'
+        if not layout.get_entry(name).contains(value):
+            error_msg = f'{name} = {value!r} is not in its domain {layout.get_entry(name).domain}.'
             raise ValidationError(error_msg)
         kept[name] = value
     return states, parameters
@@ -388,7 +349,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
     values = {**task.row, **(task.scenario.overrides or {})}
     arguments = {name: value for name, value in values.items() if '.' not in name}
     paths = {name: value for name, value in values.items() if '.' in name}
-    system = _build(task.scenario.system if task.scenario.system is not None else task.source, arguments)
+    system = build_system(task.scenario.system if task.scenario.system is not None else task.source, arguments)
     settings = system.get_run_settings()
     compiled = None
     if settings['compiler'] is None:

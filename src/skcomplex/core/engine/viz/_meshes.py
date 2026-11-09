@@ -154,7 +154,7 @@ class MeshVisual(BaseVisual):
             if self.states is not None and state not in self.states:
                 continue
             path = f'{element.path}/{state}'
-            if problem.states.entry(name).is_complex:
+            if problem.states.get_entry(name).is_complex:
                 views += [
                     rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
                 ]

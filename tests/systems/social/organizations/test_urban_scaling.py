@@ -22,7 +22,7 @@ def _totals(alpha: float, gamma: float, seeds: list[int]) -> np.ndarray:
         outputs=['total_contacts'],
         observables=[total],
     )
-    series = result.series('total_contacts')[:, 0]
+    series = result.get_series('total_contacts')[:, 0]
     return series.reshape(len(POPULATIONS), len(seeds)).mean(axis=1)
 
 

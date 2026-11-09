@@ -68,19 +68,19 @@ site in the whole tree.
 
 ## 5. Core analysis
 
-- [ ] 5.1 Hoist the constants of every analysis module, including the late blocks of `_automata.py`, and fold their
+- [x] 5.1 Hoist the constants of every analysis module, including the late blocks of `_automata.py`, and fold their
   attribute docstrings into the module or function docstrings. Verify the two constants tests pass on the package.
-- [ ] 5.2 Move every helper that a result class or another class of an analysis module reads into that class, with a
+- [x] 5.2 Move every helper that a result class or another class of an analysis module reads into that class, with a
   verb name. Keep the helpers of the public analysis functions and of `_base.py` that no class reads. Verify the
   analysis tests pass with `skcomplex.core.analysis` added to the checked packages.
 
 ## 6. Core experiments, specs, and the root modules
 
-- [ ] 6.1 In `core/experiments`, move the helpers that `_CalibrationObjective` and the result classes read into them,
+- [x] 6.1 In `core/experiments`, move the helpers that `_CalibrationObjective` and the result classes read into them,
   with verb names, and keep the run and design helpers that only the experiment functions read. Update the imports of
   `tests/core/experiments/test_calibration.py` to call the moved functions through their class. Verify the experiment
   tests, including the parallel ones, pass.
-- [ ] 6.2 In `core/specs` and the root modules of `core`, give the methods verb names. `DialectSpec` and its dialects
+- [x] 6.2 In `core/specs` and the root modules of `core`, give the methods verb names. `DialectSpec` and its dialects
   are gone with `move-recipes-to-systems`, so no derived value remains there. Verify the spec tests pass with
   `skcomplex.core.experiments`, `skcomplex.core.specs`, and the root modules added to the checked packages.
 

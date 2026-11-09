@@ -1,6 +1,9 @@
 """Decide injectivity and surjectivity of cellular automata and subshifts.
 
 The module also measures their entropy.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`. `SOURCES` holds what every kind reads in a system, in
+the order it looks for them.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -29,7 +32,8 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
 from ..types import DataKind, Indices, IntArray
-from ._base import _check_choice, _check_settings, _composite, _import
+from ._base import _check_choice, _check_settings, _composite
+from ._utils import load_module
 from .types import Item, Source
 
 MAX_CONFIGURATIONS = 2**16
@@ -38,42 +42,7 @@ SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 SYNCHRONOUS = 'synchronous'
 IDENTITY = '1'
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
-
-
-class _Clauses:
-    """Clauses of a SAT problem over one-hot variables of site values."""
-
-    def __init__(self) -> None:
-        self.clauses: list[list[int]] = []
-        self.count = 0
-
-    def one_hot(self, sites: int, states: int, *, exactly: bool = True) -> npt.NDArray[np.int64]:
-        """Return one variable per site and value.
-
-        Exactly one, or at most one, is true per site.
-        """
-        variables = np.arange(self.count + 1, self.count + 1 + sites * states, dtype=np.int64).reshape(sites, states)
-        self.count += sites * states
-        for row in variables.tolist():
-            if exactly:
-                self.clauses.append(row)
-            self.clauses += [[-first, -second] for first, second in itertools.combinations(row, 2)]
-        return variables
-
-    def fresh(self) -> int:
-        """Return a new variable."""
-        self.count += 1
-        return self.count
-
-    def solve(self) -> list[int] | None:
-        """Return a system of the clauses, or `None` when they are unsatisfiable."""
-        solvers = _import('pysat.solvers')
-        with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
-            return solver.get_model() if solver.solve() else None
-
-
 KINDS = (
     'injective',
     'surjective',
@@ -106,8 +75,6 @@ SETTINGS = {
     'count': set(),
     'sample': {'sweeps', 'configuration', 'random_state'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 AUTOMATON = 'an automaton'
 LINEAR = 'a linear automaton'
 SUBSHIFT = 'a subshift'
@@ -127,7 +94,38 @@ SOURCES = {
     'count': (SUBSHIFT,),
     'sample': (SUBSHIFT,),
 }
-"""What every kind reads in a system, in the order it looks for them."""
+
+
+class _Clauses:
+    """Clauses of a SAT problem over one-hot variables of site values."""
+
+    def __init__(self) -> None:
+        self.clauses: list[list[int]] = []
+        self.count = 0
+
+    def get_one_hot(self, sites: int, states: int, *, exactly: bool = True) -> npt.NDArray[np.int64]:
+        """Return one variable per site and value.
+
+        Exactly one, or at most one, is true per site.
+        """
+        variables = np.arange(self.count + 1, self.count + 1 + sites * states, dtype=np.int64).reshape(sites, states)
+        self.count += sites * states
+        for row in variables.tolist():
+            if exactly:
+                self.clauses.append(row)
+            self.clauses += [[-first, -second] for first, second in itertools.combinations(row, 2)]
+        return variables
+
+    def get_fresh(self) -> int:
+        """Return a new variable."""
+        self.count += 1
+        return self.count
+
+    def solve(self) -> list[int] | None:
+        """Return a system of the clauses, or `None` when they are unsatisfiable."""
+        solvers = load_module('pysat.solvers')
+        with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
+            return solver.get_model() if solver.solve() else None
 
 
 @dataclass(frozen=True)
@@ -834,9 +832,9 @@ def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArr
     """
     clauses = _Clauses()
     states = _get_states_count(automaton)
-    first = clauses.one_hot(automaton.size, states)
-    second = clauses.one_hot(automaton.size, states)
-    image = clauses.one_hot(automaton.size, states, exactly=False)
+    first = clauses.get_one_hot(automaton.size, states)
+    second = clauses.get_one_hot(automaton.size, states)
+    image = clauses.get_one_hot(automaton.size, states, exactly=False)
     for cells in (first, second):
         _rule_clauses(automaton, clauses, cells, range(automaton.size), lambda site, value: [int(image[site, value])])
     inside = set(window)
@@ -847,7 +845,7 @@ def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArr
             if site not in inside:
                 clauses.clauses += [[-same[0], same[1]], [same[0], -same[1]]]
                 continue
-            differ = clauses.fresh()
+            differ = clauses.get_fresh()
             clauses.clauses += [[-differ, same[0]], [-differ, -same[1]]]
             differences.append(differ)
     clauses.clauses.append(differences)
@@ -861,7 +859,7 @@ def _preimage(automaton: _AutomatonSpec, target: IntArray, window: Sequence[int]
     The result is `None` when there is none.
     """
     clauses = _Clauses()
-    cells = clauses.one_hot(automaton.size, _get_states_count(automaton))
+    cells = clauses.get_one_hot(automaton.size, _get_states_count(automaton))
 
     def forbid(site: int, value: int) -> list[int] | None:
         """Return an empty consequence when the rule misses the target.

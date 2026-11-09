@@ -29,7 +29,7 @@ def test_targeted_attacks_break_the_giant_component_faster_than_failures():
     """Test that removing hubs destroys the giant component while as many random failures leave it mostly whole."""
     trajectory = simulate(NetworkAttackSystem(500, strategy='targeted'), until=24, dt=1, random_state=0)
     frame = next(frame for frame in range(25) if len(trajectory.get_network(frame).nodes) <= 425)
-    attacked = trajectory.get_network(frame).graph()
+    attacked = trajectory.get_network(frame).get_graph()
     removed = 500 - attacked.number_of_nodes()
     failures = NetworkAttackSystem(500, strategy='random', rate=removed / 500 / frame)
     failed, _ = _final_graph(failures, frame)
@@ -49,7 +49,7 @@ def test_erdos_renyi_construction_gives_a_giant_component_past_mean_degree_one()
     system = RandomGraphEnsemblesSystem(400, ensemble='erdos_renyi', mean_degree=4, steps=40)
     trajectory = simulate(system, until=40, dt=1.0, random_state=1)
     means = np.array([2 * len(trajectory.get_network(frame).sources) / 400 for frame in range(41)])
-    giants = np.array([_giant(trajectory.get_network(frame).graph()) for frame in range(41)])
+    giants = np.array([_giant(trajectory.get_network(frame).get_graph()) for frame in range(41)])
     assert means[-1] == pytest.approx(4, rel=0.1)
     assert giants[np.argmin(np.abs(means - 0.5))] < 0.1
     assert giants[-1] > 0.9

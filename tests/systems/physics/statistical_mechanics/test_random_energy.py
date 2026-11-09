@@ -19,7 +19,7 @@ def test_random_energy_system_glass_transition() -> None:
     temperatures = [2.0, 1.0, 0.8, 0.3]
     bounds = {'n_spins': [20], 'temperature': temperatures, 'random_state': list(range(10))}
     result = sweep(_ensemble, bounds, until=1.0, outputs=['ensemble.entropy'])
-    entropies = result.series('ensemble.entropy')[:, 0]
+    entropies = result.get_series('ensemble.entropy')[:, 0]
     mean = entropies.reshape(len(temperatures), 10).mean(axis=1)
     theory = np.log(2) - 1 / (4 * np.array(temperatures[:3]) ** 2)
     assert np.all(np.abs(mean[:3] - theory) < [0.02, 0.02, 0.05])

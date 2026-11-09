@@ -21,7 +21,6 @@ from .types import Source
 
 KINDS = ('variance', 'autocorrelation', 'skewness')
 MIN_WINDOW = 3
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

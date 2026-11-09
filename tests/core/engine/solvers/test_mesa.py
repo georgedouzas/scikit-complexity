@@ -397,7 +397,7 @@ def test_mesa_declares_its_support():
     """Test that the Mesa backend declares discrete time and rule laws."""
     supports = MesaSolver._get_support()
     assert supports.time == {DiscreteTime}
-    assert not supports.missing('laws', {RuleLaw})
+    assert not supports.get_missing('laws', {RuleLaw})
 
 
 def test_mesa_validates_systems_against_its_support():

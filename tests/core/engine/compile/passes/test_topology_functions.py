@@ -170,7 +170,7 @@ def test_snapshot_by_frame_holds_the_network_of_that_frame():
     snapshot = trajectory.get_network(10)
     assert snapshot.nodes.tolist() == list(range(13))
     assert snapshot.sources.size == 3 + 2 * 10
-    graph = snapshot.graph()
+    graph = snapshot.get_graph()
     assert nx.is_connected(graph)
     assert graph.number_of_nodes() == 13
 

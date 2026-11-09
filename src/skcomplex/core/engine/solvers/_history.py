@@ -45,7 +45,7 @@ class History:
         self.initial = state.copy()
         self.declared: dict[int, tuple[Callable[[float], object], int] | float] = {}
         for name, value in problem.history.items():
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             for offset in range(entry.size):
                 if callable(value):
                     self.declared[entry.start + offset] = (value, offset)

@@ -70,7 +70,7 @@ class AffineSpec(BaseSpec):
             )
             raise RewritingError(error_msg)
 
-    def matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
+    def get_matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
         """Return the homogeneous matrix of the map at values of its parameters.
 
         The values are those of the parameters its expressions read. The map reflects across the x axis, rotates,

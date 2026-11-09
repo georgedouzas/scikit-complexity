@@ -1,6 +1,8 @@
 """Derive the invariants of a system with Sage.
 
 They are the Poisson brackets, conserved quantities, symmetries, and Noether charges.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -26,7 +28,7 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
 from ..types import DataKind, VariableKind
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._stability import _dynamics_of
+from ._stability import StabilityResult
 from .types import Source
 
 KINDS = ('brackets', 'conservation', 'symmetry')
@@ -35,10 +37,7 @@ SETTINGS = {
     'conservation': {'expressions', 'samples', 'random_state'},
     'symmetry': {'symmetry'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 TOLERANCE = 1e-9
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
@@ -202,7 +201,7 @@ def invariants(
             'system.'
         )
         raise AnalysisError(error_msg)
-    dynamics = _dynamics_of(system)
+    dynamics = StabilityResult._get_dynamics_of(system)
     namespace = ObservableEvaluator._get_namespace_of(dynamics.problem)
     result = InvariantsResult(dynamics.problem, system, dynamics, namespace)
     if kind == 'brackets':

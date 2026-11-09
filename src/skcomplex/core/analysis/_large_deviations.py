@@ -1,6 +1,8 @@
 """Measure large deviations.
 
 The methods are generating functions, rate functions, cloning, and exponential reweighting.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -34,10 +36,7 @@ SETTINGS = {
     'histogram': {'bins', 'value_range'},
     'reweight': {'log_weights'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'block': AnalysisTags(DataKind.SERIES),

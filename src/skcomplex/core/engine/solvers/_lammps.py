@@ -431,7 +431,7 @@ class LammpsSolver(ExternalSolver):
         assert sub_problem is not None
         parameters = sub_problem.initial_parameters.copy()
         for entry in sub_problem.parameters.entries:
-            parameters[entry.indices] = self.parameters_[self.problem_.parameters.entry(entry.name).indices]
+            parameters[entry.indices] = self.parameters_[self.problem_.parameters.get_entry(entry.name).indices]
         return parameters
 
     def _build(self, problem: ProblemSpec) -> None:
@@ -565,7 +565,7 @@ class LammpsSolver(ExternalSolver):
     @staticmethod
     def _get_state_indices(problem: ProblemSpec, name: str) -> npt.NDArray[np.intp]:
         """Return the flat indices of a vector state as one row per member."""
-        entry = problem.states.entry(name)
+        entry = problem.states.get_entry(name)
         return (entry.start + np.arange(entry.size)).reshape(entry.rows, entry.columns)
 
     def _set_atoms(self, problem: ProblemSpec) -> None:
@@ -760,7 +760,7 @@ class LammpsSolver(ExternalSolver):
             if name is None:
                 unsupported.append(f'element {element.path}, which declares no vector position state of order 2')
                 continue
-            n_dim = problem.states.entry(element.states[name]).columns
+            n_dim = problem.states.get_entry(element.states[name]).columns
             if n_dim not in SUPPORTED_DIMENSIONS:
                 unsupported.append(f'element {element.path} in {n_dim} dimensions, while LAMMPS runs 2 or 3')
             unsupported += LammpsSolver._check_masses(problem, element)

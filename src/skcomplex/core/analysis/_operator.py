@@ -1,6 +1,8 @@
 """Analyse an operator system.
 
 The analyses are its spectrum, its ground state, and the purity and entanglement of its trajectories.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -33,11 +35,8 @@ SETTINGS = {
     'purity': set(),
     'entanglement': {'subsystems'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 

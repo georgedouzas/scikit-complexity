@@ -19,9 +19,7 @@ from ._base import _read_series
 from .types import Source
 
 MIN_SERIES_SIZE = 2
-
 ZERO_MASS = 1e-10
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

@@ -40,7 +40,7 @@ class NetworkSnapshotSpec(BaseSpec):
     edges: npt.NDArray[np.intp]
     hyperedges: npt.NDArray[np.intp] | None = None
 
-    def graph(self) -> nx.Graph:
+    def get_graph(self) -> nx.Graph:
         """Return the NetworkX graph of the snapshot.
 
         Its nodes are the node rows present.
@@ -54,7 +54,7 @@ class NetworkSnapshotSpec(BaseSpec):
             >>> from skcomplex.core.specs import NetworkSnapshotSpec
             >>> rows = np.array([0, 1, 2])
             >>> snapshot = NetworkSnapshotSpec(rows, np.array([0, 1]), np.array([1, 2]), np.array([0, 1]))
-            >>> sorted(snapshot.graph().edges())
+            >>> sorted(snapshot.get_graph().edges())
             [(0, 1), (1, 2)]
         """
         graph = nx.Graph()

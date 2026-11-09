@@ -55,7 +55,7 @@ class CapacityRowsSpec(BaseSpec):
     target: EntrySpec | None = None
     members: EntrySpec | None = None
 
-    def present(self, p: Array) -> npt.NDArray[np.bool_]:
+    def get_present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every row holds a member.
 
         Args:
@@ -66,7 +66,7 @@ class CapacityRowsSpec(BaseSpec):
             present:
                 One flag per row.
         """
-        return self.active.view(p)[:, 0] > ACTIVE_THRESHOLD
+        return self.active.get_view(p)[:, 0] > ACTIVE_THRESHOLD
 
     def take_row(self, p: Array) -> int:
         """Return the first free row.
@@ -83,7 +83,7 @@ class CapacityRowsSpec(BaseSpec):
             CapacityError:
                 Every row holds a member.
         """
-        free = np.flatnonzero(~self.present(p))
+        free = np.flatnonzero(~self.get_present(p))
         if not free.size:
             error_msg = (
                 f'The group {self.path} holds {self.active.rows} members, its capacity, and a topology request adds '
@@ -92,7 +92,7 @@ class CapacityRowsSpec(BaseSpec):
             raise CapacityError(error_msg)
         return int(free[0])
 
-    def ends(self, p: Array) -> tuple[Indices, Indices]:
+    def get_ends(self, p: Array) -> tuple[Indices, Indices]:
         """Return the source and target node of every edge row.
 
         Args:
@@ -105,9 +105,9 @@ class CapacityRowsSpec(BaseSpec):
         """
         assert self.source is not None
         assert self.target is not None
-        return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+        return self.source.get_view(p)[:, 0].astype(np.intp), self.target.get_view(p)[:, 0].astype(np.intp)
 
-    def hyperedges(self, p: Array) -> Indices:
+    def get_hyperedges(self, p: Array) -> Indices:
         """Return the member nodes of every hyperedge row.
 
         Args:
@@ -119,4 +119,4 @@ class CapacityRowsSpec(BaseSpec):
                 One row of member nodes per hyperedge row.
         """
         assert self.members is not None
-        return self.members.view(p).astype(np.intp)
+        return self.members.get_view(p).astype(np.intp)

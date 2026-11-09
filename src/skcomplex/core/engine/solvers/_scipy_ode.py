@@ -334,7 +334,7 @@ class ScipyODESolver(Solver):
         if history is not None:
             history.truncate(t)
         after = t + RESTART * max(1.0, abs(t))
-        later = problem.breakpoints.next_after(after)
+        later = problem.breakpoints.get_next_after(after)
         if problem.breakpoints.unresolved:
             later = self._until if later is None else min(later, self._until)
         bound = min(later if later is not None else math.inf, self._get_next_discontinuity(after))

@@ -50,7 +50,7 @@ observer.recording_.flush()
 
 generations = trajectory.times
 lengths = trajectory.get_values('koch.length')
-grid = trajectory.get_structure('koch', 5).raster(2048)
+grid = trajectory.get_structure('koch', 5).get_raster(2048)
 sizes = np.array([16, 32, 64, 128, 256])
 counts = np.array([grid.reshape(2048 // size, size, 2048 // size, size).any(axis=(1, 3)).sum() for size in sizes])
 dimension = np.log(4) / np.log(3)

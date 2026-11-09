@@ -1,6 +1,8 @@
 """Measure scaling.
 
 The measures are fluctuation exponents, fractal dimensions, variance-mean laws, power laws, and allometry.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -23,7 +25,6 @@ from ._base import _check_choice, _check_settings, _read_fields, _read_real, _re
 from .types import Source
 
 MIN_LINE_POINTS = 2
-
 KINDS = (
     'detrended-fluctuation',
     'rescaled-range',
@@ -43,15 +44,12 @@ SETTINGS = {
     'power': {'parameters', 'critical', 'above'},
     'allometric': {'confidence', 'resamples', 'random_state'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MIN_FLUCTUATION_VALUES = 100
 RADII = 30
 PAIR_SAMPLE = 200_000
 MIN_POINTS = 2
 FRAME_DIMENSIONS = 3
 PAIR_COLUMNS = 2
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'box-counting': AnalysisTags(DataKind.FIELD),

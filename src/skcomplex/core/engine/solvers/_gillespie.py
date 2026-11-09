@@ -117,7 +117,7 @@ class GillespieSolver(Solver):
             return self._get_bounded(t, state, p)
         targets = channels.targets[:, event - channels.offset]
         kept = targets >= 0
-        increments = channels.increments_at(t, state, p, event - channels.offset)
+        increments = channels.get_increments_at(t, state, p, event - channels.offset)
         np.add.at(state, targets[kept], increments[kept])
         return self._get_bounded(t, state, p)
 

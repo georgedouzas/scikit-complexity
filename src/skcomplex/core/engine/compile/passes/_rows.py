@@ -15,7 +15,7 @@ from ....components.laws.utils._draws import draws_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs._matrix_law_spec import _RANDOM_FIELDS
+from ....specs._matrix_law_spec import RANDOM_FIELDS
 from ..._utils import components_of
 from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
@@ -161,7 +161,7 @@ class RowsPass(BasePass):
                 RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
             ):
                 continue
-            values = [value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
+            values = [value for value in law._get_values(include=RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (

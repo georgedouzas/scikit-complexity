@@ -237,7 +237,7 @@ class CellVisual(BaseVisual):
         state = self.state if self.state is not None else next(iter(element.states))
         name = element.states[state]
         values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
-        period = frame.problem.states.entry(name).period
+        period = frame.problem.states.get_entry(name).period
         cycle = None if period is None else float(period)
         path = f'{element.path}/{state}'
         if getattr(element.element, 'on', None) == 'hyperedges':

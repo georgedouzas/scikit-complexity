@@ -17,8 +17,8 @@ def test_koch_curve():
     trajectory = simulate(KochCurveSystem(), until=5)
     curve = trajectory.get_structure('koch', 5)
     assert trajectory.get_values('koch.F')[-1] == 1024
-    assert curve.length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
-    grid = curve.raster(2048)
+    assert curve.get_length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
+    grid = curve.get_raster(2048)
     dimension = scaling(grid, kind='box-counting', scales=[16, 32, 64, 128, 256]).exponent
     assert dimension == pytest.approx(np.log(4) / np.log(3), abs=0.05)
     assert trajectory.problem.form == FormKind.REWRITING
@@ -49,7 +49,7 @@ def test_filled_gasket():
     trajectory = simulate(SierpinskiSubstitutionSystem(), until=6)
     first, last = trajectory.get_structure('sierpinski', 0), trajectory.get_structure('sierpinski', 6)
     bounds = first.bounds()
-    share = last.raster(512, bounds).sum() / first.raster(512, bounds).sum()
+    share = last.get_raster(512, bounds).sum() / first.get_raster(512, bounds).sum()
     assert share == pytest.approx(0.75**6, rel=0.02)
 
 
@@ -60,7 +60,7 @@ def test_koch_curve_reference_values():
     assert curve.text == 'F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F'
     assert trajectory.get_values('koch.F').tolist() == [1.0, 4.0, 16.0]
     assert trajectory.get_values('koch.size').tolist() == [1.0, 8.0, 36.0]
-    assert curve.length() == pytest.approx(1.777777777777778, abs=1e-12)
+    assert curve.get_length() == pytest.approx(1.777777777777778, abs=1e-12)
     assert curve.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.28867513459481287), abs=1e-12)
     segments = curve.segments()
     assert len(segments) == 16
@@ -96,14 +96,14 @@ def test_sierpinski_substitution_reference_values():
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
     assert gasket.area() == pytest.approx(0.24356964481437335, abs=1e-12)
     assert gasket.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.8660254037844386), abs=1e-12)
-    assert gasket.raster(32).sum() == 264
+    assert gasket.get_raster(32).sum() == 264
     corners = [[[0.0, 0.0], [0.25, 0.0], [0.125, 0.216506350946]], [[0.25, 0.0], [0.5, 0.0], [0.375, 0.216506350946]]]
-    assert np.allclose(gasket.polygons()[0][:2], corners, rtol=0, atol=1e-11)
+    assert np.allclose(gasket.get_polygons()[0][:2], corners, rtol=0, atol=1e-11)
     trajectory = simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=2)
     carpet = trajectory.get_structure('sierpinski', 2)
     assert trajectory.get_values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
     assert carpet.area() == pytest.approx(0.7901234567901236, abs=1e-12)
-    assert carpet.raster(27).sum() == 576
+    assert carpet.get_raster(27).sum() == 576
 
 
 def test_koch_curve_in_rerun(tmp_path):

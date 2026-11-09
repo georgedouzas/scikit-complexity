@@ -322,7 +322,7 @@ class CoSimulationSolver(Solver):
             else:
                 columns = [np.ravel(states.read(x, f'{reduction.group}.{name}')) for name in reduction.variables]
                 members = columns[0] if columns else np.zeros(self._get_size_of(reduction.group))
-            x[states.entry(f'{path}.value').indices] = reducer(t, columns, members)
+            x[states.get_entry(f'{path}.value').indices] = reducer(t, columns, members)
 
     def _get_agents_of(self, group: str) -> list[object] | None:
         """Return the agents of an agent group from the partition that holds it, or `None`."""

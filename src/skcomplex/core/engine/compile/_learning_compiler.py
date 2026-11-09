@@ -264,7 +264,7 @@ class _LearningCompiler(BaseCompiler):
                 fix = f'Set parameters of the nested system, such as {", ".join(problem.parameters.names[:3])}.'
                 issues.append(IssueSpec('learning-data-shape', training.label, message, fix))
                 continue
-            expected = (sequences, steps, *problem.parameters.entry(path).shape)
+            expected = (sequences, steps, *problem.parameters.get_entry(path).shape)
             if np.shape(values) != expected:
                 issues.append(self._get_shape_issue(training, path, expected, np.shape(values)))
         weights = data.weights if isinstance(data.weights, Mapping) else {'loss': data.weights}
@@ -453,7 +453,7 @@ class _LearningCompiler(BaseCompiler):
         trained = tuple(name for name in problem.states.names if name in set(training.trained))
         states, start = [], 0
         for name in trained:
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             states.append(dataclasses.replace(entry, name=f'{training.system}/{name}', start=start))
             start += entry.size
         hyperparameters = {
@@ -517,6 +517,6 @@ class _LearningCompiler(BaseCompiler):
             if not problem.states.has(name):
                 error_msg = f'{name} is not a trained parameter. Use one of {", ".join(problem.states.names)}.'
                 raise ValidationError(error_msg)
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             state[entry.indices] = entry.encode(value)
         return dataclasses.replace(problem, initial_state=state)

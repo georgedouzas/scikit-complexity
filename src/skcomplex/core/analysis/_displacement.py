@@ -21,9 +21,7 @@ from ._base import _read_real, _read_snapshots
 from .types import Source
 
 MIN_LINE_POINTS = 2
-
 FIT_POINTS = 20
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 
 

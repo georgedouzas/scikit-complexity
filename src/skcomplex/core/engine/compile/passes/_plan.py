@@ -100,7 +100,7 @@ class PlanPass(BasePass):
         of their own.
         """
         single = [solver for solver in solvers if BaseCompiler._get_form_of(solver) != FormKind.COUPLED]
-        return not single or any(not BaseCompiler._support_of(solver).missing('laws', kinds) for solver in single)
+        return not single or any(not BaseCompiler._support_of(solver).get_missing('laws', kinds) for solver in single)
 
     @staticmethod
     def _get_planned(
@@ -113,10 +113,10 @@ class PlanPass(BasePass):
         A subsystem is unfit when its own laws fit no form.
         """
         name = scope.rstrip('/') or system.label
-        declared, lowered = owners.under(scope, nested=True)
+        declared, lowered = owners.get_under(scope, nested=True)
         if PlanPass._fits(owners, declared, lowered):
             return ([_PlannedPartitionSpec(name, scope, nested=True)] if declared or lowered else []), []
-        own_declared, own_lowered = owners.under(scope, nested=False)
+        own_declared, own_lowered = owners.get_under(scope, nested=False)
         if not system.systems or not PlanPass._fits(owners, own_declared, own_lowered):
             mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
             return [], [PlanPass._get_mixed_issue(name, *mixed, owners.solvers)]

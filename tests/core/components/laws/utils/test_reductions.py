@@ -1375,7 +1375,7 @@ def test_log_sum_exp_random_energy_system_entropy() -> None:
     """Test that the entropy of random levels over 10 seeds follows the theory above the glass temperature."""
     bounds = {'temperature': [1.0, 2.0, 0.3], 'random_state': list(range(10))}
     result = sweep(_random_levels, bounds, until=1.0, outputs=['sums.entropy'])
-    entropies = result.series('sums.entropy')[:, 0].reshape(3, 10).mean(axis=1)
+    entropies = result.get_series('sums.entropy')[:, 0].reshape(3, 10).mean(axis=1)
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)
     assert entropies[2] < 0.1

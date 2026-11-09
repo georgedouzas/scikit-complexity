@@ -40,7 +40,7 @@ for side in (20.0, 50.0):
         analyses=[bind_analysis(clusters, kind='percolation', radius=1.0)],
         outputs=[],
     )
-    spans = result.column('clusters.spanning').astype(float)
+    spans = result.get_column('clusters.spanning').astype(float)
     ax.plot(fillings, spans.reshape(len(fillings), len(seeds)).mean(axis=1), 'o-', label=f'side {side:.0f}')
 ax.axvline(1.128, color='black', linestyle='--', label='threshold 1.128')
 ax.set_xlabel('filling factor')

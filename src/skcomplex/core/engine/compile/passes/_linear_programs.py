@@ -409,7 +409,7 @@ class _Lowering:
 
     def _get_indices_of(self, name: str) -> Indices:
         """Return the flat indices of a hidden state."""
-        entry = self.states.entry(name)
+        entry = self.states.get_entry(name)
         return entry.start + np.arange(entry.size)
 
     def _get_value(self, expression: Expression) -> int:
@@ -616,7 +616,7 @@ class _Lowering:
         """
         names, indices = [], []
         for name, column in self._columns:
-            entry = self.states.entry(name)
+            entry = self.states.get_entry(name)
             names.append(entry.generic_names[column] if entry.columns > 1 else name)
             indices.append(entry.start + np.arange(entry.rows) * entry.columns + column)
         return tuple(names), tuple(indices)

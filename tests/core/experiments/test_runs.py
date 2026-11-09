@@ -89,7 +89,7 @@ def test_system_and_factory_give_the_same_run():
         ),
     ]
     for result in results[1:]:
-        np.testing.assert_array_equal(results[0].series('population.x'), result.series('population.x'))
+        np.testing.assert_array_equal(results[0].get_series('population.x'), result.get_series('population.x'))
 
 
 def test_a_sweep_leaves_the_system_unchanged():
@@ -103,7 +103,7 @@ def test_paths_of_states_and_parameters_change_one_run():
     """Test that a dotted state path changes the initial value and a parameter path the value for the whole run."""
     system = CompositeSystem(elements=[LogisticMapElement('map')])
     result = sweep(system, [{'map.x': 0.5, 'map.r': 2.0}], until=3, outputs=['map.x'])
-    assert result.series('map.x')[0].tolist() == [0.5, 0.5, 0.5, 0.5]
+    assert result.get_series('map.x')[0].tolist() == [0.5, 0.5, 0.5, 0.5]
 
 
 def test_analyses_of_one_function_are_numbered():
@@ -112,7 +112,7 @@ def test_analyses_of_one_function_are_numbered():
     result = sweep(SIRSystem(), [{}], analyses=analyses, until=10)
     row = result.rows[0]
     assert row['peak-1.peak'] > 0
-    assert row['peak-2.peak'] == result.series('S.x')[0].max()
+    assert row['peak-2.peak'] == result.get_series('S.x')[0].max()
 
 
 def test_an_analysis_must_return_a_result():
@@ -141,7 +141,7 @@ def test_serial_and_process_runs_are_identical():
         )
         for executor in ('serial', 'process')
     ]
-    np.testing.assert_array_equal(results[0].series('I.x'), results[1].series('I.x'))
+    np.testing.assert_array_equal(results[0].get_series('I.x'), results[1].get_series('I.x'))
     assert results[0].rows == results[1].rows
 
 
@@ -151,7 +151,7 @@ def test_thread_runs_equal_serial_runs():
         ensemble(SIRSystem(stochastic=True), replicates=4, until=20, outputs=['I.x'], random_state=7, executor=executor)
         for executor in ('serial', 'thread')
     ]
-    np.testing.assert_array_equal(results[0].series('I.x'), results[1].series('I.x'))
+    np.testing.assert_array_equal(results[0].get_series('I.x'), results[1].get_series('I.x'))
 
 
 @pytest.mark.parametrize(
@@ -204,7 +204,7 @@ def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
     rows = [{'I.x': value} for value in (1.0, 5.0, 10.0)]
     result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.x'], random_state=0)
     assert len(calls) == 1
-    np.testing.assert_allclose(result.series('I.x')[::2, 0], [1.0, 5.0, 10.0])
+    np.testing.assert_allclose(result.get_series('I.x')[::2, 0], [1.0, 5.0, 10.0])
     sweep(SIRSystem(), rows, until=5, outputs=['I.x'])
     assert len(calls) == 2
     sweep(SIRSystem(), [{'beta': 0.2}, {'beta': 0.4}, {'beta': 0.2}], until=5, outputs=['I.x'])

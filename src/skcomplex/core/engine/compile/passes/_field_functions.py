@@ -87,7 +87,7 @@ class FieldFunctionsPass(BasePass):
         """
         result = dict(equations)
         for (name, column), pairs in written.items():
-            key = states.entry(name).generic_names[column]
+            key = states.get_entry(name).generic_names[column]
             if key in result:
                 result[key] = SR(result[key]) - sum(SR(item) for item, _ in pairs) + sum(SR(item) for _, item in pairs)
         return result

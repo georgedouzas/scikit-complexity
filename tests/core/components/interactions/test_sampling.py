@@ -419,7 +419,7 @@ def _trace_action(holonomies, beta):
 def _matrix_system(shape, group, sampling, seed=0, element=IsospinLinkElement):
     """Return a system of matrix links of a lattice complex from random links, sampled by an interaction."""
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
-    initial = group.components_of(group.uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
+    initial = group.get_components_of(group.get_uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
     links = GroupElement('links', element=element, space=space, on='edges', values={'U': initial})
     return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 
@@ -434,7 +434,10 @@ def _matrix_sampling(group, **arguments):
 
 def _plaquettes(space, group, values):
     """Return the mean of `Re tr U_p / N` over the plaquettes at every frame."""
-    loops = [group.holonomy_of(group.matrices_of(frame), space.boundaries_, space.boundary_signs_) for frame in values]
+    loops = [
+        group.get_holonomy_of(group.get_matrices_of(frame), space.boundaries_, space.boundary_signs_)
+        for frame in values
+    ]
     return np.trace(np.stack(loops), axis1=-2, axis2=-1).real.mean(axis=1) / group.degree
 
 
@@ -465,7 +468,7 @@ def test_matrix_links_stay_in_the_group(schedule):
     """Test that SU(3) links stay unitary of unit determinant within 1e-12 after 20 sweeps."""
     _, system = _matrix_system((4, 4), COLOR, _matrix_sampling(COLOR, schedule=schedule), element=ColorLinkElement)
     values = simulate(system, until=20, random_state=0).get_values('links.U')
-    matrices = COLOR.matrices_of(values[-1])
+    matrices = COLOR.get_matrices_of(values[-1])
     assert np.abs(matrices @ np.conj(np.swapaxes(matrices, -1, -2)) - np.eye(3)).max() < 1e-12
     assert np.abs(np.linalg.det(matrices) - 1.0).max() < 1e-12
 
@@ -484,7 +487,7 @@ def test_matrix_sampling_is_reproducible_with_a_seed_and_takes_function_moves():
     """Test that one seed repeats a Glauber run with a function move, and another seed does not."""
 
     def move(matrices, random):
-        return ISOSPIN.near_identity_of(random, 0.3, len(matrices)) @ matrices
+        return ISOSPIN.get_near_identity_of(random, 0.3, len(matrices)) @ matrices
 
     runs = []
     for seed in (5, 5, 6):

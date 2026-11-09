@@ -25,12 +25,12 @@ from ..engine.runtime import simulate
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
 from ..types import Array, DataKind
-from ._base import _import, _read_samples
+from ._base import _read_samples
+from ._utils import load_module
 from .types import Runs
 
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'variables', 'group', 'define'})
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -181,7 +181,7 @@ def sparse_identification(
     samples = _read_samples(source, variables, dt)
     states = _state_names(samples.labels)
     training, held = _split_samples(samples.series, validation)
-    sindy = _import('pysindy')
+    sindy = load_module('pysindy')
     fitted = sindy.SINDy(
         optimizer=sindy.STLSQ(threshold=threshold, alpha=alpha),
         feature_library=sindy.PolynomialLibrary(degree=degree),

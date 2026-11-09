@@ -158,8 +158,8 @@ from skcomplex.core.specs import MatrixGroupSpec
 
 group = MatrixGroupSpec('SU', 3)
 space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
-links = group.uniform_of(np.random.default_rng(0), 32)
-plaquettes = group.holonomy_of(links, space.boundaries_, space.boundary_signs_)
+links = group.get_uniform_of(np.random.default_rng(0), 32)
+plaquettes = group.get_holonomy_of(links, space.boundaries_, space.boundary_signs_)
 plaquettes.shape, bool(np.allclose(np.linalg.det(plaquettes), 1.0))
 ```
 

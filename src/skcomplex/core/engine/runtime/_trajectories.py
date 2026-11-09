@@ -124,10 +124,10 @@ class Trajectory:
                 The name is neither a state nor a parameter.
         """
         if self.problem.states.has(name):
-            entry = self.problem.states.entry(name)
+            entry = self.problem.states.get_entry(name)
             return self._get_present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
         if self.problem.parameters.has(name):
-            entry = self.problem.parameters.entry(name)
+            entry = self.problem.parameters.get_entry(name)
             values = entry.read(np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._get_present(name, values)
         if self.reporters and name in self.reporters[0]:
@@ -178,7 +178,7 @@ class Trajectory:
             (problem.parameters, self.problem.parameters, parameters, self.parameters),
         ):
             for entry in layout.entries:
-                origin = source.entry(entry.name)
+                origin = source.get_entry(entry.name)
                 if origin.size == entry.size:
                     target[:, entry.start : entry.start + entry.size] = np.asarray(values)[
                         :,
@@ -249,7 +249,7 @@ class Trajectory:
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self.get_values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
+        return self.get_values(name).reshape(len(self.times), *shape, *self.problem.states.get_entry(name).member_shape)
 
     def get_agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame.

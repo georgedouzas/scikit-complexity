@@ -1,6 +1,8 @@
 """Take sections of a system.
 
 The sections are Poincaré sections and stroboscopic samples.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -19,7 +21,8 @@ from ..engine.solvers import Solver
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, EventRecordSpec
 from ..types import Array, DataKind, FormKind
-from ._base import _check_choice, _check_settings, _check_tags, _compiled_problem, _composite, _read_system
+from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_system
+from ._utils import compile_problem
 from .types import Source
 
 KINDS = ('poincare', 'stroboscopic')
@@ -27,11 +30,8 @@ SETTINGS = {
     'poincare': {'variables', 'state', 'value', 'direction', 'until', 'transient', 'solver', 'random_state'},
     'stroboscopic': {'variables', 'period', 'n_points', 'transient', 'solver', 'random_state'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 DIRECTIONS = (-1, 0, 1)
 SECTION = '__section'
-
 TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 
@@ -169,11 +169,12 @@ def section(
     if direction not in DIRECTIONS:
         error_msg = f'section has direction={direction!r}. Use one of -1, 0, or 1.'
         raise AnalysisError(error_msg)
-    problem = _compiled_problem(_read_system(source), 'A section')
+    problem = compile_problem(_read_system(source), 'A section')
     if problem.form not in {FormKind.ODE, FormKind.SDE}:
         error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form}.'
         raise AnalysisError(error_msg)
-    if kind == 'poincare' and (state is None or not problem.states.has(state) or problem.states.entry(state).size != 1):
+    scalar = state is not None and problem.states.has(state) and problem.states.get_entry(state).size == 1
+    if kind == 'poincare' and not scalar:
         error_msg = f'{state!r} is not a scalar state. Available states are: {", ".join(problem.states.names)}.'
         raise AnalysisError(error_msg)
     if kind == 'poincare':
@@ -200,7 +201,7 @@ def section(
     values = {}
     for name in names:
         read = np.asarray([problem.states.read(row, name) for row in states], dtype=float)
-        size = problem.states.entry(name).size
+        size = problem.states.get_entry(name).size
         values[name] = read.reshape(len(times), -1) if size > 1 else read.reshape(-1)
     return SectionResult(problem, times, states, values)
 
@@ -223,7 +224,7 @@ def _crossings(
     if state is None:
         error_msg = 'A Poincaré section needs a state. Give one.'
         raise AnalysisError(error_msg)
-    index = problem.states.entry(state).start
+    index = problem.states.get_entry(state).start
 
     def guard(t: float, x: Array, p: Array) -> float:
         return float(x[index] - value)

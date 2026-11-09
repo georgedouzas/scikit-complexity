@@ -20,7 +20,7 @@ from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, CallSpec, SamplesSpec
 from ..types import Array, DataKind
-from ._base import _import, _read_samples
+from ._base import _read_samples
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -30,11 +30,11 @@ from ._sparse_identification import (
     _surrogate_system,
     _symbols_of,
 )
+from ._utils import load_module
 from .types import ReservoirNodeProtocol, Runs
 
 RESERVOIR_KINDS = ('next_generation', 'echo_state')
 ECHO_STATE_WARMUP = 100
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -65,7 +65,7 @@ class _ReservoirStep:
             return
         self.node.state = {'out': np.asarray(memory, dtype=float).copy()}
 
-    def memory(self) -> Array:
+    def get_memory(self) -> Array:
         """Return the memory of the node.
 
         It is its window of past inputs or the activities of its units.
@@ -78,7 +78,7 @@ class _ReservoirStep:
             return np.asarray(self.node.store, dtype=float).ravel()
         return np.asarray(self.node.state['out'], dtype=float).ravel()
 
-    def monomials(self) -> npt.NDArray[np.int_]:
+    def get_monomials(self) -> npt.NDArray[np.int_]:
         """Return the monomials of a next-generation reservoir.
 
         They are given as the linear features that every one multiplies.
@@ -100,9 +100,9 @@ class _ReservoirStep:
         """
         if not self.node.initialized:
             self.node.initialize(variables[None, :])
-        self._set_memory(np.zeros_like(self.memory()))
+        self._set_memory(np.zeros_like(self.get_memory()))
 
-    def features(self, values: Array) -> Array:
+    def get_features(self, values: Array) -> Array:
         """Return the features of the node driven by the series of the variables.
 
         They start from its current memory.
@@ -117,7 +117,7 @@ class _ReservoirStep:
         """
         return np.asarray(self.node.run((values - self.mean) / self.scale), dtype=float)
 
-    def increments(self, features: Array) -> Array:
+    def get_increments(self, features: Array) -> Array:
         """Return the increments of the variables the readout predicts from features.
 
         Args:
@@ -152,7 +152,7 @@ class _ReservoirStep:
         self._set_memory(np.asarray(values[size:], dtype=float))
         features = np.asarray(self.node.step((variables - self.mean) / self.scale), dtype=np.float64)
         following = variables + np.asarray(self.readout.step(features), dtype=float) * self.scale
-        return np.concatenate([following, self.memory()])
+        return np.concatenate([following, self.get_memory()])
 
 
 @dataclass(frozen=True)
@@ -332,14 +332,14 @@ def reservoir(
     step = _ReservoirStep(
         kind,
         node,
-        _import('reservoirpy.nodes').Ridge(ridge=ridge),
+        load_module('reservoirpy.nodes').Ridge(ridge=ridge),
         joined.mean(axis=0) if standardize else np.zeros(joined.shape[1]),
         np.where(deviation > 0, deviation, 1.0) if standardize else np.ones(joined.shape[1]),
     )
     default_warmup = delay if kind == 'next_generation' else ECHO_STATE_WARMUP
     skipped = default_warmup if warmup is None else warmup
     training_error, validation_error = _fit_readout(step, samples.series, training, skipped)
-    memory = step.memory()
+    memory = step.get_memory()
     states = _state_names([*samples.labels, *(f'memory[{index}]' for index in range(len(memory)))])
     last_state = np.asarray([*samples.series[-1][-1], *memory], dtype=float)
     system = _surrogate_system(
@@ -382,7 +382,7 @@ def _reservoir_node(
 
     The kinds are a nonlinear vector autoregression or a unit reservoir.
     """
-    nodes = _import('reservoirpy.nodes')
+    nodes = load_module('reservoirpy.nodes')
     if kind == 'next_generation':
         return nodes.NVAR(delay=delay, order=order, strides=1)
     return nodes.Reservoir(
@@ -407,7 +407,7 @@ def _fit_readout(
     features = []
     for values in series:
         step.initialize(values[0])
-        features.append(step.features(values[:-1]))
+        features.append(step.get_features(values[:-1]))
     cuts = [len(values) - 1 for values in training]
     inputs = [found[skipped:cut] for found, cut in zip(features, cuts, strict=True)]
     targets = [np.diff(values, axis=0)[skipped:] for values in training]
@@ -417,10 +417,10 @@ def _fit_readout(
     step.readout.fit(np.concatenate(inputs), np.concatenate(targets) / step.scale)
     increments = [np.diff(values, axis=0) for values in series]
     return _relative_error(
-        [step.increments(item) for item in inputs],
+        [step.get_increments(item) for item in inputs],
         targets,
     ), _relative_error(
-        [step.increments(found[cut:]) for found, cut in zip(features, cuts, strict=True)],
+        [step.get_increments(found[cut:]) for found, cut in zip(features, cuts, strict=True)],
         [found[cut:] for found, cut in zip(increments, cuts, strict=True)],
     )
 

@@ -25,7 +25,6 @@ KINDS = ('hodge', 'betti', 'curvature')
 DEFAULT_PERIOD = 2 * np.pi
 SOLVER_TOLERANCE = 1e-14
 FLAT_TOLERANCE = 1e-9
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 
@@ -174,7 +173,7 @@ def _read_values(source: Source, variables: str | None) -> tuple[Array, float]:
         if variables is None:
             error_msg = 'cell_complex reads a trajectory by the dotted name of a state. Give `variables`.'
             raise AnalysisError(error_msg)
-        period = source.problem.states.entry(variables).period
+        period = source.problem.states.get_entry(variables).period
         return np.asarray(source.get_values(variables), dtype=float), (
             DEFAULT_PERIOD if period is None else float(period)
         )

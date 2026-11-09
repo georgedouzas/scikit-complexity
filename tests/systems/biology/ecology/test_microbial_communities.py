@@ -46,5 +46,5 @@ def test_generalized_lotka_volterra_matrix_swept_by_an_experiment():
     second[0, 1] = 0.3
     bounds = {'glv.a': [first, second]}
     result = sweep(GeneralizedLotkaVolterraSystem().prepare().system_, bounds, until=30.0, outputs=['species.x'])
-    final = result.series('species.x')[:, -1]
+    final = result.get_series('species.x')[:, -1]
     assert not np.allclose(final[0], final[1])

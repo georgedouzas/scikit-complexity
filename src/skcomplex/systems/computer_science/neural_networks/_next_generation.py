@@ -299,7 +299,7 @@ class NextGenerationReservoirSystem(BaseSystem):
                     self._increment,
                     names=names,
                     delay=delay,
-                    powers=readout.monomials(),
+                    powers=readout.get_monomials(),
                     weights=weights[:, index],
                     bias=float(bias[index]),
                     mean=readout.mean,

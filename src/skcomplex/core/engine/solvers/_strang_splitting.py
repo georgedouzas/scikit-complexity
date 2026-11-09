@@ -141,7 +141,7 @@ class StrangSplittingSolver(Solver):
         An error is raised for a law it does not advance.
         """
         inner = RK4Solver(dt=dt) if solver is None else clone(solver)
-        if inner._get_support().missing('laws', {law}):
+        if inner._get_support().get_missing('laws', {law}):
             error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
             raise SolverError(error_msg)
         return inner.prepare(problem)

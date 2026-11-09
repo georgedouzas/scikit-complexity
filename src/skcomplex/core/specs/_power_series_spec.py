@@ -147,7 +147,7 @@ class PowerSeriesSpec(BaseSpec):
             product[..., power:] += first_values[..., power, None] * second_values[..., : self.order - power]
         return self.reduce(product)
 
-    def series_of(self, coefficients: npt.ArrayLike) -> PowerSeries:
+    def get_series_of(self, coefficients: npt.ArrayLike) -> PowerSeries:
         """Return the series of the ring with some coefficients.
 
         Args:
@@ -162,7 +162,7 @@ class PowerSeriesSpec(BaseSpec):
         values = [field(int(item)) if self.characteristic else field(item) for item in np.ravel(coefficients)]
         return self.ring(values, prec=self.order)
 
-    def coefficients_of(self, series: object) -> Array:
+    def get_coefficients_of(self, series: object) -> Array:
         """Return the coefficients of a series of the ring up to the order.
 
         The series can also be anything the ring converts.

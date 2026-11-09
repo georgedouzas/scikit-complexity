@@ -63,7 +63,7 @@ def _similarity_trajectory(n_nodes: int, seed: int, **settings: float) -> Trajec
 
 def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered():
     """Test that 2000 nodes of exponent 2.5 fit a mean over seeds within 0.07 of 2.69, and are clustered."""
-    graphs = [_similarity_trajectory(2000, seed, exponent=2.5).get_network(-1).graph() for seed in range(4)]
+    graphs = [_similarity_trajectory(2000, seed, exponent=2.5).get_network(-1).get_graph() for seed in range(4)]
     fitted = [float(network_measures(graph, kind='degrees').exponent[0]) for graph in graphs]
     assert np.mean(fitted) == pytest.approx(2.69, abs=0.07)
     assert min(nx.average_clustering(graph) for graph in graphs) > 0.3
@@ -98,8 +98,8 @@ def test_popularity_similarity_network_new_nodes_join_at_close_angles():
 
 def test_popularity_similarity_network_clustering_falls_with_the_temperature():
     """Test that a higher temperature lowers the clustering."""
-    low = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.1).get_network(-1).graph())
-    high = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.9).get_network(-1).graph())
+    low = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.1).get_network(-1).get_graph())
+    high = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.9).get_network(-1).get_graph())
     assert low > high + 0.1
 
 

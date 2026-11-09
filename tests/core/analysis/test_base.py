@@ -268,7 +268,7 @@ def test_networks_of_a_changing_network_snapshot():
     snapshot = trajectory.get_network(-1)
     graph = _read_networks(snapshot)[0]
     assert sorted(graph.nodes()) == snapshot.nodes.tolist()
-    assert graph.number_of_edges() == snapshot.graph().number_of_edges()
+    assert graph.number_of_edges() == snapshot.get_graph().number_of_edges()
 
 
 def test_surface_holds_analysis_functions_and_results():

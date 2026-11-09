@@ -248,7 +248,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target.source is ReadKind.MEMBER:
             column += values
         elif target.source is ReadKind.NEIGHBOR:
-            np.add.at(column, target.shifted.members(p), values)
+            np.add.at(column, target.shifted.get_members(p), values)
         else:
             assert pairs is not None
             np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
@@ -278,7 +278,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            output[target.members][target.shifted.members(p)] = values
+            output[target.members][target.shifted.get_members(p)] = values
             return
         if target.source is not ReadKind.MEMBER:
             output[target.index] = values[0]
@@ -315,7 +315,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            indices = target.shifted.members(p)
+            indices = target.shifted.get_members(p)
             np.add.at(output[target.members], indices, values - x[target.members][indices])
             return
         if target.source is not ReadKind.MEMBER:
@@ -355,7 +355,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target is None or target.source is not ReadKind.NEIGHBOR or counts is None:
             error_msg = 'An output that reduces over rows needs a target read through a gather table and its counts.'
             raise ValidationError(error_msg)
-        indices = target.shifted.members(p)
+        indices = target.shifted.get_members(p)
         state = x[target.members][indices]
         shares = values - state / counts if item.reduce == 'sum' else (values - state) / counts
         np.add.at(output[target.members], indices, shares)

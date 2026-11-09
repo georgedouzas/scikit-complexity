@@ -29,7 +29,7 @@ def _satisfiable_shares(n_weights: int) -> np.ndarray:
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
     result = sweep(PerceptronSatisfiabilitySystem, bounds, until=STEPS, outputs=outputs)
-    return result.series('decide.satisfiable').mean(axis=0)
+    return result.get_series('decide.satisfiable').mean(axis=0)
 
 
 @pytest.mark.parametrize('n_weights', [15, 21])

@@ -355,9 +355,9 @@ VERBS = frozenset(
     ],
 )
 SYMBOLIC_CHECKED = ('skcomplex',)
-CONSTANTS_CHECKED = ('src/skcomplex/core/components', 'src/skcomplex/core/engine')
-HELPERS_CHECKED = ('skcomplex.core.components', 'skcomplex.core.engine')
-VERBS_CHECKED = ('skcomplex.core.components', 'skcomplex.core.engine')
+CONSTANTS_CHECKED = ('src/skcomplex/core',)
+HELPERS_CHECKED = ('skcomplex.core',)
+VERBS_CHECKED = ('skcomplex.core',)
 
 
 def _sources(root: Path) -> list[Path]:

@@ -32,7 +32,7 @@ trajectory = simulate(system, until=1.0, observers=[observer])
 
 rates = [(0.2, 0.2, 0.2), (0.25, 0.2, 0.2), (0.3, 0.2, 0.2)]
 result = sweep(VonThunenSystem(), {'rates': rates}, until=1.0, outputs=['plain.crop'])
-crops = result.series('plain.crop')[:, 0]
+crops = result.get_series('plain.crop')[:, 0]
 fig, axes = plt.subplots(1, 3, figsize=(10, 3.5))
 for ax, rate, crop in zip(axes, rates, crops, strict=True):
     ax.imshow(crop.reshape(41, 41), cmap='viridis', vmin=0, vmax=3)

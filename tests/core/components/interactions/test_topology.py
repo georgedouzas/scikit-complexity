@@ -183,7 +183,7 @@ def test_get_laws_rewire_moves_edges_towards_the_weight():
         keep='source',
     )
     trajectory = _run(nx.cycle_graph(20), change, 5, mark=marks)
-    graph = trajectory.get_network(5).graph()
+    graph = trajectory.get_network(5).get_graph()
     assert graph.number_of_edges() == 20
     marked = set(range(5))
     assert all(source in marked or target in marked for source, target in graph.edges)
@@ -203,7 +203,7 @@ def test_get_laws_add_node_with_a_hyperedge_attaches_a_triangle_per_step(backend
     ageing = AgeingInteraction('ageing', nodes='nodes', triangles='triangles')
     trajectory = simulate(_triangles(growth, ageing), until=50, backend=backend, random_state=0)
     network = trajectory.get_network(-1)
-    graph = network.graph()
+    graph = network.get_graph()
     assert network.hyperedges.shape == (51, 3)
     assert (len(network.nodes), len(network.sources)) == (53, 3 + 2 * 50)
     assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())
@@ -285,7 +285,7 @@ def test_get_laws_reads_a_renamed_target_end():
         **arguments,
     )
     graphs = [
-        sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).get_network(5).graph().edges)
+        sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).get_network(5).get_graph().edges)
         for change in (plain, renamed)
     ]
     assert graphs[1] == graphs[0]

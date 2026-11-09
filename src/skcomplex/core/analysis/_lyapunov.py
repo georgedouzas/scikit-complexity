@@ -1,6 +1,8 @@
 """Measure chaos with Lyapunov exponents.
 
 They are the spectrum of a system from its tangent dynamics, or the largest of data.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -24,7 +26,7 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind, VectorFunction
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
-from ._stability import _dynamics_of
+from ._stability import StabilityResult
 from .types import Source
 
 KINDS = ('spectrum', 'largest')
@@ -32,10 +34,7 @@ SETTINGS = {
     'spectrum': {'n_exponents', 'until', 'dt', 'transient', 'parameters'},
     'largest': {'variables', 'dt', 'dimension', 'delay', 'min_separation', 'trajectory_length', 'skip'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 FUNCTIONS: dict[str, VectorFunction] = {}
-
 TAGS = AnalysisTags(DataKind.SYSTEM, randomness='deterministic')
 KIND_TAGS = {
     'largest': AnalysisTags(DataKind.SERIES, randomness='deterministic'),
@@ -279,7 +278,7 @@ def lyapunov(
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
     if isinstance(source, CompositeSystem | BaseProblemSpec | Trajectory):
-        dynamics = _dynamics_of(_read_system(source), parameters)
+        dynamics = StabilityResult._get_dynamics_of(_read_system(source), parameters)
         problem = dynamics.problem
         exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)
     else:

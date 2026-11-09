@@ -15,8 +15,9 @@ import numpy as np
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind
-from ._base import _import, _read_series
+from ._base import _read_series
 from ._information import _dit_distribution
+from ._utils import load_module
 from .types import Source
 
 REDUNDANCIES = {
@@ -28,7 +29,6 @@ REDUNDANCIES = {
     'dep': 'PID_dep',
 }
 SERIES = 3
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -124,7 +124,7 @@ def partial_information(
         )
         raise AnalysisError(error_msg)
     columns = np.column_stack([column.ravel() for column in series.values.T])
-    measure = getattr(_import('dit').pid, REDUNDANCIES[redundancy])
+    measure = getattr(load_module('dit').pid, REDUNDANCIES[redundancy])
     lattice = measure(_dit_distribution(columns), [[0], [1]], [2])
     scale = math.log(2) / math.log(base)
     shared = float(lattice.get_pi(((0,), (1,)))) * scale

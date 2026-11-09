@@ -230,10 +230,10 @@ class ShepherdingInteraction(Interaction):
         headings = np.array([[item.hx, item.hy] for item in flock])
         moved, headings = self._move_sheep(sheep, shepherds, headings, system.rng)
         targets, driving = self._targets(sheep, shepherds)
-        steps = self._unit(targets - shepherds) + 0.3 * self._unit(system.rng.normal(size=shepherds.shape))
+        steps = self._get_unit(targets - shepherds) + 0.3 * self._get_unit(system.rng.normal(size=shepherds.shape))
         distances = np.linalg.norm(sheep[None, :, :] - shepherds[:, None, :], axis=2)
         blocked = distances.min(axis=1) < 3 * self.ra
-        shepherds = shepherds + np.where(blocked[:, None], 0.0, self.delta_s * self._unit(steps))
+        shepherds = shepherds + np.where(blocked[:, None], 0.0, self.delta_s * self._get_unit(steps))
         width, height = system.dimensions or (np.inf, np.inf)
         for sheep_view, position, heading in zip(flock, moved, headings, strict=True):
             sheep_view.move_to(self._get_inside(position, width, height))
@@ -255,17 +255,17 @@ class ShepherdingInteraction(Interaction):
         distances = np.linalg.norm(offsets, axis=2)
         np.fill_diagonal(distances, np.inf)
         close = distances < self.ra
-        repulsion = self._unit((offsets * close[:, :, None] / np.maximum(distances, 1e-9)[:, :, None]).sum(axis=1))
+        repulsion = self._get_unit((offsets * close[:, :, None] / np.maximum(distances, 1e-9)[:, :, None]).sum(axis=1))
         nearest = np.argsort(distances, axis=1)[:, : self.n]
-        attraction = self._unit(sheep[nearest].mean(axis=1) - sheep)
+        attraction = self._get_unit(sheep[nearest].mean(axis=1) - sheep)
         dog_offsets = sheep[:, None, :] - shepherds[None, :, :]
         dog_distances = np.linalg.norm(dog_offsets, axis=2)
         alert = dog_distances.min(axis=1) < self.rs
-        fear = self._unit((dog_offsets / np.maximum(dog_distances, 1e-9)[:, :, None]).sum(axis=1))
-        noise = self._unit(rng.normal(size=sheep.shape))
-        herded = h * self._unit(headings) + c * attraction + rho_a * repulsion + rho_s * fear + e * noise
+        fear = self._get_unit((dog_offsets / np.maximum(dog_distances, 1e-9)[:, :, None]).sum(axis=1))
+        noise = self._get_unit(rng.normal(size=sheep.shape))
+        herded = h * self._get_unit(headings) + c * attraction + rho_a * repulsion + rho_s * fear + e * noise
         grazing = rho_a * repulsion + (rng.random(len(sheep)) < self.graze)[:, None] * noise
-        heading = np.where(alert[:, None], self._unit(herded), grazing)
+        heading = np.where(alert[:, None], self._get_unit(herded), grazing)
         return sheep + self.delta * heading, heading
 
     def _targets(self, sheep: Array, shepherds: Array) -> tuple[Array, Array]:
@@ -274,12 +274,12 @@ class ShepherdingInteraction(Interaction):
         spread = np.linalg.norm(sheep - centre, axis=1)
         stray = int(np.argmax(spread))
         if spread[stray] > self.ra * len(sheep) ** (2 / 3):
-            target = sheep[stray] + self.ra * self._unit((sheep[stray] - centre)[None, :])[0]
+            target = sheep[stray] + self.ra * self._get_unit((sheep[stray] - centre)[None, :])[0]
             return np.broadcast_to(target, shepherds.shape), np.zeros(len(shepherds), dtype=bool)
-        target = centre + self.ra * np.sqrt(len(sheep)) * self._unit((centre - goal)[None, :])[0]
+        target = centre + self.ra * np.sqrt(len(sheep)) * self._get_unit((centre - goal)[None, :])[0]
         return np.broadcast_to(target, shepherds.shape), np.ones(len(shepherds), dtype=bool)
 
-    def _unit(self, vectors: Array) -> Array:
+    def _get_unit(self, vectors: Array) -> Array:
         """Return the vectors scaled to unit length.
 
         Zero vectors stay unchanged.

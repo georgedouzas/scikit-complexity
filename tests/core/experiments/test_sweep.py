@@ -41,9 +41,9 @@ def last_value(trajectory):
 def test_sweep_of_one_parameter_gives_one_row_per_value():
     """Test that a sweep over one model parameter gives one tidy row per value with its output."""
     result = sweep(LogisticGrowthSystem(), {'K': [50.0, 100.0]}, until=40, outputs=['population.x'])
-    assert result.column('K').tolist() == [50.0, 100.0]
-    np.testing.assert_allclose(result.column('population.x'), [50.0, 100.0], rtol=1e-3)
-    assert list(result.to_frame().columns[:4]) == ['K', 'scenario', 'replicate', 'seed']
+    assert result.get_column('K').tolist() == [50.0, 100.0]
+    np.testing.assert_allclose(result.get_column('population.x'), [50.0, 100.0], rtol=1e-3)
+    assert list(result.convert_to_frame().columns[:4]) == ['K', 'scenario', 'replicate', 'seed']
 
 
 def test_orbit_diagram_sweep():
@@ -52,15 +52,15 @@ def test_orbit_diagram_sweep():
     rates = np.linspace(2.8, 4.0, 200)
     result = sweep(system, {'map.r': rates}, until=400, warmup=301, outputs=['map.x'])
     assert len(result.rows) == 200
-    assert result.column('map.r').tolist() == rates.tolist()
-    assert result.series('map.x').shape == (200, 100)
+    assert result.get_column('map.r').tolist() == rates.tolist()
+    assert result.get_series('map.x').shape == (200, 100)
 
 
 def test_sampled_sweep_stays_within_bounds():
     """Test that a sampled sweep runs `n` rows within the bounds."""
     result = sweep(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, design='sobol', n=4, until=1, random_state=0)
     assert len(result.rows) == 4
-    assert all(0.5 <= value <= 1.0 for value in result.column('r'))
+    assert all(0.5 <= value <= 1.0 for value in result.get_column('r'))
 
 
 def test_summary_across_replicates():
@@ -73,11 +73,11 @@ def test_summary_across_replicates():
         outputs=[last_value],
         random_state=1,
     )
-    summary = result.summary()
+    summary = result.get_summary()
     assert len(summary) == 2
     for row in summary:
         assert row['runs'] == 5
         assert {'last_value.mean', 'last_value.std', 'last_value.q0.05', 'last_value.q0.5', 'last_value.q0.95'} <= set(
             row,
         )
-    assert result.to_frame().shape[0] == 10
+    assert result.convert_to_frame().shape[0] == 10

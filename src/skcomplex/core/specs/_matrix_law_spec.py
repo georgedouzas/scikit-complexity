@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from ._base_spec import BaseSpec
 
-_RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 
 
 @dataclass(frozen=True)

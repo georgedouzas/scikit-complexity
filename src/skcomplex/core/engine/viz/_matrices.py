@@ -102,10 +102,10 @@ class MatrixVisual(BaseVisual):
             self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
             self.views_ = [rrb.Spatial2DView(origin=f'{self.path}/{self.variable}', name=self.name_)]
         layouts = [layout for layout in (context.states, context.parameters) if layout.has(self.name_)]
-        if not layouts or len(layouts[0].entry(self.name_).shape) != MATRIX_RANK:
+        if not layouts or len(layouts[0].get_entry(self.name_).shape) != MATRIX_RANK:
             error_msg = f'The problem has no matrix named {self.name_!r}. Name a state or parameter of two dimensions.'
             raise ValidationError(error_msg)
-        self.shape_ = layouts[0].entry(self.name_).shape
+        self.shape_ = layouts[0].get_entry(self.name_).shape
 
     def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""

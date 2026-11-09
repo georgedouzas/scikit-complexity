@@ -83,7 +83,7 @@ class GeometryVisual(BaseVisual):
         if not isinstance(structure, BaseStructureSpec):
             return
         if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
-            grid = structure.raster(self.resolution, self._get_bounds_of(element))
+            grid = structure.get_raster(self.resolution, self._get_bounds_of(element))
             pixels = np.where(grid[..., None], FILL, BACKGROUND).astype(np.uint8)
             recording.log(element.path, rr.Image(pixels))
             return
@@ -159,16 +159,16 @@ class GeometryVisual(BaseVisual):
         tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
         names = [prototile.name for prototile in component.prototiles]
         try:
-            matrices = [np.eye(3) if placement is None else placement.matrix_at({}) for _, placement in tiles]
+            matrices = [np.eye(3) if placement is None else placement.get_matrix_at({}) for _, placement in tiles]
             codes = [names.index(name) for name, _ in tiles]
         except (TypeError, ValueError):
             return None
         xmin, ymin, xmax, ymax = PatchStructureSpec(
             tuple(component.prototiles),
-            BaseStructureSpec._frozen(codes, np.int64),
-            BaseStructureSpec._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            BaseStructureSpec._get_frozen(codes, np.int64),
+            BaseStructureSpec._get_frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
-        ).bounds()
+        ).get_bounds()
         pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
         return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
 
@@ -178,7 +178,7 @@ class GeometryVisual(BaseVisual):
 
         The y axis is flipped for Rerun's downward axis.
         """
-        segments = structure.segments()
+        segments = structure.get_segments()
         if isinstance(structure, WordStructureSpec):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
         elif isinstance(structure, PatchStructureSpec):
@@ -189,7 +189,7 @@ class GeometryVisual(BaseVisual):
         else:
             values = np.zeros(len(segments))
         strips = list(segments.copy())
-        for index, polygons in enumerate(structure.polygons()):
+        for index, polygons in enumerate(structure.get_polygons()):
             strips += [np.concatenate([polygon, polygon[:1]]) for polygon in polygons]
             values = np.concatenate([values, np.full(len(polygons), float(index))])
         for strip in strips:

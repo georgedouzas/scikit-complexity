@@ -11,10 +11,8 @@ import scipy.sparse as sp
 
 from ._base_spec import BaseSpec
 
-_ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
-
-
-_ADJOINT_SUFFIX = '.dag'
+ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
+ADJOINT_SUFFIX = '.dag'
 
 
 @dataclass(frozen=True)
@@ -44,7 +42,7 @@ class LocalOperatorSpec(BaseSpec):
     matrix: object = field(default=None, compare=False, repr=False)
     hermitian: bool = field(default=False, compare=False)
 
-    def adjoint(self) -> 'LocalOperatorSpec':
+    def get_adjoint(self) -> 'LocalOperatorSpec':
         """Return the adjoint of the operator.
 
         Returns:
@@ -53,17 +51,17 @@ class LocalOperatorSpec(BaseSpec):
         """
         if self.hermitian:
             return self
-        if self.name in _ADJOINT_NAMES:
-            name = _ADJOINT_NAMES[self.name]
-        elif self.name.endswith(_ADJOINT_SUFFIX):
-            name = self.name.removesuffix(_ADJOINT_SUFFIX)
+        if self.name in ADJOINT_NAMES:
+            name = ADJOINT_NAMES[self.name]
+        elif self.name.endswith(ADJOINT_SUFFIX):
+            name = self.name.removesuffix(ADJOINT_SUFFIX)
         else:
-            name = f'{self.name}{_ADJOINT_SUFFIX}'
-        matrix = self._sparse_matrix(self.matrix).conj().T.tocsr()
+            name = f'{self.name}{ADJOINT_SUFFIX}'
+        matrix = self._get_sparse_matrix(self.matrix).conj().T.tocsr()
         return LocalOperatorSpec(name, matrix, hermitian=False)
 
     @staticmethod
-    def _sparse_matrix(matrix: object) -> sp.csr_array:
+    def _get_sparse_matrix(matrix: object) -> sp.csr_array:
         """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
         if isinstance(matrix, qutip.Qobj):
             dense = matrix.full()

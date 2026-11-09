@@ -499,7 +499,7 @@ class SystemView:
         """
         name = self._get_field_name(name)
         site = self._get_site(name, cell)
-        entry = self._stepper.problem_.states.entry(name)
+        entry = self._stepper.problem_.states.get_entry(name)
         self._stepper.deposits_[entry.start + site * entry.columns] += amount
 
     def get_random_empty_cell(self) -> object:

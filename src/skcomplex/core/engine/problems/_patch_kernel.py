@@ -140,11 +140,11 @@ class PatchKernel(BaseKernel):
                 The initial tiles.
         """
         by_symbol = self._get_values(values)
-        matrices = [np.eye(3) if item is None else item.matrix_at(by_symbol) for item in self.placements]
+        matrices = [np.eye(3) if item is None else item.get_matrix_at(by_symbol) for item in self.placements]
         return PatchStructureSpec(
             self.prototiles,
-            BaseStructureSpec._frozen(self.codes, np.int64),
-            BaseStructureSpec._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            BaseStructureSpec._get_frozen(self.codes, np.int64),
+            BaseStructureSpec._get_frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
         )
 
@@ -208,13 +208,13 @@ class PatchKernel(BaseKernel):
             rows = np.flatnonzero(codes == code)
             if not len(rows):
                 continue
-            maps = np.stack([affine.matrix_at(by_symbol) for _, affine in pieces])
+            maps = np.stack([affine.get_matrix_at(by_symbol) for _, affine in pieces])
             places = offsets[rows][:, None] + np.arange(len(pieces))
             new_matrices[places] = np.einsum('tij,pjk->tpik', matrices[rows], maps)
             new_codes[places] = [piece for piece, _ in pieces]
         return PatchStructureSpec(
             self.prototiles,
-            BaseStructureSpec._frozen(new_codes, np.int64),
-            BaseStructureSpec._frozen(new_matrices, np.float64),
+            BaseStructureSpec._get_frozen(new_codes, np.int64),
+            BaseStructureSpec._get_frozen(new_matrices, np.float64),
             patch.generation + 1,
         )

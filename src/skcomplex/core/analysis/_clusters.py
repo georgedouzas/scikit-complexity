@@ -1,6 +1,8 @@
 """Measure clusters and percolation.
 
 The clusters are those of grids, graphs, and points, with the largest cluster and spanning.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -25,14 +27,12 @@ from ._base import _check_choice, _check_settings, _get_missing_error, _read_fie
 from .types import Source
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
-# Settings every kind reads, besides `kind` and `variables`.
 SETTINGS = {
     'labels': {'periodic', 'diagonal', 'axis', 'radius'},
     'sizes': {'periodic', 'diagonal', 'radius'},
     'percolation': {'diagonal', 'axis', 'radius'},
     'spanning': {'diagonal', 'axis', 'radius'},
 }
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 
@@ -248,7 +248,7 @@ def _read_points(
         return (points if kind == 'spanning' else points[None]), None
     system = source.problem.system
     space = None if system is None else system.space
-    names = [name for name in source.problem.states.names if source.problem.states.entry(name).columns > 1]
+    names = [name for name in source.problem.states.names if source.problem.states.get_entry(name).columns > 1]
     name = variables[0] if variables else (names[0] if names else None)
     if name is None:
         raise _get_missing_error(source, 'vector state of positions')

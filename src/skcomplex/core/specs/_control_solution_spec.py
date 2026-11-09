@@ -40,7 +40,7 @@ class ControlSolutionSpec(BaseSpec):
     cost: float
     iterations: int
 
-    def state_at(self, t: float) -> Array:
+    def get_state_at(self, t: float) -> Array:
         """Return the state vector at a time of the run.
 
         It is interpolated linearly between the times of the grid.

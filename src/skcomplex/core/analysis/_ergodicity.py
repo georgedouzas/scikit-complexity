@@ -1,6 +1,9 @@
 """Diagnose ergodicity.
 
 The diagnostics are time averages of ensembles of runs, and invariant densities of maps and flows.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`. `BINS` holds the number of bins of every
+kind without `bins`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -30,13 +33,8 @@ SETTINGS = {
     'invariant-density': {'bins', 'value_range'},
     'ulam': {'edges', 'samples'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 BINS = {'distance': 20, 'invariant-density': 100}
-"""The number of bins of every kind without `bins`."""
-
 ENSEMBLE_DIMENSIONS = 2
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'breaking': AnalysisTags(DataKind.ENSEMBLE),

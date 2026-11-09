@@ -129,7 +129,7 @@ class RotationInteraction(Interaction):
         """Return the components rotated by the number of faces of every link."""
         group = MatrixGroupSpec('U', 1)
         turns = np.exp(1j * (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1))
-        return group.components_of(turns[:, None, None] * group.matrices_of(values))
+        return group.get_components_of(turns[:, None, None] * group.get_matrices_of(values))
 
 
 def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_space():

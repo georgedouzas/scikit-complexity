@@ -1,6 +1,8 @@
 """Replicate a system of single elements into groups of members.
 
 Many values then run as one vectorised simulation.
+
+`PLAIN_LAWS` holds the laws of elements that a group of members of the same type runs as one vectorised simulation.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -29,7 +31,8 @@ from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
 from ..errors import ValidationError
 from ..types import VariableKind
-from ._runs import _build, _check_source
+from ._runs import _check_source
+from ._utils import build_system
 from .types import Source
 
 PLAIN_LAWS = (
@@ -43,7 +46,6 @@ PLAIN_LAWS = (
     TransferLaw,
     EquationLaw,
 )
-"""Laws of elements that a group of members of the same type runs as one vectorised simulation."""
 
 
 def _has_formalism_laws(element: Element) -> bool:
@@ -244,7 +246,7 @@ def _run_replicated(
         ValidationError:
             The system has no tuned end time and none is given.
     """
-    system = _build(_check_source(source), {})
+    system = build_system(_check_source(source), {})
     settings = system.get_run_settings()
     composite = system.prepare().system_
     end = until if until is not None else settings['until']

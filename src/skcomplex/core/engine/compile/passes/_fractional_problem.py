@@ -103,5 +103,5 @@ class FractionalProblemPass(BasePass):
         """
         orders = np.ones(layout.size)
         for item in states:
-            orders[layout.entry(item.name).indices] = item.order
+            orders[layout.get_entry(item.name).indices] = item.order
         return orders

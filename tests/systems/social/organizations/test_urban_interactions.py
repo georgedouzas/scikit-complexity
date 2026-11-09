@@ -24,7 +24,7 @@ def _fit(internal: float) -> ScalingResult:
         observables=observables,
         random_state=0,
     )
-    meetings = result.series('total_meetings')[:, -1]
+    meetings = result.get_series('total_meetings')[:, -1]
     samples = dict(zip(SIZES, meetings.reshape(len(SIZES), len(SEEDS)), strict=True))
     return scaling(samples, kind='allometric', resamples=300)
 

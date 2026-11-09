@@ -927,7 +927,7 @@ class ObservableEvaluator:
         """Return the entry of a state or parameter of a problem by name, or `None`."""
         for layout in (problem.states, problem.parameters):
             if layout.has(name):
-                return layout.entry(name)
+                return layout.get_entry(name)
         return None
 
     @staticmethod

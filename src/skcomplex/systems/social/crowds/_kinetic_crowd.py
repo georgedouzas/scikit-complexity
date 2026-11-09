@@ -260,7 +260,7 @@ class KineticCrowdInteraction(Interaction):
         }
 
     @staticmethod
-    def _unit(vectors: Array, fallback: Array) -> Array:
+    def _get_unit(vectors: Array, fallback: Array) -> Array:
         """Return the unit vectors of the rows.
 
         Where a vector vanishes, it returns the fallback rows.
@@ -281,10 +281,10 @@ class KineticCrowdInteraction(Interaction):
         """
         rho, gradient, mean = fields['density'], fields['gradient'], fields['mean']
         goal = np.stack([np.where(walkers['target'] == 0, 1.0, -1.0), np.zeros(rho.size)], axis=1)
-        vacuum = self._unit(-gradient, np.zeros_like(gradient))
-        stream = self._unit(mean, goal)
-        mixed = self._unit(stress * stream + (1 - stress) * goal, goal)
-        preferred = self._unit(rho[:, None] * vacuum + (1 - rho[:, None]) * mixed, goal)
+        vacuum = self._get_unit(-gradient, np.zeros_like(gradient))
+        stream = self._get_unit(mean, goal)
+        mixed = self._get_unit(stress * stream + (1 - stress) * goal, goal)
+        preferred = self._get_unit(rho[:, None] * vacuum + (1 - rho[:, None]) * mixed, goal)
         slope = np.einsum('ij,ij->i', gradient, preferred)
         perceived = rho + slope / np.sqrt(1 + slope**2) * np.where(slope >= 0, 1 - rho, rho)
         mean_speed = fields['speed']

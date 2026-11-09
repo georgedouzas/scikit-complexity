@@ -41,7 +41,7 @@ trajectory = simulate(NetworkAttackSystem(), until=17, observers=[observer], ran
 
 def giant_share(trajectory, frame, size):
     """Return the share of the original nodes in the largest component at a frame."""
-    graph = trajectory.get_network(frame).graph()
+    graph = trajectory.get_network(frame).get_graph()
     return max((len(component) for component in nx.connected_components(graph)), default=0) / size
 
 

@@ -328,13 +328,13 @@ series = CompositeSystem(
             'difference',
             target='cells',
             state='value',
-            rule=lambda here, right: here - RING.multiply(RING.coefficients_of('t'), right),
+            rule=lambda here, right: here - RING.multiply(RING.get_coefficients_of('t'), right),
             neighborhood=LatticeNeighborhood(((0,), (1,))),
         ),
     ],
 )
 final = simulate(series, until=3).get_values('cells.value')[-1]
-RING.series_of(final[2])
+RING.get_series_of(final[2])
 ```
 
 - The first state a rule reads holds the group elements. On a finite group every product is a site. On a ball a

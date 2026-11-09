@@ -141,7 +141,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
     def _get_hyperparameters(self, p: Array) -> dict[str, float]:
         """Return the hyperparameters of the optimizer in a parameter vector, by name."""
         layout = self.problem_.parameters
-        return {name: float(p[layout.entry(path).start]) for name, path in self.problem_.hyperparameters.items()}
+        return {name: float(p[layout.get_entry(path).start]) for name, path in self.problem_.hyperparameters.items()}
 
     def _get_inner_indices(self) -> TracedArray:
         """Return the indices of the trained parameters in the states of the inner problem."""
@@ -151,7 +151,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             raise SolverError(error_msg)
         indices = [
             np.arange(entry.start, entry.start + entry.size)
-            for entry in (inner.states.entry(name) for name in self.problem_.trained)
+            for entry in (inner.states.get_entry(name) for name in self.problem_.trained)
         ]
         return jnp.asarray(np.concatenate(indices))
 

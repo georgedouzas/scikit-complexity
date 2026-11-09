@@ -193,4 +193,4 @@ class StateSpec(BaseSpec):
             return 'power series'
         if self.domain is None or self.domain is object:
             return None
-        return str(EntrySpec._domain_kind(self.domain))
+        return str(EntrySpec._get_domain_kind(self.domain))

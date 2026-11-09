@@ -1,6 +1,8 @@
 """Measure information sample by sample.
 
 The measures are local entropy, local mutual information, and local transfer entropy.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -26,10 +28,7 @@ SETTINGS = {
     'mutual': {'estimator', 'base'},
     'transfer': {'history', 'lag', 'estimator', 'base'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 ESTIMATORS = ('plugin', 'gaussian')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

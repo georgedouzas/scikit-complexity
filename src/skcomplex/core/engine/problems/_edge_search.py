@@ -65,4 +65,4 @@ class EdgeSearch(BaseSearch):
         if self.source is None or self.target is None:
             self.pairs_ = self.sources, self.targets
         else:
-            self.pairs_ = self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+            self.pairs_ = self.source.get_view(p)[:, 0].astype(np.intp), self.target.get_view(p)[:, 0].astype(np.intp)

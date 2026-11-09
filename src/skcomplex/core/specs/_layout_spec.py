@@ -67,7 +67,7 @@ class LayoutSpec(BaseSpec):
         """Names of the components, in vector order."""
         return [name for entry in self.entries for name in entry.component_names]
 
-    def entry(self, name: str) -> EntrySpec:
+    def get_entry(self, name: str) -> EntrySpec:
         """Return the entry of a variable.
 
         Args:
@@ -140,7 +140,7 @@ class LayoutSpec(BaseSpec):
                 A number for a scalar in a flat vector, or an array whose shape is the leading shape of `vector`
                 followed by the shape of the variable, complex for a complex variable.
         """
-        entry = self.entry(name)
+        entry = self.get_entry(name)
         values = entry.decode(vector[..., entry.indices]).reshape(vector.shape[:-1] + entry.shape)
         if values.ndim:
             return values

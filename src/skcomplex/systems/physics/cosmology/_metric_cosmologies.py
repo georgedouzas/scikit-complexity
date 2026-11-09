@@ -385,7 +385,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
                 f'{names!r}. Choose components that hold them, such as spatial diagonal ones.'
             )
             raise ValidationError(error_msg)
-        rates = system.solve_right(matrix(SR, len(rest), 1, rest), check=False).column(0)
+        rates = system.solve_right(matrix(SR, len(rest), 1, rest), check=False).get_column(0)
         return [
             RateLaw(getattr(member, name), SR(rate).simplify_full().subs(velocities))
             for name, rate in zip(names, rates, strict=True)

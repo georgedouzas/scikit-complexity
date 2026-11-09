@@ -65,7 +65,7 @@ class TensorSpec(BaseSpec):
             error_msg = f'A tensor state needs a space of 2 or 3 dimensions, but its space has {self.n_dim}.'
             raise ValidationError(error_msg)
 
-    def _unit(self, row: int, column: int) -> IntArray:
+    def _get_unit(self, row: int, column: int) -> IntArray:
         """Return the tensor whose independent component at an index is 1.
 
         Its other independent components are 0.
@@ -102,9 +102,9 @@ class TensorSpec(BaseSpec):
 
         There is one tensor per component on the first axis.
         """
-        return np.stack([self._unit(row, column) for row, column in self.indices])
+        return np.stack([self._get_unit(row, column) for row, column in self.indices])
 
-    def matrix_of(self, components: Iterable[object]) -> Matrix:
+    def get_matrix_of(self, components: Iterable[object]) -> Matrix:
         """Return the symbolic matrix of independent components.
 
         The dependent entries are written in terms of them.
@@ -129,7 +129,7 @@ class TensorSpec(BaseSpec):
             total += SR(component) * matrix(SR, unit.tolist())
         return total
 
-    def array_of(self, components: npt.ArrayLike) -> Array:
+    def get_array_of(self, components: npt.ArrayLike) -> Array:
         """Return the arrays of tensors of independent components on the last axis.
 
         Args:
@@ -147,7 +147,7 @@ class TensorSpec(BaseSpec):
         """
         return np.tensordot(np.asarray(components, dtype=float), self.basis, axes=1)
 
-    def principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
+    def get_principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
         """Return the principal axis and the scalar order of symmetric tensors.
 
         The tensors are given by their independent components. The principal axis is the eigenvector of the largest
@@ -178,12 +178,12 @@ class TensorSpec(BaseSpec):
         if self.symmetry not in {'symmetric', 'traceless'}:
             error_msg = f'A tensor of the symmetry {self.symmetry!r} has no principal axes. Use a symmetric tensor.'
             raise ValidationError(error_msg)
-        tensors = self.array_of(components)
+        tensors = self.get_array_of(components)
         means = np.trace(tensors, axis1=-2, axis2=-1) / self.n_dim
         values, vectors = np.linalg.eigh(tensors - means[..., None, None] * np.eye(self.n_dim))
         return vectors[..., -1], values[..., -1] * self.n_dim / (self.n_dim - 1)
 
-    def components_of(self, value: object) -> Array:
+    def get_components_of(self, value: object) -> Array:
         """Return the independent components of a numeric matrix.
 
         Args:
@@ -208,7 +208,7 @@ class TensorSpec(BaseSpec):
             error_msg = f'The value has the shape {array.shape}, but the tensor is {self.n_dim} by {self.n_dim}.'
             raise ValidationError(error_msg)
         components = np.asarray([array[row, column] for row, column in self.indices])
-        if not np.allclose(self.array_of(components), array):
+        if not np.allclose(self.get_array_of(components), array):
             error_msg = f'The matrix {array.tolist()} does not have the symmetry {self.symmetry!r}.'
             raise ValidationError(error_msg)
         return components

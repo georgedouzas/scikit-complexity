@@ -72,7 +72,7 @@ class MetricSearch(BaseSearch):
             positions:
                 One row of position components per member.
         """
-        positions = self.positions.view(x)
+        positions = self.positions.get_view(x)
         if self.periods is None:
             return positions
         periods = np.asarray(self.periods)
@@ -98,7 +98,7 @@ class MetricSearch(BaseSearch):
             differences:
                 One row of components per pair, `x_reader - x_other` wrapped.
         """
-        positions = self.positions.view(x)
+        positions = self.positions.get_view(x)
         difference = positions[readers] - positions[others]
         if self.periods is None:
             return difference
@@ -182,7 +182,7 @@ class MetricSearch(BaseSearch):
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
         separation = -self.get_differences(x, readers, others)
-        direction = self.direction.vectors(x)[readers]
+        direction = self.direction.get_vectors(x)[readers]
         dot = np.sum(direction * separation, axis=1)
         norms = np.sqrt(np.sum(direction * direction, axis=1)) * np.sqrt(np.sum(separation * separation, axis=1))
         return dot >= np.cos(cone.angle) * norms

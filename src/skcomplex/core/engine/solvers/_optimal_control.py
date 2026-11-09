@@ -157,7 +157,7 @@ class OptimalControlSolver(Solver):
         self.terminal_ = self._get_function(control_problem, [control_problem.terminal])
         self._set_up_control(control_problem)
         self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
-        self.initial_state_ = self.solution_.state_at(0.0)
+        self.initial_state_ = self.solution_.get_state_at(0.0)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Return the state of the optimal solution at a time of the run.
@@ -190,7 +190,7 @@ class OptimalControlSolver(Solver):
                 ' Run a new simulation with a later horizon.'
             )
             raise SolverError(error_msg)
-        return self.solution_.state_at(until)
+        return self.solution_.get_state_at(until)
 
     def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
         """Derive what the solver needs from the optimal control problem.
@@ -357,7 +357,7 @@ class OptimalControlSolver(Solver):
         for name, declaration in problem.adaptive_parameters.items():
             if declaration.bounds is None:
                 continue
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             if entry.size != 1:
                 error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
                 raise SolverError(error_msg)

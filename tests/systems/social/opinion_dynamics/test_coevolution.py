@@ -23,7 +23,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
     )
     assert _discordant(slow, 2) > 0.15
     assert _discordant(fast, 2) < 0.02
-    graph = fast.get_network(-1).graph()
+    graph = fast.get_network(-1).get_graph()
     opinions = fast.get_values('voters.opinion')[-1]
     assert nx.number_connected_components(graph) >= 2
     assert 0 < opinions.mean() < 1
@@ -45,7 +45,7 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     assert _discordant(strong, -1) < 0.02
     assert _discordant(free, -1) > 0.25
     members = strong.get_values('voters.opinion')[-1]
-    graph = strong.get_network(-1).graph()
+    graph = strong.get_network(-1).get_graph()
     assert nx.number_connected_components(graph) >= 2
     assert 0 < members.mean() < 1
 

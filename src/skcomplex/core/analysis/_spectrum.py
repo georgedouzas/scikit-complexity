@@ -1,6 +1,8 @@
 """Measure spectra.
 
 The spectra are power spectra of series and structure factors of fields.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -21,12 +23,10 @@ from ._base import _check_choice, _check_settings, _read_fields, _read_real, _re
 from .types import Source
 
 KINDS = ('power', 'structure-factor')
-# Settings every kind reads, besides `kind` and `variables`.
 SETTINGS = {
     'power': {'dt'},
     'structure-factor': {'spacing', 'frames'},
 }
-
 TAGS = AnalysisTags(DataKind.FIELD)
 KIND_TAGS = {
     'power': AnalysisTags(DataKind.SERIES),

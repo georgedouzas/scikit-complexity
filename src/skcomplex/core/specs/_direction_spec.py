@@ -29,7 +29,7 @@ class DirectionSpec(BaseSpec):
     entry: EntrySpec
     angle: bool
 
-    def vectors(self, x: Array) -> Array:
+    def get_vectors(self, x: Array) -> Array:
         """Return the direction of every member as one row of components.
 
         Args:
@@ -40,7 +40,7 @@ class DirectionSpec(BaseSpec):
             directions:
                 One row per member.
         """
-        values = self.entry.view(x)
+        values = self.entry.get_view(x)
         if self.angle:
             return np.column_stack([np.cos(values[:, 0]), np.sin(values[:, 0])])
         return values

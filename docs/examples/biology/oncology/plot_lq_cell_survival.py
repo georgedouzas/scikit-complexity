@@ -34,7 +34,7 @@ def survival(fractions: float) -> tuple[np.ndarray, np.ndarray]:
     """Return the doses and the surviving fractions of a number of fractions."""
     bounds = {'dose': np.linspace(0.0, 20.0, 21).tolist(), 'fractions': [fractions]}
     result = sweep(LQCellSurvivalSystem, bounds, until=1.0, outputs=['cells.survival'])
-    return result.column('dose'), result.series('cells.survival')[:, 0]
+    return result.get_column('dose'), result.get_series('cells.survival')[:, 0]
 
 
 fig, ax = plt.subplots(figsize=(7, 4))

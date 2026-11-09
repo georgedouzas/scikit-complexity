@@ -1,6 +1,8 @@
 """Measure the alignment of angles or vectors.
 
 The measures are the mean vector, the mean rotation, the axial order, and the mean phase.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -36,8 +38,6 @@ SETTINGS = {
     'mean-phase': {'variables', 'group'},
     'principal-axis': {'variables'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 READ_KINDS = (DataKind.AGENTS, DataKind.FIELD, DataKind.SERIES)
 VECTOR_DIMENSIONS = 2
 SYMMETRIC_TENSORS = {
@@ -46,7 +46,6 @@ SYMMETRIC_TENSORS = {
     5: TensorSpec('traceless', 3),
     6: TensorSpec('symmetric', 3),
 }
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 
 
@@ -211,7 +210,7 @@ def _principal_axis(tensors: Array | None) -> tuple[Array, Array]:
     if columns not in SYMMETRIC_TENSORS:
         error_msg = f'A symmetric tensor has 2, 3, 5, or 6 independent components, but the source has {columns}.'
         raise AnalysisError(error_msg)
-    return SYMMETRIC_TENSORS[columns].principal_of(tensors)
+    return SYMMETRIC_TENSORS[columns].get_principal_of(tensors)
 
 
 def _read_array(

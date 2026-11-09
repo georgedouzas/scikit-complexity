@@ -1,6 +1,8 @@
 """List the analyses that apply to a trajectory, a system, or an array.
 
 They are found by the tags each analysis needs.
+
+`ANALYSES` holds every analysis of the library, whose module declares the tags it needs.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -132,7 +134,6 @@ ANALYSES = (
     surrogate_test,
     symbolic,
 )
-"""Every analysis of the library, whose module declares the tags it needs."""
 
 
 @dataclass(frozen=True)
@@ -203,7 +204,7 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
         else:
             bound = [(bind_analysis(function), _get_analysis_tags(function))]
         for analysis, needed in bound:
-            if needed.data in analyses and (tags is None or not needed.missing(tags)):
+            if needed.data in analyses and (tags is None or not needed.get_missing(tags)):
                 analyses[needed.data].append(analysis)
     return ApplicableAnalysesResult(kinds, readings, analyses)
 

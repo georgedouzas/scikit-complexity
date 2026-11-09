@@ -9,9 +9,7 @@ The base holds the binding of settings, the checks of settings, and the readers 
 import inspect
 import sys
 from collections.abc import Callable, Sequence, Set
-from functools import cache, partial
-from importlib import import_module
-from types import ModuleType
+from functools import partial
 
 import networkx as nx
 import numpy as np
@@ -21,7 +19,7 @@ from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
 from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, TagError, ValidationError
 from ..specs import (
@@ -153,7 +151,7 @@ def _check_tags(analysis: Callable[..., object], source: object, kind: str | Non
     if tags is None:
         return
     needed = _get_analysis_tags(analysis, kind)
-    missing = needed.missing(tags)
+    missing = needed.get_missing(tags)
     if missing:
         name, values = next(iter(missing.items()))
         wanted = {'time': needed.time, 'space': needed.space, 'randomness': {needed.randomness}}[name]
@@ -248,36 +246,6 @@ def _get_problem(source: Trajectory | CompositeSystem | BaseProblemSpec) -> Base
     return source
 
 
-def _compiled_problem(system: CompositeSystem | BaseProblemSpec, purpose: str) -> ProblemSpec:
-    """Return the general compiler's problem of a system, or the problem itself.
-
-    It serves work that reads its fields.
-
-    Args:
-        system:
-            A system, or a problem compiled from one.
-
-        purpose:
-            What needs the general compiler's problem, such as `'Linear stability'`, for the error message.
-
-    Returns:
-        problem:
-            The problem of the general compiler.
-
-    Raises:
-        AnalysisError:
-            A compiler of whole systems compiles the system to a problem of its own, which the work cannot read.
-    """
-    problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
-    if isinstance(problem, ProblemSpec):
-        return problem
-    error_msg = (
-        f'{purpose} reads the problem of the general compiler, but the system compiles to a '
-        f'{type(problem).__name__} of the {problem.form} form.'
-    )
-    raise AnalysisError(error_msg)
-
-
 def _get_lattice_names(problem: BaseProblemSpec) -> list[str]:
     """Return the states of a problem that live on lattices or grids."""
     return [name for name in problem.states.names if problem.get_lattice_shape(name) is not None]
@@ -294,7 +262,7 @@ def _get_path_names(problem: BaseProblemSpec) -> list[str]:
         return names
     if problem.form == FormKind.DISCRETE:
         discrete = {DomainKind.CATEGORICAL, DomainKind.BOOLEAN, DomainKind.INTEGER}
-        return [name for name in names if problem.states.entry(name).kind in discrete]
+        return [name for name in names if problem.states.get_entry(name).kind in discrete]
     return []
 
 
@@ -788,7 +756,7 @@ def _read_networks(source: Source) -> list[nx.Graph]:
     if isinstance(source, nx.Graph):
         return [source]
     if isinstance(source, NetworkSnapshotSpec):
-        return [source.graph()]
+        return [source.get_graph()]
     if not isinstance(source, Trajectory):
         error_msg = f'Networks are read from a trajectory or a graph, not from {type(source).__name__}.'
         raise AnalysisError(error_msg)
@@ -800,26 +768,6 @@ def _read_networks(source: Source) -> list[nx.Graph]:
     if space is None:
         raise _get_missing_error(trajectory, 'network')
     return [space.graph] * len(trajectory.times)
-
-
-@cache
-def _import(name: str) -> ModuleType:
-    """Return a module, importing it on the first call.
-
-    Args:
-        name:
-            The dotted name of the module.
-
-    Returns:
-        module:
-            The imported module.
-
-    Examples:
-        >>> from skcomplex.core.analysis._base import _import
-        >>> _import('math').sqrt(4.0)
-        2.0
-    """
-    return import_module(name)
 
 
 def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:

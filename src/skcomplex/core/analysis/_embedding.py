@@ -1,6 +1,8 @@
 """Embed series in delay coordinates.
 
 The delay and the dimension are chosen from the data.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -24,10 +26,7 @@ SETTINGS = {
     'delay': {'delay', 'dimension', 'threshold', 'max_delay', 'max_dimension', 'bins'},
     'false-nearest-neighbors': {'delay', 'max_delay', 'max_dimension', 'bins', 'ratio', 'escape'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 KINDS = ('delay', 'false-nearest-neighbors')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

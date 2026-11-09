@@ -1,6 +1,8 @@
 """Measure networks.
 
 The measures are degrees, mixing, centralities, communities, neighbour degrees, and summary measures.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -31,12 +33,9 @@ SETTINGS = {
     'neighbor-degree': set(),
     'summary': set(),
 }
-"""Settings every kind reads, besides `kind`."""
-
 MIN_FIT_NODES = 50
 HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
-
 TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 

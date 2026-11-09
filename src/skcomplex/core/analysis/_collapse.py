@@ -1,6 +1,8 @@
 """Measure collapses of curves.
 
 The collapses are finite-size scaling, aging, distributions scaled by age, and crossings of curves.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -27,11 +29,8 @@ SETTINGS = {
     'distribution': {'ratios'},
     'crossings': {'parameters'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 MIN_SIZES = 2
 GRID = 50
-
 TAGS = AnalysisTags(DataKind.ENSEMBLE)
 
 

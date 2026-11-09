@@ -230,7 +230,7 @@ class EventLocator:
             bounds:
                 The times a step must not cross, in increasing order.
         """
-        return [*problem.breakpoints.between(t, until), until]
+        return [*problem.breakpoints.get_between(t, until), until]
 
     @staticmethod
     def _find_left_limit(bound: float) -> float:

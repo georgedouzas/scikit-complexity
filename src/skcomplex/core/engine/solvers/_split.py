@@ -406,7 +406,7 @@ class SplitSolver(Solver):
         values = []
         for item in symbols:
             reference = term.references[item]
-            column = reference.entry.view(p)[:, reference.column]
+            column = reference.entry.get_view(p)[:, reference.column]
             values.append(float(column[0]) if reference.entry.members is None else column)
         function = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols).run([term.coefficient]).code_
         if not callable(function):

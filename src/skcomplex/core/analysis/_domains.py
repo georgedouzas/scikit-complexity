@@ -1,6 +1,8 @@
 """Measure the domains of fields.
 
 The measures are their size, its growth in time, pattern wavelengths, and interface densities.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -31,10 +33,7 @@ SETTINGS = {
     'wavelength': {'spacing', 'times'},
     'interface-density': {'attribute', 'times'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MIN_LINE_POINTS = 2
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 

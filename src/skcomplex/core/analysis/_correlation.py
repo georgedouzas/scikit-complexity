@@ -1,6 +1,8 @@
 """Measure correlations.
 
 The correlations are autocorrelations of series, two-time correlations, spatial correlations, and overlaps.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -22,7 +24,6 @@ from .types import Source
 
 MIN_LINE_POINTS = 2
 MIN_FIT_POINTS = 3
-
 KINDS = ('auto', 'two-time', 'function', 'length', 'overlap')
 METHODS = ('moment', 'fit')
 SETTINGS = {
@@ -32,11 +33,8 @@ SETTINGS = {
     'length': {'method', 'spacing', 'frames'},
     'overlap': set(),
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MOMENT_ITERATIONS = 8
 REPLICAS = 2
-
 TAGS = AnalysisTags(DataKind.FIELD)
 KIND_TAGS = {
     'auto': AnalysisTags(DataKind.SERIES),

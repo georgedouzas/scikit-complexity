@@ -1,6 +1,9 @@
 """Measure information among series.
 
 The measures are mutual information, transfer, storage, total correlations, and divergences.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`. `SYMBOL_SETTINGS` holds the settings
+every symbolization reads.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -20,8 +23,9 @@ from scipy import stats
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import AnyArray, Array, DataKind
-from ._base import _check_choice, _check_settings, _import, _read_real, _read_series
+from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._entropy import _block_entropies, _shannon
+from ._utils import load_module
 from .types import Source
 
 KINDS = (
@@ -53,13 +57,8 @@ SETTINGS = {
     'o-information-gradients': {'symbols', 'estimator', 'k', 'base'},
     'kl-divergence': {'base'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 SYMBOL_SETTINGS = {None: set(), 'bins': {'bins'}, 'quantiles': {'bins'}, 'ordinal': {'order', 'delay'}}
-"""Settings every symbolization reads."""
-
 MIN_DIMENSION = 2
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -512,14 +511,14 @@ def _dit_distribution(columns: AnyArray) -> object:
     """Return the `dit` distribution of the empirical frequencies of the rows."""
     counts = Counter(tuple(row) for row in columns.tolist())
     total = sum(counts.values())
-    return _import('dit').Distribution(list(counts), [count / total for count in counts.values()])
+    return load_module('dit').Distribution(list(counts), [count / total for count in counts.values()])
 
 
 def _total(columns: AnyArray, estimator: str, k: int) -> float:
     """Return the total correlation `Σ H(X_i) - H(X)` of the columns in nats."""
     if estimator == 'plugin':
         return float(
-            _import('dit').multivariate.total_correlation(
+            load_module('dit').multivariate.total_correlation(
                 _dit_distribution(columns),
             ),
         ) * math.log(
@@ -538,7 +537,7 @@ def _dual(columns: AnyArray, estimator: str, k: int) -> float:
     """
     if estimator == 'plugin':
         return float(
-            _import('dit').multivariate.dual_total_correlation(
+            load_module('dit').multivariate.dual_total_correlation(
                 _dit_distribution(columns),
             ),
         ) * math.log(2)

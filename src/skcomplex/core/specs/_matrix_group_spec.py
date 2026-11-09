@@ -79,9 +79,9 @@ class MatrixGroupSpec(BaseSpec):
     @functools.cached_property
     def identity(self) -> Array:
         """Components of the identity matrix."""
-        return self.components_of(np.eye(self.degree, dtype=complex))
+        return self.get_components_of(np.eye(self.degree, dtype=complex))
 
-    def matrices_of(self, components: npt.ArrayLike) -> ComplexArray:
+    def get_matrices_of(self, components: npt.ArrayLike) -> ComplexArray:
         """Return the matrices of real components on the last axis.
 
         Args:
@@ -111,7 +111,7 @@ class MatrixGroupSpec(BaseSpec):
         parts = array.reshape(*array.shape[:-1], self.degree, self.degree, PARTS)
         return parts[..., 0] + 1j * parts[..., 1]
 
-    def components_of(self, matrices: npt.ArrayLike) -> Array:
+    def get_components_of(self, matrices: npt.ArrayLike) -> Array:
         """Return the real components of matrices on the last two axes.
 
         Args:
@@ -130,7 +130,7 @@ class MatrixGroupSpec(BaseSpec):
         array = np.asarray(matrices, dtype=complex)
         return np.stack([array.real, array.imag], axis=-1).reshape(*array.shape[:-2], self.size)
 
-    def projection_of(self, matrices: npt.ArrayLike) -> ComplexArray:
+    def get_projection_of(self, matrices: npt.ArrayLike) -> ComplexArray:
         """Return the nearest matrices of the group.
 
         They undo the rounding of repeated products. The unitary factor of the polar decomposition is the nearest
@@ -158,7 +158,7 @@ class MatrixGroupSpec(BaseSpec):
         phase = np.exp(1j * np.angle(np.linalg.det(unitary)) / self.degree)
         return unitary / phase[..., None, None]
 
-    def near_identity_of(self, rng: np.random.Generator, width: float, count: int) -> ComplexArray:
+    def get_near_identity_of(self, rng: np.random.Generator, width: float, count: int) -> ComplexArray:
         """Return random matrices of the group near the identity.
 
         They are `exp(i width H)` for random Hermitian `H`. The entries of `H` are standard normal up to Hermitian
@@ -196,7 +196,7 @@ class MatrixGroupSpec(BaseSpec):
         rotations = (vectors * np.exp(1j * width * values)[:, None, :]) @ np.conj(np.swapaxes(vectors, -1, -2))
         return np.asarray(rotations, dtype=complex)
 
-    def uniform_of(self, rng: np.random.Generator, count: int) -> ComplexArray:
+    def get_uniform_of(self, rng: np.random.Generator, count: int) -> ComplexArray:
         """Return matrices drawn from the Haar measure of the group.
 
         SciPy draws unitary matrices from the Haar measure of `U(n)`, and dividing by the principal `n`-th root of the
@@ -227,9 +227,9 @@ class MatrixGroupSpec(BaseSpec):
             unitary = np.asarray(drawn, dtype=complex).reshape(count, self.degree, self.degree)
         if self.name == 'U':
             return unitary
-        return self.projection_of(unitary)
+        return self.get_projection_of(unitary)
 
-    def holonomy_of(self, matrices: npt.ArrayLike, edges: npt.ArrayLike, signs: npt.ArrayLike) -> ComplexArray:
+    def get_holonomy_of(self, matrices: npt.ArrayLike, edges: npt.ArrayLike, signs: npt.ArrayLike) -> ComplexArray:
         """Return the path-ordered products of the matrices of the edges along paths.
 
         Every path is a row of edges on the last axis with the sign of its traversal, 1 along the orientation of the

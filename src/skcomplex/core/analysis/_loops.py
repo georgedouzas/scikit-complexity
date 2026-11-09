@@ -1,6 +1,8 @@
 """Derive the feedback loops of the signed dependency graph of a system.
 
 The module also gives their dominance and its flow matrices.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -25,9 +27,10 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..specs._loop_spec import _LoopSpec
 from ..types import Array, DataKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
-from ._stability import _dynamics_of
+from ._base import _check_choice, _check_settings, _composite, _read_system
+from ._stability import StabilityResult
 from ._symbolic import _transfer_network
+from ._utils import compile_problem
 from .types import Source
 
 KINDS = ('loops', 'dominance', 'flow-matrix')
@@ -36,10 +39,7 @@ SETTINGS = {
     'dominance': set(),
     'flow-matrix': {'frame', 'quantity'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
@@ -56,12 +56,12 @@ class _Graph:
         self.readers: dict[Expression, tuple[bool, int]] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
         terms = problem.transfer_network.terms if problem.transfer_network is not None else ()
-        self.described = self._described(terms)
+        self.described = self._get_described(terms)
         self.states = {entry.name for entry in problem.states.entries}
         for term in terms:
-            if self._holders(term) & self.described:
+            if self._get_holders(term) & self.described:
                 self._add(term)
-        hidden = self._hidden()
+        hidden = self._get_hidden()
         if any(name not in self.described | hidden for name in self.states):
             self._add_jacobian(hidden)
 
@@ -71,21 +71,21 @@ class _Graph:
         Its expression does not resolve such a variable.
         """
         entries = [term.references[item].entry for item in symbols_of([term.expression]) if item in term.references]
-        entries += [self.problem.states.entry(name) for name in self._holders(term)]
+        entries += [self.problem.states.get_entry(name) for name in self._get_holders(term)]
         return any(entry.members is not None for entry in entries)
 
-    def _described(self, terms: tuple[LoopTermSpec, ...]) -> set[str]:
+    def _get_described(self, terms: tuple[LoopTermSpec, ...]) -> set[str]:
         """Return the states whose rate the terms give.
 
         The terms of a state of higher order give its highest derivative rather than its rate, and those that read or
         change a group give the rates of all its members at once, so the Jacobian describes these states instead.
         """
-        changed = {name for term in terms for name in self._holders(term)}
-        unresolved = {name for term in terms if self._reads_group(term) for name in self._holders(term)}
+        changed = {name for term in terms for name in self._get_holders(term)}
+        unresolved = {name for term in terms if self._reads_group(term) for name in self._get_holders(term)}
         higher = {owner for kind, owner, _ in self.problem.companions.values() if kind == 'derivative'}
         return changed - unresolved - higher
 
-    def _hidden(self) -> set[str]:
+    def _get_hidden(self) -> set[str]:
         """Return the states the compiler adds for boundary flows, delays, and smoothings."""
         transfer_network = self.problem.transfer_network
         if transfer_network is None:
@@ -94,7 +94,7 @@ class _Graph:
         delays = {name.partition('[')[0] for name, item in self.problem.equation_symbols.items() if item in outputs}
         return set(transfer_network.boundary.values()) | delays
 
-    def _node_of(self, item: Expression, term: LoopTermSpec) -> str | None:
+    def _get_node_of(self, item: Expression, term: LoopTermSpec) -> str | None:
         """Return the state a symbol stands for, or `None` for parameters and time."""
         reference = term.references.get(item)
         if reference is None:
@@ -104,11 +104,11 @@ class _Graph:
 
     def _add(self, term: LoopTermSpec) -> None:
         """Add the edges of one term, from every node its expression reads."""
-        expression = self._without_delays(term.expression)
+        expression = self._copy_without_delays(term.expression)
         for item in symbols_of([expression]) - {self.problem.time}:
-            node = self._node_of(item, term)
+            node = self._get_node_of(item, term)
             if node is not None:
-                self.edges[(node, term.path)] += self._derivative(expression, item)
+                self.edges[(node, term.path)] += self._get_derivative(expression, item)
         if term.kind == 'flow':
             if term.sink in self.described:
                 self.edges[(term.path, term.sink)] += 1
@@ -121,7 +121,7 @@ class _Graph:
         The edges come from its row of the Jacobian. The row of a map is that of the change of every state in one step,
         its next value minus itself, so that its edges and those of flows per step have the same meaning.
         """
-        dynamics = _dynamics_of(self.problem)
+        dynamics = StabilityResult._get_dynamics_of(self.problem)
         nodes = {}
         for name, item in zip(dynamics.names, dynamics.symbols, strict=True):
             entry_name = name.partition('[')[0]
@@ -134,7 +134,7 @@ class _Graph:
                 continue
             change = SR(rate - item if dynamics.discrete else rate).subs(dynamics.parameters)
             for other, node in nodes.items():
-                derivative = self._derivative(change, other)
+                derivative = self._get_derivative(change, other)
                 if not derivative.is_trivial_zero():
                     self.edges[(node, nodes[item])] += derivative
 
@@ -163,20 +163,20 @@ class _Graph:
         return np.broadcast_to(gains, np.shape(times)).copy()
 
     @staticmethod
-    def _without_delays(expression: Expression) -> Expression:
+    def _copy_without_delays(expression: Expression) -> Expression:
         """Return an expression with every delay and smoothing replaced by its input.
 
         A delay or a smoothing follows its input with gain one.
         """
         calls = {
             item: item.operands()[0]
-            for item in _Graph._operations(expression)
+            for item in _Graph._get_operations(expression)
             if delay_parts(getattr(item.operator(), 'name', lambda: '')()) is not None
         }
-        return _Graph._without_delays(SR(expression).subs(calls)) if calls else SR(expression)
+        return _Graph._copy_without_delays(SR(expression).subs(calls)) if calls else SR(expression)
 
     @staticmethod
-    def _derivative(expression: Expression, item: Expression) -> Expression:
+    def _get_derivative(expression: Expression, item: Expression) -> Expression:
         """Return the partial derivative of an expression without the deltas of steps.
 
         The deltas are Dirac deltas.
@@ -186,12 +186,12 @@ class _Graph:
         return SR(expression).diff(item).subs(dirac_delta(SR.wild(0)) == 0)
 
     @staticmethod
-    def _holders(term: LoopTermSpec) -> set[str]:
+    def _get_holders(term: LoopTermSpec) -> set[str]:
         """Return the states whose rate a term changes."""
         return {term.path} if term.kind == 'rate' else {name for name in (term.source, term.sink) if name is not None}
 
     @staticmethod
-    def _operations(expression: Expression) -> list[Expression]:
+    def _get_operations(expression: Expression) -> list[Expression]:
         """Return every subexpression of an expression that applies an operator."""
         found, stack = [], [SR(expression)]
         while stack:
@@ -335,7 +335,7 @@ def loops(
         error_msg = f'loops of kind {kind!r} reads a trajectory, not {type(source).__name__}.'
         raise AnalysisError(error_msg)
     trajectory = source if isinstance(source, Trajectory) else None
-    problem = _compiled_problem(_read_system(source), 'The feedback loop analysis')
+    problem = compile_problem(_read_system(source), 'The feedback loop analysis')
     if kind == 'flow-matrix' and not _transfer_network(problem).flows:
         error_msg = (
             'The system declares no flows, so it has no transaction-flow matrix. Read the signed dependency of its '

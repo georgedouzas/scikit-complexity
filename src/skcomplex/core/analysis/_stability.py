@@ -1,6 +1,8 @@
 """Derive the stability of a system.
 
 The module derives the fixed points and their stability, or the dispersion relation of a field around a uniform state.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -28,9 +30,10 @@ from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind, FormKind, VariableKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
+from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
+from ._utils import compile_problem
 from .types import Point, Source
 
 KINDS = ('fixed-points', 'dispersion')
@@ -38,13 +41,10 @@ SETTINGS = {
     'fixed-points': {'parameters', 'points'},
     'dispersion': {'at'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz', 'convolve', 'shifted')
 EIGENVALUE = symbol('_eigenvalue_')
 ZERO = 1e-9
 MEMBER_LIMIT = 64
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
@@ -121,6 +121,144 @@ class StabilityResult:
     frequencies: Array | None = None
     uniform: dict[str, float] | None = None
     band: Array | None = None
+
+    @staticmethod
+    def _check_groups(problem: ProblemSpec) -> None:
+        """Raise an error for a group above the member limit or a weighted reduction.
+
+        The weighted reduction is one read by an element set.
+        """
+        for element in problem.elements:
+            if element.members is not None and element.members > MEMBER_LIMIT:
+                error_msg = (
+                    f'The group {element.path} has {element.members} members, above the limit of {MEMBER_LIMIT} '
+                    'members that symbolic analysis expands into one equation each. Analyse a smaller group.'
+                )
+                raise AnalysisError(error_msg)
+        for reduction in problem.reductions:
+            if reduction.weights is not None and reduction.entry.members is None and reduction.weights.shape[0] > 1:
+                error_msg = (
+                    f'A weighted reduction over {reduction.group} is read by an element set, which symbolic analysis '
+                    'does not expand. Build the readers as a group.'
+                )
+                raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _expand_groups(
+        problem: ProblemSpec,
+        parameter_values: npt.NDArray[np.float64],
+    ) -> tuple[list[str], list[Expression], list[Expression], dict[Expression, float]]:
+        """Return the equations of a problem with group members and reductions expanded.
+
+        Every member and every reduction is written out.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            parameter_values:
+                The parameter vector whose values the member parameters take.
+
+        Returns:
+            expansion:
+                The state component names, their symbols, their right sides, and the values of the member parameters.
+
+        Raises:
+            AnalysisError:
+                A group has more members than the limit, or an element set reads a weighted reduction.
+        """
+        StabilityResult._check_groups(problem)
+        expansion = _Expansion(parameter_values).prepare(problem)
+        names: list[str] = []
+        symbols: list[Expression] = []
+        rates: list[Expression] = []
+        for name, item in problem.equation_symbols.items():
+            rate = SR(problem.equations[name])
+            entry_name = name.partition('[')[0]
+            entry = problem.states.get_entry(entry_name)
+            if entry.members is None:
+                placeholders = expansion.run((set(), 0)).expansion_
+                names.append(name)
+                symbols.append(item)
+                rates.append(rate.subs(placeholders) if placeholders else rate)
+                continue
+            column = components_of(problem.symbols[entry_name]).index(item)
+            owner = entry_name.rpartition('.')[0]
+            own = {
+                other.name
+                for layout in (problem.states, problem.parameters)
+                for other in layout.entries
+                if other.name.rpartition('.')[0] == owner
+            }
+            for member in range(entry.rows):
+                mapping = expansion.run((own, member)).expansion_
+                names.append(entry.component_names[member * entry.columns + column])
+                symbols.append(mapping[item])
+                rates.append(rate.subs(mapping))
+        return names, symbols, rates, expansion.values_
+
+    @staticmethod
+    def _get_dynamics_of(
+        system: CompositeSystem | BaseProblemSpec,
+        parameters: Mapping[str, float] | None = None,
+    ) -> _DynamicsSpec:
+        """Return the first-order equations of a system.
+
+        The parameters are at their current values.
+
+        Args:
+            system:
+                The system, or the problem compiled from one.
+
+            parameters:
+                The values of parameters by name that replace their initial values, or `None` for none.
+
+        Returns:
+            dynamics:
+                The names, symbols, and right sides of the first-order equations, with the values of the parameters.
+
+        Raises:
+            AnalysisError:
+                The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
+                or has a group of more than 64 members.
+        """
+        problem = compile_problem(system, 'Linear stability')
+        if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
+            error_msg = f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form}.'
+            raise AnalysisError(error_msg)
+        if problem.has_callables or problem.has_group_sums:
+            error_msg = (
+                'The system has callable laws or sums over group members into single elements, which have no symbolic '
+                'vector field. Write the sums as reductions, or analyse one member.'
+            )
+            raise AnalysisError(error_msg)
+        if problem.delays:
+            error_msg = (
+                'The system reads delayed states, so its state space is infinite-dimensional and it has no vector '
+                'field of finitely many states. Analyse its trajectories instead.'
+            )
+            raise AnalysisError(error_msg)
+        values = problem.initial_parameters.copy()
+        for name, value in (parameters or {}).items():
+            if not problem.parameters.has(name):
+                error_msg = (
+                    f'{name} is not a parameter. Available parameters are: {", ".join(problem.parameters.names)}.'
+                )
+                raise AnalysisError(error_msg)
+            values[problem.parameters.get_entry(name).indices] = value
+        current = {}
+        for entry in problem.parameters.entries:
+            for column, item in enumerate(components_of(problem.symbols[entry.name])):
+                current[item] = float(values[entry.start + column])
+        names, symbols, rates, members = StabilityResult._expand_groups(problem, values)
+        return _DynamicsSpec(
+            problem=problem,
+            names=names,
+            symbols=symbols,
+            rates=rates,
+            parameters={**current, **members},
+            discrete=problem.form == FormKind.DISCRETE,
+        )
 
 
 def stability(
@@ -203,8 +341,8 @@ def stability(
             uniform=uniform,
             band=np.unique(np.round(magnitudes[growth_rates > 0], 12)),
         )
-    problem = _dynamics_of(_read_system(source), parameters).problem
-    dynamics = _dynamics_of(problem, parameters)
+    problem = StabilityResult._get_dynamics_of(_read_system(source), parameters).problem
+    dynamics = StabilityResult._get_dynamics_of(problem, parameters)
     jacobian = matrix(SR, [[rate.diff(item) for item in dynamics.symbols] for rate in dynamics.rates])
     nullclines = {
         name: (rate - item if dynamics.discrete else rate) == 0
@@ -262,142 +400,6 @@ def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> 
         dtype=complex,
     )
     return np.linalg.eigvals(numeric)
-
-
-def _check_groups(problem: ProblemSpec) -> None:
-    """Raise an error for a group above the member limit or a weighted reduction.
-
-    The weighted reduction is one read by an element set.
-    """
-    for element in problem.elements:
-        if element.members is not None and element.members > MEMBER_LIMIT:
-            error_msg = (
-                f'The group {element.path} has {element.members} members, above the limit of {MEMBER_LIMIT} '
-                'members that symbolic analysis expands into one equation each. Analyse a smaller group.'
-            )
-            raise AnalysisError(error_msg)
-    for reduction in problem.reductions:
-        if reduction.weights is not None and reduction.entry.members is None and reduction.weights.shape[0] > 1:
-            error_msg = (
-                f'A weighted reduction over {reduction.group} is read by an element set, which symbolic analysis '
-                'does not expand. Build the readers as a group.'
-            )
-            raise AnalysisError(error_msg)
-
-
-def _expand_groups(
-    problem: ProblemSpec,
-    parameter_values: npt.NDArray[np.float64],
-) -> tuple[list[str], list[Expression], list[Expression], dict[Expression, float]]:
-    """Return the equations of a problem with group members and reductions expanded.
-
-    Every member and every reduction is written out.
-
-    Args:
-        problem:
-            The compiled problem.
-
-        parameter_values:
-            The parameter vector whose values the member parameters take.
-
-    Returns:
-        expansion:
-            The state component names, their symbols, their right sides, and the values of the member parameters.
-
-    Raises:
-        AnalysisError:
-            A group has more members than the limit, or an element set reads a weighted reduction.
-    """
-    _check_groups(problem)
-    expansion = _Expansion(parameter_values).prepare(problem)
-    names: list[str] = []
-    symbols: list[Expression] = []
-    rates: list[Expression] = []
-    for name, item in problem.equation_symbols.items():
-        rate = SR(problem.equations[name])
-        entry_name = name.partition('[')[0]
-        entry = problem.states.entry(entry_name)
-        if entry.members is None:
-            placeholders = expansion.run((set(), 0)).expansion_
-            names.append(name)
-            symbols.append(item)
-            rates.append(rate.subs(placeholders) if placeholders else rate)
-            continue
-        column = components_of(problem.symbols[entry_name]).index(item)
-        owner = entry_name.rpartition('.')[0]
-        own = {
-            other.name
-            for layout in (problem.states, problem.parameters)
-            for other in layout.entries
-            if other.name.rpartition('.')[0] == owner
-        }
-        for member in range(entry.rows):
-            mapping = expansion.run((own, member)).expansion_
-            names.append(entry.component_names[member * entry.columns + column])
-            symbols.append(mapping[item])
-            rates.append(rate.subs(mapping))
-    return names, symbols, rates, expansion.values_
-
-
-def _dynamics_of(
-    system: CompositeSystem | BaseProblemSpec,
-    parameters: Mapping[str, float] | None = None,
-) -> _DynamicsSpec:
-    """Return the first-order equations of a system.
-
-    The parameters are at their current values.
-
-    Args:
-        system:
-            The system, or the problem compiled from one.
-
-        parameters:
-            The values of parameters by name that replace their initial values, or `None` for none.
-
-    Returns:
-        dynamics:
-            The names, symbols, and right sides of the first-order equations, with the values of the parameters.
-
-    Raises:
-        AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
-            or has a group of more than 64 members.
-    """
-    problem = _compiled_problem(system, 'Linear stability')
-    if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
-        error_msg = f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form}.'
-        raise AnalysisError(error_msg)
-    if problem.has_callables or problem.has_group_sums:
-        error_msg = (
-            'The system has callable laws or sums over group members into single elements, which have no symbolic '
-            'vector field. Write the sums as reductions, or analyse one member.'
-        )
-        raise AnalysisError(error_msg)
-    if problem.delays:
-        error_msg = (
-            'The system reads delayed states, so its state space is infinite-dimensional and it has no vector '
-            'field of finitely many states. Analyse its trajectories instead.'
-        )
-        raise AnalysisError(error_msg)
-    values = problem.initial_parameters.copy()
-    for name, value in (parameters or {}).items():
-        if not problem.parameters.has(name):
-            error_msg = f'{name} is not a parameter. Available parameters are: {", ".join(problem.parameters.names)}.'
-            raise AnalysisError(error_msg)
-        values[problem.parameters.entry(name).indices] = value
-    current = {}
-    for entry in problem.parameters.entries:
-        for column, item in enumerate(components_of(problem.symbols[entry.name])):
-            current[item] = float(values[entry.start + column])
-    names, symbols, rates, members = _expand_groups(problem, values)
-    return _DynamicsSpec(
-        problem=problem,
-        names=names,
-        symbols=symbols,
-        rates=rates,
-        parameters={**current, **members},
-        discrete=problem.form == FormKind.DISCRETE,
-    )
 
 
 def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:

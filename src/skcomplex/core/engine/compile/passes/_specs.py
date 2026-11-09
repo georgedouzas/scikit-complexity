@@ -165,7 +165,7 @@ class SpecsPass(BasePass):
             elif name in block.per:
                 symbols[name] = tuple(SpecsPass._get_renamed(item, mapping) for item in value)
             elif name in block.entries and (tensor := block.entries[name].tensor) is not None:
-                symbols[name] = tensor.matrix_of(SpecsPass._get_renamed(item, mapping) for item in value)
+                symbols[name] = tensor.get_matrix_of(SpecsPass._get_renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(SpecsPass._get_renamed(item, mapping) for item in value)
         ports = getattr(block.node.component_type, 'ports', None)

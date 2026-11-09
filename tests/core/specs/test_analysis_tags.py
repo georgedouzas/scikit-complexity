@@ -23,11 +23,11 @@ def test_missing_names_the_fields_a_system_lacks():
         randomness='deterministic',
     )
     system = Tags(time=frozenset({'discrete'}), space=frozenset({'none'}), randomness='stochastic')
-    assert needed.missing(system) == {'time': ['discrete'], 'space': ['none'], 'randomness': ['stochastic']}
+    assert needed.get_missing(system) == {'time': ['discrete'], 'space': ['none'], 'randomness': ['stochastic']}
 
 
 def test_missing_accepts_one_needed_value_and_unknown_tags():
     """Test that a system with one of the needed spaces, or with unknown tags, misses nothing."""
     needed = AnalysisTags('network', space=frozenset({'network', 'hypergraph'}), randomness='deterministic')
-    assert not needed.missing(Tags(space=frozenset({'network', 'lattice'})))
-    assert not needed.missing(Tags(laws=None, randomness=None))
+    assert not needed.get_missing(Tags(space=frozenset({'network', 'lattice'})))
+    assert not needed.get_missing(Tags(laws=None, randomness=None))

@@ -732,7 +732,7 @@ class CensusPass(BasePass):
 
         Its dependent entries are not the ones its independent entries give.
         """
-        expected = tensor.matrix_of(value[row, column] for row, column in tensor.indices)
+        expected = tensor.get_matrix_of(value[row, column] for row, column in tensor.indices)
         size = tensor.n_dim
         for row in range(size):
             for column in range(size):

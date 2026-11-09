@@ -62,7 +62,7 @@ class Tags(BaseSpec):
         >>> sorted(tags.laws), tags.randomness
         (['noise', 'rate'], 'stochastic')
         >>> supported = Tags(time=frozenset({'continuous'}), laws=frozenset({'rate'}))
-        >>> supported.missing(tags)
+        >>> supported.get_missing(tags)
         {'laws': ['noise']}
         >>> tags.differentiable, supported.differentiable
         (False, True)
@@ -109,7 +109,7 @@ class Tags(BaseSpec):
         randomness = self.randomness == 'deterministic' or (self.randomness == 'stochastic' and self.reparameterized)
         return randomness and self.laws is not None and bool(self.laws) and self.laws <= DIFFERENTIABLE_LAWS
 
-    def missing(self, tags: Tags) -> dict[str, list[str]]:
+    def get_missing(self, tags: Tags) -> dict[str, list[str]]:
         """Return the tags of a system that these supported tags do not support, by field.
 
         A field of the supported tags that is empty supports any value. The system needs one of its times to be

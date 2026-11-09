@@ -32,7 +32,7 @@ trajectory = simulate(system, until=1.0, observers=[observer])
 
 bounds = {'n_firms': [2, 3], 'alpha': [0.2]}
 result = sweep(OligopolyEquilibriaSystem(), bounds, until=1.0, outputs=['prices.price', 'prices.distribution'])
-prices, distributions = result.series('prices.price')[:, 0], result.series('prices.distribution')[:, 0]
+prices, distributions = result.get_series('prices.price')[:, 0], result.get_series('prices.distribution')[:, 0]
 played = simulate(OligopolyEquilibriaSystem(dynamics='fictitious-play'), until=2000, random_state=0)
 charged = np.sort(np.concatenate([played.get_values('lower_price')[1:], played.get_values('higher_price')[1:]]))
 grid = np.linspace(1 / 3, 1.0, 100)

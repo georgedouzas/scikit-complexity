@@ -577,7 +577,7 @@ from skcomplex.core.experiments import ensemble
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
-result.column('seed').tolist()
+result.get_column('seed').tolist()
 ```
 
 ## An incompatible experiment

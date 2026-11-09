@@ -13,7 +13,7 @@ def test_scenarios_override_model_parameters():
     scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]
     result = compare_scenarios(SIRSystem(), scenarios, replicates=2, until=100, outputs=['I.x'], random_state=0)
     assert [row['scenario'] for row in result.rows] == ['baseline', 'baseline', 'distancing', 'distancing']
-    baseline, _, distancing, _ = result.series('I.x')
+    baseline, _, distancing, _ = result.get_series('I.x')
     assert distancing.max() < baseline.max()
     assert result.runs[0].seed == result.runs[2].seed
 

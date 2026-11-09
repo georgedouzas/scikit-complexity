@@ -22,7 +22,7 @@ class _JumpChannelsSpec(BaseSpec):
     increments: Array
     changes: tuple[Callable[[float, Array, Array], Array] | None, ...] = ()
 
-    def increments_at(self, t: float, x: Array, p: Array, member: int) -> Array:
+    def get_increments_at(self, t: float, x: Array, p: Array, member: int) -> Array:
         """Return the increment of every target at a firing.
 
         Only a target that has a function gets an increment from it.

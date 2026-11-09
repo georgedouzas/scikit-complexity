@@ -1,6 +1,8 @@
 """Fit laws to samples.
 
 The laws are power-law tails, stable laws, extreme-value laws, and named laws.
+
+`SETTINGS` holds the settings every law reads, besides `law`, `variables`, and `group`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -37,11 +39,8 @@ SETTINGS = {
     'extreme-value': {'block'},
     **{law: {'fixed', 'simulations', 'random_state'} for law in NAMED_LAWS},
 }
-"""Settings every law reads, besides `law`, `variables`, and `group`."""
-
 MIN_TAIL = 10
 MIN_BLOCKS = 10
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

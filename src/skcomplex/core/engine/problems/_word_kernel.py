@@ -455,13 +455,13 @@ class WordKernel(BaseKernel):
         generation: int,
     ) -> WordStructureSpec:
         """Return a word with the segments its geometry draws."""
-        frozen_codes = BaseStructureSpec._frozen(codes, np.int64)
-        frozen_table = BaseStructureSpec._frozen(table, np.float64)
+        frozen_codes = BaseStructureSpec._get_frozen(codes, np.int64)
+        frozen_table = BaseStructureSpec._get_frozen(table, np.float64)
         if self.geometry is None:
             return WordStructureSpec(self.names, frozen_codes, frozen_table, generation)
         segments, depths = self._interpret(self.geometry, self.actions[codes], table, generation)
-        strokes = BaseStructureSpec._frozen(segments, np.float64)
-        frozen_depths = BaseStructureSpec._frozen(depths, np.int64)
+        strokes = BaseStructureSpec._get_frozen(segments, np.float64)
+        frozen_depths = BaseStructureSpec._get_frozen(depths, np.int64)
         return WordStructureSpec(
             self.names,
             frozen_codes,

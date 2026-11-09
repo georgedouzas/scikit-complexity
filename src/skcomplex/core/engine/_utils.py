@@ -56,7 +56,7 @@ def symbol(name: str, domain: object = RR) -> Expression:
     item = SR.symbol(name)
     for previous in ('integer', 'real'):
         item.decl_forget(previous)
-    assumption = EntrySpec._sage_assumption(domain)
+    assumption = EntrySpec._get_sage_assumption(domain)
     if assumption != 'complex':
         item.decl_assume('integer' if assumption == 'integer' else 'real')
     return item

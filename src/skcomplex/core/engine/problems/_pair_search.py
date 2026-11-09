@@ -51,8 +51,8 @@ class PairSearch(BaseSearch):
         They are the first and second members of every pair.
         """
         x, p = state.x, state.p
-        cutoff = float(self.cutoff.view(p)[0, 0])
-        first, second = self._get_positions(self.first.view(x)), self._get_positions(self.second.view(x))
+        cutoff = float(self.cutoff.get_view(p)[0, 0])
+        first, second = self._get_positions(self.first.get_view(x)), self._get_positions(self.second.get_view(x))
         boxsize = self.period
         first_tree = cKDTree(first, boxsize=boxsize)
         if self.first == self.second:
@@ -84,7 +84,7 @@ class PairSearch(BaseSearch):
             positions:
                 One row of second member positions per pair.
         """
-        first_positions, second_positions = self.first.view(x)[first], self.second.view(x)[second]
+        first_positions, second_positions = self.first.get_view(x)[first], self.second.get_view(x)[second]
         if self.period is None:
             return second_positions
         difference = first_positions - second_positions

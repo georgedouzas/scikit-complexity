@@ -1,6 +1,8 @@
 """Measure emergence across scales.
 
 The measures are effective information, causal emergence, integrated criteria, and closure.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -27,7 +29,6 @@ from ._markov import _stationary_distribution
 from .types import Partition, Source
 
 MATRIX_DIMENSIONS = 2
-
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
 MATRIX_KINDS = ('effective-information', 'causal')
 WEIGHTINGS = ('uniform', 'stationary')
@@ -39,11 +40,8 @@ SETTINGS = {
     'criteria': {'partition', 'lag', 'estimator', 'k', 'base'},
     'closure': {'partition', 'history', 'base'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'effective-information': AnalysisTags(DataKind.PATH),

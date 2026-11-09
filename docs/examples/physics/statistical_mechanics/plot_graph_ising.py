@@ -54,7 +54,7 @@ result = sweep(
     outputs=[magnetization],
     random_state=0,
 )
-rows = sorted(result.summary(), key=lambda row: row['temperature'])
+rows = sorted(result.get_summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot([row['temperature'] for row in rows], [row['magnetization.mean'] for row in rows], 'o-', label='simulation')
 ax.axvline(2 / np.log(2), color='black', linestyle='--', label='Bethe T_c = 2 / ln 2')

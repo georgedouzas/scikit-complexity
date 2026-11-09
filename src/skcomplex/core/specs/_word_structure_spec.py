@@ -63,7 +63,7 @@ class WordStructureSpec(BaseStructureSpec):
         """Whether a word geometry has drawn the word."""
         return self.strokes is not None
 
-    def modules(self) -> list[ModuleSpec]:
+    def get_modules(self) -> list[ModuleSpec]:
         """Return the modules of the word with their parameters.
 
         Returns:
@@ -82,7 +82,7 @@ class WordStructureSpec(BaseStructureSpec):
 
         Modules are separated by spaces when one has parameters or a long name.
         """
-        modules = self.modules()
+        modules = self.get_modules()
         texts = [
             module.name if not module.parameters else f'{module.name}({", ".join(f"{v:g}" for v in module.parameters)})'
             for module in modules
@@ -105,7 +105,7 @@ class WordStructureSpec(BaseStructureSpec):
             return 0
         return int(np.count_nonzero(self.codes == self.alphabet.index(name)))
 
-    def segments(self) -> AnyArray:
+    def get_segments(self) -> AnyArray:
         """Return the segments of the word geometry.
 
         Returns:

@@ -1,6 +1,8 @@
 """Measure the entropy of series, symbols, and fields.
 
 The entropies are of distributions, blocks, ordinal patterns, and regularity.
+
+`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -19,7 +21,8 @@ from scipy import stats
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec
 from ..types import Array, DataKind
-from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _import, _read_fields, _read_series
+from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
+from ._utils import load_module
 from .types import Source
 
 KINDS = (
@@ -53,10 +56,7 @@ SETTINGS = {
     'spectral': {'dt', 'normalize'},
     'ensemble': {'reference'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 TIES = ('order', 'random')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'ensemble': AnalysisTags(DataKind.ENSEMBLE),
@@ -323,7 +323,7 @@ def _compute(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float |
         return _compute_blocks(values, settings)
     if kind == 'lempel-ziv':
         _, codes = np.unique(np.asarray(values).ravel(), return_inverse=True)
-        return float(_import('antropy').lziv_complexity(codes.astype(np.int64), normalize=settings.normalize))
+        return float(load_module('antropy').lziv_complexity(codes.astype(np.int64), normalize=settings.normalize))
     if kind == 'permutation':
         return _compute_permutation(values, settings)
     return _compute_regularity(np.ascontiguousarray(values, dtype=float), settings)
@@ -378,7 +378,7 @@ def _compute_regularity(array: Array, settings: _EntropySpec) -> float | Array:
 
     The series is real.
     """
-    antropy = _import('antropy')
+    antropy = load_module('antropy')
     dimension = _get_length(settings)
     if settings.kind == 'sample':
         return _sample(array, dimension, settings.tolerance)
@@ -518,4 +518,4 @@ def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
     """
     array = np.ascontiguousarray(values, dtype=float)
     radius = _tolerance(array, tolerance)
-    return float(_import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0
+    return float(load_module('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0

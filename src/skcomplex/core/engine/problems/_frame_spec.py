@@ -101,5 +101,5 @@ class FrameSpec(BaseSpec):
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        member = self.problem.states.entry(name).member_shape
+        member = self.problem.states.get_entry(name).member_shape
         return np.reshape(self.get_value(name), (*shape, *member))

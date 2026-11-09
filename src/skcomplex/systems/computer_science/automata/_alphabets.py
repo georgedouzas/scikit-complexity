@@ -298,7 +298,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         rule = functools.partial(
             self._power_series_difference,
             ring=ring,
-            variable=ring.coefficients_of(ring.ring.gen()),
+            variable=ring.get_coefficients_of(ring.ring.gen()),
         )
         return CompositeSystem(
             self.label,

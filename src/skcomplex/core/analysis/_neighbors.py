@@ -1,6 +1,8 @@
 """Measure the neighbours of agents.
 
 The measures are nearest-neighbour distances, the Clark-Evans ratio, `g(r)`, and like shares.
+
+`SETTINGS` holds the settings every kind reads, besides `kind`.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -23,14 +25,12 @@ from ._base import SNAPSHOT_DIMENSIONS, _check_settings, _read_fields, _read_net
 from .types import Source
 
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
-# Settings every kind reads, besides `kind`.
 SETTINGS = {
     'distances': {'group', 'box'},
     'clark-evans': {'group', 'box'},
     'radial-distribution': {'group', 'box', 'bins', 'r_max'},
     'like-share': {'variables', 'attribute', 'empty', 'diagonal'},
 }
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 KIND_TAGS = {
     'like-share': AnalysisTags(DataKind.FIELD),

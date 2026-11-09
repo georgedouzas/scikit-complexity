@@ -10,6 +10,8 @@ from sage.all__sagemath_symbolics import Expression
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 
+RELAXED_KINDS = frozenset({'bernoulli', 'categorical'})
+
 
 @dataclass(frozen=True)
 class DrawSpec(BaseSpec):
@@ -83,6 +85,3 @@ class DrawSpec(BaseSpec):
     def parameters(self) -> dict[str, Expression]:
         """Arguments of a draw from a `scipy.stats` distribution by keyword."""
         return dict(zip(self.keywords, self.arguments, strict=True)) if self.kind == 'draw' else {}
-
-
-RELAXED_KINDS = frozenset({'bernoulli', 'categorical'})

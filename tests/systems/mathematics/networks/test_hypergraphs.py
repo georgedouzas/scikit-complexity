@@ -60,7 +60,7 @@ def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
     )
     trajectory = simulation
     network = trajectory.get_network(-1)
-    graph = network.graph()
+    graph = network.get_graph()
     assert network.hyperedges.shape == (51, 3)
     assert (graph.number_of_nodes(), graph.number_of_edges()) == (53, 3 + 2 * 50)
     assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())

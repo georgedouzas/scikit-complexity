@@ -34,7 +34,7 @@ bounds = {'algorithm': ['differential-evolution', 'particle-swarm'], 'random_sta
 result = sweep(EvolutionaryOptimisersSystem(), bounds, until=100, outputs=['search.best'])
 for name, best in zip(
     bounds['algorithm'],
-    result.series('search.best'),
+    result.get_series('search.best'),
     strict=True,
 ):
     ax.semilogy(best[1:] + 1e-12, label=name)

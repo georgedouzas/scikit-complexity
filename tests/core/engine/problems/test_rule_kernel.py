@@ -113,7 +113,7 @@ def test_function_rule_updates_a_power_series_state():
     values[3, 0] = 1.0
 
     def difference(here, right):
-        return here - ring.multiply(ring.coefficients_of('t'), right)
+        return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
     system = CompositeSystem(
         elements=[

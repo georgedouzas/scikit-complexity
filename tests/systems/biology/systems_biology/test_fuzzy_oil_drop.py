@@ -126,7 +126,7 @@ def _column_of(path, entity, component):
             row
             for name in batch.schema.names
             if name.endswith(component)
-            for row in batch.column(name).to_pylist()
+            for row in batch.get_column(name).to_pylist()
             if row is not None
         ]
     return rows

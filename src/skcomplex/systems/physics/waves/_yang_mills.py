@@ -289,7 +289,8 @@ def _get_traces(values: Array, group: MatrixGroupSpec, edges: Indices, signs: Ar
     """
     return np.stack(
         [
-            np.trace(group.holonomy_of(group.matrices_of(frame), edges, signs), axis1=-2, axis2=-1) / group.degree
+            np.trace(group.get_holonomy_of(group.get_matrices_of(frame), edges, signs), axis1=-2, axis2=-1)
+            / group.degree
             for frame in values
         ],
     )
@@ -343,8 +344,8 @@ LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
 def _mean_plaquette(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
     """Return the mean of `Re tr U_p / N` over the plaquettes."""
     del t
-    matrices = group.matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
-    plaquettes = group.holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
+    matrices = group.get_matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
+    plaquettes = group.get_holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
     return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
 
 
@@ -479,11 +480,11 @@ class LatticeYangMillsSystem(BaseSystem):
         space = CellComplexSpace(LatticeSpace(shape)).prepare()
         count = space.incidences_[0].shape[0]
         if self.links is None:
-            matrices = group.uniform_of(np.random.default_rng(self.seed), count)
+            matrices = group.get_uniform_of(np.random.default_rng(self.seed), count)
         else:
             matrices = np.asarray(self.links, dtype=complex)
         if matrices.shape != (count, self.colors, self.colors) or not np.allclose(
-            group.projection_of(matrices),
+            group.get_projection_of(matrices),
             matrices,
         ):
             error_msg = (
@@ -496,7 +497,7 @@ class LatticeYangMillsSystem(BaseSystem):
             element=element,
             space=space,
             on='edges',
-            values={'U': group.components_of(matrices)},
+            values={'U': group.get_components_of(matrices)},
         )
         sampling = WilsonSamplingInteraction(
             'wilson',

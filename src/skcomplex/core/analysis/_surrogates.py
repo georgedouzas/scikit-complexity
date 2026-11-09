@@ -18,7 +18,6 @@ from ._base import _read_series
 from .types import Source
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 

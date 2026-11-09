@@ -92,7 +92,7 @@ def test_matrix_group_state_stores_the_real_components_of_every_matrix():
     problem = PassCompiler().prepare(CompositeSystem(elements=[links])).run().problem_
     entry = problem.states.entries[0]
     assert (entry.rows, entry.columns) == (32, 18)
-    matrices = COLOR.matrices_of(np.reshape(problem.initial_state, (32, 18)))
+    matrices = COLOR.get_matrices_of(np.reshape(problem.initial_state, (32, 18)))
     assert np.array_equal(matrices, np.broadcast_to(np.eye(3), (32, 3, 3)))
 
 

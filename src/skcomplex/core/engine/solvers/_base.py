@@ -301,7 +301,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
             hybrid:
                 Whether the problem has delays, events, or breakpoints up to and at the end.
         """
-        return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
+        breaks = problem.breakpoints.get_between(t, math.nextafter(until, math.inf))
+        return bool(problem.delays or problem.events or breaks)
 
     @staticmethod
     def _reject_hybrid(problem: ProblemSpec, solver: str) -> None:

@@ -188,7 +188,7 @@ class SchoolingInteraction(ZoneCouplingInteraction):
         )
 
     @staticmethod
-    def _unit(vector: Array) -> Array:
+    def _get_unit(vector: Array) -> Array:
         """Return a vector scaled to unit length, or the vector itself when it is zero."""
         norm = float(np.hypot(*vector))
         return vector / norm if norm > 0 else vector
@@ -200,7 +200,7 @@ class SchoolingInteraction(ZoneCouplingInteraction):
         """
         size = agent.size
         offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
-        return self._unit((offset + size / 2) % size - size / 2)
+        return self._get_unit((offset + size / 2) % size - size / 2)
 
     def _get_repulsion(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
         """Return the direction away from a close neighbour."""
@@ -231,10 +231,10 @@ class SchoolingInteraction(ZoneCouplingInteraction):
         if reduction is None:
             return heading
         if priority == 1:
-            desired = self._unit(reduction)
+            desired = self._get_unit(reduction)
         else:
             goal = np.array([math.cos(fish.preferred), math.sin(fish.preferred)])
-            desired = self._unit(self._unit(heading + reduction) + fish.omega * goal)
+            desired = self._get_unit(self._get_unit(heading + reduction) + fish.omega * goal)
         return desired if float(np.hypot(*desired)) > 0 else heading
 
 
