@@ -90,7 +90,7 @@ def test_match_settles_transfers_and_realises_the_surplus():
 
 
 def test_match_reads_the_states_named_by_a_pair():
-    """Test that a pair of names reads the requesters' reserve from its first state and the providers' from its second."""
+    """Test that a pair of names reads the requesters' reserve from its first state, the providers' from its second."""
     system = System(
         elements=[
             GroupElement('providers', element=ParticipantElement, size=1, values={'reserve': 5.0}),
@@ -228,8 +228,8 @@ def test_match_stable_leaves_no_blocking_pair(clear):
 def test_match_stable_keeps_the_pairs_of_its_reference(clear):
     """Test that the pairs and their order keep values from the previous library, without what cannot match.
 
-    The provider of reserve 20 is above every requester, the provider of reserve 6 has nothing left, and the requester of
-    reserve 3 is below every provider. The requester of reserve 8 loses out to the others.
+    The provider of reserve 20 is above every requester, the provider of reserve 6 has nothing left, and the requester
+    of reserve 3 is below every provider. The requester of reserve 8 loses out to the others.
     """
     matches = clear(
         StableMatchingSpec(),

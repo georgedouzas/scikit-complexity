@@ -54,10 +54,10 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     """Matching of the members of a group of requesters with those of providers.
 
     The providers form a group, and a rule matches the members. Requesters state the highest clearing value they accept
-    in their `reserve` state, the quantity they want in their `quantity` state, and the most value they can give in their
-    `cap` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
-    a pair names the state of the requesters first and of the providers second, and a missing state counts as no reserve,
-    one unit, and no cap. The rule is a spec that names the algorithm that pairs the offers and holds its
+    in their `reserve` state, the quantity they want in their `quantity` state, and the most value they can give in
+    their `cap` state, and providers the lowest clearing value they accept and the quantity they offer. A name given as
+    a pair names the state of the requesters first and of the providers second, and a missing state counts as no
+    reserve, one unit, and no cap. The rule is a spec that names the algorithm that pairs the offers and holds its
     settings: random search, partners, partner switching, a queue, iterative, continuous, batch, or stable matching. The
     `value` of a match is its clearing value per unit. Every match lowers the quantities of both sides and moves every
     state of `transfers`: a negative sign moves `value * quantity` from the requester to the provider, and a positive

@@ -17,8 +17,8 @@ class StableMatchingSpec(BaseSpec):
 
     Requesters propose to providers, which take as many as they offer units. Requesters rank the providers whose reserve
     they accept by `requester_preference(requester, provider)`, by default the lower reserve, and providers rank the
-    requesters by `provider_preference(provider, requester)`, by default the higher reserve. The requester-optimal stable
-    matching, from the hospital-resident solver of the `matching` library, pairs every requester with at most one
+    requesters by `provider_preference(provider, requester)`, by default the higher reserve. The requester-optimal
+    stable matching, from the hospital-resident solver of the `matching` library, pairs every requester with at most one
     provider, and each pair matches one unit at the value of the value rule.
 
     Args:
