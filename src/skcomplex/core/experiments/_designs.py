@@ -54,14 +54,6 @@ def _get_rows(
         ValidationError:
             The design is unknown, rows are given with a sampled design, or the values or bounds do not fit the
             design.
-
-    Examples:
-        >>> from skcomplex.core.experiments._designs import _get_rows
-        >>> _get_rows({'r': [0.5, 1.0], 'K': [100, 200]}, 'grid', 0, None)
-        [{'r': 0.5, 'K': 100}, {'r': 0.5, 'K': 200}, {'r': 1.0, 'K': 100}, {'r': 1.0, 'K': 200}]
-        >>> rows = _get_rows({'r': (0.0, 1.0)}, 'latin_hypercube', 4, 0)
-        >>> sorted(int(row['r'] * 4) for row in rows)
-        [0, 1, 2, 3]
     """
     if design not in DESIGNS:
         error_msg = f'Unknown design {design!r}. Use one of {", ".join(DESIGNS)}.'
@@ -216,13 +208,6 @@ def _get_sensitivity_rows(bounds: Bounds, method: str, n: int, random_state: int
     Returns:
         rows:
             One mapping from name to value per row.
-
-    Examples:
-        >>> from skcomplex.core.experiments._designs import _get_sensitivity_rows
-        >>> _get_sensitivity_rows({'r': (0.0, 1.0), 'K': (50, 150)}, 'oat', 0, None)
-        [{'r': 0.0, 'K': 100.0}, {'r': 1.0, 'K': 100.0}, {'r': 0.5, 'K': 50.0}, {'r': 0.5, 'K': 150.0}]
-        >>> len(_get_sensitivity_rows({'r': (0.0, 1.0), 'K': (50, 150)}, 'sobol', 8, 0))
-        32
     """
     pairs = _get_pairs(bounds)
     if method == 'oat':

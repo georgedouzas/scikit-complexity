@@ -84,7 +84,7 @@ class DecayLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _run(self, inputs):
-        self.value_ = self._evaluate(-self.rate * self.target, inputs)
+        self.value_ = float((-self.rate * self.target).subs(**inputs))
 
 
 n, k = var('n k')

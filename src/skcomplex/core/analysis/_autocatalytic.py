@@ -205,11 +205,6 @@ def _closure(food: set[int], reactions: list[tuple[list[int], int]]) -> set[int]
     Returns:
         closure:
             The food set and every product reachable from it.
-
-    Examples:
-        >>> from skcomplex.core.analysis._autocatalytic import _closure
-        >>> sorted(_closure({0, 1}, [([0, 1], 2), ([2, 5], 3), ([2], 4)]))
-        [0, 1, 2, 4]
     """
     closure = set(food)
     changed = True

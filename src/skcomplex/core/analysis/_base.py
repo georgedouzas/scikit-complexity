@@ -95,12 +95,6 @@ def _get_analysis_tags(analysis: Callable[..., object], kind: str | None = None)
     Returns:
         tags:
             The tags the analysis needs.
-
-    Examples:
-        >>> from skcomplex.core.analysis import lyapunov
-        >>> from skcomplex.core.analysis._base import _get_analysis_tags
-        >>> _get_analysis_tags(lyapunov, 'largest').data
-        <DataKind.SERIES: 'series'>
     """
     module = sys.modules[analysis.__module__]
     by_kind: dict[str, AnalysisTags] = getattr(module, 'KIND_TAGS', {})

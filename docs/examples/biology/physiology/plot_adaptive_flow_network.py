@@ -28,11 +28,18 @@ trajectory = simulate(system, dt=0.1, observers=[observer], until=20)
 # Balanced pressure drops
 # -----------------------
 # At the fixed point of `dC/dt = C (alpha1 |dp|^gamma - alpha2)` every pressure drop is `(alpha2 / alpha1)^(1 /
-# gamma) = 1`, and the conductances grow towards the source at the corner.
+# gamma) = 1`, and the conductances grow towards the source at the corner. The pressures solve `h = K p` with the
+# first pressure at zero, where `K` is the Laplacian of the grid weighted by the final conductances.
 
 conductances = trajectory.get_values('vessels.C')
 adaptation = system.interactions[0]
-drops = np.abs(adaptation._get_pressure_drops(conductances[-1]))
+ends = np.asarray(adaptation.edges, dtype=int).reshape(-1, 2)
+weighted = nx.Graph()
+weighted.add_weighted_edges_from((i, j, c) for (i, j), c in zip(ends, conductances[-1], strict=True))
+laplacian = nx.laplacian_matrix(weighted, nodelist=range(len(adaptation.h))).toarray()
+pressures = np.zeros(len(adaptation.h))
+pressures[1:] = np.linalg.lstsq(laplacian[1:, 1:], np.asarray(adaptation.h, dtype=float)[1:], rcond=None)[0]
+drops = np.abs(pressures[ends[:, 0]] - pressures[ends[:, 1]])
 graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(6, 6), label_attribute='position')
 positions = nx.get_node_attributes(graph, 'position')
 fig, (network, balance) = plt.subplots(1, 2, figsize=(11, 4.5))

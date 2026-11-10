@@ -184,16 +184,6 @@ def _replicate(
         ValidationError:
             The system has child systems, groups, fields, or agents, a path is not a state or parameter of an element,
             or its values do not have one row per member.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.experiments._replicate import _replicate
-        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-        >>> system = LogisticMapSystem(r=3.7).prepare().system_
-        >>> replicated = _replicate(system, 4, {'map.x': np.linspace(0.1, 0.4, 4)})
-        >>> group = replicated.elements[0]
-        >>> group.label, group.element.__name__, group.size
-        ('map', 'LogisticMapElement', 4)
     """
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)

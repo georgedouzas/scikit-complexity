@@ -1,6 +1,7 @@
 """Test the sources of the repository: the package, its tests, and its documentation hide no finding of the checks."""
 
 import ast
+import doctest
 import importlib
 import multiprocessing
 import re
@@ -44,6 +45,9 @@ CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
 FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
 REWRITTEN_DOCUMENTS: tuple[str, ...] = ()
+GALLERY = Path('docs') / 'examples'
+OWN_RECEIVERS = ('self', 'cls', 'super()')
+DOCTESTS = doctest.DocTestParser()
 BANNED_PHRASES = (
     'in summary',
     'in conclusion',
@@ -571,6 +575,69 @@ def test_banned_phrases_match_the_core_guard(request):
         if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ['BANNED_PHRASES']
     ]
     assert values == [BANNED_PHRASES]
+
+
+def _is_private(name: str) -> bool:
+    """Return whether a name is private, leaving out dunder names and the throwaway name `_`."""
+    return name.startswith('_') and name != '_' and DUNDER.fullmatch(name) is None
+
+
+def _private_uses(code: str) -> list[tuple[int, str]]:
+    """Return every call or attribute read of a private name in a block of code, as its line and its expression.
+
+    A name that the block defines itself, such as a hook of a subclass or its own helper, may be read through `self`,
+    `cls`, or `super()`, and a function it defines may be called.
+    """
+    tree = ast.parse(code)
+    defined = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)}
+    nodes = list(ast.walk(tree))
+    attributes = [
+        (node.lineno, ast.unparse(node))
+        for node in nodes
+        if isinstance(node, ast.Attribute)
+        and _is_private(node.attr)
+        and not (node.attr in defined and ast.unparse(node.value) in OWN_RECEIVERS)
+    ]
+    calls = [
+        (node.lineno, node.func.id)
+        for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and _is_private(node.func.id)
+        and node.func.id not in defined
+    ]
+    return sorted(attributes + calls)
+
+
+def _docstring_examples(path: Path) -> list[tuple[int, str]]:
+    """Return the doctest examples of the docstrings of a module, each with the line of the file before it."""
+    examples = []
+    for node in ast.walk(_read_tree(path)):
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        docstring = ast.get_docstring(node, clean=False)
+        if docstring and '>>>' in docstring:
+            start = node.body[0].lineno - 1
+            examples += [(start + example.lineno, example.source) for example in DOCTESTS.get_examples(docstring)]
+    return examples
+
+
+def _shown_private_names(root: Path) -> list[str]:
+    """Return every private name that a docstring example, a document, or a gallery example calls or reads."""
+    samples = [(path, *sample) for path in sorted((root / 'src').rglob('*.py')) for sample in _docstring_examples(path)]
+    samples += [(root / document, *block) for document in _documents(root) for block in _python_blocks(root / document)]
+    samples += [(path, 0, path.read_text(encoding='utf-8')) for path in sorted((root / GALLERY).rglob('*.py'))]
+    return [
+        f'{path.relative_to(root)}:{start + line}: {name}'
+        for path, start, code in samples
+        for line, name in _private_uses(code)
+    ]
+
+
+def test_documents_show_only_public_names(request):
+    """Test that no docstring example, document, or gallery example calls or reads a private name of the library."""
+    found = _shown_private_names(request.config.rootpath)
+    assert not found, f'{len(found)} uses of private names:\n' + '\n'.join(found)
 
 
 def _imported_modules(path: Path, package: str) -> list[str]:
@@ -1252,3 +1319,22 @@ def test_unnatural_lines_are_named(tmp_path):
         'plot_example.py:5: dash: The text runs on - and on.',
         'plot_example.py:8: note that: Note that it ends.',
     ]
+
+
+def test_private_names_are_named(tmp_path):
+    """Test that a call of a private hook is named, and a subclass that defines and extends the hook is not."""
+    code = textwrap.dedent(
+        """
+        class QuietElement(Element):
+            def _get_laws(self, namespace):
+                return [*super()._get_laws(namespace), *self._get_extra(namespace)]
+
+            def _get_extra(self, namespace):
+                return []
+
+
+        system._get_laws(namespace)
+        system._parts
+        """,
+    )
+    assert _private_uses(code) == [(10, 'system._get_laws'), (11, 'system._parts')]

@@ -160,15 +160,18 @@ class Trajectory:
                 The times, states, and parameters of the member, laid out as the original problem lays them out.
 
         Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.experiments._replicate import _replicate
-            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+            Three logistic maps run as one group, and the second member is the map that starts at 0.2.
+
+            >>> from skcomplex.core.components.elements import GroupElement
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapElement, LogisticMapSystem
             >>> system = LogisticMapSystem().prepare().system_
-            >>> ensemble = _replicate(system, 3, {'map.x': [0.1, 0.2, 0.3]})
+            >>> group = GroupElement('map', element=LogisticMapElement, size=3, values={'x': [0.1, 0.2, 0.3]})
+            >>> ensemble = CompositeSystem(elements=[group], interactions=system.interactions)
             >>> trajectory = simulate(ensemble, until=2, dt=1)
-            >>> float(trajectory.get_member(1, simulate(system, until=0).problem).get_values('map.x')[0])
-            0.2
+            >>> trajectory.get_member(1, simulate(system, until=0).problem).get_values('map.x').round(3).tolist()
+            [0.2, 0.592, 0.894]
         """
         frames = len(self.times)
         states = np.zeros((frames, problem.states.size))
