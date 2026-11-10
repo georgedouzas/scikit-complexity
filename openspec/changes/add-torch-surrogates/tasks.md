@@ -1,3 +1,8 @@
+## 0. Prerequisite
+
+- [ ] 0.1 Check that `add-learning-foundation` is applied, so observed runs, `split_runs`, and `forecast_skill` exist,
+  and stop if it is not
+
 ## 1. Dependencies
 
 - [ ] 1.1 Add `torch>=2.15.0`, `sbi>=0.27.0`, `neuraloperator>=2.0.0`, `chronos-forecasting>=2.3.2`,
@@ -33,8 +38,9 @@
 
 ## 3. Neural operators
 
-- [ ] 3.1 Write `neural_operator` and `NeuralOperatorResult` in `core/analysis/_neural_operator.py` and export them.
-  Test the Gray-Scott scenario and the error for a source without fields
+- [ ] 3.1 Write `neural_operator` and `NeuralOperatorResult` in `core/analysis/_neural_operator.py`, reading
+  trajectories, experiment results, and observed runs of fields, with validation runs held out by `split_runs`, and
+  export them. Test the Gray-Scott scenario and the error for a source without fields
 - [ ] 3.2 Build the surrogate `system` with `_OperatorStep` and a `shape` argument. Test that it validates and runs,
   and the finer-grid Kuramoto-Sivashinsky scenario
 - [ ] 3.3 Take swept parameters as input channels and model parameters. Test the sweep over `F` scenario
@@ -46,8 +52,8 @@
 - [ ] 4.1 Add a test fixture that saves a tiny Chronos-Bolt model with random weights to a temporary directory
 - [ ] 4.2 Write `pretrained_forecast` and `PretrainedForecastResult` in `core/analysis/_pretrained_forecast.py` and
   export them. Test the shapes and quantile order on a Lorenz series with the tiny model, and the context error
-- [ ] 4.3 Add the comparison with `truth` through `lyapunov` and `scaling`. Test that the statistics and the valid
-  prediction time are filled
+- [ ] 4.3 Add the comparison with `truth` through `forecast_skill`, `lyapunov`, and `scaling`. Test that the statistics
+  are filled and that the skill equals `forecast_skill` of the same forecast and truth
 - [ ] 4.4 Raise `AnalysisError` for a missing model offline. Test it with `HF_HUB_OFFLINE=1`, and add one slow test of
   the default model that is skipped unless it is cached
 - [ ] 4.5 Document it in `docs/overview/user_guide/analyse.md`, including the first download, and add a gallery example

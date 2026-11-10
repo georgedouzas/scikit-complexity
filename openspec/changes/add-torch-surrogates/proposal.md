@@ -14,12 +14,14 @@ these methods can wrap the libraries the papers use instead of reimplementing th
   simulation-based calibration, and `posterior_coverage` trains one estimator for every truth.
 - **BREAKING: `CalibrationResult` gains `estimator`**, the trained estimator of a neural method, `None` otherwise.
 - **Neural operators.** New analysis function `neural_operator(source, ...)` learns a field-to-field map with
-  neuraloperator (FNO by default) from runs of a field system, such as the runs of a `sweep`. Its result holds a
+  neuraloperator (FNO by default) from runs of a field system, such as the runs of a `sweep` or the observed runs of `add-learning-foundation`,
+  holding out validation runs with `split_runs`. Its result holds a
   `system` that steps the learned map under discrete time, on any grid size. Probes: `GrayScottSystem` and
   `KuramotoSivashinskySystem`.
 - **Pretrained forecasts.** New analysis function `pretrained_forecast(source, ...)` forecasts series zero-shot with a
-  pretrained Chronos model (chronos-forecasting). Given the true continuation, it reports the error, the valid
-  prediction time, and the largest Lyapunov exponent and correlation dimension of forecast and truth. Weights download
+  pretrained Chronos model (chronos-forecasting). Given the true continuation, it reports the error by lead
+  time and the valid prediction time through `forecast_skill` of `add-learning-foundation`, and the largest Lyapunov
+  exponent and correlation dimension of forecast and truth. Weights download
   from the Hugging Face Hub on first use, and tests never touch the network.
 - **Equivariant potentials.** New core interaction `EquivariantPotentialInteraction` moves the points of a group by the
   forces of an equivariant many-body network potential (mace-torch), pretrained or trained. It runs with the native
@@ -65,4 +67,7 @@ None.
   deepxde 1.15.1, with a CPU-only torch source for the lock file. The install grows by several hundred megabytes on
   CPU and by several gigabytes with the default CUDA wheels on Linux.
 - Depends on `add-bayesian-calibration` (methods, priors, result, coverage) and `add-neural-particle-simulators`
-  (`force_matching`, particle `coarse_grain`).
+  (`force_matching`, particle `coarse_grain`), and on `add-learning-foundation`: `calibrate` and `neural_operator` read
+  its `ObservedRunsSpec`, validation runs are held out by `split_runs`, forecasts are scored by `forecast_skill`, and
+  results follow the convention `system`, `training_error`, `validation_error`. Torch models train in the loops of
+  their own libraries, the one stated exception to the shared Optax loop, which serves JAX models.

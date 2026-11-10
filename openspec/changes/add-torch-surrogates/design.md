@@ -5,8 +5,14 @@ See proposal.md for the motivation. This change sits on two drafted changes. `ad
 bounds, the private `_CalibrationObjective` in `core/experiments/_calibration.py`, posterior fields of
 `CalibrationResult`, and `posterior_coverage` in `core/experiments/_coverage.py`. `add-neural-particle-simulators`
 gives `force_matching` in `core/analysis/_force_matching.py`, with `kind='linear'` and `kind='network'`, and particle
-mappings in `coarse_grain`. Its learned systems run a fitted Python map through a `RateLaw` or `UpdateLaw` with a
-vectorised `CallSpec`, as `reservoir` does with `_ReservoirStep` in `core/analysis/_reservoirs.py`.
+mappings in `coarse_grain`. Its network kind holds the learned pair potential as a `learned_function` of `add-learning-foundation`, and its graph
+network runs a fitted Python map through an `UpdateLaw` with a vectorised `CallSpec`, as `reservoir` does with
+`_ReservoirStep` in `core/analysis/_reservoirs.py`.
+
+`add-learning-foundation` is a prerequisite. It adds `ObservedRunsSpec`, which `calibrate` and the surrogate analyses
+read, `split_runs`, `forecast_skill`, and the result convention `system`, `training_error`, `validation_error` of every
+function that learns a system. Its shared Optax loop and `learned_function` serve JAX models. Torch models stay in
+their own libraries.
 
 Pair potentials are symbolic today: `PairInteraction` with a potential, into which `move-recipes-to-systems` merges the
 former `PairCouplingInteraction`, and `GradientInteraction` take Sage expressions, and `LammpsSolver` in
@@ -28,6 +34,8 @@ force, energy, atom, or species.
   with frozen results, interactions, and solvers. No estimator classes.
 - Every learned or pretrained object ends as a runnable `system` or as a field of a frozen result.
 - Tests run offline, on CPU, in seconds, with small untrained or tiny networks.
+- Reuse the blocks of `add-learning-foundation` for data, splits, and forecast scores, so the torch methods differ from
+  the JAX ones only in the model they wrap.
 
 **Non-Goals:**
 - GPU tuning. Every function takes `device='cpu'` and accepts `'cuda'` or `'mps'`, but CI runs on CPU.
@@ -36,6 +44,8 @@ force, energy, atom, or species.
 - Training foundation potentials. `MaceWaterSystem` loads a published model, and only coarse-grained networks are
   trained here.
 - Torch backends for the engine. Torch runs only inside the wrapped libraries and their callbacks.
+- Torch modules as learned functions of laws. A torch model that a law must call stays behind a vectorised `CallSpec`,
+  and training torch models on the shared Optax loop is not possible, so each library trains with its own loop.
 
 ## Decisions
 
@@ -117,8 +127,10 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
 - **Function.** `neural_operator(source, *, variables=None, kind='fno', lead=1, modes=16, width=64, layers=4,
   validation=0.2, epochs=200, batch_size=16, learning_rate=1e-3, horizon=0, device='cpu', random_state=None)` in
   `core/analysis/_neural_operator.py`. `kind` is `'fno'`, `'tfno'`, or `'uno'`, from `neuralop.models`. The source is
-  a trajectory, a list of trajectories, or the result of a `sweep` or `ensemble` that holds trajectories.
-- **Training.** Pairs of frames `lead` samples apart, stacked over runs, with fields as channels and swept parameters
+  a trajectory, a list of trajectories, the result of a `sweep` or `ensemble` that holds trajectories, or an
+  `ObservedRunsSpec` whose paths are fields, with its conditions as the swept parameters.
+- **Training.** Whole runs are held out for validation with `split_runs`. Pairs of frames `lead` samples apart,
+  stacked over the training runs, with fields as channels and swept parameters
   as constant extra channels. A plain torch loop with Adam and the relative L2 loss of `neuralop.losses.LpLoss`.
   Alternative: neuraloperator's `Trainer`, rejected because it is tied to its config files and to wandb logging.
 - **System.** As in `reservoir`, a private `_OperatorStep` holds the network and its normalisation, and the result's
@@ -136,8 +148,9 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   with `chronos.BaseChronosPipeline.from_pretrained`. Variables are forecast one by one, channel-independent, as in
   2409.15771. Chronos-Bolt small is the default because it is fast on CPU and permissively licensed. Any Chronos or
   Chronos-2 name or path is accepted.
-- **Comparison.** With `truth`, the symmetric mean absolute percentage error per step and the valid prediction time,
-  the first step where it exceeds `threshold` percent (2409.15771). The attractor statistics reuse
+- **Comparison.** With `truth`, `forecast_skill(forecast, truth, metric='smape', threshold=threshold)` of
+  `add-learning-foundation` gives the symmetric mean absolute percentage error per step and the valid prediction time,
+  the first step where it exceeds `threshold` percent (2409.15771), so no error is computed here. The attractor statistics reuse
   `lyapunov(kind='largest')` and `scaling(kind='correlation-dimension')` on forecast and truth, so no measure is
   duplicated.
 - **Weights and the network.** A named model downloads into the Hugging Face cache on first use. When the hub is
@@ -147,7 +160,7 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   `HF_HUB_OFFLINE=1`. One slow test uses the real default model and is skipped unless it is already in the cache. The
   gallery example downloads the default model once, which the docs build caches.
 - **Result.** `PretrainedForecastResult` holds `forecast`, `quantiles`, `model`, `context`, and with `truth` also
-  `error`, `valid_time`, and `attractor`, a mapping of the largest exponent and the correlation dimension of forecast
+  `skill`, the `ForecastSkillResult` of the comparison, and `attractor`, a mapping of the largest exponent and the correlation dimension of forecast
   and truth.
 
 ### Equivariant potentials
