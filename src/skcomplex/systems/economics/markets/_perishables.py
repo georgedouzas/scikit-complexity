@@ -104,7 +104,7 @@ class CustomerElement(Element):
         return CustomerView
 
     @staticmethod
-    def utility(agent: CustomerView, system: SystemView, option: float) -> float:
+    def get_utility(agent: CustomerView, system: SystemView, option: float) -> float:
         """Return the utility `S_k / T` of visiting shop `k`.
 
         Args:
@@ -124,7 +124,7 @@ class CustomerElement(Element):
         return (agent.s1 if option == 0 else agent.s2) / agent.T
 
     @staticmethod
-    def destination(agent: AgentViewProtocol, system: SystemViewProtocol) -> int | None:
+    def get_destination(agent: AgentViewProtocol, system: SystemViewProtocol) -> int | None:
         """Return the node of the shop the customer chose.
 
         Args:
@@ -141,7 +141,7 @@ class CustomerElement(Element):
         return int(agent.shop) if isinstance(agent, CustomerView) else None
 
     @staticmethod
-    def payoff(agent: CustomerView, system: SystemView, option: int) -> float:
+    def get_payoff(agent: CustomerView, system: SystemView, option: int) -> float:
         """Return the freshness of the product the customer bought last.
 
         It is the payoff of the shop it visited.
@@ -163,7 +163,7 @@ class CustomerElement(Element):
         return agent.freshness
 
     @staticmethod
-    def preference(agent: CustomerView) -> float:
+    def get_preference(agent: CustomerView) -> float:
         """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`.
 
         It is how much more likely the customer visits the first shop.
@@ -324,7 +324,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
     topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
     references = ('Bertin 2021', 'Bouchaud 2013')
     until = 300
-    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.preference),)
+    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.get_preference),)
 
     def __init__(
         self,
@@ -355,7 +355,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             target='customers',
             state='shop',
             options=tuple(float(shop) for shop in range(N_SHOPS)),
-            utility=CustomerElement.utility,
+            utility=CustomerElement.get_utility,
             schedule='member',
             form='agent',
             phase=PHASE,
@@ -363,7 +363,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         movement = MovementInteraction(
             'movement',
             target='customers',
-            step=CustomerElement.destination,
+            step=CustomerElement.get_destination,
             schedule='member',
             phase=PHASE,
         )
@@ -386,7 +386,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             'satisfaction',
             target='customers',
             scores=('s1', 's2'),
-            payoff=CustomerElement.payoff,
+            payoff=CustomerElement.get_payoff,
             rate=1 - self.alpha,
             chosen='shop',
             schedule='member',

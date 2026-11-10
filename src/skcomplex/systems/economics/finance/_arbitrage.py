@@ -136,7 +136,7 @@ class ArbitrageTradersSystem(BaseSystem):
         self.A_t = A_t
 
     @staticmethod
-    def _covariant_diffusion(s: SimpleNamespace) -> Expression:
+    def _get_covariant_diffusion(s: SimpleNamespace) -> Expression:
         """Return `D (d_x - A_x(t))^2 rho + A_t rho`.
 
         The connection is `A_x(t) = A_x + E t`.
@@ -157,5 +157,5 @@ class ArbitrageTradersSystem(BaseSystem):
         values = {'rho': rho, 'D': self.D, 'A_x': self.A_x, 'E': self.E, 'A_t': self.A_t}
         line = LatticeSpace(self.n_sites, spacing=spacing, boundary='periodic')
         market = FieldElement('market', element=ArbitrageDensityElement, space=line, values=values)
-        transport = RateInteraction('transport', target='market', state='rho', rate=self._covariant_diffusion)
+        transport = RateInteraction('transport', target='market', state='rho', rate=self._get_covariant_diffusion)
         return CompositeSystem(self.label, elements=[market], interactions=[transport])

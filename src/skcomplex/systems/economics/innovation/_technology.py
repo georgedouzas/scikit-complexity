@@ -173,7 +173,7 @@ class InventionInteraction(Interaction):
         rng = system.rng
         n_inputs = int(rng.integers(1, int(system.get_parameter('max_inputs')) + 1))
         n_parts = int(rng.integers(2, int(system.get_parameter('max_components')) + 1))
-        signals, cost = InventionInteraction._input_signals(n_inputs), 0
+        signals, cost = InventionInteraction._get_input_signals(n_inputs), 0
         for _ in range(n_parts):
             part = pool[int(rng.integers(len(pool)))]
             pins = [signals[int(rng.integers(len(signals)))] for _ in range(int(part.arity))]
@@ -214,7 +214,7 @@ class InventionInteraction(Interaction):
             known[0].cost = cost
 
     @staticmethod
-    def _input_signals(n_inputs: int) -> list[int]:
+    def _get_input_signals(n_inputs: int) -> list[int]:
         """Return the truth tables of the primary inputs of a circuit."""
         rows = range(2**n_inputs)
         return [sum(1 << row for row in rows if row >> pin & 1) for pin in range(n_inputs)]
@@ -432,7 +432,7 @@ class NkTechnologySystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
+    def _get_design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
         """Return a design structure matrix.
 
         A change of a component changes it and `d - 1` other ones.
@@ -446,7 +446,7 @@ class NkTechnologySystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        dependencies = self._design_structure(self.n_components, self.d, rng)
+        dependencies = self._get_design_structure(self.n_components, self.d, rng)
         components = GroupElement(
             'components',
             element=PartElement,

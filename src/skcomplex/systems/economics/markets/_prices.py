@@ -80,7 +80,7 @@ class RiccatiPricesSystem(DynamicalSystem):
         self.gamma = gamma
 
     @staticmethod
-    def _excess_demand(s: SimpleNamespace) -> Expression:
+    def _get_excess_demand(s: SimpleNamespace) -> Expression:
         """Return the rate of the price.
 
         It is `k` times the demand `beta - lam P` less supply `delta + alpha P + g P^2`.
@@ -109,5 +109,5 @@ class RiccatiPricesSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
         return {
-            'P': self._excess_demand,
+            'P': self._get_excess_demand,
         }

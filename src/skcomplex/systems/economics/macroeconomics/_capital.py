@@ -67,7 +67,7 @@ class CapitalStockSystem(DynamicalSystem):
         self.lifetime = lifetime
 
     @staticmethod
-    def _net_investment(s: SimpleNamespace) -> Expression:
+    def _get_net_investment(s: SimpleNamespace) -> Expression:
         """Return the reinvested output minus the depreciation of the capital stock."""
         stock = s.target
         rate: Expression = stock.investment_fraction * stock.output_per_capital * stock.K - stock.K / stock.lifetime
@@ -95,5 +95,5 @@ class CapitalStockSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
         return {
-            'K': self._net_investment,
+            'K': self._get_net_investment,
         }

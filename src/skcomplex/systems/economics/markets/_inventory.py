@@ -211,7 +211,7 @@ class CarDealerSystem(BaseSystem):
         self.delivery_delay = delivery_delay
 
     @staticmethod
-    def _deliveries(s: SimpleNamespace) -> Expression:
+    def _get_deliveries(s: SimpleNamespace) -> Expression:
         """Return the deliveries of the dealership, its orders through a third-order delay."""
         dealer = CarDealerSystem._get_dealer(s)
         return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
@@ -235,7 +235,7 @@ class CarDealerSystem(BaseSystem):
             target='dealer',
             state=Source('factory'),
             into='inventory',
-            amount=self._deliveries,
+            amount=self._get_deliveries,
             flow='deliveries',
             legs=[
                 (

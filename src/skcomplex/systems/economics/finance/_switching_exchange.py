@@ -135,10 +135,10 @@ class KirmanExchangeRateSystem(DynamicalSystem):
 
     def _get_equations(self) -> Equations:
         """Return the step of the deviation and the recruitment step of the fundamentalists."""
-        return {'x': self._deviation, 'k': self._recruitment}
+        return {'x': self._get_deviation, 'k': self._get_recruitment}
 
     @staticmethod
-    def _deviation(s: SimpleNamespace) -> Expression:
+    def _get_deviation(s: SimpleNamespace) -> Expression:
         """Return the next deviation, which clears the market, with a shock of the supply."""
         market = s.target
         n = _get_share(market)
@@ -149,7 +149,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
         return deviation + market.sigma * normal('supply', 0, 1)
 
     @staticmethod
-    def _recruitment(s: SimpleNamespace) -> Expression:
+    def _get_recruitment(s: SimpleNamespace) -> Expression:
         """Return the next number of fundamentalists after one trader meets another."""
         market = s.target
         n = _get_share(market)

@@ -105,7 +105,7 @@ class PurchasingPowerElement(DeclaredElement):
         return {**declared, **(self.variables or {})}
 
     @staticmethod
-    def _policies(s: SimpleNamespace) -> list[Expression]:
+    def _get_policies(s: SimpleNamespace) -> list[Expression]:
         """Return the policies of the sectors, steps of their sizes at their times."""
         return [step(s.t, getattr(s, f'policy_time{i}'), getattr(s, f'policy{i}')) for i in range(1, SECTORS + 1)]
 
@@ -120,7 +120,7 @@ class PurchasingPowerElement(DeclaredElement):
             outputs:
                 One index per sector.
         """
-        x, C, D = self._policies(s), np.asarray(self.C), np.asarray(self.D)
+        x, C, D = self._get_policies(s), np.asarray(self.C), np.asarray(self.D)
         if not self.feedback:
             z = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)]
             return [sum(C[i, k] * z[k] + D[i, k] * x[k] for k in range(SECTORS)) for i in range(SECTORS)]
@@ -143,7 +143,7 @@ class PurchasingPowerElement(DeclaredElement):
                 One input per sector.
         """
         if not self.feedback:
-            return self._policies(s)
+            return self._get_policies(s)
         C, inverse = np.asarray(self.C), np.linalg.inv(np.asarray(self.D, dtype=float))
         z, y = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)], self.get_outputs(s)
         gaps = [y[i] - sum(C[i, k] * z[k] for k in range(SECTORS)) for i in range(SECTORS)]
@@ -166,7 +166,7 @@ class PurchasingPowerElement(DeclaredElement):
             RateLaw(z[i], sum(A[i, k] * z[k] + B[i, k] * u[k] for k in range(SECTORS))) for i in range(SECTORS)
         ]
         if self.feedback:
-            x = self._policies(s)
+            x = self._get_policies(s)
             for i in range(SECTORS):
                 w = [getattr(s, f'w{i + 1}{k + 1}') for k in range(SECTORS)]
                 laws += [

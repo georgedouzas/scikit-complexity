@@ -187,7 +187,7 @@ class OilEconomySystem(StockFlowSystem):
         self.price_table = price_table
 
     @staticmethod
-    def _oil_price(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float] | None) -> Expression:
+    def _get_oil_price(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float] | None) -> Expression:
         """Return the price of the oil, constant or a table of the yield."""
         return (
             holder.price
@@ -221,7 +221,7 @@ class OilEconomySystem(StockFlowSystem):
                 'capital',
                 lambda s: OilEconomySystem._get_investment(
                     s.source,
-                    self._oil_price(s.source, OIL_YIELD, prices) * OilEconomySystem._harvest(s.source, OIL_YIELD),
+                    self._get_oil_price(s.source, OIL_YIELD, prices) * OilEconomySystem._harvest(s.source, OIL_YIELD),
                 ),
             ),
             'depreciation': ('capital', Sink('scrap'), lambda s: s.source.capital / s.source.lifetime),
@@ -306,7 +306,7 @@ class FisheryCapitalSystem(BaseSystem):
         self.yield_table = yield_table
 
     @staticmethod
-    def _fish_revenue(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float]) -> Expression:
+    def _get_fish_revenue(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float]) -> Expression:
         """Return the revenue of the harvest at the price, a table of the yield."""
         return series(
             OilEconomySystem._get_efficiency(holder, yields),
@@ -342,7 +342,10 @@ class FisheryCapitalSystem(BaseSystem):
             target='fishery',
             state=Source('investors'),
             into='capital',
-            amount=lambda s: OilEconomySystem._get_investment(s.source, self._fish_revenue(s.source, yields, prices)),
+            amount=lambda s: OilEconomySystem._get_investment(
+                s.source,
+                self._get_fish_revenue(s.source, yields, prices),
+            ),
             flow='investment',
         )
         return CompositeSystem(

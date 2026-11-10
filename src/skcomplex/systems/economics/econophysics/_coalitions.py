@@ -163,7 +163,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
         self.coalitions = coalitions
 
     @staticmethod
-    def _errors(strategies: Array, history: Array) -> Array:
+    def _get_errors(strategies: Array, history: Array) -> Array:
         """Return the total absolute error over the last `m` nights of every strategy.
 
         It starts from the newest attendance.
@@ -249,7 +249,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
         labels = np.array([int(patron.coalition) for patron in patrons])
         if not self.coalitions:
             labels = np.arange(size)
-        errors = self._errors(strategies, history.astype(float))
+        errors = self._get_errors(strategies, history.astype(float))
         best: dict[int, int] = {}
         attends = np.zeros(size, dtype=bool)
         for label in np.unique(labels):

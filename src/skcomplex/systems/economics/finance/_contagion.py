@@ -236,7 +236,7 @@ class DebtrankSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
+    def _get_random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
         """Return random interbank liabilities and capitals of a given density of links."""
         links = rng.random((n_banks, n_banks)) < density
         np.fill_diagonal(links, val=False)
@@ -245,12 +245,12 @@ class DebtrankSystem(BaseSystem):
         return liabilities, capital
 
     @staticmethod
-    def _impact(liabilities: Array, capital: Array) -> Array:
+    def _get_impact(liabilities: Array, capital: Array) -> Array:
         """Return the impact matrix `W_ij = min(1, M_ij / C_j)` of a default of `i` on `j`."""
         return np.minimum(1.0, np.asarray(liabilities, dtype=float) / np.asarray(capital, dtype=float)[None, :])
 
     @staticmethod
-    def _economic_values(liabilities: Array) -> Array:
+    def _get_economic_values(liabilities: Array) -> Array:
         """Return the economic value of every bank, its share of all interbank lending."""
         lent = np.asarray(liabilities, dtype=float).sum(axis=0)
         return lent / lent.sum()
@@ -258,7 +258,7 @@ class DebtrankSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.capital is None:
-            matrix, capitals = self._random_exposures(
+            matrix, capitals = self._get_random_exposures(
                 self.n_banks,
                 self.density,
                 np.random.default_rng(self.random_state),
@@ -273,12 +273,16 @@ class DebtrankSystem(BaseSystem):
             'banks',
             element=InterbankElement,
             size=size,
-            values={'h': h, 'status': status, 'value': self._economic_values(matrix)},
+            values={'h': h, 'status': status, 'value': self._get_economic_values(matrix)},
         )
         return CompositeSystem(
             self.label,
             elements=[banks],
             interactions=[
-                DebtRankCascadeInteraction('cascade', banks='banks', impact=self._impact(matrix, capitals).tolist()),
+                DebtRankCascadeInteraction(
+                    'cascade',
+                    banks='banks',
+                    impact=self._get_impact(matrix, capitals).tolist(),
+                ),
             ],
         )

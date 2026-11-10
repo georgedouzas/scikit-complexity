@@ -204,7 +204,7 @@ class PhoneAdoptionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _social_classes(width: int, height: int) -> Array:
+    def _get_social_classes(width: int, height: int) -> Array:
         """Return the class of every cell.
 
         It is upper in the top left quadrant, lower in the bottom left, else middle.
@@ -237,7 +237,7 @@ class PhoneAdoptionSystem(BaseSystem):
         growth = self.growth
         width, height = (int(side) for side in self.shape)
         rng = np.random.default_rng(self.random_state)
-        classes = self._social_classes(width, height)
+        classes = self._get_social_classes(width, height)
         scales = np.asarray(self.class_incomes, dtype=float)[classes.astype(int)]
         incomes = scales * rng.lognormal(0.0, INCOME_SIGMA, len(classes))
         incomes /= incomes.mean()

@@ -251,7 +251,7 @@ class MinorityGameInteraction(Interaction):
         system.report('attendance', attendance)
         system.report('history', float(history))
 
-    def payoff(self, agent: MinorityPlayerView, system: SystemView, option: int) -> float:
+    def get_payoff(self, agent: MinorityPlayerView, system: SystemView, option: int) -> float:
         """Return the virtual payoff of a strategy of an agent in the last round.
 
         It is `+1` if it played the winning side.
@@ -367,7 +367,7 @@ class MinorityGameSystem(BaseSystem):
             'scoring',
             target='players',
             scores=('first_score', 'second_score'),
-            payoff=game.payoff,
+            payoff=game.get_payoff,
             rule='cumulative',
             form='agent',
             phase='score',

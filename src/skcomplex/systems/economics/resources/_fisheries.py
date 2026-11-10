@@ -339,7 +339,7 @@ class HilsaFisherySystem(BaseSystem):
         self.migration_loss = migration_loss
 
     @staticmethod
-    def _birth_death() -> list[TransferInteraction]:
+    def _get_birth_death() -> list[TransferInteraction]:
         """Return the life cycle flows of the stages of the hilsa.
 
         They are the spawning, hatching, growth, migration, losses, and catch.
@@ -411,7 +411,7 @@ class HilsaFisherySystem(BaseSystem):
         ]
 
     @staticmethod
-    def _filled_stages(
+    def _get_filled_stages(
         spawners: float,
         eggs_per_nest: float,
         juvenile_harvest: float,
@@ -441,7 +441,7 @@ class HilsaFisherySystem(BaseSystem):
             migration_loss=self.migration_loss,
         )
         hilsa.set_params(
-            **self._filled_stages(
+            **self._get_filled_stages(
                 self.spawners,
                 self.eggs_per_nest,
                 self.juvenile_harvest,
@@ -449,4 +449,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return CompositeSystem(self.label, elements=[hilsa], interactions=self._birth_death())
+        return CompositeSystem(self.label, elements=[hilsa], interactions=self._get_birth_death())

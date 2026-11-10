@@ -202,7 +202,7 @@ class CircuitInteraction(TransferInteraction):
             target=firms,
             state='households.deposits',
             into='firms.deposits',
-            amount=lambda s: CircuitInteraction._consumption(s.households, s.firms),
+            amount=lambda s: CircuitInteraction._get_consumption(s.households, s.firms),
             flow='consumption',
             legs=[
                 ('firms.deposits', 'households.deposits', lambda s: s.firms.wage_share * s.firms.sales, 'wages'),
@@ -217,7 +217,7 @@ class CircuitInteraction(TransferInteraction):
                 (
                     Source('lending'),
                     'firms.deposits',
-                    lambda s: CircuitInteraction._lending(s.firms, s.bank),
+                    lambda s: CircuitInteraction._get_lending(s.firms, s.bank),
                     'lending',
                 ),
                 ('firms.deposits', Sink('repayment'), lambda s: s.firms.repayment * s.firms.loans, 'repayments'),
@@ -235,7 +235,7 @@ class CircuitInteraction(TransferInteraction):
         return [(namespace.households, namespace.firms)]
 
     @staticmethod
-    def _consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
+    def _get_consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
         """Return the consumption of a period.
 
         It is a share of the wages and a share of the deposits of the households.
@@ -243,7 +243,7 @@ class CircuitInteraction(TransferInteraction):
         return households.alpha_income * firms.wage_share * firms.sales + households.alpha_wealth * households.deposits
 
     @staticmethod
-    def _lending(firms: SimpleNamespace, bank: SimpleNamespace) -> Expression:
+    def _get_lending(firms: SimpleNamespace, bank: SimpleNamespace) -> Expression:
         """Return the new loans of a period, in proportion to the sales of the firms."""
         return bank.credit * firms.sales
 
@@ -355,18 +355,18 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         self.repayment = repayment
 
     @staticmethod
-    def _next_loans(s: SimpleNamespace) -> Expression:
+    def _get_next_loans(s: SimpleNamespace) -> Expression:
         """Return the loans of the firms after a period.
 
         The new loans are added and the repayments taken.
         """
         firms, bank = s.target, s.sources[0]
-        return firms.loans + CircuitInteraction._lending(firms, bank) - firms.repayment * firms.loans
+        return firms.loans + CircuitInteraction._get_lending(firms, bank) - firms.repayment * firms.loans
 
     @staticmethod
-    def _next_sales(s: SimpleNamespace) -> Expression:
+    def _get_next_sales(s: SimpleNamespace) -> Expression:
         """Return the sales of the firms of a period, the consumption of the households."""
-        return CircuitInteraction._consumption(s.sources[0], s.target)
+        return CircuitInteraction._get_consumption(s.sources[0], s.target)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
@@ -398,12 +398,12 @@ class StockFlowConsistentEconomySystem(BaseSystem):
             ],
             interactions=[
                 CircuitInteraction('circuit', households='households', firms='firms', bank='bank'),
-                MapInteraction('loans', target='firms', state='loans', function=self._next_loans, sources=['bank']),
+                MapInteraction('loans', target='firms', state='loans', function=self._get_next_loans, sources=['bank']),
                 MapInteraction(
                     'sales',
                     target='firms',
                     state='sales',
-                    function=self._next_sales,
+                    function=self._get_next_sales,
                     sources=['households'],
                 ),
             ],

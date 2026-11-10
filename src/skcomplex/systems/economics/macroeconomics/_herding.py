@@ -150,7 +150,7 @@ class NetworkHerdingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _choice(s: SimpleNamespace, herding: Expression) -> Expression:
+    def _get_choice(s: SimpleNamespace, herding: Expression) -> Expression:
         """Return the next choice.
 
         It is the herding term plus `gamma` times the shocked individual characteristic.
@@ -158,7 +158,7 @@ class NetworkHerdingSystem(BaseSystem):
         return herding + s.member.gamma * (s.member.x + s.member.sigma * normal('shock', 0, 1))
 
     @staticmethod
-    def _random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
+    def _get_random_links(n_agents: int, density: float, herding: float, rng: np.random.Generator) -> Array:
         """Return random directed weights with no self-links.
 
         Every row sums to `herding`.
@@ -172,7 +172,7 @@ class NetworkHerdingSystem(BaseSystem):
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         weights = (
-            self._random_links(self.n_agents, self.density, self.herding, rng)
+            self._get_random_links(self.n_agents, self.density, self.herding, rng)
             if self.theta is None
             else np.asarray(self.theta, dtype=float)
         )
@@ -194,6 +194,6 @@ class NetworkHerdingSystem(BaseSystem):
             mode='group',
             weights=weights.tolist(),
             form='map',
-            combine=self._choice,
+            combine=self._get_choice,
         )
         return CompositeSystem(self.label, elements=[agents], interactions=[herding_map])

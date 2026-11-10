@@ -83,7 +83,7 @@ class TapCatalysisSystem(BaseSystem):
         self.pc = pc
 
     @staticmethod
-    def _combination_rate(order: int, alpha: float, goods: int) -> Callable[[SimpleNamespace], Expression]:
+    def _get_combination_rate(order: int, alpha: float, goods: int) -> Callable[[SimpleNamespace], Expression]:
         """Return the rate `alpha^i C(M, i)` of new goods of `i` parents.
 
         It stops at `goods` goods.
@@ -103,7 +103,7 @@ class TapCatalysisSystem(BaseSystem):
                 f'order_{order}',
                 target='goods',
                 action='add-node',
-                rate=self._combination_rate(order, self.alpha, self.goods),
+                rate=self._get_combination_rate(order, self.alpha, self.goods),
                 hyperedge=order + 1,
                 independent=True,
                 direction='both',

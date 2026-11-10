@@ -168,7 +168,7 @@ class StockTraderElement(Element):
         return [RuleLaw(self.quote, phase='quote')]
 
     @staticmethod
-    def _prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
+    def _get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
         """Return the last two prices of the book, the fundamental value before the first."""
         history = system.get_history('book.price', 2)
         prices = [value for value in history if math.isfinite(value)] or [agent.fundamental]
@@ -184,7 +184,7 @@ class StockTraderElement(Element):
             system:
                 The system.
         """
-        price, previous = self._prices(agent, system)
+        price, previous = self._get_prices(agent, system)
         if agent.strategy:
             expected = heuristics.trend([previous, price], strength=system.get_parameter('extrapolation'))
         else:
@@ -236,7 +236,7 @@ class StockTraderElement(Element):
             wealth:
                 The wealth of the trader.
         """
-        price, _ = StockTraderElement._prices(agent, system)
+        price, _ = StockTraderElement._get_prices(agent, system)
         return agent.money + agent.shares * price
 
 

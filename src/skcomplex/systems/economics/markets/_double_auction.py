@@ -368,7 +368,7 @@ class DoubleAuctionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _book_profit(trade: MatchSpec, system: SystemView) -> None:
+    def _record_profit(trade: MatchSpec, system: SystemView) -> None:
         """Add the surplus of a trade to the profits of the buyer and the seller."""
         del system
         buyer, seller = trade.requester, trade.provider
@@ -406,7 +406,7 @@ class DoubleAuctionSystem(BaseSystem):
             reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='trade',
-            on_match=self._book_profit,
+            on_match=self._record_profit,
         )
         quotes = [
             MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')

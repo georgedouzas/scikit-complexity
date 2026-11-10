@@ -144,7 +144,7 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
         self.p = p
 
     @staticmethod
-    def _sets(triples: tuple[tuple[int, int, int], ...], size: int) -> list[Array]:
+    def _get_sets(triples: tuple[tuple[int, int, int], ...], size: int) -> list[Array]:
         """Return the pairs `(j, k)` of the sets of every entity."""
         array = np.asarray(triples, dtype=int).reshape(-1, 3)
         return [array[array[:, 0] == entity, 1:] for entity in range(size)]
@@ -160,7 +160,7 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
         size, rng = len(entities), system.rng
         states = np.array([entity.exists for entity in entities])
         before = states.copy()
-        plus, minus = self._sets(self.production, size), self._sets(self.destruction, size)
+        plus, minus = self._get_sets(self.production, size), self._get_sets(self.destruction, size)
         fitness = np.array([entity.fitness for entity in entities])
         flips = rng.random(size) < system.get_parameter('p')
         for entity in rng.permutation(size):
@@ -248,7 +248,7 @@ class CccModelSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
+    def _get_random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
         """Return random sets of tensor entries.
 
         Every entry `(i, j, k)` of the tensor is present with probability `rate / size^2`.
@@ -269,8 +269,8 @@ class CccModelSystem(BaseSystem):
         update = CombinatorialUpdateInteraction(
             'update',
             entities='entities',
-            production=self._random_sets(self.n_entities, self.r_plus, rng),
-            destruction=self._random_sets(self.n_entities, self.r_minus, rng),
+            production=self._get_random_sets(self.n_entities, self.r_plus, rng),
+            destruction=self._get_random_sets(self.n_entities, self.r_minus, rng),
             p=self.p,
         )
         return CompositeSystem(self.label, elements=[entities], interactions=[update])

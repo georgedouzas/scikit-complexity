@@ -140,7 +140,9 @@ class WasherElement(Element):
         """
         cars = system.get_agents(self.cars, CarView)
         fronts = [
-            car for car in (WasherElement._front(cars, WASH), WasherElement._front(cars, VALET)) if car is not None
+            car
+            for car in (WasherElement._get_front(cars, WASH), WasherElement._get_front(cars, VALET))
+            if car is not None
         ]
         if not fronts:
             return
@@ -150,7 +152,7 @@ class WasherElement(Element):
         car.work -= 1.0
 
     @staticmethod
-    def _front(cars: list[CarView], stage: int) -> CarView | None:
+    def _get_front(cars: list[CarView], stage: int) -> CarView | None:
         """Return the car that came first among the cars at a stage.
 
         It is `None` if there is none.

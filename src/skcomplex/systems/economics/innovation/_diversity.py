@@ -106,7 +106,7 @@ class CreativePhaseTransitionSystem(BaseSystem):
         self.r = r
 
     @staticmethod
-    def _new_entities(s: SimpleNamespace) -> Expression:
+    def _get_new_entities(s: SimpleNamespace) -> Expression:
         """Return the share of new entities that the new pairs produce.
 
         It is at most the share that does not exist yet.
@@ -128,6 +128,6 @@ class CreativePhaseTransitionSystem(BaseSystem):
                     function=lambda s: s.target.d,
                     mode='increment',
                 ),
-                MapInteraction('adjacent_possible', target='system', state='d', function=self._new_entities),
+                MapInteraction('adjacent_possible', target='system', state='d', function=self._get_new_entities),
             ],
         )

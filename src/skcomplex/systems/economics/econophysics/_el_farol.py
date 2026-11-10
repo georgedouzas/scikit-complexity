@@ -188,7 +188,7 @@ class PredictorPoolElement(Element):
         agent.forecasts = forecasts(self._get_history(system))
 
     @staticmethod
-    def error(agent: PredictorPoolView, system: SystemView, index: int) -> float:
+    def get_error(agent: PredictorPoolView, system: SystemView, index: int) -> float:
         """Return the absolute error of a predictor last week.
 
         Before the first attendance, it is its error so far.
@@ -385,7 +385,7 @@ class ElFarolSystem(BaseSystem):
             'scoring',
             target='pool',
             scores='errors',
-            payoff=PredictorPoolElement.error,
+            payoff=PredictorPoolElement.get_error,
             rate=1 - self.discount,
             form='agent',
             phase='learn',

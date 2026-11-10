@@ -270,7 +270,7 @@ class ProduceMarketSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
+    def _get_random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
         """Return one bit mask per size.
 
         Each mask has that many distinct items chosen at random.
@@ -282,9 +282,9 @@ class ProduceMarketSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        stocks = self._random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
+        stocks = self._get_random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
         markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100
-        lists = self._random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
+        lists = self._get_random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
         stalls = GroupElement(
             'stalls',
             element=StallElement,

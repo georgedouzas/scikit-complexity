@@ -261,7 +261,7 @@ class HouseholdDemandSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _budgets(n_households: int, minimum: float, rng: np.random.Generator) -> Array:
+    def _get_budgets(n_households: int, minimum: float, rng: np.random.Generator) -> Array:
         """Return budgets drawn from an exponential law shifted right by the minimum.
 
         They are normalized to a mean of 100.
@@ -270,7 +270,7 @@ class HouseholdDemandSystem(BaseSystem):
         return draws * 100.0 / draws.mean()
 
     @staticmethod
-    def _by_quintile(budgets: Array, means: Sequence[float], deviation: float, rng: np.random.Generator) -> Array:
+    def _draw_by_quintile(budgets: Array, means: Sequence[float], deviation: float, rng: np.random.Generator) -> Array:
         """Return normal draws around the mean of the budget quintile of every household."""
         quintiles = np.minimum((np.argsort(np.argsort(budgets)) * 5) // len(budgets), 4)
         return np.asarray(means, dtype=float)[quintiles] + deviation * rng.normal(size=len(budgets))
@@ -278,10 +278,10 @@ class HouseholdDemandSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        budgets = self._budgets(self.n_households, self.minimum, rng)
-        alphas = np.clip(self._by_quintile(budgets, self.shares, self.share_deviation, rng), 0.0, 1.0)
+        budgets = self._get_budgets(self.n_households, self.minimum, rng)
+        alphas = np.clip(self._draw_by_quintile(budgets, self.shares, self.share_deviation, rng), 0.0, 1.0)
         slopes = (
-            self._by_quintile(budgets, self.elasticities, self.elasticity_deviation, rng)
+            self._draw_by_quintile(budgets, self.elasticities, self.elasticity_deviation, rng)
             if self.demand == 'elasticity'
             else -1.0
         )

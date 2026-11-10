@@ -204,7 +204,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         self.food_per_capita = food_per_capita
 
     @staticmethod
-    def _area_increase(s: SimpleNamespace) -> Expression:
+    def _get_area_increase(s: SimpleNamespace) -> Expression:
         """Return the area increase rate.
 
         It is `MAX((total_land_available - area_cultivated) / planning_time, 0)`.
@@ -232,7 +232,7 @@ class RiceFoodBalanceSystem(BaseSystem):
             target='region',
             state=Source('suitable_land'),
             into='area_cultivated',
-            amount=self._area_increase,
+            amount=self._get_area_increase,
             flow='area_increase_rate',
             legs=[
                 (

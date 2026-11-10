@@ -256,7 +256,7 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _gini(values: Array) -> float:
+    def _get_gini(values: Array) -> float:
         """Return the Gini coefficient of nonnegative values."""
         ordered = np.sort(values)
         total = ordered.sum()
@@ -364,8 +364,8 @@ class ToyMarketInteraction(PolicyRuleInteraction[SystemView]):
             trader.price_up, trader.price_down = float(state['up'][index]), float(state['down'][index])
         system.report('average_price', average)
         system.report('trades', float(len(sold)))
-        system.report('money_gini', self._gini(state['money']))
-        system.report('asset_gini', self._gini(state['money'] + state['stocks'][:, 0] * average))
+        system.report('money_gini', self._get_gini(state['money']))
+        system.report('asset_gini', self._get_gini(state['money'] + state['stocks'][:, 0] * average))
 
 
 class ToyTraderSystem(BaseSystem):

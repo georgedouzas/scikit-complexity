@@ -95,7 +95,7 @@ class MeasuredFisheryElement(Element):
         self.restocking = restocking
 
     @staticmethod
-    def _quota(s: SimpleNamespace) -> Expression:
+    def _get_quota(s: SimpleNamespace) -> Expression:
         """Return the quota `x~ - K / 2` from the measured stock.
 
         It is floored at zero without restocking.
@@ -114,7 +114,7 @@ class MeasuredFisheryElement(Element):
             laws:
                 The laws of the element.
         """
-        quota = self._quota(s)
+        quota = self._get_quota(s)
         growth = s.x * (1 - s.x / s.K)
         noisy = s.x + (s.r0 * growth - quota) * s.step + s.sigma_r * growth * sqrt(s.step) * normal('growth', 0, 1)
         return [UpdateLaw(s.x, where(both(s.x > 0, noisy > 0), noisy, 0)), UpdateLaw(s.catch, quota)]

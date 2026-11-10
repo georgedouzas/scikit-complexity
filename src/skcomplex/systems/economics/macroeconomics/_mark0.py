@@ -299,7 +299,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
             error_msg = f'The credit policy of {self.label!r} is {self.credit!r}. Use one of {CREDIT_POLICIES}.'
             raise ValidationError(error_msg)
 
-    def _threshold(self, system: SystemView, month: int, fragility: float) -> float:
+    def _get_threshold(self, system: SystemView, month: int, fragility: float) -> float:
         """Return the bankruptcy threshold of the month under the credit policy."""
         start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
         theta = system.get_parameter('theta')
@@ -418,7 +418,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         savings += float(dividends.sum())
         fragility_of = np.divide(-state['e'], bill, out=np.zeros(size), where=bill > 0)
         fragility = self._get_weighted(fragility_of[active], production[active])
-        threshold = self._threshold(system, month, fragility)
+        threshold = self._get_threshold(system, month, fragility)
         defaulted = active & (fragility_of >= threshold)
         losses = float(-state['e'][defaulted].sum())
         for key in ('n', 'd', 'e', 'profit', 'active'):

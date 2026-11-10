@@ -190,7 +190,7 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the yearly steps of the stocks, the purchases joining the herd three years later."""
         return {
-            'wealth': self._wealth,
+            'wealth': self._get_wealth,
             'livestock': lambda s: s.target.livestock + lag(s.target.purchases, 2) - _get_sale(s.target),
             'yield_multiplier': lambda s: (
                 s.target.yield_multiplier * (1 + s.target.yield_regeneration - s.target.cropping_intensity)
@@ -199,7 +199,7 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         }
 
     @staticmethod
-    def _wealth(s: SimpleNamespace) -> Expression:
+    def _get_wealth(s: SimpleNamespace) -> Expression:
         """Return the wealth after the incomes and the spending of the year."""
         household = s.target
         income = _get_income_from_crop(household) + _get_income_from_livestock(household)

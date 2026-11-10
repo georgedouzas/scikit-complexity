@@ -477,7 +477,7 @@ class SettlerElement(Element):
             if system.rng.random() < agent.restlessness:
                 agent.employer = -1.0
             return agent.employer >= 0
-        if agent.get_agents_here('businesses') or SettlerElement._patch_here(agent).food <= 0:
+        if agent.get_agents_here('businesses') or SettlerElement._get_patch_here(agent).food <= 0:
             return False
         if system.rng.random() >= agent.enterprise:
             return False
@@ -515,7 +515,7 @@ class SettlerElement(Element):
         agent.harvested = 0.0
 
     @staticmethod
-    def _patch_here(agent: AgentView) -> PlotView:
+    def _get_patch_here(agent: AgentView) -> PlotView:
         """Return the patch of the cell of an agent."""
         return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
@@ -666,7 +666,7 @@ class BusinessElement(Element):
             transfer(bank, agent, amount, 'money')
             transfer(agent, bank, amount, 'loans')
 
-    def _service(self, agent: BusinessView, bank: CentralBankView) -> None:
+    def _pay_debt(self, agent: BusinessView, bank: CentralBankView) -> None:
         """Pay the interest and the repayment of the debt.
 
         The firm borrows anew what it lacks.
@@ -710,10 +710,10 @@ class BusinessElement(Element):
             system:
                 The system.
         """
-        people = BusinessElement._people_by_id(system)
+        people = BusinessElement._get_people_by_id(system)
         workers = [person for person in people.values() if person.employer == agent.id]
         bank = system.get_agents('bank', CentralBankView)[0]
-        patch = SettlerElement._patch_here(agent)
+        patch = SettlerElement._get_patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
             worker.move_to(agent.location)
@@ -726,7 +726,7 @@ class BusinessElement(Element):
         for worker in workers:
             transfer(agent, worker, agent.wage, 'money')
             worker.harvested = worker.need
-        self._service(agent, bank)
+        self._pay_debt(agent, bank)
         self._adjust(agent, workers, patch, sold_out)
         agent.workers, agent.revenue = float(len(workers)), 0.0
         owner = agent.get_referenced('owner')
@@ -737,7 +737,7 @@ class BusinessElement(Element):
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
     @staticmethod
-    def _people_by_id(system: SystemView) -> dict[int, SettlerView]:
+    def _get_people_by_id(system: SystemView) -> dict[int, SettlerView]:
         """Return the living people by id.
 
         They are built once per step in the storage of the caller.
@@ -804,7 +804,7 @@ class CommonsInteraction(Interaction):
         for person in system.get_agents('people', SettlerView):
             cells.setdefault(SettlerElement._get_cell(person), []).append(person)
         for group in cells.values():
-            patch = SettlerElement._patch_here(group[0])
+            patch = SettlerElement._get_patch_here(group[0])
             labour = sum(person.labour for person in group if person.age >= person.maturity)
             harvest = min(patch.food, max(labour - patch.resistance, 0.0))
             patch.food -= harvest

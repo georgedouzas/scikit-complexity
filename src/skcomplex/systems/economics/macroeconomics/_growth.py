@@ -220,7 +220,7 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         self.G = G
 
     @staticmethod
-    def _next_income(s: SimpleNamespace) -> Expression:
+    def _get_next_income(s: SimpleNamespace) -> Expression:
         """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
         economy = s.target
         income: Expression = (
@@ -248,5 +248,5 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
         return {
-            'Y': self._next_income,
+            'Y': self._get_next_income,
         }

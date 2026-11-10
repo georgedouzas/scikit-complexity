@@ -285,7 +285,7 @@ class ExchangeRatesSystem(BaseSystem):
         self.world_price = world_price
 
     @staticmethod
-    def _adjustments() -> list[MapInteraction]:
+    def _get_adjustments() -> list[MapInteraction]:
         """Return the maps of the home price, the exchange rate, and the trade volumes.
 
         There is one at every stage.
@@ -323,4 +323,4 @@ class ExchangeRatesSystem(BaseSystem):
             demand=self.demand,
             government=self.government,
         )
-        return CompositeSystem(self.label, elements=[home], interactions=self._adjustments())
+        return CompositeSystem(self.label, elements=[home], interactions=self._get_adjustments())

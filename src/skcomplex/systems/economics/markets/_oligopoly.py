@@ -228,7 +228,7 @@ class PricingGameSpec(BaseSpec):
     alpha: float
     beta: float
 
-    def utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
+    def get_utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
         """Return what a price has earned so far against the prices of the rival.
 
         It is its score.
@@ -249,7 +249,7 @@ class PricingGameSpec(BaseSpec):
         """
         return float(agent.scores[int(np.searchsorted(self.prices, option))])
 
-    def payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
+    def get_payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
         """Return what the price of index `k` earns against the rival's price.
 
         The rival's price is the one charged in this step.
@@ -419,7 +419,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         self.dynamics = dynamics
 
     @staticmethod
-    def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> CompositeSystem:
+    def _get_fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> CompositeSystem:
         """Return two firms that best respond to the payoffs of every price so far.
 
         The payoffs are summed against the rival.
@@ -436,7 +436,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             target='firms',
             state='price',
             options=tuple(prices.tolist()),
-            utility=game.utility,
+            utility=game.get_utility,
             rule='best',
             form='agent',
             phase='choose',
@@ -445,7 +445,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             'beliefs',
             target='firms',
             scores='scores',
-            payoff=game.payoff,
+            payoff=game.get_payoff,
             rule='cumulative',
             form='agent',
             phase='learn',
@@ -469,7 +469,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         beta = 1 - self.n_firms * self.alpha
         prices = np.linspace(self.alpha / (self.alpha + beta), 1.0, self.n_prices)
         if self.dynamics == 'fictitious-play':
-            return self._fictitious_play(self.label, prices, self.alpha, beta)
+            return self._get_fictitious_play(self.label, prices, self.alpha, beta)
         points = GroupElement(
             'prices',
             element=PricePointElement,

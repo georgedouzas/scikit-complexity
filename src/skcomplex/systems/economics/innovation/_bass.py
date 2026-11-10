@@ -74,7 +74,7 @@ class BassDiffusionSystem(StockFlowSystem):
         self.q = q
 
     @staticmethod
-    def _adoption(s: SimpleNamespace) -> Expression:
+    def _get_adoption(s: SimpleNamespace) -> Expression:
         """Return the adoption rate `(p + q A / (P + A)) P` of the market.
 
         A transfer moves people within the market.
@@ -101,5 +101,5 @@ class BassDiffusionSystem(StockFlowSystem):
     def _get_flows(self) -> FlowTable:
         """Return the flows between the stocks."""
         return {
-            'adoption': ('P', 'A', self._adoption),
+            'adoption': ('P', 'A', self._get_adoption),
         }

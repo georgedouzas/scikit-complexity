@@ -267,12 +267,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _potential_rate(namespace: SimpleNamespace) -> Expression:
+    def _get_potential_rate(namespace: SimpleNamespace) -> Expression:
         """Return the rate of the potential, the field `F_0i` of the link."""
         return namespace.target.E
 
     @staticmethod
-    def _field_rate(namespace: SimpleNamespace) -> Expression:
+    def _get_field_rate(namespace: SimpleNamespace) -> Expression:
         """Return the rate of the field without the current.
 
         It is minus the codifferential of the exterior derivative.
@@ -280,7 +280,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return -codifferential(exterior_derivative(namespace.target.A))
 
     @staticmethod
-    def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
+    def _get_initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
         """Return the electric field of the smallest norm with a given codifferential.
 
         Its codifferential is the excess of the good.
@@ -299,7 +299,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         """Return the parts of the system built from its model parameters."""
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
-        field = self._initial_field(space.incidences_[0], density - density.mean())
+        field = self._get_initial_field(space.incidences_[0], density - density.mean())
         sites = GroupElement(
             'sites',
             element=GoodSiteElement,
@@ -317,8 +317,8 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             visual=VisualSpec('cell', {'state': 'A'}),
         )
         interactions = [
-            RateInteraction('potential', target='links', state='A', rate=self._potential_rate),
-            RateInteraction('field', target='links', state='E', rate=self._field_rate),
+            RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),
+            RateInteraction('field', target='links', state='E', rate=self._get_field_rate),
             TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
         ]
         return CompositeSystem(self.label, elements=[sites, links], interactions=interactions)

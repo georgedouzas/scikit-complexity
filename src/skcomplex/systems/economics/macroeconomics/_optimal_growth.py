@@ -115,7 +115,7 @@ class OptimalConsumptionSystem(DynamicalSystem):
         self.v = v
 
     @staticmethod
-    def _net_saving(s: SimpleNamespace) -> Expression:
+    def _get_net_saving(s: SimpleNamespace) -> Expression:
         """Return the output not consumed minus depreciation, `A k^alpha - delta k - c`."""
         economy = s.target
         rate: Expression = economy.A * economy.k**economy.alpha - economy.delta * economy.k - economy.c
@@ -140,5 +140,5 @@ class OptimalConsumptionSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the parts of the system built from its model parameters."""
         return {
-            'k': self._net_saving,
+            'k': self._get_net_saving,
         }

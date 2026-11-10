@@ -255,7 +255,7 @@ class CommodityCycleSystem(BaseSystem):
         self.lifetime = lifetime
 
     @staticmethod
-    def _production(s: SimpleNamespace) -> Expression:
+    def _get_production(s: SimpleNamespace) -> Expression:
         """Return the production.
 
         It is the capacity times the relative price to the supply elasticity.
@@ -264,7 +264,7 @@ class CommodityCycleSystem(BaseSystem):
         return market.capacity * (_get_price(market) / market.reference_price) ** market.supply_elasticity
 
     @staticmethod
-    def _consumption(s: SimpleNamespace) -> Expression:
+    def _get_consumption(s: SimpleNamespace) -> Expression:
         """Return the consumption.
 
         It is the demand times the relative price to minus the demand elasticity.
@@ -273,7 +273,7 @@ class CommodityCycleSystem(BaseSystem):
         return _get_demand(market) * (_get_price(market) / market.reference_price) ** (-market.demand_elasticity)
 
     @staticmethod
-    def _completions(s: SimpleNamespace) -> Expression:
+    def _get_completions(s: SimpleNamespace) -> Expression:
         """Return the completions of capacity, the orders through a third-order delay."""
         market = CommodityCycleSystem._get_market(s)
         return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
@@ -301,9 +301,9 @@ class CommodityCycleSystem(BaseSystem):
             target='market',
             state=Source('producers'),
             into='inventory',
-            amount=self._production,
+            amount=self._get_production,
             flow='production',
-            legs=[('inventory', Sink('consumers'), self._consumption, 'consumption')],
+            legs=[('inventory', Sink('consumers'), self._get_consumption, 'consumption')],
         )
         capacity_flows = TransferInteraction(
             'capacity_flows',
@@ -311,7 +311,7 @@ class CommodityCycleSystem(BaseSystem):
             target='market',
             state=Source('construction'),
             into='capacity',
-            amount=self._completions,
+            amount=self._get_completions,
             flow='completions',
             legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
         )
