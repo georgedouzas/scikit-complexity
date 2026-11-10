@@ -9,8 +9,12 @@ whose `series(name)` gives the kept series of every run. `early_warning` lives i
 and reads `rolling` from the core. The continuous normal forms are in
 `systems/mathematics/dynamical_systems/_normal_forms.py`, `RampedStochasticFoldSystem` in
 `systems/physics/climate/_tipping_types.py`, `StommelSystem` in `systems/physics/oceanography/_thermohaline.py`, and
-`IsingSystem` in `systems/physics/statistical_mechanics/_spins.py`. jax and optax are runtime dependencies. equinox is
-not yet.
+`IsingSystem` in `systems/physics/statistical_mechanics/_spins.py`. jax and optax are runtime dependencies.
+
+`add-learning-foundation` is a prerequisite. It adds Equinox as a runtime dependency, `ObservedRunsSpec` with irregular
+times per run, `observe`, which reads a `sweep` result as runs with the swept values as conditions and samples them at
+given or random times, `split_runs`, and the private `_OptaxLoop`, the one training loop of the library, with
+validation and early stopping.
 
 ## Goals / Non-Goals
 
@@ -24,7 +28,8 @@ not yet.
 **Non-Goals:**
 
 - The trained ewstools models, which need TensorFlow.
-- Estimator classes with `fit` and `predict`. Reuse goes through the `classifier` setting.
+- Estimator classes with `fit` and `predict`. Reuse goes through the `classifier` setting. The scikit-learn adapters
+  of `add-learning-bridges` are for systems, not for these analyses.
 - The quantum Fisher information and transitions in more than one parameter.
 - Moving `early_warning` into the core.
 
@@ -38,19 +43,22 @@ not yet.
   `transition_classifier(source, *, training=None, labels=None, classifier=None, variables=None, times=None,
   model='cnn_lstm', length=500, censor=True, validation=0.1, epochs=200, random_state=None, output=None)`. `source` and
   `training` are anything `_read_samples` reads, or an `ExperimentResult`, whose `output` series are the runs and whose
-  column named by `labels` gives the labels. The result holds `classes`, `probabilities` (series by classes),
-  `prediction`, `training_accuracy`, `validation_accuracy`, `brier` (NaN unless the labels are binary), and
-  `classifier`.
+  column named by `labels` gives the labels. `source` and `training` may also be `ObservedRunsSpec`, whose
+  runs are the series and whose conditions may hold the labels. The validation series are held out with `split_runs`.
+  The result holds `classes`, `probabilities` (series by classes), `prediction`, `training_accuracy`,
+  `validation_accuracy`, `losses`, `validation_losses`, `brier` (NaN unless the labels are binary), and `classifier`.
 - **Preprocessing.** Every training series is censored to a random window of length drawn in `[length / 10, length]`,
   normalised by its mean absolute value, and padded with zeros at the start to `length`, as in 2303.09669. Series to
-  classify are normalised and padded the same way, without censoring. With `times`, the gaps between samples form a
-  second channel, which is how 2407.18693 handles irregular sampling. Without them the gaps channel is omitted.
+  classify are normalised and padded the same way, without censoring. With `times`, or with observed runs whose times are
+  uneven, the gaps between samples form a second channel, which is how 2407.18693 handles irregular sampling. Without
+  them the gaps channel is omitted. Irregular training libraries come from `observe` with random times per run.
 - **Models.** `'cnn_lstm'` is a small equinox module: `eqx.nn.Conv1d` with max pooling, two `eqx.nn.LSTMCell` layers
-  scanned with `jax.lax.scan`, dropout, and `eqx.nn.Linear`. It is trained with `optax.adam` on the softmax cross
-  entropy in mini-batches, with keys split from `random_state`. A scikit-learn classifier is cloned and fitted on the
+  scanned with `jax.lax.scan`, dropout, and `eqx.nn.Linear`. It is trained on the shared `_OptaxLoop` of
+  `add-learning-foundation` with Adam on the softmax cross entropy in mini-batches, with keys split from
+  `random_state`, and stops early on the validation loss with `patience`. A scikit-learn classifier is cloned and fitted on the
   flattened padded windows. The private class `_SequenceClassifier` wraps both behind `predict_proba`, so `classifier`
   in the result is reused the same way. Writing the network in flax was rejected because flax is not a dependency and
-  equinox is also needed by three other changes.
+  Equinox is the network library of the foundation.
 - **Labels for tipping.** Labels are given by the user. The gallery and tests label rate-induced tipping by whether the
   final state lies in the other basin, read with `basin_stability` or a threshold on the last value, and label
   bifurcation types by the design column `kind` of a `sweep` over `DiscreteNormalFormSystem`.
@@ -72,9 +80,10 @@ not yet.
   `economics/macroeconomics/_westerhoff_cycle.py`. Each is a `BaseSystem` of one element under `DiscreteTime` with
   update laws, a noise term drawn in the law, and the ramp as a time input, as `RampedStochasticFoldSystem` writes its
   ramp. The Westerhoff element keeps the previous income as a second state.
-- **Dependency.** `equinox>=0.13.8` joins the runtime dependencies in `pyproject.toml`. Its last release is 0.13.8 on
-  2026-05-05, within the 24 months of `dependency-freshness`. It needs jax, jaxtyping, typing-extensions, and
-  wadler-lindig. If another change of this wave lands it first, this change only uses it.
+- **Placement.** Both functions are analyses that read series by their tags, step 2 of the placement rule, in
+  `skcomplex.core.analysis`. Domains: climate and oceanography (tipping), ecology (regime shifts), physiology (cardiac
+  alternans), economics (business cycles), statistical physics (phase transitions). The three systems are one system
+  each, step 3, in their subfields.
 
 ## Risks / Trade-offs
 

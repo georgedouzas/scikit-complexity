@@ -12,8 +12,9 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
 - New analysis function `transition_classifier(source, *, training=..., labels=..., ...)` in `core/analysis`. It trains
   a classifier on labelled runs, such as normal forms with a ramped parameter, and returns the class probabilities of
   every series of `source`. One function covers the type of bifurcation, tipping or not, and the probability of
-  rate-induced tipping, since only the labels differ. The model is a CNN-LSTM written with equinox or any
-  scikit-learn classifier. Series may be irregularly sampled. A trained classifier from an earlier result can be
+  rate-induced tipping, since only the labels differ. The model is a CNN-LSTM written with Equinox and trained
+  on the shared Optax loop of `add-learning-foundation`, or any scikit-learn classifier. Series may be irregularly
+  sampled observed runs. A trained classifier from an earlier result can be
   passed instead of training data.
 - New analysis function `phase_indicator(source, *, parameter=..., output=..., kind=...)` in `core/analysis`. It reads
   samples at every point of a `sweep` and returns the supervised, confusion, or prediction-based indicator, the
@@ -25,8 +26,6 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
   memory, which alternates through a period-doubling bifurcation as the stimulation period falls.
 - New system `WesterhoffBusinessCycleSystem` (`economics/macroeconomics`), the consumer-sentiment model of national
   income, which starts business cycles through a Neimark-Sacker bifurcation as autonomous expenditure rises.
-- New runtime dependency `equinox`, shared with `add-hybrid-neural-laws`, `add-generative-samplers`, and
-  `add-neural-particle-simulators`, added by whichever lands first.
 
 ## Capabilities
 
@@ -46,7 +45,10 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
   `applicable_analyses`. No change to existing analyses. `early_warning` stays in `systems/physics/climate`.
 - Systems: `skcomplex.systems.mathematics.dynamical_systems`, `skcomplex.systems.biology.physiology`, and
   `skcomplex.systems.economics.macroeconomics`, each with a new self-contained module.
-- Dependencies: `equinox` 0.13.8, released 2026-05-05. jax and optax are already runtime dependencies.
+- Dependencies: none new. Equinox comes with `add-learning-foundation`, and jax and optax are already runtime
+  dependencies.
 - Docs: the user guide page on analyses, three gallery examples, and the inventory with the primitive
   `learned-indicators`.
-- Independent of the other changes of the data-driven wave.
+- Depends on `add-learning-foundation`: training libraries are observed runs built by `observe` from a `sweep`, with
+  irregular times from the observation, the validation series are held out by `split_runs`, and the CNN-LSTM trains on
+  its shared Optax loop with early stopping. Independent of the other drafts that build on it.

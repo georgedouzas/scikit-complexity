@@ -1,9 +1,9 @@
 # Tasks
 
-## 1. Dependency
+## 1. Prerequisite
 
-- [ ] 1.1 Add `equinox>=0.13.8` to the runtime dependencies in `pyproject.toml` unless an earlier change of the wave
-  added it, and verify `pdm install` resolves and `python -c "import equinox"` runs
+- [ ] 1.1 Check that `add-learning-foundation` is applied, so Equinox, observed runs, `observe`, `split_runs`, and the
+  shared Optax loop exist, and stop if it is not
 
 ## 2. Training systems
 
@@ -21,9 +21,10 @@
 ## 3. Transition classifier
 
 - [ ] 3.1 Add the preprocessing (censoring, normalisation, padding, gaps channel) and the reading of runs and labels
-  from arrays and experiment results, verified by unit tests in `tests/core/analysis/test_transition_classifier.py`
-- [ ] 3.2 Add the equinox CNN-LSTM and the scikit-learn path behind one private wrapper, verified by tests of
-  probabilities that sum to 1 and of reproducibility with one seed
+  from arrays, experiment results, and observed runs with uneven times, verified by unit tests in `tests/core/analysis/test_transition_classifier.py`
+- [ ] 3.2 Add the Equinox CNN-LSTM trained on the shared Optax loop with validation runs from `split_runs` and early
+  stopping, and the scikit-learn path, behind one private wrapper, verified by tests of probabilities that sum to 1, of
+  reproducibility with one seed, and of the shared-training-loop scenario
 - [ ] 3.3 Add `transition_classifier` and `TransitionClassifierResult` with reuse of a trained classifier and the
   errors for missing or doubled training data, verified by tests and the doctest
 - [ ] 3.4 Add the probe tests of the bifurcation type of the Fox and Westerhoff runs, of null runs, of irregular tipping
