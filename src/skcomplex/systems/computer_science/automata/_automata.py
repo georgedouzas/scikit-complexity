@@ -265,7 +265,7 @@ class LangtonsAntSystem(BaseSystem):
         self.heading = heading
 
     @staticmethod
-    def _ant_rule(*values: Array) -> tuple[Array, Array]:
+    def _get_ant_rule(*values: Array) -> tuple[Array, Array]:
         """Return the next colors and ants of Langton's ant.
 
         They are read from the von Neumann neighbourhoods of both states.
@@ -299,7 +299,7 @@ class LangtonsAntSystem(BaseSystem):
                     'ant',
                     target='cells',
                     state=('color', 'ant'),
-                    rule=self._ant_rule,
+                    rule=self._get_ant_rule,
                     neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                     reads=('color', 'ant'),
                 ),

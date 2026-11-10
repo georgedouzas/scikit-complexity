@@ -97,7 +97,7 @@ tests and the catalog tests pass with the field added to the checked packages.
   annotation that names a local alias.
 - [x] 7.3 Chemistry, including the shared diffusion helpers and `_noise` of `_reaction_diffusion.py`, which becomes
   `_get_noise`.
-- [ ] 7.4 Computer science, including the landscapes of `_optimisers.py`.
+- [x] 7.4 Computer science, including the landscapes of `_optimisers.py`.
 - [ ] 7.5 Economics, including the predictors of `_el_farol.py`, the heuristics namespace, and `landscape` of
   `_sugarscape.py`, whose example moves into its mirrored test.
 - [ ] 7.6 Engineering, including the plants of `_koopman.py`.

@@ -137,7 +137,7 @@ class DilutedHopfieldSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generator) -> scipy.sparse.csr_array:
+    def _get_couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generator) -> scipy.sparse.csr_array:
         """Return the couplings `J_ij = C_ij Σ_μ ξ_i ξ_j` on a random digraph.
 
         The digraph has the mean in-degree `connectivity`.
@@ -150,7 +150,7 @@ class DilutedHopfieldSystem(BaseSystem):
         return scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size))
 
     @staticmethod
-    def _alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
+    def _get_alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
         """Return the utility `β s h` of a value `s` of a neuron in its local field.
 
         The local field is `h = Σ_j J_ij s_j`.
@@ -181,6 +181,9 @@ class DilutedHopfieldSystem(BaseSystem):
             target='neurons',
             state='spin',
             options=(-1.0, 1.0),
-            utility=functools.partial(self._alignment, couplings=self._couplings(patterns, self.connectivity, rng)),
+            utility=functools.partial(
+                self._get_alignment,
+                couplings=self._get_couplings(patterns, self.connectivity, rng),
+            ),
         )
         return CompositeSystem(self.label, elements=[neurons], interactions=[glauber])

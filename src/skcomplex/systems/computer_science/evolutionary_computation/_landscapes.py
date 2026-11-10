@@ -178,14 +178,14 @@ class ReproductionInteraction(EvolutionInteraction):
         return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
     @staticmethod
-    def _bits_of(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:
+    def _get_bits(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:
         """Return the bits of integer genomes, one row per genome."""
         return (genomes.astype(np.int64)[:, None] >> np.arange(n_bits)) & 1
 
     @staticmethod
     def _get_fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
         """Return the mean over the loci of the value of each genome's allele."""
-        bits = ReproductionInteraction._bits_of(genomes, zero_values.size)
+        bits = ReproductionInteraction._get_bits(genomes, zero_values.size)
         return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 

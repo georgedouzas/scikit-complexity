@@ -23,7 +23,7 @@ class LocalRuleInteraction(Interaction):
 
     The rule sets the next value of every cell from its ordered neighbourhood. The rule is a table of the next value of
     every configuration of the neighbourhood, `TableSpec`, a rule of the sum of the neighbourhood, `TotalisticSpec`, a
-    rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an object whose `table()` returns a
+    rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an object whose `get_table()` returns a
     `TableSpec`, or a function. A function receives one array per neighbour of every read state, in neighbourhood order,
     with one value per cell, the uniform array `random` when the rule is stochastic, and the parameters of the bound
     group it names, and returns the next values of the states, one array per state. A state of several components per

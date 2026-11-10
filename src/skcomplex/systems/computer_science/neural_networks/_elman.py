@@ -390,12 +390,12 @@ class ElmanNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _squared_error(member: SimpleNamespace) -> object:
+    def _get_squared_error(member: SimpleNamespace) -> object:
         """Return the squared error of the prediction of an output unit."""
         return (member.y - member.target) ** 2
 
     @staticmethod
-    def _temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
+    def _get_temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
         """Return a stream of bits with a temporal XOR.
 
         Every third bit is the exclusive or of the two bits before it.
@@ -406,7 +406,7 @@ class ElmanNetworkSystem(BaseSystem):
         return bits
 
     @staticmethod
-    def _dataset(bits: Array, window: int) -> DatasetSpec:
+    def _get_dataset(bits: Array, window: int) -> DatasetSpec:
         """Return the windows of a stream, the next bits as targets, and the metric masks.
 
         The windows start at every third bit. The prediction of a step reads the input of that step, so the target of
@@ -427,7 +427,7 @@ class ElmanNetworkSystem(BaseSystem):
         It learns to predict the next bit of a temporal XOR stream.
         """
         rng = np.random.default_rng(self.random_state)
-        data = self._dataset(self._temporal_xor(self.n_bits, rng), self.window)
+        data = self._get_dataset(self._get_temporal_xor(self.n_bits, rng), self.window)
         net = CompositeSystem(
             'net',
             elements=[
@@ -460,14 +460,14 @@ class ElmanNetworkSystem(BaseSystem):
             'training',
             system='net',
             trained=TRAINED,
-            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._squared_error),
+            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._get_squared_error),
             data=data,
             learning_rate=self.learning_rate,
             batch_size=self.batch_size,
             truncation=self.truncation,
             metrics=(
-                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._squared_error),
-                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._squared_error),
+                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
             ),
         )
         return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())

@@ -526,7 +526,7 @@ class SubshiftsSystem(BaseSystem):
         self.size = size
 
     @staticmethod
-    def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
+    def _get_golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
         """Return the cell flipped with probability one half.
 
         The flip is refused when a 1 would sit next to another 1.
@@ -541,7 +541,7 @@ class SubshiftsSystem(BaseSystem):
             'flips',
             target='cells',
             state='alive',
-            rule=self._golden_move,
+            rule=self._get_golden_move,
             neighborhood=BallNeighborhood(n_dim=1, center='inline'),
             schedule='random-sequential',
             stochastic=True,

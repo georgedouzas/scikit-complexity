@@ -58,7 +58,7 @@ class LocalRuleLaw(BaseLaw):
 
         rule:
             A function, a `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, a `LinearRuleSpec`, or an
-            object whose `table()` returns a `TableSpec`, such as a rule code.
+            object whose `get_table()` returns a `TableSpec`, such as a rule code.
 
         reads:
             The lattice states whose neighbourhoods a function rule reads, or `None` for the targets.
@@ -147,9 +147,9 @@ class LocalRuleLaw(BaseLaw):
     def _get_rule(self) -> object:
         """Return a rule code as its table, and any other rule unchanged.
 
-        The table comes from its `table()` method.
+        The table comes from its `get_table()` method.
         """
-        convert = getattr(self.rule, 'table', None)
+        convert = getattr(self.rule, 'get_table', None)
         return convert() if not callable(self.rule) and callable(convert) else self.rule
 
     def _get_neighborhood(self) -> BaseNeighborhood:
@@ -243,7 +243,7 @@ class LocalRuleLaw(BaseLaw):
         if callable(rule):
             return rule(*patterns.T, **keywords)
         error_msg = (
-            f'The rule {rule!r} is not a TableSpec, a totalistic rule, a linear rule, a rule code with a table() '
+            f'The rule {rule!r} is not a TableSpec, a totalistic rule, a linear rule, a rule code with a get_table() '
             'method, or a function.'
         )
         raise ValidationError(error_msg)

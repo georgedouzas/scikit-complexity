@@ -223,7 +223,7 @@ class OptimizationInteraction(Interaction):
             error_msg = f'The objective of {self.label!r} must be a function of the array of candidates.'
             raise ValidationError(error_msg)
 
-    def _differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
+    def _get_differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
         """Return differential evolution from the candidates."""
         return DE(
             pop_size=len(candidates),
@@ -233,7 +233,7 @@ class OptimizationInteraction(Interaction):
             CR=spec.crossover,
         )
 
-    def _particle_swarm(self, spec: ParticleSwarmSpec, candidates: Array) -> Algorithm:
+    def _get_particle_swarm(self, spec: ParticleSwarmSpec, candidates: Array) -> Algorithm:
         """Return particle swarm optimisation from the candidates."""
         return PSO(
             pop_size=len(candidates),
@@ -244,11 +244,11 @@ class OptimizationInteraction(Interaction):
             adaptive=False,
         )
 
-    def _evolution_strategy(self, spec: EvolutionStrategySpec, candidates: Array) -> Algorithm:
+    def _get_evolution_strategy(self, spec: EvolutionStrategySpec, candidates: Array) -> Algorithm:
         """Return an evolution strategy from the candidates."""
         return ES(pop_size=len(candidates), n_offsprings=spec.offspring, sampling=candidates)
 
-    def _covariance_adaptation(self, spec: CovarianceAdaptationSpec, candidates: Array) -> Algorithm:
+    def _get_covariance_adaptation(self, spec: CovarianceAdaptationSpec, candidates: Array) -> Algorithm:
         """Return covariance matrix adaptation from the mean of the candidates."""
         return CMAES(x0=candidates.mean(axis=0), sigma=spec.sigma, pop_size=len(candidates))
 
@@ -258,10 +258,10 @@ class OptimizationInteraction(Interaction):
         It is set up on the box of the candidates with a seed.
         """
         makers: dict[type, Callable[..., Algorithm]] = {
-            DifferentialEvolutionSpec: self._differential_evolution,
-            ParticleSwarmSpec: self._particle_swarm,
-            EvolutionStrategySpec: self._evolution_strategy,
-            CovarianceAdaptationSpec: self._covariance_adaptation,
+            DifferentialEvolutionSpec: self._get_differential_evolution,
+            ParticleSwarmSpec: self._get_particle_swarm,
+            EvolutionStrategySpec: self._get_evolution_strategy,
+            CovarianceAdaptationSpec: self._get_covariance_adaptation,
         }
         size = candidates.shape[1]
         lower, upper = (np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in self.bounds)
@@ -566,7 +566,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _annealing(
+    def _get_annealing(
         start: Array,
         energy: Callable[[SimpleNamespace], Expression],
         temperature: float,
@@ -626,7 +626,7 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         energy, objective, bound = LANDSCAPES[self.landscape]
         start = np.random.default_rng(self.random_state).uniform(-bound, bound, (self.n_candidates, N_DIM))
         if self.algorithm == ANNEALING:
-            return self._annealing(start, energy, self.temperature, self.width, self.generations, label=self.label)
+            return self._get_annealing(start, energy, self.temperature, self.width, self.generations, label=self.label)
         candidates = GroupElement(
             'candidates',
             element=SearchCandidateElement,

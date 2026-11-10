@@ -277,7 +277,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         self.initial = initial
 
     @staticmethod
-    def _power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
+    def _get_power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
         """Return `x(n) - t x(n + 1)` in a truncated power series ring.
 
         The coefficients are on the last axis.
@@ -293,7 +293,7 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         else:
             values = np.asarray(self.initial, dtype=float)
         rule = functools.partial(
-            self._power_series_difference,
+            self._get_power_series_difference,
             ring=ring,
             variable=ring.get_coefficients_of(ring.ring.gen()),
         )
@@ -459,7 +459,7 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _quadratic(here: Array, right: Array) -> Array:
+    def _get_quadratic(here: Array, right: Array) -> Array:
         """Return `x(n + 1) - x(n)^2`."""
         return right - here**2
 
@@ -485,7 +485,7 @@ class RealQuadraticAutomatonSystem(BaseSystem):
                     'quadratic',
                     target='cells',
                     state='value',
-                    rule=self._quadratic,
+                    rule=self._get_quadratic,
                     neighborhood=FORWARD,
                 ),
             ],
@@ -545,7 +545,7 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
+    def _get_group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
         """Return the number of the group element `x(n)^-1 x(n + 1)`.
 
         It is read from a Cayley table and the inverses.
@@ -564,7 +564,7 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
             values = np.random.default_rng(self.random_state).integers(0, product.shape[0], self.size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        rule = functools.partial(self._group_difference, product=product, inverse=inverse)
+        rule = functools.partial(self._get_group_difference, product=product, inverse=inverse)
         return CompositeSystem(
             self.label,
             elements=[

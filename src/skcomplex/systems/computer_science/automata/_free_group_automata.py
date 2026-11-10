@@ -184,7 +184,7 @@ class MullerAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _muller(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
+    def _get_muller(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
         """Return `p1(x(ga)) + p2(x(gb)) + p1(x(ga^-1)) + p2(x(gb^-1))`.
 
         The projections are `p1(h, k) = (h, 0)` and `p2(h, k) = (k, 0)`.
@@ -200,7 +200,7 @@ class MullerAutomatonSystem(BaseSystem):
         """
         return MullerAutomatonSystem._get_pair_system(
             self.label,
-            self._muller,
+            self._get_muller,
             radius=self.radius,
             modulus=self.modulus,
             initial=self.initial,
@@ -271,7 +271,7 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _surjective_linear(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
+    def _get_surjective_linear(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
         """Return `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`.
 
         The maps are `q1(h, k) = (h, 0)` and `q2(h, k) = (0, h)`.
@@ -286,7 +286,7 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         """
         return MullerAutomatonSystem._get_pair_system(
             self.label,
-            self._surjective_linear,
+            self._get_surjective_linear,
             radius=self.radius,
             modulus=self.modulus,
             initial=self.initial,

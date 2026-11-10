@@ -164,7 +164,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         self.step = step
 
     @staticmethod
-    def _lorenz_series(
+    def _get_lorenz_series(
         samples: int,
         step: float,
         sigma: float = 10.0,
@@ -193,7 +193,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         return values[-samples:]
 
     @staticmethod
-    def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
+    def _get_reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
         """Return the element of scalar states with lags.
 
         It is built from the values of every state and of its lags.
@@ -250,7 +250,7 @@ class NextGenerationReservoirSystem(BaseSystem):
 
         Without a series, it is fitted to samples of the Lorenz flow.
         """
-        values = NextGenerationReservoirSystem._lorenz_series(samples, step) if series is None else series
+        values = NextGenerationReservoirSystem._get_lorenz_series(samples, step) if series is None else series
         return reservoir(
             values,
             variables=list(variables),
@@ -286,7 +286,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         delay = (len(fitted.states) - len(names)) // len(names)
         memory = fitted.samples.series[-1][-delay:][::-1]
         initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
-        element = self._reservoir_element(initial)
+        element = self._get_reservoir_element(initial)
         weights = np.asarray(readout.readout.Wout, dtype=float)
         bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
         maps = [

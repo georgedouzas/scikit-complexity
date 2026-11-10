@@ -172,7 +172,7 @@ class HopfieldSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _hebbian_weights(patterns: Array) -> Array:
+    def _get_hebbian_weights(patterns: Array) -> Array:
         """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns.
 
         There is no self-coupling.
@@ -194,7 +194,7 @@ class HopfieldSystem(BaseSystem):
             'neurons',
             element=NeuronElement,
             size=size,
-            values={'spin': spins, 'weights': self._hebbian_weights(stored)},
+            values={'spin': spins, 'weights': self._get_hebbian_weights(stored)},
         )
         return CompositeSystem(
             self.label,

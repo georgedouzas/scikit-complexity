@@ -116,7 +116,7 @@ class NilpotentAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _nilpotent(*values: Array) -> Array:
+    def _get_nilpotent(*values: Array) -> Array:
         """Return 0 on a window of ones or at the left end of a run of ones.
 
         It returns the cell otherwise. The values are those of the offsets `-1, 0, ..., n - 1`, so the cell itself is
@@ -137,7 +137,7 @@ class NilpotentAutomatonSystem(BaseSystem):
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
-        return NilpotentAutomatonSystem._get_line_system(self.label, self._nilpotent, range(-1, self.n), values)
+        return NilpotentAutomatonSystem._get_line_system(self.label, self._get_nilpotent, range(-1, self.n), values)
 
 
 class InvolutiveAutomatonSystem(BaseSystem):
@@ -203,7 +203,7 @@ class InvolutiveAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _involution(*values: Array) -> Array:
+    def _get_involution(*values: Array) -> Array:
         """Return the cell under the involution.
 
         The window `alpha = 0 1^n 0` is sent to 0, `beta = 0 0 1^(n - 1) 0` is sent to 1, and other windows are kept.
@@ -226,4 +226,9 @@ class InvolutiveAutomatonSystem(BaseSystem):
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
-        return NilpotentAutomatonSystem._get_line_system(self.label, self._involution, range(-1, self.n + 1), values)
+        return NilpotentAutomatonSystem._get_line_system(
+            self.label,
+            self._get_involution,
+            range(-1, self.n + 1),
+            values,
+        )

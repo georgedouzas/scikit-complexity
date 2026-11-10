@@ -127,7 +127,7 @@ class TuringMachineSystem(BaseSystem):
         self.start = start
 
     @staticmethod
-    def _turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
+    def _get_turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
         """Return the local rule of a Turing machine of an action table.
 
         The rule reads the symbols and heads of three cells.
@@ -190,7 +190,7 @@ class TuringMachineSystem(BaseSystem):
                     'machine',
                     target='tape',
                     state=('symbol', 'head'),
-                    rule=self._turing_rule(actions),
+                    rule=self._get_turing_rule(actions),
                     neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     reads=('symbol', 'head'),
                 ),

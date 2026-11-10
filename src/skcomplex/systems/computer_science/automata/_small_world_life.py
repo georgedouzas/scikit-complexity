@@ -96,7 +96,7 @@ class SmallWorldLifeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _moore_torus(shape: Sequence[int]) -> nx.Graph:
+    def _get_moore_torus(shape: Sequence[int]) -> nx.Graph:
         """Return the graph of the cells of a torus.
 
         Each cell is linked to its eight Moore neighbours, in row-major order.
@@ -111,7 +111,7 @@ class SmallWorldLifeSystem(BaseSystem):
         return graph
 
     @staticmethod
-    def _life(s: SimpleNamespace) -> Expression:
+    def _get_life(s: SimpleNamespace) -> Expression:
         """Return the next state of a cell of the Game of Life.
 
         It is read from the live neighbours of the cell on the network.
@@ -130,7 +130,7 @@ class SmallWorldLifeSystem(BaseSystem):
             error_msg = f'The rewiring probability is {self.p!r}. Give a number in [0, 1].'
             raise ParameterError(error_msg)
         rng = np.random.default_rng(self.random_state)
-        graph = self._moore_torus(self.shape)
+        graph = self._get_moore_torus(self.shape)
         swaps = round(self.p * graph.number_of_edges() / 2)
         if swaps:
             nx.double_edge_swap(graph, nswap=swaps, max_tries=100 * swaps, seed=int(rng.integers(2**31)))
@@ -145,6 +145,6 @@ class SmallWorldLifeSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[cells],
-            interactions=[MapInteraction('life', target='cells', state='alive', function=self._life)],
+            interactions=[MapInteraction('life', target='cells', state='alive', function=self._get_life)],
             time=DiscreteTime(),
         )

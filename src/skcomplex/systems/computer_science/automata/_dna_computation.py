@@ -158,9 +158,9 @@ class LigationInteraction(Interaction):
             joined = head.copy()
             joined[head_length : head_length + tail_length - 1] = tail[1:tail_length]
             strands[first].path = joined
-            strands[second].path = self._oligo(head.size, rng)
+            strands[second].path = self._get_oligo(head.size, rng)
 
-    def _oligo(self, size: int, rng: np.random.Generator) -> IntArray:
+    def _get_oligo(self, size: int, rng: np.random.Generator) -> IntArray:
         """Return a fresh edge oligo drawn uniformly from the links.
 
         It is a path of two nodes padded to the size.

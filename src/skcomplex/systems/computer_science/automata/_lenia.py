@@ -174,14 +174,14 @@ class LeniaUpdateInteraction(Interaction):
         total = sum(kernel[2] for kernel in self.kernels)
         growth: Expression = 0
         for source, radius, weight, peaks, mu, sigma in self.kernels:
-            kernel = self._shell(distance / radius, peaks) / self._norm(radius, peaks)
+            kernel = self._get_shell(distance / radius, peaks) / self._get_norm(radius, peaks)
             potential = convolve(getattr(s.target, source), kernel, math.ceil(radius))
             growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
         value = getattr(s.target, self.channel)
         return [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
 
     @staticmethod
-    def _shell(q: Expression, peaks: Sequence[float]) -> Expression:
+    def _get_shell(q: Expression, peaks: Sequence[float]) -> Expression:
         """Return the rings of a kernel at the distance `q` in units of its radius.
 
         They are zero outside the unit ball.
@@ -194,7 +194,7 @@ class LeniaUpdateInteraction(Interaction):
             shell += where(inside, peak * exp(4 - 1 / where(inside, x * (1 - x), 1)), 0)
         return shell
 
-    def _norm(self, radius: float, peaks: Sequence[float]) -> float:
+    def _get_norm(self, radius: float, peaks: Sequence[float]) -> float:
         """Return the sum of the rings of a kernel over the sites within its radius."""
         steps = np.arange(-math.ceil(radius), math.ceil(radius) + 1)
         grid = np.meshgrid(*[steps] * self.n_dim, indexing='ij')

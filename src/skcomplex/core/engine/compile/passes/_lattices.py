@@ -243,9 +243,9 @@ class LatticeProblemPass(BasePass):
     def _convert_to_table(rule: object) -> object:
         """Return a rule code as its table.
 
-        The table comes from its `table()` method, and any other rule is unchanged.
+        The table comes from its `get_table()` method, and any other rule is unchanged.
         """
-        convert = getattr(rule, 'table', None)
+        convert = getattr(rule, 'get_table', None)
         return convert() if not callable(rule) and callable(convert) else rule
 
     @staticmethod
@@ -734,7 +734,7 @@ class LatticeProblemPass(BasePass):
             if not callable(rule):
                 error_msg = (
                     f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a '
-                    'rule code with a table() method.'
+                    'rule code with a get_table() method.'
                 )
                 raise ValidationError(error_msg)
             function = rule

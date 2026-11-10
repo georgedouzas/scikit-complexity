@@ -269,7 +269,7 @@ class NoisyAutomataSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _noisy_rule(number: int) -> Callable[..., Array]:
+    def _get_noisy_rule(number: int) -> Callable[..., Array]:
         """Return the elementary rule of a Wolfram number with noisy outputs.
 
         A uniform draw below the noise flips its output.
@@ -308,7 +308,7 @@ class NoisyAutomataSystem(BaseSystem):
                     'rule',
                     target='cells',
                     state='alive',
-                    rule=self._noisy_rule(self.rule),
+                    rule=self._get_noisy_rule(self.rule),
                     neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     stochastic=True,
                 ),
