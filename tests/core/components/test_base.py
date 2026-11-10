@@ -1,5 +1,6 @@
 """Test the `base` module of `skcomplex.core.components`."""
 
+import ast
 import importlib
 import inspect
 import pkgutil
@@ -68,6 +69,35 @@ FIELD_TERMS = (
     'Wolf',
     'Worker',
 )
+BANNED_PHRASES = (
+    'in summary',
+    'in conclusion',
+    'to summarize',
+    'it is worth noting',
+    "it's worth noting",
+    'note that',
+    "let's dive",
+    'dive into',
+    'delve',
+    'leverage',
+    'seamless',
+    'seamlessly',
+    'robust',
+    'powerful',
+    'cutting-edge',
+    'unlock',
+    'harness',
+    'empower',
+    'plethora',
+    'myriad',
+    'a wide range of',
+    "in today's",
+    'simply',
+    'just',
+    'easily',
+    'magic',
+)
+SUMMARY_LENGTH = 80
 
 
 class DoublingPart(BasePart):
@@ -162,6 +192,60 @@ def _hand_written(cls):
         if code is not None and code.co_filename.startswith(SOURCE):
             names.append(name)
     return names
+
+
+def _docstrings():
+    """Return the dotted name, the docstring, and the publicity of every docstring of `skcomplex.core`.
+
+    The walk reads the source of every module and descends into classes, not into functions.
+    """
+    core = Path(SOURCE) / 'core'
+    for path in sorted(core.rglob('*.py')):
+        parts = path.relative_to(Path(SOURCE).parent).with_suffix('').parts
+        module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
+        yield from _walk_docstrings(ast.parse(path.read_text(encoding='utf-8')), module, public=True)
+
+
+def _walk_docstrings(node, name, *, public):
+    """Return the dotted name, the docstring, and the publicity of a node and of the definitions in its body."""
+    docstring = ast.get_docstring(node)
+    if docstring:
+        yield name, docstring, public
+    if isinstance(node, ast.Module | ast.ClassDef):
+        for child in node.body:
+            if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+                is_public = public and not child.name.startswith('_')
+                yield from _walk_docstrings(child, f'{name}.{child.name}', public=is_public)
+
+
+def _prose_lines(docstring):
+    """Return the prose lines of a docstring, stripped, with doctest code and inline code removed.
+
+    A doctest block runs from a line that starts with `>>>` to the next blank line, so its outputs are exempt too.
+    """
+    lines = []
+    in_code = False
+    for line in docstring.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(('>>>', '...')):
+            in_code = True
+        elif not stripped:
+            in_code = False
+        lines.append('' if in_code else stripped)
+    text = re.sub('`[^`]*`', lambda match: '\n' * match.group().count('\n'), '\n'.join(lines))
+    return text.splitlines()
+
+
+def _prose_faults(line):
+    """Return the semicolons, dashes used as punctuation, and banned phrases of a prose line."""
+    faults = []
+    if ';' in line:
+        faults.append('semicolon')
+    if re.search('[\u2013\u2014]', line) or ' - ' in line[1:]:
+        faults.append('dash')
+    lowered = line.lower()
+    faults += [phrase for phrase in BANNED_PHRASES if re.search(rf'(?<![\w-]){re.escape(phrase)}(?![\w-])', lowered)]
+    return faults
 
 
 def test_prepare_and_run():
@@ -284,3 +368,24 @@ def test_no_module_calls_a_magic_method():
         names = re.findall(r'\.(__[a-z_]+__)\b', path.read_text(encoding='utf-8'))
         found += [f'{path.name}: {name}' for name in names if name not in allowed]
     assert found == [], found
+
+
+def test_docstring_summaries_are_short():
+    """Test that the summary line of every docstring of `skcomplex.core` is at most 80 characters long."""
+    found = {
+        name: len(docstring.splitlines()[0])
+        for name, docstring, _ in _docstrings()
+        if len(docstring.splitlines()[0]) > SUMMARY_LENGTH
+    }
+    assert found == {}, found
+
+
+def test_docstrings_read_naturally():
+    """Test that no docstring of the core holds a semicolon, and no public one a dash or a banned phrase."""
+    found = {}
+    for name, docstring, public in _docstrings():
+        for line in _prose_lines(docstring):
+            faults = _prose_faults(line) if public else ['semicolon'] * (';' in line)
+            if faults:
+                found.setdefault(name, []).append((line, faults))
+    assert found == {}, found
