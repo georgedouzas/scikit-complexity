@@ -1,7 +1,4 @@
-"""Define the tensor spec.
-
-It holds the independent components of a rank-2 tensor of one symmetry.
-"""
+"""Define the spec of the independent components of a rank-2 tensor."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +23,7 @@ AXIS_NAMES = 'xyz'
 
 @dataclass(frozen=True)
 class TensorSpec(BaseSpec):
-    """Independent components of a rank-2 tensor of one symmetry.
+    """A spec of the independent components of a rank-2 tensor of one symmetry.
 
     The tensor lives in a space of two or three dimensions.
 

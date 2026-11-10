@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SignatureSpec(BaseSpec):
-    """Default analysis of one kind of data, ready to plot.
+    """A spec of the default analysis of one kind of data, ready to plot.
 
     Args:
         kind:

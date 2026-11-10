@@ -10,7 +10,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ObjectiveSpec(BaseSpec):
-    """Spec of the local objective of a lattice site.
+    """A spec of the local objective of a lattice site, the cost a move changes.
 
     It is every term of the total objective that involves the site's value. The change of a move is the difference of
     the local objective at the proposed and the current value. Neighbour values are read with `neighbors(...,

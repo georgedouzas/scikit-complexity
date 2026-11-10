@@ -15,7 +15,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class FractionalRowsSpec(BaseSpec):
-    """Noise rows of one noise law with a Hurst index.
+    """A spec of the noise rows of one noise law with a Hurst index.
 
     The law is driven by fractional Brownian motion of a Hurst index.
 

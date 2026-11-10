@@ -20,7 +20,7 @@ SPACE_DIMENSIONS = 3
 
 @dataclass(frozen=True)
 class BaseStructureSpec(BaseSpec):
-    """Base of the structures of a rewriting element at one generation.
+    """An abstract spec of the structure of a rewriting element at one generation.
 
     A structure is a word, a patch of tiles, or a graph. The readers `parts`, `segments`, `polygons`, `geometry`, and
     `raster` describe the structure. Subclasses give the parts, the segments, and the polygons, and the measures follow

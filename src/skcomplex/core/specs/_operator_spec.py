@@ -21,7 +21,7 @@ type Product = tuple[Factor, ...]
 
 @dataclass(frozen=True, eq=False)
 class OperatorSpec(BaseSpec):
-    """Sum of products of local operators of subsystems.
+    """A spec of a sum of products of local operators of subsystems.
 
     Each product has a symbolic coefficient. The compiler lowers the Sage operator expressions of laws and observables
     to operators. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient

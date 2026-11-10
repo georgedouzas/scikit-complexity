@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class TotalisticSpec(BaseSpec):
-    """Rule given by the next value of every sum of the neighbourhood values.
+    """A spec of a rule given by the next value of every neighbourhood sum.
 
     Args:
         rule:

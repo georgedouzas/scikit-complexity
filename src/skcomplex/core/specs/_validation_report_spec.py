@@ -13,7 +13,7 @@ from ._issue_spec import ERROR, WARNING, IssueSpec
 
 @dataclass(frozen=True)
 class ValidationReportSpec(BaseSpec):
-    """Every issue that a compiler found in a system, its solver, and its backend.
+    """A spec of every issue a compiler found in a system, solver, and backend.
 
     Its check emits the warnings of the report and raises one error that lists its errors, so a valid report passes
     its check.

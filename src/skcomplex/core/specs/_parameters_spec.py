@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ParametersSpec(BaseSpec):
-    """Parameter symbols of the rewritten elements.
+    """A spec of the parameter symbols of the rewritten elements.
 
     They are in the order of the parameter vector.
 

@@ -22,7 +22,7 @@ DIFFERENTIABLE_LAWS = frozenset({'rate', 'update', 'equation'})
 
 @dataclass(frozen=True)
 class Tags(BaseSpec):
-    """Capability tags.
+    """A set of capability tags of a part, a solver, or a backend.
 
     They say what a part is, what a system derives from its parts, or what a solver or a backend supports. The tags of a
     part come from its declarations and its arguments alone, so they are known before `prepare`. A set that is empty

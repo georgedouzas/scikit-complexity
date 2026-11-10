@@ -21,7 +21,7 @@ PYTHON_RELATIONS = {
 
 @dataclass(frozen=True)
 class DialectSpec(BaseSpec):
-    """Syntax of a target language for printed expressions.
+    """A spec of the syntax of a target language for printed expressions.
 
     Templates take their arguments as `{0}`, `{1}`, and so on, receive every argument that is not an atom in
     parentheses, and must give an atom, a name, a call, or a parenthesized expression.

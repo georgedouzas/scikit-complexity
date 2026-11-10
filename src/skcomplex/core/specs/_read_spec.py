@@ -14,7 +14,7 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True)
 class ReadSpec(BaseSpec):
-    """Values a symbol of a reduction stands for.
+    """A spec of the values that a symbol of a reduction stands for.
 
     They are one per reduced member or one shared value.
 

@@ -1,7 +1,4 @@
-"""Define the power series spec.
-
-It is the ring of formal power series over a field truncated at an order.
-"""
+"""Define the spec of a ring of truncated formal power series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PowerSeriesSpec(BaseSpec):
-    """Ring `K[[t]]` of formal power series over a field, truncated at an order.
+    """A spec of the ring of formal power series over a field, truncated.
 
     It is the domain of a state of a cell. A state of the ring holds every series `sum_i a_i t^i` by its coefficients
     `a_0, ..., a_{order - 1}`, so it has `order` components, and local rules read the coefficients of every neighbour on

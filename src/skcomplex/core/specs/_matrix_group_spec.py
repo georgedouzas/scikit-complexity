@@ -1,7 +1,4 @@
-"""Define the matrix group spec.
-
-It is a compact group of unitary matrices whose elements a state holds by components.
-"""
+"""Define the spec of a compact group of unitary matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ PARTS = 2
 
 @dataclass(frozen=True)
 class MatrixGroupSpec(BaseSpec):
-    """Compact group of unitary matrices of a degree.
+    """A spec of a compact group of unitary matrices of a degree.
 
     It is `SU(n)`, of unit determinant, or `U(n)`. A state of the group holds every matrix by its `2 n^2` real
     components, the real and the imaginary part of every entry in row order. The path-ordered product of the matrices

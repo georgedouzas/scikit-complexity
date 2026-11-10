@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AgentSnapshotSpec(BaseSpec):
-    """Agents of one group alive at one frame.
+    """A spec of the agents of one group alive at one frame.
 
     Args:
         ids:

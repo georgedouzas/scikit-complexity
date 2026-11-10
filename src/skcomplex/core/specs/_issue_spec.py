@@ -14,7 +14,7 @@ WARNING = 'warning'
 
 @dataclass(frozen=True)
 class IssueSpec(BaseSpec):
-    """Problem that validation found in a system, with where it is and how to fix it.
+    """A spec of a problem that validation found, with where it is and the fix.
 
     Args:
         code:

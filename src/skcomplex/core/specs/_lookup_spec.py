@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class LookupSpec(BaseSpec):
-    """Lookup array of a table or totalistic rule.
+    """A spec of the lookup array of a table or totalistic rule.
 
     Args:
         kind:

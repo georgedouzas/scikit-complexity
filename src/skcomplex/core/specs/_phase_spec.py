@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PhaseSpec(BaseSpec):
-    """Named part of a step.
+    """A spec of a named phase of a step, in which agents run some rules.
 
     In it agents run the rules of the phase under an activation policy. The policies are `'random'`, every agent in a
     new random order, `'sequential'`, every agent in the order of creation, `'simultaneous'`, every agent in random

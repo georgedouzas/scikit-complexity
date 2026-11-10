@@ -28,7 +28,7 @@ BOOLEAN_THRESHOLD = 0.5
 
 @dataclass(frozen=True)
 class EntrySpec(BaseSpec):
-    """Position of one named variable in a flat vector.
+    """A spec of the position of one named variable in a flat vector.
 
     Args:
         name:

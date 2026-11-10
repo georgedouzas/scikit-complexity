@@ -13,7 +13,7 @@ RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'wa
 
 @dataclass(frozen=True)
 class MatrixLawSpec(BaseSpec):
-    """Matrix of a Markov law of a component, with the description of the law.
+    """A spec of the matrix of a Markov law of a part, with its description.
 
     Args:
         owner:

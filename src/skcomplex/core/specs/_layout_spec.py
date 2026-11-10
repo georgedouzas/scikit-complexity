@@ -17,7 +17,7 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True)
 class LayoutSpec(BaseSpec):
-    """Ordered collection of named variables stored in one flat vector.
+    """A spec of the named variables stored in one flat vector, in order.
 
     Args:
         entries:

@@ -14,7 +14,7 @@ from ._base_record_spec import BaseRecordSpec
 
 @dataclass(frozen=True)
 class RenewalRecordSpec(BaseRecordSpec):
-    """Renewals of one renewal law that fired in one pass.
+    """A spec of the renewals of one renewal law that fired in one pass.
 
     Each renewal is at the time of its member.
 

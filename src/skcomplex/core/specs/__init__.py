@@ -1,6 +1,7 @@
-"""Define the specs.
+"""Define specs, the frozen values that the classes of the library read and write.
 
-A spec is a frozen value that declares, records, or holds what the classes of the library read.
+A spec declares what a class reads, such as the domain of a state, records what a run produced, such as an event, or
+holds what a compiler built.
 """
 
 from ._accelerated_spec import AcceleratedSpec

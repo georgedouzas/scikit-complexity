@@ -18,7 +18,7 @@ type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]
 
 @dataclass(frozen=True)
 class ModuleSpec(BaseSpec):
-    """Spec of a symbol of a word with numeric or symbolic parameters.
+    """A spec of a symbol of a word, with numeric or symbolic parameters.
 
     Examples are `A(x)` or `F(1.0)`.
 

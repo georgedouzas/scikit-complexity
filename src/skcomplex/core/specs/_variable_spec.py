@@ -16,7 +16,7 @@ from ._matrix_group_spec import MatrixGroupSpec
 
 @dataclass(frozen=True)
 class VariableSpec(BaseSpec):
-    """Declaration of a state, a parameter, or a role of a part.
+    """A spec of a state, parameter, or role of a part, as the compiler reads it.
 
     It is the declaration as the compiler reads it. A state of order `k` adds the companion states `<name>_d1` to
     `<name>_d<k-1>` that hold its derivatives, and a state with `m` lags adds `<name>_lag1` to `<name>_lag<m>` that hold

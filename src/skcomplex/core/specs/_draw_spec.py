@@ -15,7 +15,7 @@ RELAXED_KINDS = frozenset({'bernoulli', 'categorical'})
 
 @dataclass(frozen=True)
 class DrawSpec(BaseSpec):
-    """Random draw, with its kind and its name.
+    """A spec of a random draw, with its kind and its name.
 
     For a distribution of `scipy.stats`, it also holds the distribution and its keywords.
 

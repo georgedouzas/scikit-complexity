@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AcceleratedSpec(BaseSpec):
-    """Compiled stepper loops of a problem.
+    """A spec of the compiled loops that step a problem.
 
     They run every internal step of a frame in compiled code. Every loop takes `(t, x, p, until, ...)` and returns the
     state at `until`. A loop is `None` when the problem's form does not use it.

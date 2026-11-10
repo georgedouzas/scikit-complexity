@@ -16,7 +16,7 @@ from ._tags import Tags
 
 @dataclass(frozen=True)
 class SupportSpec(BaseSpec):
-    """What a solver or a backend supports.
+    """A spec of what a solver or a backend supports.
 
     It holds the classes of time, space, and laws, and the kinds of noise and orders. An empty field supports any class
     or kind. A class is supported when it is one of the classes of its field or a subclass of one, and `None` in the

@@ -11,7 +11,7 @@ from ._base_record_spec import BaseRecordSpec
 
 @dataclass(frozen=True)
 class EventRecordSpec(BaseRecordSpec):
-    """Event that happened during a run.
+    """A spec of the record of an event that happened during a run.
 
     Args:
         label:

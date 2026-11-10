@@ -21,11 +21,14 @@ ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
 @dataclass(frozen=True)
 class StateSpec(BaseSpec):
-    """Spec of a state of an element.
+    """A spec of a state of an element, its domain, order, and lags.
 
-    It is given in the annotation of an argument of its constructor. The default of the argument is the initial value of
-    the state. A state of order `k` has its `k`-th time derivative given by its rate laws, and a state with `m` lags
-    keeps its past values for difference equations.
+    It is given in the annotation of an argument of the constructor of an element, and the default of the argument is
+    the initial value of the state. A state of order `k` has its `k`th time derivative given by its rate laws, such as a
+    position of order 2 moved by a force. A state with `m` lags keeps its past values for difference equations.
+
+    It appears in every model with states, such as the number of infected people, which lies in `[0, oo)`, the phase of
+    an oscillator, which wraps around a circle, and the position of a planet, a state of order 2.
 
     Args:
         domain:

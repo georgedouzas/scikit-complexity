@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class DrawRecordSpec(BaseSpec):
-    """Values a run drew under one name, with the arguments of their distribution.
+    """A spec of the values a run drew under one name, with their distribution.
 
     Args:
         kind:

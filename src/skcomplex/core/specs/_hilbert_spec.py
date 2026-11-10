@@ -15,7 +15,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class HilbertSpec(BaseSpec):
-    """Spec of the complex vector space of an element.
+    """A spec of the complex vector space of the states of an element.
 
     It holds the local operators its laws build generators from. An element that takes a `HilbertSpec` and declares a
     complex state, a `StateSpec` over `CC` or `CC^dimension`, is a subsystem. Its laws read every local operator by

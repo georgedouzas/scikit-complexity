@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SubshiftSpec(BaseSpec):
-    """Domain of a state given by a subshift of finite type.
+    """A spec of the domain of a state given by a subshift of finite type.
 
     It holds the configurations without a forbidden pattern. A pattern is a tuple of values in the order of a
     neighbourhood. It appears at a site when the cells of the neighbourhood of the site hold its values, and patterns

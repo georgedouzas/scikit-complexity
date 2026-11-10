@@ -15,7 +15,7 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True, eq=False)
 class NeighborReadSpec(BaseSpec):
-    """How a symbol reads a field at a neighbouring site of every member.
+    """A spec of how a symbol reads a field at a neighbouring site of a member.
 
     Args:
         table:

@@ -18,7 +18,7 @@ PLANE_DIMENSION = 2
 
 @dataclass(frozen=True)
 class AffineSpec(BaseSpec):
-    """Spec of an affine map of the plane.
+    """A spec of an affine map of the plane, a linear map followed by a shift.
 
     The map is a reflection across the x axis, a rotation, a scale, and a translation. The scale, the rotation, and the
     translation can be expressions of the parameters of the element whose laws hold the substitution, which are

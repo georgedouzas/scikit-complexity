@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ReductionSpec(BaseSpec):
-    """Reduction call found in an expression.
+    """A spec of a reduction call found in an expression.
 
     It holds its kind, argument, condition, weights, and group.
 

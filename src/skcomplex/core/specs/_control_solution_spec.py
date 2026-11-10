@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ControlSolutionSpec(BaseSpec):
-    """Optimal control of a run over its horizon, sampled on a grid of times.
+    """A spec of the optimal control of a run, sampled on a grid of times.
 
     Args:
         times:

@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SamplesSpec(BaseSpec):
-    """Uniformly sampled series that a surrogate is fitted to.
+    """A spec of the uniformly sampled series that a surrogate is fitted to.
 
     Args:
         series:

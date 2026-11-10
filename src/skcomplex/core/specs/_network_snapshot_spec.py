@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class NetworkSnapshotSpec(BaseSpec):
-    """Nodes, edges, and hyperedges of a network layer at one frame.
+    """A spec of the nodes, edges, and hyperedges of a layer at one frame.
 
     Args:
         nodes:

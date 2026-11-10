@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RunSettingsSpec(BaseSpec):
-    """Run settings of a system file.
+    """A spec of the run settings of a system file.
 
     They hold where its time starts, how long it runs, its step, and its saving interval.
 

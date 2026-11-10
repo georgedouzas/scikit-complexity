@@ -15,7 +15,7 @@ from ._module_spec import ModuleSpec
 
 @dataclass(frozen=True)
 class WordStructureSpec(BaseStructureSpec):
-    """Word of a string rewriting system at one generation.
+    """A spec of the word of a string rewriting system at one generation.
 
     It holds its segments where a word geometry is declared.
 

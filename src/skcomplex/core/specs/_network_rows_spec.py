@@ -17,7 +17,7 @@ from ._network_snapshot_spec import NetworkSnapshotSpec
 
 @dataclass(frozen=True)
 class NetworkRowsSpec(BaseSpec):
-    """Variable groups of one network.
+    """A spec of the variable groups of one network.
 
     They are the groups on its nodes, the edge group of every changing layer, and hyperedges.
 

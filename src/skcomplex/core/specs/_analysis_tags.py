@@ -1,7 +1,4 @@
-"""Define the tags an analysis needs.
-
-They are the kind of data it reads and the capability tags of the system behind it.
-"""
+"""Define the tags that an analysis needs of its data and of the system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,7 @@ from ._tags import RANDOMNESS, SPACES, TIMES, Tags
 
 @dataclass(frozen=True)
 class AnalysisTags(BaseSpec):
-    """Tags an analysis needs.
+    """A set of tags that an analysis needs of its data and of the system.
 
     They are the kind of data it reads and the capability tags of the system that produced it. An analysis module
     declares its tags as the module constant `TAGS`, and a family of kinds declares the tags of the kinds that differ in

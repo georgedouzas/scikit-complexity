@@ -13,7 +13,7 @@ SENSES = ('max', 'min')
 
 @dataclass(frozen=True)
 class LinearObjectiveSpec(BaseSpec):
-    """Objective of a linear program.
+    """A spec of the objective of a linear program.
 
     It is linear in its variables or a sum of their absolute values.
 

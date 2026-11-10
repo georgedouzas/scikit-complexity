@@ -15,7 +15,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class LinearRuleSpec(BaseSpec):
-    """Rule given by a linear combination of the neighbourhood values over a field.
+    """A spec of a rule that sums the neighbourhood values with coefficients.
 
     The combination is `sum_s a_s x(g s)`. Over the group ring `K[G]` the rule is the element `sum_s a_s s`, for every
     element `s` of the neighbourhood with its coefficient `a_s`.

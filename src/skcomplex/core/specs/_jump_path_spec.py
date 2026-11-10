@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class JumpPathSpec(BaseSpec):
-    """Path of a discrete state with the time of every jump.
+    """A spec of the path of a discrete state with the time of every jump.
 
     Args:
         times:

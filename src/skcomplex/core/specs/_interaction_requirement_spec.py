@@ -12,7 +12,7 @@ from ._role_spec import RoleSpec
 
 @dataclass(frozen=True)
 class InteractionRequirementSpec(RequirementSpec):
-    """What an interaction requires.
+    """A spec of what an interaction requires of its roles, laws, time, and space.
 
     It holds what each of its roles needs, and the laws it returns with their time and space. An empty `time` or `space`
     accepts any class, and empty `laws` means that only running the interaction shows them.

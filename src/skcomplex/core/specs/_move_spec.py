@@ -14,7 +14,7 @@ MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'function', 'cluster')
 
 @dataclass(frozen=True)
 class MoveSpec(BaseSpec):
-    """Spec of the proposed change of the value of a lattice site.
+    """A spec of the proposed change of the value of a lattice site.
 
     The change is proposed in a Monte Carlo sweep.
 

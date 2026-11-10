@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SymmetrySpec(BaseSpec):
-    """Spec of a continuous symmetry of a system.
+    """A spec of a continuous symmetry of a system.
 
     It is the infinitesimal variation of the coordinates it moves. The generator is a function of the namespace of the
     system, where `s.<element>.<state>` is the symbol of a state, that maps the path of every coordinate it moves, such

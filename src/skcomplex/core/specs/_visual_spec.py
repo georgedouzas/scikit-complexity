@@ -10,7 +10,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class VisualSpec(BaseSpec):
-    """Visual of an element and the options it is built with.
+    """A spec of the visual of an element and the options it is built with.
 
     Args:
         kind:

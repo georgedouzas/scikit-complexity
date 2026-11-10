@@ -16,7 +16,7 @@ from ._draw_record_spec import DrawRecordSpec
 
 @dataclass(frozen=True)
 class DrawLogSpec(BaseSpec):
-    """Named draws and jump firings of one run, with their log-probability.
+    """A spec of the named draws and jumps of one run, with their log-probability.
 
     A run records it with `simulate(record_draws=True)` and replays it with `simulate(replay=trajectory)`.
 

@@ -23,7 +23,7 @@
 
 ## 4. Specs and root modules
 
-- [ ] 4.1 Rewrite `skcomplex.core.specs`, add it to `REWRITTEN`, and verify the guard and its doctests pass
+- [x] 4.1 Rewrite `skcomplex.core.specs`, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 4.2 Rewrite `skcomplex.core.base`, `errors`, and `types`, add them to `REWRITTEN`, and verify the guard and their doctests pass
 
 ## 5. Analysis and experiments

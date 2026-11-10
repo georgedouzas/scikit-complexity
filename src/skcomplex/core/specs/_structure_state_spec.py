@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class StructureStateSpec(BaseSpec):
-    """Structures of the elements a stepper keeps outside the state vector.
+    """A spec of the structures of elements kept outside the state vector.
 
     They are held at one frame, with their measures.
 

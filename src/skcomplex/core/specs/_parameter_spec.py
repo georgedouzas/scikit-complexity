@@ -13,11 +13,14 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ParameterSpec(BaseSpec):
-    """Spec of a parameter of an element or an interaction.
+    """A spec of a parameter of an element or an interaction.
 
-    It is given in the annotation of an argument of its constructor. The default of the argument is the default of the
-    parameter. A parameter per entry of a variadic role holds one value per entry of the role, and an adaptive parameter
-    is a state that laws may change, such as a policy rate.
+    It is given in the annotation of an argument of the constructor, and the default of the argument is the default of
+    the parameter. A parameter per entry of a variadic role holds one value per entry of the role. An adaptive parameter
+    is a state that laws may change, such as a policy rate set by a central bank.
+
+    It appears in every model with parameters, such as the rate of infection of an epidemic, the rate constant of a
+    reaction, and the coupling strength of oscillators, which calibration and sweeps change.
 
     Args:
         domain:

@@ -15,7 +15,7 @@ FALLBACKS = (None, 'nearest')
 
 @dataclass(frozen=True)
 class PartnerSpec(BaseSpec):
-    """Selection of partners.
+    """A spec of how members choose partners, by reach, score, and fallback.
 
     It holds the candidates of every agent, a choice among them, a fallback, and a capacity. Every agent of one side
     considers its candidates among the agents of the other side and picks among those that still have room. With a

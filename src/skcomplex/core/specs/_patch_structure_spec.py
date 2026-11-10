@@ -15,7 +15,7 @@ from ._prototile_spec import PrototileSpec
 
 @dataclass(frozen=True)
 class PatchStructureSpec(BaseStructureSpec):
-    """Patch of tiles at one generation.
+    """A spec of a patch of tiles at one generation.
 
     Each tile is a prototile under a homogeneous affine matrix.
 
