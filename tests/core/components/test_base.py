@@ -98,22 +98,22 @@ BANNED_PHRASES = (
     'magic',
 )
 SUMMARY_LENGTH = 80
-KINDS = {
-    'Element': 'element',
-    'Interaction': 'interaction',
-    'Law': 'law',
-    'Space': 'space',
-    'Time': 'time',
-    'Neighborhood': 'neighbourhood',
-    'System': 'system',
-    'Solver': 'solver',
-    'Backend': 'backend',
-    'Observer': 'observer',
-    'Spec': 'spec',
-    'Result': 'result',
-    'Pass': 'pass',
-    'Error': 'error',
-}
+SUFFIXES = (
+    'Element',
+    'Interaction',
+    'Law',
+    'Space',
+    'Time',
+    'System',
+    'Solver',
+    'Backend',
+    'Observer',
+    'Spec',
+    'Result',
+    'Pass',
+    'Error',
+)
+KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
 FAMILIES = (
     *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
     'skcomplex.systems.general',

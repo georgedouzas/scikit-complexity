@@ -58,6 +58,17 @@ class VirtualPopulationResult:
 def _check_constraints(constraints: Mapping[str, Sequence[float]], names: list[str]) -> dict[str, tuple[float, float]]:
     """Return the `(low, high)` range of every constrained output, after checking it.
 
+    Args:
+        constraints:
+            The range of each constrained output, by the name of the output, such as `{'peak': (10.0, 50.0)}`.
+
+        names:
+            The names of the outputs.
+
+    Returns:
+        ranges:
+            The `(low, high)` range of every constrained output, as floats.
+
     Raises:
         ValidationError:
             An output is not one of the outputs, or a range is not an increasing pair.
