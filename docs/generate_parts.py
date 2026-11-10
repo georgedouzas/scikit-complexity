@@ -13,11 +13,12 @@ import mkdocs_gen_files
 from gallery_tools import library_systems
 
 from skcomplex.core import analysis, experiments
-from skcomplex.core.components import elements, interactions, laws, systems
+from skcomplex.core.components import elements, interactions, laws, spaces, systems
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.laws import BaseLaw
+from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
@@ -163,18 +164,51 @@ def _links(items: list[str], more: str) -> str:
 
 
 def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]]], family: str) -> list[str]:
-    """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses."""
-    specs = item._get_specs()
-    states = {name: spec for name, spec in specs.items() if isinstance(spec, StateSpec)}
-    parameters = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec)]
-    domains = frozenset(spec._get_domain_tag() for spec in states.values()) - {None}
-    laws = BasePart._get_law_tags(item._get_declared_laws()).laws
-    tags = Tags(domains=domains, laws=laws)
+    """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses.
+
+    Elements and interactions list their states and parameters, laws their kind, and spaces and times their tag.
+    """
+    if family in {'elements', 'interactions'}:
+        specs = item._get_specs()
+        states = {name: spec for name, spec in specs.items() if isinstance(spec, StateSpec)}
+        parameters = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec)]
+        laws = BasePart._get_law_tags(item._get_declared_laws()).laws
+        tags = Tags(domains=frozenset(spec._get_domain_tag() for spec in states.values()) - {None}, laws=laws)
+        domain_cells = {
+            name: _values({spec._get_domain_tag()} - {None}, empty='a whole structure') for name, spec in states.items()
+        }
+        state_cell = ', '.join(f'`{name}` ({cell})' for name, cell in domain_cells.items())
+        arguments = inspect.signature(item).parameters
+        origin = 'given as data' if 'variables' in arguments else 'declared by a subclass'
+        origin = 'those of the element class of its members' if 'element' in arguments else origin
+        facts = [
+            f'- States: {state_cell or origin}',
+            f'- Parameters: {", ".join(f"`{name}`" for name in parameters) or "none declared"}',
+            f'- Law kinds: {_values(laws, empty="none of its own")}',
+        ]
+    elif family == 'laws':
+        tags = BasePart._get_law_tags([item]) if item.get_requirements() is not None else Tags()
+        facts = [f'- Law kind: {_values(tags.laws, empty="from a subclass")}', f'- Randomness: `{tags.randomness}`']
+    elif issubclass(item, BaseTime):
+        tags = Tags(time=frozenset({item.time_tag}) - {''})
+        facts = [f'- Time tag: {_values(tags.time, empty="from a subclass")}']
+    elif issubclass(item, BaseSpace):
+        tags = Tags(space=frozenset(item.space_tags[:1]))
+        facts = [f'- Space tags: {_values(item.space_tags, empty="from a subclass")}']
+    else:
+        tags = Tags()
+        facts = []
     runners = [runner for runner in _public_classes(solvers, BaseSolver) if _declares_support(runner)]
     accepted = [runner for runner in runners if not runner.get_supported_tags().get_missing(tags)]
     times = {time for runner in accepted for time in runner.get_supported_tags().time}
     engines = [runner for runner in _public_classes(backends, BaseBackend) if _declares_support(runner)]
     compiled = [runner for runner in engines if not runner.get_supported_tags().get_missing(tags)]
+    if family != 'systems' and not issubclass(item, BaseNeighborhood):
+        facts += [
+            f'- Times: {_values(times, TIMES)}',
+            f'- Solvers: {_values([runner.__name__ for runner in accepted], [runner.__name__ for runner in runners])}',
+            f'- Backends: {_values([runner.__name__ for runner in compiled], [runner.__name__ for runner in engines])}',
+        ]
     sections = _sections(item)
     users = [f'[{name}](../systems/{system.field}/{name}.md)' for name, system, classes in catalog if item in classes]
     realizations = sorted(
@@ -185,13 +219,6 @@ def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]
             if kind is not item and issubclass(kind, item) and kind.__module__.startswith('skcomplex.systems.')
         },
     )
-    domain_cells = {
-        name: _values({spec._get_domain_tag()} - {None}, empty='a whole structure') for name, spec in states.items()
-    }
-    state_cell = ', '.join(f'`{name}` ({cell})' for name, cell in domain_cells.items())
-    arguments = inspect.signature(item).parameters
-    origin = 'given as data' if 'variables' in arguments else 'declared by a subclass'
-    origin = 'those of the element class of its members' if 'element' in arguments else origin
     api = f'{item.__module__.rsplit(".", 1)[0]}.{item.__name__}'
     reference = f'{REFERENCE}/{family}.md#{item.__name__.lower()}'
     lines = [
@@ -199,13 +226,8 @@ def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]
         '',
         (inspect.getdoc(item) or '').splitlines()[0],
         '',
-        f'- States: {state_cell or origin}',
-        f'- Parameters: {", ".join(f"`{name}`" for name in parameters) or "none declared"}',
-        f'- Law kinds: {_values(laws, empty="none of its own")}',
-        f'- Times: {_values(times, TIMES)}',
-        f'- Solvers: {_values([runner.__name__ for runner in accepted], [runner.__name__ for runner in runners])}',
-        f'- Backends: {_values([runner.__name__ for runner in compiled], [runner.__name__ for runner in engines])}',
-        '- Arguments:',
+        *facts,
+        '- Arguments:' + ('' if sections['parameters'] else ' none of its own'),
         *(f'    - `{name}`: {text}' for name, text in sections['parameters']),
         '- Errors:' + ('' if sections['raises'] else ' none of its own'),
         *(f'    - `{name}`: {text}' for name, text in sections['raises']),
@@ -215,6 +237,13 @@ def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]
         '',
     ]
     return lines
+
+
+def _family_classes(package: ModuleType) -> list[type]:
+    """Return the public part classes of a family package, sorted by name."""
+    every = (getattr(package, name) for name in package.__all__)
+    found = (item for item in every if isinstance(item, type) and issubclass(item, BasePart))
+    return sorted(found, key=lambda item: item.__name__)
 
 
 def _facts(items: list[type], family: str) -> str:
@@ -303,8 +332,7 @@ message
 assert "domain 'boolean'" in message
 ```
 """
-    every = sorted((getattr(elements, name) for name in elements.__all__), key=lambda item: item.__name__)
-    facts = _facts([item for item in every if isinstance(item, type) and issubclass(item, BaseElement)], 'elements')
+    facts = _facts(_family_classes(elements), 'elements')
     header = ['Element', 'States', 'Domains', 'Law kinds']
     return _page('Elements', intro, header, rows, f'{facts}\n\n{examples.strip()}')
 
@@ -377,7 +405,9 @@ message
 assert "tag 'time'" in message
 ```
 """
-    return _page('Interactions', intro, ['Interaction', 'Roles and accepted domains', 'Law kinds'], rows, examples)
+    facts = _facts(_family_classes(interactions), 'interactions')
+    header = ['Interaction', 'Roles and accepted domains', 'Law kinds']
+    return _page('Interactions', intro, header, rows, f'{facts}\n\n{examples.strip()}')
 
 
 def _laws_page() -> str:
@@ -441,7 +471,51 @@ message
 assert 'laws jump' in message
 ```
 """
-    return _page('Laws', intro, ['Law', 'Kind', 'Time', 'Space', 'Randomness'], rows, examples)
+    facts = _facts(_family_classes(laws), 'laws')
+    return _page('Laws', intro, ['Law', 'Kind', 'Time', 'Space', 'Randomness'], rows, f'{facts}\n\n{examples.strip()}')
+
+
+def _spaces_page() -> str:
+    """Return the page of spaces, neighbourhoods, and times.
+
+    It shows the tags of every space and time and the fact sheet of every class.
+    """
+    rows = []
+    for item in _family_classes(spaces):
+        if issubclass(item, BaseTime):
+            kind, tags = 'time', _values({item.time_tag} - {''}, empty='from a subclass')
+        elif issubclass(item, BaseSpace):
+            kind, tags = 'space', _values(item.space_tags, empty='from a subclass')
+        else:
+            kind, tags = 'neighbourhood', 'none'
+        rows.append([f'`{item.__name__}`', kind, tags])
+    intro = """
+A space places the members of a group, such as the sites of a lattice or the nodes of a network, and its tag says
+which kind of structure it is. A neighbourhood says which members a law reads around one member. A time says how the
+system advances: in continuous time, in discrete steps, or not at all. A solver runs a system only when it supports
+the tags of its space and its time. The table lists what each class declares.
+"""
+    examples = """
+## The tags of a space and a time
+
+`get_tags` of a space returns its space tag, and that of a time returns its time tag. A solver compares them with the
+tags it supports before a run.
+
+```python
+from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
+
+grid = LatticeSpace((4, 4))
+sorted(grid.get_tags().space), sorted(ContinuousTime().get_tags().time)
+```
+"""
+    facts = _facts(_family_classes(spaces), 'spaces')
+    return _page(
+        'Spaces, neighbourhoods, and times',
+        intro,
+        ['Class', 'Kind', 'Tags'],
+        rows,
+        f'{facts}\n\n{examples.strip()}',
+    )
 
 
 def _solvers_page() -> str:
@@ -879,7 +953,8 @@ stochastic = all_systems(field='biology/epidemiology', tags={'randomness': 'stoc
 [name for name, _ in stochastic][:3]
 ```
 """
-    return _page('Systems', intro, ['System', 'Import', 'Description'], rows, examples)
+    facts = _facts(_family_classes(systems), 'systems')
+    return _page('Systems', intro, ['System', 'Import', 'Description'], rows, f'{facts}\n\n{examples.strip()}')
 
 
 def main() -> None:
@@ -888,6 +963,7 @@ def main() -> None:
         'elements': _elements_page,
         'interactions': _interactions_page,
         'laws': _laws_page,
+        'spaces': _spaces_page,
         'solvers': _solvers_page,
         'backends': _backends_page,
         'systems': _systems_page,

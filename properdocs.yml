@@ -24,6 +24,15 @@ nav:
       - Select a ready-made system: overview/user_guide/select_a_ready_made_system.md
       - Change it: overview/user_guide/change_it.md
       - System classes: overview/user_guide/system_classes.md
+      - Core components:
+        - overview/user_guide/core_components/index.md
+        - Elements: overview/user_guide/core_components/elements.md
+        - Interactions: overview/user_guide/core_components/interactions.md
+        - Laws: overview/user_guide/core_components/laws.md
+        - Spaces, neighbourhoods, and times: overview/user_guide/core_components/spaces.md
+        - Systems: overview/user_guide/core_components/systems.md
+        - General realizations: overview/user_guide/core_components/general.md
+        - Choosing parts: overview/user_guide/core_components/choosing_parts.md
       - Build a custom system:
         - overview/user_guide/build_a_custom_system/index.md
         - Choosing compatible components: overview/user_guide/build_a_custom_system/choosing_compatible_components.md
@@ -51,10 +60,6 @@ nav:
         - Constraints and search: overview/user_guide/build_a_custom_system/constraints_and_search.md
         - Control: overview/user_guide/build_a_custom_system/control.md
         - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
-      - Core components:
-        - overview/user_guide/core_components/index.md
-        - Elements: overview/user_guide/core_components/elements.md
-        - General realizations: overview/user_guide/core_components/general.md
       - Simulate: overview/user_guide/simulate.md
       - Observe: overview/user_guide/observe.md
       - Analyse: overview/user_guide/analyse.md
@@ -66,6 +71,7 @@ nav:
     - Elements: parts/elements.md
     - Interactions: parts/interactions.md
     - Laws: parts/laws.md
+    - Spaces: parts/spaces.md
     - Systems: parts/systems.md
     - Solvers: parts/solvers.md
     - Backends: parts/backends.md

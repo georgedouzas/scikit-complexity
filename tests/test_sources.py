@@ -5,6 +5,7 @@ import doctest
 import importlib
 import inspect
 import multiprocessing
+import pkgutil
 import re
 import textwrap
 import tokenize
@@ -47,11 +48,23 @@ FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
 REWRITTEN_DOCUMENTS: tuple[str, ...] = (
     'docs/overview/user_guide/build_a_custom_system/index.md',
+    'docs/overview/user_guide/core_components/choosing_parts.md',
     'docs/overview/user_guide/core_components/elements.md',
+    'docs/overview/user_guide/core_components/general.md',
     'docs/overview/user_guide/core_components/index.md',
+    'docs/overview/user_guide/core_components/interactions.md',
+    'docs/overview/user_guide/core_components/laws.md',
+    'docs/overview/user_guide/core_components/spaces.md',
+    'docs/overview/user_guide/core_components/systems.md',
 )
 CORE_COMPONENTS = USER_GUIDE / 'core_components'
-FAMILY_PAGES = {'elements.md': 'skcomplex.core.components.elements'}
+FAMILY_PAGES = {
+    'elements.md': 'skcomplex.core.components.elements',
+    'interactions.md': 'skcomplex.core.components.interactions',
+    'laws.md': 'skcomplex.core.components.laws',
+    'spaces.md': 'skcomplex.core.components.spaces',
+    'systems.md': 'skcomplex.core.components.systems',
+}
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
@@ -592,6 +605,11 @@ def test_core_components_pages_cover_every_class(request):
                 for line, module_name, _ in _imported_names(block)
                 if module_name == SYSTEMS or module_name.startswith(f'{SYSTEMS}.')
             ]
+    general = (request.config.rootpath / CORE_COMPONENTS / 'general.md').read_text(encoding='utf-8')
+    headings = set(re.findall(r'^## (\w+)$', general, flags=re.MULTILINE))
+    for concept in pkgutil.iter_modules(importlib.import_module(GENERAL).__path__):
+        module = importlib.import_module(f'{GENERAL}.{concept.name}')
+        found += [f'general.md: no section for {name}' for name in module.__all__ if name not in headings]
     assert not found, '\n'.join(found)
 
 

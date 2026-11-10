@@ -53,13 +53,13 @@
 
 ## 8. The rest of the reference
 
-- [ ] 8.1 Write `core_components/interactions.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
-- [ ] 8.2 Write `core_components/laws.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
-- [ ] 8.3 Add the generated page `parts/spaces.md` for spaces, neighbourhoods, and times with its navigation entry, write `core_components/spaces.md`, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
-- [ ] 8.4 Write `core_components/systems.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
-- [ ] 8.5 Write `core_components/general.md` on `skcomplex.systems.general`, starting from the page on shared realizations that `move-recipes-to-systems` writes, with one section per public class of its concept subpackages that names the core parts it is written with, and the placement rule word for word with one worked example per step, extend the coverage test to the page, and verify the strict build, `pytest-markdown-docs`, and the coverage test pass
-- [ ] 8.6 Write `core_components/choosing_parts.md`, the decision guide with Mermaid flow charts whose leaves link reference sections, and verify the strict build passes
-- [ ] 8.7 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
+- [x] 8.1 Write `core_components/interactions.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
+- [x] 8.2 Write `core_components/laws.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
+- [x] 8.3 Add the generated page `parts/spaces.md` for spaces, neighbourhoods, and times with its navigation entry, write `core_components/spaces.md`, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
+- [x] 8.4 Write `core_components/systems.md` and generate its table and fact sheets, and verify the strict build, `pytest-markdown-docs`, and the coverage test of the page pass
+- [x] 8.5 Write `core_components/general.md` on `skcomplex.systems.general`, starting from the page on shared realizations that `move-recipes-to-systems` writes, with one section per public class of its concept subpackages that names the core parts it is written with, and the placement rule word for word with one worked example per step, extend the coverage test to the page, and verify the strict build, `pytest-markdown-docs`, and the coverage test pass
+- [x] 8.6 Write `core_components/choosing_parts.md`, the decision guide with Mermaid flow charts whose leaves link reference sections, and verify the strict build passes
+- [x] 8.7 Add the pages of this group to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite what sounds generated, and verify `test_documents_read_naturally` passes
 
 ## 9. Workflow tutorials
 
