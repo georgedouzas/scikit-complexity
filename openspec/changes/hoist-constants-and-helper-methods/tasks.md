@@ -126,7 +126,7 @@ tests and the catalog tests pass with the field added to the checked packages.
   functions that stay, and point to them from the module layout section of `CONTRIBUTING.md`. Verify the wording has
   no semicolon and no hard-coded count.
 - [x] 9.3 Compare the union of every `__all__` with the one recorded in task 1.2. Verify they are equal.
-- [ ] 9.4 Run the full gate: `nox -s checks`, `nox -s tests`, and `nox -s docs`. Verify all pass and the test count is
+- [x] 9.4 Run the full gate: `nox -s checks`, `nox -s tests`, and `nox -s docs`. Verify all pass and the test count is
   unchanged apart from the moved examples and the new source tests.
 
 ## Workflow follow-up
