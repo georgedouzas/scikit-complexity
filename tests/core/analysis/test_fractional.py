@@ -124,3 +124,8 @@ def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
         symbolic(CompositeSystem(elements=[SaturatingElement('s')]), kind='solve')
+
+
+def test_mittag_leffler_of_order_one_half_at_minus_one():
+    """Test that `E_(1/2, 1)(-1)` is `exp(1) erfc(1)`, about 0.427584."""
+    assert round(float(_MittagLefflerFunction._get_mittag_leffler(0.5, 1.0, -1.0)), 6) == 0.427584

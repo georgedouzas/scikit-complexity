@@ -197,14 +197,6 @@ class _MittagLefflerFunction(_OperatorFunction):
         Raises:
             AnalysisError:
                 `alpha` is not positive, or the argument is too large for `alpha >= 2`.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.analysis._symbolic import _mittag_leffler
-            >>> bool(np.isclose(_mittag_leffler(1.0, 1.0, -2.0), np.exp(-2.0)))
-            True
-            >>> round(float(_mittag_leffler(0.5, 1.0, -1.0)), 6)
-            0.427584
         """
         if not alpha > 0:
             error_msg = f'alpha = {alpha!r} must be positive.'
