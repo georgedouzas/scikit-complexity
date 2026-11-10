@@ -296,18 +296,6 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             ValidationError:
                 A local operator acts on an unknown subsystem or names an unknown operator, or a Sage product multiplies
                 operators of the same subsystem.
-
-        Examples:
-            >>> import qutip
-            >>> from sage.all__sagemath_symbolics import SR, var
-            >>> from skcomplex.core.components.laws.utils import local_operator
-            >>> from skcomplex.core.engine.problems._operator_lowering import OperatorLowering
-            >>> from skcomplex.core.specs import LocalOperatorSpec
-            >>> q = SR.symbol('q')
-            >>> z = LocalOperatorSpec('z', qutip.sigmaz(), hermitian=True)
-            >>> term = var('h') * local_operator(q, SR.symbol('z'))
-            >>> OperatorLowering._get_operator_of(term, {q: ('q', {'z': z})}).text
-            'h*q.z'
         """
         value = SR(expression)
         if not has_operator(value):

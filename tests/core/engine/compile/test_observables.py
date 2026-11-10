@@ -20,6 +20,7 @@ from skcomplex.core.errors import RoleError
 from skcomplex.core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.economics.resources import HarvestingSystem
 from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
 from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
 
@@ -265,3 +266,16 @@ def test_observable_evaluator_lowers_field_operators():
     psi = evaluator.evaluate(0.0, problem.initial_state, problem.initial_parameters)['psi']
     stencil = np.diff(np.concatenate([[0.0], psi, [0.0]]), 2)
     np.testing.assert_allclose(stencil, values, atol=1e-12)
+
+
+def test_observable_evaluator_get_namespace_of():
+    """Test `ObservableEvaluator._get_namespace_of` on a small case."""
+    system = CompositeSystem(elements=[PopulationElement('rabbits')])
+    problem = PassCompiler().prepare(system).run().problem_
+    assert str(ObservableEvaluator._get_namespace_of(problem).rabbits.x) == 'x_rabbits'
+
+
+def test_observable_evaluator_get_held_reductions_of():
+    """Test `ObservableEvaluator._get_held_reductions_of` on a small case."""
+    problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
+    assert [path for path, _ in ObservableEvaluator._get_held_reductions_of(problem)] == ['village/farmers_count']

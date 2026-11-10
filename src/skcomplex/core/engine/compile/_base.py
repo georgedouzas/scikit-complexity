@@ -275,11 +275,6 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         Returns:
             backend:
                 The backend passed, or a new backend, which checks its settings when it is prepared.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile import BaseCompiler
-            >>> type(BaseCompiler._resolve_backend(None, 10)).__name__
-            'NumpyBackend'
         """
         if backend is not None:
             return backend
@@ -497,14 +492,6 @@ class BasePass(BaseConfig[Compilation, None]):
         Returns:
             law:
                 The new law, which the compiler reads without checking it again.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.components.laws import RateLaw
-            >>> from skcomplex.core.engine.compile import BasePass
-            >>> x = var('x')
-            >>> BasePass._get_replaced(RateLaw(x, -x), value=-2 * x).value
-            -2*x
         """
         return type(law)(**{**law.get_params(deep=False), **changes})
 

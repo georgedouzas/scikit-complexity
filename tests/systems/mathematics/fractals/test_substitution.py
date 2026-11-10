@@ -9,7 +9,13 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.types import FormKind
-from skcomplex.systems.mathematics.fractals import CantorSetSystem, KochCurveSystem, SierpinskiSubstitutionSystem
+from skcomplex.systems.mathematics.fractals import (
+    CantorSetSystem,
+    KochCurveSystem,
+    KochElement,
+    SierpinskiElement,
+    SierpinskiSubstitutionSystem,
+)
 
 
 def test_koch_curve():
@@ -123,3 +129,13 @@ def test_filled_and_outlined_visuals(tmp_path):
         simulate(SierpinskiSubstitutionSystem(filled=filled), until=3, observers=[observer])
         assert observer.logged_frames_ == 4
     assert repr(GeometryVisual()) == 'GeometryVisual()'
+
+
+def test_koch_element_replaces_a_segment_by_four():
+    """Test that the Koch substitution replaces a segment by four turned segments."""
+    assert KochElement('koch', axiom='F')._get_laws(None)[0].successor == 'F+F--F+F'
+
+
+def test_sierpinski_carpet_keeps_eight_pieces():
+    """Test that the Sierpinski carpet replaces a square by eight smaller ones."""
+    assert len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces) == 8

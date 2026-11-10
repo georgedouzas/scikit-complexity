@@ -174,15 +174,6 @@ class HyperedgeTables:
             rows:
                 The start of the rows of every node, with the number of rows last, and per position the other member
                 of the hyperedge of every row, in hyperedge order.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.components.spaces import NetworkSpace
-            >>> from skcomplex.core.engine.compile.passes._hyperedges import HyperedgeTables
-            >>> space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).prepare()
-            >>> indptr, others = HyperedgeTables._get_incidences(space, 3)
-            >>> indptr.tolist(), [item.tolist() for item in others]
-            ([0, 1, 3, 5, 6], [[1, 2, 0, 1, 0, 1], [2, 3, 2, 3, 1, 2]])
         """
         ids = np.asarray([number for number, item in enumerate(space.hyperedges_) if len(item) == size], dtype=np.intp)
         members = np.asarray([space.hyperedges_[number] for number in ids], dtype=np.intp).reshape(-1, size)

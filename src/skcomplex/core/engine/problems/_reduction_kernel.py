@@ -235,11 +235,6 @@ class ReductionKernel(BaseKernel):
         Raises:
             ValidationError:
                 The reduction is unknown, or the reduction function returns neither a number nor an array.
-
-        Examples:
-            >>> from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
-            >>> ReductionKernel._reduce_values([1.0, 2.0, 6.0], 'mean')
-            3.0
         """
         array = np.asarray(values)
         array = np.zeros(len(array)) if reduce == 'count' else array

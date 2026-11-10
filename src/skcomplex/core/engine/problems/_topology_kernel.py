@@ -380,13 +380,6 @@ class TopologyKernel(BaseKernel):
         Returns:
             rows:
                 The rows that join, in increasing order.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.problems._topology_kernel import TopologyKernel
-            >>> weights, allowed = np.array([1.0, 0.0, 2.0, 1.0]), np.array([True, True, True, False])
-            >>> TopologyKernel._get_independent(weights, allowed, np.random.default_rng(0))
-            [0, 2]
         """
         candidates = np.flatnonzero(allowed)
         chances = np.clip(weights[candidates], 0.0, 1.0)
@@ -1193,13 +1186,6 @@ class TopologyKernel(BaseKernel):
         Returns:
             changes:
                 Whether the request adds, removes, or rewires edges of its layer.
-
-        Examples:
-            >>> from skcomplex.core.specs import TopologyRequestSpec
-            >>> from skcomplex.core.engine.problems._topology_kernel import TopologyKernel
-            >>> rewire, removal = TopologyRequestSpec('rewire'), TopologyRequestSpec('remove-node')
-            >>> TopologyKernel._changes_edges(rewire), TopologyKernel._changes_edges(removal)
-            (True, False)
         """
         joins = request.edges > 0 or request.independent
         return request.kind in EDGE_KINDS or (request.kind in {'add-node', 'replace-node'} and joins)

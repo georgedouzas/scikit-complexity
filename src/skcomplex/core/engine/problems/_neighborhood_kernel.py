@@ -245,14 +245,6 @@ class NeighborhoodKernel(BaseKernel):
         Returns:
             sets:
                 The row starts of the sets of every member, and one row of neighbours per set.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> indptr, others = np.array([0, 3, 4]), np.array([1, 2, 3, 0])
-            >>> indptr, sets = NeighborhoodKernel._get_neighbor_sets(indptr, others, 2)
-            >>> indptr.tolist(), sets.tolist()
-            ([0, 3, 3], [[1, 2], [1, 3], [2, 3]])
         """
         counts = np.diff(indptr)
         found = np.zeros(counts.size, dtype=np.intp)
@@ -318,13 +310,6 @@ class NeighborhoodKernel(BaseKernel):
         Raises:
             ValidationError:
                 The kind is unknown.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> readers, others = np.array([0, 1, 2]), np.array([1, 2, 3])
-            >>> NeighborhoodKernel._get_paths_of('path-betweenness', readers, others, 5).tolist()
-            [0.0, 2.0, 2.0, 0.0, 0.0]
         """
         graph = nx.Graph()
         graph.add_nodes_from(range(size))
@@ -366,17 +351,6 @@ class NeighborhoodKernel(BaseKernel):
         Raises:
             ValidationError:
                 The kind is unknown.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> readers, others = np.array([1, 3, 4]), np.array([2, 4, 5])
-            >>> NeighborhoodKernel._get_components_of('component-label', readers, others, 6).tolist()
-            [0.0, 1.0, 1.0, 3.0, 3.0, 3.0]
-            >>> NeighborhoodKernel._get_components_of('component-size', readers, others, 6).tolist()
-            [1.0, 2.0, 2.0, 3.0, 3.0, 3.0]
-            >>> NeighborhoodKernel._get_components_of('component-giant', readers, others, 6).tolist()
-            [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         """
         links = scipy.sparse.csr_array((np.ones(readers.size), (readers, others)), shape=(size, size))
         _, found = connected_components(links, directed=False)
@@ -426,16 +400,6 @@ class NeighborhoodKernel(BaseKernel):
         Raises:
             ValidationError:
                 The kind is unknown.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
-            >>> values = np.array([1.0, 3.0, 5.0])
-            >>> NeighborhoodKernel._reduce_pairs('mean', readers, np.ones(3), values, counts).tolist()
-            [2.0, 0.0, 5.0]
-            >>> NeighborhoodKernel._reduce_pairs('argmax', readers, np.array([0.5, 2.0, 1.0]), values, counts).tolist()
-            [3.0, 0.0, 5.0]
         """
         size = counts.size
         if kind == 'argmax':
@@ -479,14 +443,6 @@ class NeighborhoodKernel(BaseKernel):
             rows:
                 The row starts and the neighbours of every node, in node order, and the edge of the layer that joins
                 every node to every neighbour, -1 for the node itself.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-            >>> space = NetworkSpace(nx.path_graph(3)).prepare()
-            >>> [item.tolist() for item in NeighborhoodKernel._get_network_rows(space, AdjacencyNeighborhood())]
-            [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
         """
         indptr, others, edges = space.adjacency_[neighborhood.layer]
         size = space.size_
@@ -517,14 +473,6 @@ class NeighborhoodKernel(BaseKernel):
         Returns:
             rows:
                 The row starts and the neighbours of every site.
-
-        Examples:
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-            >>> space = LatticeSpace(3, boundary='fixed').prepare()
-            >>> rows = NeighborhoodKernel._get_lattice_rows(space, LatticeNeighborhood(((-1,), (1,))))
-            >>> [item.tolist() for item in rows]
-            [[0, 1, 3, 4], [1, 0, 2, 1]]
         """
         table = space._get_index_table(neighborhood)
         inside = table < len(table)
@@ -546,17 +494,6 @@ class NeighborhoodKernel(BaseKernel):
         Returns:
             neighbourhood:
                 The neighbourhood, or `None` for a space without one of its own.
-
-        Examples:
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from sage.all__sagemath_gap import libgap
-            >>> from skcomplex.core.components.spaces import CayleySpace, LatticeSpace
-            >>> lattice = LatticeSpace((4, 4)).prepare()
-            >>> len(NeighborhoodKernel._get_default_neighborhood(lattice).prepare().offsets_)
-            8
-            >>> cayley = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).prepare()
-            >>> NeighborhoodKernel._get_default_neighborhood(cayley).elements
-            ('a', 'a^-1', 'b', 'b^-1')
         """
         if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
             return space._get_default_neighborhood()
@@ -601,28 +538,6 @@ class NeighborhoodKernel(BaseKernel):
         Raises:
             ValidationError:
                 The members have no such state.
-
-        Examples:
-            >>> from typing import Annotated
-            >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.core.types import VariableKind
-            >>> from skcomplex.core.engine._utils import declarations_of
-            >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-            >>> class BoidElement(Element):
-            ...     def __init__(
-            ...         self,
-            ...         label,
-            ...         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-            ...         theta: Annotated[float, StateSpec()] = 0.0,
-            ...     ):
-            ...         super().__init__(label)
-            ...         self.x = x
-            ...         self.theta = theta
-            >>> states = declarations_of(BoidElement, VariableKind.STATE)
-            >>> NeighborhoodKernel._get_cone_direction(RadiusNeighborhood(1.0, angle=1.0, direction='theta'), states, 2)
-            'theta'
         """
         if cone.direction is not None:
             declaration = states.get(cone.direction)
@@ -759,11 +674,5 @@ class NeighborhoodKernel(BaseKernel):
         Returns:
             spaces:
                 The space classes.
-
-        Examples:
-            >>> from skcomplex.core.components.spaces import RadiusNeighborhood
-            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> NeighborhoodKernel._get_spaces_of(RadiusNeighborhood(1.0))
-            (<class 'skcomplex.core.components.spaces._continuous.ContinuousSpace'>,)
         """
         return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))

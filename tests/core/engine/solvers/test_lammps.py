@@ -15,6 +15,7 @@ from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
@@ -344,3 +345,9 @@ def test_lammps_final_run_closes_the_instance():
         solver.run(StepSpec(0.1, state, problem.initial_parameters, 0.2))
     solver = solver.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     assert not solver.released_
+
+
+def test_lammps_solver_get_lepton_expression():
+    """Test `LammpsSolver._get_lepton_expression` on a small case."""
+    x = symbol('x')
+    assert LammpsSolver._get_lepton_expression(4 * (x**-12 - x**-6), x) == '4/r^12 - 4/r^6'

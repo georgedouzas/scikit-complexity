@@ -444,12 +444,9 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
             expression of a density, or `None` for `a`.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import SR, matrix, var
         >>> from skcomplex.systems.physics.active_matter import LandauDeGennesEnergyInteraction
-        >>> q, a, c = var('q, a, c')
-        >>> tensor = matrix(SR, [[q, 0], [0, -q]])
-        >>> LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0].factor()
-        -(2*c*q^2 + a)*q
+        >>> LandauDeGennesEnergyInteraction('energy', target='nematic', a=-1.0).a
+        -1.0
     """
 
     def __init__(

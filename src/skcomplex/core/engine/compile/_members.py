@@ -258,13 +258,6 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             arguments:
                 The expression of member symbols, the number of members along the group order, the boundary, and the
                 value read past the ends of a fixed boundary.
-
-        Examples:
-            >>> from skcomplex.core.engine._utils import symbol
-            >>> from skcomplex.core.engine.compile._members import MemberLowering
-            >>> from skcomplex.core.components.laws.utils import shift_member
-            >>> MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
-            (x, -2, 'fixed', 1.0)
         """
         expression, offset, boundary, fill = call.operands()
         return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)

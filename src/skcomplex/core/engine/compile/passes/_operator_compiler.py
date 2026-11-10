@@ -238,19 +238,6 @@ class OperatorCompiler(BaseCompiler):
         Returns:
             name:
                 The name of the state.
-
-        Examples:
-            >>> from typing import Annotated
-            >>> from sage.all__sagemath_symbolics import CC
-            >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
-            >>> from skcomplex.core.specs import StateSpec
-            >>> class TwoLevelElement(Element):
-            ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
-            ...         super().__init__(label)
-            ...         self.psi = psi
-            >>> OperatorCompiler._get_hilbert_state(TwoLevelElement)
-            'psi'
         """
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
             base_ring = getattr(declaration.domain, 'base_ring', None)

@@ -317,11 +317,6 @@ class CompileEncountersPass(BasePass):
         Returns:
             table:
                 A float array when every entry is a number, otherwise an object array of Sage expressions.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile.passes._compile_encounters import CompileEncountersPass
-            >>> CompileEncountersPass._get_kinetic_table([[0.5, 0.5]]).dtype
-            dtype('float64')
         """
         array = np.asarray(value, dtype=object)
         try:

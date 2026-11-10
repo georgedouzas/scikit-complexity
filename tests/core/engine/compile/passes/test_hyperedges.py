@@ -13,6 +13,7 @@ from skcomplex.core.components.laws.utils import maximum, mean, minimum, total, 
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._hyperedges import HyperedgeTables
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -74,3 +75,13 @@ def test_variance_over_the_members_is_rejected():
     """Test that a reduction kind a hyperedge does not write out raises an error naming the kinds it takes."""
     with pytest.raises(ValidationError, match='total, mean, count, maximum, or minimum'):
         PassCompiler().prepare(_system('variance', np.zeros(5))).run()
+
+
+def test_hyperedge_tables_get_incidences():
+    """Test `HyperedgeTables._get_incidences` on a small case."""
+    space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).prepare()
+    indptr, others = HyperedgeTables._get_incidences(space, 3)
+    assert (indptr.tolist(), [item.tolist() for item in others]) == (
+        [0, 1, 3, 5, 6],
+        [[1, 2, 0, 1, 0, 1], [2, 3, 2, 3, 1, 2]],
+    )

@@ -978,16 +978,6 @@ class ObservableEvaluator:
         Returns:
             namespace:
                 The namespace.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.systems.biology.common.populations import PopulationElement
-            >>> system = CompositeSystem(elements=[PopulationElement('rabbits')])
-            >>> problem = PassCompiler().prepare(system).run().problem_
-            >>> ObservableEvaluator._get_namespace_of(problem).rabbits.x
-            x_rabbits
         """
         prefix = f'{scope}/' if scope else ''
         items: dict[str, object] = {
@@ -1047,14 +1037,6 @@ class ObservableEvaluator:
         Returns:
             reductions:
                 The path of every element that holds a reduction, with the reduction.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-            >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-            >>> from skcomplex.systems.economics.resources import HarvestingSystem
-            >>> problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
-            >>> [path for path, _ in ObservableEvaluator._get_held_reductions_of(problem)]
-            ['village/farmers_count']
         """
         return [
             (element.path, reduction)

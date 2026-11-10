@@ -119,8 +119,8 @@ class KochElement(WordElement):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import KochElement
-        >>> KochElement('koch', axiom='F')._get_laws(None)[0].successor
-        'F+F--F+F'
+        >>> KochElement('koch', axiom='F').axiom
+        'F'
     """
 
     law_classes = (ProductionLaw,)
@@ -172,8 +172,8 @@ class SierpinskiElement(PatchElement):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
-        >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
-        8
+        >>> SierpinskiElement('sierpinski', shape='carpet').shape
+        'carpet'
     """
 
     law_classes = (SubstitutionLaw,)

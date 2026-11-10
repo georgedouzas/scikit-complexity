@@ -16,6 +16,7 @@ from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, 
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -688,3 +689,8 @@ def test_element_set_of_mixed_types():
     )
     with pytest.raises(RoleError, match=r"'units'.*UnitElement and OtherElement"):
         PassCompiler().prepare(system).run()
+
+
+def test_reduction_kernel_reduce_values():
+    """Test `ReductionKernel._reduce_values` on a small case."""
+    assert ReductionKernel._reduce_values([1.0, 2.0, 6.0], 'mean') == 3.0

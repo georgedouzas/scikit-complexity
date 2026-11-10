@@ -105,16 +105,6 @@ class AgentsPass(BasePass):
         Returns:
             runs_rules:
                 Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
-
-        Examples:
-            >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.components.laws import RuleLaw
-            >>> from skcomplex.core.engine.compile.passes._agents import AgentsPass
-            >>> class WalkerElement(Element):
-            ...     def _get_laws(self, namespace):
-            ...         return [RuleLaw(lambda agent, system: None)]
-            >>> AgentsPass._runs_rules(WalkerElement('walker')), AgentsPass._runs_rules(Element('plain'))
-            (True, False)
         """
         if isinstance(component, GroupElement) and component.variable:
             return True

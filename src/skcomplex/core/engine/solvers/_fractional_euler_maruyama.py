@@ -304,16 +304,6 @@ class FractionalEulerMaruyamaSolver(Solver):
         Raises:
             ValidationError:
                 The Hurst index is not between 0 and 1, or the number of increments is not positive.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-            >>> solver = FractionalEulerMaruyamaSolver
-            >>> noise = solver._get_fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
-            >>> noise.shape
-            (100, 2000)
-            >>> round(float(np.mean(noise[1:] * noise[:-1])), 1)
-            0.4
         """
         if not 0 < hurst < 1 or n < 1:
             error_msg = f'Fractional Gaussian noise takes a Hurst index in (0, 1) and n >= 1, but got {hurst} and {n}.'

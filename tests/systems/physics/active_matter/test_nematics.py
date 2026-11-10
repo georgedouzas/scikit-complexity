@@ -187,3 +187,11 @@ def test_active_gels_polar_film_flows_above_the_threshold():
     assert below[-1] < 1e-3 * below[1]
     assert above[-1] > 10 * above[1]
     assert abs(above[-1] - above[-2]) < 1e-3 * above[-1]
+
+
+def test_landau_de_gennes_molecular_field_of_a_uniaxial_tensor():
+    """Test that the molecular field of a uniaxial tensor is `-(2 c q^2 + a) q` on the diagonal."""
+    q, a, c = var('q, a, c')
+    tensor = matrix(SR, [[q, 0], [0, -q]])
+    field = LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0]
+    assert bool(field == -(2 * c * q**2 + a) * q)

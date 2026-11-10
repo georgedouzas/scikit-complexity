@@ -196,3 +196,8 @@ def test_particle_solver_rejects_rate_laws_when_run():
     problem = PassCompiler().prepare(_system(DecayInteraction('decay', population='wealth'))).run().problem_
     with pytest.raises(SolverError, match='encounter laws alone'):
         KineticSolver(random_state=0).prepare(problem)
+
+
+def test_kinetic_solver_supports_bilinear_laws():
+    """Test that the kinetic solver supports the bilinear laws."""
+    assert KineticSolver(n=1000)._get_support().laws == {BilinearLaw}

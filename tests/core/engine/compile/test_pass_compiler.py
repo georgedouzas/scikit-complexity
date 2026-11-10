@@ -49,6 +49,7 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile import BasePass
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
@@ -1440,3 +1441,24 @@ def test_small_system_drift_is_fast():
     for _ in range(repeats):
         problem.drift(0.0, x, p)
     assert (time.perf_counter() - start) / repeats <= 250e-6
+
+
+def test_pass_compiler_get_ordered():
+    """Test `PassCompiler._get_ordered` on a small case."""
+
+    class LowerPass(BasePass):
+        def _get_reads(self):
+            return ('layout',)
+
+        def _get_writes(self):
+            return ('lowered',)
+
+    class DeclarePass(BasePass):
+        def _get_reads(self):
+            return ('nodes',)
+
+        def _get_writes(self):
+            return ('layout',)
+
+    ordered = PassCompiler._get_ordered([LowerPass(), DeclarePass()], present=['nodes'])
+    assert [type(item).__name__ for item in ordered] == ['DeclarePass', 'LowerPass']

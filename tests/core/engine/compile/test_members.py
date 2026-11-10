@@ -13,7 +13,9 @@ from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile._members import MemberLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
@@ -286,3 +288,11 @@ def test_jump_at_member_offset_compiles_many_sites_fast():
     assert time.perf_counter() - start < 10
     assert len(trajectory.problem.interactions) == 1
     assert [channels.size for channels in trajectory.problem.jumps] == [1000, 1000]
+
+
+def test_member_lowering_shift_arguments():
+    """Test `MemberLowering._shift_arguments` on a small case."""
+    assert (
+        str(MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0)))
+        == "(x, -2, 'fixed', 1.0)"
+    )

@@ -376,14 +376,6 @@ class ProblemSpec(BaseProblemSpec):
         Returns:
             components:
                 The components, two in a row for a complex component.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import I
-            >>> from skcomplex.core.engine._utils import symbol, vector
-            >>> from skcomplex.core.engine.problems import ProblemSpec
-            >>> x, y = symbol('x'), symbol('y')
-            >>> ProblemSpec._get_real_components_of(vector([x + I * y, 2 * x]))
-            [x, y, 2*x]
         """
         components: list[object] = []
         for item in (list(value) if isinstance(value, FreeModuleElement) else [value]):

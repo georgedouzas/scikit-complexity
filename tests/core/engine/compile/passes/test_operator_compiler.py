@@ -8,7 +8,7 @@ import pytest
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.components.laws.utils import local_operator
@@ -275,3 +275,14 @@ def test_operator_compiler_is_a_system_compiler_and_not_a_pass():
     """Test that the operator compiler compiles whole systems and is not a step of the pipeline of passes."""
     assert issubclass(OperatorCompiler, BaseCompiler)
     assert not issubclass(OperatorCompiler, BasePass)
+
+
+def test_operator_compiler_get_hilbert_state():
+    """Test `OperatorCompiler._get_hilbert_state` on a small case."""
+
+    class TwoLevelElement(Element):
+        def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
+            super().__init__(label)
+            self.psi = psi
+
+    assert OperatorCompiler._get_hilbert_state(TwoLevelElement) == 'psi'

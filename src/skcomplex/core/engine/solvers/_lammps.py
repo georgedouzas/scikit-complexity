@@ -793,13 +793,6 @@ class LammpsSolver(ExternalSolver):
         Raises:
             BackendError:
                 The energy has symbols other than the distance or functions Lepton does not know.
-
-        Examples:
-            >>> from skcomplex.core.engine._utils import symbol
-            >>> from skcomplex.core.engine.solvers import LammpsSolver
-            >>> x = symbol('x')
-            >>> LammpsSolver._get_lepton_expression(4 * (x**-12 - x**-6), x)
-            '4/r^12 - 4/r^6'
         """
         expression = SR(expression)
         others = symbols_of([expression]) - {distance}

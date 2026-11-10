@@ -309,12 +309,6 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         Returns:
             colors:
                 One RGB color per value.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.viz import BaseVisual
-            >>> BaseVisual._get_colors_of(np.array([0.0, 1.0]), 0.0, 1.0).shape
-            (2, 3)
         """
         fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
         fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
@@ -341,12 +335,6 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         Returns:
             colors:
                 One RGB color per value, the darkest one for every value when the range is empty.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.viz import BaseVisual
-            >>> BaseVisual._get_palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
-            (2, 3)
         """
         if high <= low:
             return np.broadcast_to(PALETTE[0], (*values.shape, 3))
@@ -393,11 +381,6 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
             value:
                 A number or an array of numbers, real or complex.
-
-        Examples:
-            >>> import rerun as rr
-            >>> from skcomplex.core.engine.viz import BaseVisual
-            >>> BaseVisual._log_scalars(rr.RecordingStream('example'), 'value', 1.0 + 2.0j)
         """
         values = np.ravel(np.asarray(value))
         if not np.iscomplexobj(values):

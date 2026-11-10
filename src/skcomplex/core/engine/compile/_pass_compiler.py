@@ -823,23 +823,6 @@ class PassCompiler(BaseCompiler):
             PipelineError:
                 A pass reads a field that no pass produces and the compilation does not hold, two passes produce one
                 field, or the passes read each other's fields in a cycle.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile import BasePass
-            >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-            >>> class LowerPass(BasePass):
-            ...     def _get_reads(self):
-            ...         return ('layout',)
-            ...     def _get_writes(self):
-            ...         return ('lowered',)
-            >>> class DeclarePass(BasePass):
-            ...     def _get_reads(self):
-            ...         return ('nodes',)
-            ...     def _get_writes(self):
-            ...         return ('layout',)
-            >>> ordered = PassCompiler._get_ordered([LowerPass(), DeclarePass()], present=['nodes'])
-            >>> [type(item).__name__ for item in ordered]
-            ['DeclarePass', 'LowerPass']
         """
         roles = PassCompiler._get_roles(passes)
         PassCompiler._check_inputs(passes, roles, present)

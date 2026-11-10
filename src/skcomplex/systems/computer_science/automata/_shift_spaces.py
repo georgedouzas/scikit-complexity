@@ -89,8 +89,8 @@ class MorseElement(WordElement):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import MorseElement
-        >>> [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)]
-        ['01', '10']
+        >>> MorseElement('morse', axiom='0').axiom
+        '0'
     """
 
     law_classes = (ProductionLaw,)

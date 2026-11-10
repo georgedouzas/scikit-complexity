@@ -185,3 +185,11 @@ def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
             random_state=0,
             schedule={'w.H': lambda t: 0.6 if t >= 5 else 0.3},
         )
+
+
+def test_fractional_euler_maruyama_solver_get_fractional_gaussian_noise():
+    """Test `FractionalEulerMaruyamaSolver._get_fractional_gaussian_noise` on a small case."""
+    solver = FractionalEulerMaruyamaSolver
+    noise = solver._get_fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
+    assert noise.shape == (100, 2000)
+    assert round(float(np.mean(noise[1:] * noise[:-1])), 1) == 0.4

@@ -14,6 +14,7 @@ from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, Latti
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._compile_encounters import CompileEncountersPass
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -301,3 +302,8 @@ def test_encounter_without_a_lattice_is_reported():
     )
     issue = next(item for item in PassCompiler().prepare(system).report_.errors if item.code == 'law-space')
     assert 'LatticeSpace' in issue.message
+
+
+def test_compile_encounters_pass_get_kinetic_table():
+    """Test `CompileEncountersPass._get_kinetic_table` on a small case."""
+    assert CompileEncountersPass._get_kinetic_table([[0.5, 0.5]]).dtype == np.float64

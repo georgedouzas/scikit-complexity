@@ -11,6 +11,7 @@ from skcomplex.systems.computer_science.automata import (
     AddingMachineSystem,
     ContextFreeSubshiftSystem,
     GapSubshiftSystem,
+    MorseElement,
     MorseSubshiftSystem,
 )
 
@@ -90,3 +91,8 @@ def test_adding_machine_counts_through_every_residue():
         np.testing.assert_array_equal(numbers, np.arange(base**digits + 1) % base**digits)
     with pytest.raises(ParameterError, match='at least 2'):
         AddingMachineSystem(base=1).prepare()
+
+
+def test_morse_element_doubles_every_letter():
+    """Test that the Morse substitution sends 0 to 01 and 1 to 10."""
+    assert [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)] == ['01', '10']

@@ -768,12 +768,6 @@ class SpecsPass(BasePass):
         Returns:
             symbols:
                 The symbol of the member, and the symbol of the other member.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.engine.compile.passes._specs import SpecsPass
-            >>> SpecsPass._get_end_symbols(var('x_cells__source'))
-            (x_cells, x_cells__other)
         """
         name = str(item).removesuffix(END_SUFFIXES[0]).removesuffix(END_SUFFIXES[1])
         return symbol(name, domain_of(item)), symbol(f'{name}__other', domain_of(item))

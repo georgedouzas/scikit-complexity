@@ -45,9 +45,8 @@ class KineticSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.engine.solvers import KineticSolver
-        >>> from skcomplex.core.components.laws import BilinearLaw
-        >>> KineticSolver(n=1000)._get_support().laws == {BilinearLaw}
-        True
+        >>> KineticSolver(n=1000).n
+        1000
     """
 
     draws = True
