@@ -30,5 +30,5 @@
 
 ## 6. Integration
 
-- [ ] 6.1 Leave `CHANGELOG.md` to the release, which writes it from the commits, and verify the docs build
-- [ ] 6.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
+- [x] 6.1 Leave `CHANGELOG.md` to the release, which writes it from the commits, and verify the docs build
+- [x] 6.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
