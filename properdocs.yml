@@ -26,7 +26,6 @@ nav:
       - System classes: overview/user_guide/system_classes.md
       - Build a custom system:
         - overview/user_guide/build_a_custom_system/index.md
-        - Concepts: overview/user_guide/build_a_custom_system/concepts.md
         - Choosing compatible components: overview/user_guide/build_a_custom_system/choosing_compatible_components.md
         - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
         - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
@@ -53,6 +52,8 @@ nav:
         - Control: overview/user_guide/build_a_custom_system/control.md
         - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
       - Core components:
+        - overview/user_guide/core_components/index.md
+        - Elements: overview/user_guide/core_components/elements.md
         - General realizations: overview/user_guide/core_components/general.md
       - Simulate: overview/user_guide/simulate.md
       - Observe: overview/user_guide/observe.md

@@ -1,9 +1,9 @@
 # Build a custom system
 
-Write a system of your own from elements, interactions, and laws. Start with the concepts and how to choose parts that
+Write a system of your own from elements, interactions, and laws. Start with how the parts fit and how to choose parts that
 fit, then go to the section of the kind of system you need.
 
-- [Concepts](concepts.md)
+- [How the parts fit](../core_components/index.md)
 - [Choosing compatible components](choosing_compatible_components.md)
 - [Defining elements](defining_elements.md)
 - [Kinds of dynamics](kinds_of_dynamics.md)
