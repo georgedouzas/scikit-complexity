@@ -5,6 +5,7 @@
 - [ ] 1.3 Add `BANNED_PHRASES`, `test_docstring_summaries_are_short`, and `test_docstrings_read_naturally` to `tests/core/components/test_base.py`, walking every module of `skcomplex.core`, and verify they pass and fail on a planted em dash, spaced hyphen, and banned phrase
 - [ ] 1.4 Add `test_class_summaries_name_their_kind`, `test_docstrings_say_main_public_methods`, and `test_components_compare_and_name_uses` with the module constant `REWRITTEN`, empty at first, and verify they pass and fail on a planted bad summary
 - [ ] 1.5 Add `test_documents_read_naturally` with `REWRITTEN_DOCUMENTS`, empty at first, and the test that keeps its banned list equal to `BANNED_PHRASES`, to `tests/test_sources.py`, and verify they pass and fail on a planted dash in a listed page
+- [ ] 1.6 Add `test_documents_show_only_public_names` to `tests/test_sources.py`, which fails on a call or attribute read of an underscore name in any docstring example of `src` and any code block of the README, the user guide, and the gallery, allowing only `def _hook` inside a class body. Rewrite every current offender to use the public interface (the trajectory, `laws_` after `run`, results) or move its check into the tests, and verify the test passes and fails on a planted `system._get_laws(namespace)`
 
 ## 2. Pilot: elements and the coupling interaction
 

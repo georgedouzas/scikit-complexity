@@ -241,6 +241,23 @@ of its docstring. Lines of doctest code and inline code SHALL be exempt.
 - **WHEN** the prose of a docstring of the core holds a semicolon outside a line of doctest code
 - **THEN** the test session fails and names the object
 
+### Requirement: Documentation shows only the public interface
+Docstrings, their examples, the README, the user guide, and the gallery SHALL use only public names. No example SHALL
+call a private method or read a private attribute. A subclass MAY define a documented extension hook, such as
+`_get_laws`, and no example SHALL call one.
+
+#### Scenario: A docstring example calls a private method
+- **WHEN** a `>>>` line of a docstring in `src/skcomplex` calls `obj._name(...)` or reads `obj._name`
+- **THEN** the test session fails and names the file, the line, and the private name
+
+#### Scenario: A guide page subclasses a hook
+- **WHEN** an extension page defines `def _get_laws(self, namespace)` in a subclass
+- **THEN** the documentation test passes, because defining a documented hook is not calling a private name
+
+#### Scenario: A code block reads a private attribute
+- **WHEN** a code block of the README or the user guide reads `system._parts`
+- **THEN** the documentation test fails and names the page and the line
+
 ## MODIFIED Requirements
 
 ### Requirement: The user guide is task-led

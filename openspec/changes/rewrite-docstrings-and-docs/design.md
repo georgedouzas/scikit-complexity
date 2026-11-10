@@ -168,6 +168,18 @@ tasks hold one such review per page group.
 Alternative considered: one guard test module under `tests/`. The constitution asks the test tree to mirror the
 source tree, and `test_base.py` already holds the cross-cutting checks of the core, so the guard joins it.
 
+### Only the public interface is documented
+
+The user stated that a user is shown only public methods. Today about forty docstring example lines in the core and
+the systems, and several guide pages, call private methods such as `_get_laws(...)`, `_get_components_of(...)`, or
+`_reduce_pairs(...)` to show internals. Each example is rewritten to show the public result, for example the
+trajectory or the `laws_` attribute after `run`, or the example is removed and its check kept in the tests.
+The one allowed form is defining a documented extension hook in a subclass on the extension pages and in base class
+docstrings, because that is how a builder writes a new part. Calling a hook in an example is never allowed. The
+guard `test_documents_show_only_public_names` walks every docstring example (`>>>` and `...` lines) in `src` and every
+code block of the README, the user guide, and the gallery, and fails on an attribute access or call whose name starts
+with an underscore, except a `def _name` inside a class body and dunder names.
+
 ### The structure of the guide
 
 The guide keeps its task-led order and grows into five parts. Files are named by what they hold.
