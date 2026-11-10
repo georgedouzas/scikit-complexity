@@ -1,7 +1,4 @@
-"""Define the types of the core.
-
-They are the targets of laws, the pairings and rules of matches, and the protocols.
-"""
+"""Define the types of the core, such as targets of laws and agent protocols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,9 +29,9 @@ type Combination = Callable[[SimpleNamespace, Target], Target]
 
 @runtime_checkable
 class AgentViewProtocol(Protocol):
-    """Agent as agent rules read it, such as `AgentView` of the agent stepper.
+    """A protocol of an agent as agent rules read it, such as `AgentView`.
 
-    It exposes its id, location, moves, and life.
+    It exposes the id, the location, the moves, and the life of the agent.
     """
 
     @property
@@ -133,9 +130,9 @@ class AgentViewProtocol(Protocol):
 
 @runtime_checkable
 class SystemViewProtocol(Protocol):
-    """System as agent rules read it, such as `SystemView` of the agent stepper.
+    """A protocol of a system as agent rules read it, such as `SystemView`.
 
-    It exposes its agents, storage, and randomness.
+    It exposes the agents, the storage, and the random numbers of the system.
     """
 
     @property

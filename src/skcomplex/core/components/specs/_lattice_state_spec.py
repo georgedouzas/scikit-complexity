@@ -1,4 +1,4 @@
-"""Define the lattice state spec."""
+"""Define the spec of the place of a lattice state in the state vector."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +16,7 @@ from ..spaces import BaseSpace
 
 @dataclass(frozen=True)
 class LatticeStateSpec(BaseSpec):
-    """State of a lattice group in the state vector.
+    """A spec of the place of a state of a lattice group in the state vector.
 
     Args:
         name:

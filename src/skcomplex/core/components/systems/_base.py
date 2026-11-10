@@ -1,7 +1,4 @@
-"""Define the base of systems.
-
-A system composes elements, interactions, and nested systems on a space, in a time.
-"""
+"""Define the abstract base of systems and the run settings they tune."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,9 +22,15 @@ from ..spaces import BaseSpace
 
 
 class RunSettings(TypedDict):
-    """Tuned run settings of a system.
+    """A mapping of the tuned run settings of a system, which `simulate` reads.
 
-    `simulate` uses them for every argument a call leaves out.
+    `simulate` uses each setting for the argument a call leaves out, such as `until`, `dt`, or `solver`.
+
+    Unlike the arguments of `simulate`, which hold for one call, it holds for every run of a system class. Choose it
+    when a system class knows the end time, the step, and the solver that suit it.
+
+    It appears in many fields. An epidemic runs for a season, a pendulum for a few periods, and a lattice model for a
+    number of sweeps that its system class fixes.
     """
 
     until: float | None
@@ -42,24 +45,30 @@ class RunSettings(TypedDict):
 
 
 class BaseSystem[CompositeT: BaseSystem](BasePart[BaseSpace, SimpleNamespace]):
-    """Base of every system.
+    """An abstract system that builds its parts from the parameters of its model.
 
-    A system builds its parts from its model parameters, prepares them, and derives its tags. A subclass takes the
-    parameters of its model as arguments of its own `__init__`, which stores each under its own name, as in
-    scikit-learn, so `get_params`, `set_params`, and `clone` work on them. It builds its parts in the hook
-    `_build_system`, which returns the `CompositeSystem` of its elements, interactions, nested systems, space, and time,
-    written in terms of the model parameters. The type parameter `CompositeT` names the class of that composite, so a
-    subclass that writes `BaseSystem[CompositeSystem]` gets `system_` typed as `CompositeSystem`. `prepare` passes the
-    current model parameters down to the parts by building them again when a parameter differs by value from those of
-    the last build, and prepares them as `system_`, so a parameter changed with `set_params` changes the parts of the
-    next `prepare`. The tags of a system are derived from its parts and never declared.
+    A subclass takes the parameters of its model as arguments of its `__init__`, such as the rates of an epidemic, and
+    stores each under the same name, as a scikit-learn estimator does, so `get_params`, `set_params`, and `clone` work.
+    It builds its parts in the hook `_build_system`, which returns the `CompositeSystem` of its elements, interactions,
+    nested systems, space, and time. `prepare` builds the parts again when a parameter has changed since the last build,
+    and prepares them as `system_`. The tags of a system come from its parts and are never declared. The type parameter
+    `CompositeT` names the class of the composite, so `BaseSystem[CompositeSystem]` types `system_` as
+    `CompositeSystem`.
 
     A subclass may give tuned run settings as class variables, which `simulate` reads for the arguments a call leaves
-    out: `until`, the end time, `dt`, the time between frames, `solver`, the solver, `observables`, the observables,
-    `initial_state`, the initial values by dotted state name, `invariants`, the tolerance of every observable that
-    must stay constant, `schedule`, the functions of time that drive parameters, `compiler`, the compiler of a form
-    the system brings, and `backend`, the backend. The compiler also reads `observables` of a `CompositeSystem` it
-    compiles, so the tuned observables of a subclass of `CompositeSystem` are computed without being passed again.
+    out:
+
+    - `until` and `dt`: the end time and the time between frames.
+    - `solver`, `backend`, and `compiler`: how the system runs.
+    - `observables` and `invariants`: what to record, and the tolerance of each observable that must stay constant.
+    - `initial_state` and `schedule`: the initial values by dotted state name, and the functions of time that drive
+      parameters.
+
+    Unlike `CompositeSystem`, which takes its parts as data, it writes them in terms of named model parameters. Choose
+    it when a model has parameters that users set, sweep, or calibrate, as every system of the catalog does.
+
+    It appears in many fields. The SIR model of an epidemic, the Lotka-Volterra model of predators and prey, the Ising
+    model of a magnet, and the Kuramoto model of oscillators are system classes.
 
     Attributes:
         system_:

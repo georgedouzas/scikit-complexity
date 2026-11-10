@@ -1,4 +1,4 @@
-"""Define the census record spec."""
+"""Define the spec of one law of a part, with what it changes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +17,7 @@ from ..spaces import BaseSpace
 
 @dataclass(frozen=True)
 class CensusRecordSpec(BaseSpec):
-    """Law of a component with the element it changes and the states it targets.
+    """A spec of one law of a part, with the element and the states it changes.
 
     Args:
         path:

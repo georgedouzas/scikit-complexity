@@ -1,4 +1,4 @@
-"""Define the composite system of elements, interactions, and nested systems."""
+"""Define the system that composes elements, interactions, and nested systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,17 +21,21 @@ from ._base import BaseSystem
 
 
 class CompositeSystem(BaseSystem['CompositeSystem']):
-    """Composition of elements and the interactions between them, with nested systems.
+    """A system that composes elements, interactions, and nested systems as data.
 
-    The system lives on a space, in a time. A system is defined by its parts and by nothing about how it runs. An
-    interaction refers to an element by its path relative to the system that holds the interaction, so `forest/foxes`
-    names the element `foxes` of the nested system `forest`. Groups and nested systems without a space of their own live
-    on the space of the system.
+    The system lives on a space, in a time, and says nothing about how it runs. An interaction refers to an element by
+    its path relative to the system that holds the interaction, so `forest/foxes` names the element `foxes` of the
+    nested system `forest`. Groups and nested systems without a space of their own live on the space of the system.
 
-    The tags of a system come from its parts: its own time, or else the times its parts agree on, every space of its
-    parts and nested systems, or `'none'` without any, the union of the domains, law kinds, and structures of its
-    parts, and a stochastic randomness when any part is stochastic, reparameterized when every stochastic part is.
+    The tags of a system come from its parts: its own time, or the time its parts agree on, every space of its parts,
+    the union of their domains, law kinds, and structures, and a stochastic randomness when any part is stochastic.
     `prepare` rejects an element bound to a role that does not accept the domains of the states the role reads.
+
+    Unlike `BaseSystem`, which builds its parts from model parameters, it takes the parts themselves. Choose it when
+    composing a model from parts once, or when nesting systems inside a larger one.
+
+    It appears in many fields. A predator and its prey on a lattice, a savings account with interest and withdrawals, a
+    circuit of resistors and capacitors, and an economy of nested regions are composite systems.
 
     Attributes:
         system_:

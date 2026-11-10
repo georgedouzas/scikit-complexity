@@ -1,4 +1,4 @@
-"""Define the scenario spec."""
+"""Define the spec of a named variant of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +14,14 @@ from ..systems import CompositeSystem
 
 @dataclass(frozen=True)
 class ScenarioSpec(BaseSpec):
-    """Named variant of a system.
+    """A spec of a named variant of a system, such as an intervention.
 
-    A scenario holds overrides before the run, parameter changes at given times, or another system. Every scenario of an
-    experiment runs with the same random streams per design row and replicate, so scenarios differ only through what
-    they change.
+    A scenario changes values before the run, changes parameters at given times, or replaces the system. Every scenario
+    of an experiment runs with the same random streams per design row and replicate, so scenarios differ only through
+    what they change.
+
+    It appears in many fields. An epidemic compares early and late lockdowns, a climate model compares emission paths,
+    and an economy compares tax policies.
 
     Args:
         name:

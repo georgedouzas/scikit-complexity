@@ -1,4 +1,5 @@
-"""What a system is.
+"""Define the parts of a system: elements, interactions, laws, spaces, and systems.
 
-A system is made of elements, interactions, laws, a space and the system itself.
+An element holds states, an interaction reads them through roles and returns laws, a law is one equation or rule for one
+state, a space places the members of a group, a time says whether the system flows or steps, and a system composes them.
 """

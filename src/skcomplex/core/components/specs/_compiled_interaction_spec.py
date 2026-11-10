@@ -1,4 +1,4 @@
-"""Define the compiled interaction spec."""
+"""Define the spec of an interaction of a compiled problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from ..interactions import BaseInteraction
 
 @dataclass(frozen=True)
 class CompiledInteractionSpec(BaseSpec):
-    """Interaction of a compiled problem with the paths its roles are bound to.
+    """A spec of an interaction of a compiled problem, with the paths its roles bind.
 
     Args:
         path:

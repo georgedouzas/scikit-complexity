@@ -1,4 +1,4 @@
-"""Define the lattice context spec."""
+"""Define the spec of what the laws of a lattice are compiled against."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +14,9 @@ from ._lattice_state_spec import LatticeStateSpec
 
 @dataclass(frozen=True)
 class LatticeContextSpec(BaseSpec):
-    """What lattice laws are compiled against.
+    """A spec of what the laws of a lattice are compiled against.
 
-    It holds the lattice of every state and the symbols a component reads.
+    It holds the lattice of every state and the symbols each part reads.
 
     Args:
         owner:

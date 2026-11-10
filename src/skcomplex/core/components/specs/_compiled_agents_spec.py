@@ -1,4 +1,4 @@
-"""Define the compiled agents spec."""
+"""Define the spec of an agent element or group of an agent-based problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +16,9 @@ from ..laws import BaseLaw
 
 @dataclass(frozen=True)
 class CompiledAgentsSpec(BaseSpec):
-    """Agent element or agent group of an agent-based problem.
+    """A spec of an agent element or agent group of an agent-based problem.
 
-    Its states live in the Mesa system.
+    The states of its agents live in the Mesa model that runs them.
 
     Args:
         path:

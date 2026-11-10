@@ -1,4 +1,4 @@
-"""Define the operator view spec."""
+"""Define the spec of an element whose state lies in a Hilbert space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +21,10 @@ NORM_TOLERANCE = 1e-8
 
 @dataclass(frozen=True)
 class OperatorViewSpec(BaseSpec):
-    """View of an element with a state in a Hilbert space.
+    """A spec of an element whose state is a vector of a Hilbert space.
 
-    The operator compiler reads this view.
+    A Hilbert space is the space of the states of a quantum system. The compiler of operators reads this view to build
+    the matrices of the evolution.
 
     Args:
         element:

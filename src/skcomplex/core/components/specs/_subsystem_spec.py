@@ -1,4 +1,4 @@
-"""Define the subsystem spec."""
+"""Define the spec of a subsystem of a tensor product."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,9 +15,9 @@ from ._operator_view_spec import OperatorViewSpec
 
 @dataclass(frozen=True)
 class SubsystemSpec(BaseSpec):
-    """Subsystem of a tensor product.
+    """A spec of a subsystem of a tensor product, such as one qubit of a register.
 
-    The operator compiler builds one per operator element, and the operator lowering reads them.
+    The compiler of operators builds one per operator element, and the lowering of operators reads them.
 
     Args:
         key:

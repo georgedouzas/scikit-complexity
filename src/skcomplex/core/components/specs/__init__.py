@@ -1,6 +1,7 @@
-"""Specs that name classes of the core.
+"""Define the specs that describe the parts of a system as the compiler reads them.
 
-They describe the parts of a system as a compilation reads them.
+They name classes of the core, such as an element with the dotted names of its variables, so they live beside the parts
+rather than in `skcomplex.core.specs`.
 """
 
 from ._census_record_spec import CensusRecordSpec

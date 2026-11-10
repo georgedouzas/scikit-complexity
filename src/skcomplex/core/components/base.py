@@ -1,4 +1,4 @@
-"""Define the base of the parts of a system."""
+"""Define the abstract base of every part of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,35 +19,33 @@ from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSp
 
 
 class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """Base of every part of a system.
+    """An abstract part of a system, with a label, laws, and capability tags.
 
-    The parts of a system are its elements, its interactions, the laws they return, and the system itself. Every part
-    has a label, returns the laws it contributes from `_get_laws`, and implements two hooks that the main public
-    methods `prepare` and `run` call:
+    The parts of a system are its elements, interactions, laws, spaces, times, and the system itself. Every part has a
+    label, returns its laws from `_get_laws`, and implements two hooks that the main public methods `prepare` and `run`
+    call:
 
-    - `_prepare(context)` checks the arguments of the part, then prepares it against its context and sets its
-      attributes that end in `_`. It starts with `super()._prepare(context)`, so the `_prepare` of this base checks
-      the label and the declared specs first.
-    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system,
-      or `value_`, the value of a law.
+    - `_prepare(context)` checks the arguments, prepares the part against its context, and sets its attributes that end
+      in `_`. It starts with `super()._prepare(context)`, so this base checks the label and the declared specs first.
+    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system, or
+      `value_`, the value of a law.
 
-    A part is generic in the context of `prepare` and the input of `run`, which every base of parts names: a law
-    is prepared against the path of its owner, an element against the space of its system.
+    The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
+    the space of its system. A part declares which arguments of its constructor are states, parameters, or roles by
+    annotating them with `StateSpec`, `ParameterSpec`, or `RoleSpec` inside `Annotated`.
 
-    A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
-    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` checks every declared spec.
+    A part returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the tags are
+    known before `prepare`. Each family derives them in `_get_tags`. A part whose run draws random numbers that its laws
+    do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`, or returns it from
+    `_draws` when its arguments decide it. A part whose draws are all uniform, normal, or relaxed Bernoulli or
+    categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
 
-    A part returns its capability tags from `get_tags()`, which reads only its declarations and its arguments, so the
-    tags are known before `prepare`. Each family derives them in the private hook `_get_tags()`: an element from its
-    state specs, a space and a time from their class, a law from its class, an interaction from the laws it returns
-    for its arguments, and a system from its parts.
+    Unlike `BaseConfig`, which only stores and checks arguments, it adds laws, a context for `prepare`, and tags. Choose
+    it when a new family of parts is needed, and choose the base of an existing family, such as `BaseElement`,
+    otherwise.
 
-    A part whose run draws random numbers that its law kinds do not show, such as an agent rule that reads
-    `system.rng` or a law that holds a draw such as `normal('noise')`, declares it with the class attribute `draws`, and
-    a part whose arguments decide it, such as a random order of its agents, returns it from the private hook
-    `_draws()`. Its randomness is then stochastic. A part whose draws are all uniform, normal, or relaxed Bernoulli or
-    categorical draws of its laws declares it with the class attribute `reparameterized`, so its runs on JAX are
-    differentiable.
+    It appears in every field through its families, such as the populations, infections, and contact networks of an
+    epidemic, or the accounts, payments, and markets of an economy.
 
     Examples:
         >>> from skcomplex.core.components.base import BasePart
