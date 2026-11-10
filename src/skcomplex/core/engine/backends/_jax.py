@@ -1,7 +1,4 @@
-"""Run compiled problems in JAX.
-
-They run as pure functions that JAX traces, compiles, and differentiates.
-"""
+"""Run compiled problems in JAX."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,13 +37,16 @@ type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArra
 
 
 class JaxBackend(BaseBackend):
-    """Backend that writes discrete maps and ODEs as pure JAX functions.
+    """A backend that writes discrete maps and differential equations as JAX functions.
 
     The ODEs are ordinary differential equations. The functions return new arrays instead of writing into buffers, so
     JAX traces, compiles, and differentiates them. Reductions lower to sums, means, and matrix products, and a reduction
     weighted by a shaped parameter to the product with its block of the parameter vector reshaped into a matrix. The
     forward functions in `functions_` take and return NumPy arrays and compute in double precision. Rule, noise, and
     jump laws, reductions over neighbourhoods, and laws given as Python callables have no JAX form.
+
+    Choose it when a run must be differentiated, as in gradient-based calibration, or run on a GPU. It appears in many
+    fields, such as fitting the rates of an epidemic by gradients and training a neural differential equation.
 
     Attributes:
         functions_:

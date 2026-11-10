@@ -1,8 +1,4 @@
-"""Write the source of a system module from the sorted parts of a system.
-
-The system is a stock-and-flow system. A file whose stocks are not subscripted and change only through flows becomes a
-subclass of `StockFlowSystem`, and any other file an element of the stocks with its flows and rates.
-"""
+"""Write the source of a system module from the sorted parts of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

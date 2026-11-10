@@ -16,7 +16,7 @@ MATRIX_RANK = 2
 
 
 class MatrixVisual(BaseVisual):
-    """Visual that logs a matrix-valued state or parameter as an image.
+    """A visual that logs a matrix-valued state or parameter as an image.
 
     The image is colored by value. It logs one image per frame. The visual draws the variable `variable` of the element
     at `path`, or the state or parameter named `<path>.<variable>` of a problem without such an element, such as a

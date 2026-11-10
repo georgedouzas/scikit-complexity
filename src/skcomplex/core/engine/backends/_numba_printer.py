@@ -1,7 +1,4 @@
-"""Print the kernels and reductions of a problem as the source of Numba functions.
-
-The functions are fused and come with their layout slots.
-"""
+"""Print the kernels and reductions of a problem as the source of Numba functions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,7 +43,7 @@ COMPONENT_KINDS = {
 
 
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
-    """Printer of the kernels and reductions of a problem as fused Numba source.
+    """A printer that writes the kernels and reductions of a problem as Numba source.
 
     `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
     `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label

@@ -1,7 +1,4 @@
-"""Draw the states of a lattice group as images.
-
-A one-dimensional lattice also gets a space-time image.
-"""
+"""Draw the states of a lattice group as images."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
-    """Visual that logs every state of a lattice group as an image colored by value.
+    """A visual that logs every state of a lattice group as an image coloured by value.
 
     In 3D and more, it logs a tensor. A one-dimensional lattice also logs a space-time image under
     `<path>/space_time/<state>`, with one row per logged frame, the oldest at the top, and at most `history` rows. Its

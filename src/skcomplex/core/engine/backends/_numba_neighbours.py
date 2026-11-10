@@ -1,7 +1,4 @@
-"""Bin members into bounded cell grids and find their neighbours.
-
-The neighbours are within a radius, among the nearest, or in a cone.
-"""
+"""Bin members into bounded cell grids and find their neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

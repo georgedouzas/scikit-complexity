@@ -13,7 +13,7 @@ from ._base import BaseObserver
 
 
 class ConservationObserver(BaseObserver):
-    """Observer that checks the conservation of every quantity at every frame.
+    """An observer that checks the conservation of every quantity at every frame.
 
     Each quantity may change only by its flows with the environment. The total of a quantity is the sum of the states
     that hold it. The monitor compares its change since the first frame with the accumulated net inflow from the

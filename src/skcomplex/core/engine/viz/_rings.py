@@ -1,7 +1,4 @@
-"""Draw the phases of a group of oscillators against their position.
-
-The position is along a ring or a chain.
-"""
+"""Draw the phases of a group of oscillators against their position."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ POSITION_MARGIN = 0.05
 
 
 class PhaseRingVisual(BaseVisual):
-    """Visual that logs the wrapped phases of oscillators against their position.
+    """A visual that logs the wrapped phases of oscillators against their position.
 
     The oscillators are those of a group, logged as colored points. Every member is a point at its position along the
     group and its phase wrapped into `(-pi, pi]`, colored by the cyclic palette of phases, so a coherent stretch of

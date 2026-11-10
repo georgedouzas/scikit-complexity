@@ -23,7 +23,7 @@ THREE_DIMENSIONS = 3
 
 
 class AgentsVisual(BaseVisual):
-    """Visual that logs the agents of a group as one batch per frame.
+    """A visual that logs the agents of a group as one batch per frame.
 
     The agents are colored by a state. Agents on a grid or in a continuous space of two dimensions are logged as
     `Points2D` at their cell centres or positions, agents in a continuous space of three dimensions as `Points3D` at

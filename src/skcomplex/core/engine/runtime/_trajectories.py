@@ -15,7 +15,7 @@ from ..problems import BaseProblemSpec
 
 
 class Trajectory:
-    """Recorded states and parameters of a simulation over time.
+    """A record of the states and parameters of a simulation over time.
 
     Args:
         problem:

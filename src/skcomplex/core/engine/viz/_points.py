@@ -22,7 +22,7 @@ TRAIL_WIDTH = 0.25
 
 
 class PointsVisual(BaseVisual):
-    """Visual that logs a vector state as points, and other states as time series.
+    """A visual that logs a vector state as points, and other states as time series.
 
     There is one point per member of a group. Each state is logged as one batch, so a group of any size takes one log
     call per state and frame. Positions in two dimensions are logged with the second coordinate negated, since Rerun's

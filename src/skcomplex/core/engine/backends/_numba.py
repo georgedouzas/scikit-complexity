@@ -1,7 +1,4 @@
-"""Generate, compile, and cache Numba kernels and stepper loops.
-
-They are generated from the kernels of a problem.
-"""
+"""Generate, compile, and cache Numba kernels and stepper loops."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -101,10 +98,13 @@ from skcomplex.core.engine.problems._steps import step_count
 
 
 class NumbaBackend(BaseBackend):
-    """Backend that generates fused Numba kernels and compiled stepper loops.
+    """A backend that compiles fused kernels and stepper loops with Numba.
 
     They are cached on disk. Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and
     the problem then has no compiled stepper loops.
+
+    Choose it for large lattices, networks, and agent groups, where compiled loops run much faster than NumPy. It
+    appears in many fields, such as long runs of spin lattices, sandpiles, and epidemics on large networks.
 
     Args:
         cache_dir:

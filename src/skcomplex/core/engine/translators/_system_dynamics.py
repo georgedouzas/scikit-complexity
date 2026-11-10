@@ -1,7 +1,4 @@
-"""Translate Vensim and XMILE files into the source of system modules.
-
-They are translated through the abstract system of PySD.
-"""
+"""Translate Vensim and XMILE files into the source of system modules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,7 +39,7 @@ RESERVED_NAMES = frozenset(
 
 
 class SystemDynamicsTranslator(BaseConfig[None, None]):
-    """Translator of a Vensim or XMILE file into the source of a system module.
+    """A translator of a Vensim or XMILE file into the source of a system module.
 
     The module is a system module of the library, with one private function per auxiliary and lookup, the constants
     `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class named after the element in CamelCase with the suffix

@@ -1,7 +1,4 @@
-"""Draw the local expectation values of operator elements and groups.
-
-They are drawn as images and series.
-"""
+"""Draw the local expectation values of operator elements and groups."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ from ._images import SPACE_TIME, ImageVisual
 
 
 class ExpectationVisual(ImageVisual):
-    """Visual that logs the local expectations of operator elements and groups.
+    """A visual that logs the local expectations of operator elements and groups.
 
     A group logs the expectation of the displayed local operator of every member, such as `z`, as an image of
     its lattice under `<path>/<name>`, with a space-time image under `<path>/space_time/<name>` in one dimension. A

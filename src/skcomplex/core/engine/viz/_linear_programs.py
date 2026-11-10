@@ -1,7 +1,4 @@
-"""Draw the variables, objective values, and structure of a linear program.
-
-The variables are bars, the objective values series, and the structure a graph.
-"""
+"""Draw the variables, objective values, and structure of a linear program."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ MINIMUM_WIDTH = 0.005 * NODE_SPACING
 
 
 class LinearProgramVisual(BaseVisual):
-    """Visual that draws the linear program of an element.
+    """A visual that draws the linear program of an element.
 
     It logs a bar chart of the variables under `<path>/variables`, the objective values as scalars under
     `<path>/objective`, and with a graph one node per row of the matrix and per variable under `<path>/graph`, laid out

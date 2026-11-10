@@ -44,7 +44,7 @@ STEPWISE_FORMS = frozenset(
 
 
 class Simulation(BaseConfig[None, float]):
-    """Simulation of a system with the solver of its form.
+    """A simulation of a system with the solver of its form, run frame by frame.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters change between frames
     only through the schedule, whose values are checked against the domains of their parameters, and `extend`

@@ -20,7 +20,7 @@ SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
-    """Visual that logs every state of a finite element field as a triangle mesh.
+    """A visual that logs every state of a finite element field as a triangle mesh.
 
     The mesh is colored by value. Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes
     as points.

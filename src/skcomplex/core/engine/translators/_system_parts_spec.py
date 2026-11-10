@@ -1,7 +1,4 @@
-"""Define the parts of a stock-and-flow system that a file declares.
-
-They are sorted by what they become.
-"""
+"""Define the parts of a stock-and-flow system that a file declares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

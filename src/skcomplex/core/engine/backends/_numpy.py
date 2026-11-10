@@ -1,7 +1,4 @@
-"""Run compiled problems in NumPy, the default backend.
-
-It evaluates kernels as vectorised array operations.
-"""
+"""Run compiled problems in NumPy, the default backend."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -51,7 +48,10 @@ from ._base import BaseBackend
 
 
 class NumpyBackend(BaseBackend):
-    """Reference backend that evaluates every kernel with NumPy array operations.
+    """A backend that evaluates every kernel with NumPy array operations, the default.
+
+    Choose it by default, for small systems, and to check the other backends. It appears in every field, as the
+    reference that runs any law the compiler can lower.
 
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate

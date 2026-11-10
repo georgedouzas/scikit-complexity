@@ -1,7 +1,4 @@
-"""Define the base of the backends.
-
-A backend turns kernels into the numeric functions of a form.
-"""
+"""Define the base of the backends."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ AUTO_MEMBERS = 1000
 
 
 class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
-    """Base of the backends.
+    """An abstract backend, which writes the numeric functions of a compiled problem.
 
     A backend turns the kernels of a problem into the numeric functions of its form. A backend stores its settings in
     its constructor, `prepare()` takes nothing, and `run(kernels)` takes the `LoweredKernelsSpec` of a problem, with its

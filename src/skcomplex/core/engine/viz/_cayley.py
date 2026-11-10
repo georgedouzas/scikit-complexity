@@ -1,7 +1,4 @@
-"""Draw lattice groups on group spaces as Cayley graphs.
-
-The sites sit on rings by word length and are colored by state.
-"""
+"""Draw lattice groups on group spaces as Cayley graphs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ NODE_SHARE = 0.15
 
 
 class CayleyVisual(BaseVisual):
-    """Visual that logs every state of a lattice group on a group space as a graph.
+    """A visual that logs every state of a lattice group on a group space as a graph.
 
     The states are logged as the nodes of its Cayley graph. Sites sit on rings by word length, with one ring per radius
     and the identity at the centre, colored by state. Every chosen state is logged under `<path>/<state>` as

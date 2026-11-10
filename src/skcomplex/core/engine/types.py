@@ -1,8 +1,4 @@
-"""Define the types that only the engine reads.
-
-They are arrays, functions, records, and library classes. The neighbour search on a grid of cells passes tuples, since
-its Numba kernels take no other records.
-"""
+"""Define the types that only the engine reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -65,7 +61,7 @@ type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
 class LinearProgramBound(IntEnum):
-    """The bound of a column or a row of a linear program that a compiled value gives."""
+    """A bound of a column or a row of a linear program that a compiled value gives."""
 
     COLUMN_LOWER = 0
     COLUMN_UPPER = 1
@@ -74,7 +70,7 @@ class LinearProgramBound(IntEnum):
 
 
 class ReadKind(StrEnum):
-    """How a symbol is read for each evaluation index of a kernel."""
+    """A kind of read of a symbol for each evaluation index of a kernel."""
 
     MEMBER = 'member'
     SINGLE = 'single'

@@ -1,7 +1,4 @@
-"""Hold the Numba stepper loops of every form.
-
-The loops call the step count.
-"""
+"""Hold the Numba stepper loops of every form."""
 
 NO_BOUNDARY = """
 HAS_BOUNDARY = False

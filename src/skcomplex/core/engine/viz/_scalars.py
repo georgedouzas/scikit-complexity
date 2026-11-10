@@ -15,7 +15,7 @@ from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
-    """Visual that logs each state component of an element as a time series.
+    """A visual that logs each state component of an element as a time series.
 
     Every state gets static series colors from a categorical palette, by its position among the states of every element
     of the problem, so the series of one view are told apart. The lag states that keep the past values of a delayed

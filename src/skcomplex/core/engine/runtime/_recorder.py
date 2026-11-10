@@ -13,7 +13,7 @@ from ._trajectories import Trajectory
 
 
 class RecorderObserver(BaseObserver):
-    """Observer that keeps every frame it receives.
+    """An observer that keeps every frame it receives.
 
     Attributes:
         problem_:

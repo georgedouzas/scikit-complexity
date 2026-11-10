@@ -1,7 +1,4 @@
-"""Define the base class of visuals.
-
-A visual logs one element or agent group to a Rerun recording.
-"""
+"""Define the base class of visuals."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -76,7 +73,7 @@ PHASE_PALETTE = (
 
 
 class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """Base class of visuals.
+    """An abstract visual, which logs a part of a system to Rerun at every frame.
 
     A visual logs the state of one element or agent group to a Rerun recording. A visual follows the common API of the
     engine. `prepare(problem)` finds the element or agent group of the problem at the entity path `path`, forgets what

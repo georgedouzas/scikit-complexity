@@ -22,7 +22,7 @@ BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
 
 
 class GeometryVisual(BaseVisual):
-    """Visual that logs the structure of a rewritten element at every frame.
+    """A visual that logs the structure of a rewritten element at every frame.
 
     The frame of the drawing is fixed across generations. Word segments, segment tiles, and polygon outlines are one
     batch of line strips, colored by branch depth or by prototile. A filled patch is an image of its raster instead. The

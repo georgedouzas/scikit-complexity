@@ -1,7 +1,4 @@
-"""Define the helpers every engine package shares.
-
-They give the symbols of compiled laws and the declarations of parts.
-"""
+"""Define the helpers every engine package shares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

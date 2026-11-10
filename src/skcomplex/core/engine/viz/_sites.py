@@ -1,7 +1,4 @@
-"""Draw the states of a lattice group that is not square.
-
-They are drawn as colored sites or network nodes.
-"""
+"""Draw the states of a lattice group that is not square."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ CHANGING_CENTRING = 0.05
 
 
 class SiteVisual(BaseVisual):
-    """Visual that logs every state of a non-square lattice group as colored sites.
+    """A visual that logs every state of a non-square lattice group as coloured sites.
 
     A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
     the sites. A lattice group on a network is logged as `GraphNodes` colored by state, at the `pos` attributes of the

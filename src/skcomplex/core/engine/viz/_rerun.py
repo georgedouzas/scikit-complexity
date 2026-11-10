@@ -76,7 +76,7 @@ VISUALS: dict[str, type[BaseVisual]] = {
 
 
 class RerunObserver(BaseObserver):
-    """Observer that logs frames to Rerun.
+    """An observer that logs the frames of a run to the Rerun viewer.
 
     Its entity paths follow the system tree. `prepare(problem)` creates the recording, builds the visual of every
     element and agent group from the visual its type declares, lays out their views, and sends the recording to its

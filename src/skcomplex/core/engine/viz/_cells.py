@@ -1,7 +1,4 @@
-"""Draw the states of the groups on the cells of a cell complex.
-
-The groups are on the edges and hyperedges, drawn as segments, images, and polygons.
-"""
+"""Draw the states of the groups on the cells of a cell complex."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ PLANE_AXES = 2
 
 
 class CellVisual(BaseVisual):
-    """Visual that logs a state of a group on the edges or hyperedges of a complex.
+    """A visual that logs a state of a group on the edges or faces of a complex.
 
     The complex is a cell complex. A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with
     a cyclic palette for an angle state, and its oriented sums around the faces log under `<path>/<state>/faces`. A

@@ -13,7 +13,7 @@ from ._base import BaseObserver
 
 
 class InvariantObserver(BaseObserver):
-    """Observer that checks that every named observable stays near its first value.
+    """An observer that checks that every named observable stays near its first value.
 
     At every frame each observable must stay within its tolerance of its first value. A simulation attaches one when it
     is given invariants.

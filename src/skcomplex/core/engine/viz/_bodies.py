@@ -1,7 +1,4 @@
-"""Draw bodies, their rods, their fading trails, and static outlines.
-
-They are drawn from the states of an element.
-"""
+"""Draw bodies, their rods, their fading trails, and static outlines."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +32,7 @@ SPACE = 3
 
 
 class BodiesVisual(BaseVisual):
-    """Visual that draws bodies at positions computed from the states of an element.
+    """A visual that draws bodies at positions computed from the states of an element.
 
     It also draws rods, trails, and outlines. The bodies are logged as points under `<path>/bodies`, the rods from the
     pivot through the bodies in order as one line strip under `<path>/rods`, the trails of the traced bodies as segments

@@ -7,7 +7,7 @@ from ._base import BaseClock
 
 
 class AsFastAsPossibleClock(BaseClock):
-    """Clock that never waits.
+    """A clock that never waits, so a run goes as fast as it can.
 
     Examples:
         >>> from skcomplex.core.engine.runtime import AsFastAsPossibleClock

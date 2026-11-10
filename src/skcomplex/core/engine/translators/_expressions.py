@@ -1,7 +1,4 @@
-"""Write the syntax structures of PySD's abstract system as source of expressions.
-
-The source is that of the expressions of a system module.
-"""
+"""Write the syntax structures of PySD's abstract system as source of expressions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

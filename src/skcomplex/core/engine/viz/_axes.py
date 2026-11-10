@@ -1,7 +1,4 @@
-"""Draw the principal axes of a tensor state, or the arrows of a vector state.
-
-They are drawn over an image of a scalar.
-"""
+"""Draw the principal axes of a tensor state, or the arrows of a vector state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ SEGMENT_FILL = 0.45
 
 
 class AxisVisual(BaseVisual):
-    """Visual that logs the axes of a tensor state or the arrows of a vector state.
+    """A visual that logs the axes of a tensor state or the arrows of a vector state.
 
     They are logged at every sampled site of a lattice. A tensor state logs one segment without head per sampled site
     along its principal axis, and a vector state one arrow per sampled site, under `<path>/<state>/axes`. A scalar state

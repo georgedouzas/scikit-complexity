@@ -33,7 +33,7 @@
 
 ## 6. Engine
 
-- [ ] 6.1 Rewrite `engine/runtime`, `engine/viz`, `engine/backends`, `engine/translators`, and the engine root modules, add them to `REWRITTEN`, and verify the guard and their doctests pass
+- [x] 6.1 Rewrite `engine/runtime`, `engine/viz`, `engine/backends`, `engine/translators`, and the engine root modules, add them to `REWRITTEN`, and verify the guard and their doctests pass
 - [ ] 6.2 Rewrite `engine/solvers`, naming uses where a user picks a solver by hand, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 6.3 Rewrite `engine/compile`, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 6.4 Rewrite `engine/problems`, add it to `REWRITTEN`, and verify the guard and its doctests pass

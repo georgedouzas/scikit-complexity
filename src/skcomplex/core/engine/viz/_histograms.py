@@ -1,7 +1,4 @@
-"""Draw the variables of agents and the states of groups without a space.
-
-They are drawn as histograms and statistics.
-"""
+"""Draw the variables of agents and the states of groups without a space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ NUMERIC_KINDS = frozenset('biuf')
 
 
 class HistogramVisual(AgentsVisual):
-    """Visual that logs histograms and statistics of agents or groups without a space.
+    """A visual that logs histograms of agents or of groups without a space.
 
     It logs the traits of the agents or the states of the group. For every trait of the agents, a number per agent is
     taken: the value of a numeric trait, the total of a row of numbers such as the ones of a genome, or the size of a
