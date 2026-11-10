@@ -16,7 +16,6 @@ from ._operators import (
     CONVOLVE,
     INVERSE_HELMHOLTZ,
     SHIFTED,
-    advection,
     divergence,
     gradient,
     inverse_helmholtz,
@@ -54,14 +53,6 @@ def _derivative(expression: object, axis: int) -> Expression:
     """Return the derivative of an entry of a matrix along an axis, 0 for a number."""
     item = SR(expression)
     return SR(0) if item.is_numeric() else partial(item, SR(axis))
-
-
-def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
-    """Return the advection of an entry of a matrix.
-
-    It is 0 for a number, whose derivatives are 0.
-    """
-    return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
 
 
 def _distribute_call(call: Expression, operands: list[Expression]) -> Expression:
