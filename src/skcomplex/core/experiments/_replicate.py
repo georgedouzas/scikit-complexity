@@ -1,9 +1,4 @@
-"""Replicate a system of single elements into groups of members.
-
-Many values then run as one vectorised simulation.
-
-`PLAIN_LAWS` holds the laws of elements that a group of members of the same type runs as one vectorised simulation.
-"""
+"""Replicate a system of single elements into groups, run as one simulation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

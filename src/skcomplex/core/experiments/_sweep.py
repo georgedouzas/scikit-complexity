@@ -1,7 +1,4 @@
-"""Run a system over values of its parameters and initial states.
-
-The values are those of its model parameters, initial states, and parameters of its parts.
-"""
+"""Run a system over values of its parameters and initial states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -48,6 +45,9 @@ def sweep(
     - `'sobol'`: `n` points of a scrambled Sobol sequence, best with `n` a power of 2.
 
     A sequence of rows, each a mapping from name to value, runs as it is.
+
+    It appears in many fields. It maps the phase transition of a magnet over temperature, the final size of an epidemic
+    over its rate of infection, and the clusters of an opinion model over its confidence bound.
 
     Args:
         system:

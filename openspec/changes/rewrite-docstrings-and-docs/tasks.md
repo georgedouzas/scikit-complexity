@@ -29,7 +29,7 @@
 ## 5. Analysis and experiments
 
 - [x] 5.1 Rewrite `skcomplex.core.analysis`, functions and result classes, with uses from two or more fields per function, add it to `REWRITTEN`, and verify the guard and its doctests pass
-- [ ] 5.2 Rewrite `skcomplex.core.experiments` and its specs, add it to `REWRITTEN`, and verify the guard and its doctests pass
+- [x] 5.2 Rewrite `skcomplex.core.experiments` and its specs, add it to `REWRITTEN`, and verify the guard and its doctests pass
 
 ## 6. Engine
 

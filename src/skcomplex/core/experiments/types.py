@@ -1,7 +1,4 @@
-"""Define the types of the experiments.
-
-They are the system they run, the rows of values, and the outputs they keep.
-"""
+"""Define the types of experiments, the systems they run, rows, and outputs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

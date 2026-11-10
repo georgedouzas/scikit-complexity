@@ -25,7 +25,7 @@ POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """Empirical coverage of the credible intervals of calibration on simulated data.
+    """A result of `posterior_coverage`, how often credible intervals hold the truth.
 
     The data are simulated from prior draws.
 
@@ -143,6 +143,9 @@ def posterior_coverage(
     Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often
     the central credible interval of every level holds the true value. It also gives the rank of every true value among
     its samples, the check of simulation-based calibration (Talts et al. 2018).
+
+    It appears in every Bayesian calibration that needs to check its intervals, such as of the rates of an epidemic, of
+    the parameters of a climate model, or of the constants of a reaction, before trusting them on real data.
 
     Args:
         system:

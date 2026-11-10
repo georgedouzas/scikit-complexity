@@ -123,6 +123,7 @@ REWRITTEN: tuple[str, ...] = (
     'skcomplex.core.base',
     'skcomplex.core.components',
     'skcomplex.core.errors',
+    'skcomplex.core.experiments',
     'skcomplex.core.specs',
     'skcomplex.core.types',
     'skcomplex.systems.general',

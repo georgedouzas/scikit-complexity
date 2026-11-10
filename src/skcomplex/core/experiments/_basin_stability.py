@@ -1,7 +1,4 @@
-"""Estimate the basin stability of the attractors of a system.
-
-It is estimated over random initial states.
-"""
+"""Estimate the share of random initial states that end in each final behaviour."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from .types import Row, Source
 
 @dataclass(frozen=True)
 class BasinStabilityResult:
-    """Fractions of random initial states that end in each attractor.
+    """A result of `basin_stability`, the share of initial states per attractor.
 
     Args:
         rows:
@@ -59,11 +56,16 @@ def basin_stability(
     executor: str | Executor = 'serial',
     vectorized: bool = False,
 ) -> BasinStabilityResult:
-    """Return the fractions of random initial states that end in each attractor.
+    """Return the share of random initial states that end in each final behaviour.
 
-    The initial states are drawn uniformly within bounds. Every initial state is run to `until` and its trajectory is
-    labelled by the classifier. With `vectorized`, all initial states run as the members of one simulation of the
-    replicated system, and the classifier receives every member as a trajectory of the original system.
+    An attractor is the state or the cycle that a run settles into. The function draws initial states uniformly within
+    `bounds`, runs each one to `until`, and asks `classifier` which attractor the run ended in. The shares measure how
+    stable each attractor is against large disturbances. With `vectorized`, all initial states run as the members of one
+    simulation of the replicated system, and the classifier receives every member as a trajectory of the original
+    system.
+
+    It appears in many fields. It measures how often a power grid stays in step after a fault, how often a population
+    survives rather than dies out, and how often a genetic switch ends on rather than off.
 
     Args:
         system:

@@ -1,7 +1,4 @@
-"""Build orbit diagrams.
-
-An orbit diagram holds the values an observable visits after a transient, over a range of a parameter.
-"""
+"""Build orbit diagrams, the values an observable visits over a parameter range."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ from .types import Source
 
 @dataclass(frozen=True)
 class OrbitDiagramResult:
-    """Values an observable visits after a transient, for every value of a parameter.
+    """A result of `orbit_diagram`, the values visited for every value of a parameter.
 
     Args:
         points:
@@ -57,6 +54,9 @@ def orbit_diagram(
     and the frames from `transient` on are kept. With `vectorized`, all values run as the members of one simulation of
     the system replicated over them, which needs a dotted path of a state or parameter of an element, and a system of
     single elements and their interactions.
+
+    It appears in many fields. It shows the period doubling of the logistic map of a population, the routes to chaos of
+    a forced pendulum, and the bifurcations of a laser.
 
     Args:
         system:

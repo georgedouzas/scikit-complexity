@@ -62,7 +62,7 @@ type Summary = Callable[[Mapping[str, Array]], npt.ArrayLike]
 
 @dataclass(frozen=True)
 class CalibrationResult:
-    """Fit of the model parameters of a system to observed time series.
+    """A result of `calibrate`, the fitted parameters and system, with diagnostics.
 
     A point fit holds one estimate. A posterior method also holds the samples, their weights, the diagnostics of the
     method, and the posterior predictive check, and its estimates are the posterior medians.
@@ -934,6 +934,9 @@ def calibrate(
     `'likelihood'` the Gaussian likelihood with an unknown variance, and `'events'` the log-probability of the draws of
     a trajectory recorded with `simulate(..., record_draws=True)`, given as `data`, replayed under every candidate with
     `random_state`, the seed of the recorded run.
+
+    It appears in many fields. It fits the rates of an epidemic to case counts, the rate constants of a reaction to
+    measured concentrations, and the parameters of a predator and prey model to pelt records.
 
     Args:
         system:

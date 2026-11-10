@@ -1,7 +1,4 @@
-"""Give the rows of values an experiment runs.
-
-They are grids, random and quasi-random samples, and sensitivity designs.
-"""
+"""Give the rows of values an experiment runs, such as grids and random samples."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

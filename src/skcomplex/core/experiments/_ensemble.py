@@ -38,6 +38,9 @@ def ensemble(
     one column per common time. The system needs the randomness `stochastic`, or a solver that draws, such as
     `KineticSolver`, since the runs of a deterministic system by a deterministic solver repeat one another.
 
+    It appears in many fields. It estimates the spread of the outcomes of a stochastic epidemic, of a weather forecast,
+    and of the wealth of agents in a market model.
+
     Args:
         system:
             The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a

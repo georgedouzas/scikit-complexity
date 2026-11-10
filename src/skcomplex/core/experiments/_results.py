@@ -1,7 +1,4 @@
-"""Hold the results of experiments.
-
-They are tidy rows, kept series, ensembles, and summaries across replicates.
-"""
+"""Hold the results of experiments, their rows, series, ensembles, and summaries."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,7 @@ from ..specs._run_result_spec import _RunResultSpec
 
 @dataclass(frozen=True)
 class ExperimentResult:
-    """Results of an experiment.
+    """A result of an experiment, with one row per run and the series it kept.
 
     They hold one row per run, the kept series, ensembles, and summaries across replicates. `sweep`, `ensemble`, and
     `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column per value of the run,

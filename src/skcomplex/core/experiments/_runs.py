@@ -1,7 +1,4 @@
-"""Run a system over rows of values, scenarios, and replicates.
-
-There is one random stream per row and replicate.
-"""
+"""Run a system over rows of values, scenarios, and replicates, one stream per run."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

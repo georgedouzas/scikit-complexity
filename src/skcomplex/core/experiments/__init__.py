@@ -1,8 +1,8 @@
-"""Study systems through many runs.
+"""Define experiments, the functions that study a system through many runs.
 
-They are sweeps, ensembles, scenarios, sensitivity, basin stability, calibration, and posterior coverage. The
-experiments are functions of a system, in the role of the model selection functions of scikit-learn, and return frozen
-results. Calibration returns the fitted system in its result.
+They are sweeps, ensembles, scenarios, sensitivity, basin stability, orbit diagrams, calibration, and posterior
+coverage. Each is a function of a system, as the model selection functions of scikit-learn are, and returns a frozen
+result.
 """
 
 from ._basin_stability import BasinStabilityResult, basin_stability

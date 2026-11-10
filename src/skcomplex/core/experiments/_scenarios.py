@@ -1,7 +1,4 @@
-"""Run the scenarios of a system with shared random streams.
-
-They then differ only through what they change.
-"""
+"""Run the scenarios of a system with shared random streams."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,6 +36,9 @@ def compare_scenarios(
     The scenarios share their random streams per replicate. A scenario overrides model parameters or dotted paths before
     the run, changes parameters at given times, or replaces the system for structural changes. Every scenario of a
     replicate runs with the same random stream, so the scenarios differ only through what they change.
+
+    It appears in many fields. It compares early and late lockdowns of an epidemic, emission paths of a climate model,
+    and tax policies of an economy, each under the same random draws.
 
     Args:
         system:

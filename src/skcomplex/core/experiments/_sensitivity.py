@@ -1,9 +1,4 @@
-"""Rank the inputs of a system by their effect on an output.
-
-The methods are one at a time, Morris screening, and Sobol.
-
-`SIZES` holds the default number of Morris trajectories or of base points of every method.
-"""
+"""Rank the inputs of a system by their effect on an output."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +26,7 @@ SIZES = {'oat': 0, 'morris': 10, 'sobol': 1024}
 
 @dataclass(frozen=True)
 class SensitivityResult:
-    """Sensitivity of a scalar output of a system to its inputs.
+    """A result of `sensitivity`, the effect of each input on a scalar output.
 
     Args:
         names:
@@ -109,6 +104,9 @@ def sensitivity(
     - `'morris'` runs `n` Morris trajectories on four levels, 10 by default, and gives the Morris elementary effects.
     - `'sobol'` runs Saltelli's sample of `n` base points, 1024 by default and best a power of 2, and gives the
       first-order and total Sobol indices.
+
+    It appears in many fields. It ranks the parameters of an epidemic by their effect on its peak, the inputs of a
+    climate model by their effect on warming, and the costs of a supply chain by their effect on profit.
 
     Args:
         system:
