@@ -1,12 +1,14 @@
 ## Context
 
-After `add-bayesian-calibration`, `src/skcomplex/core/experiments/_calibration.py` holds the private class
-`_CalibrationObjective`, which builds candidate systems, simulates them at the data times, and returns residuals and
-the Gaussian log-likelihood, and `calibrate` reads bounds as pairs or SciPy priors. `sweep` in `_sweep.py` already
-draws rows from bounds with `design='random'` or `'latin_hypercube'`, runs them on an executor, and applies analyses to
-each trajectory. `DosingInteraction` in `biology/common/pharmacokinetics` gives doses on a schedule, and
-`AntiPD1CheckpointSystem` in `biology/oncology/_immunotherapy.py` is a smaller checkpoint model with a continuous
-infusion.
+`add-bayesian-calibration` has landed. `src/skcomplex/core/experiments/_calibration.py` holds `calibrate`,
+`CalibrationResult`, and the private class `_CalibrationObjective`, which builds candidate systems, simulates them at
+the data times, and returns residuals, the search box, and the Gaussian log-likelihood with the variance profiled out.
+`calibrate` reads bounds as pairs or SciPy priors. `sweep` in `_sweep.py` already draws rows from bounds with
+`design='random'` or `'latin_hypercube'`, runs them on an executor, and keeps outputs that are paths or functions of a
+trajectory. `DosingInteraction` in `biology/common/pharmacokinetics` gives doses on a schedule, `CompartmentElement` in
+`biology/common/kinetics` holds one amount, and `AntiPD1CheckpointSystem` in `biology/oncology/_immunotherapy.py` is a
+smaller checkpoint model with a continuous infusion. Results of experiments are frozen dataclasses, and methods begin
+with a verb, so `ExperimentResult` has `convert_to_frame`.
 
 ## Goals / Non-Goals
 
@@ -24,6 +26,18 @@ infusion.
 
 ## Decisions
 
+- **Placement.** The placement rule of `openspec/constitution.md` places parts, and experiment functions are the
+  public experiment API of `skcomplex.core.experiments`, where `basin_stability` and `posterior_coverage` already live
+  although they are expressible with `ensemble` and `calibrate`. The three new functions apply to any calibratable
+  system of any field. Identifiability asks what logistic growth data in ecology, case counts of an epidemic, or the
+  concentrations of a drug determine, virtual populations sample plausible patients in pharmacology, plausible
+  economies in macroeconomics, or plausible climates, and per-individual calibration fits each patient, each region of
+  an epidemic, or each firm. So they stay in `skcomplex.core.experiments`, next to `calibrate` and `sweep`. Placing
+  them in `skcomplex.systems.general` would need a new package there, and the core never imports the systems, so the
+  public experiment API would split in two. `ImmunoOncologyQspSystem` is one system, so step 3 of the rule places it in
+  its own module, `biology/oncology/_immuno_oncology_qsp.py`, built from `CompartmentElement` and `DosingInteraction`
+  of the biology `common` package and `ReactionInteraction` of `skcomplex.systems.general.reactions`. It needs no new
+  core part.
 - **One function per question.** `identifiability` asks what the data determine, `virtual_population` asks which
   parameters are plausible, and `calibrate_individuals` fits each individual. Each returns a frozen result, like the
   other experiment functions. Alternative: methods of `calibrate`, rejected because their results differ in kind.
@@ -36,30 +50,39 @@ infusion.
   rejected by the constitution since pyPESTO does it, and pints, which has no profiles.
 - **Refits reuse `calibrate`.** `'refits'` calls `calibrate` with `method='local'` once on the data for the best fit,
   then on `n` noisy copies per level, with `noise` relative to the simulated values as in 2503.17135. The average
-  relative error and the thresholds of its Definition 4.1 give the verdicts. The copies run on the executors of
-  `_runs.py`, with streams spawned from `random_state`.
+  relative error and the thresholds of its Definition 4.1 give the verdicts. The noise of every copy comes from one
+  generator seeded by `random_state`. The fits run one after another, since the executors of `_runs.py` run
+  simulations, not fits, and a second pool for fits would be a second way to run in parallel.
 - **`IdentifiabilityResult`.** Fields `estimates`, `verdicts`, `profiles` (by parameter, the grid and the ratio, or
   `None` for refits), `intervals` (by parameter, `(low, high)` with `nan` for an open side, or `None` for refits), and
   `errors` (by parameter and level, or `None` for profiles).
 - **Virtual populations on `sweep`.** `virtual_population` calls `sweep` with `design='random'` or
-  `'latin_hypercube'` over the priors and with the outputs as analyses, then keeps the rows inside every constraint.
+  `'latin_hypercube'` over the priors and with `outputs`, paths whose last values or functions of a trajectory whose
+  values are the outputs, then keeps the rows inside every constraint. `constraints` maps an output name to its
+  `(low, high)` range, and `target` maps one output name to its observed values.
   With `target`, the probability of inclusion is the ratio of a `scipy.stats.gaussian_kde` of the target to one of the
   plausible outputs, scaled so its largest value is one, and a seeded draw selects rows. This is the method of Allen et
   al. (2016) that 2403.03335 describes. No mature library implements it, and the surveyed SBI and QSP tools (pyabc,
   pypesto, numpyro) do not, so it stays in house as a few lines over `sweep` and SciPy.
-- **`VirtualPopulationResult`.** Fields `plausible` (the rows and their outputs), `acceptance`, `selected` (rows or
-  `None`), and `inclusion` (probabilities or `None`), with `to_frame` as on `ExperimentResult`.
+- **`VirtualPopulationResult`.** Fields `plausible`, a `pandas.DataFrame` of the plausible rows with one column per
+  parameter and output, `acceptance`, `selected`, the data frame of the selected rows or `None`, and `inclusion`, the
+  probability of inclusion of every plausible row or `None`. The fields are data frames already, so the result needs
+  no conversion method.
 - **Per-individual calibration.** `calibrate_individuals` takes data by individual and `known` by individual, sets the
   known parameters with `set_params` on a copy of the system or passes them to the factory, and calls `calibrate`
-  with any of its methods. The table is a `pandas.DataFrame` with one row per individual. The fits run on the
-  executors of `_runs.py`.
-- **QSP system.** `ImmunoOncologyQspSystem` in its own module of `biology/oncology` holds cancer cells with logistic
-  growth, effector T cells recruited in proportion to the tumour and killing it at a rate lowered by free PD-1, Tregs
-  that suppress effector proliferation, PD-1 occupancy at quasi steady state from the central antibody, and a
-  two-compartment antibody with doses through `DosingInteraction`. The tumour diameter comes from the volume of a
-  sphere. Parameters default to the ranges of the QSP-IO papers that 2403.03335 cites.
-- **Dependency.** pypesto 0.8.0, released 2026-11-04 (checked on PyPI on 2026-11-08), needs Python 3.12 or later,
-  which matches the project, and pulls matplotlib, seaborn, h5py, and pandas.
+  with any of its methods. `IndividualCalibrationResult` holds `calibrations`, the `CalibrationResult` of every
+  individual, and `estimates`, a `pandas.DataFrame` with one row per individual. The fits run one after another, as
+  the refits do.
+- **QSP system.** `ImmunoOncologyQspSystem` in `biology/oncology/_immuno_oncology_qsp.py` holds five compartments,
+  cancer cells with logistic growth, effector T cells recruited in proportion to the tumour and killing it at a rate
+  that free PD-1 lowers, regulatory T cells recruited by the tumour that suppress effector proliferation, and the
+  central and peripheral amounts of a two-compartment antibody with doses through `DosingInteraction`. PD-1 occupancy
+  is at quasi steady state, `c / (c + Kd)` of the central concentration `c`. It declares the observables `diameter`,
+  the diameter of a sphere of the tumour volume in centimetres, and `effector_treg_ratio`. Parameters default to the
+  orders of the QSP-IO papers that 2403.03335 cites, with an antibody dose of 240 mg every two weeks.
+- **Dependency.** pypesto 0.8.0, released 2026-11-04 (checked on PyPI on 2026-11-10), needs Python 3.12 or later,
+  which matches the project, and pulls matplotlib, seaborn, h5py, and pandas. The core experiments use it, so it is a
+  runtime dependency, as `pyabc` and `optuna` are.
 
 ## Risks / Trade-offs
 
@@ -79,6 +102,5 @@ Additive. No migration.
 
 ## Open Questions
 
-- The brief names `biology/pharmacology` for `ImmunoOncologyQspSystem`, a subfield that does not exist yet.
-  `add-hybrid-neural-laws` also needs it. The plan puts the system in `biology/oncology`. Creating the subfield needs
-  the user's approval and only changes the module path and the registered field.
+None. The brief named `biology/pharmacology` for `ImmunoOncologyQspSystem`, a subfield that does not exist. Creating
+it needs the user's approval, so the system lives in `biology/oncology`, as the plan says.

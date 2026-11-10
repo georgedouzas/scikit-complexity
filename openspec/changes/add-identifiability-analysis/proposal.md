@@ -16,7 +16,7 @@ and then calibrates digital twins one patient at a time (2403.03335). None of th
 - **Virtual populations.** `virtual_population(system, bounds, outputs, constraints, ...)` samples parameters from the
   priors, runs the system, keeps the plausible ones whose outputs satisfy the constraints, and, given observed values
   of an output, selects among them by the probability of inclusion, the ratio of the observed density to the density
-  of the plausible population. It returns a frozen `VirtualPopulationResult`.
+  of the plausible population. It returns a frozen `VirtualPopulationResult` whose rows are data frames.
 - **Per-individual calibration.** `calibrate_individuals(system, data, bounds, ...)` calibrates every individual's data
   with `calibrate`, with known per-individual parameters such as a dose, and returns a frozen
   `IndividualCalibrationResult` with the fit of each individual and a table of the estimates.
@@ -41,8 +41,9 @@ None.
 
 - Code: new modules `_identifiability.py`, `_virtual_population.py`, and `_individuals.py` in
   `src/skcomplex/core/experiments/`, exported from its `__init__`. They reuse `_CalibrationObjective` and the priors
-  of `add-bayesian-calibration`, and `sweep` for the runs of virtual patients.
-- Systems: a new module in `biology/oncology`, using `DosingInteraction` of `biology/common/pharmacokinetics`, with an
-  inventory entry and a gallery example.
-- Dependencies: pypesto 0.8.0 (2026-11-04) is added to `pyproject.toml` and to the Project Profile.
-- Depends on `add-bayesian-calibration`, which must land first.
+  of `add-bayesian-calibration`, `calibrate`, and `sweep` for the runs of virtual patients.
+- Systems: the new module `biology/oncology/_immuno_oncology_qsp.py`, built from `CompartmentElement` and
+  `DosingInteraction` of the biology `common` package, with an inventory entry and a gallery example.
+- Dependencies: pypesto 0.8.0 (2026-11-04) is added to the runtime dependencies in `pyproject.toml` and to the Project
+  Profile.
+- `add-bayesian-calibration` has landed.
