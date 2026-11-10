@@ -263,7 +263,7 @@ def get_pair_coefficients(value):
 
 
 def get_drag_fix(fix):
-    return f'fix {fix.name} {fix.group} viscous {float(fix.get_value("gamma")[0])}'
+    return f'fix {fix.name} {fix.group} viscous {float(fix.value("gamma")[0])}'
 
 
 side = np.arange(10) * 1.2
