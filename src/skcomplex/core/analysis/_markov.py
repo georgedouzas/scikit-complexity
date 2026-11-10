@@ -1,9 +1,4 @@
-"""Analyse Markov chains.
-
-The analyses are transition matrices of paths, stationary laws, spectral gaps, and Markov state models.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Analyse Markov chains."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +38,7 @@ TAGS = AnalysisTags(DataKind.PATH)
 
 @dataclass(frozen=True)
 class MarkovResult:
-    """Markov chain of the paths of a source, or of a matrix.
+    """A result of `markov`, a Markov chain of paths or of a matrix.
 
     It comes with the quantities of one kind.
 
@@ -120,6 +115,9 @@ def markov(
       sets found by PCCA+.
     - `'timescales'`: the slowest implied timescales of Markov state models at every lag of `lags`, which do not
       depend on the lag for a Markovian discretization.
+
+    It appears in many fields. It estimates the chain of weather states, of credit ratings, and of the shapes of a
+    folding protein from their paths.
 
     Args:
         source:

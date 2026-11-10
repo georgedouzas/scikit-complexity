@@ -1,9 +1,4 @@
-"""Derive the stability of a system.
-
-The module derives the fixed points and their stability, or the dispersion relation of a field around a uniform state.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Derive the stability of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,7 +45,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class StabilityResult:
-    """Linear stability of a system.
+    """A result of `stability`, the linear stability of a system.
 
     It is its fixed points and their classes, or its dispersion relation.
 
@@ -283,6 +278,9 @@ def stability(
     Sage solves the equations symbolically, and when it finds no closed form, roots are searched numerically from a
     grid of starting points with the parameters at their values. The stability of every point comes from the
     eigenvalues of the Jacobian there, evaluated at the parameter values.
+
+    It appears in many fields. It decides whether a steady state of an epidemic, of a chemical reactor, or of a power
+    grid returns after a small push.
 
     Args:
         source:

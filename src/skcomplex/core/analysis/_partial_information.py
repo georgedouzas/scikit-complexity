@@ -1,7 +1,4 @@
-"""Decompose what two sources tell about a target.
-
-The parts are redundant, unique, and synergistic information.
-"""
+"""Decompose what two sources tell about a target."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +31,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class PartialInformationResult:
-    """Partial information decomposition of what two sources give about a target.
+    """A result of `partial_information`, the parts of what two sources tell.
 
     Args:
         values:
@@ -80,6 +77,9 @@ def partial_information(
     The source holds three series: the first source, the second source, and the target. The mutual information of the
     two sources together with the target splits into the information both give, the information only one of them
     gives, and the information only the two together give, with a redundancy measure of `dit`.
+
+    It appears in many fields. It splits what two genes tell about a trait, or two neurons about a stimulus, into
+    unique, shared, and synergistic parts.
 
     Args:
         source:

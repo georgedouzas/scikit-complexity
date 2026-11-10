@@ -119,6 +119,7 @@ FAMILIES = (
     'skcomplex.systems.general',
 )
 REWRITTEN: tuple[str, ...] = (
+    'skcomplex.core.analysis',
     'skcomplex.core.base',
     'skcomplex.core.components',
     'skcomplex.core.errors',

@@ -1,9 +1,4 @@
-"""Take sections of a system.
-
-The sections are Poincaré sections and stroboscopic samples.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Take sections of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +32,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 @dataclass(frozen=True)
 class SectionResult:
-    """Section of a system.
+    """A result of `section`, a section of a system.
 
     It holds the states where a flow crosses a value, or at multiples of a period.
 
@@ -85,6 +80,9 @@ def section(
 
     - `'poincare'`: the states where the scalar state `state` crosses `value` in a direction, located like an event.
     - `'stroboscopic'`: the states of a periodically forced flow at multiples of the forcing period.
+
+    It appears in many fields. It turns a flow into a map of its crossings, as for the orbit of a planet, a forced
+    pendulum, and a heart rhythm.
 
     Args:
         source:

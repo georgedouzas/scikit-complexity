@@ -1,7 +1,4 @@
-"""Linearise a system into state-space matrices.
-
-The module also gives its controllability, observability, and optimal gain.
-"""
+"""Linearise a system into state-space matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class LinearizationResult:
-    """Linear state-space system of a system near an operating point.
+    """A result of `linearization`, a linear state-space system.
 
     It comes with its ranks and optimal gain.
 
@@ -97,6 +94,9 @@ def linearization(
     A^(n-1) B]` equals the number of states, and observable when the rank of `[C; CA; ...; C A^(n-1)]` does. With
     weights of the states and the controls, the gain `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q
     x + u' R u) dt` over an infinite horizon, from the continuous algebraic Riccati equation that SciPy solves.
+
+    It appears in many fields. It gives the linear model of an aircraft near trim, of a power grid near its operating
+    point, and of an economy near its steady state, for control.
 
     Args:
         source:

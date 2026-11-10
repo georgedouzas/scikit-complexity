@@ -1,10 +1,4 @@
-"""Decide injectivity and surjectivity of cellular automata and subshifts.
-
-The module also measures their entropy.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`. `SOURCES` holds what every kind reads in a system, in
-the order it looks for them.
-"""
+"""Decide injectivity and surjectivity of cellular automata and subshifts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -130,7 +124,7 @@ class _Clauses:
 
 @dataclass(frozen=True)
 class AutomatonResult:
-    """Decision or measure of a cellular automaton or a subshift of a system.
+    """A result of `automaton`, a decision or a measure of a cellular automaton.
 
     The cellular automaton is on a finite universe.
 
@@ -271,6 +265,9 @@ def automaton(
       patterns read, so a window of a one-dimensional subshift costs linear time.
     - `'sample'`: an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible,
       from `configuration`, or from every cell at 0.
+
+    It appears in mathematics and computer science, where it decides whether a cellular automaton loses information, and
+    in physics, where reversible automata model conservative dynamics.
 
     Args:
         source:

@@ -1,7 +1,4 @@
-"""Derive the equations of systems and solve them exactly with Sage.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Derive the equations of systems and solve them exactly with Sage."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -239,7 +236,7 @@ MITTAG_LEFFLER = _MittagLefflerFunction('mittag_leffler', nargs=3)
 
 @dataclass(frozen=True)
 class SymbolicResult:
-    """Symbolic form of a system.
+    """A result of `symbolic`, the symbolic form of a system.
 
     It is its equations, their exact solution, its Hamiltonian, or its boundary flows.
 
@@ -294,6 +291,9 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
       named `<parameter>_<path>`.
     - `'conservation'`: the net inflow from the environment of every quantity of a system with a transfer network, after
       checking that its internal flows cancel, so the total changes only through the boundary.
+
+    It appears in many fields. It writes the equations of an epidemic, of a circuit, and of a mechanical system, and
+    solves them exactly where it can.
 
     Args:
         source:

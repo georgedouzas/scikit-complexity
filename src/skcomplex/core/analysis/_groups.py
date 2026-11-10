@@ -1,7 +1,4 @@
-"""Expand small groups into one equation per member.
-
-Every reduction is written as an explicit sum.
-"""
+"""Expand small groups into one equation per member."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

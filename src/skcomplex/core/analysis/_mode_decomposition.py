@@ -1,7 +1,4 @@
-"""Fit linear surrogates to series by dynamic mode decomposition.
-
-The fit is on the variables or on a dictionary of observables.
-"""
+"""Fit linear surrogates to series by dynamic mode decomposition."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,7 +36,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class ModeDecompositionResult:
-    """Linear system fitted to series by dynamic mode decomposition.
+    """A result of `mode_decomposition`, a linear system fitted to series.
 
     Args:
         samples:
@@ -142,6 +139,9 @@ def mode_decomposition(
     `M` gives the same one-sample map under an input held over the sample. Every input is a bounded adaptive parameter
     of the surrogate element, bounded by its range in the samples, and the forecast holds the inputs at their last
     values.
+
+    It appears in many fields. It finds the coherent patterns of a fluid flow, of brain activity, and of traffic in a
+    city.
 
     Args:
         source:

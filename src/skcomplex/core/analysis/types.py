@@ -1,7 +1,4 @@
-"""Define the types of the analyses.
-
-They are the inputs that only the analyses read, and the ReservoirPy node they drive.
-"""
+"""Define the types that only the analyses read."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ type Item = str | tuple[int, ...]
 
 
 class ReservoirNodeProtocol(Protocol):
-    """Node of ReservoirPy, as the reservoir step reads it.
+    """A protocol of a node of ReservoirPy, as the reservoir step reads it.
 
     It is imported on first use, and it is a reservoir or a ridge readout.
     """

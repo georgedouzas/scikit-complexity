@@ -1,7 +1,4 @@
-"""Enumerate the elementary modes and extreme pathways of a steady-state cone.
-
-The cone is the steady-state cone of a linear program.
-"""
+"""Enumerate the elementary modes and extreme pathways of a steady-state cone."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -51,7 +48,7 @@ class _ConeSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class ElementaryModesResult:
-    """Generators of the steady-state cone of a linear program.
+    """A result of `elementary_modes`, the generators of a steady-state cone.
 
     They are the elementary modes or the extreme pathways.
 
@@ -96,6 +93,9 @@ def elementary_modes(
       column, of either sign when it is reversible (Schilling et al. 2000), and without any generator that is a
       non-negative combination of the others (Raman 2021, Section 9.8). The generators that run in both directions leave
       `modes` for `lines`.
+
+    It appears in systems biology, where it lists the pathways of a metabolic network, and in chemical engineering,
+    where it lists the routes of a reaction network.
 
     Args:
         source:

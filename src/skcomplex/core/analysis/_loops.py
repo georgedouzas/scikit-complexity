@@ -1,9 +1,4 @@
-"""Derive the feedback loops of the signed dependency graph of a system.
-
-The module also gives their dominance and its flow matrices.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Derive the feedback loops of the signed dependency graph of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -204,7 +199,7 @@ class _Graph:
 
 @dataclass(frozen=True)
 class LoopsResult:
-    """Feedback loops of the signed dependency graph of a system.
+    """A result of `loops`, the feedback loops of a system.
 
     They come with their dominance in time, or its flow matrix.
 
@@ -291,6 +286,9 @@ def loops(
       columns. Every row holds the outflow of its flow at the source, negative, and the inflow at the sink, positive,
       so every row sums to zero. Flows of a group sum over its members. The matrix books the amounts the flows move
       between holders, which the Jacobian does not hold, so it is defined only for systems that declare flows.
+
+    It appears in many fields. It finds the reinforcing and balancing loops of a model of system dynamics, of a gene
+    network, and of an ecosystem.
 
     Args:
         source:

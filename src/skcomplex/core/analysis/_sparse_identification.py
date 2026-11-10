@@ -1,7 +1,4 @@
-"""Fit sparse symbolic surrogates to series by SINDy.
-
-SINDy is the sparse identification of nonlinear dynamics.
-"""
+"""Fit sparse symbolic surrogates to series by SINDy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +55,7 @@ class _SurrogateElement(DeclaredElement):
 
 @dataclass(frozen=True)
 class SparseIdentificationResult:
-    """Sparse symbolic system fitted to series by SINDy.
+    """A result of `sparse_identification`, a sparse symbolic system.
 
     SINDy is the sparse identification of nonlinear dynamics.
 
@@ -130,6 +127,9 @@ def sparse_identification(
     selects the terms by sequentially thresholded least squares. The fitted system holds one rate law per variable under
     continuous time and starts at the first sample of the first run, and the forecast simulates it from the last sample
     of the last run.
+
+    It appears in many fields. It finds the equations of a fluid flow, of a chemical reaction, and of a predator and
+    prey cycle from their series.
 
     Args:
         source:

@@ -1,8 +1,4 @@
-"""Analyse flows, holes, and curved faces of cell complexes.
-
-The module decomposes the flows on the edges of a cell complex, counts its holes, and finds the curved faces of an angle
-field.
-"""
+"""Analyse flows, holes, and curved faces of cell complexes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +26,7 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class CellComplexResult:
-    """Hodge decomposition, Betti numbers, or curved faces of a cell complex.
+    """A result of `cell_complex`, a Hodge decomposition or Betti numbers.
 
     They are the Hodge decomposition of an edge state, the Betti numbers of a complex, or the curved faces of an angle
     state.
@@ -97,6 +93,9 @@ def cell_complex(
     incidence of a face potential, and a remainder that both incidences map to 0. The three parts are orthogonal. The
     kind `'betti'` reads the complex alone. The kind `'curvature'` compares the oriented sum of an angle state around
     every face with the multiples of the period of the state, or of `2 pi` for an array.
+
+    It appears in many fields. It splits the flows of a network into gradient and cyclic parts, counts the holes of a
+    pattern in topology, and finds the vortices of a lattice gauge field.
 
     Args:
         source:

@@ -1,9 +1,4 @@
-"""Measure information sample by sample.
-
-The measures are local entropy, local mutual information, and local transfer entropy.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure information sample by sample."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +29,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class LocalInformationResult:
-    """Local information of every series or of every pair of series of a source.
+    """A result of `local_information`, the information sample by sample.
 
     Args:
         values:
@@ -77,6 +72,9 @@ def local_information(
       to every series at every time from `max(history, lag)` on.
 
     The probabilities are the frequencies of symbols, or the densities of a fitted Gaussian.
+
+    It appears in many fields. It finds the moments when information moves in a flock, in a cellular automaton, and in
+    the spikes of neurons.
 
     Args:
         source:

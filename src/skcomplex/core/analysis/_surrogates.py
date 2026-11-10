@@ -1,7 +1,4 @@
-"""Test a measure of dependence against surrogates.
-
-The variables of the surrogates are shuffled independently.
-"""
+"""Test a measure of dependence against surrogates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class SurrogateTestResult:
-    """Test of an analysis of many variables against surrogates.
+    """A result of `surrogate_test`, a measure tested against surrogates.
 
     The surrogates shuffle every variable independently.
 
@@ -62,6 +59,9 @@ def surrogate_test(
     The surrogates shuffle every variable independently. The analysis runs on the data and on `n` surrogates, and the
     field of its result gives the value of each. The p-value is the fraction of surrogates, with the data counted among
     them, at least as extreme as the data.
+
+    It appears in many fields. It tests whether a coupling between brain regions, between markets, or between climate
+    indices is more than chance.
 
     Args:
         source:

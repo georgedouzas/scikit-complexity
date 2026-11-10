@@ -1,9 +1,4 @@
-"""Measure large deviations.
-
-The methods are generating functions, rate functions, cloning, and exponential reweighting.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure large deviations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,7 +42,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class LargeDeviationsResult:
-    """Large deviations of a time-additive observable.
+    """A result of `large_deviations`, the large deviations of an observable.
 
     They are its generating function and rate function.
 
@@ -148,6 +143,9 @@ def large_deviations(
 
     With `values`, the generating function kinds also give the rate function, its Legendre transform
     `I(a) = max_k (k a - lambda(k))` over the tilts.
+
+    It appears in many fields. It estimates the odds of rare events, such as a run of losses of an insurer, a rare
+    current through a channel, or a long drought.
 
     Args:
         source:

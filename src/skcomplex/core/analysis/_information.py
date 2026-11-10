@@ -1,10 +1,4 @@
-"""Measure information among series.
-
-The measures are mutual information, transfer, storage, total correlations, and divergences.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`. `SYMBOL_SETTINGS` holds the settings
-every symbolization reads.
-"""
+"""Measure information among series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -64,7 +58,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class InformationResult:
-    """Information among the series of a source.
+    """A result of `information`, the information among series.
 
     Args:
         values:
@@ -127,6 +121,9 @@ def information(
     Every kind but `'kl-divergence'` reads the series as symbols, or first turns them into symbols with `symbols`:
     `'bins'` for `bins` bins of equal width, `'quantiles'` for `bins` equally populated bins, or `'ordinal'` for the
     rank pattern of every `order` values spaced by `delay` steps.
+
+    It appears in many fields. It measures the flow of information between regions of the brain, between markets, and
+    between the members of a flock.
 
     Args:
         source:

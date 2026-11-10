@@ -1,9 +1,4 @@
-"""Measure clusters and percolation.
-
-The clusters are those of grids, graphs, and points, with the largest cluster and spanning.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure clusters and percolation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,7 +33,7 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class ClustersResult:
-    """Clusters of a grid, a graph, or points.
+    """A result of `clusters`, the clusters of a grid, a graph, or points.
 
     They are the occupied cells of a grid, the components of a graph, or the contacts of points.
 
@@ -116,6 +111,9 @@ def clusters(
     - `'percolation'`: the cluster sizes, the strength of the largest cluster, the mean cluster size, and spanning.
     - `'spanning'`: the share of the grids of an ensemble, stacked on the first axis or the frames of a trajectory,
       with a cluster joining the opposite edges of `axis`.
+
+    It appears in many fields. It finds the percolating cluster of a porous rock, the burnt patches of a forest fire,
+    and the groups of an opinion model.
 
     Args:
         source:

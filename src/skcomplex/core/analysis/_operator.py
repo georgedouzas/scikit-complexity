@@ -1,9 +1,4 @@
-"""Analyse an operator system.
-
-The analyses are its spectrum, its ground state, and the purity and entanglement of its trajectories.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Analyse an operator system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -42,7 +37,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class OperatorMeasuresResult:
-    """Spectrum or ground state of an operator system, or purity or entanglement.
+    """A result of `operator_measures`, a spectrum, state, or entanglement.
 
     The purity or the entanglement is that of the states of its trajectory.
 
@@ -105,6 +100,9 @@ def operator_measures(
     - `'purity'`: the purity `Tr(rho^2)` of the state of a trajectory at every frame, 1 for pure states.
     - `'entanglement'`: the von Neumann entropy of the reduced state of some subsystems at every frame of a
       trajectory, in nats.
+
+    It appears in physics and chemistry. It finds the energy levels of a molecule, the ground state of a chain of spins,
+    and the entanglement of two qubits.
 
     Args:
         source:

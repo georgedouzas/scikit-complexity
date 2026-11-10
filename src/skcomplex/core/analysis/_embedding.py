@@ -1,9 +1,4 @@
-"""Embed series in delay coordinates.
-
-The delay and the dimension are chosen from the data.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Embed series in delay coordinates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +27,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class EmbeddingResult:
-    """Delay embedding of one series, with its delay and dimension.
+    """A result of `embedding`, a delay embedding with its delay and dimension.
 
     Args:
         values:
@@ -93,6 +88,9 @@ def embedding(
     - `'false-nearest-neighbors'`: Kennel's fraction of false nearest neighbours of the embeddings of dimensions 1 to
       `max_dimension`. A nearest neighbour in dimension `d` is false when the next coordinate moves it away by more
       than `ratio` times their distance, or by more than `escape` times the standard deviation of the series.
+
+    It appears in many fields. It rebuilds the attractor of a dynamical system from one measured series, such as a heart
+    rate, a river flow, or a stock price.
 
     Args:
         source:

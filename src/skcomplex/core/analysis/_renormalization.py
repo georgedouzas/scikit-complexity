@@ -1,9 +1,4 @@
-"""Coarse-grain networks across scales.
-
-The coarse-graining is by their Laplacian or by the angles of their nodes.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Coarse-grain networks across scales."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +38,7 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 @dataclass(frozen=True)
 class RenormalizationResult:
-    """Network at every scale of a coarse-graining of a graph or of a trajectory.
+    """A result of `renormalization`, the network at every scale.
 
     The graph of a trajectory is that of its last frame.
 
@@ -98,6 +93,9 @@ def renormalization(
 
     A trajectory gives the network of its last frame, with the values of the states and parameters of the group on its
     nodes as node attributes.
+
+    It appears in many fields. It coarse-grains the internet, the brain, and transport networks to find their structure
+    across scales.
 
     Args:
         source:

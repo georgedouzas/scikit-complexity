@@ -1,7 +1,4 @@
-"""Define the base of the analyses.
-
-The base holds the binding of settings, the checks of settings, and the readers of sources.
-"""
+"""Define the base of the analyses."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

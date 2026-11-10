@@ -1,10 +1,4 @@
-"""Diagnose ergodicity.
-
-The diagnostics are time averages of ensembles of runs, and invariant densities of maps and flows.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`. `BINS` holds the number of bins of every
-kind without `bins`.
-"""
+"""Diagnose ergodicity."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -45,7 +39,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class ErgodicityResult:
-    """Diagnostic of the ergodicity of an ensemble of runs, of one run, or of a map.
+    """A result of `ergodicity`, a diagnostic of ergodicity.
 
     The diagnostic is of one kind.
 
@@ -125,6 +119,9 @@ def ergodicity(
     - `'invariant-density'`: the histogram density of the values of a long run.
     - `'ulam'`: the Markov chain of a map coarse-grained on the cells between `edges` by Ulam's method, and the
       density of its stationary vector.
+
+    It appears in many fields. It asks whether a time average equals an ensemble average, as for the growth of wealth in
+    economics and the motion of a gas in physics.
 
     Args:
         source:

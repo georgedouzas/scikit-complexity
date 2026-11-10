@@ -1,9 +1,4 @@
-"""Measure scaling.
-
-The measures are fluctuation exponents, fractal dimensions, variance-mean laws, power laws, and allometry.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure scaling."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -60,7 +55,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class ScalingResult:
-    """Scaling exponent of series, fractal dimension of cells or points, or a law.
+    """A result of `scaling`, a scaling exponent, a fractal dimension, or a law.
 
     The law is a scaling law.
 
@@ -162,6 +157,9 @@ def scaling(
     - `'allometric'`: the slope of the logarithm of every sample of a quantity against the logarithm of its size, the
       exponent `b` of `y ~ N^b` across a set of runs, with a bootstrap confidence interval over the pairs. It reads a
       mapping from size to samples, or two columns of sizes and samples.
+
+    It appears in many fields. It measures the long memory of river flows, the fractal dimension of a coastline, and the
+    critical exponents of a magnet.
 
     Args:
         source:

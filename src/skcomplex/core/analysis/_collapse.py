@@ -1,9 +1,4 @@
-"""Measure collapses of curves.
-
-The collapses are finite-size scaling, aging, distributions scaled by age, and crossings of curves.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Measure collapses of curves."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +31,7 @@ TAGS = AnalysisTags(DataKind.ENSEMBLE)
 
 @dataclass(frozen=True)
 class DataCollapseResult:
-    """Collapse of curves or distributions of several sizes or ages onto one.
+    """A result of `data_collapse`, curves of several sizes collapsed onto one.
 
     Args:
         values:
@@ -119,6 +114,9 @@ def data_collapse(
       collapse under aging.
     - `'crossings'`: where the curves of consecutive sizes cross against the control `parameters`, by linear
       interpolation of their difference, such as the Binder cumulants of several lattice sizes at the critical point.
+
+    It appears in many fields. It estimates the critical exponents of a magnet from lattices of several sizes, and the
+    growth exponents of a rough surface.
 
     Args:
         source:

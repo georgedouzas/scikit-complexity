@@ -21,7 +21,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class EpsilonMachineResult:
-    """Epsilon-machine of a discrete series reconstructed by causal-state splitting.
+    """A result of `epsilon_machine`, the causal states of a discrete series.
 
     Args:
         values:
@@ -75,6 +75,9 @@ def epsilon_machine(
     It is reconstructed by causal-state splitting (CSSR). Histories up to `max_length` symbols join the state whose law
     of the next symbol they share by a chi-square test, and states are then split until their transitions are
     deterministic.
+
+    It appears in many fields. It finds the hidden states of a cellular automaton, of the spikes of a neuron, and of a
+    written text.
 
     Args:
         source:

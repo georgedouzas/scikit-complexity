@@ -1,9 +1,4 @@
-"""Derive the invariants of a system with Sage.
-
-They are the Poisson brackets, conserved quantities, symmetries, and Noether charges.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Derive the invariants of a system with Sage."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +38,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class InvariantsResult:
-    """Poisson brackets, conserved quantities, or a symmetry of a system.
+    """A result of `invariants`, brackets, conserved quantities, or a symmetry.
 
     A symmetry comes with its Noether charge.
 
@@ -124,6 +119,9 @@ def invariants(
     - `'symmetry'`: whether the Hamiltonian, or else the Lagrangian, is unchanged to first order by the variation of a
       `SymmetrySpec`, and the Noether charge of the symmetry, `sum p dq` for a Hamiltonian and `sum dL/dq' dq` for a
       Lagrangian, with the variation of the velocities `dq' = sum_j d(dq)/dq_j q_j'`.
+
+    It appears in many fields. It finds the conserved energy of a pendulum, the conserved total of an epidemic, and the
+    symmetries of a mechanical system.
 
     Args:
         source:

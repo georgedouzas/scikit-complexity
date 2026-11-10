@@ -1,7 +1,4 @@
-"""Measure statistics of series in rolling windows.
-
-The statistics are the variance, the lag-one autocorrelation, and the skewness.
-"""
+"""Measure statistics of series in rolling windows."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +23,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class RollingResult:
-    """Rolling statistic of every series of a source and its trend.
+    """A result of `rolling`, a statistic in rolling windows and its trend.
 
     Args:
         values:
@@ -65,6 +62,9 @@ def rolling(
     - `'variance'`: the variance of the window.
     - `'autocorrelation'`: the lag-one autocorrelation of the window.
     - `'skewness'`: the skewness of the window.
+
+    It appears in many fields. It finds the early warnings of a tipping point, such as a rising variance before a lake
+    turns turbid, a market crashes, or a climate shifts.
 
     Args:
         source:

@@ -1,9 +1,4 @@
-"""Measure the alignment of angles or vectors.
-
-The measures are the mean vector, the mean rotation, the axial order, and the mean phase.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Measure the alignment of angles or vectors."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -51,7 +46,7 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class AlignmentResult:
-    """Alignment of the members of a source at every frame.
+    """A result of `alignment`, the alignment of the members at every frame.
 
     Args:
         angles:
@@ -119,6 +114,9 @@ def alignment(
     indexing members. An array of vectors, with `vectors=True`, holds the components along its last axis, and one
     snapshot when it has two dimensions. An array for `'mean-rotation'` holds the positions followed by the
     velocities of every agent along its last axis.
+
+    It appears in many fields. It measures how well birds of a flock fly together, how spins of a magnet line up, and
+    how cells of a tissue orient.
 
     Args:
         source:

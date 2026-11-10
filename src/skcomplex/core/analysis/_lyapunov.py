@@ -1,9 +1,4 @@
-"""Measure chaos with Lyapunov exponents.
-
-They are the spectrum of a system from its tangent dynamics, or the largest of data.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`.
-"""
+"""Measure chaos with Lyapunov exponents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -98,7 +93,7 @@ def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n:
 
 @dataclass(frozen=True)
 class LyapunovResult:
-    """Lyapunov exponents of a system, or the largest exponent of every series.
+    """A result of `lyapunov`, the Lyapunov exponents of a system or of series.
 
     The series are those recorded.
 
@@ -170,6 +165,9 @@ def lyapunov(
       its delay embedding.
 
     A positive largest exponent indicates chaos.
+
+    It appears in many fields. It measures how fast nearby runs diverge in the weather, in a double pendulum, and in the
+    orbits of asteroids.
 
     Args:
         source:

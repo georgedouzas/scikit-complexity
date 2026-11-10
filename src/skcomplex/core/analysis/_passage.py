@@ -1,7 +1,4 @@
-"""Measure first passages, absorption, returns, and committors of paths.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure first passages, absorption, returns, and committors of paths."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,7 +36,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class PassageResult:
-    """Passages of paths to a level or a set, or of a Markov chain between two sets.
+    """A result of `passage`, the first passages of paths to a level or a set.
 
     The set is a set of states.
 
@@ -109,6 +106,9 @@ def passage(
       started in their stationary weights, to the `target` states.
 
     The matrix kinds estimate the transition matrix at `lag` of the jump path of a trajectory.
+
+    It appears in many fields. It finds the time until a population dies out, until a price hits a barrier, and until a
+    protein folds.
 
     Args:
         source:

@@ -1,7 +1,4 @@
-"""Quantify recurrences of embedded series.
-
-The module gives recurrence matrices, line structures, and their statistics.
-"""
+"""Quantify recurrences of embedded series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +23,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class RecurrenceResult:
-    """Recurrence matrix of the points of a source and its quantification.
+    """A result of `recurrence`, the recurrence matrix and its statistics.
 
     Args:
         values:
@@ -86,10 +83,15 @@ def recurrence(
     theiler: int = 1,
     random_state: int | None = 0,
 ) -> RecurrenceResult:
-    """Return the recurrence matrix of the points of a source and its quantification.
+    """Return which states of a run come close to each other, with statistics.
 
-    Every row of the series of a source is a point, and every series a coordinate, so an embedded series or the
-    states of a trajectory give a point set. Two points recur when they lie within the radius of each other.
+    A run recurs when it returns close to a state it visited before. Every row of the series is a point, such as an
+    embedded series or the states of a trajectory. The recurrence matrix marks every pair of times whose points lie
+    within `radius` of each other. The statistics of its diagonal and vertical lines tell periodic, chaotic, and random
+    runs apart.
+
+    It appears in many fields. It finds regular rhythms in heart-rate records, regime changes in climate series, and
+    periodic orbits in simulated oscillators.
 
     Args:
         source:
@@ -108,7 +110,8 @@ def recurrence(
             The shortest diagonal or vertical line counted.
 
         theiler:
-            The number of diagonals about the main one left out, 1 to leave out the main diagonal alone.
+            The number of diagonals next to the main one to leave out, so that states close in time do not count as
+            returns. 1 leaves out the main diagonal alone.
 
         random_state:
             The seed of the sample of pairs that sets the radius of large sets.

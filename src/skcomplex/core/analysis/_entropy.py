@@ -1,9 +1,4 @@
-"""Measure the entropy of series, symbols, and fields.
-
-The entropies are of distributions, blocks, ordinal patterns, and regularity.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure the entropy of series, symbols, and fields."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -65,7 +60,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EntropyResult:
-    """Entropy of the series of a source, or of the frames of a field or an ensemble.
+    """A result of `entropy`, the entropy of series or of the frames of a field.
 
     It covers every series and every frame.
 
@@ -136,6 +131,9 @@ def entropy(
     - `'ensemble'`: the Shannon entropy in bits of the outcomes of an ensemble at every frame, and their
       Kullback-Leibler divergence from the `reference` law, as in the H-theorem. The ensemble has one row per run and
       one column per frame of integer outcomes, such as `ExperimentResult.get_ensemble` returns.
+
+    It appears in many fields. It measures the disorder of a heart rate, of a written text, and of the configurations of
+    a lattice.
 
     Args:
         source:

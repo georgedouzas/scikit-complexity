@@ -1,9 +1,4 @@
-"""List the analyses that apply to a trajectory, a system, or an array.
-
-They are found by the tags each analysis needs.
-
-`ANALYSES` holds every analysis of the library, whose module declares the tags it needs.
-"""
+"""List the analyses that apply to a trajectory, a system, or an array."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -138,7 +133,7 @@ ANALYSES = (
 
 @dataclass(frozen=True)
 class ApplicableAnalysesResult:
-    """Analyses that apply to a source, listed under the kind of data they read.
+    """A result of `applicable_analyses`, the analyses by kind of data.
 
     Args:
         kinds:
@@ -166,6 +161,8 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
     trajectory of one, an analysis whose capability tags the system lacks, such as `lyapunov` of a stochastic system, is
     left out. A one-dimensional array is one series, and an array of more dimensions is one field and a set of series,
     one per column.
+
+    It appears in every study that starts from a run or a data set and asks which measures fit it.
 
     Args:
         source:

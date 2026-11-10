@@ -1,9 +1,4 @@
-"""Measure spectra.
-
-The spectra are power spectra of series and structure factors of fields.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure spectra."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +30,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class SpectrumResult:
-    """Spectrum of every series of a source, or of a field.
+    """A result of `spectrum`, the spectrum of series or of a field.
 
     Args:
         values:
@@ -80,6 +75,9 @@ def spectrum(
       dimension, in shells of width `2 pi / (side spacing)`, averaged over frames when `frames` is true.
 
     A structure factor reads the last frame of a trajectory, or every frame when `frames` is true.
+
+    It appears in many fields. It finds the rhythms of brain waves, the cycles of a business, and the energy cascade of
+    turbulence.
 
     Args:
         source:

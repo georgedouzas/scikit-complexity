@@ -1,7 +1,4 @@
-"""Find autocatalytic sets.
-
-An autocatalytic set is the maximal reflexively autocatalytic and food-generated subset.
-"""
+"""Find autocatalytic sets."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ TAGS = AnalysisTags(DataKind.NETWORK)
 
 @dataclass(frozen=True)
 class AutocatalyticSetsResult:
-    """Maximal autocatalytic set of a catalytic reaction network at every frame.
+    """A result of `autocatalytic_sets`, the largest such set at every frame.
 
     Args:
         snapshots:
@@ -70,6 +67,9 @@ def autocatalytic_sets(
     the set. The algorithm of Hordijk and Steel (2004) finds the largest RAF, the union of every RAF: it removes the
     reactions with a reactant outside the closure of the food set, or without a catalyst in it, until no reaction is
     removed, and returns the reactions left, an empty set when there is no RAF.
+
+    It appears in studies of the origin of life, where sets of molecules catalyse their own production, and in models of
+    economies whose goods are made from each other.
 
     Args:
         source:

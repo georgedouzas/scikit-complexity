@@ -1,9 +1,4 @@
-"""Detect and measure events in series.
-
-The module detects events, counts them in windows, times laminar phases, finds excursions, and estimates branching.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Detect and measure events in series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +32,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EventsResult:
-    """Events of one series or of event times, of one kind.
+    """A result of `events`, the events of one series or of event times.
 
     Args:
         times:
@@ -120,6 +115,8 @@ def events(
       fraction of the units is observed. Every series is one trial.
 
     Times are the times of a trajectory, and the step indices of an array.
+
+    It appears in many fields. It finds the crashes of a market, the spikes of a neuron, and the floods of a river.
 
     Args:
         source:

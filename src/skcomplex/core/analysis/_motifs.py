@@ -1,10 +1,4 @@
-"""Count network motifs of three and four nodes and score them.
-
-The scores are against degree-preserving null ensembles.
-
-`SETTINGS` holds the settings every kind reads, besides `kind`. `ISOCLASSES` holds the number of isomorphism classes of
-igraph of every size, undirected and directed.
-"""
+"""Count network motifs of three and four nodes and score them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -49,7 +43,7 @@ TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 @dataclass(frozen=True)
 class MotifsResult:
-    """Motifs of three or four nodes of a graph or of the network of every frame.
+    """A result of `motifs`, the counts and scores of small subgraphs.
 
     The networks are those of a trajectory.
 
@@ -97,6 +91,9 @@ def motifs(
       directed motifs of four nodes by their smallest adjacency code.
     - `'z-scores'`: the counts against random graphs that keep the degrees, `(count - null_mean) / null_std` of every
       motif, `nan` where the null count never varies.
+
+    It appears in many fields. It counts the feedforward loops of a gene network, the triangles of a social network, and
+    the circuits of a food web.
 
     Args:
         source:

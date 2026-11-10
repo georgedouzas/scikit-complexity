@@ -1,7 +1,4 @@
-"""Fit reservoir surrogates to series.
-
-The surrogates are next-generation reservoirs and echo state networks with ridge readouts.
-"""
+"""Fit reservoir surrogates to series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -157,7 +154,7 @@ class _ReservoirStep:
 
 @dataclass(frozen=True)
 class ReservoirResult:
-    """Reservoir system whose ridge readout gives the increments of the variables.
+    """A result of `reservoir`, a reservoir system fitted to series.
 
     The increments are over one sample.
 
@@ -236,6 +233,9 @@ def reservoir(
     their monomials of degree `order`. An echo state network takes the activities of `units` leaky tanh units with
     random recurrent weights. The fitted system runs under discrete time, one step per sample, and starts at the last
     sample of the last run with the memory the runs left, so a run of the system is the autonomous forecast.
+
+    It appears in many fields. It learns a model of a chaotic flow, of a power demand, or of a speech signal from series
+    alone.
 
     Args:
         source:

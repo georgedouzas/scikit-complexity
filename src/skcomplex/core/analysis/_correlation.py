@@ -1,9 +1,4 @@
-"""Measure correlations.
-
-The correlations are autocorrelations of series, two-time correlations, spatial correlations, and overlaps.
-
-`SETTINGS` holds the settings every kind reads, besides `kind` and `variables`.
-"""
+"""Measure correlations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,7 +39,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class CorrelationResult:
-    """Correlation of series, of an ensemble at two times, or of a field in space.
+    """A result of `correlation`, the correlation of series or of a field.
 
     It covers every series of a source.
 
@@ -119,6 +114,9 @@ def correlation(
       trajectories, whose fields it compares at every frame, or two arrays stacked on the first axis.
 
     The kinds `'function'` and `'length'` read the last frame of a trajectory, or every frame when `frames` is true.
+
+    It appears in many fields. It finds how far order reaches in a magnet, how long a stock price remembers its past,
+    and how two regions of the brain move together.
 
     Args:
         source:
