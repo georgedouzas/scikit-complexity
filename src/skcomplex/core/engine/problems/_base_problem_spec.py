@@ -27,7 +27,7 @@ from ._transfer_network_spec import TransferNetworkSpec
 
 @dataclass(frozen=True)
 class BaseProblemSpec(BaseSpec):
-    """Base of the problems a system compiles to.
+    """An abstract spec of a problem that a system compiles to.
 
     It holds what every solver, observer, and visual reads of a problem. A problem is a value. Its fields hold what the
     runtime reads, with trivial defaults for what a form does not have, and its readers answer the runtime's questions,

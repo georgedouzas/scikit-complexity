@@ -30,7 +30,7 @@ REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
 
 
 class ReductionKernel(BaseKernel):
-    """Reduction that laws read, compiled into a function of the values of its symbols.
+    """A kernel of a reduction that laws read, compiled into a function.
 
     Args:
         symbol:

@@ -16,7 +16,7 @@ NO_ARGUMENTS = ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
-    """Drive compiled for a lattice state.
+    """A kernel of a drive compiled for a lattice state.
 
     The components of every member lie on a last axis when the state has several.
 

@@ -125,6 +125,7 @@ REWRITTEN: tuple[str, ...] = (
     'skcomplex.core.engine._utils',
     'skcomplex.core.engine.backends',
     'skcomplex.core.engine.compile',
+    'skcomplex.core.engine.problems',
     'skcomplex.core.engine.runtime',
     'skcomplex.core.engine.solvers',
     'skcomplex.core.engine.translators',

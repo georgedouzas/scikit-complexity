@@ -19,7 +19,7 @@ EDGE_NAMES = ('source', 'target', 'edge')
 
 @dataclass(frozen=True)
 class SetSymbolSpec(BaseSpec):
-    """Symbol of one element of an element set.
+    """A spec of the symbol of one element of an element set.
 
     It holds the same symbol of every element of the set.
     """

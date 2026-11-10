@@ -1,7 +1,4 @@
-"""String rewriting system of one word, compiled to array passes.
-
-It holds its alphabet, productions, and geometry.
-"""
+"""String rewriting system of one word, compiled to array passes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +55,7 @@ TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 
 
 class WordKernel(BaseKernel):
-    """String rewriting system of one word, compiled to array passes.
+    """A kernel of the string rewriting system of one word, compiled to array passes.
 
     It holds its alphabet, productions, and geometry.
 

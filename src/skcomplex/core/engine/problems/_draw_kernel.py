@@ -1,7 +1,4 @@
-"""Random values a stochastic map draws at every step.
-
-They are stored after the parameters of an extended vector.
-"""
+"""Random values a stochastic map draws at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ from ._draw_recorder import DrawRecorder
 
 
 class DrawKernel(BaseKernel):
-    """Random values a stochastic map draws at every step.
+    """A kernel of the random values a stochastic map draws at every step.
 
     They are stored after the parameters of an extended vector.
 

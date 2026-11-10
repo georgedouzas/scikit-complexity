@@ -55,7 +55,7 @@ def _fused_lookup(
 
 
 class RuleKernel(BaseKernel):
-    """Local rule compiled for a lattice, with its neighbour table and its evaluation.
+    """A kernel of a local rule of a lattice, with its neighbour table.
 
     Args:
         owner:

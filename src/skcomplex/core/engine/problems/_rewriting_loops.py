@@ -1,7 +1,4 @@
-"""Compile the stack walks of string rewriting.
-
-They are the bracket-aware contexts and the walk of a word geometry.
-"""
+"""Compile the stack walks of string rewriting."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

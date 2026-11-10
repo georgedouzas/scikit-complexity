@@ -1,7 +1,4 @@
-"""Lowering of operators of subsystems to sparse matrices on the whole space.
-
-The coefficients are lowered too.
-"""
+"""Lowering of operators of subsystems to sparse matrices on the whole space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ from ._operator_kernel import OperatorKernel
 
 
 class OperatorLowering(BaseConfig[None, tuple[object, str]]):
-    """Lowering of operators of subsystems to sparse matrices on the whole space.
+    """A lowering of the operators of subsystems to sparse matrices on the whole space.
 
     Coefficients are lowered to functions. `run((expression, owner))` keeps in `kernels_` the terms of an operator, with
     constant terms folded and terms of equal coefficients summed. The owner, the description of the law or observable of

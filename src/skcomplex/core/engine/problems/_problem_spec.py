@@ -41,7 +41,7 @@ from ._reduction_kernel import ReductionKernel
 
 @dataclass(frozen=True)
 class ProblemSpec(BaseProblemSpec):
-    """System compiled to one mathematical form with flat state and parameter vectors.
+    """A spec of a system compiled to one form, with flat state and parameter vectors.
 
     Only the functions of the problem's form are set. `drift`, `diffusion`, and `noise_rows` belong to the ODE and SDE
     forms, `propensities` and `jumps` to the jump process form, and `update` to the discrete map form. `boundary`

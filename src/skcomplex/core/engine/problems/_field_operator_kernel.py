@@ -1,7 +1,4 @@
-"""Value of a global operator applied to an expression.
-
-The operator is a spectral multiplier or a finite element matrix.
-"""
+"""Value of a global operator applied to an expression."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ from ._expression_printer import ExpressionPrinter
 
 
 class FieldOperatorKernel(BaseKernel):
-    """Value of a global operator applied to an expression.
+    """A kernel of the value of a global operator applied to an expression.
 
     The operator is a spectral multiplier or a finite element matrix.
 

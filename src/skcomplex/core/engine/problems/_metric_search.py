@@ -1,7 +1,4 @@
-"""Define the search of neighbours in a continuous space by their positions.
-
-They are found at every evaluation.
-"""
+"""Define the search of neighbours in a continuous space by their positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._base import BaseSearch
 
 
 class MetricSearch(BaseSearch):
-    """Neighbours in a continuous space, found from the positions of the members.
+    """A search of the neighbours in a continuous space, from member positions.
 
     The search uses a k-d tree or a Delaunay triangulation.
 

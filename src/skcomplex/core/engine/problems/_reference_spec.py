@@ -23,7 +23,7 @@ from ._pair_search import PairSearch
 
 @dataclass(frozen=True)
 class ReferenceSpec(BaseSpec):
-    """Component of a state or parameter that a symbol stands for.
+    """A spec of the component of a state or parameter that a symbol stands for.
 
     Args:
         entry:

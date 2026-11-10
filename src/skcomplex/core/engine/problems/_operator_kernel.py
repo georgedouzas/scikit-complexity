@@ -1,7 +1,4 @@
-"""Sparse matrix on the whole Hilbert space with a symbolic coefficient.
-
-It holds the lowered function of the coefficient.
-"""
+"""Sparse matrix on the whole Hilbert space with a symbolic coefficient."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,7 @@ from ._base import BaseKernel
 
 
 class OperatorKernel(BaseKernel):
-    """Sparse matrix on the whole Hilbert space with a symbolic coefficient.
+    """A kernel of a sparse matrix on the whole Hilbert space, with a coefficient.
 
     It holds the lowered function of the coefficient.
 

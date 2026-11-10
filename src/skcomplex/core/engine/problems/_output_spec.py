@@ -17,7 +17,7 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class OutputSpec(BaseSpec):
-    """Value a kernel produces for one target component.
+    """A spec of the value a kernel produces for one target component.
 
     Args:
         target:

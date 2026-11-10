@@ -1,7 +1,4 @@
-"""Compile conservation laws of finite-volume fields into flux differences.
-
-The flux differences use limited reconstruction.
-"""
+"""Compile conservation laws of finite-volume fields into flux differences."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ STENCIL = 2
 
 
 class FiniteVolumeKernel(BaseKernel):
-    """Conservation laws of the states of one finite-volume field.
+    """A kernel of the conservation laws of the states of one finite-volume field.
 
     Args:
         owner:

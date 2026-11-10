@@ -1,9 +1,4 @@
-"""Neighbourhood reduction that laws read, one value per member.
-
-It is compiled into a function of its symbols.
-
-`SPACES_OF` names the spaces every kind of neighbourhood is read on.
-"""
+"""Neighbourhood reduction that laws read, one value per member."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +53,7 @@ type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
 
 
 class NeighborhoodKernel(BaseKernel):
-    """Neighbourhood reduction that laws read, one value per member.
+    """A kernel of a reduction over neighbours that laws read, one value per member.
 
     It is compiled into a function of its symbols.
 

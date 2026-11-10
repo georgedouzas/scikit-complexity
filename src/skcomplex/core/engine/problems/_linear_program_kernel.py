@@ -1,7 +1,4 @@
-"""Solve the linear program of a problem with HiGHS.
-
-The program is warm-started and solved once per evaluation and per member.
-"""
+"""Solve the linear program of a problem with HiGHS."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelS
 
 
 class LinearProgramKernel(BaseKernel):
-    """Linear program lowered for a problem.
+    """A kernel of a linear program lowered for a problem.
 
     It is solved with one warm-started HiGHS system per member. `prepare(state)` evaluates the bounds and coefficients
     at a state without solving. `run(state)` keeps in `values_` a copy of the state vector with the variables, objective

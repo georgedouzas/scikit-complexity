@@ -18,7 +18,7 @@ from ._base_problem_spec import BaseProblemSpec
 
 @dataclass(frozen=True)
 class FrameSpec(BaseSpec):
-    """State of a simulation at one point in time.
+    """A spec of the state of a simulation at one point in time.
 
     Args:
         step:

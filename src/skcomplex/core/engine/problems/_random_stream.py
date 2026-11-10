@@ -11,7 +11,7 @@ from ...errors import ValidationError
 
 
 class RandomStream:
-    """Random stream of one problem.
+    """A random stream of one problem.
 
     A solver binds it when it prepares, and functions of laws read it when it runs.
 

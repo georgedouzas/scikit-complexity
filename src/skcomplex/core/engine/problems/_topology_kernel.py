@@ -1,7 +1,4 @@
-"""Apply the topology requests of laws to the capacity rows of network groups.
-
-They apply between the steps of a run.
-"""
+"""Apply the topology requests of laws to the capacity rows of network groups."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +32,7 @@ type Fired = tuple[int, int, Mapping[str, object] | None, Array | None]
 
 
 class TopologyKernel(BaseKernel):
-    """Topology requests of a problem, applied between steps.
+    """A kernel of the topology requests of a problem, applied between steps.
 
     They apply to the rows of the variable groups of its networks. `run(state)` fires the requests of update laws at the
     state and keeps the state after them in `values_`. The solver of jump laws applies the request of every jump channel

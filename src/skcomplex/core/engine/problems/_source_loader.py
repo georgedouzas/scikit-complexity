@@ -1,7 +1,4 @@
-"""Define the source loader.
-
-`CACHE_DIR` is the default directory of the generated sources and of Numba's cache.
-"""
+"""Define the source loader."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 
 
 class SourceLoader(BaseConfig[str | Path | None, str]):
-    """Loader of generated source.
+    """A loader of generated source code.
 
     The source is imported from a file of the cache directory named by its digest. `prepare(cache_dir)` sets the
     directory of the generated files, `~/.cache/skcomplex/kernels` by default, and `run(source)` writes the source there

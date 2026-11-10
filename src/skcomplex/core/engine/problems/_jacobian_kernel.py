@@ -1,7 +1,4 @@
-"""Derive the Jacobian of a drift and its sparsity pattern from the symbolic laws.
-
-Its exact value is derived from the compiled symbolic laws.
-"""
+"""Derive the Jacobian of a drift and its sparsity pattern from the symbolic laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +33,7 @@ PATTERN_LIMIT = 4_000_000
 
 
 class JacobianKernel(BaseKernel):
-    """Jacobian of the drift of an ODE problem, with its sparsity pattern.
+    """A kernel of the Jacobian of the drift of a problem, with its sparsity.
 
     It is derived from the symbolic laws of the problem. `pattern` states every entry the laws can make nonzero: member
     and shared reads, the neighbour tables of fields, the sparse matrices of finite element operators, the

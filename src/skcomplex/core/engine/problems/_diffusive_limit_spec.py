@@ -17,7 +17,7 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True, eq=False)
 class DiffusiveLimitSpec(BaseSpec):
-    """Stability limit of explicit steps for the diffusion of a finite-volume field.
+    """A spec of the stability limit of explicit steps of diffusion on a field.
 
     The limit holds at the current parameters.
 

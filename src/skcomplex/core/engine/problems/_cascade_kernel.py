@@ -18,7 +18,7 @@ from ._rule_kernel import RuleKernel
 
 
 class CascadeKernel(BaseKernel):
-    """Cascade compiled for a lattice, with its drive and the laws that relax it.
+    """A kernel of a cascade of a lattice, with its drive and its relax laws.
 
     Args:
         label:

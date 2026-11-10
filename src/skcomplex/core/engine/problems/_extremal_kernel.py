@@ -15,7 +15,7 @@ from ._base import BaseKernel
 
 
 class ExtremalKernel(BaseKernel):
-    """Extremal law compiled for a lattice or a network.
+    """A kernel of an extremal law compiled for a lattice or a network.
 
     Args:
         label:

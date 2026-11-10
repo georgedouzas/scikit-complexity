@@ -14,7 +14,7 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class LearningProblemSpec(BaseProblemSpec):
-    """Problem of a system that trains the adaptive parameters of a nested system.
+    """A spec of a problem that trains the adaptive parameters of a nested system.
 
     It trains them by gradient steps, once per epoch. Its states are the trained parameters, named by their paths from
     the root, and its parameters are the hyperparameters of the optimizer. The nested system is compiled to its own

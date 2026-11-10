@@ -1,7 +1,4 @@
-"""Renewal law compiled into the draws, resets, and waiting times of members.
-
-Every member of its component has them.
-"""
+"""Renewal law compiled into the draws, resets, and waiting times of members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +28,7 @@ type Sampler = tuple[DrawSpec, MemberFunction]
 
 
 class RenewalKernel(BaseKernel):
-    """Renewal law compiled into the draws, resets, and waiting times of members.
+    """A kernel of a renewal law, with its draws, resets, and waiting times.
 
     Every member of its component has them. `run(state)` keeps in `values_` the next renewal time of every member, drawn
     from the state at its time, and the solver that keeps the renewal times renews the members that are due, at their

@@ -1,7 +1,4 @@
-"""Print Sage expressions as code of a target language.
-
-Common subexpressions are computed once.
-"""
+"""Print Sage expressions as code of a target language."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +40,7 @@ IMPORTS = {
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
-    """Printer of Sage expressions as code of a target.
+    """A printer of Sage expressions as code of a target language.
 
     The targets are NumPy, scalar Python for Numba, and LAMMPS Lepton. `prepare(symbols)` takes the symbols the code
     reads, in order, and `run(expressions)` keeps in `code_` the assignments of the repeated compound subexpressions,

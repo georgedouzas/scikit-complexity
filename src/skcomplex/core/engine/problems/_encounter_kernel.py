@@ -1,7 +1,4 @@
-"""Encounter law lowered to sparse contractions of densities on activity grids.
-
-The densities are the candidate, field, and test densities.
-"""
+"""Encounter law lowered to sparse contractions of densities on activity grids."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +28,7 @@ def _fused_gain(entries: Indices, weights: Array, f: Array, g: Array, size: int)
 
 
 class EncounterKernel(BaseKernel):
-    """Encounter law lowered to sparse contractions of densities on activity grids.
+    """A kernel of encounter laws as sparse contractions of distributions.
 
     The densities are the candidate, field, and test densities.
 

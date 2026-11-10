@@ -1,7 +1,4 @@
-"""Monte Carlo sampling of a lattice state.
-
-It is compiled from its local objective, move, and sampler.
-"""
+"""Monte Carlo sampling of a lattice state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ from ._expression_printer import ExpressionPrinter
 
 
 class MonteCarloKernel(BaseKernel):
-    """Monte Carlo sampling of a lattice state.
+    """A kernel of the Monte Carlo sampling of a lattice state.
 
     It is compiled from its local objective, move, and sampler.
 

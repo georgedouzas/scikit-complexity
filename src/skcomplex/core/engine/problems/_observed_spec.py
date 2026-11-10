@@ -16,7 +16,7 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class ObservedSpec(BaseSpec):
-    """Value of an observable that a role reads at the current state.
+    """A spec of the value of an observable that a role reads at the current state.
 
     It holds the references of its symbols.
     """

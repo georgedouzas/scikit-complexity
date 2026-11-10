@@ -1,7 +1,4 @@
-"""Substitution system of one patch.
-
-It is compiled to batched products of affine matrices.
-"""
+"""Substitution system of one patch."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ from ._word_kernel import IDENTIFIER
 
 
 class PatchKernel(BaseKernel):
-    """Substitution system of one patch.
+    """A kernel of the substitution system of one patch.
 
     It is compiled to batched products of affine matrices.
 

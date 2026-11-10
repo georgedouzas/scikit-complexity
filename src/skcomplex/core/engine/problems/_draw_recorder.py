@@ -19,7 +19,7 @@ KEYWORDS = {'uniform': ('low', 'high'), 'normal': ('mean', 'deviation'), 'bernou
 
 
 class DrawRecorder(BaseConfig[None, int]):
-    """Recorder of the named draws and jump firings of a run, which also replays them.
+    """A recorder of the named draws and jumps of a run, which also replays them.
 
     A run that records keeps every value it draws by name and step, with the arguments of its distribution, and every
     firing of a jump law with its time. A run that replays a log takes every named draw and every firing from it

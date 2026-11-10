@@ -26,7 +26,7 @@ REAL_TOLERANCE = 1e-10
 
 @dataclass(frozen=True)
 class OperatorProblemSpec(BaseProblemSpec):
-    """Problem of the operator form.
+    """A spec of a problem of the operator form.
 
     Its state is a pure state or a density matrix stored as complex pairs.
 

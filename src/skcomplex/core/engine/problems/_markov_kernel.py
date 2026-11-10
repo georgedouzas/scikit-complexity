@@ -1,7 +1,4 @@
-"""Transition or emission matrix of a Markov law.
-
-It is evaluated from the parameters to check its rows.
-"""
+"""Transition or emission matrix of a Markov law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,7 @@ ROW_TOLERANCE = 1e-9
 
 
 class MarkovKernel(BaseKernel):
-    """Transition or emission matrix of a Markov law.
+    """A kernel of the transition or emission matrix of a Markov law.
 
     It is evaluated from the parameters to check its rows. `run(state)` keeps in `values_` the description of the first
     negative entry or row that does not sum to one at the parameters of the state, or `None` when every matrix is

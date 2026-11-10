@@ -14,7 +14,7 @@ from ._base_problem_spec import BaseProblemSpec
 
 @dataclass(frozen=True)
 class PartitionSpec(BaseSpec):
-    """Part of a co-simulation problem, compiled with the laws of its own elements.
+    """A spec of a part of a co-simulation problem, with the laws of its elements.
 
     The partition's problem has the state layout of the whole system. The states of other partitions have no laws in
     it, so they hold their values while it advances and act as its inputs.

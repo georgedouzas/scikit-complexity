@@ -1,7 +1,4 @@
-"""Neighbours of the nodes of a network layer whose edges change.
-
-They are read from the rows of its variable edge group.
-"""
+"""Neighbours of the nodes of a network layer whose edges change."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from ._base import BaseSearch
 
 
 class EdgeRowSearch(BaseSearch):
-    """Neighbours of the nodes of a network layer whose edges change.
+    """A search of the neighbours of the nodes of a layer whose edges change.
 
     They are read from the rows of its variable edge group.
 

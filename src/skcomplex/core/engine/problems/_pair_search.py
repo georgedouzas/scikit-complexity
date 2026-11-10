@@ -13,7 +13,7 @@ from ._base import BaseSearch
 
 
 class PairSearch(BaseSearch):
-    """Neighbour search that returns the pairs of members closer than a cutoff.
+    """A search that returns the pairs of members closer than a cutoff.
 
     Args:
         first:

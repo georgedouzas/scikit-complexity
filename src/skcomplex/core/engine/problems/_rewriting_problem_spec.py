@@ -12,7 +12,7 @@ from ._word_kernel import WordKernel
 
 @dataclass(frozen=True)
 class RewritingProblemSpec(BaseProblemSpec):
-    """Problem of the rewriting form.
+    """A spec of a problem of the rewriting form.
 
     It holds the compiled rewriting system of every rewritten element.
 

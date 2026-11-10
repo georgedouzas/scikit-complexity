@@ -1,7 +1,4 @@
-"""Count the equal steps a solver takes over a span of time.
-
-Steps are counted in Python and in compiled loops.
-"""
+"""Count the equal steps a solver takes over a span of time."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

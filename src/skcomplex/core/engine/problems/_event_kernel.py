@@ -11,7 +11,7 @@ from ._base import BaseKernel
 
 
 class EventKernel(BaseKernel):
-    """Event compiled into a guard function and a reset function of the state vector.
+    """A kernel of an event, compiled into a guard and a reset of the state vector.
 
     Args:
         label:
