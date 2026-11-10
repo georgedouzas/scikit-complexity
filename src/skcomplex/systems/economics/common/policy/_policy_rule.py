@@ -22,7 +22,7 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
 
     It reads the system once per round of its phase. Its rule runs once per round of its phase, after the agents of the
     phase. It reads observables with `system.observable(name)`, reporters with `system.history(name)`, and agents with
-    `system.agents(name)`, and sets parameters of any group or interaction with `system.set_parameter(name, value)`. A
+    `system.get_agents(name)`, and sets parameters of any group or interaction with `system.set_parameter(name, value)`. A
     change is visible to every rule at once and recorded in the trajectory like any parameter. Subclasses declare their
     own parameters, such as a target, and override `act`. Otherwise `rule(system)` acts.
 

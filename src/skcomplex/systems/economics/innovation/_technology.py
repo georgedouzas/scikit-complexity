@@ -23,6 +23,10 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+NAND = (2, 0b0111)
+FALSE = (0, 0)
+TRUE = (0, 1)
+
 
 class TechnologyView(AgentView):
     """Technology as the invention sees it.
@@ -314,15 +318,6 @@ class RedesignInteraction(Interaction):
         proposal = cost.copy()
         proposal[changed] = rng.random(len(changed))
         return proposal, changed
-
-
-NAND = (2, 0b0111)
-
-
-FALSE = (0, 0)
-
-
-TRUE = (0, 1)
 
 
 class TechnologyElement(Element):

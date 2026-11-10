@@ -20,17 +20,9 @@ from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 SECTORS = 3
-
-
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
-
-
 B_MATRIX = ((1.0, 0.2, 0.1), (0.1, 1.0, 0.2), (0.2, 0.1, 1.0))
-
-
 C_MATRIX = ((1.0, 0.3, 0.0), (0.0, 1.0, 0.3), (0.2, 0.0, 1.0))
-
-
 D_MATRIX = ((1.0, 0.2, 0.0), (0.0, 1.0, 0.2), (0.1, 0.0, 1.0))
 
 
@@ -183,28 +175,6 @@ class PurchasingPowerElement(DeclaredElement):
         return laws
 
 
-def _sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: str, index: int) -> Expression:
-    """Return the index or the input of one sector of the economy."""
-    values: list[Expression] = getattr(economy, method)(s)
-    return values[index]
-
-
-def _observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the index and the input of every sector."""
-    economy = system.elements[0]
-    if not isinstance(economy, PurchasingPowerElement):
-        return []
-    return [
-        ObservableSpec(
-            f'{name}{i + 1}',
-            partial(_sector_value, economy=economy, method=method, index=i),
-            element='economy',
-        )
-        for name, method in (('y', 'get_outputs'), ('u', 'get_inputs'))
-        for i in range(SECTORS)
-    ]
-
-
 class CategorizedPurchasingPowerSystem(BaseSystem):
     """Forrest's categorized purchasing power of money.
 
@@ -259,6 +229,28 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
     until = 15.0
     dt = 0.05
 
+    @staticmethod
+    def _get_sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: str, index: int) -> Expression:
+        """Return the index or the input of one sector of the economy."""
+        values: list[Expression] = getattr(economy, method)(s)
+        return values[index]
+
+    @staticmethod
+    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the index and the input of every sector."""
+        economy = system.elements[0]
+        if not isinstance(economy, PurchasingPowerElement):
+            return []
+        return [
+            ObservableSpec(
+                f'{name}{i + 1}',
+                partial(CategorizedPurchasingPowerSystem._get_sector_value, economy=economy, method=method, index=i),
+                element='economy',
+            )
+            for name, method in (('y', 'get_outputs'), ('u', 'get_inputs'))
+            for i in range(SECTORS)
+        ]
+
     def __init__(
         self,
         policy: Sequence[float] = (0.0, 0.0, 1.0),
@@ -304,5 +296,5 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _observables(self._get_pass_parameters())
+        settings['observables'] = CategorizedPurchasingPowerSystem._get_observables(self._get_pass_parameters())
         return settings

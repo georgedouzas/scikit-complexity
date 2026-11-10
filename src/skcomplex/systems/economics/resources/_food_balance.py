@@ -20,21 +20,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
-def _food_available(s: SimpleNamespace) -> Expression:
-    """Return the rice available, the area cultivated times the yield."""
-    return s.area_cultivated * s.crop_yield
-
-
-def _food_required(s: SimpleNamespace) -> Expression:
-    """Return the rice required, the population times the rice per capita."""
-    return s.population * s.food_per_capita
-
-
-def _food_security(s: SimpleNamespace) -> Expression:
-    """Return the food security level, the rice available over the rice required."""
-    return _food_available(s) / _food_required(s)
-
-
 class RiceBalanceElement(Element):
     """Rice land and population of a region.
 
@@ -109,6 +94,21 @@ class RiceBalanceElement(Element):
         self.food_per_capita = food_per_capita
 
 
+def _get_food_available(s: SimpleNamespace) -> Expression:
+    """Return the rice available, the area cultivated times the yield."""
+    return s.area_cultivated * s.crop_yield
+
+
+def _get_food_required(s: SimpleNamespace) -> Expression:
+    """Return the rice required, the population times the rice per capita."""
+    return s.population * s.food_per_capita
+
+
+def _get_food_security(s: SimpleNamespace) -> Expression:
+    """Return the food security level, the rice available over the rice required."""
+    return _get_food_available(s) / _get_food_required(s)
+
+
 class RiceFoodBalanceSystem(BaseSystem):
     """Bala's food security model.
 
@@ -171,9 +171,9 @@ class RiceFoodBalanceSystem(BaseSystem):
         [
             ObservableSpec(name, expression, element='region')
             for name, expression in (
-                ('food_available', _food_available),
-                ('food_required', _food_required),
-                ('food_security', _food_security),
+                ('food_available', _get_food_available),
+                ('food_required', _get_food_required),
+                ('food_security', _get_food_security),
             )
         ],
     )

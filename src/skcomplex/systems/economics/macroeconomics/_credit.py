@@ -446,14 +446,14 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
         system.report('spread', spread)
 
 
-def _herfindahl(values: object) -> float:
+def _get_herfindahl(values: object) -> float:
     """Return the Herfindahl index of the banks' shares of the loans."""
     lent = np.asarray(values, dtype=float)
     total = lent.sum()
     return float(np.sum((lent / total) ** 2)) if total > 0 else float('nan')
 
 
-def _largest_share(values: object) -> float:
+def _get_largest_share(values: object) -> float:
     """Return the share of the loans of the largest lender."""
     lent = np.asarray(values, dtype=float)
     total = lent.sum()
@@ -525,8 +525,8 @@ class CreditNetworksSystem(BaseSystem):
     references = ('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010')
     until = 100
     observables = (
-        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_get_herfindahl),
+        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_get_largest_share),
         ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
         ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
         ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),

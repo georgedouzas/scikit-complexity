@@ -24,20 +24,10 @@ from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
 FITNESS_TESTS = ('none', 'money', 'assets')
-
-
 GOODS = ('toys', 'crayons', 'blackboards')
-
-
 STOCKS = (5.0, 30.0, 15.0)
-
-
 TARGETS = ((3.0, 3.0), (10.0, 15.0), (5.0, 8.0))
-
-
 PRICE_UP, PRICE_DOWN, LOWEST_PRICE = 1.0101, 0.99, 0.5
-
-
 COPY = 0.5
 
 

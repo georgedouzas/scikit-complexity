@@ -175,7 +175,7 @@ class VonThunenSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import VonThunenSystem
         >>> trajectory = simulate(VonThunenSystem(), until=1.0)
-        >>> sorted(set(trajectory.values('plain.crop')[0].ravel().tolist()))
+        >>> sorted(set(trajectory.get_values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """
 

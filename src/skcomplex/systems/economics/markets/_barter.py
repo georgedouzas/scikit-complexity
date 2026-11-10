@@ -26,11 +26,6 @@ WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 EDGEWORTH_BARTERERS = 2
 
 
-def _utility(agent: object) -> float:
-    """Return the logarithm of the Cobb-Douglas utility of a barterer."""
-    return cobb_douglas(agent, GOODS, WEIGHTS)
-
-
 def contract_curve(
     chocolate: npt.ArrayLike,
     first_weight: float,
@@ -136,6 +131,11 @@ class BartererElement(Element):
         return []
 
 
+def _get_utility(agent: object) -> float:
+    """Return the logarithm of the Cobb-Douglas utility of a barterer."""
+    return cobb_douglas(agent, GOODS, WEIGHTS)
+
+
 class BarterSystem(BaseSystem):
     """Barter of chocolate and cigarettes.
 
@@ -189,7 +189,7 @@ class BarterSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 5', 'Radford 1945')
     until = 20
     observables = (
-        ObservableSpec('utility', _utility, group='barterers', reduce='mean'),
+        ObservableSpec('utility', _get_utility, group='barterers', reduce='mean'),
         *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     )
 

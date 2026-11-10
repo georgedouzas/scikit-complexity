@@ -503,7 +503,7 @@ class StoreElement(Element):
             shop.sales += match.quantity
 
 
-def _largest_share(sales: object) -> float:
+def _get_largest_share(sales: object) -> float:
     """Return the share of the sales of the shop that sells the most."""
     values = np.asarray(sales, dtype=float)
     return float(values.max() / values.sum()) if values.size and values.sum() > 0 else 0.0
@@ -567,7 +567,7 @@ class ShopsSystem(BaseSystem):
     observables = (
         ObservableSpec('open_shops', group='shops', variable='price', reduce='count'),
         ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
-        ObservableSpec('concentration', group='shops', variable='sales', reduce=_largest_share),
+        ObservableSpec('concentration', group='shops', variable='sales', reduce=_get_largest_share),
     )
 
     def __init__(

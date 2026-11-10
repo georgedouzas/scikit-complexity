@@ -23,6 +23,10 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
+PRICE, QUANTITY, TRADER = 0, 1, 2
+TINY = 1e-12
+HOLDINGS = ('cash', 'stocks')
+
 
 class GuruTraderView(AgentView):
     """Trader as the market sees it.
@@ -122,12 +126,6 @@ class GuruTraderElement(Element):
                 The laws of the component.
         """
         return []
-
-
-PRICE, QUANTITY, TRADER = 0, 1, 2
-
-
-TINY = 1e-12
 
 
 class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -366,9 +364,6 @@ class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
         system.report('guru', float(guru))
         system.report('beta', beta)
         system.report('guru_followers', float(followers.max()))
-
-
-HOLDINGS = ('cash', 'stocks')
 
 
 class GuruOrderBookSystem(BaseSystem):

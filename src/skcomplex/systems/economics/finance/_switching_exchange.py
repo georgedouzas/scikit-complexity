@@ -17,7 +17,7 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
 
-def _share(s: SimpleNamespace) -> Expression:
+def _get_share(s: SimpleNamespace) -> Expression:
     """Return the share of fundamentalists `n = k / N` of the market."""
     return s.k / s.n_traders
 
@@ -83,7 +83,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
     references = ('Caiani et al. 2016 §1.3.2', 'Kirman 1993')
     until = 20000
     draws = True
-    observables = (ObservableSpec('fundamentalists', _share, element='market'),)
+    observables = (ObservableSpec('fundamentalists', _get_share, element='market'),)
 
     def __init__(
         self,
@@ -141,7 +141,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
     def _deviation(s: SimpleNamespace) -> Expression:
         """Return the next deviation, which clears the market, with a shock of the supply."""
         market = s.target
-        n = _share(market)
+        n = _get_share(market)
         chartists = 1 - n
         deviation = ((1 - market.v * n + market.g * chartists) * market.x - market.g * chartists * lag(market.x, 1)) / (
             1 + market.r
@@ -152,7 +152,7 @@ class KirmanExchangeRateSystem(DynamicalSystem):
     def _recruitment(s: SimpleNamespace) -> Expression:
         """Return the next number of fundamentalists after one trader meets another."""
         market = s.target
-        n = _share(market)
+        n = _get_share(market)
         recruit = (1 - market.delta) / (market.n_traders - 1)
         up = (1 - n) * (market.epsilon + recruit * market.k)
         down = n * (market.epsilon + recruit * (market.n_traders - market.k))

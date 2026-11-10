@@ -18,11 +18,7 @@ from .....core.engine.solvers import AgentView
 from .....core.specs import StateSpec, VisualSpec
 
 SOLVENT = 0
-
-
 DEFAULTING = 1
-
-
 DEFAULTED = 2
 
 

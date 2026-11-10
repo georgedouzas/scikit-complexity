@@ -18,6 +18,10 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
+MAX_LIST_LENGTH = 8
+MAX_MARKUP = 30
+
 
 class ShopperView(AgentView):
     """Shopper as its rule sees it.
@@ -42,7 +46,9 @@ class StallView(AgentView):
     markup: float
 
 
-WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
+def _items_of(mask: int) -> list[int]:
+    """Return the indices of the items in a bit mask."""
+    return [item for item in range(len(WHOLESALE_PRICES)) if mask >> item & 1]
 
 
 class ShopperElement(Element):
@@ -137,13 +143,8 @@ class ShopperElement(Element):
         stall = unvisited[int(system.rng.integers(len(unvisited)))]
         bought = wanted & int(stall.stock)
         agent.visited = visited | 1 << int(stall.stall)
-        agent.spent += (1 + stall.markup) * sum(WHOLESALE_PRICES[item] for item in ShopperElement._items_of(bought))
+        agent.spent += (1 + stall.markup) * sum(WHOLESALE_PRICES[item] for item in _items_of(bought))
         agent.wanted = wanted & ~bought
-
-    @staticmethod
-    def _items_of(mask: int) -> list[int]:
-        """Return the indices of the items in a bit mask."""
-        return [item for item in range(len(WHOLESALE_PRICES)) if mask >> item & 1]
 
 
 class StallElement(Element):
@@ -209,15 +210,9 @@ class StallElement(Element):
         return []
 
 
-MAX_LIST_LENGTH = 8
-
-
-MAX_MARKUP = 30
-
-
-def _items_left(wanted: object) -> float:
+def _get_items_left(wanted: object) -> float:
     """Return the mean number of items left on the shoppers' lists, given as bit masks."""
-    return float(np.mean([len(ShopperElement._items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
+    return float(np.mean([len(_items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
 
 
 class ProduceMarketSystem(BaseSystem):
@@ -255,7 +250,7 @@ class ProduceMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_items_left),
+        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
         ObservableSpec('spent', group='shoppers', variable='spent'),
     )
 

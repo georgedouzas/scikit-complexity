@@ -27,6 +27,9 @@ from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, Mat
 from ...general.matching.types import MatchingRule
 from ..common.forecasting import heuristics
 
+LOWEST_PRICE = 0.01
+HOLDINGS = ('money', 'shares')
+
 
 class StockTraderView(AgentView):
     """Stock trader as the rules see it.
@@ -45,9 +48,6 @@ class StockTraderView(AgentView):
     wealth: float
     gain: float
     fundamental: float
-
-
-LOWEST_PRICE = 0.01
 
 
 class StockTraderElement(Element):
@@ -340,9 +340,6 @@ class BookInteraction(MatchingInteraction[SystemView]):
         price = matches[-1].value if matches else (float(last[-1]) if len(last) else self.opening)
         system.report('price', price)
         system.report('volume', sum(match.quantity for match in matches))
-
-
-HOLDINGS = ('money', 'shares')
 
 
 class OrderBookSystem(BaseSystem):

@@ -20,6 +20,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+N_FIRMS = 2
+
 
 class DuopolistView(AgentView):
     """Duopolist as the market rule sees it: its `output` and its marginal `cost`."""
@@ -126,10 +128,7 @@ class CournotAdjustmentInteraction(MapInteraction):
         return max((a - agent.cost) / (2 * b) - belief / 2, 0.0)
 
 
-N_FIRMS = 2
-
-
-def _price(s: SimpleNamespace) -> Expression:
+def _get_price(s: SimpleNamespace) -> Expression:
     """Return the market price of the total output.
 
     It follows the inverse demand of the interaction `market`.
@@ -175,7 +174,7 @@ class CournotDuopolySystem(BaseSystem):
     until = 30
     observables = (
         ObservableSpec('total', group='firms', reduce='sum', variable='output'),
-        ObservableSpec('price', _price),
+        ObservableSpec('price', _get_price),
     )
 
     def __init__(

@@ -23,6 +23,8 @@ from ....core.types import IntArray
 from ...general.agents import ChoiceInteraction, EvolutionInteraction
 from ..common.learning import PayoffLearningInteraction
 
+MAX_SEED = 2**31
+
 
 @dataclass(frozen=True)
 class _GameStateSpec(BaseSpec):
@@ -272,9 +274,6 @@ class MinorityGameInteraction(Interaction):
         winner = -1 if system.get_history(f'{self.label}.attendance')[-1] > 0 else 1
         code = agent.second if option else agent.first
         return float((2 * int(strategy_table(code, self.memory)[history]) - 1) * winner)
-
-
-MAX_SEED = 2**31
 
 
 class MinorityGameSystem(BaseSystem):

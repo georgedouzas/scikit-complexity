@@ -23,12 +23,11 @@ from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
 FISH_YIELD = (0.0, 0.01, 0.04, 0.09, 0.16, 0.25, 0.36, 0.49, 0.64, 0.81, 1.0)
-
-
 REGENERATION = (0.0, 0.25, 0.4, 0.48, 0.5, 0.5, 0.48, 0.4, 0.3, 0.15, 0.0)
-
-
 PRICE_BY_YIELD = (10.0, 7.0, 5.0, 3.0, 2.0, 1.5, 1.2)
+OIL_YIELD = (0.0, 0.1, 0.25, 0.45, 0.65, 0.8, 0.9, 0.95, 0.98, 1.0, 1.0)
+RESOURCE_LEVELS = (0.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0)
+YIELD_LEVELS = (0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0)
 
 
 class FisheryElement(Element):
@@ -101,52 +100,6 @@ class FisheryElement(Element):
         self.price_table = price_table
 
 
-OIL_YIELD = (0.0, 0.1, 0.25, 0.45, 0.65, 0.8, 0.9, 0.95, 0.98, 1.0, 1.0)
-
-
-RESOURCE_LEVELS = (0.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0)
-
-
-YIELD_LEVELS = (0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0)
-
-
-def _efficiency(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
-    """Return the yield per unit of capital, a table of the resource stock."""
-    return series(holder.resource, RESOURCE_LEVELS, yields)
-
-
-def _investment(holder: SimpleNamespace, revenue: Expression) -> Expression:
-    """Return the investment.
-
-    It is the profit of a revenue clipped to the growth goal per unit of capital.
-    """
-    return clip(revenue - holder.cost * holder.capital, 0, holder.growth_goal * holder.capital)
-
-
-def _harvest(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
-    """Return the harvest or extraction.
-
-    It is the capital times the yield per unit of capital.
-    """
-    return holder.capital * _efficiency(holder, yields)
-
-
-def _capital(label: str, holder: str) -> TransferInteraction:
-    """Return the depreciation of the capital of a holder.
-
-    It is reported as `<holder>.depreciation`.
-    """
-    return TransferInteraction(
-        label,
-        source=holder,
-        target=holder,
-        state='capital',
-        into=Sink('scrap'),
-        amount=lambda s: s.source.capital / s.source.lifetime,
-        flow='depreciation',
-    )
-
-
 class OilEconomySystem(StockFlowSystem):
     """Meadows' oil economy, capital that grows on a nonrenewable resource.
 
@@ -191,6 +144,27 @@ class OilEconomySystem(StockFlowSystem):
     until = 100.0
     dt = 1.0
 
+    @staticmethod
+    def _get_efficiency(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
+        """Return the yield per unit of capital, a table of the resource stock."""
+        return series(holder.resource, RESOURCE_LEVELS, yields)
+
+    @staticmethod
+    def _get_investment(holder: SimpleNamespace, revenue: Expression) -> Expression:
+        """Return the investment.
+
+        It is the profit of a revenue clipped to the growth goal per unit of capital.
+        """
+        return clip(revenue - holder.cost * holder.capital, 0, holder.growth_goal * holder.capital)
+
+    @staticmethod
+    def _harvest(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
+        """Return the harvest or extraction.
+
+        It is the capital times the yield per unit of capital.
+        """
+        return holder.capital * OilEconomySystem._get_efficiency(holder, yields)
+
     def __init__(
         self,
         resource: float = 1000.0,
@@ -215,7 +189,11 @@ class OilEconomySystem(StockFlowSystem):
     @staticmethod
     def _oil_price(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float] | None) -> Expression:
         """Return the price of the oil, constant or a table of the yield."""
-        return holder.price if prices is None else series(_efficiency(holder, yields), YIELD_LEVELS, prices)
+        return (
+            holder.price
+            if prices is None
+            else series(OilEconomySystem._get_efficiency(holder, yields), YIELD_LEVELS, prices)
+        )
 
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the stocks."""
@@ -237,13 +215,13 @@ class OilEconomySystem(StockFlowSystem):
         """Return the extraction of the resource, the investment in capital, and its depreciation."""
         prices = None if self.price_table is None else tuple(float(value) for value in self.price_table)
         return {
-            'extraction': ('resource', Sink('market'), lambda s: _harvest(s.source, OIL_YIELD)),
+            'extraction': ('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, OIL_YIELD)),
             'investment': (
                 Source('investors'),
                 'capital',
-                lambda s: _investment(
+                lambda s: OilEconomySystem._get_investment(
                     s.source,
-                    self._oil_price(s.source, OIL_YIELD, prices) * _harvest(s.source, OIL_YIELD),
+                    self._oil_price(s.source, OIL_YIELD, prices) * OilEconomySystem._harvest(s.source, OIL_YIELD),
                 ),
             ),
             'depreciation': ('capital', Sink('scrap'), lambda s: s.source.capital / s.source.lifetime),
@@ -292,6 +270,22 @@ class FisheryCapitalSystem(BaseSystem):
     until = 100.0
     dt = 1.0
 
+    @staticmethod
+    def _get_capital(label: str, holder: str) -> TransferInteraction:
+        """Return the depreciation of the capital of a holder.
+
+        It is reported as `<holder>.depreciation`.
+        """
+        return TransferInteraction(
+            label,
+            source=holder,
+            target=holder,
+            state='capital',
+            into=Sink('scrap'),
+            amount=lambda s: s.source.capital / s.source.lifetime,
+            flow='depreciation',
+        )
+
     def __init__(
         self,
         resource: float = 1000.0,
@@ -314,7 +308,11 @@ class FisheryCapitalSystem(BaseSystem):
     @staticmethod
     def _fish_revenue(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float]) -> Expression:
         """Return the revenue of the harvest at the price, a table of the yield."""
-        return series(_efficiency(holder, yields), YIELD_LEVELS, prices) * _harvest(holder, yields)
+        return series(
+            OilEconomySystem._get_efficiency(holder, yields),
+            YIELD_LEVELS,
+            prices,
+        ) * OilEconomySystem._harvest(holder, yields)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
@@ -336,7 +334,7 @@ class FisheryCapitalSystem(BaseSystem):
             into='resource',
             amount=lambda s: s.source.resource * series(s.source.resource, RESOURCE_LEVELS, regenerations),
             flow='regeneration',
-            legs=[('resource', Sink('market'), lambda s: _harvest(s.source, yields), 'harvest')],
+            legs=[('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, yields), 'harvest')],
         )
         investment = TransferInteraction(
             'investment',
@@ -344,11 +342,11 @@ class FisheryCapitalSystem(BaseSystem):
             target='fishery',
             state=Source('investors'),
             into='capital',
-            amount=lambda s: _investment(s.source, self._fish_revenue(s.source, yields, prices)),
+            amount=lambda s: OilEconomySystem._get_investment(s.source, self._fish_revenue(s.source, yields, prices)),
             flow='investment',
         )
         return CompositeSystem(
             self.label,
             elements=[fishery],
-            interactions=[fish, investment, _capital('depreciation', 'fishery')],
+            interactions=[fish, investment, FisheryCapitalSystem._get_capital('depreciation', 'fishery')],
         )

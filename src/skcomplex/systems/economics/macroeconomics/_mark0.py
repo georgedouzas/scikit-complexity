@@ -23,6 +23,8 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.policy import PolicyRuleInteraction
 
+CREDIT_POLICIES = ('none', 'naive', 'adaptive')
+
 
 class Mark0FirmView(AgentView):
     """Firm as the economy sees it.
@@ -121,9 +123,6 @@ class Mark0FirmElement(Element):
                 The laws of the component.
         """
         return []
-
-
-CREDIT_POLICIES = ('none', 'naive', 'adaptive')
 
 
 class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):

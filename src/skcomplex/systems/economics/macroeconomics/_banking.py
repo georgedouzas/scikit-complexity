@@ -23,6 +23,8 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..common.policy import PolicyRuleInteraction
 
+TOLERANCE = 1e-9
+
 
 class DepositorView(AgentView):
     """Customer as the rules see it.
@@ -146,9 +148,6 @@ class ReserveBankView(AgentView):
     reserves: float
     deposits: float
     loans: float
-
-
-TOLERANCE = 1e-9
 
 
 class ReserveBankElement(Element):

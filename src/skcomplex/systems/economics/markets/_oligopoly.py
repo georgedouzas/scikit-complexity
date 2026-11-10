@@ -28,6 +28,9 @@ from ....core.types import Array
 from ...general.agents import ChoiceInteraction
 from ..common.learning import PayoffLearningInteraction
 
+DYNAMICS = ('static', 'fictitious-play')
+DUOPOLY = 2
+
 
 class CournotBestResponseElement(Element):
     """Quantities of two firms at the best responses of a Cournot game.
@@ -312,27 +315,6 @@ class PricingFirmElement(Element):
         return PricingFirmView
 
 
-DYNAMICS = ('static', 'fictitious-play')
-DUOPOLY = 2
-
-
-def _price_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the lowest and the highest expected profit over the prices.
-
-    Under learning, it returns the prices charged.
-    """
-    if isinstance(system.time, StaticTime):
-        profit = PricePointElement.get_profit
-        return [
-            ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
-            ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
-        ]
-    return [
-        ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
-        ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
-    ]
-
-
 class OligopolyEquilibriaSystem(BaseSystem):
     """The equilibria of a Cournot duopoly and of a pricing game.
 
@@ -386,13 +368,30 @@ class OligopolyEquilibriaSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
         >>> trajectory = simulate(OligopolyEquilibriaSystem(), until=1.0)
-        >>> round(float(trajectory.values('cournot.q_i')[0]), 6)
+        >>> round(float(trajectory.get_values('cournot.q_i')[0]), 6)
         3.333333
     """
 
     field = 'economics/markets'
     topics = ('oligopoly', 'equilibrium', 'static', 'game theory')
     references = ('Forrest 2018', 'Brown 1951')
+
+    @staticmethod
+    def _get_price_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the lowest and the highest expected profit over the prices.
+
+        Under learning, it returns the prices charged.
+        """
+        if isinstance(system.time, StaticTime):
+            profit = PricePointElement.get_profit
+            return [
+                ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
+                ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
+            ]
+        return [
+            ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
+            ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
+        ]
 
     def __init__(
         self,
@@ -493,5 +492,5 @@ class OligopolyEquilibriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _price_observables(self._get_pass_parameters())
+        settings['observables'] = OligopolyEquilibriaSystem._get_price_observables(self._get_pass_parameters())
         return settings

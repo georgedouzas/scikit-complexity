@@ -42,62 +42,6 @@ INTENSIFICATION_EFFECT = (
 FULL_INDEX = 100.0
 
 
-def _cocoa_yield(s: SimpleNamespace) -> Expression:
-    """Return the yield of cocoa per area.
-
-    The insects and the removal of shade change it.
-    """
-    return s.yield_normal * series(s.insects, *ECOLOGICAL_EFFECT) * series(s.shade_removal, *INTENSIFICATION_EFFECT)
-
-
-def _profit_per_area(s: SimpleNamespace) -> Expression:
-    """Return the profit per area of cocoa land."""
-    return s.price * _cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
-
-
-def _profitability(s: SimpleNamespace) -> Expression:
-    """Return the profitability of cocoa land, the positive profit over the revenue."""
-    return clip(_profit_per_area(s), 0) / (s.price * _cocoa_yield(s))
-
-
-def _planting(s: SimpleNamespace) -> Expression:
-    """Return the planting of forest towards the desired area.
-
-    The desired area grows with the profitability.
-    """
-    land = s.source
-    desired = land.area * series(_profitability(land), *PROFITABILITY_EFFECT)
-    return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
-
-
-def _abandonment(s: SimpleNamespace) -> Expression:
-    """Return the abandonment of plantations whose yield and profit fall."""
-    land = s.source
-    effects = series(_cocoa_yield(land), *YIELD_EFFECT) * series(_profit_per_area(land), *PROFIT_EFFECT)
-    return land.area * effects / land.abandon_time
-
-
-def _conversion(land: SimpleNamespace) -> Expression:
-    """Return the share of the abandoned land converted to oil palm.
-
-    It grows as cocoa pays less than palm.
-    """
-    return clip(land.palm_margin - _profitability(land), 0) / land.palm_margin
-
-
-def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the thinning of shade and the growth and control of the insects."""
-    unprotected = 1 - s.subsidy
-    return [
-        RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
-        RateLaw(
-            s.insects,
-            s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
-            - s.insect_control * s.subsidy * s.insects,
-        ),
-    ]
-
-
 class PlantationElement(Element):
     """Cocoa land in forest, planted, and abandoned stocks.
 
@@ -173,6 +117,19 @@ class PlantationElement(Element):
 
     law_classes = (RateLaw,)
 
+    @staticmethod
+    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the thinning of shade and the growth and control of the insects."""
+        unprotected = 1 - s.subsidy
+        return [
+            RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
+            RateLaw(
+                s.insects,
+                s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
+                - s.insect_control * s.subsidy * s.insects,
+            ),
+        ]
+
     def __init__(
         self,
         label: str,
@@ -226,7 +183,25 @@ class PlantationElement(Element):
             laws:
                 The laws of the element.
         """
-        return _cocoa_laws(s)
+        return PlantationElement._get_cocoa_laws(s)
+
+
+def _get_cocoa_yield(s: SimpleNamespace) -> Expression:
+    """Return the yield of cocoa per area.
+
+    The insects and the removal of shade change it.
+    """
+    return s.yield_normal * series(s.insects, *ECOLOGICAL_EFFECT) * series(s.shade_removal, *INTENSIFICATION_EFFECT)
+
+
+def _get_profit_per_area(s: SimpleNamespace) -> Expression:
+    """Return the profit per area of cocoa land."""
+    return s.price * _get_cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
+
+
+def _get_profitability(s: SimpleNamespace) -> Expression:
+    """Return the profitability of cocoa land, the positive profit over the revenue."""
+    return clip(_get_profit_per_area(s), 0) / (s.price * _get_cocoa_yield(s))
 
 
 class CocoaSystem(BaseSystem):
@@ -279,10 +254,35 @@ class CocoaSystem(BaseSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('cocoa_yield', _cocoa_yield, element='cocoa'),
-        ObservableSpec('profit_per_area', _profit_per_area, element='cocoa'),
-        ObservableSpec('profitability', _profitability, element='cocoa'),
+        ObservableSpec('cocoa_yield', _get_cocoa_yield, element='cocoa'),
+        ObservableSpec('profit_per_area', _get_profit_per_area, element='cocoa'),
+        ObservableSpec('profitability', _get_profitability, element='cocoa'),
     )
+
+    @staticmethod
+    def _get_planting(s: SimpleNamespace) -> Expression:
+        """Return the planting of forest towards the desired area.
+
+        The desired area grows with the profitability.
+        """
+        land = s.source
+        desired = land.area * series(_get_profitability(land), *PROFITABILITY_EFFECT)
+        return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
+
+    @staticmethod
+    def _get_abandonment(s: SimpleNamespace) -> Expression:
+        """Return the abandonment of plantations whose yield and profit fall."""
+        land = s.source
+        effects = series(_get_cocoa_yield(land), *YIELD_EFFECT) * series(_get_profit_per_area(land), *PROFIT_EFFECT)
+        return land.area * effects / land.abandon_time
+
+    @staticmethod
+    def _get_conversion(land: SimpleNamespace) -> Expression:
+        """Return the share of the abandoned land converted to oil palm.
+
+        It grows as cocoa pays less than palm.
+        """
+        return clip(land.palm_margin - _get_profitability(land), 0) / land.palm_margin
 
     def __init__(
         self,
@@ -313,20 +313,22 @@ class CocoaSystem(BaseSystem):
             target='cocoa',
             state='forest',
             into='area',
-            amount=_planting,
+            amount=CocoaSystem._get_planting,
             flow='planting',
             legs=[
-                ('area', 'abandoned', _abandonment, 'abandonment'),
+                ('area', 'abandoned', CocoaSystem._get_abandonment, 'abandonment'),
                 (
                     'abandoned',
                     'forest',
-                    lambda s: (1 - _conversion(s.source)) * s.source.abandoned / s.source.conversion_time,
+                    lambda s: (1 - CocoaSystem._get_conversion(s.source))
+                    * s.source.abandoned
+                    / s.source.conversion_time,
                     'fallow',
                 ),
                 (
                     'abandoned',
                     Sink('oil_palm'),
-                    lambda s: _conversion(s.source) * s.source.abandoned / s.source.conversion_time,
+                    lambda s: CocoaSystem._get_conversion(s.source) * s.source.abandoned / s.source.conversion_time,
                     'conversion',
                 ),
             ],

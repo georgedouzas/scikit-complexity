@@ -16,6 +16,11 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+WASH = 0
+VALET = 1
+CREW_SIZE = 2
+PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
+
 
 class CarView(AgentView):
     """Car as the rules see it.
@@ -26,9 +31,6 @@ class CarView(AgentView):
     stage: float
     work: float
     crew: float
-
-
-WASH = 0
 
 
 class CarElement(Element):
@@ -90,12 +92,6 @@ class CarElement(Element):
                 The laws of the component.
         """
         return []
-
-
-VALET = 1
-
-
-CREW_SIZE = 2
 
 
 class WasherElement(Element):
@@ -243,9 +239,6 @@ class TillElement(Element):
         return []
 
 
-_PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
-
-
 class CarWashOperationInteraction(Interaction):
     """Arrival of passing cars, completion of washes and valets, and payment.
 
@@ -359,7 +352,7 @@ class CarWashOperationInteraction(Interaction):
             system:
                 The system.
         """
-        values = {name: float(system.get_parameter(name)) for name in _PARAMETERS}
+        values = {name: float(system.get_parameter(name)) for name in PARAMETERS}
         till = system.get_agents('till', TillView)[0]
         for car in system.get_agents('cars', CarView):
             car.crew = 0

@@ -82,10 +82,12 @@ class CapitalStockSystem(DynamicalSystem):
         return {
             'K': DeclaredVariableSpec(self.capital, StateSpec(domain=RealSet.closed_open(0, oo))),
             'investment_fraction': DeclaredVariableSpec(
-                self.investment_fraction, ParameterSpec(domain=RealSet.closed_open(0, oo)),
+                self.investment_fraction,
+                ParameterSpec(domain=RealSet.closed_open(0, oo)),
             ),
             'output_per_capital': DeclaredVariableSpec(
-                self.output_per_capital, ParameterSpec(domain=RealSet.open(0, oo)),
+                self.output_per_capital,
+                ParameterSpec(domain=RealSet.open(0, oo)),
             ),
             'lifetime': DeclaredVariableSpec(self.lifetime, ParameterSpec(domain=RealSet.open(0, oo))),
         }

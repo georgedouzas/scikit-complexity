@@ -22,6 +22,8 @@ from ...general.agents import MovementInteraction
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 from ..common.exchange._exchange_interaction import GOODS
 
+WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
+
 
 class GoodsTraderElement(Element):
     """Trader who holds goods and values them with Cobb-Douglas weights.
@@ -79,10 +81,7 @@ class GoodsTraderElement(Element):
         self.salt_weight = salt_weight
 
 
-WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
-
-
-def _utility(agent: object) -> float:
+def _get_utility(agent: object) -> float:
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
@@ -148,7 +147,7 @@ class GoodsTradersSystem(BaseSystem):
     until = 50
     invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
-        ObservableSpec('utility', _utility, group='traders', reduce='mean'),
+        ObservableSpec('utility', _get_utility, group='traders', reduce='mean'),
         *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
 

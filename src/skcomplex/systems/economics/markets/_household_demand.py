@@ -23,11 +23,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 DEMANDS = ('cobb-douglas', 'elasticity')
-
-
 FOOD_SHARES = (0.15, 0.13, 0.12, 0.10, 0.08)
-
-
 FOOD_ELASTICITIES = (-0.6, -0.6, -0.5, -0.4, -0.3)
 
 

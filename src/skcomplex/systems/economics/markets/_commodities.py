@@ -23,39 +23,6 @@ PRICE_TABLE = ((0.0, 0.5, 1.0, 1.5, 2.0, 3.0), (3.0, 1.8, 1.0, 0.65, 0.5, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0), (0.0, 0.1, 1.0, 2.5, 4.0, 5.0, 5.5))
 
 
-def _demand(s: SimpleNamespace) -> Expression:
-    """Return the demand at the reference price, after its step."""
-    return s.demand + step(s.t, s.step_time, s.demand_step)
-
-
-def _coverage(s: SimpleNamespace) -> Expression:
-    """Return the coverage of the demand by the inventory."""
-    return s.inventory / _demand(s)
-
-
-def _price(s: SimpleNamespace) -> Expression:
-    """Return the price, which falls as the coverage rises above the desired coverage."""
-    return s.reference_price * series(_coverage(s) / s.desired_coverage, *PRICE_TABLE)
-
-
-def _expected_price(s: SimpleNamespace) -> Expression:
-    """Return the expected price, the price smoothed over the expectation time."""
-    return distributed_delay(_price(s), conserved=False, time=s.expectation_time)
-
-
-def _capacity_orders(s: SimpleNamespace) -> Expression:
-    """Return the orders of capacity, which rise with the expected price."""
-    return s.capacity / s.lifetime * series(_expected_price(s) / s.reference_price, *INVESTMENT_TABLE)
-
-
-def _market(s: SimpleNamespace) -> SimpleNamespace:
-    """Return the symbols of the market a transfer moves.
-
-    The transfer moves the commodity or the capacity, with the time.
-    """
-    return SimpleNamespace(t=s.t, **vars(s.source))
-
-
 class CommodityMarketElement(Element):
     """Commodity market whose inventory production fills and consumption drains.
 
@@ -148,6 +115,31 @@ class CommodityMarketElement(Element):
         self.lifetime = lifetime
 
 
+def _get_coverage(s: SimpleNamespace) -> Expression:
+    """Return the coverage of the demand by the inventory."""
+    return s.inventory / _get_demand(s)
+
+
+def _get_price(s: SimpleNamespace) -> Expression:
+    """Return the price, which falls as the coverage rises above the desired coverage."""
+    return s.reference_price * series(_get_coverage(s) / s.desired_coverage, *PRICE_TABLE)
+
+
+def _get_expected_price(s: SimpleNamespace) -> Expression:
+    """Return the expected price, the price smoothed over the expectation time."""
+    return distributed_delay(_get_price(s), conserved=False, time=s.expectation_time)
+
+
+def _get_capacity_orders(s: SimpleNamespace) -> Expression:
+    """Return the orders of capacity, which rise with the expected price."""
+    return s.capacity / s.lifetime * series(_get_expected_price(s) / s.reference_price, *INVESTMENT_TABLE)
+
+
+def _get_demand(s: SimpleNamespace) -> Expression:
+    """Return the demand at the reference price, after its step."""
+    return s.demand + step(s.t, s.step_time, s.demand_step)
+
+
 class CommodityCycleSystem(BaseSystem):
     """A commodity market whose price and capacity cycle.
 
@@ -217,11 +209,19 @@ class CommodityCycleSystem(BaseSystem):
     until = 60.0
     dt = 0.25
     observables = (
-        ObservableSpec('coverage', _coverage, element='market'),
-        ObservableSpec('price', _price, element='market'),
-        ObservableSpec('expected_price', _expected_price, element='market'),
-        ObservableSpec('capacity_orders', _capacity_orders, element='market'),
+        ObservableSpec('coverage', _get_coverage, element='market'),
+        ObservableSpec('price', _get_price, element='market'),
+        ObservableSpec('expected_price', _get_expected_price, element='market'),
+        ObservableSpec('capacity_orders', _get_capacity_orders, element='market'),
     )
+
+    @staticmethod
+    def _get_market(s: SimpleNamespace) -> SimpleNamespace:
+        """Return the symbols of the market a transfer moves.
+
+        The transfer moves the commodity or the capacity, with the time.
+        """
+        return SimpleNamespace(t=s.t, **vars(s.source))
 
     def __init__(
         self,
@@ -260,8 +260,8 @@ class CommodityCycleSystem(BaseSystem):
 
         It is the capacity times the relative price to the supply elasticity.
         """
-        market = _market(s)
-        return market.capacity * (_price(market) / market.reference_price) ** market.supply_elasticity
+        market = CommodityCycleSystem._get_market(s)
+        return market.capacity * (_get_price(market) / market.reference_price) ** market.supply_elasticity
 
     @staticmethod
     def _consumption(s: SimpleNamespace) -> Expression:
@@ -269,14 +269,14 @@ class CommodityCycleSystem(BaseSystem):
 
         It is the demand times the relative price to minus the demand elasticity.
         """
-        market = _market(s)
-        return _demand(market) * (_price(market) / market.reference_price) ** (-market.demand_elasticity)
+        market = CommodityCycleSystem._get_market(s)
+        return _get_demand(market) * (_get_price(market) / market.reference_price) ** (-market.demand_elasticity)
 
     @staticmethod
     def _completions(s: SimpleNamespace) -> Expression:
         """Return the completions of capacity, the orders through a third-order delay."""
-        market = _market(s)
-        return distributed_delay(_capacity_orders(market), order=3, time=market.construction_delay)
+        market = CommodityCycleSystem._get_market(s)
+        return distributed_delay(_get_capacity_orders(market), order=3, time=market.construction_delay)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""

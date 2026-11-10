@@ -20,11 +20,6 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
-def _extinct_share(stocks: object) -> float:
-    """Return the share of the fisheries whose stock is extinct."""
-    return float(np.mean(np.asarray(stocks, dtype=float) <= 0))
-
-
 class MeasuredFisheryElement(Element):
     """Logistic fish stock with a noisy growth rate, harvested by a quota.
 
@@ -125,6 +120,11 @@ class MeasuredFisheryElement(Element):
         return [UpdateLaw(s.x, where(both(s.x > 0, noisy > 0), noisy, 0)), UpdateLaw(s.catch, quota)]
 
 
+def _get_extinct_share(stocks: object) -> float:
+    """Return the share of the fisheries whose stock is extinct."""
+    return float(np.mean(np.asarray(stocks, dtype=float) <= 0))
+
+
 class FisheryMeasurementErrorsSystem(BaseSystem):
     """Independent fisheries whose quota is set from a measurement of the stock.
 
@@ -180,7 +180,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Argun et al. 2016')
     until = 5000
     observables = (
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_extinct_share),
+        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
         ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
         ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )

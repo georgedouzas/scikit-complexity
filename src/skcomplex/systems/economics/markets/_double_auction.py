@@ -21,6 +21,8 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSp
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
 from ..common.policy import PolicyRuleInteraction
 
+PROTOCOLS = ('order_book', 'call_auction')
+
 
 class ZeroIntelligenceBuyerView(AgentView):
     """Zero-intelligence buyer as the rules see it.
@@ -289,9 +291,6 @@ class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
             buyer.demand = 1.0
         for seller in sellers:
             seller.supply = 1.0
-
-
-PROTOCOLS = ('order_book', 'call_auction')
 
 
 class DoubleAuctionSystem(BaseSystem):

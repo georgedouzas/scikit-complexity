@@ -249,21 +249,7 @@ class ReflectingFloorInteraction(MapInteraction):
         return max(agent.x, self._get_floor(system))
 
 
-def _get_gibrat_growth() -> list[MapInteraction]:
-    """Return the maps that keep the size of every Gibrat firm and then grow it."""
-    return [
-        MapInteraction(
-            'memory',
-            target='firms',
-            state='previous',
-            function=lambda agent, system: agent.x,
-            form='agent',
-        ),
-        MapInteraction('growth', target='firms', state='x', function=GibratFirmElement.get_growth, form='agent'),
-    ]
-
-
-def _size_observables() -> list[ObservableSpec]:
+def _get_size_observables() -> list[ObservableSpec]:
     """Return the mean and the largest size of the firms."""
     return [
         ObservableSpec('mean_size', group='firms', variable='x'),
@@ -303,7 +289,21 @@ class GibratProcessSystem(BaseSystem):
     topics = ('multiplicative process', 'lognormal', 'agents')
     references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Gibrat 1931')
     until = 100
-    observables = tuple(_size_observables())
+    observables = tuple(_get_size_observables())
+
+    @staticmethod
+    def _get_gibrat_growth() -> list[MapInteraction]:
+        """Return the maps that keep the size of every Gibrat firm and then grow it."""
+        return [
+            MapInteraction(
+                'memory',
+                target='firms',
+                state='previous',
+                function=lambda agent, system: agent.x,
+                form='agent',
+            ),
+            MapInteraction('growth', target='firms', state='x', function=GibratFirmElement.get_growth, form='agent'),
+        ]
 
     def __init__(
         self,
@@ -328,7 +328,12 @@ class GibratProcessSystem(BaseSystem):
             size=self.n_firms,
             values={'x': self.x, 'previous': self.x, 'mu': self.mu, 'sigma': self.sigma},
         )
-        return CompositeSystem(self.label, elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
+        return CompositeSystem(
+            self.label,
+            elements=[firms],
+            interactions=GibratProcessSystem._get_gibrat_growth(),
+            time=DiscreteTime(),
+        )
 
 
 class MultiplicativeProcessSystem(BaseSystem):
@@ -367,7 +372,7 @@ class MultiplicativeProcessSystem(BaseSystem):
     topics = ('multiplicative process', 'power law', 'agents')
     references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Levy and Solomon 1996')
     until = 100
-    observables = tuple(_size_observables())
+    observables = tuple(_get_size_observables())
 
     def __init__(
         self,
@@ -397,7 +402,10 @@ class MultiplicativeProcessSystem(BaseSystem):
         return CompositeSystem(
             self.label,
             elements=[firms],
-            interactions=[*_get_gibrat_growth(), ReflectingFloorInteraction('floor', target='firms', c=self.c)],
+            interactions=[
+                *GibratProcessSystem._get_gibrat_growth(),
+                ReflectingFloorInteraction('floor', target='firms', c=self.c),
+            ],
             time=DiscreteTime(),
         )
 
@@ -441,7 +449,7 @@ class KestenProcessSystem(BaseSystem):
     topics = ('multiplicative process', 'power law', 'agents')
     references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Kesten 1973')
     until = 100
-    observables = tuple(_size_observables())
+    observables = tuple(_get_size_observables())
 
     def __init__(
         self,

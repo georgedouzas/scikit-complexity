@@ -25,6 +25,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ...general.agents import ChoiceInteraction, MovementInteraction
 from ..common.learning import PayoffLearningInteraction
 
+N_SHOPS = 2
+PHASE = 'visit'
+
 
 class CustomerView(AgentView):
     """Customer as its rules see it.
@@ -271,12 +274,6 @@ class ProductElement(Element):
                 The change of the freshness the customer holds.
         """
         return float(np.exp(-(system.time - product.shelved) / product.tau_a)) - customer.freshness
-
-
-N_SHOPS = 2
-
-
-PHASE = 'visit'
 
 
 class PerishableGoodsDuopolySystem(BaseSystem):

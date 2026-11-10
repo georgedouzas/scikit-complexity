@@ -27,6 +27,10 @@ from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
 
+PEAKS = ((0.3, 0.3), (0.7, 0.7))
+BOUNDS = (21, 16, 11, 6)
+DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
 
 class ForagerView(AgentView):
     """Forager as the rules see it.
@@ -160,15 +164,6 @@ class SugarPatchElement(Element):
         return SugarPatchView
 
 
-PEAKS = ((0.3, 0.3), (0.7, 0.7))
-
-
-BOUNDS = (21, 16, 11, 6)
-
-
-DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
-
-
 def landscape(width: int, height: int) -> Array:
     """Return the sugar capacity of every cell, from 0 to 4 in rings around two peaks.
 
@@ -197,52 +192,7 @@ def landscape(width: int, height: int) -> Array:
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
 
 
-def _cell_of(location: object) -> tuple[int, int]:
-    """Return the cell of a location on the lattice."""
-    x, y = (int(item) for item in np.asarray(location, dtype=float))
-    return x, y
-
-
-def _get_patches(system: SystemViewProtocol) -> Mapping[tuple[int, int], SugarPatchView]:
-    """Return the patches by cell, built once per run in the storage of the movement."""
-    cached = system.storage.get('patches')
-    if not isinstance(cached, _PatchMapSpec):
-        patches = {
-            _cell_of(patch.location): patch
-            for patch in system.get_agents('patches')
-            if isinstance(patch, SugarPatchView)
-        }
-        cached = _PatchMapSpec(patches)
-        system.storage['patches'] = cached
-    return cached.patches
-
-
-def _get_sugar(agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
-    """Return the sugar of the patch of a cell, the score a forager maximizes."""
-    return float(_get_patches(system)[_cell_of(cell)].sugar)
-
-
-def _get_vision(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the number of cells a forager sees along every direction."""
-    return float(agent.vision) if isinstance(agent, ForagerView) else 0.0
-
-
-def _get_harvest(patch: AgentViewProtocol, forager: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the whole sugar of the patch of a forager."""
-    return float(patch.sugar) if isinstance(patch, SugarPatchView) else 0.0
-
-
-def _get_metabolism(forager: AgentViewProtocol, other: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return the sugar a forager burns in a step."""
-    return float(forager.metabolism) if isinstance(forager, ForagerView) else 0.0
-
-
-def _is_starved(forager: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return whether the wealth of a forager has fallen below zero."""
-    return isinstance(forager, ForagerView) and forager.sugar < 0
-
-
-def _gini(wealth: object) -> float:
+def _get_gini(wealth: object) -> float:
     """Return the Gini coefficient of the wealth of the foragers."""
     gini = distribution(np.asarray(wealth, dtype=float), kind='gini').gini
     return 0.0 if gini is None else gini
@@ -301,8 +251,53 @@ class SugarscapeSystem(BaseSystem):
     until = 100
     observables = (
         ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
-        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_gini),
+        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_get_gini),
     )
+
+    @staticmethod
+    def _get_cell_of(location: object) -> tuple[int, int]:
+        """Return the cell of a location on the lattice."""
+        x, y = (int(item) for item in np.asarray(location, dtype=float))
+        return x, y
+
+    @staticmethod
+    def _get_patches(system: SystemViewProtocol) -> Mapping[tuple[int, int], SugarPatchView]:
+        """Return the patches by cell, built once per run in the storage of the movement."""
+        cached = system.storage.get('patches')
+        if not isinstance(cached, _PatchMapSpec):
+            patches = {
+                SugarscapeSystem._get_cell_of(patch.location): patch
+                for patch in system.get_agents('patches')
+                if isinstance(patch, SugarPatchView)
+            }
+            cached = _PatchMapSpec(patches)
+            system.storage['patches'] = cached
+        return cached.patches
+
+    @staticmethod
+    def _get_sugar(agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
+        """Return the sugar of the patch of a cell, the score a forager maximizes."""
+        return float(SugarscapeSystem._get_patches(system)[SugarscapeSystem._get_cell_of(cell)].sugar)
+
+    @staticmethod
+    def _get_vision(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the number of cells a forager sees along every direction."""
+        return float(agent.vision) if isinstance(agent, ForagerView) else 0.0
+
+    @staticmethod
+    def _get_harvest(patch: AgentViewProtocol, forager: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the whole sugar of the patch of a forager."""
+        return float(patch.sugar) if isinstance(patch, SugarPatchView) else 0.0
+
+    @staticmethod
+    def _get_metabolism(forager: AgentViewProtocol, other: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the sugar a forager burns in a step."""
+        return float(forager.metabolism) if isinstance(forager, ForagerView) else 0.0
+
+    @staticmethod
+    def _is_starved(forager: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+        """Return whether the wealth of a forager has fallen below zero."""
+        return isinstance(forager, ForagerView) and forager.sugar < 0
 
     def __init__(
         self,
@@ -340,8 +335,8 @@ class SugarscapeSystem(BaseSystem):
                 'search',
                 target='foragers',
                 step='best',
-                score=_get_sugar,
-                vision=_get_vision,
+                score=SugarscapeSystem._get_sugar,
+                vision=SugarscapeSystem._get_vision,
                 exclusive=True,
                 schedule='member',
                 phase='foraging',
@@ -351,7 +346,7 @@ class SugarscapeSystem(BaseSystem):
                 source='patches',
                 target='foragers',
                 state='sugar',
-                amount=_get_harvest,
+                amount=SugarscapeSystem._get_harvest,
                 pairing='cell',
                 form='agent',
                 actor='target',
@@ -364,7 +359,7 @@ class SugarscapeSystem(BaseSystem):
                 target='foragers',
                 state='sugar',
                 into=Sink(),
-                amount=_get_metabolism,
+                amount=SugarscapeSystem._get_metabolism,
                 form='agent',
                 schedule='member',
                 phase='foraging',
@@ -372,7 +367,7 @@ class SugarscapeSystem(BaseSystem):
             BirthDeathInteraction(
                 'starvation',
                 target='foragers',
-                death=_is_starved,
+                death=SugarscapeSystem._is_starved,
                 schedule='member',
                 phase='foraging',
             ),

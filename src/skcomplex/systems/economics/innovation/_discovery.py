@@ -20,6 +20,10 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
+DRAW = 'draw'
+GROW = 'grow'
+BALLS = 'balls'
+
 
 class BallView(AgentView):
     """Balls of one colour as the urn sees them.
@@ -91,11 +95,6 @@ class UrnView(AgentView):
     novelties: float
     color: float
     novel: float
-
-
-DRAW = 'draw'
-GROW = 'grow'
-BALLS = 'balls'
 
 
 class UrnElement(Element):

@@ -17,31 +17,31 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
 
-def _sale(s: SimpleNamespace) -> Expression:
-    """Return the animals the household sells in the year, `INT(livestock sale_fraction)`."""
-    return floor(s.livestock * s.sale_fraction)
-
-
-def _purchase(s: SimpleNamespace) -> Expression:
-    """Return the animals bought in the year, the affordable ones when the herd has room for them."""
-    affordable = floor(s.wealth / s.purchase_price)
-    room = s.max_livestock + _sale(s) - s.livestock
-    return where(affordable <= room, affordable, 0)
-
-
-def _crop_production(s: SimpleNamespace) -> Expression:
+def _get_crop_production(s: SimpleNamespace) -> Expression:
     """Return the crop production, the area times the normal yield times the yield multiplier."""
     return s.crop_area * s.yield_normal * s.yield_multiplier
 
 
-def _income_from_crop(s: SimpleNamespace) -> Expression:
+def _get_income_from_crop(s: SimpleNamespace) -> Expression:
     """Return the income from the crop, the production times the price."""
-    return _crop_production(s) * s.price
+    return _get_crop_production(s) * s.price
 
 
-def _income_from_livestock(s: SimpleNamespace) -> Expression:
+def _get_income_from_livestock(s: SimpleNamespace) -> Expression:
     """Return the income from the livestock, the animals sold times their price."""
-    return _sale(s) * s.unit_price
+    return _get_sale(s) * s.unit_price
+
+
+def _get_sale(s: SimpleNamespace) -> Expression:
+    """Return the animals the household sells in the year, `INT(livestock sale_fraction)`."""
+    return floor(s.livestock * s.sale_fraction)
+
+
+def _get_purchase(s: SimpleNamespace) -> Expression:
+    """Return the animals bought in the year, the affordable ones when the herd has room for them."""
+    affordable = floor(s.wealth / s.purchase_price)
+    room = s.max_livestock + _get_sale(s) - s.livestock
+    return where(affordable <= room, affordable, 0)
 
 
 class CropLivestockHouseholdSystem(DynamicalSystem):
@@ -117,11 +117,11 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         [
             ObservableSpec(name, function, element='household')
             for name, function in (
-                ('crop_production', _crop_production),
-                ('income_from_crop', _income_from_crop),
-                ('income_from_livestock', _income_from_livestock),
-                ('sale', _sale),
-                ('purchase', _purchase),
+                ('crop_production', _get_crop_production),
+                ('income_from_crop', _get_income_from_crop),
+                ('income_from_livestock', _get_income_from_livestock),
+                ('sale', _get_sale),
+                ('purchase', _get_purchase),
             )
         ],
     )
@@ -178,7 +178,8 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
             'unit_price': DeclaredVariableSpec(self.unit_price, ParameterSpec(domain=nonnegative)),
             'purchase_price': DeclaredVariableSpec(self.purchase_price, ParameterSpec(domain=RealSet.open(0, oo))),
             'household_consumption': DeclaredVariableSpec(
-                self.household_consumption, ParameterSpec(domain=nonnegative),
+                self.household_consumption,
+                ParameterSpec(domain=nonnegative),
             ),
             'max_livestock': DeclaredVariableSpec(self.max_livestock, ParameterSpec(domain=nonnegative)),
             'sale_fraction': DeclaredVariableSpec(self.sale_fraction, ParameterSpec(domain=RealSet.closed(0, 1))),
@@ -190,17 +191,17 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         """Return the yearly steps of the stocks, the purchases joining the herd three years later."""
         return {
             'wealth': self._wealth,
-            'livestock': lambda s: s.target.livestock + lag(s.target.purchases, 2) - _sale(s.target),
+            'livestock': lambda s: s.target.livestock + lag(s.target.purchases, 2) - _get_sale(s.target),
             'yield_multiplier': lambda s: (
                 s.target.yield_multiplier * (1 + s.target.yield_regeneration - s.target.cropping_intensity)
             ),
-            'purchases': lambda s: _purchase(s.target),
+            'purchases': lambda s: _get_purchase(s.target),
         }
 
     @staticmethod
     def _wealth(s: SimpleNamespace) -> Expression:
         """Return the wealth after the incomes and the spending of the year."""
         household = s.target
-        income = _income_from_crop(household) + _income_from_livestock(household)
-        expenditure = _purchase(household) * household.purchase_price + household.household_consumption
+        income = _get_income_from_crop(household) + _get_income_from_livestock(household)
+        expenditure = _get_purchase(household) * household.purchase_price + household.household_consumption
         return household.wealth + income - expenditure

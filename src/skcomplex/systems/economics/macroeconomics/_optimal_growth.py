@@ -20,14 +20,7 @@ MIN_CONSUMPTION = 0.05
 MAX_CONSUMPTION = 5.0
 
 
-def _saving_rate(s: SimpleNamespace) -> Expression:
-    """Return the share of output saved, `1 - c / (A k^alpha)`."""
-    economy = s.economy
-    rate: Expression = 1 - economy.c / (economy.A * economy.k**economy.alpha)
-    return rate
-
-
-def _utility(s: SimpleNamespace) -> Expression:
+def _get_utility(s: SimpleNamespace) -> Expression:
     """Return the discounted utility of consumption per unit time.
 
     It is `exp(-rho t) log(c)`.
@@ -37,7 +30,7 @@ def _utility(s: SimpleNamespace) -> Expression:
     return utility
 
 
-def _capital_value(s: SimpleNamespace) -> Expression:
+def _get_capital_value(s: SimpleNamespace) -> Expression:
     """Return the discounted value of the capital left at the horizon.
 
     It is `exp(-rho T) v k(T)`.
@@ -45,6 +38,13 @@ def _capital_value(s: SimpleNamespace) -> Expression:
     economy = s.economy
     value: Expression = exp(-economy.rho * s.t) * economy.v * economy.k
     return value
+
+
+def _get_saving_rate(s: SimpleNamespace) -> Expression:
+    """Return the share of output saved, `1 - c / (A k^alpha)`."""
+    economy = s.economy
+    rate: Expression = 1 - economy.c / (economy.A * economy.k**economy.alpha)
+    return rate
 
 
 class OptimalConsumptionSystem(DynamicalSystem):
@@ -87,8 +87,13 @@ class OptimalConsumptionSystem(DynamicalSystem):
     references = ('Dilão 2023',)
     until = 40.0
     dt = 0.5
-    solver = CollocationSolver(objective=_utility, terminal=_capital_value, sense='max', nodes=81)
-    observables = (ObservableSpec('saving_rate', _saving_rate),)
+    solver = CollocationSolver(
+        objective=_get_utility,
+        terminal=_get_capital_value,
+        sense='max',
+        nodes=81,
+    )
+    observables = (ObservableSpec('saving_rate', _get_saving_rate),)
 
     def __init__(
         self,

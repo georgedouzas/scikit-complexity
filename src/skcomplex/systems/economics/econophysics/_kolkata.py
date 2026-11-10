@@ -24,6 +24,8 @@ from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
 from ...general.agents import ChoiceInteraction
 
+STRATEGIES = ('random', 'crowd_avoiding')
+
 
 class DinerView(AgentView):
     """Diner as the rules see it.
@@ -240,9 +242,6 @@ class RestaurantsInteraction(GroupingInteraction):
                 The serving and the reporting rules.
         """
         return [*super()._get_laws(namespace), RuleLaw(self.report, phase=self.phase)]
-
-
-STRATEGIES = ('random', 'crowd_avoiding')
 
 
 class KolkataRestaurantSystem(BaseSystem):

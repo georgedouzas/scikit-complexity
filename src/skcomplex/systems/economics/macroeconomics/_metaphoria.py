@@ -38,6 +38,13 @@ from ....core.types import Array
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
 
+PROPENSITIES = {'fertility': 0.3, 'exploration': 1.0, 'enterprise': 0.3, 'restlessness': 0.1}
+ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
+OLD_AGE_DEATH = 1 / 7
+MODES = ('hunter_gatherer', 'monetary')
+PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
+SIGHT = 5.0
+
 
 class BusinessView(AgentView):
     """Firm as the rules see it.
@@ -265,15 +272,6 @@ class _PeopleSpec(BaseSpec):
 
     time: float
     people: Mapping[int, SettlerView]
-
-
-PROPENSITIES = {'fertility': 0.3, 'exploration': 1.0, 'enterprise': 0.3, 'restlessness': 0.1}
-
-
-ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
-
-
-OLD_AGE_DEATH = 1 / 7
 
 
 class SettlerElement(Element):
@@ -1023,48 +1021,6 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
             person.move_to(firm.location)
 
 
-MODES = ('hunter_gatherer', 'monetary')
-
-
-PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
-
-
-SIGHT = 5.0
-
-
-def _bank_balance(bank: SimpleNamespace) -> float:
-    """Return the money the bank has issued plus the loans it holds.
-
-    It is zero when every unit of money is a loan.
-    """
-    return float(bank.money + bank.loans)
-
-
-def _living(fates: object) -> float:
-    """Return the number of living people from their fates."""
-    return float(np.sum(np.asarray(fates) == ALIVE))
-
-
-def _money_gini(money: object) -> float:
-    """Return the Gini coefficient of the money of people."""
-    gini = distribution(np.asarray(money, dtype=float), kind='gini').gini
-    return 0.0 if gini is None else gini
-
-
-def _metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the population, the Gini coefficient of money, and the bank balance.
-
-    The population is the living one, of a monetary economy.
-    """
-    observables = [
-        ObservableSpec('population', group='people', variable='fate', reduce=_living),
-        ObservableSpec('money_gini', group='people', variable='money', reduce=_money_gini),
-    ]
-    if any(element.label == 'bank' for element in system.elements):
-        observables.append(ObservableSpec('bank_balance', _bank_balance, group='bank', reduce='sum'))
-    return observables
-
-
 class MetaphoriaSystem(BaseSystem):
     """Gooding's Metaphoria.
 
@@ -1136,6 +1092,41 @@ class MetaphoriaSystem(BaseSystem):
     topics = ('agents', 'mortality', 'evolution', 'money', 'hunter-gatherers', 'stock-flow consistent')
     references = ('Gooding 2019',)
     until = 300
+
+    @staticmethod
+    def _get_bank_balance(bank: SimpleNamespace) -> float:
+        """Return the money the bank has issued plus the loans it holds.
+
+        It is zero when every unit of money is a loan.
+        """
+        return float(bank.money + bank.loans)
+
+    @staticmethod
+    def _get_living(fates: object) -> float:
+        """Return the number of living people from their fates."""
+        return float(np.sum(np.asarray(fates) == ALIVE))
+
+    @staticmethod
+    def _get_money_gini(money: object) -> float:
+        """Return the Gini coefficient of the money of people."""
+        gini = distribution(np.asarray(money, dtype=float), kind='gini').gini
+        return 0.0 if gini is None else gini
+
+    @staticmethod
+    def _get_metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the population, the Gini coefficient of money, and the bank balance.
+
+        The population is the living one, of a monetary economy.
+        """
+        observables = [
+            ObservableSpec('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
+            ObservableSpec('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
+        ]
+        if any(element.label == 'bank' for element in system.elements):
+            observables.append(
+                ObservableSpec('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
+            )
+        return observables
 
     def __init__(
         self,
@@ -1285,5 +1276,5 @@ class MetaphoriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _metaphoria_observables(self._get_pass_parameters())
+        settings['observables'] = MetaphoriaSystem._get_metaphoria_observables(self._get_pass_parameters())
         return settings

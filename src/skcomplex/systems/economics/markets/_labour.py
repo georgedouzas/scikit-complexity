@@ -297,7 +297,7 @@ def hire(trade: MatchSpec, system: SystemView) -> None:
     worker.hired, worker.offer = system.time, firm.posted
 
 
-def _unemployment(employers: object) -> float:
+def _get_unemployment(employers: object) -> float:
     """Return the share of unemployed workers, whose employer is negative."""
     return float(np.mean(np.asarray(employers, dtype=float) < 0))
 
@@ -361,7 +361,7 @@ class LabourMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 7',)
     until = 200
     observables = (
-        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
+        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
         ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
     )
 

@@ -19,6 +19,10 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+UNDISTRESSED = 0
+DISTRESSED = 1
+INACTIVE = 2
+
 
 class InterbankView(AgentView):
     """Bank as the cascade sees it.
@@ -29,9 +33,6 @@ class InterbankView(AgentView):
     h: float
     status: float
     value: float
-
-
-UNDISTRESSED = 0
 
 
 class InterbankElement(Element):
@@ -95,12 +96,6 @@ class InterbankElement(Element):
                 The laws of the component.
         """
         return []
-
-
-DISTRESSED = 1
-
-
-INACTIVE = 2
 
 
 class DebtRankCascadeInteraction(Interaction):
@@ -169,7 +164,7 @@ class DebtRankCascadeInteraction(Interaction):
             bank.h, bank.status = float(level), float(code)
 
 
-def _value_at_risk(agent: InterbankView) -> float:
+def _get_value_at_risk(agent: InterbankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
 
@@ -217,7 +212,7 @@ class DebtrankSystem(BaseSystem):
     topics = ('systemic risk', 'network', 'contagion', 'agents')
     references = ('Thurner et al. 2018', 'Battiston et al. 2012')
     until = 10
-    observables = (ObservableSpec('value_at_risk', _value_at_risk, group='banks', reduce='sum'),)
+    observables = (ObservableSpec('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
 
     def __init__(
         self,

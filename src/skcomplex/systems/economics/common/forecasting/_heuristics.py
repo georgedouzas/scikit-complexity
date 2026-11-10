@@ -11,7 +11,6 @@ from types import SimpleNamespace
 
 import numpy as np
 
-# The values a trend or an anchor reads, the last two.
 TREND_LENGTH = 2
 
 

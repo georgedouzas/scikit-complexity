@@ -25,6 +25,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
 
+TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
+GOODS = ('good1', 'good2')
+
 
 class BarterTraderView(AgentView):
     """Barter trader as the rules see it.
@@ -293,20 +296,14 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         system.report('searches', float(sum(trader.links for trader in traders)))
 
 
-TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
-
-
-GOODS = ('good1', 'good2')
+def _get_utility(agent: object) -> float:
+    """Return the Cobb-Douglas utility of the bundle of a trader."""
+    return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
 def _log_spread(rates: object) -> float:
     """Return the standard deviation of the log marginal rates of substitution."""
     return float(np.std(np.log(np.asarray(rates, dtype=float))))
-
-
-def _utility(agent: object) -> float:
-    """Return the Cobb-Douglas utility of the bundle of a trader."""
-    return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
 class WilhiteTradeNetworksSystem(BaseSystem):
@@ -366,7 +363,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     until = 60
     observables = (
         ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _utility, group='traders'),
+        ObservableSpec('utility', _get_utility, group='traders'),
     )
 
     def __init__(

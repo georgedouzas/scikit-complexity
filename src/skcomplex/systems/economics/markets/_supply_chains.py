@@ -20,6 +20,8 @@ from ....core.components.laws.utils import distributed_delay, maximum, minimum, 
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
+
 
 class EchelonElement(Element):
     """Echelon of a supply chain.
@@ -512,28 +514,17 @@ class SupplyLinkInteraction(TransferInteraction):
         return distributed_delay(EchelonElement._shipments(upstream), order=3, time=downstream.shipping_delay)
 
 
-ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
-
-
-def _received(downstream: SimpleNamespace) -> Expression:
-    """Return the orders of the downstream echelon that reach its supplier.
-
-    They arrive after a third-order mail delay.
-    """
-    return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
-
-
-def _demand(retailer: SimpleNamespace, t: Expression) -> Expression:
-    """Return the orders of the customers of the retailer, their demand after its step."""
-    return retailer.demand + step(t, retailer.step_time, retailer.demand_step)
-
-
-def _customer_orders(s: SimpleNamespace) -> Expression:
+def _get_customer_orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the customers of the namespace of the system.
 
     The namespace holds the retailer.
     """
-    return _demand(s.retailer, s.t)
+    return _get_demand(s.retailer, s.t)
+
+
+def _get_demand(retailer: SimpleNamespace, t: Expression) -> Expression:
+    """Return the orders of the customers of the retailer, their demand after its step."""
+    return retailer.demand + step(t, retailer.step_time, retailer.demand_step)
 
 
 class BeerGameSystem(BaseSystem):
@@ -610,8 +601,16 @@ class BeerGameSystem(BaseSystem):
     observables = (
         *(ObservableSpec('orders', BreweryInteraction._orders, element=label) for label in ECHELONS),
         *(ObservableSpec('shipments', EchelonElement._shipments, element=label) for label in ECHELONS),
-        ObservableSpec('customers.orders', _customer_orders),
+        ObservableSpec('customers.orders', _get_customer_orders),
     )
+
+    @staticmethod
+    def _get_received(downstream: SimpleNamespace) -> Expression:
+        """Return the orders of the downstream echelon that reach its supplier.
+
+        They arrive after a third-order mail delay.
+        """
+        return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
 
     def __init__(
         self,
@@ -662,14 +661,14 @@ class BeerGameSystem(BaseSystem):
                 target=upstream,
                 state='backlog',
                 sources=[downstream],
-                rate=lambda s: _received(s.sources[0]),
+                rate=lambda s: BeerGameSystem._get_received(s.sources[0]),
             ),
             RateInteraction(
                 f'{upstream}_expected',
                 target=upstream,
                 state='expected',
                 sources=[downstream],
-                rate=lambda s: s.target.theta * _received(s.sources[0]),
+                rate=lambda s: s.target.theta * BeerGameSystem._get_received(s.sources[0]),
             ),
         ]
 
@@ -684,13 +683,13 @@ class BeerGameSystem(BaseSystem):
                 'retailer_backlog',
                 target='retailer',
                 state='backlog',
-                rate=lambda s: _demand(s.target, s.t),
+                rate=lambda s: _get_demand(s.target, s.t),
             ),
             RateInteraction(
                 'retailer_expected',
                 target='retailer',
                 state='expected',
-                rate=lambda s: s.target.theta * _demand(s.target, s.t),
+                rate=lambda s: s.target.theta * _get_demand(s.target, s.t),
             ),
         ]
 

@@ -133,52 +133,12 @@ class TradingEconomyElement(Element):
         self.government = government
 
 
-def _home_price(s: SimpleNamespace) -> Expression:
-    """Return the home price after the rise."""
-    home = s.target
-    price: Expression = home.home_price * (1 + home.inflation)
-    return price
-
-
-def _exchange_rate(s: SimpleNamespace) -> Expression:
-    """Return the rate that balances the currency market when it floats.
-
-    It balances the market at the current volumes, and otherwise it is the rate.
-    """
-    home = s.target
-    balancing = home.M * home.world_price / (home.X * home.home_price * (1 + home.inflation))
-    rate: Expression = where(home.floating > 0, balancing, home.E)
-    return rate
-
-
-def _exports(s: SimpleNamespace) -> Expression:
-    """Return the export volume.
-
-    It responds to the World price of the exports with a constant elasticity.
-    """
-    home = s.target
-    volume: Expression = home.exports * (1 + home.export_elasticity * (home.PH * home.E / home.export_price - 1))
-    return volume
-
-
-def _imports(s: SimpleNamespace) -> Expression:
-    """Return the import volume.
-
-    It responds to the home price of the imports with a constant elasticity.
-    """
-    home = s.target
-    volume: Expression = home.imports * (
-        1 + home.import_elasticity * (home.world_price / (home.E * home.import_price) - 1)
-    )
-    return volume
-
-
 def _balance(s: SimpleNamespace) -> Expression:
     """Return the balance of trade of the economy `home` at home prices."""
     return s.home.X * s.home.PH - s.home.M * s.home.world_price / s.home.E
 
 
-def _real_rate(s: SimpleNamespace) -> Expression:
+def _get_real_rate(s: SimpleNamespace) -> Expression:
     """Return the real exchange rate.
 
     It is the home price level in World currency over the world price level.
@@ -188,7 +148,7 @@ def _real_rate(s: SimpleNamespace) -> Expression:
     return price_level * home.E / home.world_price
 
 
-def _output(s: SimpleNamespace) -> Expression:
+def _get_output(s: SimpleNamespace) -> Expression:
     """Return the output, domestic demand and government spending plus net exports."""
     return s.home.demand + s.home.government + s.home.X - s.home.M
 
@@ -253,9 +213,49 @@ class ExchangeRatesSystem(BaseSystem):
     dt = 1
     observables = (
         ObservableSpec('balance', _balance),
-        ObservableSpec('real_rate', _real_rate),
-        ObservableSpec('output', _output),
+        ObservableSpec('real_rate', _get_real_rate),
+        ObservableSpec('output', _get_output),
     )
+
+    @staticmethod
+    def _get_home_price(s: SimpleNamespace) -> Expression:
+        """Return the home price after the rise."""
+        home = s.target
+        price: Expression = home.home_price * (1 + home.inflation)
+        return price
+
+    @staticmethod
+    def _exchange_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate that balances the currency market when it floats.
+
+        It balances the market at the current volumes, and otherwise it is the rate.
+        """
+        home = s.target
+        balancing = home.M * home.world_price / (home.X * home.home_price * (1 + home.inflation))
+        rate: Expression = where(home.floating > 0, balancing, home.E)
+        return rate
+
+    @staticmethod
+    def _get_exports(s: SimpleNamespace) -> Expression:
+        """Return the export volume.
+
+        It responds to the World price of the exports with a constant elasticity.
+        """
+        home = s.target
+        volume: Expression = home.exports * (1 + home.export_elasticity * (home.PH * home.E / home.export_price - 1))
+        return volume
+
+    @staticmethod
+    def _get_imports(s: SimpleNamespace) -> Expression:
+        """Return the import volume.
+
+        It responds to the home price of the imports with a constant elasticity.
+        """
+        home = s.target
+        volume: Expression = home.imports * (
+            1 + home.import_elasticity * (home.world_price / (home.E * home.import_price) - 1)
+        )
+        return volume
 
     def __init__(
         self,
@@ -292,7 +292,12 @@ class ExchangeRatesSystem(BaseSystem):
         """
         return [
             MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
-            for state, function in (('PH', _home_price), ('E', _exchange_rate), ('X', _exports), ('M', _imports))
+            for state, function in (
+                ('PH', ExchangeRatesSystem._get_home_price),
+                ('E', ExchangeRatesSystem._exchange_rate),
+                ('X', ExchangeRatesSystem._get_exports),
+                ('M', ExchangeRatesSystem._get_imports),
+            )
         ]
 
     def _build_system(self) -> CompositeSystem:

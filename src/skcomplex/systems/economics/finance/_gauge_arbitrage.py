@@ -171,34 +171,6 @@ class TraderCurrentInteraction(NeighborInteraction):
         return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
 
 
-def _total_good(t: float, values: Mapping[str, object]) -> float:
-    """Return the total of the good."""
-    del t
-    return float(np.sum(np.asarray(values['sites.rho'], dtype=float)))
-
-
-def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the largest absolute difference of the codifferential and the excess.
-
-    The codifferential is that of the field, and the excess that of the good.
-
-    The excess is that of the good.
-    """
-    del t
-    density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
-    electric = np.ravel(np.asarray(values['links.E'], dtype=float))
-    return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
-
-
-def _market_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the total of the good and the Gauss residual against its excess density."""
-    space = system.elements[0].space.prepare()
-    return [
-        ObservableSpec('total_good', function=_total_good),
-        ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
-    ]
-
-
 class GaugeArbitrageMarketSystem(BaseSystem):
     """Exchange-rate potentials on links as lattice Maxwell fields.
 
@@ -245,6 +217,37 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     until = 20.0
     dt = 0.5
     solver = RK4Solver(dt=0.02)
+
+    @staticmethod
+    def _get_total_good(t: float, values: Mapping[str, object]) -> float:
+        """Return the total of the good."""
+        del t
+        return float(np.sum(np.asarray(values['sites.rho'], dtype=float)))
+
+    @staticmethod
+    def _get_gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the largest absolute difference of the codifferential and the excess.
+
+        The codifferential is that of the field, and the excess that of the good.
+
+        The excess is that of the good.
+        """
+        del t
+        density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
+        electric = np.ravel(np.asarray(values['links.E'], dtype=float))
+        return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
+
+    @staticmethod
+    def _get_market_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the total of the good and the Gauss residual against its excess density."""
+        space = system.elements[0].space.prepare()
+        return [
+            ObservableSpec('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
+            ObservableSpec(
+                'gauss_residual',
+                function=partial(GaugeArbitrageMarketSystem._get_gauss_residual, space.incidences_[0]),
+            ),
+        ]
 
     def __init__(
         self,
@@ -326,5 +329,5 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _market_observables(self._get_pass_parameters())
+        settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())
         return settings

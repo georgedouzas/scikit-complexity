@@ -22,6 +22,12 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+UPPER = 0
+MIDDLE = 1
+LOWER = 2
+INCOME_SIGMA = 0.6
+MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+
 
 class HouseholdView(AgentView):
     """Household as its rule sees it, with its income, phone, and class.
@@ -35,13 +41,6 @@ class HouseholdView(AgentView):
     social_class: float
     growth: float
     threshold: float
-
-
-UPPER = 0
-MIDDLE = 1
-LOWER = 2
-INCOME_SIGMA = 0.6
-MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
 
 class HouseholdElement(Element):

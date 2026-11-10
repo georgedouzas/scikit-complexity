@@ -90,7 +90,8 @@ class BassDiffusionSystem(StockFlowSystem):
         """Return the stocks and the parameters with their specs."""
         return {
             'P': DeclaredVariableSpec(
-                self.market - self.adopters, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people'),
+                self.market - self.adopters,
+                StateSpec(domain=RealSet.closed_open(0, oo), quantity='people'),
             ),
             'A': DeclaredVariableSpec(self.adopters, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')),
             'p': DeclaredVariableSpec(self.p, ParameterSpec(domain=RealSet.closed_open(0, oo))),

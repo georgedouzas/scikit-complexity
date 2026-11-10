@@ -25,6 +25,9 @@ from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction
 from ..common.policy import PolicyRuleInteraction
 
+PREDICTORS = ('fundamentalist', 'trend')
+PRICING = 'pricing'
+
 
 @dataclass(frozen=True)
 class _MarketStateSpec(BaseSpec):
@@ -53,12 +56,6 @@ class HeuristicTraderView(AgentView):
     predictor: float
     fundamentalist_fitness: float
     trend_fitness: float
-
-
-PREDICTORS = ('fundamentalist', 'trend')
-
-
-PRICING = 'pricing'
 
 
 class HeuristicTraderElement(Element):

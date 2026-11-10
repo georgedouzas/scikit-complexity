@@ -24,6 +24,8 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
+WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
+
 
 class WealthDensityElement(NonnegativeElement):
     """Value `x` of the density of agents at one wealth class.
@@ -249,9 +251,6 @@ class WelfarePolicyInteraction(EncounterInteraction):
         return table
 
 
-WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
-
-
 def wealth_classes(classes: int) -> npt.NDArray[np.float64]:
     """Return the wealth of every class.
 
@@ -328,11 +327,6 @@ def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expressi
     return moment(s.x, 1, wealth, normalized=True)
 
 
-def _classes_of(system: CompositeSystem) -> int:
-    """Return the number of wealth classes of a system, the size of its distribution."""
-    return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
-
-
 def wealth_observables(classes: int) -> list[ObservableSpec]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution.
 
@@ -403,6 +397,11 @@ class KineticWealthWelfareSystem(BaseSystem):
     until = 100
     dt = 1.0
 
+    @staticmethod
+    def _get_classes_of(system: CompositeSystem) -> int:
+        """Return the number of wealth classes of a system, the size of its distribution."""
+        return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
+
     def __init__(
         self,
         classes: int = 9,
@@ -469,5 +468,5 @@ class KineticWealthWelfareSystem(BaseSystem):
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()
-        settings['observables'] = wealth_observables(_classes_of(system))
+        settings['observables'] = wealth_observables(KineticWealthWelfareSystem._get_classes_of(system))
         return settings

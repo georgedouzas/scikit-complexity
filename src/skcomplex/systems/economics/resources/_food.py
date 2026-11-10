@@ -26,46 +26,12 @@ LEARNING_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0), (0.0, 0.4, 0.7, 0.9, 1.0))
 TONNES_PER_KG = 1e-3
 
 
-def _input_ratio(s: SimpleNamespace) -> Expression:
+def _get_input_ratio(s: SimpleNamespace) -> Expression:
     """Return the input ratio.
 
     It is the fraction of the recommended inputs that the farmers apply.
     """
     return s.bio_fraction + (1 - s.bio_fraction) * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs)
-
-
-def _productivity(s: SimpleNamespace) -> Expression:
-    """Return the productivity of the rice land."""
-    return s.potential * series(_input_ratio(s), *INPUT_EFFECT) * s.soil_quality * s.practice
-
-
-def _production(s: SimpleNamespace) -> Expression:
-    """Return the production of milled rice."""
-    return s.milling_rate * _productivity(s) * s.rice_area * s.cropping_intensity
-
-
-def _requirement(s: SimpleNamespace) -> Expression:
-    """Return the rice the population requires."""
-    return s.consumption * TONNES_PER_KG * s.population
-
-
-def _self_sufficiency(s: SimpleNamespace) -> Expression:
-    """Return the self-sufficiency, the production over the requirement."""
-    return _production(s) / _requirement(s)
-
-
-def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the yield potential, the soil, and the practice."""
-    chemical = 1 - s.bio_fraction
-    return [
-        RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
-        RateLaw(
-            s.soil_quality,
-            (1 - s.soil_quality) / s.regeneration_time
-            - s.degradation * chemical * _input_ratio(s) * s.cropping_intensity * s.soil_quality,
-        ),
-        RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
-    ]
 
 
 class RiceSectorElement(Element):
@@ -177,6 +143,20 @@ class RiceSectorElement(Element):
 
     law_classes = (RateLaw,)
 
+    @staticmethod
+    def _get_rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the yield potential, the soil, and the practice."""
+        chemical = 1 - s.bio_fraction
+        return [
+            RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
+            RateLaw(
+                s.soil_quality,
+                (1 - s.soil_quality) / s.regeneration_time
+                - s.degradation * chemical * _get_input_ratio(s) * s.cropping_intensity * s.soil_quality,
+            ),
+            RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
+        ]
+
     def __init__(
         self,
         label: str,
@@ -252,7 +232,7 @@ class RiceSectorElement(Element):
             laws:
                 The laws of the element.
         """
-        return _rice_laws(s)
+        return RiceSectorElement._get_rice_laws(s)
 
 
 class PartialAdjustmentInteraction(RateInteraction):
@@ -296,7 +276,7 @@ class PartialAdjustmentInteraction(RateInteraction):
         >>> relaxation = PartialAdjustmentInteraction('relaxation', target='stock', goal=10.0, time=0.5)
         >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
-        >>> round(float(trajectory.values('stock.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('stock.x')[-1]), 3)
         10.0
     """
 
@@ -351,6 +331,26 @@ class PartialAdjustmentInteraction(RateInteraction):
         state = getattr(self._get_member(namespace, 'target'), self.state)
         goal = self._broadcast(self._get_goal(namespace), state)
         return (goal - state) / self._get_time(namespace)
+
+
+def _get_productivity(s: SimpleNamespace) -> Expression:
+    """Return the productivity of the rice land."""
+    return s.potential * series(_get_input_ratio(s), *INPUT_EFFECT) * s.soil_quality * s.practice
+
+
+def _get_production(s: SimpleNamespace) -> Expression:
+    """Return the production of milled rice."""
+    return s.milling_rate * _get_productivity(s) * s.rice_area * s.cropping_intensity
+
+
+def _get_requirement(s: SimpleNamespace) -> Expression:
+    """Return the rice the population requires."""
+    return s.consumption * TONNES_PER_KG * s.population
+
+
+def _get_self_sufficiency(s: SimpleNamespace) -> Expression:
+    """Return the self-sufficiency, the production over the requirement."""
+    return _get_production(s) / _get_requirement(s)
 
 
 class FoodSecuritySystem(BaseSystem):
@@ -411,11 +411,11 @@ class FoodSecuritySystem(BaseSystem):
         [
             ObservableSpec(name, expression, element='rice')
             for name, expression in (
-                ('input_ratio', _input_ratio),
-                ('productivity', _productivity),
-                ('production', _production),
-                ('requirement', _requirement),
-                ('self_sufficiency', _self_sufficiency),
+                ('input_ratio', _get_input_ratio),
+                ('productivity', _get_productivity),
+                ('production', _get_production),
+                ('requirement', _get_requirement),
+                ('self_sufficiency', _get_self_sufficiency),
             )
         ],
     )

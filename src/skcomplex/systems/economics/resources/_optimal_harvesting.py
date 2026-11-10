@@ -19,19 +19,19 @@ from ...general.dynamics.types import Equations
 MAX_EFFORT = 1.0
 
 
-def _catch(s: SimpleNamespace) -> Expression:
-    """Return the catch per unit time, `q E x`."""
-    resource = s.resource
-    catch: Expression = resource.q * resource.effort * resource.x
-    return catch
-
-
-def _profit(s: SimpleNamespace) -> Expression:
+def _get_profit(s: SimpleNamespace) -> Expression:
     """Return the discounted profit per unit time, `exp(-delta t) (p q x - c) E`."""
     resource = s.resource
     margin = resource.p * resource.q * resource.x - resource.c
     profit: Expression = exp(-resource.delta * s.t) * margin * resource.effort
     return profit
+
+
+def _catch(s: SimpleNamespace) -> Expression:
+    """Return the catch per unit time, `q E x`."""
+    resource = s.resource
+    catch: Expression = resource.q * resource.effort * resource.x
+    return catch
 
 
 class OptimalHarvestingSystem(DynamicalSystem):
@@ -78,7 +78,7 @@ class OptimalHarvestingSystem(DynamicalSystem):
     references = ('Clark 1990',)
     until = 20.0
     dt = 0.2
-    solver = CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal')
+    solver = CollocationSolver(objective=_get_profit, sense='max', nodes=101, scheme='trapezoidal')
     observables = (ObservableSpec('catch', _catch),)
 
     def __init__(
