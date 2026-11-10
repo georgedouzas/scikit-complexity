@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
+from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
 from ..base import BasePart
 from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
@@ -278,8 +278,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
-        accepted = [*map(repr, values), *(['a function'] if functions else [])]
-        spec = ', or a spec that the part handles' if kinds else ''
+        named = [kind.__name__ for kind in kinds if kind is not BaseSpec]
+        accepted = [*named, *map(repr, values), *(['a function'] if functions else [])]
+        spec = ', or a spec that the part handles' if BaseSpec in kinds else ''
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)
 
