@@ -187,7 +187,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return p
 
     def _get_advanced(self, t: TracedArray, t1: TracedArray, x: TracedArray, p: TracedArray) -> TracedArray:
-        """Return the inner state after one inner step, an update or the solution of the ODE over the step."""
+        """Return the inner state after one inner step.
+
+        The step is an update or the solution of the ODE over the step.
+        """
         function = self.problem_.step
         if function is None:
             error_msg = 'The learning problem holds no JAX function of its inner problem.'

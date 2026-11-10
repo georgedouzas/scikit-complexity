@@ -25,7 +25,9 @@ POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """Empirical coverage of the credible intervals of calibration on data simulated from prior draws.
+    """Empirical coverage of the credible intervals of calibration on simulated data.
+
+    The data are simulated from prior draws.
 
     A calibrated posterior covers the true value with its central interval of level `q` in a share `q` of the data
     sets, and the ranks of the true values among their samples are uniform, as simulation-based calibration checks.
@@ -88,7 +90,10 @@ def _calibrate_truth(
     dt: float | None,
     solver: BaseSolver | None,
 ) -> CalibrationResult:
-    """Return the calibration of data simulated at one true parameter vector, with Gaussian noise."""
+    """Return the calibration of data simulated at one true parameter vector.
+
+    The data carry Gaussian noise.
+    """
     rng = np.random.default_rng(seed)
     trajectory = simulate(build_system(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
     names = list(paths) if paths is not None else list(_series_of(trajectory))
@@ -132,7 +137,7 @@ def posterior_coverage(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> CoverageResult:
-    """Return the empirical coverage of the credible intervals of a posterior method over prior draws.
+    """Return the empirical coverage of the credible intervals of a posterior method.
 
     It draws `n` true parameter vectors from the priors the bounds give, simulates data at each at the given times with
     Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often

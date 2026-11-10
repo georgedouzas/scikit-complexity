@@ -1,7 +1,7 @@
 ## 1. Preconditions and guard
 
 - [x] 1.1 Check that `add-system-package`, `slim-core-elements-and-spaces`, `slim-core-interactions`, `slim-core-laws`, `rename-core-systems`, `move-recipes-to-systems`, and `hoist-constants-and-helper-methods` are archived, and verify with `openspec list` that none of them is still open
-- [ ] 1.2 Fix the current summary lines over 80 characters and the docstrings that hold a semicolon, a dash used as punctuation, or a banned phrase in `skcomplex.core`, and verify with an AST walk that none is left
+- [x] 1.2 Fix the current summary lines over 80 characters and the docstrings that hold a semicolon, a dash used as punctuation, or a banned phrase in `skcomplex.core`, and verify with an AST walk that none is left
 - [ ] 1.3 Add `BANNED_PHRASES`, `test_docstring_summaries_are_short`, and `test_docstrings_read_naturally` to `tests/core/components/test_base.py`, walking every module of `skcomplex.core`, and verify they pass and fail on a planted em dash, spaced hyphen, and banned phrase
 - [ ] 1.4 Add `test_class_summaries_name_their_kind`, `test_docstrings_say_main_public_methods`, and `test_components_compare_and_name_uses` with the module constant `REWRITTEN`, empty at first, and verify they pass and fail on a planted bad summary
 - [ ] 1.5 Add `test_documents_read_naturally` with `REWRITTEN_DOCUMENTS`, empty at first, and the test that keeps its banned list equal to `BANNED_PHRASES`, to `tests/test_sources.py`, and verify they pass and fail on a planted dash in a listed page

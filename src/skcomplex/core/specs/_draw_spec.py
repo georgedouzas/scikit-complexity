@@ -62,7 +62,7 @@ class DrawSpec(BaseSpec):
     hard: bool = False
 
     def _check(self) -> None:
-        """Raise an error for a relaxation of a draw that is not discrete or not at a positive temperature.
+        """Raise an error unless the relaxed draw is discrete at a positive temperature.
 
         Raises:
             ValidationError:

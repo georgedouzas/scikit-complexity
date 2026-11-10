@@ -142,7 +142,9 @@ class JaxBackend(BaseBackend):
         throw: bool = True,
         draws: DrawKernel | None = None,
     ) -> Callable[..., TracedArray]:
-        """Return the pure function from an initial state and a parameter vector to the states at given times.
+        """Return the pure function that maps an initial state and parameters to states.
+
+        The states are those at the given times.
 
         A discrete map is unrolled over every whole step up to the last time with `jax.lax.scan`, and ordinary
         differential equations over the intervals between the times, each solved by `advance`. A map that draws takes

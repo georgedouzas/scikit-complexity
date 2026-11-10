@@ -69,7 +69,7 @@ class ArrayUpdateLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what array updates require of a system: discrete time on a lattice or a network."""
+        """Return what array updates require: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _get_law_requirements(self) -> RequirementSpec:

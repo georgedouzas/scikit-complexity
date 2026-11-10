@@ -1,8 +1,8 @@
 """Define the reductions and reads across the members of a group.
 
 They are Sage symbolic functions the compiler lowers. Sage has no reduction over the members of a group, so each
-reduction is a Sage `BuiltinFunction`, kept unevaluated in expressions. Arguments that are not symbolic, such
-as a constant weight matrix or a neighbourhood, ride in the expression as a symbol named after a digest of their value.
+reduction is a Sage `BuiltinFunction`, kept unevaluated in expressions. Arguments that are not symbolic, such as a
+constant weight matrix or a neighbourhood, ride in the expression as a symbol named after a digest of their value.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -119,8 +119,8 @@ class _HyperedgesFunction(_OperatorFunction):
     def _print_(self, *operands: Expression) -> str:
         """Return a hyperedge reduction call with its keywords.
 
-        The operands are the argument, the weight, the size, the kind, and the neighbourhood. It leaves out every
-        size, unit weight, and the hyperedges of the network.
+        The operands are the argument, the weight, the size, the kind, and the neighbourhood. It leaves out every size,
+        unit weight, and the hyperedges of the network.
         """
         argument, weight, size, kind, over = operands
         parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
@@ -137,7 +137,10 @@ HYPEREDGES = _HyperedgesFunction('hyperedges', nargs=5)
 
 
 class _ComponentsFunction(_OperatorFunction):
-    """Reduction over the connected components of the active members, printed with its keywords."""
+    """Reduction over the connected components of the active members.
+
+    It prints with its keywords.
+    """
 
     def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
         """Return a components reduction call with its keywords.
@@ -155,7 +158,10 @@ COMPONENTS = _ComponentsFunction('components', nargs=3)
 
 
 class _ShortestPathsFunction(_OperatorFunction):
-    """Reduction over the shortest paths between the active members, printed with its keywords."""
+    """Reduction over the shortest paths between the active members.
+
+    It prints with its keywords.
+    """
 
     def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
         """Return a shortest paths reduction call with its keywords.

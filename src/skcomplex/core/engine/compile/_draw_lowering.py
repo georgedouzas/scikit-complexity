@@ -413,7 +413,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
 
     @staticmethod
     def _get_relaxation(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
-        """Return the continuous relaxation of a Bernoulli or categorical draw of a uniform value.
+        """Return the continuous relaxation of a Bernoulli or categorical draw.
+
+        The draw is of a uniform value.
 
         A Bernoulli draw of probability `p` gives `sigmoid((logit p - logit u) / T)`, the binary concrete relaxation of
         the threshold `u < p` (Maddison et al. 2017). A categorical draw gives `sum_k sigmoid((u - c_k / W) / T)` over

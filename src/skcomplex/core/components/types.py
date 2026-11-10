@@ -95,7 +95,7 @@ class AgentViewProtocol(Protocol):
         group: str | None = None,
         over: DelaunayNeighborhood | None = None,
     ) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes, or in a neighbourhood of a continuous space.
+        """Return the other agents in the neighbouring cells or nodes, or nearby in space.
 
         They are of every group or of the group of a path.
         """

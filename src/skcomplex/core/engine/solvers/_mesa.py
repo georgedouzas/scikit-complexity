@@ -1546,7 +1546,9 @@ class MesaSolver(ExternalSolver):
         return [self._get_view_of(agent) for agent in self._get_group_agents(group)]
 
     def _get_delaunay_neighbors(self, agent: mesa.Agent, group: str, over: DelaunayNeighborhood) -> list[mesa.Agent]:
-        """Return the agents of a group joined to an agent by an edge of the Delaunay triangulation of their positions.
+        """Return the agents of a group that share a Delaunay edge with an agent.
+
+        The triangulation is that of the positions of the agents.
 
         The triangulation is kept for the step while the number of agents of the group stays the same, so it is
         computed again in a step only after agents are created or removed, and an agent removed in the step is left out.

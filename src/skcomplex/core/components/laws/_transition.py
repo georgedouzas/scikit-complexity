@@ -1,4 +1,4 @@
-"""Define transition laws, the steps of discrete-time Markov chains and their emissions."""
+"""Define transition laws, the steps and emissions of Markov chains."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,7 +79,9 @@ class TransitionLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a matrix that is not a function or a nonempty matrix, or a function with a source.
+        """Raise an error for a matrix that is neither a function nor a nonempty matrix.
+
+        It also raises it for a function with a source.
 
         A nonempty matrix is a sequence of rows of equal length.
 

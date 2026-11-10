@@ -47,7 +47,7 @@ class DrawLogSpec(BaseSpec):
     log_probability: float
 
     def _check(self) -> None:
-        """Raise an error when the firing times and laws differ in length or the times decrease."""
+        """Raise an error when firing times and laws differ in length or times decrease."""
         if len(self.firing_times) != len(self.firing_laws):
             error_msg = 'The firings hold times and laws of different lengths.'
             raise ValidationError(error_msg)

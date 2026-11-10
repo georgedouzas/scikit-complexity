@@ -115,6 +115,6 @@ class CheckFractionalNoisePass(BasePass):
 
     @staticmethod
     def _get_fractional_description(spec: KernelSpec, law: NoiseLaw) -> str:
-        """Return the description of a noise law with a Hurst index by the states it drives."""
+        """Describe a noise law with a Hurst index by the states it drives."""
         states = dict.fromkeys(spec._get_state_name(item) for item in components_of(law._get_targets()[0]))
         return f'fractional noise law of {", ".join(states)}'

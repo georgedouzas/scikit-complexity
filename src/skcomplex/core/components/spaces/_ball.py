@@ -75,15 +75,23 @@ class BallNeighborhood(LatticeNeighborhood):
         self.center = center
 
     def _get_chebyshev_offsets(self) -> tuple[IntTuple, ...]:
-        """Return every offset whose coordinates are all within the radius, in lexicographic order."""
+        """Return the offsets whose coordinates all lie within the radius.
+
+        They come in lexicographic order.
+        """
         return tuple(itertools.product(range(-self.radius, self.radius + 1), repeat=self.n_dim))
 
     def _get_manhattan_offsets(self) -> tuple[IntTuple, ...]:
-        """Return every offset whose absolute coordinates sum to at most the radius, in lexicographic order."""
+        """Return the offsets whose absolute coordinates sum to at most the radius.
+
+        They come in lexicographic order.
+        """
         return tuple(offset for offset in self._get_chebyshev_offsets() if sum(map(abs, offset)) <= self.radius)
 
     def _get_hexagonal_offsets(self) -> tuple[IntTuple, ...]:
-        """Return the offsets of a triangular lattice within the radius, ring by ring and counterclockwise.
+        """Return the offsets of a triangular lattice within the radius, ring by ring.
+
+        Each ring runs counterclockwise.
 
         Every ring starts at the radius of the ring along the second axis, and walks its six sides.
         """
@@ -111,7 +119,7 @@ class BallNeighborhood(LatticeNeighborhood):
         return (site, *others) if self.center == 'first' else others
 
     def _check(self) -> None:
-        """Raise an error for a metric, a centre, a radius, or a dimension the ball cannot take."""
+        """Raise an error for a metric, centre, radius, or dimension the ball cannot take."""
         if self.metric not in METRICS:
             error_msg = f'The ball {self.label!r} has the metric {self.metric!r}. Use one of {", ".join(METRICS)}.'
             raise ValidationError(error_msg)

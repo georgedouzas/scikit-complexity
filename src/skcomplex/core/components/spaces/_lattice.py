@@ -166,7 +166,7 @@ class LatticeSpace(BaseSpace):
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
     def _get_default_neighborhood(self) -> LatticeNeighborhood:
-        """Return the neighbourhood agents query, the ball of radius 1 under the metric of the lattice."""
+        """Return the neighbourhood agents query, the unit ball under the lattice metric."""
         return BallNeighborhood(metric=self.metric_, n_dim=self.n_dim_)
 
     def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:

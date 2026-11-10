@@ -34,7 +34,9 @@ MEMBER_NDIM = 3
 
 
 class MarkovPass(BasePass):
-    """Pass that rewrites transition laws, with or without a source, into Markov matrices.
+    """Pass that rewrites transition laws into Markov matrices.
+
+    It rewrites laws with or without a source.
 
     The matrices are checked at the initial values.
     """

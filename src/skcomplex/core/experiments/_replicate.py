@@ -80,7 +80,7 @@ def _check_plain(system: CompositeSystem) -> None:
 
 
 def _is_declared_companion(element: Element, variable: VariableSpec) -> bool:
-    """Return whether a variable is a companion state of a state an element declares from data."""
+    """Return whether a variable is a companion of a state declared from data."""
     state = variable.derivative_of or variable.lag_of
     return state is not None and state in element._get_declared()
 

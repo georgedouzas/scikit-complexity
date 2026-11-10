@@ -121,7 +121,7 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _prepare_part(part: Element | GroupElement | BaseInteraction, place: BaseSpace | None, scope: str) -> None:
-        """Prepare an element, group, or interaction on its place, which checks its arguments.
+        """Prepare an element, group, or interaction on its place, checking its arguments.
 
         Its error is raised with the path of the part.
         """

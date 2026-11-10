@@ -102,7 +102,9 @@ class BilinearLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
     def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for a rate or outcome table of the wrong dimensions, or a conserved law without outcomes.
+        """Raise an error for a rate or outcome table of the wrong dimensions.
+
+        It also raises it for a conserved law without outcomes.
 
         It also raises it when their class counts disagree, or for a law without a second density that is not conserved.
 

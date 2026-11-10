@@ -699,7 +699,7 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_opaque_calls(expression: Expression) -> dict[Expression, Expression]:
-        """Return a symbol for every outermost call of an unknown function or a library operator.
+        """Return a symbol per outermost call of an unknown function or library operator.
 
         Such a call has no value at numbers.
         """

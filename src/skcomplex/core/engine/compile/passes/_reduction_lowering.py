@@ -1417,7 +1417,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         block: BlockSpec,
         size: int,
     ) -> tuple[StaticSearch | MetricSearch, list[Indices] | None]:
-        """Return the search of the hyperedges around every member and the tables of their other members.
+        """Return the hyperedge search around every member and the tables of other members.
 
         On a network, the search runs over the incidences of the hyperedges of the size, and the tables give the other
         member at every position. Over a neighbourhood, the search finds the current neighbours, which the kernel forms

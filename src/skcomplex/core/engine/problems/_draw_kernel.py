@@ -137,7 +137,7 @@ class DrawKernel(BaseKernel):
 
     @staticmethod
     def _get_slot_values(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], values: Array) -> Array:
-        """Return the uniform or normal values that the lowered law turns into given values of a draw.
+        """Return the uniform or normal values the lowered law turns into values of a draw.
 
         A draw from `scipy.stats` keeps its values.
         """

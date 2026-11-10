@@ -294,7 +294,7 @@ class Simulation(BaseConfig[None, float]):
             observer.prepare(self.problem_)
 
     def _draw_recorder(self) -> DrawRecorder | None:
-        """Return the recorder of the draws of a run that records or replays them, or `None`.
+        """Return the recorder of the draws of a run that records or replays, or `None`.
 
         Returns:
             recorder:

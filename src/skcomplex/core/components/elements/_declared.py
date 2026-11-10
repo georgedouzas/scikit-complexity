@@ -84,7 +84,7 @@ class DeclaredElement(Element):
         return declared
 
     def _get_companions(self) -> dict[str, tuple[str, int]]:
-        """Return the state and the position in its initial values of every companion state, by name.
+        """Return the state and the initial value position of every companion, by name.
 
         A declared state of order `k` has the companions `<name>_d1` to `<name>_d<k-1>`, and one with `m` lags has the
         companions `<name>_lag1` to `<name>_lag<m>`.
@@ -100,7 +100,7 @@ class DeclaredElement(Element):
         return companions
 
     def _get_initial(self, name: str) -> list[object]:
-        """Return the initial values of the companions of a declared state, one per companion.
+        """Return the initial values of the companions of a declared state.
 
         A missing initial value of a derivative is zero and one of a lag is the value of the state, as the compiler
         reads them.

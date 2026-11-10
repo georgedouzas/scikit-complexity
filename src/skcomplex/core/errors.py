@@ -17,7 +17,10 @@ class ValidationError(SkcomplexError):
 
 
 class ContextError(ValidationError):
-    """A configurable object is prepared without the context it needs, such as a solver without its problem."""
+    """A configurable object is prepared without the context it needs.
+
+    For example, a solver is prepared without its problem.
+    """
 
 
 class AlgebraicStateError(ValidationError):

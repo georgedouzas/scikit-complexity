@@ -75,7 +75,10 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 class _MittagLefflerFunction(_OperatorFunction):
-    """Symbolic Mittag-Leffler function `mittag_leffler(alpha, beta, z)`, with a numeric value at numbers."""
+    """Symbolic Mittag-Leffler function `mittag_leffler(alpha, beta, z)`.
+
+    It has a numeric value at numbers.
+    """
 
     @staticmethod
     def _get_reciprocal_gamma(argument: RealNumber) -> RealNumber:

@@ -1149,7 +1149,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _set_loops(reduction: NeighborhoodKernel, index: int) -> list[str]:
-        """Return the lines of the nested loops over the sets of neighbours of the member `_i_`.
+        """Return the lines of the nested loops over the neighbour sets of member `_i_`.
 
         The neighbours of a set are `_j0_`, `_j1_`, and so on, in increasing neighbour order, so every set is visited
         once and reduced as it is visited.

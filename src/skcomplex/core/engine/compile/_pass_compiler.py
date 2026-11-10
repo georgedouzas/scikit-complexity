@@ -1313,7 +1313,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _draw_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
-        """Return a warning for every Bernoulli or categorical draw without a temperature on JAX.
+        """Return a warning per Bernoulli or categorical draw without temperature on JAX.
 
         The JAX backend runs such a draw exactly, so runs have no gradient through it, and differentiable runs stop at
         the warning.
@@ -1337,7 +1337,9 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_around_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
-        """Return the reductions over hyperedges of a component outside a fitting space or backend.
+        """Return the hyperedge reductions of a component outside a fitting space.
+
+        A fitting space comes with a fitting backend.
 
         The network must have hyperedges of their size. The hyperedges of current neighbours need a continuous space and
         a backend with the neighbour search.
@@ -1598,7 +1600,7 @@ class PassCompiler(BaseCompiler):
         over: object,
         backend: BaseBackend | None,
     ) -> IssueSpec | None:
-        """Return the issue of a reduction over the hyperedges of current neighbours, or `None`.
+        """Return the issue of a reduction over hyperedges of neighbours, or `None`.
 
         It needs a continuous space and the NumPy or Numba backend.
 

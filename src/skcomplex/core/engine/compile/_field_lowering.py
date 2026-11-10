@@ -709,7 +709,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return self._get_derived(place, read.prepare())
 
     def _get_collision_kernel(self, kernel: Expression) -> Callable[[Array, Array], Array]:
-        """Return the NumPy function of the arrays of speeds and cosines that a collision kernel gives.
+        """Return the NumPy function of speeds and cosines that a collision kernel gives.
 
         A kernel that reads a state or a parameter raises an error, since the weights are assembled once.
         """

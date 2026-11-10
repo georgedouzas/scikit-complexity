@@ -10,7 +10,9 @@ from ._base import BaseNeighborhood
 
 
 class DelaunayNeighborhood(BaseNeighborhood):
-    """Members of a continuous space joined to a member by an edge of the Delaunay triangulation of the positions.
+    """A neighbourhood of the members joined by edges of a Delaunay triangulation.
+
+    The triangulation is that of the positions of the members of a continuous space.
 
     It is the natural neighbourhood of points in the plane or in space, the members whose Voronoi cells touch, as in
     cells joined by springs, foams, territories, and meshes of moving particles. The triangulation is computed again

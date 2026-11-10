@@ -1,4 +1,4 @@
-"""Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
+"""Define the search of neighbours in a continuous space by their positions.
 
 They are found at every evaluation.
 """
@@ -25,7 +25,9 @@ from ._base import BaseSearch
 
 
 class MetricSearch(BaseSearch):
-    """Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
+    """Neighbours in a continuous space, found from the positions of the members.
+
+    The search uses a k-d tree or a Delaunay triangulation.
 
     They are found at every evaluation.
 
@@ -144,7 +146,7 @@ class MetricSearch(BaseSearch):
 
     @staticmethod
     def _get_delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
-        """Return the pairs of members joined by an edge of the Delaunay triangulation of the positions.
+        """Return the pairs of members joined by an edge of the Delaunay triangulation.
 
         In a periodic box of the periods the positions are triangulated with their periodic images, and every edge joins
         the members of its two ends. Too few members, or members in a degenerate position, give every member all the

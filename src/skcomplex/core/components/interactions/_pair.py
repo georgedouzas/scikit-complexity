@@ -117,7 +117,9 @@ class PairInteraction(BaseInteraction):
         self.period = period
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error unless at most one of the function and the potential is given, as a callable.
+        """Raise an error unless at most one of the function and the potential is given.
+
+        The one given must be a callable.
 
         Args:
             context:

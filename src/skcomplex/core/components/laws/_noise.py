@@ -131,7 +131,10 @@ class NoiseLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _check_hurst(self) -> None:
-        """Raise an error for a Hurst index outside `(0, 1)`, with a process, or on a conserved noise."""
+        """Raise an error for a Hurst index outside `(0, 1)`.
+
+        It also raises it for a Hurst index with a process or on a conserved noise.
+        """
         if self.hurst is None:
             return
         if isinstance(self.hurst, int | float) and not 0 < self.hurst < 1:
@@ -151,7 +154,9 @@ class NoiseLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an array value, an unknown convention, an invalid process, or Hurst index.
+        """Raise an error for an array value, an unknown convention, or an invalid process.
+
+        It also raises it for an invalid Hurst index.
 
         The array is a NumPy array.
 
