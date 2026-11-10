@@ -31,3 +31,22 @@ plays, refreshed from a league of past weights.
 #### Scenario: Frozen opponent
 - **WHEN** a player trains against a frozen copy of the other
 - **THEN** the weights of the frozen copy stay equal between refreshes
+
+### Requirement: Policies learn during a run
+`PolicyInteraction` with `online=True` SHALL apply one gradient step to its weights after the reward of every decision
+inside `simulate`, by one-step actor-critic with a critic or by the reward against a running baseline without one, and
+the trajectory SHALL record the weights at every frame. `train_policy` SHALL refuse a system with an online policy.
+
+#### Scenario: Gradient bandit with a baseline
+- **WHEN** online policies with and without a baseline run 1000 steps of `MultiArmedBanditSystem(mean=4.0)` over 200
+  seeded tasks
+- **THEN** the share of optimal actions in the last 100 steps is higher with the baseline, as in Figure 2.5 of Sutton
+  and Barto
+
+#### Scenario: Weights as a trajectory
+- **WHEN** two online policies play a random game of 10 moves for 5000 decisions
+- **THEN** the trajectory holds their weights at every frame, and `lyapunov` reads them as states
+
+#### Scenario: Online policy in training
+- **WHEN** `train_policy` is called on a system whose policy has `online=True`
+- **THEN** it raises `ValidationError` that names the policy and `online`

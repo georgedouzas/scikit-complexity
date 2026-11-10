@@ -17,8 +17,29 @@
   `docs/examples/social/cooperation/plot_learning_prisoners_dilemma.py`, and verify the inventory check and the
   gallery build pass
 
-## 3. Documentation and checks
+## 3. Learning during a run
 
-- [ ] 3.1 Document multi-agent training in the experiments page of the user guide with a runnable example
-- [ ] 3.2 Run `nox` (formatting, checks, tests of the touched modules with the thread limits set to 1, and the strict
+- [ ] 3.1 Add the rule `'epsilon-greedy'` and `epsilon` to `ChoiceInteraction` in
+  `src/skcomplex/systems/general/agents/_choice.py`, and verify the share-of-the-best-option scenario in
+  `tests/systems/general/agents/`
+- [ ] 3.2 Add `TemporalDifferenceInteraction` in `src/skcomplex/systems/general/agents/_temporal_difference.py` with
+  the four rules, `rate='average'`, and the symbolic and agent forms, export it, and verify the Q-learning-target,
+  SARSA-target, and sample-averages scenarios and its doctest
+- [ ] 3.3 Add `MultiArmedBanditSystem` in `src/skcomplex/systems/biology/neuroscience/_reinforcement_tasks.py`, export
+  it, and verify the greedy-and-epsilon-greedy-learners scenario, marked slow, with a fast variant of 200 tasks
+- [ ] 3.4 Add `CliffWalkingSystem` in the same module, export it, and verify the safe-and-optimal-paths scenario
+- [ ] 3.5 Add `online`, `learning_rate`, and `critic` to `PolicyInteraction` with the runtime update after every
+  decision, refuse online policies in `train_policy`, and verify the gradient-bandit-with-a-baseline,
+  weights-as-a-trajectory, and online-policy-in-training scenarios
+- [ ] 3.6 Add the inventory entries `multi_armed_bandit` and `cliff_walking` citing Sutton and Barto (2018) with the
+  primitives `learning` and `discrete-states`, and the gallery examples
+  `docs/examples/biology/neuroscience/plot_multi_armed_bandit.py`, which reproduces Figure 2.2, and
+  `docs/examples/biology/neuroscience/plot_cliff_walking.py`, and add to the learning prisoner's dilemma example two
+  online policies on a random game measured by `lyapunov` after Galla and Farmer (1109.4250), and verify the inventory
+  check and the gallery build pass
+
+## 4. Documentation and checks
+
+- [ ] 4.1 Document multi-agent training and learning during a run in the experiments page of the user guide with a runnable example
+- [ ] 4.2 Run `nox` (formatting, checks, tests of the touched modules with the thread limits set to 1, and the strict
   docs build) and verify every session passes
