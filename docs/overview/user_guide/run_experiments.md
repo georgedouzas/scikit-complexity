@@ -196,3 +196,59 @@ capacity, and the likelihood-ratio interval of `K` is open at both bounds.
   level. The verdict is `'strong'` when the error is at most the level, `'weak'` when it is at most ten times the
   level, and `'none'` above, after Liyanage et al. (2025), and a parameter takes its worst verdict over the levels.
 - Cost: a profile costs many fits, and refits cost `n` fits per level, each of many runs of the system.
+
+### Virtual populations and individuals
+
+Sample parameter sets whose runs look like real individuals, match them to observed values, and fit every individual
+of a data set on its own. Quantitative systems pharmacology works this way: it samples virtual patients, keeps those
+whose outputs are plausible, matches the population to observed patients, and calibrates a digital twin of every
+patient.
+
+```python
+import numpy as np
+
+from skcomplex.core.experiments import calibrate_individuals, virtual_population
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+population = virtual_population(
+    LogisticGrowthSystem(),
+    {'r': (0.1, 1.0)},
+    ['population.x'],
+    {'population.x': (50.0, 100.0)},
+    n=40,
+    target={'population.x': np.random.default_rng(1).normal(80.0, 5.0, 50)},
+    until=5.0,
+    random_state=0,
+)
+population.acceptance, len(population.selected) <= len(population.plausible)
+
+times = np.arange(0.0, 21.0)
+data = {
+    'north': {'population.x': (times, 100 / (1 + 9 * np.exp(-0.4 * times)))},
+    'south': {'population.x': (times, 100 / (1 + 4 * np.exp(-0.7 * times)))},
+}
+twins = calibrate_individuals(
+    LogisticGrowthSystem(),
+    data,
+    {'r': (0.1, 2.0)},
+    known={'north': {'n': 10.0}, 'south': {'n': 20.0}},
+)
+twins.estimates['r'].round(2).to_dict()
+```
+
+- Virtual populations: `virtual_population` draws `n` rows from the priors with `sweep`, by `design='random'` or
+  `'latin_hypercube'`, and computes `outputs`, paths whose last values are the outputs or functions of a trajectory
+  named by the function. A row is plausible when every output of `constraints` lies in its `(low, high)` range, and
+  `acceptance` is the share of plausible rows. When no row is plausible, the error names the constraint that rejected
+  most rows.
+- Selection by inclusion: `target` maps one output to its observed values. The probability of inclusion of a plausible
+  row is the density of the observed values over the density of the plausible population at the output of the row,
+  both Gaussian kernel density estimates, scaled so that its largest value is one (Allen et al. 2016). A seeded draw
+  keeps every row with its probability, so `selected` follows the observed distribution. Selection needs at least ten
+  plausible rows.
+- Results: `plausible` and `selected` are pandas data frames with one column per parameter and output, and `inclusion`
+  holds the probability of every plausible row.
+- Individuals: `calibrate_individuals` takes the data of every individual and its known model parameters, such as the
+  dose a patient received, and calls `calibrate` on every individual with any of its methods, on `executor`. A
+  parameter must not be both known and fitted. `calibrations` holds the `CalibrationResult` of every individual, whose
+  `system` is its digital twin, and `estimates` a data frame with one row per individual.
