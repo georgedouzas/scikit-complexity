@@ -1,4 +1,4 @@
-"""Define the base of laws, the rules by which states change."""
+"""Define the abstract base of every law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,13 +24,19 @@ from ..base import BasePart
 
 
 class BaseLaw(BasePart[str, object]):
-    """Base of every law.
+    """An abstract law, one equation or rule by which states change.
 
-    A law is a rule by which states change, which an element, an interaction, or a system returns. A law takes the
-    states it changes and the expressions it reads as arguments of its own `__init__`, which stores each under its own
-    name, as in scikit-learn. It returns the states it changes from `_get_targets`, what it requires of a system, such
-    as continuous or discrete time, from `_get_requirements`, and its value at given values of the symbols it reads from
-    `_run`, which sets it as `value_`.
+    An element, an interaction, or a system returns laws from its `_get_laws`, and the compiler lowers them to a problem
+    that a solver runs. A law takes the states it changes and the expressions it reads as arguments of its `__init__`,
+    which stores each under the same name, as a scikit-learn estimator does. A subclass returns the states it changes
+    from `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and
+    its value for given values of the symbols it reads from `_run`, which sets it as `value_`.
+
+    Unlike `BasePart`, it belongs to another part and is not added to a system on its own. Choose it when a new kind of
+    dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`, otherwise.
+
+    It appears in every field through its subclasses, such as the rate of an epidemic, the next value of a cellular
+    automaton, a chemical reaction as a random jump, and Kirchhoff's laws as equations.
 
     Args:
         label:

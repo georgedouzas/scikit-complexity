@@ -1,9 +1,4 @@
-"""Define the reductions and reads across the members of a group.
-
-They are Sage symbolic functions the compiler lowers. Sage has no reduction over the members of a group, so each
-reduction is a Sage `BuiltinFunction`, kept unevaluated in expressions. Arguments that are not symbolic, such as a
-constant weight matrix or a neighbourhood, ride in the expression as a symbol named after a digest of their value.
-"""
+"""Define the reductions and reads across the members of a group."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

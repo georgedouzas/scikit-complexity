@@ -1,9 +1,4 @@
-"""Define the distributed delays of system dynamics as Sage symbolic functions.
-
-The compiler expands them into stages. Sage has no delay of an input through hidden stages, so every delay is a Sage
-`BuiltinFunction`, named after its kind and its order and kept unevaluated in expressions. The compiler adds
-its stages as hidden states.
-"""
+"""Define the distributed delays of a value, expanded into hidden stages."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

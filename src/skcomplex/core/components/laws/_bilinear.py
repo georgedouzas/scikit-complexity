@@ -1,7 +1,4 @@
-"""Define bilinear laws.
-
-They are gains and losses of a density at the rate of the product of two densities.
-"""
+"""Define the law where members of two distributions meet."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,22 +15,24 @@ from ._base import BaseLaw
 
 
 class BilinearLaw(BaseLaw):
-    """Gain or loss of a target density at a signed rate of a product of densities.
+    """A law where members of two distributions meet and change class.
 
-    The product is of two densities. The amount of the first density `f` in class `h` that meets the amount of the
-    second density `g` in class `k` adds to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`,
-    so the law adds `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a gain
-    that leaves the first density in place, and a negative rate with the first density as the target gives a loss.
+    A distribution is a group of elements, one per class of a trait, that holds how much of a population sits in each
+    class. When an amount of the first distribution `f` in class `h` meets an amount of the second distribution `g` in
+    class `k`, at the rate `rate[h, k]`, it adds to class `i` of the target with the probability `outcomes[h, k, i]`.
+    The law adds `sum_hk rate[h, k] outcomes[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a
+    gain that leaves the first distribution in place, and a negative rate with the first distribution as target gives a
+    loss.
 
-    A conserved law also takes the matching loss from the first density, so it is the bilinear transfer of the first
-    density between its classes. It adds the gain and the loss
+    A conserved law also takes the matching amount from class `h` of the first distribution, so the total stays the
+    same: `df_i/dt = sum_hk rate[h, k] outcomes[h, k, i] f_h g_k - f_i sum_k rate[i, k] g_k`. A second distribution that
+    no law changes is a fixed input, and a conserved law without one is a linear redistribution between classes.
 
-    `df_i/dt = sum_hk r[h, k] B[h, k, i] f_h g_k - f_i sum_k r[i, k] g_k`,
+    Unlike `RateLaw`, which gives the rate of one state by an expression, it sums a product of two distributions over
+    every pair of classes. Choose it when the change of a population comes from binary meetings of its members.
 
-    where the loss acts on the first density and the gain on the target, the first density itself by default, so the
-    total over the classes is conserved. The densities are states of groups on the sites of lattices of classes, one
-    member per class. A second density that no law changes is a fixed external input, and a conserved law without one
-    is a linear redistribution, with one class of value one.
+    It appears in many fields. Traders exchange wealth when they meet, people shift their opinion after a conversation,
+    immune cells destroy tumour cells they meet, and gas molecules change velocity when they collide.
 
     Args:
         target:

@@ -1,7 +1,4 @@
-"""Define the signals of time that laws drive states with.
-
-They are steps, ramps, pulses, and series.
-"""
+"""Define the signals of time that drive states, such as steps, ramps, and pulses."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

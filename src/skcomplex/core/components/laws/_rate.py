@@ -1,4 +1,4 @@
-"""Define rate laws, contributions to the highest time derivative of a state."""
+"""Define the law that adds to the highest time derivative of a state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +14,17 @@ from ._base import BaseLaw
 
 
 class RateLaw(BaseLaw):
-    """Contribution to the highest time derivative of a state.
+    """A law that adds a rate to the highest time derivative of a state.
 
-    It is the first derivative for states of order 1. Rates on the same state add up, so a system with only rate laws is
-    a system of ordinary differential equations. On a state of order `k`, a rate contributes to the `k`-th derivative,
-    so independent mechanisms superpose.
+    On a state of order 1 the rate is its first derivative, and on a state of order `k` it adds to the `k`th derivative.
+    Rates on the same state add up, so separate mechanisms superpose, and a system with only rate laws is a system of
+    ordinary differential equations.
+
+    Unlike `UpdateLaw`, which gives the next value in discrete time, it gives a derivative in continuous time. Choose it
+    when a state flows, and add a `NoiseLaw` for a random part.
+
+    It appears in many fields. Infected people recover at a rate, a balance grows by interest, a reactant is consumed by
+    mass action, and a pendulum accelerates under gravity.
 
     Args:
         target:

@@ -1,8 +1,7 @@
-"""Define what laws are written with besides Sage.
+"""Define the functions that laws are written with besides Sage.
 
-They are reductions, pointwise functions, signals, draws, delays, operators of fields, and calls. The namespace holds
-only what a law is written with. The helpers that only the compiler reads, such as the functions that list the draws
-or the reductions of an expression, stay in the private modules.
+They hold reductions over the members of a group, pointwise functions, signals of time, random draws, delays, and the
+operators of fields. The helpers that only the compiler reads stay in the private modules.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

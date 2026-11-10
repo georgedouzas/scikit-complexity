@@ -1,4 +1,4 @@
-"""Define update laws, the next values of states after one discrete time step."""
+"""Define the law that gives the next value of a state after one discrete step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,21 +13,22 @@ from ._base import BaseLaw
 
 
 class UpdateLaw(BaseLaw):
-    """Next value of a state after one discrete time step.
+    """A law that gives the next value of a state after one discrete time step.
 
-    A state takes one update law, unless each of its update laws declares how it combines with the others. An
-    `increment` law gives the state plus a change, and a law with a `source` changes only a state that holds the source
-    value and keeps every other value. Several such laws of one state combine in one step by adding their changes,
-    `x + sum_k (f_k - x)`, all computed from the states at the start of the step, so increments add and moves from
-    distinct source values compose. Two laws with the same source, or a law that declares neither, are an error.
+    A state takes one update law, unless each of its update laws says how it combines with the others. An `increment`
+    law gives the state plus a change, and a law with a `source` changes only a state that holds the source value. Such
+    laws of one state add their changes, `x + sum_k (f_k - x)`, all computed from the states at the start of the step.
+    Two laws with the same source, or a law that declares neither, are an error.
 
-    With an `order`, the members of a group update one after the other, in increasing order of the value of `order` at
-    the start of the step, ties in the order of the members, and each member reads the values the members before it
-    set. Without one, every member updates at once from the states at the start of the step.
+    With `order`, the members of a group update one after the other, in increasing order of `order`, and each reads the
+    values set before it. Without it every member updates at once. With `phase`, the law runs in that phase of the step,
+    which a `PhasesScheduleSpec` of the discrete time orders, and each phase reads the states the phases before it set.
 
-    With a `phase`, the law runs in that phase of the step, which a `PhasesScheduleSpec` of the discrete time orders.
-    The phases run one after the other, each reading the states the phases before it set, and the laws of one phase
-    update at once. A law without a phase runs in the default phase, first unless the schedule places it.
+    Unlike `RateLaw`, which gives a derivative in continuous time, it gives the next value in discrete time. Choose it
+    when the model steps, such as a map, a generation, or a round.
+
+    It appears in many fields. The logistic map follows a population from year to year, a cellular automaton steps its
+    cells, and an account compounds interest monthly.
 
     Args:
         target:

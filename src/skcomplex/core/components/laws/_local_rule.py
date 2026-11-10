@@ -1,7 +1,4 @@
-"""Define local rule laws.
-
-They give the next values of lattice cells from the ordered values of their neighbourhoods.
-"""
+"""Define the law that sets cells from the ordered values of their neighbourhoods."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,17 +32,22 @@ TABLE_AXES = 2
 
 
 class LocalRuleLaw(BaseLaw):
-    """Next value of lattice cells from the ordered values of their neighbourhoods.
+    """A law that sets the next value of cells from their ordered neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
-    site, and keyword arguments for the parameters of the element that it names, plus `random`, an array of uniform
-    numbers per site, when the rule is stochastic, and `degree`, the number of neighbours of every site besides the
-    site itself, when it names it. It returns the next values of the target, or a tuple with one array per target.
+    site. It also receives the parameters of the element it names, `random`, a uniform number per site, when the rule is
+    stochastic, and `degree`, the number of neighbours of every site, when it names it. It returns the next values of
+    the target, or one array per target. A table or a totalistic rule may stand in place of the function.
 
-    A run computes one synchronous step. Its input is a mapping with `space`, the space of the sites, the values of
-    every read state under the name of its symbol, with one value per site or one row of values per configuration, and
-    the keyword arguments a function rule names. Sites outside a lattice with fixed edges or outside a ball read the
-    fill value of the space.
+    A run computes one synchronous step. Its input holds `space`, the space of the sites, the values of every read state
+    by the name of its symbol, and the arguments a function rule names. Sites outside a lattice with fixed edges read
+    the fill value of the space.
+
+    Unlike `UpdateLaw`, which gives the next value by an expression of one member, it reads the ordered neighbourhood of
+    each cell. Choose it when the next value of a cell depends on the exact pattern around it.
+
+    It appears in many fields. Conway's Game of Life, elementary cellular automata, models of excitable tissue, and
+    models of traffic on a ring road follow local rules.
 
     Args:
         targets:

@@ -1,7 +1,4 @@
-"""Define generator laws.
-
-They are the Hermitian operators that add up to the generator of a linear evolution.
-"""
+"""Define the law that adds a Hermitian operator to the generator of an evolution."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,9 +15,16 @@ from .utils._local_operators import has_operator
 
 
 class GeneratorLaw(BaseLaw):
-    """Hermitian operator that adds to the generator `H` of a linear evolution.
+    """A law that adds a Hermitian operator to the generator of a linear evolution.
 
-    The evolution is `dx/dt = -i H x` on a tensor product.
+    The evolution is `dx/dt = -i H x`, where `H` is a Hermitian matrix on a tensor product of subsystems, such as the
+    Hamiltonian of quantum mechanics. Every generator law adds its operator to `H`.
+
+    Unlike `DissipatorLaw`, which adds an irreversible loss, it adds a reversible part that keeps the norm of the state.
+    Choose it when a state evolves by a unitary map, as a closed quantum system does.
+
+    It appears in quantum mechanics, where it gives the Schrödinger equation of spins and atoms, and in quantum walks on
+    networks, which search a graph.
 
     Args:
         operator:

@@ -1,7 +1,4 @@
-"""Define the helpers of agent rules.
-
-They are transfers between agents and the pairings of match laws.
-"""
+"""Define the helpers of agent rules, transfers and the pairs of a step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

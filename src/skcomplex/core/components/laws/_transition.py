@@ -1,4 +1,4 @@
-"""Define transition laws, the steps and emissions of Markov chains."""
+"""Define the law of one step of a Markov chain over a finite set of values."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,15 +15,21 @@ from ._base import BaseLaw
 
 
 class TransitionLaw(BaseLaw):
-    """Step of a discrete-time Markov chain.
+    """A law that draws the next value of a discrete state from a transition matrix.
 
-    The state is over a finite alphabet and drawn from a row of a transition matrix. The state's current value selects
-    the row, and the next value is drawn from it. The state takes a categorical domain or the integers from 0 to `n -
-    1`. A transition is a kind of update, so it combines with update laws.
+    A Markov chain over a finite set of values draws its next value from the row of a matrix that its current value
+    selects. The state takes a categorical domain or the integers from 0 to `n - 1`. A transition is a kind of update,
+    so it combines with update laws.
 
-    With a source state, the law is the observation of a hidden Markov source. The value of the source state selects the
-    row instead, and the law reads it after the same step, so the hidden and observed sequences align. The matrix then
-    has one row per value of the source state and one column per value of the target, and it is symbolic only.
+    With `source`, the law is the observation of a hidden Markov model. The value of the source state selects the row,
+    and the law reads it after the same step, so the hidden and the observed sequences align. The matrix then has one
+    row per value of the source and one column per value of the target, and it is symbolic only.
+
+    Unlike `UpdateLaw`, which computes the next value, it draws it from a distribution over values. Choose it when a
+    state moves at random among a few values.
+
+    It appears in many fields. Weather moves between dry and wet days, a text model draws the next word, a gene sequence
+    moves between coding and non-coding regions, and a credit rating moves between grades.
 
     Args:
         target:

@@ -1,7 +1,4 @@
-"""Define the moments of a distribution held by a group.
-
-The members of the group stand for the points of a grid of coordinates.
-"""
+"""Define the moments of a distribution that a group holds over a grid."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

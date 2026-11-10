@@ -1,4 +1,8 @@
-"""Define laws, the rules by which states change."""
+"""Define laws, the rules by which states change.
+
+A law is one equation or rule for the states it targets, such as a rate, the next value at a step, a random jump, or an
+algebraic equation. Elements, interactions, and systems return laws, and the compiler lowers them to a problem.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

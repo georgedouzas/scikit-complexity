@@ -1,7 +1,4 @@
-"""Define array update laws.
-
-An array update law sets a whole lattice state at once from a function of its array.
-"""
+"""Define the law that replaces a whole array state by the output of a function."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,13 +16,19 @@ from ._base import BaseLaw
 
 
 class ArrayUpdateLaw(BaseLaw):
-    """Update of a whole lattice state at once by a function of its array.
+    """A law that replaces a whole array state by the output of a function.
 
-    An example is adding 1 at a random site. The function receives the state as an array of the lattice shape, or of one
-    row per member of a group on the edges or hyperedges of a network, with the components of a state of several
-    components per member, such as a matrix group state, on a last axis. It also receives keyword arguments for the
-    parameters of the element that it names, and, when it names them, `random`, the random generator of the simulation,
-    `time`, the time of the step, and `space`, the space of the group, and returns the new array.
+    At every step the function receives the state of every member as one array, shaped like the lattice or with one row
+    per member of a group on the edges or hyperedges of a network. A state of several components per member has its
+    components on a last axis. The function may also receive the parameters of the element it names, and `random`, the
+    random generator, `time`, the time of the step, and `space`, the space of the group, when it names them. It returns
+    the new array.
+
+    Unlike `UpdateLaw`, which gives the next value of each member by an expression, it hands the whole array to a Python
+    function. Choose it when the change depends on the whole array at once, such as one random site.
+
+    It appears in many fields. A sandpile adds a grain at a random site, a molecular model replays recorded
+    configurations, and a genetic model mutates one random site of a genome.
 
     Args:
         target:

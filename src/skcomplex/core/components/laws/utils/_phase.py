@@ -1,7 +1,4 @@
-"""Define what the laws of a phase space read.
-
-They read the class coordinates and the reductions over class axes.
-"""
+"""Define the coordinates and reductions over the class axes of a phase space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

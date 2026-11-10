@@ -1,7 +1,4 @@
-"""Define the symbolic conditions and remainders that laws use.
-
-Every backend lowers them.
-"""
+"""Define the symbolic conditions and remainders that every backend lowers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

@@ -1,19 +1,4 @@
-"""Define the operators of subsystems as Sage symbolic functions.
-
-The compiler lowers them to matrices. Sage symbolic products commute, but operators do not, so each local operator, each
-ordered product of operators, and each adjoint is a Sage `BuiltinFunction`, kept unevaluated in expressions. A
-local operator names its subsystem and the operator of the subsystem's `HilbertSpec`. Coefficients are ordinary Sage
-expressions, so an operator is a sum of numbers or parameter expressions times local operators, products, and adjoints,
-`J * operator_product(a, b)` rather than `J * a * b`.
-
-Examples:
-    >>> from sage.all__sagemath_symbolics import SR, var
-    >>> from skcomplex.core.components.laws.utils import dagger, local_operator, operator_product
-    >>> a = local_operator(SR.symbol('a'), 'x')
-    >>> b = local_operator(SR.symbol('b'), 'minus')
-    >>> var('J') * operator_product(a, b) + dagger(b)
-    J*operator_product(local_operator(a, x), local_operator(b, minus)) + dagger(local_operator(b, minus))
-"""
+"""Define the operators that act on one subsystem of a tensor product."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +17,10 @@ dagger = _OperatorFunction('dagger', nargs=1)
 def local_operator(subsystem: object, name: object) -> Expression:
     """Return the operator of a name of the `HilbertSpec` of a subsystem.
 
-    It acts on that subsystem alone.
+    It acts on that subsystem alone. Operators do not commute, so a product of operators is written with
+    `operator_product` and an adjoint with `dagger`, both kept unevaluated until the compiler lowers them to matrices.
+    Coefficients are ordinary expressions, so an operator is a sum of numbers or parameters times local operators,
+    such as `J * operator_product(a, b)` rather than `J * a * b`.
 
     Args:
         subsystem:
@@ -50,6 +38,15 @@ def local_operator(subsystem: object, name: object) -> Expression:
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> local_operator(SR.symbol('q'), 'z')
         local_operator(q, z)
+
+        A coupling of two subsystems with a strength `J` is a product of their operators.
+
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.laws.utils import dagger, operator_product
+        >>> a = local_operator(SR.symbol('a'), 'x')
+        >>> b = local_operator(SR.symbol('b'), 'minus')
+        >>> var('J') * operator_product(a, b) + dagger(b)
+        J*operator_product(local_operator(a, x), local_operator(b, minus)) + dagger(local_operator(b, minus))
     """
     return LOCAL_OPERATOR(subsystem, SR.symbol(name) if isinstance(name, str) else name)
 

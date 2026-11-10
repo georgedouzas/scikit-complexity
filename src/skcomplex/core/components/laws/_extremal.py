@@ -1,7 +1,4 @@
-"""Define extremal laws.
-
-An extremal law updates the site with the smallest or largest value of a state and its neighbours.
-"""
+"""Define the law that updates the extremal site of a state and its neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,12 +17,19 @@ EXTREMA = ('min', 'max')
 
 
 class ExtremalLaw(BaseLaw):
-    """Rule applied to the extremal site of a key state and to its neighbours.
+    """A law that updates the site where a state is extreme, and its neighbours.
 
-    The extremal site is the site with the smallest or largest value of the key state. Every application finds the
-    extremal site, with ties broken by the random stream of the simulation, gathers the site and its neighbours without
-    duplicates, the site first, and calls `f(*values, random, **parameters)` with one array per target and a uniform
-    random array of the same length. Every application is recorded as an event.
+    The extremal site is the site with the smallest or largest value of the key state. Each application finds it, with
+    ties broken at random, gathers the site and its neighbours, the site first, and calls `rule(*values, random,
+    **parameters)` with one array per target and a uniform random array of the same length. Every application is
+    recorded as an event.
+
+    Unlike `UpdateLaw`, which changes every member at once, it changes the one weakest or strongest site and its
+    neighbours. Choose it when change happens at the extreme of a state, as in extremal dynamics.
+
+    It appears in many fields. The least fit species mutates with its neighbours in the evolution model of Bak and
+    Sneppen, the weakest point of a material breaks in models of fracture, and the most stressed site fails first in
+    models of invasion percolation.
 
     Args:
         targets:

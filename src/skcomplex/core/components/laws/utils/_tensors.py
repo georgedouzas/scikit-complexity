@@ -1,7 +1,4 @@
-"""Define the tensor operations of fields.
-
-They are compositions of the field operators with Sage matrices.
-"""
+"""Define the tensor operations of fields, built from the field operators."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

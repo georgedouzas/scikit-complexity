@@ -1,7 +1,4 @@
-"""Define rule laws.
-
-They are behaviour written as code that agents and systems run every step.
-"""
+"""Define the law of behaviour written as Python code and run once per step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,14 +13,19 @@ from ._base import BaseLaw
 
 
 class RuleLaw(BaseLaw):
-    """Behaviour written as code, run once per step.
+    """A law of behaviour written as Python code and run once per step.
 
-    It runs for every member of an agent group, or for a system. An element whose laws include rules is an agent, alone
-    or in a group. A rule of an element receives the agent and the system, `function(agent, system)`. A rule of an
-    interaction receives the system alone, `function(system)`, unless it names the role whose `members` run it: every
-    member of the groups of that role then runs it in its own activation, after the rules of its element and the member
-    rules of the interactions before it, as `function(agent, system)` with the system view of the interaction. A system
-    with rules is agent-based and needs discrete time.
+    A rule runs for every member of an agent group, or once for a system. A rule of an element receives the agent and
+    the system, `function(agent, system)`, and an element whose laws include rules is an agent. A rule of an interaction
+    receives the system alone, `function(system)`, unless it names the role whose `members` run it. Every member of that
+    role then runs it in its own activation, after the rules of its element, as `function(agent, system)`. A system with
+    rules is agent-based and needs discrete time.
+
+    Unlike `UpdateLaw`, which gives the next value as an expression the compiler lowers, it runs arbitrary Python on
+    each agent. Choose it when behaviour needs branches, memory, or search that an expression cannot hold.
+
+    It appears in many fields. Sheep and wolves move and eat on a grid, traders follow strategies in a market, and
+    households decide where to live in a model of segregation.
 
     Args:
         function:

@@ -1,7 +1,4 @@
-"""Define match laws.
-
-They are the pairings of the members of agent groups that the rules of a step read.
-"""
+"""Define the law that pairs the members of agent groups at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,12 +17,17 @@ from ._rule import RuleLaw
 
 
 class MatchLaw(BaseLaw):
-    """Pairing of the members of one agent group, or of two, every step.
+    """A law that pairs the members of one or two agent groups at every step.
 
-    The rules of the step read the pairs. The members are paired uniformly at random by default. Any other pairing, such
-    as stable matching, an order book, or an auction, is a function given as `pairing`, and a selection of partners
-    within reach or among neighbours is a `PartnerSpec`. Rules read the pairs of the step with `matches(system, label)`.
-    Transfers, matchings, and groupings read their pairs from `get_pairs`.
+    The members are paired uniformly at random by default. Any other pairing, such as a stable matching, an order book,
+    or an auction, is a function given as `pairing`, and a choice of partners within reach or among neighbours is a
+    `PartnerSpec`. The rules of the step read the pairs with `matches(system, label)`.
+
+    Unlike `RuleLaw`, which acts on members, it forms the pairs that rules then act on. Choose it when who meets whom is
+    itself part of the model.
+
+    It appears in many fields. Workers match with firms in a labour market, students match with schools, buyers meet
+    sellers in an order book, and partners pair in models of mating.
 
     Args:
         left:

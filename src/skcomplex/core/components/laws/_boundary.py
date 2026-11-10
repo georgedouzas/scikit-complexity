@@ -1,4 +1,4 @@
-"""Define boundary laws, the values states take after every solver step."""
+"""Define the law that sets the value a state takes after every solver step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,10 +11,17 @@ from ._base import BaseLaw
 
 
 class BoundaryLaw(BaseLaw):
-    """Value a state takes after every solver step.
+    """A law that sets the value a state takes after every solver step.
 
-    Examples are a reflection at a wall or a wrap around a periodic box. Boundaries leave the form of a system as is, so
-    they combine with every other law in any time.
+    After each step of the solver the state takes `value`, an expression of the states, such as a reflection at a wall
+    or a wrap around a periodic box. A boundary leaves the equations of a system as they are, so it combines with every
+    other law in continuous or discrete time.
+
+    Unlike `CrossingLaw`, which finds the exact time a guard crosses zero, it corrects the state once per step. Choose
+    it when a state must stay inside a domain and the exact time of contact does not matter.
+
+    It appears in many fields. Particles in a periodic box wrap around its edges, a random walker reflects off a wall,
+    and an angle wraps into the interval from minus pi to pi.
 
     Args:
         target:

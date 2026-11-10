@@ -1,4 +1,4 @@
-"""Define jump laws, random events that change states."""
+"""Define the law of a random event that changes states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +15,23 @@ from ._base import BaseLaw
 
 
 class JumpLaw(BaseLaw):
-    """Random event that changes states.
+    """A law of a random event that changes states.
 
-    The event fires on an exponential clock of a given rate or on a clock of drawn waiting times. With a `rate`, the
-    event fires at the times of a Poisson process of that propensity and changes states by fixed increments, as in
-    continuous-time Markov chains. With a `waiting` time instead, it fires after a waiting time drawn anew at every
-    firing, and applies its `reset`, as in renewal processes such as the jumps of a random walk. Every member of a group
-    then fires on its own clock, and the trajectory records every firing and counts them in `<label>.renewals`. Jumps
-    combine with rate and noise laws, which evolve the states between firings.
+    The event fires on one of two clocks:
+
+    - `rate`: at the times of a Poisson process of that propensity, and it adds the fixed `changes` to the states, as in
+      a Markov chain of continuous time.
+    - `waiting`: after a waiting time drawn anew at every firing, and it applies `reset`, as in a renewal process. Each
+      member of a group fires on its own clock, and the trajectory records every firing and counts them in
+      `<label>.renewals`.
+
+    Rate and noise laws move the states between firings.
+
+    Unlike `RateLaw`, which changes states continuously, it changes them at random instants by whole amounts. Choose it
+    when the units are few and their randomness matters.
+
+    It appears in many fields. Molecules react one at a time in a cell, individuals are born and die in a small
+    population, customers arrive at a queue, and a random walker jumps between sites.
 
     Args:
         rate:

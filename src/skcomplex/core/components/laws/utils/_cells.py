@@ -1,7 +1,4 @@
-"""Define the exterior calculus of cell complexes.
-
-It is written as Sage symbolic functions the compiler lowers.
-"""
+"""Define the exterior calculus of the states on the cells of a cell complex."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

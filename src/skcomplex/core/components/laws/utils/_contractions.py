@@ -1,7 +1,4 @@
-"""Define the contraction of a coupling tensor with expressions of the members.
-
-There is one expression of the members per index after the first.
-"""
+"""Define the contraction of a coupling tensor with expressions of the members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

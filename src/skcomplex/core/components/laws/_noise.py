@@ -1,4 +1,4 @@
-"""Define noise laws, amplitudes of the noise processes that drive states."""
+"""Define the law that gives the amplitude of a noise that drives a state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,22 +18,22 @@ NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
 class NoiseLaw(BaseLaw):
-    """Amplitude of a noise process that drives a state's highest time derivative.
+    """A law that gives the amplitude of a noise that drives a derivative of a state.
 
-    The process is a Wiener process, or a fractional Brownian motion of a Hurst index.
+    The noise adds `value dW` to the highest time derivative of the target, where `dW` is the increment of a Wiener
+    process, the random walk of continuous time. Without a process, every component and every member gets its own
+    independent process. Laws that name the same process share its increment, so noise can be correlated across states.
 
-    Without a process, every component of the target and every member of a group gets its own independent Wiener
-    process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
-    name a process of a `WienerProcessSpec` through a role share it across components and members.
+    A conserved noise on a field on a lattice adds the divergence of a random flux, with one process per link between
+    neighbouring sites, so the total of the field changes only by its rate laws. A Hurst index makes the process a
+    fractional Brownian motion, whose increments correlate over the whole run: positively above 1/2 and negatively
+    below. An index of 1/2 gives the Wiener process.
 
-    A conserved noise on a state of a field on a lattice adds `div(value eta)` instead, the finite-difference divergence
-    of a random flux with one Wiener process per link between neighbouring sites, so the total of the field changes
-    only by its rate laws.
+    Unlike `RateLaw`, which adds a deterministic part, it adds a random part, and together they form a stochastic
+    differential equation. Choose it when fluctuations drive the state, not only its mean.
 
-    A Hurst index makes the process a fractional Brownian motion. Its increments are fractional Gaussian noise,
-    correlated over the whole run. A Hurst index of 1/2 gives the Wiener process, below 1/2 the increments
-    anticorrelate, and above 1/2 they correlate. For other indices than 1/2 the amplitude must not depend on any state,
-    and the law takes neither a process nor a conserved noise.
+    It appears in many fields. A stock price follows a geometric Brownian motion, a particle diffuses in a fluid,
+    molecular noise shakes gene expression, and turbulence stirs a temperature field.
 
     Args:
         target:

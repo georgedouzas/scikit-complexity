@@ -117,7 +117,11 @@ KINDS = {
 FAMILIES = tuple(
     f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')
 )
-REWRITTEN: tuple[str, ...] = ('skcomplex.core.components.elements', 'skcomplex.core.components.interactions')
+REWRITTEN: tuple[str, ...] = (
+    'skcomplex.core.components.elements',
+    'skcomplex.core.components.interactions',
+    'skcomplex.core.components.laws',
+)
 
 
 class DoublingPart(BasePart):

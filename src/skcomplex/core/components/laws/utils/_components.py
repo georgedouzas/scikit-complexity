@@ -1,7 +1,4 @@
-"""Define the reduction over the connected components of the active links.
-
-The links are those between the members of a group.
-"""
+"""Define the reduction over the connected components of the active links."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

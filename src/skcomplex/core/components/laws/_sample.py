@@ -1,7 +1,4 @@
-"""Define sample laws.
-
-They are Monte Carlo sweeps that accept moves from the change of a local objective.
-"""
+"""Define the law of a Monte Carlo sweep that samples states by moves."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +11,16 @@ from ._base import BaseLaw
 
 
 class SampleLaw(BaseLaw):
-    """Monte Carlo sweep that samples states by moves.
+    """A law of a Monte Carlo sweep that samples states by proposed moves.
 
-    The moves are accepted from the change of an objective, one sweep per unit of time.
+    In each unit of time the law makes one sweep. It proposes moves and accepts them by the change of `objective`, so
+    the states follow the distribution of a Markov chain Monte Carlo method.
+
+    Unlike `UpdateLaw`, which sets the next value by a rule, it proposes values and accepts or rejects them. Choose it
+    when the states follow a Boltzmann distribution of an energy.
+
+    It appears in many fields. Spins of a magnet in the Ising model, cells in the cellular Potts model, and residents in
+    a model of segregation are sampled this way.
 
     Args:
         objective:

@@ -1,4 +1,4 @@
-"""Define flux laws, the fluxes of the conserved states of finite-volume fields."""
+"""Define the law that gives the flux of a conserved state of a field."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +16,19 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov')
 
 
 class FluxLaw(BaseLaw):
-    """Flux of a conserved state of a finite-volume field.
+    """A law that gives the flux of a conserved state of a finite-volume field.
 
-    The conservation law is `du/dt + divergence(flux) = 0`. The flux is a symbolic expression of the field's states for
-    one dimension, or one expression per dimension. The states of a field with fluxes form a system of conservation
-    laws, whose wave speeds come from the eigenvalues of the flux Jacobians. Rate laws on the same states add sources.
+    The conservation law is `du/dt + divergence(flux) = 0`. The flux is an expression of the states of the field for one
+    dimension, or one expression per dimension. The states of a field with fluxes form a system of conservation laws,
+    whose wave speeds come from the eigenvalues of the Jacobians of the fluxes. A finite-volume scheme reconstructs the
+    state in each cell with `limiter` and computes the flux between cells with `riemann`. Rate laws on the same states
+    add sources.
+
+    Unlike `RateLaw`, which gives the rate of a state directly, it gives a flux whose divergence is the rate, so the
+    scheme keeps the total and resolves shocks. Choose it when an amount moves through space and forms sharp fronts.
+
+    It appears in many fields. Traffic density forms jams on a road, a gas forms shock waves, and a flood wave travels
+    along a river channel.
 
     Args:
         target:

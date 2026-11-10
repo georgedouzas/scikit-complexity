@@ -1,7 +1,4 @@
-"""Define the integrals of fields against two-point kernels and along one axis.
-
-The compiler lowers them.
-"""
+"""Define the integrals of fields against two-point kernels and along one axis."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

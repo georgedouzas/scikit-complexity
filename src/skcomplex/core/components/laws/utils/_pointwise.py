@@ -1,8 +1,4 @@
-"""Define the pointwise functions of laws.
-
-They are written with Sage arithmetic and `where`, or are functions that every printer lowers, so every backend lowers
-them.
-"""
+"""Define the pointwise functions of laws, such as the Hill and logistic functions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

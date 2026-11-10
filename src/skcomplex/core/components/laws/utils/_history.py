@@ -1,7 +1,4 @@
-"""Define the derivatives, lags, and delayed values of states that laws read.
-
-The compiler replaces them.
-"""
+"""Define the derivatives, lags, and delayed values of states that laws read."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

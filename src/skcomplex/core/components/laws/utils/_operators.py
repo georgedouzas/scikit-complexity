@@ -1,9 +1,4 @@
-"""Define the differential operators of fields as Sage symbolic functions.
-
-The compiler lowers them. Sage differentiates with respect to symbols, not along the axes of a lattice or a mesh, so
-each operator is an instance of a Sage `BuiltinFunction` subclass, kept unevaluated in expressions until the
-discretization of the field turns it into numbers.
-"""
+"""Define the differential operators of fields, such as the gradient."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
