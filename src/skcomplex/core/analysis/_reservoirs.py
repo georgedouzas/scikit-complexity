@@ -58,7 +58,8 @@ class _ReservoirStep:
     def _set_memory(self, memory: Array) -> None:
         """Set the memory of the node."""
         if self.kind == 'next_generation':
-            self.node.store = np.asarray(memory, dtype=float).reshape(self.node.store.shape)
+            store = self.node.state['store']
+            self.node.state = {**self.node.state, 'store': np.asarray(memory, dtype=float).reshape(store.shape)}
             return
         self.node.state = {'out': np.asarray(memory, dtype=float).copy()}
 
@@ -72,7 +73,7 @@ class _ReservoirStep:
                 The memory as a flat array.
         """
         if self.kind == 'next_generation':
-            return np.asarray(self.node.store, dtype=float).ravel()
+            return np.asarray(self.node.state['store'], dtype=float).ravel()
         return np.asarray(self.node.state['out'], dtype=float).ravel()
 
     def get_monomials(self) -> npt.NDArray[np.int_]:

@@ -31,7 +31,6 @@ class ReservoirNodeProtocol(Protocol):
     """
 
     initialized: bool
-    store: Array
     state: dict[str, Array]
     Wout: Array
     bias: Array
