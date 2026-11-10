@@ -152,6 +152,7 @@ dependencies = [
     "optuna>=5.0.0",
     "pyabc>=0.13.1",
     "numpyro>=0.22.0",
+    "pypesto>=0.8.0",
 ]
 
 [project.optional-dependencies]

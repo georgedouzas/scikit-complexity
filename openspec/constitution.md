@@ -317,7 +317,8 @@ to fill in as the project takes shape.
   dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, `reservoirpy` for
   reservoir computing, and `passagemath-polyhedra` for exact enumeration of the generators of a cone. `pysd` reads Vensim and
   XMILE files for the translators of the engine. The experiments add `optuna` for global point fits of calibration,
-  `pyabc` for ABC-SMC calibration, and `numpyro` for MCMC and variational calibration. Rerun is a core dependency,
+  `pyabc` for ABC-SMC calibration, `numpyro` for MCMC and variational calibration, and `pypesto` for profile
+  likelihoods of identifiability. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Exceptions to the 24-month limit on runtime dependencies: none. `pysd` 3.14.3, of 2025-03-23, is its last release and
   passes the limit until 2027-03-23, so its next review is due by 2027-03-23.

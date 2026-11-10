@@ -1,7 +1,7 @@
 ## 1. Dependency
 
-- [ ] 1.1 Confirm `add-bayesian-calibration` has landed, so `_CalibrationObjective` and prior bounds exist in `skcomplex.core.experiments`, and verify its tests pass
-- [ ] 1.2 Add `pypesto>=0.8.0` to the runtime dependencies in `pyproject.toml` and to the Project Profile in `openspec/constitution.md`, and verify `pdm install` resolves and `import pypesto` works
+- [x] 1.1 Confirm `add-bayesian-calibration` has landed, so `_CalibrationObjective` and prior bounds exist in `skcomplex.core.experiments`, and verify its tests pass
+- [x] 1.2 Add `pypesto>=0.8.0` to the runtime dependencies in `pyproject.toml` and to the Project Profile in `openspec/constitution.md`, and verify `pdm install` resolves and `import pypesto` works
 
 ## 2. Identifiability
 
