@@ -179,3 +179,33 @@ accept it like any group system.
 - **WHEN** the system learned from `bird_swarm` runs from a held-out initial state until 20 time units
 - **THEN** the group stays cohesive like the true system, with the mean distance to the centre within 10% of the true
   one at the end
+
+### Requirement: Sparse identification recovers learned terms
+`sparse_identification` SHALL take a system whose laws call learned functions, evaluate the trained models at the states
+of the source, fit a sparse library to their outputs, and return the system with every recovered learned term replaced
+by the found expression.
+
+#### Scenario: Interaction terms of Lotka-Volterra
+- **WHEN** the hybrid `UniversalLotkaVolterraSystem` is identified on 31 points over 3 time units of a Lotka-Volterra
+  run with `alpha=1.3`, `beta=0.9`, `gamma=0.8`, `delta=1.8` from `(0.44249296, 4.6280594)` with 1% noise, as in
+  Rackauckas et al. (2001.04385), and its network is passed to `sparse_identification` with a library of degree 2
+- **THEN** each output keeps only the term `x y`, with coefficients within 5% of -0.9 and 0.8, where the paper reports
+  0.9239 and 0.8145, and the returned system matches the true run within 2% over 3 time units
+
+#### Scenario: System without learned functions
+- **WHEN** `system` holds no call of `learned_function`
+- **THEN** it raises `AnalysisError` that names `learned_function`
+
+### Requirement: Slow coordinates by TICA and VAMP
+`embedding` SHALL take the kinds `'tica'` and `'vamp'`, which return the slowest linear coordinates of series at a lag,
+their implied timescales, and for VAMP the singular values and the VAMP-2 score.
+
+#### Scenario: Two relaxation rates
+- **WHEN** a two-dimensional Ornstein-Uhlenbeck process with independent relaxation rates 1 and 10, mixed by a rotation
+  of 30 degrees, is sampled every 0.01 for 2000 time units and analysed with `'tica'` at a lag of 10 samples
+- **THEN** the implied timescales are within 5% of 1 and 0.1, and the first coordinate is aligned with the slow
+  direction with an absolute cosine above 0.99
+
+#### Scenario: VAMP of a reversible process
+- **WHEN** the same series is analysed with `'vamp'`
+- **THEN** its singular values are within 5% of `exp(-0.1)` and `exp(-1)`

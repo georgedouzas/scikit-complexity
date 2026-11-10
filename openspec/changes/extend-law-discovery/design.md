@@ -31,7 +31,9 @@
 - Neural lifts of the Koopman operator. They need torch through pykoopman, which is not allowed.
 - The self term of dACE for the agent's own past motion, the vertical frame under gravity, and the staged fit. The
   interaction terms are fitted alone. A later change can add the self term on the residual.
-- Free-form symbolic regression with PySR, which needs Julia.
+- Free-form symbolic regression with PySR, which needs Julia. The learned-term option recovers terms within a library,
+  as Rackauckas et al. do with SINDy.
+- Deep variants of VAMP (VAMPnets), which need torch through deeptime's extra.
 
 ## Decisions
 
@@ -59,6 +61,30 @@
   experiment results is added to `_read_samples`.
 - **Breaking result fields.** `SparseIdentificationResult` gains `inclusion` (NaN without an ensemble), `parameters`,
   `inputs`, `training_error`, and `validation_error`, the last two after the convention of `IdentificationResult`. Results stay frozen and positional order changes, which is allowed in 0.x.
+
+- **Learned terms as equations.** `system` is a system whose laws call `learned_function`, such as the identified
+  `UniversalLotkaVolterraSystem` of the foundation, and `learned` names the weight parameters of the models to
+  recover, or `None` for all. The states of the source give the inputs at which every trained model is evaluated, on
+  the inputs its law passes, and the outputs are the targets of one sparse regression per output over the polynomial
+  library of those inputs, with the optimizer and options above. The result's `features` and `coefficients` are those of
+  the recovered terms, and its `system` is `system` with every recovered call of `learned_function` replaced by the
+  found expression, through `set_params` of the laws, so `simulate` runs the symbolic model. This is the second step of
+  the universal differential equations of Rackauckas et al. (2001.04385), who recover the interaction terms of
+  Lotka-Volterra from a trained network with SINDy. A system without learned functions raises `AnalysisError` naming
+  `learned_function`.
+
+### Slow coordinates
+
+- `embedding(kind='tica')` and `embedding(kind='vamp')` read series by the existing path and fit
+  `deeptime.decomposition.TICA` or `VAMP` with `lag`, a number of samples, and `dimension`, the number of coordinates
+  kept, pooling the pairs of every run without joining two runs. The result holds the projected coordinates, the
+  implied timescales `-lag dt / ln |lambda_i|`, the singular values for VAMP, and the VAMP-2 score.
+- deeptime 0.5.0, released 2026-11-07, needs numpy, scipy, scikit-learn, and threadpoolctl, ships wheels for Python
+  3.10 to 3.14, and is licensed LGPL-3.0. Its previous release, 0.4.5 of 2025-04-09, lacks the wheels of Python 3.14, so
+  the lower bound is 0.5.0. It is a runtime dependency, since the core imports it. Its torch extra is not installed.
+- Users: molecular dynamics (slow conformational coordinates), climate (slow modes of variability), neuroscience (slow
+  features of recordings), and fluids (coherent structures), so the kinds are step 2, options of an analysis of the
+  core.
 
 ### Mode decomposition
 
@@ -129,6 +155,8 @@
 | Part | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | New options of `sparse_identification` and `mode_decomposition` | 2, analyses that read series by their tags | `skcomplex.core.analysis` | physics, chemistry, ecology, epidemiology, social spreading, engineering |
+| `system` and `learned` of `sparse_identification` | 2, an option of an analysis that reads series and systems by their tags | `core/analysis/_sparse_identification.py` | ecology and epidemiology (unknown rates of hybrid models), pharmacology (covariate maps), physics and chemistry (closures), engineering (grey box models) |
+| `'tica'` and `'vamp'` of `embedding` | 2, kinds of an analysis that reads series by their tags | `core/analysis/_embedding.py` | molecular dynamics, climate, neuroscience, fluids |
 | `cluster_expansion`, `ClusterExpansionResult` | 2, an analysis that reads particle and agent trajectories | `skcomplex.core.analysis` | collective behaviour in biology, active matter in physics, crowds in social systems, swarms of robots in engineering |
 | `OnlineOfflineActivityNetworkSystem` | 3, one system | `social/spreading/_online_offline.py` | social |
 
