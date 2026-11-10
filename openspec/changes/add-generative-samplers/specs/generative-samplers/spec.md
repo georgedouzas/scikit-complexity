@@ -40,6 +40,15 @@ Flow matching SHALL train on samples only, and a reverse divergence for it SHALL
 - **WHEN** the same sampler is trained twice with the same `random_state`
 - **THEN** the two results hold equal samples and weights
 
+### Requirement: Samplers train on the shared loop
+Every kind of sampler SHALL train on the shared Optax loop of `add-learning-foundation`, and forward training SHALL hold
+out a share of the samples for its validation loss and stop early on it.
+
+#### Scenario: Early stop of forward training
+- **WHEN** a coupling flow is trained forward on chain samples with `validation=0.2` and `patience=10`
+- **THEN** the result holds the training and validation loss of every epoch, and the sampler holds the weights of the
+  lowest validation loss
+
 ### Requirement: Importance weights give unbiased estimates
 The result SHALL hold the normalised weights, the effective sample size `(Σw)² / Σw²` and its share of the samples, the
 estimate of the free energy `-log Z / intensity`, and, for every observable given as a function of a batch of

@@ -14,14 +14,13 @@ configuration and no learned sampler.
   setting `energy`, the energy of one site whose sum over the sites is the total objective, since a global move cannot
   be scored by the local objective.
 - New function `generative_sampler(system, *, kind=..., training=..., ...)` in `core/analysis`. It trains a coupling or
-  spline flow (flowjax) or a flow-matching model (equinox and diffrax) on the energy of a Monte Carlo system or on its
-  samples, and returns a frozen result with the importance weights, the effective sample size, the free energy, the
+  spline flow (flowjax) or a flow-matching model (Equinox and Diffrax) on the energy of a Monte Carlo system or on its
+  samples, on the shared Optax loop of `add-learning-foundation`, and returns a frozen result with the importance weights, the effective sample size, the free energy, the
   reweighted estimates of given observables, the trained sampler, and a `system` whose sampling interaction proposes
   from the trained sampler, which `simulate`, `sweep`, and the analyses accept.
 - New system `LatticePhi4System` (`physics/statistical_mechanics`), the real scalar φ⁴ field theory on a periodic lattice
   of any dimension, sampled by local Gaussian moves, with the energy that flow proposals need.
-- New runtime dependencies `flowjax` and `equinox`. equinox is shared with `add-learned-indicators`,
-  `add-hybrid-neural-laws`, and `add-neural-particle-simulators`, added by whichever lands first.
+- New runtime dependency `flowjax`. Equinox comes with `add-learning-foundation`.
 
 ## Capabilities
 
@@ -41,8 +40,10 @@ configuration and no learned sampler.
 - Core: `skcomplex.core.specs` (new `ProposalSpec`), `SamplingInteraction` and `MonteCarloKernel` (the global move and
   the total energy), and a new module of `skcomplex.core.analysis`. Existing moves and systems do not change.
 - Systems: `skcomplex.systems.physics.statistical_mechanics`, with a new self-contained module.
-- Dependencies: `flowjax` 19.2.1, released 2026-11-07, and `equinox` 0.13.8, released 2026-05-05. jax, optax, and
-  diffrax are already runtime dependencies.
+- Dependencies: `flowjax` 19.2.1, released 2026-11-07. Equinox comes with `add-learning-foundation`, and jax, optax,
+  and diffrax are already runtime dependencies.
 - Docs: the lattice systems guide, the analysis guide, a gallery example, and the inventory with the primitive
   `generative-samplers`.
-- Independent of the other changes of the data-driven wave.
+- Depends on `add-learning-foundation`, whose Equinox dependency, shared Optax loop with validation and early stopping,
+  and result convention every sampler uses. flowjax supplies only the flows, which are Equinox modules, and not their
+  training. Independent of the other drafts that build on the foundation.

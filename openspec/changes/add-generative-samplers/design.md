@@ -8,7 +8,11 @@ pass (`core/engine/compile/passes/_lattices.py`) lowers it to `MonteCarloKernel`
 (`core/engine/problems/_monte_carlo_kernel.py`), which `MonteCarloSolver` runs one sweep per unit of time. Every move is
 local: the kernel scores it by the change of the local objective of a site, read through the neighbour table of the
 lattice. `ExpressionPrinter` prints expressions for NumPy and for JAX (`'jax'` target). jax, optax, and diffrax are
-runtime dependencies. flowjax and equinox are not yet. There is no `physics/field_theory` subfield. Lattice Yang-Mills
+runtime dependencies. flowjax is not yet.
+
+`add-learning-foundation` is a prerequisite. It adds Equinox as a runtime dependency and the private `_OptaxLoop` of
+`GradientDescentSolver`, the one training loop of the library, which takes a function from parameters and a batch to a
+loss and its gradient, with validation and early stopping. There is no `physics/field_theory` subfield. Lattice Yang-Mills
 lives in `physics/waves` and the spin systems in `physics/statistical_mechanics`.
 
 ## Goals / Non-Goals
@@ -52,11 +56,13 @@ lives in `physics/waves` and the spin systems in `physics/statistical_mechanics`
   observable), and `losses`. It lives in `core/analysis` beside `sparse_identification`, since both learn a runnable
   system. `core/experiments` was considered, since the function runs simulations, but it holds no learning function.
 - **Flows.** `kind='coupling'` is `flowjax.flows.coupling_flow` with an `Affine` transformer and `kind='spline'` with a
-  `RationalQuadraticSpline` transformer, both on a standard normal base over the flattened lattice. Reverse training is
-  `flowjax.train.fit_to_key_based_loss` with the reverse divergence `E_q[log q + intensity * E]`, whose energy is the
-  site energy printed for JAX and summed over the neighbour table. Forward training is `flowjax.train.fit_to_data`.
-- **Flow matching.** `kind='flow_matching'` is an equinox MLP velocity field `v(x, t)` trained with optax on the
-  conditional optimal-transport loss between base draws and samples, as in 2406.14426. Samples and log densities come
+  `RationalQuadraticSpline` transformer, both on a standard normal base over the flattened lattice. flowjax flows are Equinox modules,
+  so they are trained on the shared `_OptaxLoop` of `add-learning-foundation` and not by `flowjax.train`. Reverse
+  training minimises the reverse divergence `E_q[log q + intensity * E]` on batches of draws from fresh keys, whose
+  energy is the site energy printed for JAX and summed over the neighbour table. Forward training minimises the
+  negative log density of the samples, with a share of them held out for validation and early stopping.
+- **Flow matching.** `kind='flow_matching'` is an Equinox MLP velocity field `v(x, t)` trained on the shared loop on
+  the conditional optimal-transport loss between base draws and samples, as in 2406.14426. Samples and log densities come
   from integrating `x' = v` and `log q' = -div v` with `diffrax.diffeqsolve` (`Tsit5`, adaptive steps), with the
   divergence as the trace of `jax.jacfwd`, exact for the lattice sizes of the probes. The private class
   `_FlowMatchingSampler` exposes `sample` and `log_density` like a flowjax distribution, so the result and the proposal
@@ -71,17 +77,24 @@ lives in `physics/waves` and the spin systems in `physics/statistical_mechanics`
   state `phi` on a periodic `LatticeSpace` and a `SamplingInteraction` with the local objective
   `Σ_y (φ_y - φ_x)² / 2 + m² φ_x² / 2 + λ φ_x⁴ / 24` over the von Neumann neighbourhood and the energy
   `Σ_y (φ_y - φ_x)² / 4 + m² φ_x² / 2 + λ φ_x⁴ / 24`, at intensity 1.
-- **Dependencies.** `flowjax>=19.2.1` (19.2.1 released 2026-11-07) and `equinox>=0.13.8` (0.13.8 released
-  2026-05-05) join the runtime dependencies. flowjax needs equinox, jax, jaxtyping, lineax, optax, paramax, and tqdm,
-  none of which conflicts with the current pins. flowjax warns that its API may change, so the pin has a lower bound and
-  the tests cover the two training calls used.
+- **Dependencies.** `flowjax>=19.2.1` (19.2.1 released 2026-11-07) joins the runtime dependencies. Equinox comes with
+  `add-learning-foundation`. flowjax needs equinox, jax, jaxtyping, lineax, optax, paramax, and tqdm,
+  none of which conflicts with the current pins. flowjax warns that its API may change. Only its flows and
+  transformers are used, since training runs on the shared loop, so the pin has a lower bound and the tests cover the
+  two flow constructors used.
+
+- **Placement.** `ProposalSpec` and the proposal path of `MonteCarloKernel` are step 2, a spec and a kernel the engine
+  handles by type, in `skcomplex.core.specs` and `core/engine/problems`. Domains: statistical physics and lattice field
+  theory, Bayesian inference, molecular sampling in chemistry, and combinatorial models in computer science.
+  `generative_sampler` is step 2, an analysis of a Monte Carlo system in `skcomplex.core.analysis`, for the same
+  domains. `LatticePhi4System` is step 3, one system, in `physics/statistical_mechanics/_phi4.py`.
 
 ## Risks / Trade-offs
 
 - [Mode collapse of reverse training in a broken phase] → The probes stay near the symmetric phase, the result reports
   the effective sample size so collapse is visible, and forward training on chain samples is offered.
-- [flowjax API changes] → Only `coupling_flow`, the two transformers, `fit_to_data`, and `fit_to_key_based_loss` are
-  used, behind one private module, so a change touches one place.
+- [flowjax API changes] → Only `coupling_flow` and the two transformers are used, behind one private module, so a
+  change touches one place.
 - [Exact divergence cost of flow matching grows with the square of the sites] → The user guide states the cost, and
   the function raises `AnalysisError` above 1,024 sites for flow matching.
 - [Training time in tests] → Tests use 4 × 4 lattices and few epochs, and mark the 8 × 8 probes as slow.

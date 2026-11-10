@@ -2,8 +2,10 @@
 
 ## 1. Dependencies
 
-- [ ] 1.1 Add `flowjax>=19.2.1` and, unless an earlier change of the wave added it, `equinox>=0.13.8` to the runtime
-  dependencies in `pyproject.toml`, and verify `pdm install` resolves and both import
+- [ ] 1.1 Check that `add-learning-foundation` is applied, so Equinox and the shared Optax loop exist, and stop if it is
+  not
+- [ ] 1.2 Add `flowjax>=19.2.1` to the runtime dependencies in `pyproject.toml` and the Project Profile, and verify
+  `pdm install` resolves and it imports
 
 ## 2. Independence proposals in Monte Carlo
 
@@ -25,9 +27,10 @@
 
 ## 4. Generative sampler
 
-- [ ] 4.1 Add the private flow module with the coupling and spline flows, reverse and forward training, and the JAX
-  energy over the neighbour table, verified by unit tests on a Gaussian target with a known normaliser
-- [ ] 4.2 Add the flow-matching sampler on equinox and diffrax with exact divergences, verified by a test that its log
+- [ ] 4.1 Add the private flow module with the coupling and spline flows, reverse and forward training on the shared
+  Optax loop with validation and early stopping, and the JAX energy over the neighbour table, verified by unit tests on
+  a Gaussian target with a known normaliser and by the early-stop-of-forward-training scenario
+- [ ] 4.2 Add the flow-matching sampler on Equinox, Diffrax, and the shared loop with exact divergences, verified by a test that its log
   densities of a Gaussian target match the exact ones within 1e-6
 - [ ] 4.3 Add `generative_sampler` and `GenerativeSamplerResult` with weights, effective sample size, free energy,
   estimates, the learned system, and the errors for a missing energy, discrete states, and reverse flow matching,
