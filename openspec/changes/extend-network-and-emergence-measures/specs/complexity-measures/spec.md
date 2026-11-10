@@ -65,6 +65,16 @@ arXiv 2510.05174).
   exclusive-or
 - **THEN** the median gain exceeds 0.9 bits, and it lies below 0.05 bits when the macro signal is the first bit
 
+### Requirement: Group measures pool observed runs
+`emergence(kind='synergy-capacity')` and `emergence(kind='coalition')` SHALL read one trajectory or the observed runs of
+`add-learning-foundation`, pooling the transitions of every run without pairing the end of one run with the start of
+the next.
+
+#### Scenario: Pooled runs
+- **WHEN** a user measures the exclusive-or dynamics as 20 observed runs of 50 steps
+- **THEN** the synergy capacity equals that of the 1000 transitions of the runs measured as one pool within 1e-12, and
+  no transition joins two runs
+
 ### Requirement: Surrogate tests keep chosen structure
 `surrogate_test` SHALL take `method`: `'shuffle'`, the independent shuffles of every variable and the default, `'shift'`,
 a circular shift of every variable by its own random lag, `'swap'`, a permutation of the variables at every time, and

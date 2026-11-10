@@ -32,7 +32,9 @@ group-level measures and their nulls do not.
   complexity, the entropy of the contributions of the macro steps.
 - `emergence` gains the kinds `'synergy-capacity'`, the median over pairs of agents of the synergy that their present
   states hold about their joint future, and `'coalition'`, the median over triplets of the information that a triplet
-  holds about a macro signal beyond its best pair, after Riedl (2025).
+  holds about a macro signal beyond its best pair, after Riedl (2025). Both read the observed runs of
+  `add-learning-foundation`, pooling many games or episodes as the paper does, so groups of agents trained by
+  `train_policy` or played by language models are measured the same way.
 - `surrogate_test` gains `method`: `'shuffle'`, the present independent shuffles and the default, `'shift'`, circular
   shifts of every variable by its own random lag, `'swap'`, a permutation of the variables at every time, and
   `'block'`, shuffles of blocks of a given length.
@@ -67,3 +69,5 @@ None.
 - Docs: the network and emergence sections of the analysis guide, a gallery example, and an inventory entry.
 - `add-language-model-agents` adds the group guessing game of 2510.05174, whose gallery example reads the new synergy
   measures.
+- Depends on `add-learning-foundation` for observed runs, which the group measures pool. The core-periphery kind, the
+  bootstrap, the scales of causal emergence, and the surrogate methods do not need it.

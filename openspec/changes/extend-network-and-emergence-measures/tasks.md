@@ -31,9 +31,10 @@
 ## 5. Group coordination
 
 - [ ] 5.1 Add the kinds `'synergy-capacity'` and `'coalition'` to `emergence` on `partial_information` and the
-  information estimators, and verify the exclusive-or, independent-copies, and three-way scenarios
-- [ ] 5.2 Add `method` to `surrogate_test` with `'shift'`, `'swap'`, and `'block'`, and verify the shifts, swaps, and
-  default-unchanged scenarios in `tests/core/analysis/test_surrogates.py`
+  information estimators, reading trajectories and, once `add-learning-foundation` is applied, pooled observed runs,
+  and verify the exclusive-or, pooled-runs, independent-copies, and three-way scenarios
+- [ ] 5.2 Add `method` to `surrogate_test` with `'shift'`, `'swap'`, and `'block'`, drawn within every run of observed
+  runs, and verify the shifts, swaps, and default-unchanged scenarios in `tests/core/analysis/test_surrogates.py`
 - [ ] 5.3 Add a paragraph and a runnable example of a synergy test against swap surrogates in the emergence section of
   `docs/overview/user_guide/analyse.md`, and verify it runs
 

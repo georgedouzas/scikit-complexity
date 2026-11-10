@@ -90,8 +90,9 @@ every variable independently and compares a scalar field of an analysis on the d
   gains `dCP_i` of every step), `path`, and `complexity`, the entropy `-sum p_i log2 p_i` of the positive gains of the
   macro steps normalised to sum to one. The total causal emergence is the existing `gain`, the CP of the endpoint minus
   that of the micro scale.
-- **Group synergy and coalitions.** `kind='synergy-capacity'` reads the series of `N` agents, discretised by the
-  existing estimators, and for every pair computes the synergy of `{X_i(t), X_j(t)}` about `(X_i(t + lag), X_j(t +
+- **Group synergy and coalitions.** `kind='synergy-capacity'` reads the series of `N` agents from a trajectory or from
+  the `ObservedRunsSpec` of `add-learning-foundation`, pooling the transitions of all runs without joining two runs, as
+  the paper pools its games, discretised by the existing estimators, and for every pair computes the synergy of `{X_i(t), X_j(t)}` about `(X_i(t + lag), X_j(t +
   lag))` with `partial_information`, and returns the median over pairs as `value` and the matrix of pairs.
   `kind='coalition'` reads the agents and a macro signal given by `partition` as in `'criteria'`, computes `I3` for
   every triplet and `G3 = I3 - max` of its pairs, and returns the median of `G3` and of `I3`. Both read `redundancy`,
@@ -100,7 +101,8 @@ every variable independently and compares a scalar field of an analysis on the d
   `'shift'` rolls every variable by an independent uniform lag, which keeps its autocorrelation and breaks alignment.
   `'swap'` permutes the variables at every time independently, which keeps the values of each time and breaks the
   identities of the agents. `'block'` shuffles blocks of `block` samples of every variable. These are the
-  column-shift, row-shuffle, and block-shuffle nulls of 2510.05174.
+  column-shift, row-shuffle, and block-shuffle nulls of 2510.05174. With observed runs, every null is drawn within each
+  run, so no surrogate mixes two runs.
 
 ## Risks / Trade-offs
 
