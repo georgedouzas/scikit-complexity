@@ -29,14 +29,14 @@ trajectory = simulate(FisheryCapitalSystem(), until=UNTIL, observers=[observer])
 # Equilibrium or overshoot
 # ------------------------
 # In the stock-fleet plane, the default yield should spiral into a fixed point where regeneration equals the catch and
-# the profit just replaces depreciation. With the yield table of better technology, which halves the catch only when
+# the profit only replaces depreciation. With the yield table of better technology, which halves the catch only when
 # almost no fish are left, the fleet should keep investing as the stock falls and drive both towards zero.
 
 improved = simulate(FisheryCapitalSystem(yield_table=TECHNOLOGY), until=UNTIL)
 runs = {'catch falls with the stock': trajectory, 'better technology': improved}
 fig, (plane, fleet) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, trajectory) in enumerate(runs.items()):
-    resource, capital = trajectory.values('fishery.resource'), trajectory.values('fishery.capital')
+    resource, capital = trajectory.get_values('fishery.resource'), trajectory.get_values('fishery.capital')
     plane.plot(resource, capital, color=f'C{index}', label=name)
     plane.plot(resource[-1], capital[-1], 'o', color=f'C{index}')
     fleet.plot(trajectory.times, capital, color=f'C{index}', label=name)

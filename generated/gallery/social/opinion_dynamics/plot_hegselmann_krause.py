@@ -21,7 +21,7 @@ SYSTEM = 'hegselmann_krause'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = simulate(HegselmannKrauseSystem(), until=20, observers=[observer], random_state=0)
-opinions = trajectory.values('people.opinion')
+opinions = trajectory.get_values('people.opinion')
 
 # %%
 # Trajectories and the number of clusters
@@ -33,7 +33,7 @@ confidences = np.array([0.05, 0.075, 0.1, 0.15, 0.2, 0.3])
 clusters = []
 for confidence in confidences:
     run = simulate(HegselmannKrauseSystem(confidence=confidence), until=40, random_state=0)
-    clusters.append(np.unique(np.round(run.values('people.opinion')[-1], 6)).size)
+    clusters.append(np.unique(np.round(run.get_values('people.opinion')[-1], 6)).size)
 fig, (paths, counts) = plt.subplots(1, 2, figsize=(11, 4))
 paths.plot(trajectory.times, opinions, lw=0.5, color='C0')
 paths.set_xlabel('step')

@@ -6,7 +6,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 """
 
 # %%
-# The system is built from its class on a 128 by 128 grid with 14 levels and threshold 1, from random
+# The example builds `CyclicCellularAutomatonSystem` on a 128 by 128 grid with 14 levels and threshold 1, from random
 # levels, and runs for 300 steps. The default blueprint shows the levels on the grid.
 
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ trajectory = simulate(CyclicCellularAutomatonSystem((128, 128), random_state=0),
 # should rise to a plateau as the spirals take over. The waves also correlate the levels over growing distances, so
 # the spatial correlation function should decay more slowly at later steps.
 
-levels = trajectory.lattice('cells.level')
+levels = trajectory.get_lattice('cells.level')
 advancing = np.mean(levels[1:] != levels[:-1], axis=(1, 2))
 fig, (activity, reach) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(trajectory.times[1:], advancing)

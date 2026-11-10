@@ -19,7 +19,7 @@ from inventory_checks import InventoryError, inventory_problems
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import Tags
 
@@ -28,7 +28,9 @@ INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
 EQUATION_LAWS = {'rate', 'noise', 'update'}
 DEFAULT_WIDTH = 60
+GENERAL = 'overview/user_guide/core_components/general.md'
 TAG_FIELDS = ('time', 'space', 'laws', 'randomness', 'domains', 'structure')
+BUILT: dict[str, BaseSystem] = {}
 
 
 def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
@@ -43,18 +45,15 @@ def _listing(field: str | None = None) -> list[tuple[str, type[BaseSystem]]]:
     ]
 
 
-_BUILT: dict[str, BaseSystem] = {}
-
-
 def _built(system: type[BaseSystem]) -> BaseSystem:
     """Return the system a class builds with its default parameters.
 
     It is built once for its tags and its page.
     """
     key = f'{system.__module__}.{system.__qualname__}'
-    if key not in _BUILT:
-        _BUILT[key] = system()
-    return _BUILT[key]
+    if key not in BUILT:
+        BUILT[key] = system()
+    return BUILT[key]
 
 
 def _tags(system: type[BaseSystem]) -> Tags:
@@ -175,7 +174,7 @@ def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
     return lines
 
 
-def _component_types(system: System) -> list[type]:
+def _component_types(system: CompositeSystem) -> list[type]:
     """Return the element and interaction types of a system and its subsystems.
 
     They are in order of first use.
@@ -190,10 +189,10 @@ def _component_types(system: System) -> list[type]:
     return types
 
 
-def _component_lines(kinds: list[type]) -> list[str]:
+def _component_lines(kinds: list[type], depth: int) -> list[str]:
     """Return the element and interaction classes of a system.
 
-    Each comes with its nearest class of the core.
+    Each comes with its nearest class of the core, linked from a page `depth` folders below the documentation root.
     """
     lines = []
     for title, base in (('Elements', BaseElement), ('Interactions', BaseInteraction)):
@@ -203,8 +202,18 @@ def _component_lines(kinds: list[type]) -> list[str]:
         lines += ['', f'{title}:', '']
         for kind in found:
             core = next(item for item in kind.__mro__ if item.__module__.startswith('skcomplex.core.components.'))
-            lines.append(f'- `{kind.__name__}`' + ('' if core is kind else f', from `{core.__name__}`'))
+            link = _core_link(core, depth)
+            shared = [item for item in kind.__mro__ if item.__module__.startswith('skcomplex.systems.general')]
+            recipe = f', through the shared recipe [`{shared[0].__name__}`]({"../" * depth}{GENERAL})' if shared else ''
+            lines.append(f'- {link}' if core is kind else f'- `{kind.__name__}`, from {link}{recipe}')
     return lines
+
+
+def _core_link(core: type, depth: int) -> str:
+    """Return the name of a class of the core, linked to its fact sheet where its family has fact sheets."""
+    if issubclass(core, BaseElement):
+        return f'[`{core.__name__}`]({"../" * depth}parts/elements.md#{core.__name__.lower()})'
+    return f'`{core.__name__}`'
 
 
 def _selection_lines(system: type[BaseSystem]) -> list[str]:
@@ -214,6 +223,8 @@ def _selection_lines(system: type[BaseSystem]) -> list[str]:
     """
     return [
         '## Use this system',
+        '',
+        'The block imports the class and simulates the system with its default parameters and its tuned run settings.',
         '',
         '```python',
         'from skcomplex.core.engine.runtime import simulate',
@@ -268,7 +279,8 @@ def _parameter_lines(system: type[BaseSystem]) -> list[str]:
     if not parameters:
         return [*lines, 'The system has no model parameter.', '']
     rows = ([f'`{name}`', default] for name, default in parameters)
-    return [*lines, *_table(['Parameter', 'Default'], rows), '']
+    intro = 'The model parameters take these defaults, and `set_params` changes them.'
+    return [*lines, intro, '', *_table(['Parameter', 'Default'], rows), '']
 
 
 def _tag_lines(system: type[BaseSystem]) -> list[str]:
@@ -278,7 +290,8 @@ def _tag_lines(system: type[BaseSystem]) -> list[str]:
     """
     tags = _tags(system)
     rows = ([name.capitalize(), _tag_cell(tags, name)] for name in TAG_FIELDS)
-    return ['## Tags', '', *_table(['Tag', 'Values'], rows), '']
+    intro = 'The system with its default parameters has these capability tags, which solvers and analyses check.'
+    return ['## Tags', '', intro, '', *_table(['Tag', 'Values'], rows), '']
 
 
 def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
@@ -297,7 +310,8 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         f'- Import: `{_import_line(system_class)}`',
         f'- Field: `{system_class.field}`',
         f'- Topics: {", ".join(f"`{topic}`" for topic in system_class.topics)}',
-        f'- References: {"; ".join(system_class.references)}',
+        '- References:',
+        *(f'    - {reference}' for reference in system_class.references),
         '',
         *_gallery_lines(name, examples),
         *_selection_lines(system_class),
@@ -305,18 +319,22 @@ def system_page(name: str, title: str, examples: dict[str, Example]) -> str:
         *_tag_lines(system_class),
         '## Class',
         '',
+        'The source of the class shows how it builds its parts from its model parameters.',
+        '',
         '```python',
         inspect.getsource(system_class).rstrip(),
         '```',
     ]
     kinds = _component_types(built.prepare().system_)
     sources = [source for source in (_class_source(kind) for kind in kinds) if source]
-    lines += ['', '## Components', *_component_lines(kinds)]
+    components = 'The system uses these element and interaction classes, each with its nearest class of the core.'
+    lines += ['', '## Components', '', components, *_component_lines(kinds, system_class.field.count('/') + 2)]
     if sources:
         lines += ['', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
     equations = _equations(built)
     if equations is not None:
-        lines += ['', '## Equations', '', '```text', equations, '```']
+        intro = 'The equations are those that `symbolic` returns for the system with its default parameters.'
+        lines += ['', '## Equations', '', intro, '', '```text', equations, '```']
     return '\n'.join(lines) + '\n'
 
 
@@ -329,9 +347,10 @@ def field_page(field: str, titles: dict[str, str]) -> str:
     lines = [
         f'# {_title(field)}',
         '',
-        f'The ready-made systems of `skcomplex.systems.{field}`. The page of each shows its class, its component',
-        'types with their states, parameters, and laws as written, and, for the forms that have them, its equations as',
-        '`symbolic` returns them, so it serves as the pattern for a system of your own.',
+        f'This page lists the ready-made systems of `skcomplex.systems.{field}` by subfield. The page of each system',
+        'shows its class and the classes of its elements and interactions, with their states, parameters, and laws as',
+        'the source writes them. For the forms that have equations, it also shows them as `symbolic` returns them.',
+        'Copy a page as the pattern for a system of your own.',
     ]
     for subfield in sorted({system.field for _, system in entries}):
         lines += ['', f'## {_title(subfield.partition("/")[2])}', '']
@@ -351,8 +370,8 @@ def index_page(inventory: dict[str, Any]) -> str:
     lines = [
         '# Systems',
         '',
-        'The ready-made systems of `skcomplex.systems`, by field and subfield. The [catalog](catalog.md) lists every',
-        'system by field and by topic.',
+        'Each field below links to its ready-made systems in `skcomplex.systems`, grouped by subfield. The',
+        '[catalog](catalog.md) lists every system by field and by topic.',
         '',
     ]
     lines += [
@@ -402,11 +421,11 @@ def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
     lines = [
         '# Catalog',
         '',
-        'Every ready-made system, by field and by topic. Each subfield shows the statement that imports its',
-        'classes, and each system its class, its model parameters, and its capability tags. The page of a system',
-        'gives the defaults of its parameters and all its tags. List the classes of a field, a topic, or a tag with',
-        '`all_systems` of `skcomplex.systems`, and find a system by its name, description, or topic with the search',
-        'box of the site.',
+        'The catalog lists every ready-made system by field and again by topic. Each subfield gives the statement',
+        'that imports its classes, and each system its class, its model parameters, and its capability tags. The page',
+        'of a system gives the defaults of its parameters and all its tags. `all_systems` of `skcomplex.systems` lists',
+        'the classes of a field, a topic, or a tag, as in the block below, which names the stochastic systems of',
+        'ecology. The search box of the site finds a system by its name, description, or topic.',
         '',
         '```python',
         'from skcomplex.systems import all_systems',
