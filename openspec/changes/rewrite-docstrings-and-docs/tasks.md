@@ -47,7 +47,7 @@
 - [x] 7.5 Write `core_components/index.md` with the two Mermaid diagrams, the worked example built step by step, and the import table, merging `concepts.md` and updating every link to it, and verify the diagrams render in a strict build and every block runs with `pytest-markdown-docs`
 - [x] 7.6 Write `core_components/elements.md` by the section template of design.md for every public element class, and verify every block runs with `pytest-markdown-docs`
 - [x] 7.7 Add `test_core_components_pages_cover_every_class` to `tests/test_sources.py`, checking the elements page only at first and rejecting an import of `skcomplex.systems` on a family page, and verify it passes, fails when a section is removed, and fails on a planted import of `NonnegativeElement`
-- [ ] 7.8 Rewrite `build_a_custom_system/index.md` as the build tutorial with the hare and lynx running example and its cited data, and verify every block runs with `pytest-markdown-docs` in under a minute
+- [x] 7.8 Rewrite `build_a_custom_system/index.md` as the build tutorial with the hare and lynx running example and its cited data, and verify every block runs with `pytest-markdown-docs` in under a minute
 - [ ] 7.9 Update the navigation in `properdocs.yml` for the pages of this group, add them to `REWRITTEN_DOCUMENTS`, read each page through for flow and rewrite the sentences that sound generated, and verify `test_documents_read_naturally` and the strict build pass
 - [ ] 7.10 Show the user the elements reference, its fact sheets, the page on how the parts fit, and the build tutorial, and record the approved style, or the corrections, in design.md before group 8 starts
 
