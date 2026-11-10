@@ -44,13 +44,6 @@ SETTINGS = {
     'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'intensity'},
 }
 PATH_KINDS = ('jump-entropy-production', 'count-entropy-production', 'detailed-balance')
-ENSEMBLE_KINDS = (
-    'langevin-entropy-production',
-    'fluctuation-theorem',
-    'uncertainty-relation',
-    'response',
-    'fluctuation-dissipation',
-)
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'langevin-entropy-production': AnalysisTags(DataKind.ENSEMBLE),

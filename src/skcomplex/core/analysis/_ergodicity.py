@@ -19,7 +19,6 @@ from .types import Source
 MIN_RUNS = 2
 FIT_POINTS = 50
 KINDS = ('breaking', 'metric', 'distance', 'invariant-density', 'ulam')
-ENSEMBLE_KINDS = ('breaking', 'metric', 'distance')
 SETTINGS = {
     'breaking': set(),
     'metric': {'start', 'dt'},
