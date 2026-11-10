@@ -1,7 +1,4 @@
-"""Define the types every layer of the package reads.
-
-They are arrays, tuples, functions, keys, and kinds.
-"""
+"""Define the types that every layer of the library reads, such as kinds."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ type Preference = Callable[[object, object], float]
 
 
 class DataKind(StrEnum):
-    """Kind of data an analysis consumes, whatever system or measurement produced it.
+    """A kind of data that an analysis reads, whatever system or measurement made it.
 
     A kind equals its value, so an analysis may return the plain string, such as `'series'`.
 
@@ -63,7 +60,7 @@ class DataKind(StrEnum):
 
 
 class DomainKind(StrEnum):
-    """Kind of value a state takes.
+    """A kind of value that a state takes, such as real or integer.
 
     It decides the laws that may target the state.
     """
@@ -83,7 +80,7 @@ class DomainKind(StrEnum):
 
 
 class VariableKind(StrEnum):
-    """Role a declared argument plays in a part."""
+    """A kind of role that a declared argument plays in a part, such as a state."""
 
     STATE = 'state'
     PARAMETER = 'parameter'
@@ -91,14 +88,14 @@ class VariableKind(StrEnum):
 
 
 class OrderKind(StrEnum):
-    """Kind of order of the time derivative that the rate laws on a state give."""
+    """A kind of order of the time derivative that the rate laws on a state give."""
 
     INTEGER = 'integer'
     FRACTIONAL = 'fractional'
 
 
 class NoiseKind(StrEnum):
-    """Structure of the noise processes that the noise laws of a system draw.
+    """A kind of structure of the noise processes that the noise laws of a system draw.
 
     The processes are Wiener processes, or fractional Brownian motions for noise laws with a Hurst index.
 
@@ -116,9 +113,9 @@ class NoiseKind(StrEnum):
 
 
 class FormKind(StrEnum):
-    """Mathematical form of a compiled system.
+    """A kind of form of a compiled system, such as differential equations.
 
-    It decides the solvers that advance the system.
+    It decides the solvers that can advance the system.
 
     Examples:
         >>> from skcomplex.core.types import FormKind
@@ -143,7 +140,7 @@ class FormKind(StrEnum):
 
 
 class ElementKind(StrEnum):
-    """Kind of element or system that carries states.
+    """A kind of element or system that carries states.
 
     Solvers, backends, and the roles of interactions name these kinds. `ANY` names every kind in a role that accepts
     them all, and no element is of this kind.
