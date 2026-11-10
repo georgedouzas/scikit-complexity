@@ -971,7 +971,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         kernel: Expression,
         symbols: list[Expression],
         grids: Sequence[npt.NDArray[np.float64]],
-        verb: str,
+        action: str,
     ) -> npt.NDArray[np.float64]:
         """Return a kernel of some symbols and the parameters evaluated on their grids.
 
@@ -985,8 +985,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             grids:
                 The values of every symbol, arrays that broadcast together.
 
-            verb:
-                The verb of the operator in an error message, such as `'convolves with'`.
+            action:
+                What the operator does with the kernel in an error message, such as `'convolves with'`.
 
         Returns:
             sampled:
@@ -1001,7 +1001,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         unknown = sorted(set(value.variables()) - set(symbols), key=str)
         if unknown:
             error_msg = (
-                f'A law of {self.spec.owner} {verb} the kernel {kernel}, which reads {", ".join(map(str, unknown))}. '
+                f'A law of {self.spec.owner} {action} the kernel {kernel}, which reads {", ".join(map(str, unknown))}. '
                 f'Write the kernel in {", ".join(map(str, symbols))} and the parameters.'
             )
             raise ValidationError(error_msg)
