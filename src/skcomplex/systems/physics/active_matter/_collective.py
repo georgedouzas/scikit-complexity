@@ -360,43 +360,6 @@ class PhoreticAttractionInteraction(PairInteraction):
         return -namespace.v0 * namespace.R**2 / r
 
 
-def _disks(
-    n_particles: int,
-    size: float,
-    random_state: int | np.random.Generator | None,
-) -> tuple[Array, Array]:
-    """Return positions on a jittered square grid over a box, and uniform orientations."""
-    rng = np.random.default_rng(random_state)
-    side = math.ceil(math.sqrt(n_particles))
-    spacing = size / side
-    grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n_particles]
-    positions = np.mod((grid + 0.5) * spacing + rng.normal(0.0, 0.05 * spacing, (n_particles, 2)), size)
-    return positions, rng.uniform(0.0, 2 * math.pi, n_particles)
-
-
-def _active_disks(
-    n_particles: int,
-    size: float,
-    speed: float,
-    D_r: float,
-    random_state: int | np.random.Generator | None,
-) -> CompositeSystem:
-    """Return active Brownian disks in a periodic box, without pair interactions."""
-    positions, angles = _disks(n_particles, size, random_state)
-    group = GroupElement(
-        'swimmers',
-        element=ActiveParticleElement,
-        size=n_particles,
-        values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
-    )
-    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-    return CompositeSystem(
-        elements=[group],
-        interactions=[propulsion],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
-
-
 class MotilityInducedPhaseSeparationSystem(BaseSystem):
     """Repulsive active Brownian disks of unit diameter.
 
@@ -441,6 +404,43 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.005)
 
+    @staticmethod
+    def _get_disks(
+        n_particles: int,
+        size: float,
+        random_state: int | np.random.Generator | None,
+    ) -> tuple[Array, Array]:
+        """Return positions on a jittered square grid over a box, and uniform orientations."""
+        rng = np.random.default_rng(random_state)
+        side = math.ceil(math.sqrt(n_particles))
+        spacing = size / side
+        grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n_particles]
+        positions = np.mod((grid + 0.5) * spacing + rng.normal(0.0, 0.05 * spacing, (n_particles, 2)), size)
+        return positions, rng.uniform(0.0, 2 * math.pi, n_particles)
+
+    @staticmethod
+    def _get_active_disks(
+        n_particles: int,
+        size: float,
+        speed: float,
+        D_r: float,
+        random_state: int | np.random.Generator | None,
+    ) -> CompositeSystem:
+        """Return active Brownian disks in a periodic box, without pair interactions."""
+        positions, angles = MotilityInducedPhaseSeparationSystem._get_disks(n_particles, size, random_state)
+        group = GroupElement(
+            'swimmers',
+            element=ActiveParticleElement,
+            size=n_particles,
+            values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
+        )
+        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
+        return CompositeSystem(
+            elements=[group],
+            interactions=[propulsion],
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        )
+
     def __init__(
         self,
         n_particles: int = 400,
@@ -466,7 +466,13 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         The disks phase separate into clusters at high speed.
         """
         size = math.sqrt(self.n_particles * math.pi / 4 / self.packing_fraction)
-        system = _active_disks(self.n_particles, size, self.speed, self.D_r, self.random_state)
+        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+            self.n_particles,
+            size,
+            self.speed,
+            self.D_r,
+            self.random_state,
+        )
         repulsion = SoftSphereInteraction(
             'contact',
             first='swimmers',
@@ -558,7 +564,13 @@ class LivingCrystalsSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        system = _active_disks(self.n_particles, self.size, self.speed, self.D_r, self.random_state)
+        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+            self.n_particles,
+            self.size,
+            self.speed,
+            self.D_r,
+            self.random_state,
+        )
         repulsion = SoftSphereInteraction(
             'contact',
             first='swimmers',

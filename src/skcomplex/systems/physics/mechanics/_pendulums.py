@@ -30,6 +30,8 @@ from ..common.particles import (
     PotentialEnergyInteraction,
 )
 
+DIRECTIONS = ('vertical', 'horizontal')
+
 
 class BallisticPendulumElement(Element):
     """Bullet of mass `m` at the position `x` flying towards the block of a pendulum.
@@ -101,7 +103,7 @@ class BallisticPendulumElement(Element):
         self.g = g
 
 
-def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
+def _get_cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
     """Return the positions of a cart on a horizontal track and of its hanging bob."""
     return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
 
@@ -153,7 +155,7 @@ class CartPendulumElement(Element):
         5.0
     """
 
-    visual = VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]})
+    visual = VisualSpec('bodies', {'positions': _get_cart_and_bob, 'rods': True, 'traced': [1]})
 
     def __init__(
         self,
@@ -266,7 +268,7 @@ class ClockPendulumElement(Element):
         self.theta_c = theta_c
 
 
-def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
+def _get_double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
     """Return the positions of the two bobs of a double pendulum.
 
     The pendulum hangs from the origin.
@@ -323,7 +325,10 @@ class DoublePendulumElement(Element):
         2.0
     """
 
-    visual = VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]})
+    visual = VisualSpec(
+        'bodies',
+        {'positions': _get_double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]},
+    )
 
     def __init__(
         self,
@@ -607,9 +612,6 @@ class MagnetInteraction(PotentialEnergyInteraction):
         """
         displacement = s.target.x - s.center
         return -s.gamma / sqrt(displacement.dot_product(displacement) + s.d**2)
-
-
-DIRECTIONS = ('vertical', 'horizontal')
 
 
 class ParametricPendulumInteraction(EulerLagrangeInteraction):

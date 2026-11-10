@@ -18,27 +18,22 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
-def _eroi(s: SimpleNamespace) -> Expression:
+def _get_gross_energy(s: SimpleNamespace) -> Expression:
+    """Return the gross energy extracted per year."""
+    return s.capacity * s.reserve / s.reserve_size
+
+
+def _get_extraction_cost(s: SimpleNamespace) -> Expression:
+    """Return the energy the extraction work costs per year."""
+    return _get_gross_energy(s) / _get_eroi(s)
+
+
+def _get_eroi(s: SimpleNamespace) -> Expression:
     """Return the energy return on investment.
 
     It falls with the remaining fraction of the reserve.
     """
     return 1 + (s.initial_eroi - 1) * (s.reserve / s.reserve_size) ** s.decline
-
-
-def _gross_energy(s: SimpleNamespace) -> Expression:
-    """Return the gross energy extracted per year."""
-    return s.capacity * s.reserve / s.reserve_size
-
-
-def _extraction_cost(s: SimpleNamespace) -> Expression:
-    """Return the energy the extraction work costs per year."""
-    return _gross_energy(s) / _eroi(s)
-
-
-def _net_per_capita(s: SimpleNamespace) -> Expression:
-    """Return the net energy per person."""
-    return (_gross_energy(s) - _extraction_cost(s)) / s.population
 
 
 class EnergySectorElement(Element):
@@ -141,8 +136,8 @@ class EnergySectorElement(Element):
             laws:
                 The transfers out of the reserve, the rate law of the capacity, and the births and deaths.
         """
-        cost = _extraction_cost(s)
-        net = _gross_energy(s) - cost
+        cost = _get_extraction_cost(s)
+        net = _get_gross_energy(s) - cost
         return [
             TransferLaw(s.reserve, Sink('extraction_work'), cost, label='energy_cost'),
             TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
@@ -150,6 +145,11 @@ class EnergySectorElement(Element):
             TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
             TransferLaw(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
         ]
+
+
+def _get_net_per_capita(s: SimpleNamespace) -> Expression:
+    """Return the net energy per person."""
+    return (_get_gross_energy(s) - _get_extraction_cost(s)) / s.population
 
 
 class EnergyReturnSystem(BaseSystem):
@@ -201,10 +201,10 @@ class EnergyReturnSystem(BaseSystem):
     until = 250.0
     dt = 1.0
     observables = (
-        ObservableSpec('eroi', _eroi, element='energy'),
-        ObservableSpec('gross_energy', _gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _net_per_capita, element='energy'),
+        ObservableSpec('eroi', _get_eroi, element='energy'),
+        ObservableSpec('gross_energy', _get_gross_energy, element='energy'),
+        ObservableSpec('extraction_cost', _get_extraction_cost, element='energy'),
+        ObservableSpec('net_per_capita', _get_net_per_capita, element='energy'),
     )
 
     def __init__(

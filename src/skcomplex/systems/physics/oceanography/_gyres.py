@@ -79,7 +79,7 @@ class QuasiGeostrophicSiteElement(Element):
         self.curl = curl
 
 
-def _streamfunction(s: SimpleNamespace) -> Expression:
+def _get_streamfunction(s: SimpleNamespace) -> Expression:
     """Return the streamfunction of a site.
 
     It is the inversion of its relative potential vorticity with walls at rest.
@@ -88,7 +88,7 @@ def _streamfunction(s: SimpleNamespace) -> Expression:
     return streamfunction
 
 
-def _sites(values: np.ndarray) -> np.ndarray:
+def _get_sites(values: np.ndarray) -> np.ndarray:
     """Return the values of every site, the observed field itself."""
     return np.array(values)
 
@@ -146,7 +146,7 @@ class DoubleGyreSystem(BaseSystem):
     until = 400.0
     dt = 0.4
     solver = RK4Solver(dt=0.4)
-    observables = (ObservableSpec('psi', _streamfunction, group='basin', reduce=_sites),)
+    observables = (ObservableSpec('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
 
     def __init__(
         self,
@@ -170,13 +170,13 @@ class DoubleGyreSystem(BaseSystem):
     @staticmethod
     def _velocity(s: SimpleNamespace) -> list[Expression]:
         """Return the geostrophic velocity of a site, `(-psi_y, psi_x)`."""
-        streamfunction = _streamfunction(s.target)
+        streamfunction = _get_streamfunction(s.target)
         return [-partial(streamfunction, 1), partial(streamfunction, 0)]
 
     @staticmethod
     def _beta_drift(s: SimpleNamespace) -> Expression:
         """Return the advection of the planetary vorticity, `-beta psi_x`."""
-        drift: Expression = -s.target.beta * partial(_streamfunction(s.target), 0)
+        drift: Expression = -s.target.beta * partial(_get_streamfunction(s.target), 0)
         return drift
 
     @staticmethod

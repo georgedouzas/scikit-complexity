@@ -73,7 +73,7 @@ class ReflectionInteraction(CrossingInteraction):
         >>> ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 1.0])
         >>> system = CompositeSystem(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
         >>> trajectory = simulate(system, until=2.0, dt=0.5)
-        >>> trajectory.values('ball.x')[-1].tolist()
+        >>> trajectory.get_values('ball.x')[-1].tolist()
         [0.0, 2.0]
     """
 

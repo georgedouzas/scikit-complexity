@@ -26,18 +26,6 @@ from ....core.types import Array
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 
 
-def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Generator | None) -> Array:
-    """Return all spins up, or random spins, for `initial` set to `'up'` or `'random'`."""
-    if initial == 'up':
-        return np.ones(n_spins)
-    return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
-
-
-def _magnetization() -> ObservableSpec:
-    """Return the observable of the mean spin of the group `spins`."""
-    return ObservableSpec('magnetization', group='spins', variable='spin')
-
-
 class FullyConnectedSpinElement(Element):
     """Ising spin coupled to every other spin.
 
@@ -116,6 +104,11 @@ class FullyConnectedSpinElement(Element):
         return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
 
 
+def _get_magnetization() -> ObservableSpec:
+    """Return the observable of the mean spin of the group `spins`."""
+    return ObservableSpec('magnetization', group='spins', variable='spin')
+
+
 class CurieWeissSystem(BaseSystem):
     """The fully connected Ising system with Glauber dynamics.
 
@@ -159,7 +152,14 @@ class CurieWeissSystem(BaseSystem):
     references = ('Bertin 2021', 'Glauber 1963')
     until = 30.0
     dt = 0.1
-    observables = (_magnetization(),)
+    observables = (_get_magnetization(),)
+
+    @staticmethod
+    def _get_initial_spins(n_spins: int, initial: str, random_state: int | np.random.Generator | None) -> Array:
+        """Return all spins up, or random spins, for `initial` set to `'up'` or `'random'`."""
+        if initial == 'up':
+            return np.ones(n_spins)
+        return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
 
     def __init__(
         self,
@@ -182,7 +182,7 @@ class CurieWeissSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        spins = _initial_spins(self.n_spins, self.initial, self.random_state)
+        spins = CurieWeissSystem._get_initial_spins(self.n_spins, self.initial, self.random_state)
         group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,
@@ -236,7 +236,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
     references = ('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987')
     until = 50.0
     dt = 0.5
-    observables = (_magnetization(),)
+    observables = (_get_magnetization(),)
 
     def __init__(
         self,
@@ -259,7 +259,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
-        spins = _initial_spins(self.n_spins, 'random', rng)
+        spins = CurieWeissSystem._get_initial_spins(self.n_spins, 'random', rng)
         group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,

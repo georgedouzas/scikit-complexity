@@ -74,42 +74,6 @@ class FlockingAgentElement(PointElement):
         self.active = active
 
 
-def _velocity_x(member: SimpleNamespace) -> Expression:
-    """Return the first velocity component of a member when active, and 0 otherwise."""
-    return member.active * member.x_d1[0]
-
-
-def _velocity_y(member: SimpleNamespace) -> Expression:
-    """Return the second velocity component of a member when active, and 0 otherwise."""
-    return member.active * member.x_d1[1]
-
-
-def _speed(member: SimpleNamespace) -> Expression:
-    """Return the speed of a member when active, and 0 otherwise."""
-    return member.active * sqrt(member.x_d1.dot_product(member.x_d1))
-
-
-def _polarization(s: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean active velocity over the mean active speed."""
-    return sqrt(s.velocity_x**2 + s.velocity_y**2) / s.mean_speed
-
-
-def _mean_distance(t: float, values: Mapping[str, object], *, mark: float, size: float) -> float:
-    """Return the mean distance between the agents of a mark in a periodic box.
-
-    The distance is 0 for fewer than two agents.
-    """
-    del t
-    positions = np.asarray(values['agents.x'], dtype=float)[np.asarray(values['agents.active']) == mark]
-    count = len(positions)
-    if count < SMALLEST_GROUP:
-        return 0.0
-    separations = positions[:, None, :] - positions[None, :, :]
-    separations -= size * np.round(separations / size)
-    distances: Array = np.sqrt((separations**2).sum(axis=-1))
-    return float(distances.sum() / (count * (count - 1)))
-
-
 class ActivePassiveFlockingSystem(BaseSystem):
     """The active and passive agents of Charbonneau (2017) in a periodic box.
 
@@ -189,6 +153,42 @@ class ActivePassiveFlockingSystem(BaseSystem):
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=TIME_STEP)
     backend = NumbaBackend()
+
+    @staticmethod
+    def _get_velocity_x(member: SimpleNamespace) -> Expression:
+        """Return the first velocity component of a member when active, and 0 otherwise."""
+        return member.active * member.x_d1[0]
+
+    @staticmethod
+    def _get_velocity_y(member: SimpleNamespace) -> Expression:
+        """Return the second velocity component of a member when active, and 0 otherwise."""
+        return member.active * member.x_d1[1]
+
+    @staticmethod
+    def _get_speed(member: SimpleNamespace) -> Expression:
+        """Return the speed of a member when active, and 0 otherwise."""
+        return member.active * sqrt(member.x_d1.dot_product(member.x_d1))
+
+    @staticmethod
+    def _get_polarization(s: SimpleNamespace) -> Expression:
+        """Return the modulus of the mean active velocity over the mean active speed."""
+        return sqrt(s.velocity_x**2 + s.velocity_y**2) / s.mean_speed
+
+    @staticmethod
+    def _get_mean_distance(t: float, values: Mapping[str, object], *, mark: float, size: float) -> float:
+        """Return the mean distance between the agents of a mark in a periodic box.
+
+        The distance is 0 for fewer than two agents.
+        """
+        del t
+        positions = np.asarray(values['agents.x'], dtype=float)[np.asarray(values['agents.active']) == mark]
+        count = len(positions)
+        if count < SMALLEST_GROUP:
+            return 0.0
+        separations = positions[:, None, :] - positions[None, :, :]
+        separations -= size * np.round(separations / size)
+        distances: Array = np.sqrt((separations**2).sum(axis=-1))
+        return float(distances.sum() / (count * (count - 1)))
 
     def __init__(
         self,
@@ -279,14 +279,25 @@ class ActivePassiveFlockingSystem(BaseSystem):
             raise ValidationError(error_msg)
         size = float(system.space.extent[0])
         return [
-            ObservableSpec('velocity_x', _velocity_x, group='agents'),
-            ObservableSpec('velocity_y', _velocity_y, group='agents'),
-            ObservableSpec('mean_speed', _speed, group='agents'),
-            ObservableSpec('polarization', _polarization),
-            ObservableSpec('active_distance', function=functools.partial(_mean_distance, mark=ACTIVE_AGENT, size=size)),
+            ObservableSpec('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
+            ObservableSpec('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
+            ObservableSpec('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
+            ObservableSpec('polarization', ActivePassiveFlockingSystem._get_polarization),
+            ObservableSpec(
+                'active_distance',
+                function=functools.partial(
+                    ActivePassiveFlockingSystem._get_mean_distance,
+                    mark=ACTIVE_AGENT,
+                    size=size,
+                ),
+            ),
             ObservableSpec(
                 'passive_distance',
-                function=functools.partial(_mean_distance, mark=PASSIVE_AGENT, size=size),
+                function=functools.partial(
+                    ActivePassiveFlockingSystem._get_mean_distance,
+                    mark=PASSIVE_AGENT,
+                    size=size,
+                ),
             ),
         ]
 

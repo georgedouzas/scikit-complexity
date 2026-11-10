@@ -78,7 +78,7 @@ class AdvectionInteraction(ConservationInteraction):
         >>> drift = AdvectionInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
         >>> system = CompositeSystem(elements=[field], interactions=[drift])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
-        >>> total = trajectory.values('tracer.u')[-1].sum()
+        >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
     """

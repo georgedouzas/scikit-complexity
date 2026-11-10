@@ -29,6 +29,14 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
+NEAREST = BallNeighborhood(metric='manhattan', center='first')
+BURNING = 2
+SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
+    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
+    'graph': AdjacencyNeighborhood(center=True),
+}
+MANNA_THRESHOLD = 2
+
 
 class ForestElement(Element):
     """Site of the Drossel-Schwabl forest fire.
@@ -134,12 +142,6 @@ class AvalancheInteraction(TopplingInteraction):
         return following
 
 
-NEAREST = BallNeighborhood(metric='manhattan', center='first')
-
-
-BURNING = 2
-
-
 class FireInteraction(LocalRuleInteraction):
     """Stochastic rule of the Drossel-Schwabl forest fire.
 
@@ -189,15 +191,6 @@ class FireInteraction(LocalRuleInteraction):
         tree = np.where(ignites, float(BURNING), 1.0)
         empty = np.where(random < growth, 1.0, 0.0)
         return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
-
-
-SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
-    'graph': AdjacencyNeighborhood(center=True),
-}
-
-
-MANNA_THRESHOLD = 2
 
 
 class SandpileSystem(BaseSystem):

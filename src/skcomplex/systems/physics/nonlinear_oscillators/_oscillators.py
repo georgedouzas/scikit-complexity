@@ -25,6 +25,8 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.oscillators import StuartLandauElement
 
+SPRINGS = ('tangent', 'linear')
+
 
 class KickInteraction(CrossingInteraction):
     """Periodic kicks that set states of an oscillator to new values.
@@ -276,7 +278,7 @@ class VanDerPolElement(Element):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = CompositeSystem(elements=[VanDerPolElement('oscillator', x=0.1)])
         >>> trajectory = simulate(system, until=50.0, dt=0.1)
-        >>> round(float(abs(trajectory.values('oscillator.x')[-300:]).max()), 1)
+        >>> round(float(abs(trajectory.get_values('oscillator.x')[-300:]).max()), 1)
         2.0
     """
 
@@ -314,29 +316,6 @@ class VanDerPolElement(Element):
         x = namespace.x
         damping = namespace.mu * (1 - x**2) * derivative(x, 1)
         return [RateLaw(x, damping - x + namespace.A * cos(namespace.omega * namespace.t))]
-
-
-def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
-    """Return the Hénon-Heiles energy of a star.
-
-    The energy is `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`.
-    """
-    kinetic = (star.px**2 + star.py**2) / 2
-    return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
-
-
-SPRINGS = ('tangent', 'linear')
-
-
-def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
-    """Return the quadrupole energy of a nucleus.
-
-    The energy is `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`.
-    """
-    q2 = nucleus.q1**2 + nucleus.q2**2
-    kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
-    cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
-    return kinetic + q2 / 2 + cubic + q2**2 / 8
 
 
 class DuffingSystem(DynamicalSystem):
@@ -482,6 +461,15 @@ class VanDerPolSystem(BaseSystem):
         The oscillator settles on a limit cycle for `μ > 0`.
         """
         return CompositeSystem(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+
+
+def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
+    """Return the Hénon-Heiles energy of a star.
+
+    The energy is `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`.
+    """
+    kinetic = (star.px**2 + star.py**2) / 2
+    return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
 
 
 class HenonHeilesSystem(BaseSystem):
@@ -763,6 +751,17 @@ class AdlerEquationSystem(DynamicalSystem):
         return {
             'phi': lambda s: s.target.detuning + s.target.epsilon * sin(s.target.phi),
         }
+
+
+def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
+    """Return the quadrupole energy of a nucleus.
+
+    The energy is `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`.
+    """
+    q2 = nucleus.q1**2 + nucleus.q2**2
+    kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
+    cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
+    return kinetic + q2 / 2 + cubic + q2**2 / 8
 
 
 class NuclearQuadrupoleSystem(BaseSystem):

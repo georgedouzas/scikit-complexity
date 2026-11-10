@@ -234,13 +234,6 @@ class XYSamplingInteraction(SpinSamplingInteraction):
         return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)
 
 
-def _square(size: int | Sequence[int]) -> tuple[int, ...]:
-    """Return the shape of a square lattice of a side, or a given shape."""
-    if isinstance(size, Sequence):
-        return tuple(int(item) for item in size)
-    return (int(size), int(size))
-
-
 class IsingSystem(BaseSystem):
     """The two-dimensional Ising system on a torus.
 
@@ -285,6 +278,13 @@ class IsingSystem(BaseSystem):
     until = 200
     dt = 1
 
+    @staticmethod
+    def _get_square(size: int | Sequence[int]) -> tuple[int, ...]:
+        """Return the shape of a square lattice of a side, or a given shape."""
+        if isinstance(size, Sequence):
+            return tuple(int(item) for item in size)
+        return (int(size), int(size))
+
     def __init__(
         self,
         size: int | Sequence[int] = 64,
@@ -308,7 +308,7 @@ class IsingSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         spins = (
             np.ones(shape)
             if self.initial == 'up'
@@ -394,7 +394,7 @@ class PottsSystem(BaseSystem):
 
         The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
         """
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
         space = LatticeSpace(shape)
         group = GroupElement(
@@ -468,7 +468,7 @@ class XYSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
         space = LatticeSpace(shape)
         group = GroupElement(

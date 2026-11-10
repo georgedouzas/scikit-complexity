@@ -83,11 +83,6 @@ class WallParticleElement(Element):
         return [BoundaryLaw(s.z, abs(s.z))]
 
 
-def _get_double_well_drive(s: SimpleNamespace) -> Expression:
-    """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
-    return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
-
-
 class StochasticResonanceSystem(BaseSystem):
     """A particle in a double well.
 
@@ -124,6 +119,11 @@ class StochasticResonanceSystem(BaseSystem):
     until = 500.0
     dt = 0.5
 
+    @staticmethod
+    def _get_double_well_drive(s: SimpleNamespace) -> Expression:
+        """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
+        return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
+
     def __init__(
         self,
         x: float = -1.0,
@@ -150,7 +150,7 @@ class StochasticResonanceSystem(BaseSystem):
             RateInteraction(
                 'drive',
                 target=target,
-                rate=_get_double_well_drive,
+                rate=StochasticResonanceSystem._get_double_well_drive,
                 noise=lambda s: sqrt(2 * s.target.D),
             ),
         ]

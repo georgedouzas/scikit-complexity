@@ -175,7 +175,7 @@ class RandomEnergySystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = RandomEnergySystem(12, temperature=2.0).prepare().system_
         >>> trajectory = simulate(system, until=1.0)
-        >>> bool(abs(trajectory.values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
+        >>> bool(abs(trajectory.get_values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
         True
     """
 

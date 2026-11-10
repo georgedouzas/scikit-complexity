@@ -110,25 +110,7 @@ class MotileCellElement(Element):
         self.F_adh = F_adh
 
 
-def _velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
-    """Return the velocity `v0 n + mu F` of a cell.
-
-    The force `F` is the sum of the forces of the neighbours within a reach.
-    """
-    cell = s.target
-    dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
-    distance = sqrt(dx**2 + dy**2)
-    stretch = distance - cell.R_eq
-    strength = where(
-        stretch < 0,
-        cell.F_rep * stretch / cell.R_eq,
-        cell.F_adh * stretch / (cell.R_0 - cell.R_eq),
-    )
-    force = neighbors(vector([strength * dx / distance, strength * dy / distance]), over=RadiusNeighborhood(reach))
-    return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
-
-
-def _heading(member: SimpleNamespace) -> Expression:
+def _get_heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading.
 
     The vector lies in the complex plane.
@@ -136,7 +118,7 @@ def _heading(member: SimpleNamespace) -> Expression:
     return exp(I * member.theta)
 
 
-def _polarization(s: SimpleNamespace) -> Expression:
+def _get_polarization(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean heading."""
     return abs(s.mean_heading)
 
@@ -203,9 +185,27 @@ class SzaboCellsSystem(BaseSystem):
     solver = EulerMaruyamaSolver(dt=0.01)
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _heading, group='cells'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_heading', _get_heading, group='cells'),
+        ObservableSpec('polarization', _get_polarization),
     )
+
+    @staticmethod
+    def _get_velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
+        """Return the velocity `v0 n + mu F` of a cell.
+
+        The force `F` is the sum of the forces of the neighbours within a reach.
+        """
+        cell = s.target
+        dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
+        distance = sqrt(dx**2 + dy**2)
+        stretch = distance - cell.R_eq
+        strength = where(
+            stretch < 0,
+            cell.F_rep * stretch / cell.R_eq,
+            cell.F_adh * stretch / (cell.R_0 - cell.R_eq),
+        )
+        force = neighbors(vector([strength * dx / distance, strength * dy / distance]), over=RadiusNeighborhood(reach))
+        return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
 
     def __init__(
         self,
@@ -243,7 +243,7 @@ class SzaboCellsSystem(BaseSystem):
         The rate is `arcsin((n x v / |v|)_z) / tau`.
         """
         cell = s.target
-        velocity = _velocity(s, reach=reach)
+        velocity = SzaboCellsSystem._get_velocity(s, reach=reach)
         speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
         cross = (cos(cell.theta) * velocity[1] - sin(cell.theta) * velocity[0]) / speed
         return arcsin(clip(cross, -1, 1)) / cell.tau
@@ -278,7 +278,12 @@ class SzaboCellsSystem(BaseSystem):
             },
             visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
         )
-        motion = RateInteraction('motion', target='cells', state='x', rate=functools.partial(_velocity, reach=self.R_0))
+        motion = RateInteraction(
+            'motion',
+            target='cells',
+            state='x',
+            rate=functools.partial(SzaboCellsSystem._get_velocity, reach=self.R_0),
+        )
         turning = RateInteraction(
             'turning',
             target='cells',

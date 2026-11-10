@@ -167,27 +167,6 @@ class MitigatorsElement(Element):
         self.tf = tf
 
 
-def _temperature(forest: SimpleNamespace, cover: Expression) -> Expression:
-    """Return the local temperature `Tv + a (1 - v)` of a forest of a given cover."""
-    return forest.Tv + forest.a * (1 - cover)
-
-
-def _growth(forest: SimpleNamespace) -> Expression:
-    """Return the growth rate `g0 (1 - ((T - Topt) / beta)²)` of a forest.
-
-    The rate is taken at its local temperature.
-    """
-    return forest.g0 * (1 - ((_temperature(forest, forest.v) - forest.Topt) / forest.beta) ** 2)
-
-
-def _logistic(forest: SimpleNamespace, efficiency: Expression | float) -> Expression:
-    """Return the logistic growth of a forest minus its disturbance.
-
-    The growth is scaled by an efficiency.
-    """
-    return _growth(forest) * efficiency * forest.v * (1 - forest.v) - forest.gamma * forest.v
-
-
 class ForestDiebackSystem(BaseSystem):
     """The forest dieback model of the Amazon.
 
@@ -237,6 +216,31 @@ class ForestDiebackSystem(BaseSystem):
     until = 200.0
     dt = 0.5
 
+    @staticmethod
+    def _get_temperature(forest: SimpleNamespace, cover: Expression) -> Expression:
+        """Return the local temperature `Tv + a (1 - v)` of a forest of a given cover."""
+        return forest.Tv + forest.a * (1 - cover)
+
+    @staticmethod
+    def _get_growth(forest: SimpleNamespace) -> Expression:
+        """Return the growth rate `g0 (1 - ((T - Topt) / beta)²)` of a forest.
+
+        The rate is taken at its local temperature.
+        """
+        return forest.g0 * (
+            1 - ((ForestDiebackSystem._get_temperature(forest, forest.v) - forest.Topt) / forest.beta) ** 2
+        )
+
+    @staticmethod
+    def _get_logistic(forest: SimpleNamespace, efficiency: Expression | float) -> Expression:
+        """Return the logistic growth of a forest minus its disturbance.
+
+        The growth is scaled by an efficiency.
+        """
+        return (
+            ForestDiebackSystem._get_growth(forest) * efficiency * forest.v * (1 - forest.v) - forest.gamma * forest.v
+        )
+
     def __init__(
         self,
         v: float = 0.8,
@@ -270,7 +274,12 @@ class ForestDiebackSystem(BaseSystem):
             a=self.a,
             gamma=self.gamma,
         )
-        growth = RateInteraction('growth', target='forest', state='v', rate=lambda s: _logistic(s.target, 1))
+        growth = RateInteraction(
+            'growth',
+            target='forest',
+            state='v',
+            rate=lambda s: ForestDiebackSystem._get_logistic(s.target, 1),
+        )
         return CompositeSystem(self.label, elements=[forest], interactions=[growth])
 
 
@@ -370,7 +379,14 @@ class SocialForestDiebackSystem(BaseSystem):
         """
         people, forest = s.target, s.sources[0]
         past = delayed(forest.v, people.tp)
-        perceived = people.tf / people.tp * (_temperature(forest, forest.v) - _temperature(forest, past))
+        perceived = (
+            people.tf
+            / people.tp
+            * (
+                ForestDiebackSystem._get_temperature(forest, forest.v)
+                - ForestDiebackSystem._get_temperature(forest, past)
+            )
+        )
         cost = people.fmax / (1 + exp(-people.w * (perceived - people.Tc)))
         return people.x * (1 - people.x) * (-people.alpha + cost + people.delta * (2 * people.x - 1))
 
@@ -393,7 +409,7 @@ class SocialForestDiebackSystem(BaseSystem):
             target='forest',
             state='v',
             sources=['people'],
-            rate=lambda s: _logistic(s.target, 0.2 + 0.4 * s.sources[0].x),
+            rate=lambda s: ForestDiebackSystem._get_logistic(s.target, 0.2 + 0.4 * s.sources[0].x),
         )
         mitigation = RateInteraction(
             'mitigation',

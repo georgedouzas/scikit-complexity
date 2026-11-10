@@ -24,14 +24,6 @@ from ....core.types import Array
 TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
 
 
-def _softmax_action(incentive: Expression, temperature: Expression) -> Expression:
-    """Return the action ±1 drawn from the softmax policy.
-
-    The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
-    """
-    return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
-
-
 class LearnerElement(Element):
     """Agent of the evolutionary Sherrington-Kirkpatrick game.
 
@@ -91,6 +83,14 @@ class LearnerElement(Element):
 
     law_classes = (UpdateLaw,)
 
+    @staticmethod
+    def _get_softmax_action(incentive: Expression, temperature: Expression) -> Expression:
+        """Return the action ±1 drawn from the softmax policy.
+
+        The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
+        """
+        return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
+
     def __init__(
         self,
         label: str,
@@ -139,7 +139,7 @@ class LearnerElement(Element):
             incentive = where(least, 0, s.incentive)
             temperature = where(least, uniform('newcomer', 0, s.max_temperature), s.temperature)
         learned = (1 - s.memory) * incentive + s.memory * field
-        action = _softmax_action(learned, temperature)
+        action = LearnerElement._get_softmax_action(learned, temperature)
         return [
             UpdateLaw(s.incentive, learned),
             UpdateLaw(s.temperature, temperature),

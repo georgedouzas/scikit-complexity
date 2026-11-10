@@ -1,6 +1,9 @@
 """Rigid Brownian bodies.
 
 The module covers axisymmetric particles in three dimensions and dimers of two spheres on a rod.
+
+`AXES` holds the names of the coordinates of the position. `DIRECTIONS` holds the names of the components of the unit
+vector along the axis.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -23,10 +26,7 @@ from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 AXES = ('x', 'y', 'z')
-"""The names of the coordinates of the position."""
-
 DIRECTIONS = ('ux', 'uy', 'uz')
-"""The names of the components of the unit vector along the axis."""
 
 
 class AnisotropicParticleElement(Element):

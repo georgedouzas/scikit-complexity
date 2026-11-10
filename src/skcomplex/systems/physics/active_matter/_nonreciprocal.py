@@ -27,22 +27,6 @@ from ..common.particles import PropulsionStepInteraction
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 
 
-def _heading_a(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species A, doubled.
-
-    The doubling makes the mean over both species the mean over A.
-    """
-    return 2 * (1 - member.species) * exp(I * member.theta)
-
-
-def _heading_b(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species B, doubled.
-
-    The doubling makes the mean over both species the mean over B.
-    """
-    return 2 * member.species * exp(I * member.theta)
-
-
 class NonreciprocalMoverElement(Element):
     """Vicsek mover of species A (0) or B (1).
 
@@ -151,6 +135,22 @@ class NonreciprocalMoverElement(Element):
         return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 
+def _get_heading_a(member: SimpleNamespace) -> Expression:
+    """Return the heading of a member of species A, doubled.
+
+    The doubling makes the mean over both species the mean over A.
+    """
+    return 2 * (1 - member.species) * exp(I * member.theta)
+
+
+def _get_heading_b(member: SimpleNamespace) -> Expression:
+    """Return the heading of a member of species B, doubled.
+
+    The doubling makes the mean over both species the mean over B.
+    """
+    return 2 * member.species * exp(I * member.theta)
+
+
 class NonreciprocalVicsekSystem(BaseSystem):
     """Two species of Vicsek movers in a periodic box with nonreciprocal alignment.
 
@@ -196,8 +196,8 @@ class NonreciprocalVicsekSystem(BaseSystem):
     until = 300.0
     dt = 1.0
     observables = (
-        ObservableSpec('heading_a', _heading_a, group='movers'),
-        ObservableSpec('heading_b', _heading_b, group='movers'),
+        ObservableSpec('heading_a', _get_heading_a, group='movers'),
+        ObservableSpec('heading_b', _get_heading_b, group='movers'),
     )
 
     def __init__(

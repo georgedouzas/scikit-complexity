@@ -90,11 +90,6 @@ class DelayedCouplingInteraction(RateInteraction):
         return namespace.K * sin(delayed(namespace.source.theta, namespace.tau) - namespace.target.theta)
 
 
-def _spread_phases(size: int, seed: int) -> list[float]:
-    """Return phases drawn uniformly from the circle with a seed."""
-    return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
-
-
 class DelayedKuramotoSystem(BaseSystem):
     """Kuramoto phase oscillators coupled all to all through delayed signals.
 
@@ -224,6 +219,11 @@ class KuramotoSystem(BaseSystem):
     dt = 0.5
     observables = tuple(order_parameter('order', 'oscillators'))
 
+    @staticmethod
+    def _spread_phases(size: int, seed: int) -> list[float]:
+        """Return phases drawn uniformly from the circle with a seed."""
+        return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
+
     def __init__(
         self,
         n_oscillators: int = 50,
@@ -247,7 +247,7 @@ class KuramotoSystem(BaseSystem):
             element=PhaseOscillatorElement,
             size=self.n_oscillators,
             values={
-                'theta': _spread_phases(self.n_oscillators, self.seed),
+                'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
                 'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
         )
@@ -347,7 +347,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
                 'second',
                 element=PhaseOscillatorElement,
                 size=self.n_oscillators,
-                values={'theta': _spread_phases(self.n_oscillators, self.seed + 1), 'omega': 0.0},
+                values={'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed + 1), 'omega': 0.0},
                 visual=VisualSpec('phase_ring', {'phase': 'theta'}),
             ),
         ]
@@ -442,7 +442,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
             element=SitedOscillatorElement,
             size=self.n_oscillators,
             values={
-                'theta': _spread_phases(self.n_oscillators, self.seed),
+                'theta': KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
                 'omega': self.omega,
                 'x': np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
             },

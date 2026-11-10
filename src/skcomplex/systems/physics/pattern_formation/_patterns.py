@@ -193,11 +193,6 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         return -namespace.r * u**2 / 2 + (u + laplacian(u)) ** 2 / 2 - namespace.g * u**3 / 3 + u**4 / 4
 
 
-def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return small uniform noise of a shape."""
-    return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
-
-
 class ComplexGinzburgLandauSystem(BaseSystem):
     """The complex Ginzburg-Landau equation.
 
@@ -239,6 +234,11 @@ class ComplexGinzburgLandauSystem(BaseSystem):
     dt = 1.0
     solver = ETDRK4Solver(dt=0.1)
 
+    @staticmethod
+    def _get_noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return small uniform noise of a shape."""
+        return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
+
     def __init__(
         self,
         shape: Sequence[int] = (64, 64),
@@ -263,7 +263,12 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         """
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': self.b, 'c': self.c}
+        values = {
+            'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng),
+            'v': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng),
+            'b': self.b,
+            'c': self.c,
+        }
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return CompositeSystem(
             self.label,
@@ -334,7 +339,7 @@ class SwiftHohenbergSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
-        values = {'u': _noise(shape, 0.01, self.random_state)}
+        values = {'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, self.random_state)}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
         return CompositeSystem(
             self.label,

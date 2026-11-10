@@ -27,35 +27,35 @@ LIFE_FROM_FOOD = ((0.0, 1.0, 2.0, 3.0, 4.0), (0.0, 1.0, 1.8, 2.4, 2.7))
 LIFE_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.05, 0.85, 0.6, 0.3, 0.15, 0.05, 0.02))
 
 
-def _pollution_ratio(region: SimpleNamespace) -> Expression:
-    """Return the pollution ratio, the pollution over its standard."""
-    return region.pollution / region.pollution_standard
+def _get_food_per_capita(s: SimpleNamespace) -> Expression:
+    """Return the food per capita."""
+    return _get_food(s, s.t)
 
 
-def _food(region: SimpleNamespace, t: Expression) -> Expression:
+def _get_quality_of_life(s: SimpleNamespace) -> Expression:
+    """Return the quality of life.
+
+    It is the product of the table multipliers of the food and the pollution ratios.
+    """
+    food_ratio = _get_food_per_capita(s) / s.subsistence_food
+    ratio = _get_pollution_ratio(s)
+    return series(food_ratio, *LIFE_FROM_FOOD) * series(ratio, *LIFE_FROM_POLLUTION)
+
+
+def _get_food(region: SimpleNamespace, t: Expression) -> Expression:
     """Return the food per capita at a time.
 
     The food follows from the land, the yield, the cropping intensity, and the pollution.
     """
-    ratio = _pollution_ratio(region)
+    ratio = _get_pollution_ratio(region)
     intensity = series(t, *CROPPING_INTENSITY)
     food = region.cultivated_land * region.crop_yield * intensity * series(ratio, *FOOD_FROM_POLLUTION)
     return food / region.population
 
 
-def _food_per_capita(s: SimpleNamespace) -> Expression:
-    """Return the food per capita."""
-    return _food(s, s.t)
-
-
-def _quality_of_life(s: SimpleNamespace) -> Expression:
-    """Return the quality of life.
-
-    It is the product of the table multipliers of the food and the pollution ratios.
-    """
-    food_ratio = _food_per_capita(s) / s.subsistence_food
-    ratio = _pollution_ratio(s)
-    return series(food_ratio, *LIFE_FROM_FOOD) * series(ratio, *LIFE_FROM_POLLUTION)
+def _get_pollution_ratio(region: SimpleNamespace) -> Expression:
+    """Return the pollution ratio, the pollution over its standard."""
+    return region.pollution / region.pollution_standard
 
 
 class PopulationPollutionSystem(DynamicalSystem):
@@ -106,8 +106,8 @@ class PopulationPollutionSystem(DynamicalSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('food_per_capita', _food_per_capita, element='region'),
-        ObservableSpec('quality_of_life', _quality_of_life, element='region'),
+        ObservableSpec('food_per_capita', _get_food_per_capita, element='region'),
+        ObservableSpec('quality_of_life', _get_quality_of_life, element='region'),
     )
 
     def __init__(
@@ -161,8 +161,8 @@ class PopulationPollutionSystem(DynamicalSystem):
     def _population_rate(s: SimpleNamespace) -> Expression:
         """Return the births minus the deaths of the population."""
         region = s.target
-        ratio = _pollution_ratio(region)
-        food_ratio = _food(region, s.t) / region.subsistence_food
+        ratio = _get_pollution_ratio(region)
+        food_ratio = _get_food(region, s.t) / region.subsistence_food
         births = region.birth_normal * series(food_ratio, *BIRTHS_FROM_FOOD) * series(ratio, *BIRTHS_FROM_POLLUTION)
         deaths = region.death_normal * series(food_ratio, *DEATHS_FROM_FOOD) * series(ratio, *DEATHS_FROM_POLLUTION)
         return region.population * (births - deaths)
@@ -171,5 +171,5 @@ class PopulationPollutionSystem(DynamicalSystem):
     def _pollution_rate(s: SimpleNamespace) -> Expression:
         """Return the generation minus the absorption of the pollution."""
         region = s.target
-        absorption = region.pollution / series(_pollution_ratio(region), *ABSORPTION_TIME)
+        absorption = region.pollution / series(_get_pollution_ratio(region), *ABSORPTION_TIME)
         return region.pollution_normal * region.population - absorption

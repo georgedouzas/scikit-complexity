@@ -28,19 +28,6 @@ HEADINGS = VisualSpec(
 )
 
 
-def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading.
-
-    The vector lies in the complex plane.
-    """
-    return exp(I * member.theta)
-
-
-def _polarization(s: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean heading, the polarization."""
-    return abs(s.mean_heading)
-
-
 class PolarAlignmentInteraction(PairInteraction):
     """Alignment torque between two particles closer than the cutoff.
 
@@ -106,6 +93,19 @@ class PolarAlignmentInteraction(PairInteraction):
         return namespace.gamma * sin(namespace.second.theta - namespace.first.theta)
 
 
+def _get_heading(member: SimpleNamespace) -> Expression:
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
+    return exp(I * member.theta)
+
+
+def _get_polarization(s: SimpleNamespace) -> Expression:
+    """Return the modulus of the mean heading, the polarization."""
+    return abs(s.mean_heading)
+
+
 class AligningActiveBrownianParticlesSystem(BaseSystem):
     """Active Brownian particles in a periodic box whose headings align.
 
@@ -159,8 +159,8 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
-        ObservableSpec('mean_heading', _heading, group='swimmers'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_heading', _get_heading, group='swimmers'),
+        ObservableSpec('polarization', _get_polarization),
     )
 
     def __init__(

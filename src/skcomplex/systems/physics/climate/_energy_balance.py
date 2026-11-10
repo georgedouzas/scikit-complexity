@@ -173,11 +173,6 @@ class LatitudeBandElement(Element):
         return [RateLaw(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
 
 
-def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
-    """Return the effective temperature of Daisyworld."""
-    return DaisyworldSystem._daisyworld_emission(s.planet) ** (1 / 4)
-
-
 class EnergyBalanceSystem(DynamicalSystem):
     """The zero-dimensional energy balance of the Earth.
 
@@ -372,6 +367,16 @@ class BudykoSellersSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[bands])
 
 
+def _get_daisyworld_temperature(s: SimpleNamespace) -> Expression:
+    """Return the effective temperature of Daisyworld."""
+    return _daisyworld_emission(s.planet) ** (1 / 4)
+
+
+def _daisyworld_emission(planet: SimpleNamespace) -> Expression:
+    """Return the fourth power of the effective temperature of the planet."""
+    return planet.S * planet.L * (1 - DaisyworldSystem._daisyworld_albedo(planet)) / planet.sigma
+
+
 class DaisyworldSystem(DynamicalSystem):
     """Daisyworld.
 
@@ -409,7 +414,7 @@ class DaisyworldSystem(DynamicalSystem):
     references = ('Watson and Lovelock 1983', 'Jensen 2023')
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('temperature', _daisyworld_temperature),)
+    observables = (ObservableSpec('temperature', _get_daisyworld_temperature),)
 
     def __init__(
         self,
@@ -470,10 +475,9 @@ class DaisyworldSystem(DynamicalSystem):
 
         The rate is parabolic in their local temperature and zero outside it.
         """
-        local = (
-            planet.q * (DaisyworldSystem._daisyworld_albedo(planet) - albedo)
-            + DaisyworldSystem._daisyworld_emission(planet)
-        ) ** (1 / 4)
+        local = (planet.q * (DaisyworldSystem._daisyworld_albedo(planet) - albedo) + _daisyworld_emission(planet)) ** (
+            1 / 4
+        )
         growth = 1 - planet.k * (planet.optimum - local) ** 2
         return where(growth > 0, growth, 0)
 
@@ -485,8 +489,3 @@ class DaisyworldSystem(DynamicalSystem):
         """
         bare = planet.p - planet.white - planet.black
         return bare * planet.albedo_ground + planet.white * planet.albedo_white + planet.black * planet.albedo_black
-
-    @staticmethod
-    def _daisyworld_emission(planet: SimpleNamespace) -> Expression:
-        """Return the fourth power of the effective temperature of the planet."""
-        return planet.S * planet.L * (1 - DaisyworldSystem._daisyworld_albedo(planet)) / planet.sigma

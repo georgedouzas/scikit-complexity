@@ -263,16 +263,6 @@ class TransientWalkerElement(Element):
         self.gamma = gamma
 
 
-def _direction(name: str, size: int) -> list[Expression]:
-    """Return a unit vector of uniformly random direction.
-
-    The vector is drawn from standard normal components.
-    """
-    components = [normal(f'{name}{index}') for index in range(size)]
-    length = sqrt(sum(component**2 for component in components))
-    return [component / length for component in components]
-
-
 class ContinuousTimeRandomWalkSystem(BaseSystem):
     """The continuous-time random walk.
 
@@ -405,6 +395,16 @@ class LevyWalkSystem(BaseSystem):
     dt = 2.5
     solver = RK4Solver(dt=0.5)
 
+    @staticmethod
+    def _get_direction(name: str, size: int) -> list[Expression]:
+        """Return a unit vector of uniformly random direction.
+
+        The vector is drawn from standard normal components.
+        """
+        components = [normal(f'{name}{index}') for index in range(size)]
+        length = sqrt(sum(component**2 for component in components))
+        return [component / length for component in components]
+
     def __init__(
         self,
         n_walkers: int = 500,
@@ -445,7 +445,11 @@ class LevyWalkSystem(BaseSystem):
             'turns',
             target='walkers',
             waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
-            reset={'v': lambda s: [s.target.speed * item for item in _direction('direction', len(list(s.target.v)))]},
+            reset={
+                'v': lambda s: [
+                    s.target.speed * item for item in LevyWalkSystem._get_direction('direction', len(list(s.target.v)))
+                ],
+            },
         )
         return CompositeSystem(
             self.label,
@@ -682,7 +686,7 @@ class LevyFlightSystem(BaseSystem):
         The jump has the power-law length `l0 r^(-1 / mu)`.
         """
         length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
-        steps = _direction('direction', len(list(s.target.x)))
+        steps = LevyWalkSystem._get_direction('direction', len(list(s.target.x)))
         return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
 
     def _build_system(self) -> CompositeSystem:

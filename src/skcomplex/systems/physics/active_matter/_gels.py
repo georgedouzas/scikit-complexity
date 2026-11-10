@@ -94,7 +94,7 @@ class ContractileGelSiteElement(Element):
         self.c_sat = c_sat
 
 
-def _gel_velocity(s: SimpleNamespace) -> Expression:
+def _get_gel_velocity(s: SimpleNamespace) -> Expression:
     """Return the gel velocity.
 
     The velocity solves `(gamma - eta d_xx) v = d_x (E d_x u + T0 c / (c + c_sat))`.
@@ -104,7 +104,7 @@ def _gel_velocity(s: SimpleNamespace) -> Expression:
     return velocity
 
 
-def _sites(values: np.ndarray) -> np.ndarray:
+def _get_sites(values: np.ndarray) -> np.ndarray:
     """Return the values of every site, the observed field itself."""
     return np.array(values)
 
@@ -174,7 +174,14 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     until = 30.0
     dt = 0.1
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('v', _gel_velocity, group='gel', reduce=_sites),)
+    observables = (
+        ObservableSpec(
+            'v',
+            _get_gel_velocity,
+            group='gel',
+            reduce=_get_sites,
+        ),
+    )
 
     def __init__(
         self,
@@ -208,7 +215,7 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     @staticmethod
     def _transport(s: SimpleNamespace) -> Expression:
         """Return the velocity of a site of the target gel."""
-        return _gel_velocity(s.target)
+        return _get_gel_velocity(s.target)
 
     @staticmethod
     def _get_diffusion(s: SimpleNamespace) -> Expression:

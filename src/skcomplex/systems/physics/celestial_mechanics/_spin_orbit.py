@@ -23,6 +23,8 @@ from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, 
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
+COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
+
 
 class DumbbellElement(Element):
     """Rigid dumbbell orbiting a primary.
@@ -125,30 +127,6 @@ class DumbbellElement(Element):
         self.mu = mu
 
 
-COORDINATES = ('u', 'theta', 'v', 'phi', 'psi')
-
-
-def _get_dumbbell_distances(d: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the distances `rho12`, `rho13` from the primary to both dumbbell masses."""
-    radius = d.u**2 + d.v**2
-    projection = d.u * sin(d.psi) * cos(d.theta - d.phi) + d.v * cos(d.psi)
-    first = radius + d.delta**2 * d.epsilon**2 + 2 * d.delta * d.epsilon * projection
-    second = radius + (1 - d.delta) ** 2 * d.epsilon**2 - 2 * (1 - d.delta) * d.epsilon * projection
-    return sqrt(first), sqrt(second)
-
-
-def _get_dumbbell_parts(d: SimpleNamespace, rates: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the kinetic and potential energies of a dumbbell per reduced orbit mass.
-
-    The energies follow from given rates.
-    """
-    inertia = d.delta * (1 - d.delta) / d.mu * d.epsilon**2
-    orbit = rates.u**2 + d.u**2 * rates.theta**2 + rates.v**2
-    spin = inertia * (rates.psi**2 + sin(d.psi) ** 2 * rates.phi**2)
-    first, second = _get_dumbbell_distances(d)
-    return (orbit + spin) / 2, -(1 - d.delta) / first - d.delta / second
-
-
 def _get_dumbbell_energy(d: SimpleNamespace) -> Expression:
     """Return the energy of a dumbbell, the sum of its kinetic and potential energies."""
     rates = SimpleNamespace(**{name: getattr(d, f'{name}_d1') for name in COORDINATES})
@@ -160,6 +138,18 @@ def _get_dumbbell_momentum(d: SimpleNamespace) -> Expression:
     """Return the angular momentum of a dumbbell about the normal of the orbital plane."""
     inertia = d.delta * (1 - d.delta) / d.mu * d.epsilon**2
     return d.u**2 * d.theta_d1 + inertia * sin(d.psi) ** 2 * d.phi_d1
+
+
+def _get_dumbbell_parts(d: SimpleNamespace, rates: SimpleNamespace) -> tuple[Expression, Expression]:
+    """Return the kinetic and potential energies of a dumbbell per reduced orbit mass.
+
+    The energies follow from given rates.
+    """
+    inertia = d.delta * (1 - d.delta) / d.mu * d.epsilon**2
+    orbit = rates.u**2 + d.u**2 * rates.theta**2 + rates.v**2
+    spin = inertia * (rates.psi**2 + sin(d.psi) ** 2 * rates.phi**2)
+    first, second = KeplerianDumbbellSystem._get_dumbbell_distances(d)
+    return (orbit + spin) / 2, -(1 - d.delta) / first - d.delta / second
 
 
 class KeplerianDumbbellSystem(BaseSystem):
@@ -240,6 +230,15 @@ class KeplerianDumbbellSystem(BaseSystem):
         ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
         ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
     )
+
+    @staticmethod
+    def _get_dumbbell_distances(d: SimpleNamespace) -> tuple[Expression, Expression]:
+        """Return the distances `rho12`, `rho13` from the primary to both dumbbell masses."""
+        radius = d.u**2 + d.v**2
+        projection = d.u * sin(d.psi) * cos(d.theta - d.phi) + d.v * cos(d.psi)
+        first = radius + d.delta**2 * d.epsilon**2 + 2 * d.delta * d.epsilon * projection
+        second = radius + (1 - d.delta) ** 2 * d.epsilon**2 - 2 * (1 - d.delta) * d.epsilon * projection
+        return sqrt(first), sqrt(second)
 
     def __init__(
         self,

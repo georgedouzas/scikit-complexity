@@ -26,6 +26,8 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
+THRESHOLD = 4
+
 
 class EnergySiteElement(Element):
     """Site of the Zhang sandpile.
@@ -106,23 +108,12 @@ class ToppleInteraction(LocalRuleInteraction):
         return height - self.threshold * (height >= self.threshold) + gained
 
 
-THRESHOLD = 4
-
-
-def _active(site: SimpleNamespace) -> Expression:
+def _get_active(site: SimpleNamespace) -> Expression:
     """Return 1 for an active site and 0 otherwise.
 
     An active site holds at least the threshold.
     """
     return where(site.height >= THRESHOLD, 1, 0)
-
-
-def _ends(tree: SimpleNamespace, generations: int) -> Expression:
-    """Return whether the avalanche of a tree ends this step.
-
-    It ends at the last generation or with no active site.
-    """
-    return either(tree.g >= generations, tree.z == 0)
 
 
 class FixedEnergySandpileSystem(BaseSystem):
@@ -161,7 +152,7 @@ class FixedEnergySandpileSystem(BaseSystem):
     references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
     until = 500
     dt = 1
-    observables = (ObservableSpec('activity', _active, group='pile'),)
+    observables = (ObservableSpec('activity', _get_active, group='pile'),)
 
     def __init__(
         self,
@@ -317,6 +308,14 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
     until = 30000
     dt = 1
 
+    @staticmethod
+    def _get_ends(tree: SimpleNamespace, generations: int) -> Expression:
+        """Return whether the avalanche of a tree ends this step.
+
+        It ends at the last generation or with no active site.
+        """
+        return either(tree.g >= generations, tree.z == 0)
+
     def __init__(
         self,
         p: float = 0.3,
@@ -331,12 +330,16 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
     @staticmethod
     def _branch(generations: int, s: SimpleNamespace) -> Expression:
         """Return the active sites of the next generation, or a new avalanche's one site."""
-        return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
+        return where(
+            SelfOrganizedBranchingSystem._get_ends(s.target, generations),
+            1,
+            2 * draw('children', 'binom', n=s.target.z, p=s.target.p),
+        )
 
     @staticmethod
     def _advance(generations: int, s: SimpleNamespace) -> Expression:
         """Return the next generation, or 0 for a new avalanche."""
-        return where(_ends(s.target, generations), 0, s.target.g + 1)
+        return where(SelfOrganizedBranchingSystem._get_ends(s.target, generations), 0, s.target.g + 1)
 
     @staticmethod
     def _tune(generations: int, s: SimpleNamespace) -> Expression:
@@ -346,7 +349,11 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
         """
         sites = 2 ** (generations + 1) - 1
         dissipated = where(s.target.g >= generations, s.target.z, 0)
-        return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
+        return where(
+            SelfOrganizedBranchingSystem._get_ends(s.target, generations),
+            s.target.p + (1 - dissipated) / sites,
+            s.target.p,
+        )
 
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""

@@ -25,6 +25,8 @@ from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+FORMULATIONS = ('fields', 'operators')
+
 
 class SiteElement(Element):
     """Single particle on the sites of a lattice or a network.
@@ -228,9 +230,6 @@ class PositionDephasingInteraction(Interaction):
                 The dissipators.
         """
         return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
-
-
-FORMULATIONS = ('fields', 'operators')
 
 
 def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:

@@ -25,6 +25,11 @@ from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
 COLOR = MatrixGroupSpec('SU', 3)
+ISOSPIN = MatrixGroupSpec('SU', 2)
+KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
+MATRIX_KINDS = ('wilson', 'polyakov')
+CHARGE_DIMENSIONS = 2
+LOOP_AXES = 2
 
 
 class ColorLinkElement(Element):
@@ -63,9 +68,6 @@ class ColorLinkElement(Element):
         self.U = U
 
 
-ISOSPIN = MatrixGroupSpec('SU', 2)
-
-
 class IsospinLinkElement(Element):
     """Link of a lattice with an SU(2) matrix `U`.
 
@@ -102,10 +104,7 @@ class IsospinLinkElement(Element):
         self.U = U
 
 
-KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
-MATRIX_KINDS = ('wilson', 'polyakov')
-CHARGE_DIMENSIONS = 2
-LOOP_AXES = 2
+LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
 
 
 @dataclass(frozen=True)
@@ -338,27 +337,6 @@ def _polyakov(space: CellComplexSpace, values: Array) -> Array:
     return np.cos(grid.sum(axis=last + 1)).mean(axis=tuple(range(1, place.n_dim_)))
 
 
-LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
-
-
-def _mean_plaquette(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean of `Re tr U_p / N` over the plaquettes."""
-    del t
-    matrices = group.get_matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
-    plaquettes = group.get_holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
-    return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
-
-
-def _polyakov_loop(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
-    """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
-
-    The loops wind along the last axis.
-    """
-    del t
-    links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
-    return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
-
-
 class LatticeYangMillsSystem(BaseSystem):
     """SU(2) or SU(3) matrices on the links of a periodic lattice.
 
@@ -422,6 +400,34 @@ class LatticeYangMillsSystem(BaseSystem):
     until = 100
     dt = 1
 
+    @staticmethod
+    def _get_mean_plaquette(
+        space: CellComplexSpace,
+        group: MatrixGroupSpec,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the mean of `Re tr U_p / N` over the plaquettes."""
+        del t
+        matrices = group.get_matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
+        plaquettes = group.get_holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
+        return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
+
+    @staticmethod
+    def _get_polyakov_loop(
+        space: CellComplexSpace,
+        group: MatrixGroupSpec,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
+
+        The loops wind along the last axis.
+        """
+        del t
+        links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
+        return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
+
     def __init__(
         self,
         size: int = 6,
@@ -454,8 +460,11 @@ class LatticeYangMillsSystem(BaseSystem):
         space = links.space.prepare()
         group = next(group for element, group in LINKS.values() if links.element is element)
         return [
-            ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space, group)),
-            ObservableSpec('polyakov_loop', function=partial(_polyakov_loop, space, group)),
+            ObservableSpec(
+                'mean_plaquette',
+                function=partial(LatticeYangMillsSystem._get_mean_plaquette, space, group),
+            ),
+            ObservableSpec('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
         ]
 
     def get_run_settings(self) -> RunSettings:

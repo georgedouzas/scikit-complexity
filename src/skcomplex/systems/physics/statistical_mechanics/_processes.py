@@ -25,6 +25,9 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+BURNING = 2
+BURNT = 3
+
 
 class ContactSiteElement(Element):
     """Site of the contact process.
@@ -152,12 +155,6 @@ class ExclusionSiteElement(Element):
         self.p = p
         self.alpha = alpha
         self.beta = beta
-
-
-BURNING = 2
-
-
-BURNT = 3
 
 
 class PercolationSiteElement(Element):

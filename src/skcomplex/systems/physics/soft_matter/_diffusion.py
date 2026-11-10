@@ -293,11 +293,6 @@ class SpeckleFieldInteraction(GradientInteraction):
         return -namespace.strength * intensity
 
 
-def _get_double_well_drive(s: SimpleNamespace) -> Expression:
-    """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
-    return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
-
-
 class BrownianMotionSystem(BaseSystem):
     """Free Brownian particles with or without inertia.
 
@@ -537,6 +532,11 @@ class KramersEscapeSystem(BaseSystem):
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.01)
 
+    @staticmethod
+    def _get_double_well_drive(s: SimpleNamespace) -> Expression:
+        """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
+        return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
+
     def __init__(
         self,
         n_particles: int = 200,
@@ -561,7 +561,7 @@ class KramersEscapeSystem(BaseSystem):
             RateInteraction(
                 'drive',
                 target=target,
-                rate=_get_double_well_drive,
+                rate=KramersEscapeSystem._get_double_well_drive,
                 noise=lambda s: sqrt(2 * s.target.D),
             ),
         ]

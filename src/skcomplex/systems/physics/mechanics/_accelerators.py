@@ -18,12 +18,6 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
 
-def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the position and momentum of the target turned by the angle `pi nu`."""
-    a, b = cos(pi * s.target.nu), sin(pi * s.target.nu)
-    return a * s.target.x + b * s.target.y, -b * s.target.x + a * s.target.y
-
-
 class BeamBeamMapSystem(DynamicalSystem):
     """The beam-beam map of a particle of an accelerator beam.
 
@@ -64,6 +58,12 @@ class BeamBeamMapSystem(DynamicalSystem):
     until = 2000
     dt = 1
 
+    @staticmethod
+    def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
+        """Return the position and momentum of the target turned by the angle `pi nu`."""
+        a, b = cos(pi * s.target.nu), sin(pi * s.target.nu)
+        return a * s.target.x + b * s.target.y, -b * s.target.x + a * s.target.y
+
     def __init__(
         self,
         x: float = 0.5,
@@ -85,7 +85,7 @@ class BeamBeamMapSystem(DynamicalSystem):
 
         The kick is `-8 pi c (1 - exp(-u² / 2)) / u`.
         """
-        position, momentum = _rotate(s)
+        position, momentum = BeamBeamMapSystem._rotate(s)
         safe = where(position == 0, 1, position)
         return momentum - 8 * pi * s.target.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
 
@@ -109,7 +109,7 @@ class BeamBeamMapSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
         return {
-            'x': lambda s: _rotate(s)[0],
+            'x': lambda s: BeamBeamMapSystem._rotate(s)[0],
             'y': self._kick,
         }
 

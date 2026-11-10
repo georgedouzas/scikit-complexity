@@ -24,6 +24,9 @@ from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.flows import LorenzElement
 
+MAPS = ('logistic', 'bernoulli')
+PAIR = 2
+
 
 class DelayedUnitElement(DeclaredElement):
     """Value `x` of a map that keeps its last `delay` values.
@@ -210,9 +213,6 @@ class RosslerOscillatorElement(Element):
         ]
 
 
-MAPS = ('logistic', 'bernoulli')
-
-
 class AggregateAveragingInteraction(MapInteraction):
     """Logistic or Bernoulli map of an aggregate of a target value and a source value.
 
@@ -360,9 +360,6 @@ class DiffusiveCouplingInteraction(RateInteraction):
                 The rate of the state of the target.
         """
         return namespace.k * (getattr(namespace.source, self.state) - getattr(namespace.target, self.state))
-
-
-PAIR = 2
 
 
 class CoupledRosslerSystem(BaseSystem):

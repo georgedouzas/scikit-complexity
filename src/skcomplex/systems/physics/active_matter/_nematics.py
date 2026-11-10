@@ -38,6 +38,13 @@ from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+GEL_ORDERS = ('nematic', 'polar')
+NEMATIC_BOX = 10.0
+NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
+NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
+NEMATIC_ACTIVITY = 3.0
+NEMATIC_XI = 0.1
+
 
 class NematicDensitySiteElement(Element):
     """Site of a dry active nematic.
@@ -414,14 +421,6 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
 
 
-GEL_ORDERS = ('nematic', 'polar')
-NEMATIC_BOX = 10.0
-NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
-NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
-NEMATIC_ACTIVITY = 3.0
-NEMATIC_XI = 0.1
-
-
 def _check_matrix(utility: str, value: object) -> Matrix:
     """Return a square matrix, or raise an error that names the utility and the value."""
     if not isinstance(value, Matrix) or not value.is_square():
@@ -536,29 +535,6 @@ def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleEleme
     gradients = vector_gradient(flow)
     advected = checked.apply_map(lambda item: _advected(item, flow))
     return advected - gradients.transpose() * checked - checked * gradients
-
-
-def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
-    """Return the velocity of the flow of a gel at a site.
-
-    The velocity depends on the order the namespace holds.
-    """
-    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
-
-
-def _velocity_x(s: SimpleNamespace) -> Expression:
-    """Return the velocity along the first axis at a site."""
-    return _gel_velocity(s)[0]
-
-
-def _velocity_y(s: SimpleNamespace) -> Expression:
-    """Return the velocity along the second axis at a site."""
-    return _gel_velocity(s)[1]
-
-
-def _sites(values: np.ndarray) -> np.ndarray:
-    """Return the values of every site, the observed field itself."""
-    return np.array(values)
 
 
 class DryActiveNematicsSystem(BaseSystem):
@@ -703,6 +679,29 @@ class DryActiveNematicsSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
 
 
+def _get_velocity_x(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the first axis at a site."""
+    return _get_gel_velocity(s)[0]
+
+
+def _get_velocity_y(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the second axis at a site."""
+    return _get_gel_velocity(s)[1]
+
+
+def _get_sites(values: np.ndarray) -> np.ndarray:
+    """Return the values of every site, the observed field itself."""
+    return np.array(values)
+
+
+def _get_gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
+    """Return the velocity of the flow of a gel at a site.
+
+    The velocity depends on the order the namespace holds.
+    """
+    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
+
+
 class ActiveGelsSystem(BaseSystem):
     """An active gel.
 
@@ -799,8 +798,8 @@ class ActiveGelsSystem(BaseSystem):
     dt = 0.025
     solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
-        ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
+        ObservableSpec('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
+        ObservableSpec('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
     )
 
     def __init__(

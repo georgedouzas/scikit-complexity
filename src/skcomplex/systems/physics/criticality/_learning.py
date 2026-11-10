@@ -24,12 +24,6 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 
-def _reward(actions: Array, couplings: Array) -> float:
-    """Return the mean reward per agent, `sum_ij J_ij sigma_i sigma_j / N`."""
-    actions = np.asarray(actions, dtype=float)
-    return float(actions @ couplings @ actions / actions.size)
-
-
 class LearningAgentElement(Element):
     """Agent of the SK game that plays an action of ±1 from a softmax policy.
 
@@ -151,6 +145,12 @@ class SKGameSystem(BaseSystem):
     until = 200
     dt = 1
 
+    @staticmethod
+    def _get_reward(actions: Array, couplings: Array) -> float:
+        """Return the mean reward per agent, `sum_ij J_ij sigma_i sigma_j / N`."""
+        actions = np.asarray(actions, dtype=float)
+        return float(actions @ couplings @ actions / actions.size)
+
     def __init__(
         self,
         n_agents: int = 256,
@@ -175,7 +175,12 @@ class SKGameSystem(BaseSystem):
             raise ValidationError(error_msg)
         couplings = np.asarray(agents.values['couplings'], dtype=float)
         return [
-            ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
+            ObservableSpec(
+                'reward',
+                group='agents',
+                variable='sigma',
+                reduce=partial(SKGameSystem._get_reward, couplings=couplings),
+            ),
         ]
 
     def get_run_settings(self) -> RunSettings:

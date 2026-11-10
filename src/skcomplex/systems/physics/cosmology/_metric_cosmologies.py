@@ -1,6 +1,9 @@
 """Cosmologies from the Einstein equations of a metric ansatz.
 
 The module covers a homogeneous universe and a collapsing ball of dust.
+
+`COUPLING` holds the coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`. `COORDINATES` holds
+the comoving coordinates of the spherical ansatzes.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -32,11 +35,7 @@ from ....core.types import ElementKind
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi
-"""The coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`."""
-
 COORDINATES = ('t', 'r', 'theta', 'phi')
-"""The comoving coordinates of the spherical ansatzes."""
-
 MAX_ORDER = 2
 
 
@@ -132,7 +131,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         ... )
         >>> system = CompositeSystem(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
         >>> trajectory = simulate(system, until=1.0, dt=0.001)
-        >>> round(float(trajectory.values('universe.a')[-1]), 4)
+        >>> round(float(trajectory.get_values('universe.a')[-1]), 4)
         2.7183
     """
 
@@ -385,7 +384,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
                 f'{names!r}. Choose components that hold them, such as spatial diagonal ones.'
             )
             raise ValidationError(error_msg)
-        rates = system.solve_right(matrix(SR, len(rest), 1, rest), check=False).get_column(0)
+        rates = system.solve_right(matrix(SR, len(rest), 1, rest), check=False).column(0)
         return [
             RateLaw(getattr(member, name), SR(rate).simplify_full().subs(velocities))
             for name, rate in zip(names, rates, strict=True)

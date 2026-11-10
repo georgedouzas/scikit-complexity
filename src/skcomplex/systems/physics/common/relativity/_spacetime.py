@@ -332,7 +332,7 @@ class GeodesicInteraction(Interaction):
         >>> particle = PointElement('particle', x=[1.0, 0.0], x_d1=[0.0, 1.0])
         >>> system = CompositeSystem(elements=[particle], interactions=[line], space=plane)
         >>> trajectory = simulate(system, until=1.0, dt=0.001)
-        >>> [round(float(value), 3) for value in trajectory.values('particle.x')[-1]]
+        >>> [round(float(value), 3) for value in trajectory.get_values('particle.x')[-1]]
         [1.414, 0.785]
     """
 

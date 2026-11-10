@@ -29,6 +29,9 @@ from ..common.particles import (
     MassPointElement,
 )
 
+WALL_POINTS = 200
+GRAVITY = 9.81
+
 
 class BouncingBallElement(Element):
     """Ball at the height `h` above a floor.
@@ -74,10 +77,7 @@ class BouncingBallElement(Element):
         self.g = g
 
 
-WALL_POINTS = 200
-
-
-def _disc_wall(radius: float, **_: float) -> list[np.ndarray]:
+def _get_disc_wall(radius: float, **_: float) -> list[np.ndarray]:
     """Return the wall of a disc table as one closed polyline."""
     angles = np.linspace(0.0, 2 * np.pi, WALL_POINTS)
     return [radius * np.column_stack([np.cos(angles), np.sin(angles)])]
@@ -120,7 +120,7 @@ class DiscBilliardElement(Element):
 
     law_classes = (RateLaw,)
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _get_disc_wall})
 
     def __init__(
         self,
@@ -274,9 +274,6 @@ class ElasticCollisionInteraction(Interaction):
                 direction=-1,
             ),
         ]
-
-
-GRAVITY = 9.81
 
 
 class ProjectileSystem(BaseSystem):

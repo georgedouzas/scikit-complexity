@@ -24,6 +24,7 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 from ..common.spins import SpinSamplingInteraction
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+NEAREST = BallNeighborhood(metric='manhattan')
 
 
 class BondSpinElement(Element):
@@ -162,9 +163,6 @@ class MattisSpinElement(BondSpinElement):
         self.pattern = pattern
 
 
-NEAREST = BallNeighborhood(metric='manhattan')
-
-
 class BondSamplingInteraction(SpinSamplingInteraction):
     """Metropolis sweeps of Ising spins with quenched couplings to their neighbours.
 
@@ -195,35 +193,6 @@ class BondSamplingInteraction(SpinSamplingInteraction):
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
         neighbours = neighbors(s.spin, NEAREST, reduce='each')
         return -s.spin * (sum(coupling * other for coupling, other in zip(couplings, neighbours, strict=True)) + s.h)
-
-
-def _square(size: int | Sequence[int]) -> tuple[int, int]:
-    """Return the shape of a square lattice of a side, or a given shape of two sides."""
-    if isinstance(size, Sequence):
-        rows, columns = (int(item) for item in size)
-        return rows, columns
-    return int(size), int(size)
-
-
-def _bond_states(
-    right: npt.NDArray[np.floating],
-    down: npt.NDArray[np.floating],
-) -> dict[str, npt.NDArray[np.floating]]:
-    """Return the couplings of every site to its up, left, right, and down neighbours.
-
-    The couplings come from the bonds right and down.
-    """
-    return {
-        'J_up': np.roll(down, 1, axis=0),
-        'J_left': np.roll(right, 1, axis=1),
-        'J_right': right,
-        'J_down': down,
-    }
-
-
-def _overlap(member: SimpleNamespace) -> Expression:
-    """Return the overlap of a spin with its quenched pattern."""
-    return member.spin * member.pattern
 
 
 class EdwardsAndersonSystem(BaseSystem):
@@ -276,6 +245,30 @@ class EdwardsAndersonSystem(BaseSystem):
     dt = 5
     observables = (ObservableSpec('magnetization', group='spins', variable='spin'),)
 
+    @staticmethod
+    def _get_square(size: int | Sequence[int]) -> tuple[int, int]:
+        """Return the shape of a square lattice of a side, or a given shape of two sides."""
+        if isinstance(size, Sequence):
+            rows, columns = (int(item) for item in size)
+            return rows, columns
+        return int(size), int(size)
+
+    @staticmethod
+    def _get_bond_states(
+        right: npt.NDArray[np.floating],
+        down: npt.NDArray[np.floating],
+    ) -> dict[str, npt.NDArray[np.floating]]:
+        """Return the couplings of every site to its up, left, right, and down neighbours.
+
+        The couplings come from the bonds right and down.
+        """
+        return {
+            'J_up': np.roll(down, 1, axis=0),
+            'J_left': np.roll(right, 1, axis=1),
+            'J_right': right,
+            'J_down': down,
+        }
+
     def __init__(
         self,
         size: int | Sequence[int] = 48,
@@ -300,7 +293,7 @@ class EdwardsAndersonSystem(BaseSystem):
 
         The bonds are quenched and random.
         """
-        shape = _square(self.size)
+        shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         if self.disorder == 'bimodal':
             right, down = self.J * rng.choice([-1.0, 1.0], size=(2, *shape))
@@ -314,7 +307,12 @@ class EdwardsAndersonSystem(BaseSystem):
             'spins',
             element=BondSpinElement,
             space=LatticeSpace(shape),
-            values={'spin': spins, 'h': self.h, 'temperature': self.temperature, **_bond_states(right, down)},
+            values={
+                'spin': spins,
+                'h': self.h,
+                'temperature': self.temperature,
+                **EdwardsAndersonSystem._get_bond_states(right, down),
+            },
             visual=SPIN_IMAGE,
             on='sites',
         )
@@ -323,6 +321,11 @@ class EdwardsAndersonSystem(BaseSystem):
             elements=[group],
             interactions=[BondSamplingInteraction('sampling', target='spins')],
         )
+
+
+def _get_overlap(member: SimpleNamespace) -> Expression:
+    """Return the overlap of a spin with its quenched pattern."""
+    return member.spin * member.pattern
 
 
 class MattisSpinGlassSystem(BaseSystem):
@@ -370,7 +373,7 @@ class MattisSpinGlassSystem(BaseSystem):
     dt = 2
     observables = (
         ObservableSpec('magnetization', group='spins', variable='spin'),
-        ObservableSpec('overlap', _overlap, group='spins'),
+        ObservableSpec('overlap', _get_overlap, group='spins'),
     )
 
     def __init__(
@@ -392,7 +395,7 @@ class MattisSpinGlassSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         pattern = rng.choice([-1.0, 1.0], size=shape)
         right = self.J * pattern * np.roll(pattern, -1, axis=1)
@@ -407,7 +410,7 @@ class MattisSpinGlassSystem(BaseSystem):
                 'pattern': pattern,
                 'h': self.h,
                 'temperature': self.temperature,
-                **_bond_states(right, down),
+                **EdwardsAndersonSystem._get_bond_states(right, down),
             },
             visual=VisualSpec('image', {'states': ()}),
             on='sites',

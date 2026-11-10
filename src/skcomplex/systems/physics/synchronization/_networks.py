@@ -23,6 +23,8 @@ from ....core.components.types import Target
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
 
+NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
+
 
 class LogisticNodeElement(Element):
     """Logistic map on a node of a network.
@@ -184,22 +186,6 @@ class LogisticCouplingInteraction(CouplingInteraction):
         return (1 - member.epsilon) * own + member.epsilon * reduction
 
 
-NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
-
-
-def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
-    """Return a network of a generator with a mean degree near `degree`."""
-    rng = np.random.default_rng(seed)
-    if name == 'watts_strogatz':
-        return NetworkSpace(nx.watts_strogatz_graph(n_nodes, degree, rewiring, seed=rng))
-    if name == 'erdos_renyi':
-        return NetworkSpace(nx.gnp_random_graph(n_nodes, degree / (n_nodes - 1), seed=rng))
-    if name == 'barabasi_albert':
-        return NetworkSpace(nx.barabasi_albert_graph(n_nodes, max(degree // 2, 1), seed=rng))
-    error_msg = f'Unknown network {name!r}. Use one of {", ".join(NETWORKS)}.'
-    raise ValueError(error_msg)
-
-
 class KuramotoOnNetworksSystem(BaseSystem):
     """Kuramoto oscillators coupled along the edges of a network.
 
@@ -255,6 +241,19 @@ class KuramotoOnNetworksSystem(BaseSystem):
     dt = 0.2
     observables = tuple(order_parameter('order', 'oscillators'))
 
+    @staticmethod
+    def _get_network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
+        """Return a network of a generator with a mean degree near `degree`."""
+        rng = np.random.default_rng(seed)
+        if name == 'watts_strogatz':
+            return NetworkSpace(nx.watts_strogatz_graph(n_nodes, degree, rewiring, seed=rng))
+        if name == 'erdos_renyi':
+            return NetworkSpace(nx.gnp_random_graph(n_nodes, degree / (n_nodes - 1), seed=rng))
+        if name == 'barabasi_albert':
+            return NetworkSpace(nx.barabasi_albert_graph(n_nodes, max(degree // 2, 1), seed=rng))
+        error_msg = f'Unknown network {name!r}. Use one of {", ".join(NETWORKS)}.'
+        raise ValueError(error_msg)
+
     def __init__(
         self,
         n_oscillators: int = 200,
@@ -278,7 +277,13 @@ class KuramotoOnNetworksSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        space = _network(self.network, self.n_oscillators, self.degree, self.rewiring, self.seed)
+        space = KuramotoOnNetworksSystem._get_network(
+            self.network,
+            self.n_oscillators,
+            self.degree,
+            self.rewiring,
+            self.seed,
+        )
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
         oscillators = GroupElement(
@@ -376,7 +381,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
 
         Each map is pulled towards the mean of its neighbours.
         """
-        space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
+        space = KuramotoOnNetworksSystem._get_network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
         maps = GroupElement(
             'maps',

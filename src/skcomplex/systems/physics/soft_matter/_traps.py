@@ -25,11 +25,6 @@ ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})
 
 
-def _mean_position(s: SimpleNamespace) -> object:
-    """Return the mean distance travelled by the walkers."""
-    return s.visits / s.walkers - 1
-
-
 class TrapSiteElement(Element):
     """Site of a line of traps.
 
@@ -81,6 +76,11 @@ class TrapSiteElement(Element):
         self.tau = tau
 
 
+def _get_mean_position(s: SimpleNamespace) -> object:
+    """Return the mean distance travelled by the walkers."""
+    return s.visits / s.walkers - 1
+
+
 class BiasedTrapWalkSystem(BaseSystem):
     """Walkers that hop always to the right through quenched traps.
 
@@ -126,7 +126,7 @@ class BiasedTrapWalkSystem(BaseSystem):
     observables = (
         ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
         ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _mean_position),
+        ObservableSpec('position', _get_mean_position),
     )
 
     def __init__(

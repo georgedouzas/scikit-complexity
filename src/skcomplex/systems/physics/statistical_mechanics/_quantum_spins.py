@@ -23,6 +23,8 @@ from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 MIN_SPIN_DIMENSION = 2
+INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
+BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
 
 
 def spin_space(j: float = 0.5) -> HilbertSpec:
@@ -257,17 +259,6 @@ class ZeemanFieldInteraction(Interaction):
         return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
 
 
-INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
-
-
-BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
-
-
-def _sites(values: object) -> object:
-    """Return the values of every site, without reducing them."""
-    return values
-
-
 def local_magnetization(member: SimpleNamespace) -> Expression:
     """Return the `z` component of one spin.
 
@@ -294,6 +285,11 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
             The total magnetisation.
     """
     return sum(local_operator(member.psi, 'z') for member in s.chain)
+
+
+def _get_sites(values: object) -> object:
+    """Return the values of every site, without reducing them."""
+    return values
 
 
 class QuantumHeisenbergSystem(BaseSystem):
@@ -350,7 +346,7 @@ class QuantumHeisenbergSystem(BaseSystem):
     until = 8.0
     dt = 0.05
     observables = (
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
+        ObservableSpec('sz', local_magnetization, group='chain', reduce=_get_sites),
         ObservableSpec('magnetization', total_magnetization),
     )
 

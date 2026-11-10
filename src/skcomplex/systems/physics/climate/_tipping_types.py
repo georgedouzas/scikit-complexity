@@ -25,6 +25,16 @@ from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, Visua
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations, Noises
 
+C0 = 1.10869e-8
+C1 = 9.7137e9
+REAL_TOLERANCE = 1e-9
+TIPPING_TYPES = {
+    'bifurcation': {'drift': 4e-4, 'b_ini': 1.04e-5, 'b_fin': 1.04e-5, 'a_ini': 0.2, 'nu': 0.0, 'lam': 0.0},
+    'noise': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.69e-5, 'a_ini': 0.6927, 'nu': 1.0, 'lam': 0.0},
+    'rate': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.835e-5, 'a_ini': 0.6927, 'nu': 0.0, 'lam': 1e-6},
+}
+FOLLOWERS = ('fold', 'hopf')
+
 
 class FoldFollowerElement(Element):
     """Stochastic fold `dy = (-y³ + y + c) dt + sigma dW`.
@@ -254,34 +264,6 @@ class RampedFoldElement(Element):
         return [RateLaw(s.x, s.a * s.x**3 + s.b * s.x + control), NoiseLaw(s.x, s.sigma)]
 
 
-C0 = 1.10869e-8
-
-
-C1 = 9.7137e9
-
-
-REAL_TOLERANCE = 1e-9
-
-
-TIPPING_TYPES = {
-    'bifurcation': {'drift': 4e-4, 'b_ini': 1.04e-5, 'b_fin': 1.04e-5, 'a_ini': 0.2, 'nu': 0.0, 'lam': 0.0},
-    'noise': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.69e-5, 'a_ini': 0.6927, 'nu': 1.0, 'lam': 0.0},
-    'rate': {'drift': 0.0, 'b_ini': 1.69e-5, 'b_fin': 1.835e-5, 'a_ini': 0.6927, 'nu': 0.0, 'lam': 1e-6},
-}
-
-
-FOLLOWERS = ('fold', 'hopf')
-
-
-def _lower_branch(a: float, b: float, phi: float) -> float:
-    """Return the lowest real root of `a x^3 + b x + phi`.
-
-    The root is the lower branch of the fold.
-    """
-    roots = np.roots([a, 0.0, b, phi])
-    return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
-
-
 class SuteraFraedrichTippingSystem(DynamicalSystem):
     """The Sutera-Fraedrich stochastic energy balance set up for tipping.
 
@@ -454,6 +436,15 @@ class RampedStochasticFoldSystem(BaseSystem):
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
 
+    @staticmethod
+    def _lower_branch(a: float, b: float, phi: float) -> float:
+        """Return the lowest real root of `a x^3 + b x + phi`.
+
+        The root is the lower branch of the fold.
+        """
+        roots = np.roots([a, 0.0, b, phi])
+        return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
+
     def __init__(
         self,
         *,
@@ -480,7 +471,7 @@ class RampedStochasticFoldSystem(BaseSystem):
         """
         fold = RampedFoldElement(
             'system',
-            x=_lower_branch(self.a, self.b, self.phi0),
+            x=RampedStochasticFoldSystem._lower_branch(self.a, self.b, self.phi0),
             a=self.a,
             b=self.b,
             sigma=self.sigma,
@@ -584,12 +575,12 @@ class LeadingFollowingCascadeSystem(BaseSystem):
         if self.follower not in FOLLOWERS:
             error_msg = f'Unknown follower {self.follower!r}. Use one of {", ".join(FOLLOWERS)}.'
             raise ValidationError(error_msg)
-        start = _lower_branch(-1.0, 1.0, self.phi0)
+        start = RampedStochasticFoldSystem._lower_branch(-1.0, 1.0, self.phi0)
         leader = RampedFoldElement('leader', x=start, sigma=self.sigma, phi0=self.phi0, phi1=self.phi1, rate=self.rate)
         if self.follower == 'fold':
             follows: Element = FoldFollowerElement(
                 'follower',
-                y=_lower_branch(-1.0, 1.0, self.c + self.coupling * start),
+                y=RampedStochasticFoldSystem._lower_branch(-1.0, 1.0, self.c + self.coupling * start),
                 c=self.c,
                 sigma=self.sigma,
             )

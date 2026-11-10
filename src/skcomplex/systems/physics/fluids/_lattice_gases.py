@@ -21,6 +21,23 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
+DIRECTIONS = 6
+CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
+SITE = LatticeNeighborhood(((0, 0),))
+TRIANGULAR = BallNeighborhood(metric='hexagonal')
+VELOCITIES = np.column_stack(
+    [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
+)
+HEAD_ON = (0b001001, 0b010010, 0b100100)
+TRIPLES = (0b010101, 0b101010)
+TURN_PROBABILITY = 0.5
+DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+SQUARE_DIRECTIONS = 4
+SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
+SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
+ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
+SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
+
 
 class HPPSiteElement(Element):
     """Site of the HPP lattice gas.
@@ -82,24 +99,6 @@ class HPPSiteElement(Element):
         self.density = density
 
 
-DIRECTIONS = 6
-CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
-SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = BallNeighborhood(metric='hexagonal')
-VELOCITIES = np.column_stack(
-    [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
-)
-HEAD_ON = (0b001001, 0b010010, 0b100100)
-TRIPLES = (0b010101, 0b101010)
-TURN_PROBABILITY = 0.5
-DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
-SQUARE_DIRECTIONS = 4
-SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
-SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
-ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
-SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
-
-
 def _rotated(code: int, turns: int) -> int:
     """Return the occupation code of a site with every particle turned.
 
@@ -124,11 +123,6 @@ def _collisions() -> npt.NDArray[np.intp]:
 
 
 COLLISIONS = _collisions()
-
-
-def _count(*channels: Array) -> Array:
-    """Return the number of particles at every site."""
-    return np.sum(channels, axis=0)
 
 
 class FHPSiteElement(Element):
@@ -238,6 +232,11 @@ class FHPLatticeGasSystem(BaseSystem):
     until = 200
     dt = 1
 
+    @staticmethod
+    def _count(*channels: Array) -> Array:
+        """Return the number of particles at every site."""
+        return np.sum(channels, axis=0)
+
     def __init__(
         self,
         shape: Sequence[int] = (64, 64),
@@ -313,7 +312,7 @@ class FHPLatticeGasSystem(BaseSystem):
                     'count',
                     target='gas',
                     state='density',
-                    rule=_count,
+                    rule=FHPLatticeGasSystem._count,
                     neighborhood=SITE,
                     reads=CHANNELS,
                 ),
@@ -455,7 +454,7 @@ class HPPLatticeGasSystem(BaseSystem):
                     'count',
                     target='gas',
                     state='density',
-                    rule=_count,
+                    rule=FHPLatticeGasSystem._count,
                     neighborhood=SITE,
                     reads=SQUARE_CHANNELS,
                 ),

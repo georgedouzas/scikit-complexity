@@ -26,6 +26,11 @@ from ...general.kinetics import EncounterInteraction
 from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 from ..common.particles import RelaxationTimeInteraction
 
+SETUPS = ('landau', 'two-stream')
+SHOCK_TUBE = 'sod'
+VELOCITY_AXES = ('vx', 'vy')
+VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
+
 
 class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
     """Relaxation of Bhatnagar, Gross, and Krook of a density.
@@ -71,44 +76,6 @@ class BhatnagarGrossKrookInteraction(RelaxationTimeInteraction):
         return maximum_entropy(getattr(namespace.target, self.state), axes=self.axes)
 
 
-SETUPS = ('landau', 'two-stream')
-SHOCK_TUBE = 'sod'
-VELOCITY_AXES = ('vx', 'vy')
-VLASOV_VISUAL = VisualSpec('image', {'moments': (0,)})
-
-
-def _get_plane_streaming(_: SimpleNamespace) -> list[Expression]:
-    """Return the drift of free streaming over one position and two velocity axes."""
-    return [coordinate('vx'), 0, 0]
-
-
-def _get_uniform_gas(positions: int, velocities: int, knudsen: float, half_width: float) -> tuple[FieldElement, float]:
-    """Return a gas over one position and two velocity axes, and its collision rate.
-
-    The gas has a density wave, and the rate is its collision frequency.
-    """
-    length = 2 * math.pi
-    axes = [AxisSpec(name, velocities, -half_width, half_width) for name in VELOCITY_AXES]
-    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).prepare()
-    vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
-    x = np.arange(positions) * length / positions
-    profile = np.exp(-(vx**2 + vy**2) / 2) / (2 * np.pi)
-    values = np.multiply.outer(1.0 + 0.2 * np.sin(x), profile)
-    gas = FieldElement(
-        'gas',
-        element=PhaseSpaceDensityElement,
-        space=space,
-        values={'x': values},
-        discretization='finite-volume',
-    )
-    return gas, 1.0 / knudsen
-
-
-def _get_maxwell_molecules(_speed: object, _cosine: object) -> float:
-    """Return the cross-section of Maxwell molecules in two velocity dimensions."""
-    return 1 / (2 * math.pi)
-
-
 class BoltzmannEquationSystem(BaseSystem):
     """The Boltzmann equation of Maxwell molecules.
 
@@ -146,6 +113,43 @@ class BoltzmannEquationSystem(BaseSystem):
     dt = 0.1
     solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
 
+    @staticmethod
+    def _get_plane_streaming(_: SimpleNamespace) -> list[Expression]:
+        """Return the drift of free streaming over one position and two velocity axes."""
+        return [coordinate('vx'), 0, 0]
+
+    @staticmethod
+    def _get_uniform_gas(
+        positions: int,
+        velocities: int,
+        knudsen: float,
+        half_width: float,
+    ) -> tuple[FieldElement, float]:
+        """Return a gas over one position and two velocity axes, and its collision rate.
+
+        The gas has a density wave, and the rate is its collision frequency.
+        """
+        length = 2 * math.pi
+        axes = [AxisSpec(name, velocities, -half_width, half_width) for name in VELOCITY_AXES]
+        space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).prepare()
+        vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
+        x = np.arange(positions) * length / positions
+        profile = np.exp(-(vx**2 + vy**2) / 2) / (2 * np.pi)
+        values = np.multiply.outer(1.0 + 0.2 * np.sin(x), profile)
+        gas = FieldElement(
+            'gas',
+            element=PhaseSpaceDensityElement,
+            space=space,
+            values={'x': values},
+            discretization='finite-volume',
+        )
+        return gas, 1.0 / knudsen
+
+    @staticmethod
+    def _get_maxwell_molecules(_speed: object, _cosine: object) -> float:
+        """Return the cross-section of Maxwell molecules in two velocity dimensions."""
+        return 1 / (2 * math.pi)
+
     def __init__(
         self,
         positions: int = 8,
@@ -166,12 +170,22 @@ class BoltzmannEquationSystem(BaseSystem):
 
         The equation is over one position and two velocity axes.
         """
-        gas, frequency = _get_uniform_gas(self.positions, self.velocities, self.knudsen, self.half_width)
-        stream = AdvectionInteraction('stream', target='gas', state='x', drift=_get_plane_streaming)
+        gas, frequency = BoltzmannEquationSystem._get_uniform_gas(
+            self.positions,
+            self.velocities,
+            self.knudsen,
+            self.half_width,
+        )
+        stream = AdvectionInteraction(
+            'stream',
+            target='gas',
+            state='x',
+            drift=BoltzmannEquationSystem._get_plane_streaming,
+        )
         collide = EncounterInteraction(
             'collide',
             candidate='gas',
-            cross_section=_get_maxwell_molecules,
+            cross_section=BoltzmannEquationSystem._get_maxwell_molecules,
             factor=lambda _: frequency,
         )
         return CompositeSystem(self.label, elements=[gas], interactions=[stream, collide])
@@ -238,15 +252,30 @@ class EnskogSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        gas, frequency = _get_uniform_gas(self.positions, self.velocities, self.knudsen, self.half_width)
+        gas, frequency = BoltzmannEquationSystem._get_uniform_gas(
+            self.positions,
+            self.velocities,
+            self.knudsen,
+            self.half_width,
+        )
         area = math.pi * self.diameter**2 / 4
 
         def contact(s: SimpleNamespace) -> Expression:
             fraction = area * moment(s.candidate.x, 0, axes=VELOCITY_AXES)
             return frequency * (1 - 7 * fraction / 16) / (1 - fraction) ** 2
 
-        stream = AdvectionInteraction('stream', target='gas', state='x', drift=_get_plane_streaming)
-        collide = EncounterInteraction('collide', candidate='gas', cross_section=_get_maxwell_molecules, factor=contact)
+        stream = AdvectionInteraction(
+            'stream',
+            target='gas',
+            state='x',
+            drift=BoltzmannEquationSystem._get_plane_streaming,
+        )
+        collide = EncounterInteraction(
+            'collide',
+            candidate='gas',
+            cross_section=BoltzmannEquationSystem._get_maxwell_molecules,
+            factor=contact,
+        )
         return CompositeSystem(self.label, elements=[gas], interactions=[stream, collide])
 
 

@@ -191,17 +191,17 @@ class BinaryCollisionsInteraction(Interaction):
             headings[first], headings[second] = mean + rng.normal(0.0, sigma, 2)
 
 
-def _cosine(agent: FlockerView) -> float:
+def _get_cosine(agent: FlockerView) -> float:
     """Return the first component of an agent's heading."""
     return math.cos(agent.theta)
 
 
-def _sine(agent: FlockerView) -> float:
+def _get_sine(agent: FlockerView) -> float:
     """Return the second component of an agent's heading."""
     return math.sin(agent.theta)
 
 
-def _polarization(s: SimpleNamespace) -> Expression:
+def _get_polarization(s: SimpleNamespace) -> Expression:
     """Return the length of the mean heading, the polarization."""
     return (s.mean_cos**2 + s.mean_sin**2) ** 0.5
 
@@ -258,9 +258,9 @@ class BinaryCollisionFlockingSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('mean_cos', _cosine, group='birds'),
-        ObservableSpec('mean_sin', _sine, group='birds'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_cos', _get_cosine, group='birds'),
+        ObservableSpec('mean_sin', _get_sine, group='birds'),
+        ObservableSpec('polarization', _get_polarization),
     )
 
     def __init__(

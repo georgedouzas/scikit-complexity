@@ -1,6 +1,9 @@
 """Geodesic systems.
 
 Test particles and light rays fall freely around a static or a spinning mass.
+
+`EQUATOR` holds the polar angle of the equatorial plane, where the orbits stay. `GEODESIC_SOLVER` holds the adaptive
+solver that keeps the conserved energy, angular momentum, and norm of a geodesic to high accuracy.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -23,14 +26,16 @@ from ..common.relativity import GeodesicInteraction, SpacetimeSpace
 
 R_INDEX = 1
 PHI_INDEX = 3
+EQUATOR = math.pi / 2
+GEODESIC_SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
 
 
-def _equatorial_position(x: npt.NDArray[np.float64], **_: float) -> list[list[float]]:
+def _get_equatorial_position(x: npt.NDArray[np.float64], **_: float) -> list[list[float]]:
     """Return the equatorial position `(r cos phi, r sin phi)` of a particle."""
     return [[x[R_INDEX] * np.cos(x[PHI_INDEX]), x[R_INDEX] * np.sin(x[PHI_INDEX])]]
 
 
-def _central_mass(**_: float) -> list[list[float]]:
+def _get_central_mass(**_: float) -> list[list[float]]:
     """Return the position of the central mass at the origin."""
     return [[0.0, 0.0]]
 
@@ -63,7 +68,14 @@ class GeodesicParticleElement(Element):
         [0.0, 10.0, 1.5708, 0.0]
     """
 
-    visual = VisualSpec('bodies', {'positions': _equatorial_position, 'trail': None, 'marks': _central_mass})
+    visual = VisualSpec(
+        'bodies',
+        {
+            'positions': _get_equatorial_position,
+            'trail': None,
+            'marks': _get_central_mass,
+        },
+    )
 
     def __init__(
         self,
@@ -217,13 +229,6 @@ class KerrSpace(SpacetimeSpace):
                 (3, 3): (r**2 + spin**2 + 2 * mass * spin**2 * r * sin(theta) ** 2 / sigma) * sin(theta) ** 2,
             },
         )
-
-
-EQUATOR = math.pi / 2
-"""The polar angle of the equatorial plane, where the orbits stay."""
-
-GEODESIC_SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-"""The adaptive solver that keeps the conserved energy, angular momentum, and norm of a geodesic to high accuracy."""
 
 
 class SchwarzschildPrecessionSystem(BaseSystem):

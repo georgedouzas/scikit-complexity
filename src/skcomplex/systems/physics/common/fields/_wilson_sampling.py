@@ -27,14 +27,8 @@ from .....core.specs import BaseSpec, MatrixGroupSpec, ParameterSpec, RoleSpec
 from .....core.types import Array, ComplexArray, Indices
 
 HOLONOMY_MOVES = ('rotate', 'random-value')
-
-
 HOLONOMY_SCHEDULES = ('colored', 'random-sequential')
-
-
 COLORING_STRATEGY = 'largest_first'
-
-
 MATRIX_AXES = 2
 
 

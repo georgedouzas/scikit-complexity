@@ -407,16 +407,6 @@ class TumblerElement(Element):
             agent.theta = float(system.rng.uniform(0.0, 2 * math.pi))
 
 
-def _swimmers(
-    n_particles: int,
-    size: float,
-    random_state: int | np.random.Generator | None,
-) -> tuple[Array, Array]:
-    """Return uniform positions in a square and uniform orientations."""
-    rng = np.random.default_rng(random_state)
-    return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(0.0, 2 * math.pi, n_particles)
-
-
 class ActiveBrownianParticlesSystem(BaseSystem):
     """Active Brownian particles in the plane.
 
@@ -461,6 +451,16 @@ class ActiveBrownianParticlesSystem(BaseSystem):
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
 
+    @staticmethod
+    def _get_swimmers(
+        n_particles: int,
+        size: float,
+        random_state: int | np.random.Generator | None,
+    ) -> tuple[Array, Array]:
+        """Return uniform positions in a square and uniform orientations."""
+        rng = np.random.default_rng(random_state)
+        return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(0.0, 2 * math.pi, n_particles)
+
     def __init__(
         self,
         n_particles: int = 200,
@@ -485,7 +485,7 @@ class ActiveBrownianParticlesSystem(BaseSystem):
 
         The particles swim at a constant speed in a diffusing direction.
         """
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=ActiveParticleElement,
@@ -568,7 +568,7 @@ class ChiralActiveParticlesSystem(BaseSystem):
 
         The particles swim along circles of radius `v / omega` that drift by diffusion.
         """
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=ActiveParticleElement,
@@ -716,7 +716,7 @@ class RunAndTumbleSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        positions, angles = _swimmers(self.n_agents, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_agents, self.size, self.random_state)
         group = GroupElement(
             'bacteria',
             element=TumblerElement,
@@ -889,7 +889,7 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=InertialActiveParticleElement,

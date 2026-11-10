@@ -308,7 +308,7 @@ class StokesianMobilityInteraction(Interaction):
         >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
         >>> system = CompositeSystem(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
         >>> trajectory = simulate(system, until=1.0, dt=1.0)
-        >>> (trajectory.values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
+        >>> (trajectory.get_values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]
     """
 

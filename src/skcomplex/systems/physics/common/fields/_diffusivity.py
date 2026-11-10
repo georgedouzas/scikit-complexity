@@ -56,7 +56,7 @@ class DiffusivityInteraction(RateInteraction):
         >>> field = FieldElement('rod', element=CellElement, space=space, values={'u': np.eye(40)[20]})
         >>> heat = DiffusivityInteraction('heat', target='rod', state='u', coefficient=0.1)
         >>> trajectory = simulate(CompositeSystem(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
-        >>> round(float(trajectory.values('rod.u')[-1].sum()), 6)
+        >>> round(float(trajectory.get_values('rod.u')[-1].sum()), 6)
         1.0
     """
 

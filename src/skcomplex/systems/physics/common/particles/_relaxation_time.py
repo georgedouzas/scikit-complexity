@@ -54,7 +54,7 @@ class RelaxationTimeInteraction(RateInteraction):
         >>> relaxation = RelaxationTimeInteraction('relaxation', target='stock', goal=10.0, time=0.5)
         >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
         >>> trajectory = simulate(system, until=5.0, dt=0.01)
-        >>> round(float(trajectory.values('stock.x')[-1]), 3)
+        >>> round(float(trajectory.get_values('stock.x')[-1]), 3)
         10.0
     """
 

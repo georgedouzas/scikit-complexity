@@ -24,6 +24,8 @@ from ....core.engine.backends import NumbaBackend
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+TREE_ASPECT = 0.7
+
 
 class ParticleSiteElement(Element):
     """Site of a lattice of particles, holding the number `n` of particles or quanta.
@@ -377,9 +379,6 @@ class ZeroRangeHopsInteraction(TransferInteraction):
     def _get_left_rate(s: SimpleNamespace) -> Expression:
         """Return the rate `q u(n)` of a hop to the left, from the site on the right."""
         return s.q * ZeroRangeHopInteraction._departure_rate(s.target.n, s.b)
-
-
-TREE_ASPECT = 0.7
 
 
 class ZeroRangeProcessSystem(BaseSystem):
