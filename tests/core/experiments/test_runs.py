@@ -15,6 +15,7 @@ from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
+from skcomplex.core.experiments._runs import _map_calls
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -209,3 +210,15 @@ def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
     assert len(calls) == 2
     sweep(SIRSystem(), [{'beta': 0.2}, {'beta': 0.4}, {'beta': 0.2}], until=5, outputs=['I.x'])
     assert len(calls) == 4
+
+
+@pytest.mark.parametrize('executor', ['serial', 'thread'])
+def test_map_calls_keeps_the_order_of_the_arguments(executor):
+    """Test that the values of a function come back in the order of its arguments on every executor."""
+    assert _map_calls(abs, [-3, 1, -2], executor) == [3, 1, 2]
+
+
+def test_map_calls_rejects_an_unknown_executor():
+    """Test that an unknown executor raises an error naming the executors."""
+    with pytest.raises(ValidationError, match="'serial', 'thread', 'process'"):
+        _map_calls(abs, [1], 'cluster')

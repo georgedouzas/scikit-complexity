@@ -50,9 +50,14 @@ with a verb, so `ExperimentResult` has `convert_to_frame`.
   rejected by the constitution since pyPESTO does it, and pints, which has no profiles.
 - **Refits reuse `calibrate`.** `'refits'` calls `calibrate` with `method='local'` once on the data for the best fit,
   then on `n` noisy copies per level, with `noise` relative to the simulated values as in 2503.17135. The average
-  relative error and the thresholds of its Definition 4.1 give the verdicts. The noise of every copy comes from one
-  generator seeded by `random_state`. The fits run one after another, since the executors of `_runs.py` run
-  simulations, not fits, and a second pool for fits would be a second way to run in parallel.
+  relative error and the thresholds of its Definition 4.1 give the verdicts, and a parameter takes its worst verdict
+  over the levels. The noise of every copy comes from one generator seeded by `random_state` before any fit runs, so
+  the result does not depend on the executor. The fits run on an executor through `_map_calls` of `_runs.py`, the one
+  helper that maps a function over arguments on the executors, which `posterior_coverage` now uses too in place of its
+  own pool.
+- **Profiles on the unit box.** pyPESTO works on the bounds scaled to the unit box, so its profile steps and finite
+  differences are shares of the range of every parameter. On the raw scale a step of `1e-6` is below the tolerance of
+  the solver for a capacity of hundreds, and the profiles came out ragged.
 - **`IdentifiabilityResult`.** Fields `estimates`, `verdicts`, `profiles` (by parameter, the grid and the ratio, or
   `None` for refits), `intervals` (by parameter, `(low, high)` with `nan` for an open side, or `None` for refits), and
   `errors` (by parameter and level, or `None` for profiles).
@@ -71,8 +76,8 @@ with a verb, so `ExperimentResult` has `convert_to_frame`.
 - **Per-individual calibration.** `calibrate_individuals` takes data by individual and `known` by individual, sets the
   known parameters with `set_params` on a copy of the system or passes them to the factory, and calls `calibrate`
   with any of its methods. `IndividualCalibrationResult` holds `calibrations`, the `CalibrationResult` of every
-  individual, and `estimates`, a `pandas.DataFrame` with one row per individual. The fits run one after another, as
-  the refits do.
+  individual, and `estimates`, a `pandas.DataFrame` with one row per individual. The fits run on an executor through
+  `_map_calls`, as the refits do.
 - **QSP system.** `ImmunoOncologyQspSystem` in `biology/oncology/_immuno_oncology_qsp.py` holds five compartments,
   cancer cells with logistic growth, effector T cells recruited in proportion to the tumour and killing it at a rate
   that free PD-1 lowers, regulatory T cells recruited by the tumour that suppress effector proliferation, and the

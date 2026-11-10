@@ -5,10 +5,10 @@
 
 ## 2. Identifiability
 
-- [ ] 2.1 Add `identifiability` and `IdentifiabilityResult` in `src/skcomplex/core/experiments/_identifiability.py`, export them, and test the error for an unknown method
-- [ ] 2.2 Add `method='profile'` on pyPESTO with the chi-square interval and verdicts, and test the saturating and the early logistic data
-- [ ] 2.3 Add `method='refits'` over noisy copies with the relative errors and verdicts of Liyanage et al., and test the saturating logistic data and reproducibility with a seed
-- [ ] 2.4 Write the docstring of `identifiability` with a runnable example, and verify the doctest passes
+- [x] 2.1 Add `identifiability` and `IdentifiabilityResult` in `src/skcomplex/core/experiments/_identifiability.py`, export them, and test the error for an unknown method
+- [x] 2.2 Add `method='profile'` on pyPESTO with the chi-square interval and verdicts, and test the saturating and the early logistic data
+- [x] 2.3 Add `method='refits'` over noisy copies with the relative errors and verdicts of Liyanage et al., and test the saturating logistic data and reproducibility with a seed
+- [x] 2.4 Write the docstring of `identifiability` with a runnable example, and verify the doctest passes
 - [ ] 2.5 Add a user guide section on identifiability in `docs/overview/user_guide/run_experiments.md`, and verify its examples run
 
 ## 3. QSP system

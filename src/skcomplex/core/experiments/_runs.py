@@ -87,6 +87,47 @@ def _check_count(name: str, value: object) -> None:
         raise ValidationError(error_msg)
 
 
+def _map_calls[Argument, Value](
+    function: Callable[[Argument], Value],
+    arguments: Sequence[Argument],
+    executor: str | Executor,
+) -> list[Value]:
+    """Return the values of a function at every argument, run on an executor.
+
+    Experiments that repeat whole fits, such as refits on noisy copies of data, run them with it.
+
+    Args:
+        function:
+            The function of one argument, a module function or a partial of one for processes.
+
+        arguments:
+            The arguments, one per call.
+
+        executor:
+            `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
+
+    Returns:
+        values:
+            The value of every call, in the order of the arguments.
+
+    Raises:
+        ValidationError:
+            The executor is unknown.
+    """
+    if isinstance(executor, str) and executor not in EXECUTORS:
+        error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
+        raise ValidationError(error_msg)
+    if executor == 'serial':
+        return [function(argument) for argument in arguments]
+    if isinstance(executor, Executor):
+        return list(executor.map(function, arguments))
+    pool = ThreadPoolExecutor() if executor == 'thread' else ProcessPoolExecutor()
+    try:
+        return list(pool.map(function, arguments))
+    finally:
+        pool.shutdown()
+
+
 def _name_analyses(
     analyses: Sequence[Callable[[Trajectory], object]] | None,
 ) -> tuple[tuple[str, Callable[[Trajectory], object]], ...]:
