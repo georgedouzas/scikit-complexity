@@ -258,23 +258,16 @@ class MotorCouplingInteraction(Interaction):
         ]
 
 
-def _speed_of_rotor(s: SimpleNamespace) -> Expression:
+def _get_speed_of_rotor(s: SimpleNamespace) -> Expression:
     """Return the angular velocity of the rotor."""
     speed: Expression = s.rotor.phi_d1
     return speed
 
 
-def _current_of_winding(s: SimpleNamespace) -> Expression:
+def _get_current_of_winding(s: SimpleNamespace) -> Expression:
     """Return the current of the armature."""
     current: Expression = s.winding.p_i
     return current
-
-
-def _spring_energy(s: SimpleNamespace) -> Expression:
-    """Return the energy of the suspension spring and of the tire on the road step."""
-    road = step(s.t, s.car.at, s.car.height)
-    energy: Expression = s.car.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.car.kt * (s.car.y2 - road) ** 2 / 2
-    return energy
 
 
 class DcMotorSystem(BaseSystem):
@@ -320,8 +313,8 @@ class DcMotorSystem(BaseSystem):
     until = 10.0
     dt = 0.01
     observables = (
-        ObservableSpec('speed', _speed_of_rotor),
-        ObservableSpec('current', _current_of_winding),
+        ObservableSpec('speed', _get_speed_of_rotor),
+        ObservableSpec('current', _get_current_of_winding),
     )
 
     def __init__(
@@ -384,6 +377,13 @@ class DcMotorSystem(BaseSystem):
         )
 
 
+def _get_spring_energy(s: SimpleNamespace) -> Expression:
+    """Return the energy of the suspension spring and of the tire on the road step."""
+    road = step(s.t, s.car.at, s.car.height)
+    energy: Expression = s.car.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.car.kt * (s.car.y2 - road) ** 2 / 2
+    return energy
+
+
 class QuarterCarSystem(BaseSystem):
     """A quarter-car suspension driving over a road step.
 
@@ -427,7 +427,7 @@ class QuarterCarSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 10.0
     dt = 0.005
-    observables = (ObservableSpec('energy', _spring_energy),)
+    observables = (ObservableSpec('energy', _get_spring_energy),)
 
     def __init__(
         self,

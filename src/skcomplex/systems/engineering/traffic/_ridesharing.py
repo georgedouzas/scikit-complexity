@@ -25,6 +25,8 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
+IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
+
 
 class CabView(AgentView):
     """View of a cab of the ridesharing system.
@@ -52,9 +54,6 @@ class RiderView(AgentView):
     waited: float
     seats: float
     money: float
-
-
-IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
 class CabElement(Element):
@@ -373,7 +372,7 @@ class ArrivalInteraction(BirthDeathInteraction):
         return {'destination_x': float(to_x), 'destination_y': float(to_y)}
 
 
-def _busy(agent: CabView) -> float:
+def _get_busy(agent: CabView) -> float:
     """Return one for a cab on a trip and zero for an idle cab."""
     return float(agent.task != IDLE)
 
@@ -428,7 +427,7 @@ class RidesharingSystem(BaseSystem):
     observables = (
         ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
         ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
-        ObservableSpec('utilisation', _busy, group='cabs', reduce='mean'),
+        ObservableSpec('utilisation', _get_busy, group='cabs', reduce='mean'),
     )
 
     def __init__(

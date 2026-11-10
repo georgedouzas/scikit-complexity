@@ -22,6 +22,8 @@ from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.traffic import SpeedAdaptationInteraction
 
+KERNER_KONHAUSER_OFFSET = 3.72e-6
+
 
 class GasKineticTrafficElement(Element):
     """Cell of a road with the density `rho` and the flow `Q` of the GKT system.
@@ -186,27 +188,6 @@ class PayneElement(Element):
         self.tau = tau
 
 
-KERNER_KONHAUSER_OFFSET = 3.72e-6
-
-
-def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
-    """Return the variance prefactor of a road at the density `rho`.
-
-    It is `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)`.
-    """
-    prefactor: Expression = road.A0 + road.dA * (tanh((rho - road.rho_c) / road.d_rho) + 1)
-    return prefactor
-
-
-def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
-    """Return a uniform density on a ring with a smooth bump around the middle.
-
-    The bump has the relative height `bump`.
-    """
-    centers = (np.arange(n) + 0.5) / n
-    return density * (1 + bump * np.exp(-(((centers - 0.5) / 0.05) ** 2)))
-
-
 class LighthillWhithamRichardsSystem(BaseSystem):
     """The Lighthill-Whitham-Richards system.
 
@@ -332,6 +313,15 @@ class PayneSystem(BaseSystem):
     dt = 0.05
     solver = SSPRKSolver()
 
+    @staticmethod
+    def _get_density_bump(n: int, density: float, bump: float) -> np.ndarray:
+        """Return a uniform density on a ring with a smooth bump around the middle.
+
+        The bump has the relative height `bump`.
+        """
+        centers = (np.arange(n) + 0.5) / n
+        return density * (1 + bump * np.exp(-(((centers - 0.5) / 0.05) ** 2)))
+
     def __init__(
         self,
         n: int = 200,
@@ -354,7 +344,7 @@ class PayneSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
-        rho = _density_bump(self.n, density, self.bump)
+        rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
             'rho': rho,
             'q': rho * self.vmax * (1 - rho / self.rho_max),
@@ -481,7 +471,7 @@ class KernerKonhauserSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
-        rho = _density_bump(self.n, density, self.bump)
+        rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
             'rho': rho,
             'q': rho * self._kerner_konhauser_speed(rho, self.V0, self.rho_max),
@@ -586,6 +576,15 @@ class GktTrafficSystem(BaseSystem):
     dt = 1 / 60
     solver = SSPRKSolver(cfl=0.4)
 
+    @staticmethod
+    def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
+        """Return the variance prefactor of a road at the density `rho`.
+
+        It is `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)`.
+        """
+        prefactor: Expression = road.A0 + road.dA * (tanh((rho - road.rho_c) / road.d_rho) + 1)
+        return prefactor
+
     def __init__(
         self,
         n: int = 200,
@@ -618,7 +617,7 @@ class GktTrafficSystem(BaseSystem):
         It is `Q**2 / rho` plus the traffic pressure `rho A(rho) V**2`.
         """
         road = s.target
-        flux: Expression = (1 + _get_variance_prefactor(road, road.rho)) * road.Q**2 / road.rho
+        flux: Expression = (1 + GktTrafficSystem._get_variance_prefactor(road, road.rho)) * road.Q**2 / road.rho
         return flux
 
     @staticmethod
@@ -634,17 +633,17 @@ class GktTrafficSystem(BaseSystem):
         ahead = [road.gamma * (1 / road.rho_max + road.T * speed)]
         density_ahead = shifted(road.rho, ahead)
         speed_ahead = shifted(road.Q / road.rho, ahead)
-        variances = _get_variance_prefactor(road, road.rho) * speed**2 + _get_variance_prefactor(
+        variances = GktTrafficSystem._get_variance_prefactor(
             road,
-            density_ahead,
-        ) * (speed_ahead**2)
+            road.rho,
+        ) * speed**2 + GktTrafficSystem._get_variance_prefactor(road, density_ahead) * (speed_ahead**2)
         difference = (speed - speed_ahead) / sqrt(variances)
         boltzmann = 2 * (
             difference * exp(-(difference**2) / 2) / sqrt(2 * pi)
             + (1 + difference**2) * (1 + erf(difference / sqrt(2))) / 2
         )
         gap = density_ahead * road.T / (1 - density_ahead / road.rho_max)
-        braking = variances / (2 * _get_variance_prefactor(road, road.rho_max)) * gap**2 * boltzmann
+        braking = variances / (2 * GktTrafficSystem._get_variance_prefactor(road, road.rho_max)) * gap**2 * boltzmann
         relaxation: Expression = road.rho * (road.V0 * (1 - braking) - speed) / road.tau
         return relaxation
 

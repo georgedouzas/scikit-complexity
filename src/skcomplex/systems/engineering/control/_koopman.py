@@ -271,66 +271,6 @@ class _PredictiveProblem:
         return float(lsq_linear(problem, target, bounds=(-1.0, 1.0)).x[0])
 
 
-def _plant_interactions(case: _PlantCase, target: str, source: str) -> list[RateInteraction]:
-    """Return the rates of the two variables of a plant.
-
-    The plant reads its input from a source.
-    """
-    rates = functools.partial(case.rates, limit=case.limit, step=case.step)
-    return [
-        RateInteraction(
-            name,
-            target=target,
-            state=name,
-            sources=[source],
-            rate=functools.partial(_rate_at, rates=rates, index=index),
-        )
-        for index, name in enumerate(('x', 'y'))
-    ]
-
-
-def _rate_at(
-    s: SimpleNamespace,
-    *,
-    rates: Callable[[SimpleNamespace], tuple[Expression, Expression]],
-    index: int,
-) -> Expression:
-    """Return one of the two rates of a plant."""
-    return rates(s)[index]
-
-
-def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> Trajectory:
-    """Return a run of the plant under a random binary input.
-
-    The input is drawn every sample, from a random state.
-    """
-    system = CompositeSystem(
-        elements=[
-            PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
-            ControlInputElement('input'),
-        ],
-        interactions=_plant_interactions(case, 'plant', 'input'),
-        time=ContinuousTime(),
-    )
-    values = rng.choice((-1.0, 1.0), duration + 1)
-    return simulate(
-        system,
-        until=float(duration),
-        dt=1.0,
-        schedule={'input.u': functools.partial(_held_value, values=values)},
-    )
-
-
-def _held_value(t: float, *, values: Array) -> float:
-    """Return the input of the sample at a time in samples."""
-    return float(values[min(round(t), len(values) - 1)])
-
-
-def _reference(s: SimpleNamespace, *, step: float, symbolic: Callable[[Expression], Expression]) -> Expression:
-    """Return the reference at the time of the system, which counts samples."""
-    return symbolic(step * s.t)
-
-
 class KoopmanModelPredictiveControlSystem(BaseSystem):
     """A plant that a discrete-time controller steers with model predictive control.
 
@@ -394,6 +334,66 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
     until = 100.0
     dt = 1.0
 
+    @staticmethod
+    def _get_plant_interactions(case: _PlantCase, target: str, source: str) -> list[RateInteraction]:
+        """Return the rates of the two variables of a plant.
+
+        The plant reads its input from a source.
+        """
+        rates = functools.partial(case.rates, limit=case.limit, step=case.step)
+        return [
+            RateInteraction(
+                name,
+                target=target,
+                state=name,
+                sources=[source],
+                rate=functools.partial(KoopmanModelPredictiveControlSystem._get_rate_at, rates=rates, index=index),
+            )
+            for index, name in enumerate(('x', 'y'))
+        ]
+
+    @staticmethod
+    def _get_rate_at(
+        s: SimpleNamespace,
+        *,
+        rates: Callable[[SimpleNamespace], tuple[Expression, Expression]],
+        index: int,
+    ) -> Expression:
+        """Return one of the two rates of a plant."""
+        return rates(s)[index]
+
+    @staticmethod
+    def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> Trajectory:
+        """Return a run of the plant under a random binary input.
+
+        The input is drawn every sample, from a random state.
+        """
+        system = CompositeSystem(
+            elements=[
+                PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
+                ControlInputElement('input'),
+            ],
+            interactions=KoopmanModelPredictiveControlSystem._get_plant_interactions(case, 'plant', 'input'),
+            time=ContinuousTime(),
+        )
+        values = rng.choice((-1.0, 1.0), duration + 1)
+        return simulate(
+            system,
+            until=float(duration),
+            dt=1.0,
+            schedule={'input.u': functools.partial(KoopmanModelPredictiveControlSystem._get_held_value, values=values)},
+        )
+
+    @staticmethod
+    def _get_held_value(t: float, *, values: Array) -> float:
+        """Return the input of the sample at a time in samples."""
+        return float(values[min(round(t), len(values) - 1)])
+
+    @staticmethod
+    def _get_reference(s: SimpleNamespace, *, step: float, symbolic: Callable[[Expression], Expression]) -> Expression:
+        """Return the reference at the time of the system, which counts samples."""
+        return symbolic(step * s.t)
+
     def __init__(
         self,
         plant: str = 'duffing',
@@ -442,7 +442,7 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
         """
         rng = np.random.default_rng(random_state)
         surrogate = mode_decomposition(
-            [_run_training(case, duration, rng) for _ in range(n_runs)],
+            [KoopmanModelPredictiveControlSystem._run_training(case, duration, rng) for _ in range(n_runs)],
             variables=['plant.x', 'plant.y'],
             inputs=['input.u'],
             dictionary=PolynomialFeatures(3, include_bias=False) if dictionary is None else dictionary,
@@ -486,13 +486,20 @@ class KoopmanModelPredictiveControlSystem(BaseSystem):
                     time=ContinuousTime(),
                 ),
             ],
-            interactions=[controller, *_plant_interactions(case, 'plant/state', 'controller/input')],
+            interactions=[
+                controller,
+                *KoopmanModelPredictiveControlSystem._get_plant_interactions(case, 'plant/state', 'controller/input'),
+            ],
         )
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings, with the reference of the plant as an observable."""
         case = PLANTS[self.plant]
-        reference = functools.partial(_reference, step=case.step, symbolic=case.symbolic_reference)
+        reference = functools.partial(
+            KoopmanModelPredictiveControlSystem._get_reference,
+            step=case.step,
+            symbolic=case.symbolic_reference,
+        )
         settings = super().get_run_settings()
         settings['observables'] = [ObservableSpec('reference', reference)]
         return settings

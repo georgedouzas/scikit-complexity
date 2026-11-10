@@ -19,6 +19,8 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.signals import PulseInteraction
 
+IMPULSE_PERIOD = 4.0
+
 
 class LevitatedBallElement(Element):
     """Conductive ball levitated in a vacuum.
@@ -75,9 +77,6 @@ class LevitatedBallElement(Element):
                 The laws of the component.
         """
         return [RateLaw(s.v, -s.b * s.v)]
-
-
-IMPULSE_PERIOD = 4.0
 
 
 class MagneticLevitationSystem(BaseSystem):

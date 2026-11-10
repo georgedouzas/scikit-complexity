@@ -19,6 +19,14 @@ from ....core.components.laws.utils import clip, distributed_delay, minimum, ser
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
+MONTHS_PER_YEAR = 12.0
+HUSK_SHARE = 0.2
+BRAN_SHARE = 0.08
+DAYS_PER_YEAR = 365.0
+WATER_STRESS = ((0.0, 0.3, 0.6, 1.0), (0.0, 0.5, 1.0, 1.0))
+LANDFILL_ACCEPTANCE = ((0.0, 0.9, 1.0), (1.0, 1.0, 0.0))
+INITIAL_COLLECTION_SHARE = 0.75
+
 
 class ReliefPipelineElement(Element):
     """Relief supply line that ships food to a warehouse and distributes it.
@@ -96,15 +104,6 @@ class ReliefPipelineElement(Element):
                 label='distribution',
             ),
         ]
-
-
-MONTHS_PER_YEAR = 12.0
-
-
-HUSK_SHARE = 0.2
-
-
-BRAN_SHARE = 0.08
 
 
 class RiceMillElement(Element):
@@ -209,12 +208,6 @@ class RiceMillElement(Element):
                 (perceived - s.capacity) / s.expansion_time,
             ),
         ]
-
-
-DAYS_PER_YEAR = 365.0
-
-
-WATER_STRESS = ((0.0, 0.3, 0.6, 1.0), (0.0, 0.5, 1.0, 1.0))
 
 
 class IrrigationSchemeElement(Element):
@@ -325,9 +318,6 @@ class IrrigationSchemeElement(Element):
         ]
 
 
-LANDFILL_ACCEPTANCE = ((0.0, 0.9, 1.0), (1.0, 1.0, 0.0))
-
-
 class WasteSystemElement(Element):
     """Solid waste system of a growing city.
 
@@ -421,9 +411,6 @@ class WasteSystemElement(Element):
             TransferLaw(s.composted, Sink('farms'), s.composted / s.composting_time, label='compost_sales'),
             RateLaw(s.collection_capacity, (generation - s.collection_capacity) / s.capacity_time),
         ]
-
-
-INITIAL_COLLECTION_SHARE = 0.75
 
 
 class RiceMillingSystem(BaseSystem):

@@ -21,6 +21,8 @@ from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, Visua
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
+INFLOW_START = 5.0
+
 
 class StageElement(Element):
     """Stage of a process, a stock of material `m` with a constant feed."""
@@ -42,9 +44,6 @@ class StageElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the constant feed of the stage."""
         return [RateLaw(s.m, s.feed)]
-
-
-INFLOW_START = 5.0
 
 
 class BathtubSystem(StockFlowSystem):

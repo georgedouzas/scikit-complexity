@@ -23,6 +23,9 @@ from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
+EDGE_FRACTION = 1e-9
+BEACON_MARGIN = 5.0
+
 
 class LightSensitiveRobotElement(Element):
     """Robot in a Gaussian light field that slows down in light.
@@ -157,9 +160,6 @@ class SwarmRobotView(AgentView):
     beacon_x: float
     beacon_y: float
     arena: float
-
-
-EDGE_FRACTION = 1e-9
 
 
 class SwarmRobotElement(Element):
@@ -364,9 +364,6 @@ class SwarmRobotElement(Element):
     def _angle_between(first: float, second: float) -> float:
         """Return the absolute difference of two angles, between 0 and pi."""
         return abs((first - second + math.pi) % (2 * math.pi) - math.pi)
-
-
-BEACON_MARGIN = 5.0
 
 
 class LightSeekingRobotsSystem(BaseSystem):

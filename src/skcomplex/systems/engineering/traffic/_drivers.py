@@ -22,6 +22,8 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+ROAD_WIDTH = 1.0
+
 
 class MotoristView(AgentView):
     """View of a car of Charbonneau's traffic system.
@@ -365,9 +367,6 @@ class CarelessBrakingInteraction(Interaction):
         for index, car in enumerate(cars):
             moved = car.x + car.v
             car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
-
-
-ROAD_WIDTH = 1.0
 
 
 class CharbonneauTrafficSystem(BaseSystem):

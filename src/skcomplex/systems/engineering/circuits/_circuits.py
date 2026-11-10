@@ -20,6 +20,8 @@ from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.signals import PulseInteraction
 
+CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
+
 
 class ChuaCircuitElement(Element):
     """Chua circuit with the piecewise-linear current of its diode."""
@@ -210,9 +212,6 @@ class MultiscrollChuaCircuitElement(Element):
         edge = 2 * a * c
         slope = b * pi / (2 * a)
         return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
-
-
-CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
 
 class RlcCircuitSystem(BaseSystem):

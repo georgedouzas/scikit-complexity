@@ -22,14 +22,8 @@ from ...general.dynamics.types import Equations
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
 
 DISTURBANCE_TIME = 10.0
-
-
 CHANGE_TIME = 20.0
-
-
 HOURS_PER_DAY = 24.0
-
-
 THERMAL = ConnectorSpec('thermal', potential='T', flow='Q')
 POSITIVE = RealSet.open(0, oo)
 
@@ -280,18 +274,6 @@ class HeatingResistorElement(TwoPinElement):
         """
         voltage = s.p_v - s.n_v
         return [EquationLaw(s.R * s.p_i, s.on * voltage), EquationLaw(s.h_Q, -voltage * s.p_i)]
-
-
-def _energy_of_satellite(s: SimpleNamespace) -> Expression:
-    """Return the total effective energy of the satellite of the system."""
-    satellite = s.satellite
-    return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
-
-
-def _heating_power(s: SimpleNamespace) -> Expression:
-    """Return the heat that the resistor delivers to the room."""
-    heat: Expression = -s.heater.h_Q
-    return heat
 
 
 class ThermostatSystem(DynamicalSystem):
@@ -597,6 +579,12 @@ class PendulumSwingUpSystem(DynamicalSystem):
         return -s.target.mu * sign(derivative(s.target.theta, 1) * cos(s.target.theta)) * sign(gap)
 
 
+def _get_energy_of_satellite(s: SimpleNamespace) -> Expression:
+    """Return the total effective energy of the satellite of the system."""
+    satellite = s.satellite
+    return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
+
+
 class SatelliteTransferSystem(DynamicalSystem):
     """A satellite moved between Kepler orbits by radial thrust.
 
@@ -643,7 +631,7 @@ class SatelliteTransferSystem(DynamicalSystem):
     until = 20.0
     dt = 0.05
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('energy', _energy_of_satellite),)
+    observables = (ObservableSpec('energy', _get_energy_of_satellite),)
 
     def __init__(
         self,
@@ -710,6 +698,12 @@ class SatelliteTransferSystem(DynamicalSystem):
         )
 
 
+def _get_heating_power(s: SimpleNamespace) -> Expression:
+    """Return the heat that the resistor delivers to the room."""
+    heat: Expression = -s.heater.h_Q
+    return heat
+
+
 class HeatedRoomSystem(BaseSystem):
     """A room assembled from thermal and electrical components.
 
@@ -763,7 +757,7 @@ class HeatedRoomSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 14400.0
     dt = 10.0
-    observables = (ObservableSpec('power', _heating_power),)
+    observables = (ObservableSpec('power', _get_heating_power),)
 
     def __init__(
         self,

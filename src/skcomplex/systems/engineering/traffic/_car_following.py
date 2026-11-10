@@ -176,16 +176,6 @@ class IntelligentDriverInteraction(RateInteraction):
         )
 
 
-def _ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:
-    """Return evenly spaced positions on a ring.
-
-    The first car is moved forward by a perturbation.
-    """
-    positions = np.arange(n_cars) * length / n_cars
-    positions[0] += perturbation
-    return [float(position) for position in positions]
-
-
 class OptimalVelocitySystem(BaseSystem):
     """The optimal velocity system of cars on a ring road.
 
@@ -230,6 +220,16 @@ class OptimalVelocitySystem(BaseSystem):
     until = 200.0
     dt = 1.0
 
+    @staticmethod
+    def _get_ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:
+        """Return evenly spaced positions on a ring.
+
+        The first car is moved forward by a perturbation.
+        """
+        positions = np.arange(n_cars) * length / n_cars
+        positions[0] += perturbation
+        return [float(position) for position in positions]
+
     def __init__(
         self,
         n_cars: int = 20,
@@ -257,7 +257,10 @@ class OptimalVelocitySystem(BaseSystem):
             'cars',
             element=CarElement,
             size=self.n_cars,
-            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': float(speed)},
+            values={
+                'x': OptimalVelocitySystem._get_ring_positions(self.n_cars, self.length, self.perturbation),
+                'v': float(speed),
+            },
         )
         following = OptimalVelocityInteraction(
             'follow',
@@ -357,7 +360,10 @@ class IntelligentDriverSystem(BaseSystem):
             'cars',
             element=CarElement,
             size=self.n_cars,
-            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': 0.0},
+            values={
+                'x': OptimalVelocitySystem._get_ring_positions(self.n_cars, self.length, self.perturbation),
+                'v': 0.0,
+            },
         )
         following = IntelligentDriverInteraction(
             'follow',

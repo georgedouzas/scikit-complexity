@@ -25,8 +25,6 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 GRAVITY = 9.81
-
-
 FORCE_LIMIT = 50.0
 
 
@@ -395,17 +393,10 @@ class StateFeedbackInteraction(Interaction):
         return [BoundaryLaw(getattr(s.plant, self.control), clip(feedback, *(self.limits or (None, None))))]
 
 
-def _tilt(s: SimpleNamespace) -> Expression:
+def _get_tilt(s: SimpleNamespace) -> Expression:
     """Return the angle of the pendulum from upright."""
     tilt: Expression = s.cart.theta
     return tilt
-
-
-def _oscillator_energy(s: SimpleNamespace) -> Expression:
-    """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
-    oscillator = s.oscillator
-    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
-    return energy
 
 
 class PidInvertedPendulumSystem(BaseSystem):
@@ -453,7 +444,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     until = 5.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('tilt', _tilt),)
+    observables = (ObservableSpec('tilt', _get_tilt),)
 
     def __init__(
         self,
@@ -491,6 +482,13 @@ class PidInvertedPendulumSystem(BaseSystem):
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
         return CompositeSystem(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+
+
+def _get_oscillator_energy(s: SimpleNamespace) -> Expression:
+    """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
+    oscillator = s.oscillator
+    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
+    return energy
 
 
 class LqrOscillatorSystem(BaseSystem):
@@ -532,7 +530,7 @@ class LqrOscillatorSystem(BaseSystem):
     until = 10.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('energy', _oscillator_energy),)
+    observables = (ObservableSpec('energy', _get_oscillator_energy),)
 
     def __init__(
         self,

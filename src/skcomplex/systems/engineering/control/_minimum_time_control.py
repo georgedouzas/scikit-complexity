@@ -21,8 +21,6 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
-
-
 CIRCLES_END = 2
 
 
