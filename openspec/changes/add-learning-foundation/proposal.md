@@ -21,7 +21,8 @@ from system identification to reinforcement learning, plug into the same parts.
   times, missing values, inputs, and conditions. A new package `skcomplex.core.data`, approved on 2026-11-10, holds
   the functions that make and reshape data: `read_runs`, which reads observed runs from a pandas data frame or an
   xarray dataset, `observe`, which turns simulated trajectories and experiment results into observed runs through an
-  observation model, `split_runs`, which splits runs into training and validation sets, and `make_arrays`, which turns
+  observation model, `split_runs`, which splits whole runs, or the times of every run, into training and validation
+  sets, and `make_arrays`, which turns
   runs, trajectories, ensembles, or sweeps into the arrays `X` and `y` of scikit-learn, from parameters to summaries or
   from states to later states with lags, so any scikit-learn pipeline trains on simulated or observed data. Every fit
   reads observed runs: `calibrate`, `identify`, the surrogate analyses, and the training of learned parts.
@@ -34,7 +35,8 @@ from system identification to reinforcement learning, plug into the same parts.
 - **One fit loop.** The Optax loop of `GradientDescentSolver` becomes the one loop of the library. It takes batches of
   runs and a gradient from one of two estimators, pathwise through a differentiable run or by the score of recorded
   draws, with validation runs and early stopping. Losses follow from the noise of the observation model: squares,
-  squares of logarithms, or the likelihood of Gaussian, log-normal, Poisson, or negative binomial noise.
+  squares of logarithms, or the likelihood of Gaussian, log-normal, Poisson, negative binomial, or binomial noise, the
+  last for counts reported with a probability, as under-reported cases are.
 - **BREAKING: `ObservedRunsSpec` replaces `DatasetSpec`.** Decided on 2026-11-10. `DatasetSpec` is removed with no
   alias. A data set of inputs and targets is a set of observed runs whose inputs are the parameter series.
   `TrainingInteraction` takes it as `data`.
@@ -46,14 +48,16 @@ from system identification to reinforcement learning, plug into the same parts.
   adaptive parameters of a system, learned weights included, to observed runs, and returns a frozen
   `IdentificationResult` whose `system` is the system with the fitted values. `method='gradient'` trains through the
   run with the shared loop, and `method='derivatives'` fits scikit-learn regressors to the residual rates of observed
-  states.
+  states. `identify` also fits the initial states of every run and the scale of the observation noise, as published
+  fits of real data do, fits systems whose stochastic laws are SDE terms through Diffrax, and replaces the error of the
+  whole run by the error of short predictions or of windows (multiple shooting) for long or chaotic runs.
 - **Reinforcement learning.** New frozen spec `EnvironmentSpec`, which reads any system as an environment: its
   observation, its actions as bounded adaptive parameters or choices, its reward and terminal observables, and the time
   between decisions. New core interaction `PolicyInteraction`, a policy as a part of the system, which sets the actions
   from a learned function of the observation, by a categorical, normal, or deterministic draw. New experiment
   `train_policy(system, *, method, ...)` with `'reinforce'` and `'ppo'`, on-policy by the score of recorded draws, and
   `'pathwise'`, through the differentiable run of a system. It returns a frozen `PolicyTrainingResult` whose `system`
-  holds the trained policy. A policy bound to a group acts for every member with shared weights. Off-policy and
+  holds the trained policy and whose `trajectory` records the training, epoch by epoch, for every method. A policy bound to a group acts for every member with shared weights. Off-policy and
   multi-agent methods are designed here and specified by follow-up changes.
 - **Forecast skill.** New analysis `forecast_skill(forecast, truth, ...)` that scores a forecast against the truth by
   lead time, with the valid prediction time and the skill against persistence, for every learned or pretrained
@@ -106,8 +110,10 @@ from system identification to reinforcement learning, plug into the same parts.
 - Docs: sections in the build, calibrate, experiments, and analysis pages of the user guide, three gallery examples,
   and the inventory primitives `observed-data`, `learned-functions`, and `policies`.
 - Follow-up drafts, in order: `add-learning-bridges` (scikit-learn splitters, scorers, and parameter grids inside
-  `identify`, `calibrate`, and `train_policy`, and Gymnasium and PettingZoo environments),
-  `add-off-policy-learning`, and `add-multi-agent-learning`.
+  `identify`, `calibrate`, and `train_policy`, information criteria and residual tests, and Gymnasium and PettingZoo
+  environments), `add-off-policy-learning`, and `add-multi-agent-learning`. `add-state-estimation` (filters,
+  smoothers, and data assimilation on the observation model) and `add-experimental-design` (optimal designs and design
+  optimisation) also build on it.
 - Drafts that build on it: `add-hybrid-neural-laws`, `extend-law-discovery`, `add-learned-indicators`,
   `add-generative-samplers`, `add-neural-particle-simulators`, `add-equilibrium-census`, `add-torch-surrogates`,
   `extend-network-and-emergence-measures`, `add-diversity-search`, and `add-language-model-agents`.

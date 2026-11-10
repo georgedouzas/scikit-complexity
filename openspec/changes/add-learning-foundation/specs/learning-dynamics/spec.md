@@ -39,7 +39,7 @@ SHALL be padded and masked so a batch compiles once.
 ### Requirement: Losses follow from the observation model
 The loss of a `TrainingInteraction` SHALL be an observable of the inner system or one of the names `'squares'`, `'log'`,
 and `'likelihood'`. The likelihood SHALL be that of the noise of the observation model of the data, Gaussian, log-normal,
-Poisson, or negative binomial, evaluated at the predicted means.
+Poisson, negative binomial, or binomial, evaluated at the predicted means.
 
 #### Scenario: Poisson likelihood
 - **WHEN** the data of an SIR system are observed with Poisson noise and the loss is `'likelihood'`

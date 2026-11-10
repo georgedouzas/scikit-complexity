@@ -8,11 +8,14 @@ form and in a hybrid form whose predation terms are one learned network, identif
 records of 1900 to 1920 as distributed with Carpenter (2018), with a gallery example and an inventory entry.
 
 #### Scenario: Mechanistic fit agrees with the published estimates
-- **WHEN** the mechanistic form is identified on the pelt records with Gaussian noise on the logarithms
-- **THEN** the four rates are within 10% of 0.55, 0.028, 0.80, and 0.024, the posterior means of Carpenter (2018)
+- **WHEN** the mechanistic form is identified on the pelt records with log-normal noise, fitting the four rates, the
+  two initial populations with `initial`, and the noise scales with `noise=True`, as Carpenter (2018) does
+- **THEN** the four rates are within 10% of 0.55, 0.028, 0.80, and 0.024, the posterior means of Carpenter (2018),
+  and the initial populations and noise scales are within 10% of the posterior means of that case study
 
 #### Scenario: Hybrid form on held-out years
-- **WHEN** both forms are identified on the records of 1900 to 1915 and run to 1920
+- **WHEN** both forms are identified on the records of 1900 to 1915, split from the run with `split_runs(kind='time')`,
+  and run to 1920
 - **THEN** the hybrid form is reported with its training and validation errors, and its validation error on 1916 to
   1920 is at most that of the mechanistic form times 1.5
 

@@ -21,12 +21,14 @@
   it from `skcomplex.core.data`, and verify the long-frame and missing-column scenarios in `tests/core/data/`
 - [ ] 2.4 Extend `read_runs` to xarray datasets with the dimensions `time` and `run` and conditions as coordinates, and
   verify the dataset-with-conditions scenario
-- [ ] 2.5 Add `observe` on trajectories with the five noise models and readout observables in
-  `src/skcomplex/core/data/_observe.py`, export it, and verify the readout-of-a-compartment and same-seed scenarios
+- [ ] 2.5 Add `observe` on trajectories with the six noise models and readout observables in
+  `src/skcomplex/core/data/_observe.py`, export it, and verify the readout-of-a-compartment, under-reported-counts, and
+  same-seed scenarios
 - [ ] 2.6 Extend `observe` to `ExperimentResult` sources, read through their run result specs, with conditions per
-  design point and `replicates`, and verify the sweep-as-runs scenario
-- [ ] 2.7 Add `split_runs` in `src/skcomplex/core/data/_split.py`, export it, and verify the no-run-in-both-sets and
-  too-few-runs scenarios
+  design point and `replicates`, and verify the sweep-as-runs and experiment-results-read-without-the-experiments-package
+  scenarios
+- [ ] 2.7 Add `split_runs` in `src/skcomplex/core/data/_split.py` with `kind='runs'` and `kind='time'`, export it,
+  and verify the no-run-in-both-sets, too-few-runs, and held-out-years-of-one-run scenarios
 - [ ] 2.8 Add `make_arrays` with `kind='transitions'` in `src/skcomplex/core/data/_arrays.py`, export it, and verify the
   states-to-next-states, unknown-path, and pipeline-trained-on-runs scenarios
 - [ ] 2.9 Add `kind='runs'` with the summaries and the scalar outputs of experiment results, and verify the
@@ -67,8 +69,9 @@
   runs-of-different-lengths scenarios
 - [ ] 4.4 Move the Elman network, its gallery example, the user guide, and every test from `DatasetSpec` to observed
   runs, remove `DatasetSpec` with no alias, and add the breaking changelog line with the migration
-- [ ] 4.5 Add the loss names `'squares'`, `'log'`, and `'likelihood'` with the five noise models, and verify the
-  Poisson-likelihood and likelihood-without-noise scenarios
+- [ ] 4.5 Add the loss names `'squares'`, `'log'`, and `'likelihood'` with the six noise models, and verify the
+  Poisson-likelihood and likelihood-without-noise scenarios and a binomial likelihood against `scipy.stats.binom` at
+  whole counts
 - [ ] 4.6 Add `validation` and `patience` with the recorded validation loss and the best parameters, and verify the
   early-stop scenario
 - [ ] 4.7 Lift the Diffrax solver, tolerances, and adjoint to module constants read by the solver and
@@ -79,15 +82,21 @@
 - [ ] 5.1 Add `identify` and `IdentificationResult` in `src/skcomplex/core/experiments/_identification.py` with
   `method='gradient'` on the training system, export them, and verify the universal-differential-equation,
   rates-fitted-with-the-network, reproducible-fit, and fitted-system-is-a-system scenarios
-- [ ] 5.2 Add the checks of trained names, adaptivity, and differentiable tags, and verify the not-adaptive and
-  stochastic-system scenarios
-- [ ] 5.3 Add `method='derivatives'` with pysindy's smoothed differences and the fit of regressors on residual rates,
+- [ ] 5.2 Add the checks of trained names, adaptivity, and stochastic law kinds, and verify the not-adaptive and
+  jump-laws scenarios
+- [ ] 5.3 Add `initial` and `noise` with the fitted initial states per run and the noise scales per path, add
+  `initial_states` and `noise_scales` to the result, and verify the initial-states-of-a-run and noise-scale scenarios
+- [ ] 5.4 Add `horizon` with rollouts from every fully observed time and `windows` with trained window starts and the
+  `continuity` penalty, and verify the chaotic-run, one-step-prediction, and horizon-with-unobserved-states scenarios
+- [ ] 5.5 Accept SDE terms in `method='gradient'` with `paths` Brownian paths per run from
+  `diffrax.VirtualBrownianTree` and the loss of their mean and variance, and verify the Ornstein-Uhlenbeck scenario
+- [ ] 5.6 Add `method='derivatives'` with pysindy's smoothed differences and the fit of regressors on residual rates,
   and verify the regressor-of-a-missing-term and unobserved-state scenarios
-- [ ] 5.4 Make `calibrate` read `ObservedRunsSpec`, and verify the one-run scenario and the existing calibration tests
-- [ ] 5.5 Make `_read_samples` read `ObservedRunsSpec` for `sparse_identification`, `mode_decomposition`, and
+- [ ] 5.7 Make `calibrate` read `ObservedRunsSpec`, and verify the one-run scenario and the existing calibration tests
+- [ ] 5.8 Make `_read_samples` read `ObservedRunsSpec` for `sparse_identification`, `mode_decomposition`, and
   `reservoir`, and verify the runs-from-a-reader and uneven-times scenarios
-- [ ] 5.6 Document `identify` and its two methods, and the difference from `calibrate`, in the calibrate page of the
-  user guide with runnable examples
+- [ ] 5.9 Document `identify`, its two methods, initial states and noise, prediction error and windows, SDE fits, and
+  the difference from `calibrate` in the calibrate page of the user guide with runnable examples
 
 ## 6. Reinforcement learning
 
@@ -109,7 +118,10 @@
   loop, and verify the cart-pole-balanced scenario, marked slow
 - [ ] 6.9 Add `'pathwise'` through `GradientDescentSolver` with a reward loss, and verify the
   pathwise-needs-a-differentiable-system scenario and a pendulum held upright by a trained deterministic policy
-- [ ] 6.10 Document environments, policies, and `train_policy` in the experiments page of the user guide, with the
+- [ ] 6.10 Record the training of every method as the `trajectory` of `PolicyTrainingResult`, with the epochs as times
+  and the weights, mean return, and loss as series, and verify the training-as-a-trajectory scenario for the three
+  methods
+- [ ] 6.11 Document environments, policies, and `train_policy` in the experiments page of the user guide, with the
   design of off-policy and multi-agent methods named as follow-ups, and verify its code blocks run
 
 ## 7. Forecast skill
@@ -124,8 +136,9 @@
 
 - [ ] 8.1 Add `UniversalLotkaVolterraSystem` in `src/skcomplex/systems/biology/ecology/_universal_lotka_volterra.py`
   with both forms, export it, and verify the untrained-network scenario in `tests/systems/biology/ecology/`
-- [ ] 8.2 Verify the mechanistic-fit and held-out-years scenarios on the pelt records, read from the same source as the
-  build tutorial
+- [ ] 8.2 Read the posterior means of the initial populations and noise scales from Carpenter (2018), and verify the
+  mechanistic-fit scenario with `initial` and `noise` and the held-out-years scenario with `split_runs(kind='time')` on
+  the pelt records, read from the same source as the build tutorial
 - [ ] 8.3 Fetch the 1978 boarding school counts from the note of the British Medical Journal, check them against the
   R package `outbreaks`, and store them with their provenance as a data file of the epidemiology package read with
   `importlib.resources.files`

@@ -12,13 +12,20 @@ observed runs.
 
 ### Requirement: Observation models say what is seen and with what noise
 `ObservationSpec(paths, noise, scale)` SHALL name the dotted paths of the states or observables that are seen, or
-observable readouts of them, and SHALL take `noise` among `'none'`, `'gaussian'`, `'log-normal'`, `'poisson'`, and
-`'negative-binomial'`, with `scale` as one value or one value per path. It SHALL refuse an unknown noise, a negative
+observable readouts of them, and SHALL take `noise` among `'none'`, `'gaussian'`, `'log-normal'`, `'poisson'`, `'negative-binomial'`, and
+`'binomial'`, with `scale` as one value or one value per path. A scale of binomial noise SHALL be a reporting
+probability in `(0, 1]`. It SHALL refuse an unknown noise, a negative
 scale, and a scale given for noise that has none.
 
 #### Scenario: Unknown noise
 - **WHEN** an observation is declared with `noise='laplace'`
-- **THEN** `prepare` raises `ValidationError` that names the noise and lists the five allowed ones
+- **THEN** `prepare` raises `ValidationError` that names the noise and lists the six allowed ones
+
+#### Scenario: Under-reported counts
+- **WHEN** an observation names the infected compartment of an SIR system of 1000 members with binomial noise and a
+  reporting probability of 0.3
+- **THEN** `observe` returns whole numbers no larger than the rounded infected counts, whose mean over 10000 draws at
+  every time is within 2% of 0.3 times the rounded counts
 
 #### Scenario: Readout of a compartment
 - **WHEN** an observation names the observable `0.8 * infected.x` of an SIR system with Poisson noise
@@ -70,21 +77,33 @@ design point as conditions, keeping every replicate or their mean.
 - **THEN** it returns 5 runs, each with the condition `r` of its design point and the mean of its replicates
 
 ### Requirement: Runs split into training and validation
-`split_runs(data, validation, random_state)` SHALL split whole runs into a training and a validation `ObservedRunsSpec`,
-with the share of runs given, at least one run in each, and the same split for the same seed.
+`split_runs(data, validation, kind, random_state)` SHALL split whole runs into a training and a validation
+`ObservedRunsSpec` with `kind='runs'`, with the share of runs given, at least one run in each, and the same split for
+the same seed. With `kind='time'` it SHALL hold out the last share of the observation times of every run, keeping the
+label, conditions, and inputs of the run in both parts.
 
 #### Scenario: No run in both sets
 - **WHEN** 10 runs are split with `validation=0.3`
 - **THEN** the training set holds 7 runs, the validation set 3, and no label appears in both
 
 #### Scenario: Too few runs
-- **WHEN** one run is split
-- **THEN** it raises `ValidationError` that says a split needs at least two runs
+- **WHEN** one run is split with `kind='runs'`
+- **THEN** it raises `ValidationError` that says a split of runs needs at least two runs and names `kind='time'`
+
+#### Scenario: Held-out years of one run
+- **WHEN** the pelt records of 1900 to 1920 are split with `kind='time'` and `validation=0.25`
+- **THEN** the training run holds the years 1900 to 1915, the validation run the years 1916 to 1920, and both carry
+  the label of the run
 
 ### Requirement: Runs become the arrays of scikit-learn
 `make_arrays(data, ...)` SHALL turn observed runs, trajectories, or the runs of an `ExperimentResult` of `ensemble` or
 `sweep` into a feature array `X`, a target array `y`, and an array `groups` that holds the run of every row, and SHALL
 leave out rows with a missing value.
+
+#### Scenario: Experiment results read without the experiments package
+- **WHEN** `observe` and `make_arrays` read the `ExperimentResult` of a sweep, and the import contracts run
+- **THEN** both return the runs of the sweep, and no module of `skcomplex.core.data` imports
+  `skcomplex.core.experiments`, directly or through another module
 
 #### Scenario: Pipeline trained on runs
 - **WHEN** the arrays of 20 observed runs are passed with their `groups` to `cross_val_score` of a pipeline of

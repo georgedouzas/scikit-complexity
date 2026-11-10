@@ -45,6 +45,9 @@
 - Torch models. `add-torch-surrogates` keeps them, trained by their own libraries.
 - Mixed effects, covariate maps, and dosing on JAX, which stay in `add-hybrid-neural-laws` on top of these blocks.
 - GPU tuning. Everything runs on the CPU in double precision.
+- Filters, smoothers, and the likelihood of partially observed stochastic systems by particle filtering. They are
+  `add-state-estimation`, which reads the same observation model.
+- The spread of learned weights over seeds, information criteria, and residual tests. They are `add-learning-bridges`.
 
 ## Decisions
 
@@ -112,6 +115,8 @@ runs inside the experiments, and pipelines train on the arrays of `make_arrays` 
 | `identify`, `IdentificationResult` | 2, an experiment over any system | `skcomplex.core.experiments` | every field with data |
 | `train_policy`, `PolicyTrainingResult` | 2, an experiment over any system with a policy | `skcomplex.core.experiments` | as for `PolicyInteraction` |
 | `forecast_skill`, `ForecastSkillResult` | 2, an analysis that reads series by their tags | `skcomplex.core.analysis` | climate, ecology, epidemiology, finance, fluids, and every surrogate |
+| `initial`, `noise`, `horizon`, `windows`, and SDE fits of `identify` | 2, options of an experiment over any system | `core/experiments/_identification.py` | ecology and epidemiology (unknown initial populations and reporting noise), neuroscience and climate (long chaotic runs), finance and cell biology (SDE models) |
+| `kind='time'` of `split_runs`, binomial noise of `ObservationSpec` | 2, options of a data function and a spec that every fit reads | `skcomplex.core.data`, `skcomplex.core.specs` | every field whose data are one run (pelts, outbreaks, climate records), and epidemiology and ecology (under-reported counts) |
 | `UniversalLotkaVolterraSystem` | 3, one system | `biology/ecology/_universal_lotka_volterra.py` | biology |
 | `LearnedContactSIRSystem` | 3, one system | `biology/epidemiology/_learned_contact.py` | biology |
 | `CartPoleSystem` | 3, one system | `engineering/control/_cart_pole.py` | engineering |
@@ -149,8 +154,10 @@ step a system of this library.
 
 - `ObservationSpec(paths, noise='none', scale=0.0)`. `paths` are dotted paths of states or observables, or
   `ObservableSpec` readouts such as a reported fraction of a compartment. `noise` is `'none'`, `'gaussian'`,
-  `'log-normal'`, `'poisson'`, or `'negative-binomial'`, and `scale` is the standard deviation, the log standard
-  deviation, or the dispersion, one value or one per path. The spec says what a sensor sees, so the same spec builds
+  `'log-normal'`, `'poisson'`, `'negative-binomial'`, or `'binomial'`, and `scale` is the standard deviation, the log
+  standard deviation, the dispersion, or the reporting probability, one value or one per path. Binomial noise draws
+  the reported count from the true count, rounded, with the reporting probability, the under-reporting model of
+  epidemiology, and its likelihood uses the continuous extension of the binomial coefficient by the gamma function. The spec says what a sensor sees, so the same spec builds
   simulated data, scores fits, and gives the observation of an environment.
 - `ObservedRunSpec(series, inputs=None, conditions=None, label='')`. `series` maps a path to its times and values, one
   column per member for a group, each path with its own times, and NaN marks a missing value. `inputs` maps parameter
@@ -167,8 +174,13 @@ step a system of this library.
   observation with a seeded generator, and records the swept values of every design point as conditions. With
   `replicates='mean'` the replicates of a design point are averaged frame by frame before the noise. The result is
   labelled simulated data in every docstring and example that uses it.
-- `split_runs(data, *, validation=0.2, random_state=None)` returns two `ObservedRunsSpec`, as `train_test_split` does,
-  splitting whole runs so no run leaks into both.
+- `split_runs(data, *, validation=0.2, kind='runs', random_state=None)` returns two `ObservedRunsSpec`, as
+  `train_test_split` does. `kind='runs'` splits whole runs so no run leaks into both. `kind='time'` holds out the last
+  share of the observation times of every run, as `TimeSeriesSplit` keeps time order, since most real data sets are
+  one run, such as the pelt records and the boarding school outbreak of the probes. Its validation runs keep the
+  labels, conditions, and inputs of their training runs and hold the later times only, and a fit scores them by
+  running from the start of the run, so the held-out values are forecasts of the fitted system. The seed does not
+  change a split by time.
 - `make_arrays(data, *, kind='transitions', features=None, targets=None, lags=1, horizon=1, summary='last')` reads
   observed runs, one trajectory or several, or the `ExperimentResult` of `ensemble` or `sweep`, read as runs as
   `observe` reads them but without noise. It returns `X`, `y`, and `groups`, the index of the run of every row, which
@@ -234,19 +246,39 @@ step a system of this library.
 
 ### Identification
 
-- `identify(system, data, *, trained, method='gradient', loss=None, optimizer='adam', learning_rate=1e-2, epochs=500,
-  batch_size=None, validation=0.0, patience=None, random_state=None)` in `core/experiments/_identification.py`.
-  `trained` names adaptive parameters, learned weights included. `loss=None` takes `'likelihood'` when the data has a
-  noisy observation model and `'squares'` otherwise.
+- `identify(system, data, *, trained, method='gradient', loss=None, initial=(), noise=False, horizon=None,
+  windows=None, continuity=1.0, paths=16, optimizer='adam', learning_rate=1e-2, epochs=500, batch_size=None,
+  validation=0.0, patience=None, random_state=None)` in `core/experiments/_identification.py`. `trained` names
+  adaptive parameters, learned weights included. `loss=None` takes `'likelihood'` when the data has a noisy
+  observation model and `'squares'` otherwise.
+- **Initial states and noise.** `initial` names states whose initial values are fitted, one value per run, started
+  from the first observed value where the state is observed and from the value of the system otherwise. `noise=True`
+  fits the scale of the observation model with the likelihood loss, one value per path. Fitting the initial states
+  through the run is the strong constraint 4D-Var of data assimilation, and both are what Carpenter (2018) estimates
+  beside the four rates, so the probe compares like for like. The result reports them as `initial_states`, a mapping
+  from run label to state path to value, and `noise_scales`, a mapping from path to scale.
+- **Prediction error and multiple shooting.** Output error through a long run of a chaotic or stiff system has many
+  local minima (Kidger 2202.02435, Schoukens and Ljung 1902.00683). `horizon=k` starts a fresh rollout from every
+  observation time at which all states are observed and scores the next `k` observations, the k step prediction
+  error, which `k=1` makes the one step prediction error of system identification. It raises `ValidationError` naming
+  the unobserved states otherwise. `windows=m` cuts every run into `m` windows whose start states are trained, as
+  `initial` trains the first one, and adds `continuity` times the squared gap between the end of each window and the
+  start of the next, so unobserved states are allowed. `horizon=None` and `windows=None` keep the error of the whole
+  run.
+- **SDE fits.** `method='gradient'` accepts systems whose only stochastic laws are SDE terms. Every epoch draws
+  `paths` Brownian paths per run with `diffrax.VirtualBrownianTree`, seeded from `random_state`, and the loss compares
+  the mean and the variance of the paths at every observation time with those of the observed runs that share their
+  conditions, so drift and diffusion are both fitted. Gradients are pathwise through Diffrax, after Kidger
+  (2202.02435, ch. 4). Jump laws are still refused, and latent SDEs and SDE GANs are left for later.
 - `method='gradient'` builds the training system, a `TrainingInteraction` bound to the system, simulates it with
   `GradientDescentSolver`, and reads the last or best frame. This is the one path of training, so a user who wants the
   training as a system writes the same interaction.
 - `method='derivatives'` smooths the observed states with pysindy's `SmoothedFiniteDifference`, subtracts the known
   terms of every rate, and fits the scikit-learn regressors of the learned functions to the residuals, as SINDy fits a
   library. It needs every state of a learned rate observed, and raises `ValidationError` naming the unobserved state.
-- `IdentificationResult` holds `system`, `estimates` (path to value, weights excluded), `losses` and
-  `validation_losses` (one per epoch), `training_error`, `validation_error`, and `trajectory`, the run of the training
-  system. These field names are the convention every function that learns a system follows.
+- `IdentificationResult` holds `system`, `estimates` (path to value, weights excluded), `initial_states`,
+  `noise_scales`, `losses` and `validation_losses` (one per epoch), `training_error`, `validation_error`, and
+  `trajectory`, the run of the training system. These field names are the convention every function that learns a system follows.
 - `identify` is not `calibrate`. `calibrate` fits few named parameters of a known system within bounds and priors, and
   gives uncertainty. `identify` fits many unbounded adaptive parameters, learned weights included, over many runs by
   stochastic gradients, and gives a point estimate.
@@ -281,7 +313,10 @@ step a system of this library.
   - `'pathwise'` maximises the expected discounted reward through the differentiable run of a system whose tags are
     differentiable, with the deterministic policy, by `GradientDescentSolver`.
 - `PolicyTrainingResult` holds `system`, `returns` (mean return per epoch), `losses`, `episodes` (the number of
-  rollouts per epoch), and `trajectory` for `'pathwise'`.
+  rollouts per epoch), and `trajectory` for every method, a trajectory whose times are the epochs and whose series are
+  the trained weights, the mean return, and the loss, as the run of `TrainingInteraction` records an identification.
+  So "the record of a training is a trajectory" holds for every method, and `lyapunov`, `rolling`, and plots read the
+  training of a policy as they read any run.
 - **Off-policy, designed for `add-off-policy-learning`.** A transition is read from recorded runs: the observation,
   the recorded action draw, the reward, and the next observation. The store of transitions is an `ObservedRunsSpec` of
   recorded rollouts, so data logged elsewhere trains the same way. A Q-function is a second learned function passed to
@@ -306,7 +341,10 @@ step a system of this library.
   and the death of lynx and replaces both predation terms by one Equinox network of the two populations with two
   outputs, after the universal differential equations of Rackauckas et al. (2020) that 2306.10335 analyses. The data
   are the hare and lynx pelts of 1900 to 1920 of the build tutorial, as distributed with Carpenter (2018), whose
-  posterior means 0.55, 0.028, 0.80, and 0.024 are the reference values of the mechanistic fit. Primitives: `rates`,
+  posterior means 0.55, 0.028, 0.80, and 0.024 are the reference values of the mechanistic fit. That model also
+  estimates the two initial populations and the log-normal noise scale of each series, so the probe fits them with
+  `initial` and `noise`, and their posterior means are read from the case study as further reference values. The
+  held-out years are split with `split_runs(kind='time')`. Primitives: `rates`,
   `learned-functions`, `observed-data`, `learning`.
 - **`LearnedContactSIRSystem`** in `biology/epidemiology/_learned_contact.py`, with `population=763`, `beta`, `gamma`,
   `form='constant'` or `'learned'`, and `random_state`. The learned form multiplies the contact rate by a positive
@@ -345,7 +383,9 @@ The layers contract of `pyproject.toml` runs `experiments`, `analysis`, `engine`
 `types` and `errors`. `data` enters between `analysis` and `engine`, so experiments and analyses may import it and it
 imports neither. It imports only `skcomplex.core.specs`, the trajectories of `skcomplex.core.engine.runtime`, and the
 root modules of types and errors. `observe` and `make_arrays` read an `ExperimentResult` through its `runs`, run result
-specs of `skcomplex.core.specs`, so the package never imports `skcomplex.core.experiments`. A forbidden contract keeps
+specs of `skcomplex.core.specs`, so the package never imports `skcomplex.core.experiments`. A scenario of the
+observed data checks that `observe` and `make_arrays` read an `ExperimentResult` while no module of the package
+imports `skcomplex.core.experiments`. A forbidden contract keeps
 it from `skcomplex.core.components` and the other engine packages, so data stays a reader of results and specs.
 
 ### Decisions of 2026-11-10
@@ -354,6 +394,11 @@ it from `skcomplex.core.components` and the other engine packages, so data stays
 - `ObservedRunsSpec` replaces `DatasetSpec`, a breaking change with no alias.
 - The package `skcomplex.core.data` is approved and holds `read_runs`, `observe`, `split_runs`, and `make_arrays`.
 - The subpackage `skcomplex.systems.general.environments` is approved for the bridges of `add-learning-bridges`.
+- From the gap report of the learning drafts, approved the same day: `identify` fits initial states, noise scales, and
+  SDE terms, and offers prediction error and multiple shooting, `split_runs` splits by time within a run,
+  `PolicyTrainingResult.trajectory` exists for every method, and `ObservationSpec` gains binomial noise. Filtering,
+  smoothing, and data assimilation are the follow-up `add-state-estimation`, and optimal designs and design
+  optimisation the follow-up `add-experimental-design`.
 
 ## Risks / Trade-offs
 
@@ -369,6 +414,11 @@ it from `skcomplex.core.components` and the other engine packages, so data stays
   positive value, which the docstring states.
 - [The real data of the probes are small] → The scenarios check agreement with published estimates and held-out years,
   not the accuracy of a large benchmark.
+- [The mean and variance of SDE paths are noisy estimates of the loss] → `paths` sets the number of paths, the seed of
+  every epoch comes from `random_state`, and the scenario fits a process whose stationary moments are known in closed
+  form.
+- [Multiple shooting adds trained start states that a short run may not determine] → `continuity` weights the gaps,
+  and the scenario compares windows with the error of the whole run on a chaotic system where the latter fails.
 
 ## Migration Plan
 

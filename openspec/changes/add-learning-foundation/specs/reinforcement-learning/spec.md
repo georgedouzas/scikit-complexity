@@ -67,3 +67,12 @@ weights and whose `returns` hold the mean return of every epoch.
 #### Scenario: Pathwise needs a differentiable system
 - **WHEN** `train_policy` with `'pathwise'` is called on a system with jump laws
 - **THEN** it raises `ValidationError` that names the tag `differentiable` and the methods that do not need it
+
+### Requirement: The training of a policy is a trajectory
+`PolicyTrainingResult` SHALL hold, for every method, a `trajectory` whose times are the epochs and whose series are the
+trained weights, the mean return, and the loss.
+
+#### Scenario: Training as a trajectory
+- **WHEN** `train_policy` with `'reinforce'`, `'ppo'`, or `'pathwise'` trains a policy for 20 epochs
+- **THEN** the `trajectory` of the result has 21 frames, its weights at the last frame equal the weights of the
+  trained system, and its mean returns equal `returns`
