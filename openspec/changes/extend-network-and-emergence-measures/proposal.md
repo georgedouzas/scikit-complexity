@@ -6,7 +6,7 @@ core by hand from activity ranks. `network_measures` detects communities but not
 arXiv 2604.19827) states causal emergence as confirmed only when the macro effective information exceeds the micro one
 with bootstrap significance. `emergence` gives the gain of a partition but no uncertainty on it.
 
-Two papers of the survey of complex adaptive systems ask for more measures of emergence. Causal Emergence 2.0 (Hoel
+Papers of the survey of complex adaptive systems ask for more measures of emergence. Causal Emergence 2.0 (Hoel
 2025, arXiv 2503.13395) apportions causation over every scale of a path from the micro to the macro scale and measures
 emergent complexity as the spread of these contributions, while `emergence` compares one partition with the micro
 scale. Riedl (2025, arXiv 2510.05174) tests a group of agents for emergent coordination with the synergy that pairs of

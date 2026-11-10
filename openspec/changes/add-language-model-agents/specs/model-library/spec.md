@@ -61,4 +61,4 @@ the endpoint, the date, and the seed.
 
 #### Scenario: Inventory and gallery
 - **WHEN** the inventory check and the strict gallery coverage run
-- **THEN** they report no problem for the three systems
+- **THEN** they report no problem for these systems

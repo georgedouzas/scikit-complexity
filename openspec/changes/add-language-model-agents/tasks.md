@@ -41,8 +41,8 @@
   2410.08948, 2312.06619, and 2510.05174, and the primitive `oracle-queries` with
   `change = "add-language-model-agents"`, and verify the inventory check passes
 - [ ] 4.5 Record one run of each probe against a named model with `save_queries`, store the logs as labelled data
-  files under `docs/examples/`, and add the three gallery examples that replay them and compare with the rule-based
-  players, and verify the strict gallery build runs them without network access
+  files under `docs/examples/`, and add a gallery example of each probe that replays its log and compares it with the
+  rule-based player, and verify the strict gallery build runs them without network access
 
 ## 5. Integration
 

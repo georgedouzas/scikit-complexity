@@ -56,7 +56,7 @@ record replays. Without that, a run that costs money and time cannot be reproduc
   `social/language`, `mathematics/networks`, and `social/organizations`.
 - Dependencies: the optional extra `language-models` holds `openai` 3.49.0, released 2026-11-10. The core uses only
   the standard library (`hashlib`, `json`, `sqlite3`) for seeds, records, and the cache.
-- Docs: the agent section of the user guide, three gallery examples that replay recorded queries, and the inventory
+- Docs: the agent section of the user guide, a gallery example of each probe that replays recorded queries, and the inventory
   with the primitive `oracle-queries`.
 - `extend-network-and-emergence-measures` adds the synergy measures that the gallery example of the group guessing game
   reads. The probe lands after it or shows only the practical criterion that exists today.
