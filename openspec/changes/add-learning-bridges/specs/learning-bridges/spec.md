@@ -2,41 +2,10 @@
 
 ## Purpose
 
-Lets a user select and compose identified systems with scikit-learn, run external agents on any system through
-Gymnasium and PettingZoo, and train policies of the library on external environments.
+Lets a user run external agents on any system through Gymnasium and PettingZoo, and train policies of the library on
+external environments.
 
 ## ADDED Requirements
-
-### Requirement: Identification is a scikit-learn estimator
-`IdentificationEstimator` SHALL follow the scikit-learn estimator contract: `fit` on a list of observed runs calls
-`identify` and sets `system_`, `estimates_`, and `result_`, `predict` returns the observed paths of the fitted system at
-the times of every run, and `score` returns minus the mean loss. `clone`, `get_params`, and `set_params` SHALL reach the
-parameters of its system with double underscores.
-
-#### Scenario: Cross-validation over runs
-- **WHEN** `cross_validate` runs with 5 folds on 20 observed runs of a Lotka-Volterra system with a learned term
-- **THEN** it returns 5 test scores, and every fold fits on 16 runs and scores on 4
-
-#### Scenario: Grid search of the learning rate
-- **WHEN** `GridSearchCV` searches 3 learning rates with 3 folds
-- **THEN** `best_estimator_.system_` is a system that `simulate` runs
-
-#### Scenario: Estimator checks
-- **WHEN** `sklearn.utils.estimator_checks.check_get_params_invariance` and `check_parameters_default_constructible`
-  run on the estimator
-- **THEN** both pass
-
-### Requirement: Surrogate analyses are scikit-learn estimators
-`SurrogateEstimator(analysis, settings)` SHALL fit any analysis whose result holds a `system` on a list of runs with the
-given settings, set `system_` and `result_`, and predict and score like `IdentificationEstimator`.
-
-#### Scenario: Threshold of sparse identification
-- **WHEN** `GridSearchCV` searches three thresholds of `sparse_identification` on noisy Lorenz runs
-- **THEN** the best threshold keeps the seven terms of the Lorenz system
-
-#### Scenario: Analysis without a system
-- **WHEN** the estimator wraps `lyapunov`
-- **THEN** `fit` raises `ValidationError` that says the result of the analysis holds no system
 
 ### Requirement: Systems are Gymnasium environments
 `make_environment(system)` SHALL return a Gymnasium environment whose spaces follow the environment of the system, whose

@@ -1,21 +1,26 @@
 # Tasks
 
-## 1. Dependencies and approval
+## 1. Dependencies
 
-- [ ] 1.1 Ask the maintainer to approve the subpackage `skcomplex.systems.general.environments`, and record the answer
-  in `design.md` before task 5 starts
-- [ ] 1.2 Add `gymnasium>=1.4.0` and `pettingzoo>=1.27.0` to the runtime dependencies in `pyproject.toml` and the
+- [ ] 1.1 Add `gymnasium>=1.4.0` and `pettingzoo>=1.27.0` to the runtime dependencies in `pyproject.toml` and the
   Project Profile, with their release dates, and verify `pdm install` resolves and both import
 
-## 2. scikit-learn estimators
+## 2. Model selection
 
-- [ ] 2.1 Add `IdentificationEstimator` in `src/skcomplex/core/experiments/_estimators.py` with `fit`, `predict`, and
-  `score` on lists of runs, export it, and verify the cross-validation and estimator-checks scenarios
-- [ ] 2.2 Verify the grid-search scenario with nested system parameters and learning rates
-- [ ] 2.3 Add `SurrogateEstimator` on any analysis whose result holds a system, and verify the threshold and
-  analysis-without-a-system scenarios
-- [ ] 2.4 Document both estimators in the experiments page of the user guide, stating that they are the only classes
-  with `fit`, with a runnable cross-validation example
+- [ ] 2.1 Add the private selection in `src/skcomplex/core/experiments/_selection.py`, which expands `param_grid` with
+  `ParameterGrid` or reads a `ParameterSampler`, splits with `cv` and `groups`, reads `scoring`, and builds
+  `cv_results`, and verify it in `tests/core/experiments/test_selection.py`
+- [ ] 2.2 Add `cv`, `groups`, `scoring`, and `param_grid` to `identify`, refit on all runs with the best setting, add
+  `cv_results`, `best_params`, and `best_score` to `IdentificationResult`, and verify the folds-over-runs,
+  grid-of-learning-rates, same-seed, and no-selection scenarios
+- [ ] 2.3 Add the same arguments and fields to `calibrate` and its result, scoring the point estimate of every method,
+  and verify the groups-kept-whole scenario
+- [ ] 2.4 Add `conditions`, `evaluation`, and the same arguments and fields to `train_policy` and
+  `PolicyTrainingResult`, and verify the pole-lengths-held-out scenario, marked slow, and the
+  selection-without-conditions scenario
+- [ ] 2.5 Document model selection in the calibrate and experiments pages of the user guide, with the decision that
+  systems are not scikit-learn estimators, a runnable search over learning rates with `GroupKFold`, and a pipeline
+  trained on the arrays of `make_arrays`, and verify their code blocks run
 
 ## 3. Gymnasium
 
@@ -30,10 +35,12 @@
 
 ## 5. Environments as systems
 
-- [ ] 5.1 Add `GymnasiumSystem` in the approved subpackage with its element, update law, and environment, and verify
-  the policy-trained-on-Gymnasium scenario, marked slow, and the not-differentiable scenario
-- [ ] 5.2 Add `PettingZooSystem` with one element per agent, and verify that a policy bound to its agents runs one
-  episode of a PettingZoo test environment
+- [ ] 5.1 Create the subpackage `src/skcomplex/systems/general/environments` with its `__init__.py` and the mirrored
+  tests, and add it to the systems pages of the user guide
+- [ ] 5.2 Add `GymnasiumSystem` with its element, update law, and environment, export it, and verify the
+  policy-trained-on-Gymnasium scenario, marked slow, and the not-differentiable scenario
+- [ ] 5.3 Add `PettingZooSystem` with one element per agent, export it, and verify that a policy bound to its agents
+  runs one episode of a PettingZoo test environment
 
 ## 6. Documentation
 
@@ -43,5 +50,5 @@
 
 ## 7. Checks
 
-- [ ] 7.1 Run `nox` (formatting, checks, tests of the touched modules with the thread limits set to 1, and the strict
-  docs build) and verify every session passes
+- [ ] 7.1 Run `nox` (formatting, checks, import contracts, tests of the touched modules with the thread limits set to
+  1, and the strict docs build) and verify every session passes

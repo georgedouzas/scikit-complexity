@@ -1,7 +1,8 @@
 ## Context
 
 `add-learning-foundation` adds `ObservedRunsSpec`, `identify` and its `IdentificationResult`, `EnvironmentSpec`,
-`PolicyInteraction`, and `train_policy`. Every function that learns a system returns a result with the fields `system`,
+`PolicyInteraction`, `train_policy`, and `make_arrays` in `skcomplex.core.data`. It records the decision that systems
+are not scikit-learn estimators. Every function that learns a system returns a result with the fields `system`,
 `training_error`, and `validation_error`. `BaseConfig` derives from `sklearn.base.BaseEstimator`, so `get_params` and
 `set_params` of systems already reach nested parameters with double underscores. The runtime runs a system step by
 step through `simulations` and its clocks. `CartPoleSystem` uses the constants and Euler steps of Gymnasium's
@@ -10,47 +11,93 @@ step through `simulations` and its clocks. `CartPoleSystem` uses the constants a
 ## Goals / Non-Goals
 
 **Goals:**
-- Identified and surrogate systems in scikit-learn model selection and pipelines, with no change to `identify` or the
-  analyses.
+- Model selection with scikit-learn splitters, scorers, and parameter grids inside `identify`, `calibrate`, and
+  `train_policy`, with the scores of every fold and the selected settings in their frozen results.
 - Any system with an environment as a Gymnasium or PettingZoo environment, and any such environment as a system.
 
 **Non-Goals:**
+- Adapter classes with `fit` and `predict` around systems, experiments, or analyses. They are rejected below.
+- Selection inside the surrogate analyses. `extend-law-discovery` selects their dictionaries on held-out runs, and a
+  pipeline trains on the arrays of `make_arrays`.
 - Wrapping agent libraries such as stable-baselines3 or skrl. Their agents read the Gymnasium environment directly.
 - Vectorised Gymnasium environments and rendering. A later change can add them.
 - JAX environments of gymnax or brax.
 
 ## Decisions
 
+### scikit-learn inside, not around
+
+Decided on 2026-11-10. A system is the model being simulated, not an estimator, so scikit-learn enters inside the
+library in three places, and `prepare` and `run` stay the only verbs of its classes:
+
+- scikit-learn regressors and pipelines are learned terms of laws through `learned_function`, in the foundation.
+- `make_arrays` of `skcomplex.core.data` turns runs into `X`, `y`, and `groups` for any pipeline, in the foundation.
+- `identify`, `calibrate`, and `train_policy` accept splitters, scorers, and parameter grids, in this change.
+
+Alternatives considered:
+
+- Adapter classes `IdentificationEstimator` and `SurrogateEstimator`, with `fit`, `predict`, and `score` around
+  `identify` and the surrogate analyses, so `cross_validate`, `GridSearchCV`, and `Pipeline` take them. Rejected: they
+  are a second way of doing what `identify` and the analyses do, and a system is the model being simulated, not an
+  estimator.
+- `fit` and `predict` on systems. Rejected for the same reasons, and because every class would carry a second verb
+  pair.
+
+The accepted cost: a fitted system cannot sit inside a scikit-learn `Pipeline` or `GridSearchCV`. The search runs
+inside the experiment instead, and its result holds the selected system.
+
+The selection is specified here and not in the foundation. It adds arguments and result fields to three experiments,
+and `identify` works without it, so the foundation stays smaller.
+
 ### Placement
 
 | Part | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `IdentificationEstimator`, `SurrogateEstimator` | 2, experiments over any system, in the model selection layer | `skcomplex.core.experiments` | every field with data |
+| `cv`, `groups`, `scoring`, `param_grid`, and the selection fields of the results | 2, arguments of experiments over any system | `core/experiments/_identification.py`, `_calibration.py`, `_policy_training.py`, and the private `_selection.py` they share | every field with data or a policy |
 | `make_environment`, `make_parallel_environment` | 2, the runtime steps a system through its `EnvironmentSpec` | `skcomplex.core.engine.runtime` | engineering, epidemiology, ecology, economics, social systems, computer science |
-| `GymnasiumSystem`, `PettingZooSystem` | 3, recipes of an element and an update law with a `CallSpec`, used by several fields | `skcomplex.systems.general.environments` (needs approval) | as above |
+| `GymnasiumSystem`, `PettingZooSystem` | 3, recipes of an element and an update law with a `CallSpec`, used by several fields | `skcomplex.systems.general.environments`, approved on 2026-11-10 | as above |
 
 ### Dependencies
 
 Checked on PyPI on 2026-11-10. Gymnasium 1.4.0, released 2026-10-05, needs numpy, cloudpickle, typing-extensions, and
 farama-notifications. PettingZoo 1.27.0, released 2026-08-13, needs numpy, gymnasium, and typing-extensions, and
 supports Python up to 3.14. Both are runtime dependencies, since the runtime of the core imports them. Their extras for
-Atari, Box2D, and MuJoCo are not installed.
+Atari, Box2D, and MuJoCo are not installed. scikit-learn 1.9.1, released 2026-09-10, is already a runtime dependency
+and gives the splitters, `ParameterGrid`, `ParameterSampler`, and the scorers.
 
-### scikit-learn estimators
+### Model selection
 
-- The constitution asks public objects to conform to the framework they plug into. These two classes plug into
-  scikit-learn, so they speak `fit`, `predict`, and `score`, and they derive from `BaseEstimator` alone, not from
-  `BaseConfig`. They are the only classes of the library with `fit`, which the user guide states.
-- `IdentificationEstimator(system, trained, method='gradient', loss=None, optimizer='adam', learning_rate=1e-2,
-  epochs=500, validation=0.0, random_state=None)`. `fit(X, y=None)` takes a list of `ObservedRunSpec`, which
-  scikit-learn can index for splits, or an `ObservedRunsSpec`, calls `identify`, and sets `system_`, `estimates_`, and
-  `result_`. `predict(X)` simulates `system_` with the conditions and inputs of every run and returns its observed
-  paths at the times of the run. `score(X)` returns minus the mean loss of the runs.
-- Parameters of the system are reached as `system__r`, so `GridSearchCV` searches them as starting values together
-  with `learning_rate` or `epochs`.
-- `SurrogateEstimator(analysis, settings=None)` calls the analysis on the runs with the settings and reads the
-  `system` of its result. A search over settings passes a list of dictionaries for `settings`.
-- `Pipeline` composes them with transformers of runs, such as a `FunctionTransformer` that smooths every run.
+- `identify` and `calibrate` gain `cv=None`, `groups=None`, `scoring=None`, and `param_grid=None`.
+  - `cv` is a number of folds, read as `KFold`, or any scikit-learn splitter, such as `KFold`, `ShuffleSplit`,
+    `GroupKFold`, or `LeaveOneGroupOut`. It splits the runs of the `ObservedRunsSpec`, so no run is in both parts of a
+    fold.
+  - `groups` holds one label per run, or names a condition of the runs whose values are the labels, such as the
+    patient of a clinical series. It is passed to the `split` of the splitter.
+  - `scoring` is the name of a scikit-learn regression scorer, such as `'r2'` or `'neg_mean_squared_error'`, or a
+    callable `score(y_true, y_pred)` such as a metric of `sklearn.metrics`, greater being better. The fitted system is
+    simulated with the conditions and inputs of every test run, and the observed values are compared with the
+    simulated ones at the observation times, missing values left out. Names are the regression names of
+    `sklearn.metrics.get_scorer_names`, each read as its metric with the sign scikit-learn gives it. `None` scores
+    minus the loss of the fit.
+  - `param_grid` is a mapping of lists or a list of them, expanded by `ParameterGrid`, or a `ParameterSampler` for a
+    random search. Keys are keyword arguments of the experiment, such as `learning_rate`, `epochs`, or `method`, or
+    parameters of the system as `get_params` names them, set through `set_params` as starting values.
+  - With `param_grid` and no `cv`, five folds are used, as `GridSearchCV` does. With `cv` and no `param_grid`, the one
+    setting given is scored, as `cross_validate` does.
+  - After the search the experiment fits all the runs with the best setting, so the result is the one a plain call
+    with those settings returns, plus `cv_results`, `best_params`, and `best_score`.
+- `cv_results` is a mapping of arrays with the keys of `GridSearchCV.cv_results_` that apply: `params`,
+  `split<k>_test_score`, `mean_test_score`, `std_test_score`, `rank_test_score`, and `mean_fit_time`. Without a
+  selection the three fields are `None`.
+- `calibrate` scores the point estimate of every fold, the optimum for SciPy and Optuna and the posterior mean for
+  pyabc and numpyro.
+- `train_policy` gains `conditions=None`, a sequence of mappings of parameters or initial states, and its episodes
+  start from them in turn. `cv` splits the conditions, `groups` labels them, and `scoring` is `'return'`, the mean
+  return of evaluation episodes started from the test conditions, or a callable of those returns. `evaluation=20` sets
+  the number of evaluation episodes per test condition. A selection without `conditions` raises `ValidationError`,
+  since there is nothing to hold out.
+- Folds run on the executor of the experiment, so the seeds of every fold come from its `random_state` and a search is
+  reproducible.
 
 ### Gymnasium
 
@@ -78,19 +125,17 @@ Atari, Box2D, and MuJoCo are not installed.
   reads the observation, the reward, and the flag.
 - `PettingZooSystem(environment, label='system')` holds one element per agent with the same states and one update law
   that steps every agent at once.
-- They are recipes of core parts used by several fields. `systems.general.environments` is a new concept subpackage,
-  so it needs the maintainer's approval. Until it is given, the tasks that write them wait.
+- They are recipes of core parts used by several fields, in the new concept subpackage
+  `systems.general.environments`, approved on 2026-11-10 and named by the concept of reinforcement learning it
+  bridges.
 
 ## Risks / Trade-offs
 
+- [A fitted system cannot enter a scikit-learn `Pipeline` or `GridSearchCV`] → The search runs inside the experiment,
+  `make_arrays` serves every pipeline, and the user guide shows both.
+- [A search multiplies the cost of a fit by the folds and the settings] → Folds run on the executor of the experiment,
+  and the user guide shows a small grid.
 - [Gymnasium seeds and the run's random stream differ] → `reset(seed=...)` seeds the run's stream, and the test checks
   that two resets with one seed give equal episodes.
 - [External environments are not differentiable] → `GymnasiumSystem` and `PettingZooSystem` declare stochastic,
   non-differentiable tags, so `train_policy(method='pathwise')` refuses them before running.
-- [The scikit-learn verbs differ from those of the library] → The two adapters are documented as the bridge, and no
-  other class gains `fit`.
-
-## Open Questions
-
-- Should the subpackage be named `environments` or `external`? The design proposes `environments`, named by the
-  concept of reinforcement learning it bridges.
