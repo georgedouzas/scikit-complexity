@@ -14,10 +14,14 @@ from ..components.specs import ScenarioSpec
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import ValidationError
+from ..types import DomainKind
 from ._designs import _get_rows
 from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _compile, _run_experiment
+from ._utils import build_system
 from .types import Row, Source
+
+INTEGER_KINDS = (DomainKind.INTEGER, DomainKind.BOOLEAN)
 
 
 @dataclass(frozen=True)
@@ -121,7 +125,9 @@ def basin_stability(
         error_msg = 'Basin stability needs the bounds of at least one initial state.'
         raise ValidationError(error_msg)
     _check_count('n', n)
-    rows = _get_rows(bounds, 'random', n, random_state)
+    states = _compile(build_system(system, {})).states
+    integers = [path for path in bounds if states.has(path) and states.get_entry(path).kind in INTEGER_KINDS]
+    rows = _get_rows(bounds, 'random', n, random_state, integers)
     if vectorized:
         values = {path: np.asarray([row[path] for row in rows], dtype=float) for path in bounds}
         trajectory, composite = _run_replicated(system, values, until, dt, random_state)

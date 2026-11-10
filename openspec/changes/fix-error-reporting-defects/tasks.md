@@ -23,8 +23,8 @@
 
 ## 5. Experiments and analyses
 
-- [ ] 5.1 Draw integer starts for paths whose domain holds only integers in the design that basin stability uses, verified by a test in `tests/core/experiments/test_basin_stability.py` on a counting system and by the existing seeded double well tests passing unchanged
-- [ ] 5.2 Read the step of `correlation` from the times of a trajectory, with `dt` only for arrays, verified by tests in `tests/core/analysis/test_correlation.py` of a trajectory sampled every 0.1 and of an array with `dt=0.5`, and by the doctests and the markdown blocks of `analyse.md`
+- [x] 5.1 Draw integer starts for paths whose domain holds only integers in the design that basin stability uses, verified by a test in `tests/core/experiments/test_basin_stability.py` on a counting system and by the existing seeded double well tests passing unchanged
+- [x] 5.2 Read the step of `correlation` from the times of a trajectory, with `dt` only for arrays, verified by tests in `tests/core/analysis/test_correlation.py` of a trajectory sampled every 0.1 and of an array with `dt=0.5`, and by the doctests and the markdown blocks of `analyse.md`
 
 ## 6. Integration
 

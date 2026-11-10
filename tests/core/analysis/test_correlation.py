@@ -9,6 +9,7 @@ import pytest
 from skcomplex.core.analysis import CorrelationResult, correlation
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 RUNS = 20_000
@@ -76,6 +77,18 @@ def test_autocorrelation_of_every_series():
     assert analysis.correlation.shape == (2, 3)
     assert analysis.time.shape == (2,)
     assert analysis.lags.tolist() == [0.0, 0.5, 1.0]
+
+
+def test_autocorrelation_of_a_trajectory_is_in_its_time_units():
+    """Test that the lags and the time of a trajectory sampled every 0.1 are in time units, as for its array."""
+    trajectory = simulate(LotkaVolterraSystem(), until=50, dt=STEP)
+    analysis = _correlation('auto', trajectory, variables=['prey.x'])
+    array = _correlation('auto', trajectory.get_values('prey.x'), dt=STEP)
+    assert analysis.lags[:3] == pytest.approx([0.0, 0.1, 0.2])
+    assert analysis.time == pytest.approx(array.time)
+    assert _correlation('auto', trajectory, variables=['prey.x'], dt=STEP).time == pytest.approx(array.time)
+    with pytest.raises(AnalysisError, match=r'dt=1\.0, but the trajectory is sampled every 0\.1'):
+        _correlation('auto', trajectory, variables=['prey.x'], dt=1.0)
 
 
 def test_two_time_correlation_equilibrium_has_no_aging():
