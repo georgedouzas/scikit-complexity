@@ -2,6 +2,10 @@
 
 ## Context
 
+- `add-learning-foundation` is a prerequisite. It adds `ObservedRunsSpec`, whose runs carry their own times,
+  conditions, and inputs, `read_runs`, `observe`, which reads the results of `ensemble` and `sweep` as runs with the
+  swept values as conditions, and `split_runs`. `_read_samples` reads observed runs, and every function that learns a
+  system returns `system`, `training_error`, and `validation_error`.
 - `sparse_identification` in `src/skcomplex/core/analysis/_sparse_identification.py` builds one `pysindy.SINDy` with
   `STLSQ` and `PolynomialLibrary`, reads the runs through `_read_samples`, and turns the coefficients and the
   `powers_` of the library into rate laws with `_sparse_laws` and `_surrogate_system`. It already pools a list of runs
@@ -41,19 +45,20 @@
 - **Ensemble.** `ensemble=n` wraps `STLSQ` in `pysindy.EnsembleOptimizer` with `bagging=True`, or with
   `library_ensemble=True` when `drop_terms` is set, seeded from `random_state`. `inclusion` is the share of
   `coef_list` that is nonzero per term. The median coefficients are the ones the laws use.
-- **Parametric library.** `parameters` turns into `pysindy.ParameterizedLibrary` with the polynomial library of the
-  states and a polynomial library of the parameters of degree `parameter_degree`. PySINDy takes the parameters as a
-  control input `u` held constant over each run. The system declares every parameter with `ParameterSpec`, and the
+- **Parametric library.** `parameters` names conditions of the observed runs and turns into
+  `pysindy.ParameterizedLibrary` with the polynomial library of the states and a polynomial library of the parameters
+  of degree `parameter_degree`. PySINDy takes the condition values as a control input `u` held constant over each run. The system declares every parameter with `ParameterSpec`, and the
   laws read it as a symbol. Feature names become products such as `rho x`.
-- **Control inputs.** `inputs` splits the input columns off as `mode_decomposition` does with `_split_inputs`, and
+- **Control inputs.** The inputs of observed runs are control inputs as they are. For trajectories, `inputs` splits the
+  input columns off as `mode_decomposition` does with `_split_inputs`, and
   passes them as `u` to `SINDy.fit`. The laws read the inputs as adaptive parameters declared with the bounds of the
   observed inputs, through the same `_input_declarations` that mode decomposition uses. That helper moves to
   `_sparse_identification.py` so both import it downward.
-- **Experiment results.** `_read_samples` gains a branch for `ExperimentResult`: it groups runs by design point and
-  either averages the replicates frame by frame or keeps each. The branch is a private helper of `_base.py` because
-  other analyses that take runs can reuse it.
+- **Experiment results.** They are read through `observe` of `add-learning-foundation`, which groups runs by design
+  point, averages replicates with `replicates='mean'`, and records the swept values as conditions. No branch for
+  experiment results is added to `_read_samples`.
 - **Breaking result fields.** `SparseIdentificationResult` gains `inclusion` (NaN without an ensemble), `parameters`,
-  and `inputs`. Results stay frozen and positional order changes, which is allowed in 0.x.
+  `inputs`, `training_error`, and `validation_error`, the last two after the convention of `IdentificationResult`. Results stay frozen and positional order changes, which is allowed in 0.x.
 
 ### Mode decomposition
 
@@ -68,7 +73,7 @@
   the same exact DMD, so control inputs and dictionaries keep working. The delayed copies are named `x_lag1` and so on.
   Stacking by hand over HankelDMD keeps one fitting path for every option.
 - **Dictionary choice.** A list of dictionaries runs the fit once per candidate with `sklearn.base.clone` and keeps the
-  smallest validation error. The result gains `dictionary_errors`. A search over hyperparameters, such as the bandwidth
+  smallest error on the validation runs that `split_runs` holds out, or on the last share of the pairs of a single run. The result gains `dictionary_errors`. A search over hyperparameters, such as the bandwidth
   of `Nystroem`, is a list of candidates the user builds, so no search class is added.
 
 ### Cluster expansion
@@ -91,7 +96,7 @@
 - **Degrees.** `degrees` maps each body order to its total polynomial degree, defaulting to those of the paper. The
   smoothness prior `1 + deg^4` scales the columns before the fit, which is the same as a weighted penalty.
 - **Data.** Accelerations are finite differences of the recorded velocities, or the recorded rate of the velocity when
-  the trajectory holds it. `validation` holds out whole runs to report the relative force error.
+  the trajectory holds it. `validation` holds out whole runs with `split_runs` to report the relative force error.
 - **System.** The group gets one interaction per body order. Order 1 is a rate law of the member. Order 2 is a
   `PairInteraction` subclass whose law is the fitted 2-body sum. Orders 3 and 4 are the k-body neighbour interaction
   of `add-many-body-neighbour-roles`. The laws are written as symbolic polynomials of the one-particle features of the
@@ -118,6 +123,14 @@
 - [The cluster expansion is new code in the core] → It is checked against exact equivariance, permutation invariance,
   and pure body orders on random environments before any fit.
 - [Bird swarm has no cutoff] → The probe takes a cutoff larger than the swarm, so every pair is a neighbour.
+
+### Placement
+
+| Part | Placement step | Where | Domains that use it |
+| --- | --- | --- | --- |
+| New options of `sparse_identification` and `mode_decomposition` | 2, analyses that read series by their tags | `skcomplex.core.analysis` | physics, chemistry, ecology, epidemiology, social spreading, engineering |
+| `cluster_expansion`, `ClusterExpansionResult` | 2, an analysis that reads particle and agent trajectories | `skcomplex.core.analysis` | collective behaviour in biology, active matter in physics, crowds in social systems, swarms of robots in engineering |
+| `OnlineOfflineActivityNetworkSystem` | 3, one system | `social/spreading/_online_offline.py` | social |
 
 ## Open Questions
 

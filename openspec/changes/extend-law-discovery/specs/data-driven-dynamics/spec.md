@@ -31,22 +31,23 @@ the median coefficients of the models.
 - **THEN** it raises `AnalysisError` that names the argument and says it is a positive integer or `None`
 
 ### Requirement: Parametric sparse identification
-`sparse_identification` SHALL take `parameters`, a mapping from parameter names to one value per run, and SHALL fit a
-library of products of the terms of the states and of the parameters, so coefficients depend on the parameters. The
-fitted system SHALL declare every parameter, which `set_params` and the `schedule` of `simulate` change.
+`sparse_identification` SHALL take `parameters`, the names of conditions of the observed runs of its source, with one
+value per run, and SHALL fit a library of products of the terms of the states and of the parameters, so coefficients
+depend on the parameters. The fitted system SHALL declare every parameter, which `set_params` and the `schedule` of
+`simulate` change.
 
 #### Scenario: Lorenz over rho
-- **WHEN** it runs on Lorenz runs with `rho` set to 20, 28, and 35, with `parameters={'rho': [20, 28, 35]}`
+- **WHEN** it runs on observed Lorenz runs whose conditions set `rho` to 20, 28, and 35, with `parameters=('rho',)`
 - **THEN** the rate of `y` holds the term `rho x` with a coefficient within 1% of 1, and its system with `rho=24` set
   through `set_params` matches a Lorenz run at `rho=24` within 1% for one time unit
 
-#### Scenario: Wrong number of values
-- **WHEN** a parameter is given two values for three runs
-- **THEN** it raises `AnalysisError` that names the parameter, the number of runs, and the number of values
+#### Scenario: Run without the condition
+- **WHEN** one of three runs has no condition `rho`
+- **THEN** it raises `AnalysisError` that names the parameter and the run
 
 ### Requirement: Sparse identification with control inputs
-`sparse_identification` SHALL take `inputs`, the names of variables that are control inputs, and SHALL fit the laws of
-the other variables over a library of the states and inputs. Its system SHALL take every input as a bounded adaptive
+`sparse_identification` SHALL take `inputs`, the names of variables that are control inputs, or the inputs of the
+observed runs of its source, and SHALL fit the laws of the other variables over a library of the states and inputs. Its system SHALL take every input as a bounded adaptive
 parameter that its rate laws read, as the system of `mode_decomposition` does.
 
 #### Scenario: Forced oscillator
@@ -59,18 +60,19 @@ parameter that its rate laws read, as the system of `mode_decomposition` does.
 - **THEN** the trajectory records the input at every frame, and the states follow the fitted laws
 
 ### Requirement: Sparse identification from experiment results
-`sparse_identification` SHALL accept the result of `ensemble` or `sweep` as its source and SHALL fit one run per design
-point. With `replicates='mean'` a run is the mean of the replicates of its design point, and with `replicates='each'`
-every replicate is a run.
+`sparse_identification` SHALL fit the observed runs that `observe` of `add-learning-foundation` builds from the result
+of `ensemble` or `sweep`, one run per design point with `replicates='mean'` or one per replicate with
+`replicates='each'`, with the swept values as the conditions of every run.
 
 #### Scenario: Mean of stochastic replicates
-- **WHEN** the result of `ensemble` over five initial states with 20 replicates each of a stochastic system is given
-  with `replicates='mean'`
+- **WHEN** the result of `ensemble` over five initial states with 20 replicates each of a stochastic system is observed
+  with `replicates='mean'` and given as source
 - **THEN** the fit uses five runs, each the mean over its 20 replicates at every frame
 
-#### Scenario: Unknown replicates option
-- **WHEN** `replicates='median'` is given
-- **THEN** it raises `AnalysisError` that lists `'mean'` and `'each'`
+#### Scenario: Swept parameter as a condition
+- **WHEN** the result of a `sweep` of `rho` over three values of a Lorenz system is observed and fitted with
+  `parameters=('rho',)`
+- **THEN** the fit equals the fit of the same three runs read from a data frame through `read_runs` within 1e-10
 
 ### Requirement: Koopman eigenfunctions
 The result of `mode_decomposition` SHALL hold the Koopman eigenfunctions, as coefficients over the observables of the

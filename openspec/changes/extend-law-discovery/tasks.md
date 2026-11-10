@@ -1,17 +1,24 @@
 # Tasks
 
+## 0. Prerequisite
+
+- [ ] 0.1 Check that `add-learning-foundation` is applied, so observed runs, `observe`, and `split_runs` exist, and stop
+  if it is not
+
 ## 1. Sparse identification options
 
 - [ ] 1.1 Add `weak`, `subdomains`, and `test_degree` to `sparse_identification` with `pysindy.WeakPDELibrary`, and
   verify the noisy and noise-free Lorenz scenarios in `tests/core/analysis/test_sparse_identification.py`
 - [ ] 1.2 Add `ensemble`, `drop_terms`, and `random_state` with `pysindy.EnsembleOptimizer`, set `inclusion` and the
   median coefficients, and verify the inclusion, reproducibility, and invalid-size scenarios
-- [ ] 1.3 Add `parameters` and `parameter_degree` with `pysindy.ParameterizedLibrary`, declare the parameters on the
-  surrogate element, and verify the Lorenz over `rho` and wrong-length scenarios
-- [ ] 1.4 Move `_input_declarations` into `_sparse_identification.py`, add `inputs` to `sparse_identification`, and
-  verify the forced oscillator and input schedule scenarios, with the mode decomposition tests still passing
-- [ ] 1.5 Read `ExperimentResult` sources in `_read_samples` with `replicates='mean'` or `'each'`, and verify the
-  ensemble mean and unknown-option scenarios
+- [ ] 1.3 Add `parameters`, read from the conditions of observed runs, and `parameter_degree` with
+  `pysindy.ParameterizedLibrary`, declare the parameters on the surrogate element, and verify the Lorenz over `rho` and
+  run-without-the-condition scenarios
+- [ ] 1.4 Move `_input_declarations` into `_sparse_identification.py`, add `inputs` to `sparse_identification` and read
+  the inputs of observed runs, and verify the forced oscillator and input schedule scenarios, with the mode
+  decomposition tests still passing
+- [ ] 1.5 Verify the mean-of-stochastic-replicates and swept-parameter-as-a-condition scenarios on runs built by
+  `observe`, and add `training_error` and `validation_error` to `SparseIdentificationResult`
 - [ ] 1.6 Update the docstring examples of `sparse_identification` and `SparseIdentificationResult`, the learned
   surrogates section of `docs/overview/user_guide/analyse.md`, and the changelog entry for the new fields, and verify
   the doctests run
@@ -23,8 +30,8 @@
 - [ ] 2.2 Fit the readout of the variables, declare one observable per variable on the lifted system, and verify the
   lifted run records `x` and `y`
 - [ ] 2.3 Add `delays` with stacked lagged states, and verify the sine series and negative-delay scenarios
-- [ ] 2.4 Accept a list of dictionaries, keep the one of smallest validation error, set `dictionary_errors`, and verify
-  the polynomial choice and zero-validation scenarios
+- [ ] 2.4 Accept a list of dictionaries, keep the one of smallest error on runs held out by `split_runs`, set
+  `dictionary_errors`, and verify the polynomial choice and zero-validation scenarios
 - [ ] 2.5 Document eigenfunctions, delays, and dictionary choice in the user guide with a runnable example, and extend
   `docs/examples/engineering/control/plot_koopman_model_predictive_control.py` or add a slow manifold example that the
   gallery build runs
