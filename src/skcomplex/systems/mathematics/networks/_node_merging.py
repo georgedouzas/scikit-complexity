@@ -108,7 +108,7 @@ class NodeMergingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system(
+    def _build_network(
         label: str,
         capacity: int,
         space: NetworkSpace,
@@ -139,4 +139,4 @@ class NodeMergingSystem(BaseSystem):
         merging = TopologyInteraction('merging', target='nodes', action='contract-edge', one=True)
         arrival = TopologyInteraction('arrival', action='add-node', edges=self.edges)
         capacity = 4 * self.edges * self.n_nodes
-        return self._system(self.label, self.n_nodes, NetworkSpace(graph), capacity, [merging, arrival])
+        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [merging, arrival])

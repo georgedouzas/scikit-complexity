@@ -130,7 +130,7 @@ class NetworkSuperpositionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _linking_probabilities(
+    def _get_linking_probabilities(
         size: int,
         exponent: float,
         bounds: tuple[float, float],
@@ -157,7 +157,7 @@ class NetworkSuperpositionSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         graph = nx.Graph()
         for index, chance in enumerate(
-            self._linking_probabilities(self.n_subgraphs, self.exponent, (self.low, self.high), rng),
+            self._get_linking_probabilities(self.n_subgraphs, self.exponent, (self.low, self.high), rng),
         ):
             subgraph = nx.fast_gnp_random_graph(self.n_nodes, float(chance), seed=rng)
             graph.update(nx.relabel_nodes(subgraph, {node: index * self.n_nodes + node for node in subgraph}))

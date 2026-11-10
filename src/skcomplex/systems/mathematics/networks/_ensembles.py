@@ -536,7 +536,7 @@ class ConfigurationModelSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
+    def _get_matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
         """Return the links of a uniformly random pairing of the half-links of the nodes.
 
         The links may hold loops and multilinks.
@@ -545,7 +545,7 @@ class ConfigurationModelSystem(BaseSystem):
         return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
 
     @staticmethod
-    def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
+    def _get_simple_links(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
         """Return the links rewired until no self-loop or multilink is left.
 
         The rewiring keeps every degree.
@@ -588,8 +588,8 @@ class ConfigurationModelSystem(BaseSystem):
             if drawn.sum() % 2:
                 error_msg = f'The degrees sum to {int(drawn.sum())}. Give a degree sequence with an even sum.'
                 raise ValidationError(error_msg)
-        links = self._matched_stubs(drawn, rng)
-        links = self._simple(links, rng) if self.simple else [link for link in links if link[0] != link[1]]
+        links = self._get_matched_stubs(drawn, rng)
+        links = self._get_simple_links(links, rng) if self.simple else [link for link in links if link[0] != link[1]]
         graph = nx.Graph()
         graph.add_nodes_from(range(drawn.size))
         graph.add_edges_from(links)

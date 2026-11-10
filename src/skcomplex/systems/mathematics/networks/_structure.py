@@ -171,7 +171,7 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _planted_partition(random_state: int | None) -> nx.Graph:
+    def _get_planted_partition(random_state: int | None) -> nx.Graph:
         """Return a stochastic block graph of 4 blocks of 100 nodes.
 
         The mean degree is 16 in a block and 2 out of it.
@@ -182,7 +182,7 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         return nx.stochastic_block_model([BLOCK_SIZE] * BLOCKS, probabilities, seed=random_state)
 
     @staticmethod
-    def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
+    def _get_reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
         """Return the reference community of every node from an attribute.
 
         The community is `None` when a node lacks the attribute.
@@ -197,11 +197,11 @@ class NetworkStructureAnalysisSystem(BaseSystem):
 
         The mixing is degree mixing, and the motifs are measured by the triangle z-score.
         """
-        network = self._planted_partition(self.random_state) if self.graph is None else self.graph
+        network = self._get_planted_partition(self.random_state) if self.graph is None else self.graph
         found = network_measures(
             network,
             kind='communities',
-            reference=self._reference(network, self.reference),
+            reference=self._get_reference(network, self.reference),
             random_state=self.random_state,
         )
         summary = network_measures(network)

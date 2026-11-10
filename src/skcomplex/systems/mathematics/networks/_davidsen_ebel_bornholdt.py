@@ -114,7 +114,7 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system(
+    def _build_network(
         label: str,
         capacity: int,
         space: NetworkSpace,
@@ -152,4 +152,4 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
             probability=self.turnover,
         )
         capacity = graph.number_of_edges() + int(2 * self.n_nodes * (1 + 1 / self.turnover))
-        return self._system(self.label, self.n_nodes, NetworkSpace(graph), capacity, [closure, replacement])
+        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [closure, replacement])

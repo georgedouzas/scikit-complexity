@@ -131,7 +131,7 @@ class DuplicationDeletionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system(
+    def _build_network(
         label: str,
         capacity: int,
         space: NetworkSpace,
@@ -168,4 +168,4 @@ class DuplicationDeletionSystem(BaseSystem):
             toward=lambda node: self.new,
         )
         capacity = self.n_nodes * (2 * self.n_nodes - 1)
-        return self._system(self.label, 2 * self.n_nodes, NetworkSpace(graph), capacity, [death, birth])
+        return self._build_network(self.label, 2 * self.n_nodes, NetworkSpace(graph), capacity, [death, birth])

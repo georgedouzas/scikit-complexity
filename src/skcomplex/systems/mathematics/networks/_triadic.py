@@ -239,7 +239,7 @@ class TriadicPercolationSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _regulated_links(
+    def _get_regulated_links(
         graph: nx.Graph,
         negative: float,
         rng: np.random.Generator,
@@ -265,7 +265,7 @@ class TriadicPercolationSystem(BaseSystem):
         """
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
-        hyperedges, signs = self._regulated_links(graph, self.negative, rng)
+        hyperedges, signs = self._get_regulated_links(graph, self.negative, rng)
         space = NetworkSpace(graph, hyperedges=hyperedges)
         nodes = GroupElement('nodes', element=RegulatedNodeElement, space=space, on='sites')
         links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})

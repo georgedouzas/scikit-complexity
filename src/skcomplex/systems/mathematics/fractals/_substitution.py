@@ -217,11 +217,11 @@ class SierpinskiElement(PatchElement):
                 The shape is unknown.
         """
         del s
-        prototile, pieces = SierpinskiElement._sierpinski_tiles(self.shape)
+        prototile, pieces = SierpinskiElement._get_sierpinski_tiles(self.shape)
         return [SubstitutionLaw(prototile.name, pieces)]
 
     @staticmethod
-    def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
+    def _get_sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
         """Return the prototile of a Sierpiński shape and its scaled replacing copies."""
         if shape == 'triangle':
             height = np.sqrt(3) / 2
@@ -384,6 +384,6 @@ class SierpinskiSubstitutionSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        prototile, _ = SierpinskiElement._sierpinski_tiles(self.shape)
+        prototile, _ = SierpinskiElement._get_sierpinski_tiles(self.shape)
         sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
         return CompositeSystem(self.label, elements=[sierpinski])
