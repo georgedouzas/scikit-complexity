@@ -161,3 +161,38 @@ coverage = posterior_coverage(
 )
 coverage.coverage[0.9]['r'], coverage.ranks['r'].shape
 ```
+
+### Identifiability
+
+Find out which parameters the data determine before trusting a calibration. A fit returns estimates even when the data
+cannot pin them down, and `identifiability` tells practical identifiability, whether the data at hand fix each
+parameter within its bounds.
+
+```python
+import numpy as np
+
+from skcomplex.core.experiments import identifiability
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+
+times = np.linspace(0.0, 3.0, 30)
+noise = 1 + 0.02 * np.random.default_rng(0).standard_normal(times.size)
+early = {'population.x': (times, 100 / (1 + 99 * np.exp(-0.5 * times)) * noise)}
+bounds = {'r': (0.1, 2.0), 'K': (50.0, 500.0)}
+profile = identifiability(LogisticGrowthSystem(n=1.0), early, bounds, random_state=0)
+profile.verdicts, profile.intervals['K']
+```
+
+The counts above stop while the population is below a tenth of its capacity, so they fix the growth rate but not the
+capacity, and the likelihood-ratio interval of `K` is open at both bounds.
+
+- Profiles: `method='profile'`, the default, computes the profile likelihood of every parameter with pyPESTO. It fixes
+  the parameter at values on both sides of the best fit, fits the others again, and keeps the values whose likelihood
+  ratio stays above the chi-square threshold of `level`, 0.95 by default. A parameter is `'identifiable'` when both
+  ends of its interval lie inside its bounds. `profiles` holds the values and the ratios along every profile, and
+  `intervals` the ends, with `nan` for a side that reaches its bound. Widen the bounds and run again to see whether
+  an open side closes.
+- Refits: `method='refits'` adds Gaussian noise relative to the values of the best fit at every level of `noise`, fits
+  `n` noisy copies again on `executor`, and reports in `errors` the average relative error of every parameter by
+  level. The verdict is `'strong'` when the error is at most the level, `'weak'` when it is at most ten times the
+  level, and `'none'` above, after Liyanage et al. (2025), and a parameter takes its worst verdict over the levels.
+- Cost: a profile costs many fits, and refits cost `n` fits per level, each of many runs of the system.
