@@ -40,6 +40,38 @@ DUNDER = re.compile(r'__\w+__')
 LIBRARY_HOOK = re.compile(r'_[a-z][a-z0-9_]*[a-z0-9]_')
 FACTORY_KEYWORD = re.compile(r'\w+_func|latex_name')
 UTILS_MODULE = re.compile(r'\._utils$|\.utils\.')
+CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
+FENCE = re.compile(r'^\s*(```|~~~)')
+INLINE_CODE = re.compile('`[^`\n]*`')
+REWRITTEN_DOCUMENTS: tuple[str, ...] = ()
+BANNED_PHRASES = (
+    'in summary',
+    'in conclusion',
+    'to summarize',
+    'it is worth noting',
+    "it's worth noting",
+    'note that',
+    "let's dive",
+    'dive into',
+    'delve',
+    'leverage',
+    'seamless',
+    'seamlessly',
+    'robust',
+    'powerful',
+    'cutting-edge',
+    'unlock',
+    'harness',
+    'empower',
+    'plethora',
+    'myriad',
+    'a wide range of',
+    "in today's",
+    'simply',
+    'just',
+    'easily',
+    'magic',
+)
 VERBS = frozenset(
     [
         'accelerate',
@@ -473,6 +505,72 @@ assert loaded == [], loaded
     process.start()
     process.join()
     assert process.exitcode == 0
+
+
+def _prose_faults(line: str) -> list[str]:
+    """Return the semicolons, dashes used as punctuation, and banned phrases of a prose line without inline code."""
+    faults = []
+    if ';' in line:
+        faults.append('semicolon')
+    if re.search('[\u2013\u2014]', line) or ' - ' in line.strip()[1:]:
+        faults.append('dash')
+    lowered = line.lower()
+    faults += [phrase for phrase in BANNED_PHRASES if re.search(rf'(?<![\w-]){re.escape(phrase)}(?![\w-])', lowered)]
+    return faults
+
+
+def _markdown_prose(text: str) -> list[tuple[int, str]]:
+    """Return the prose lines of a Markdown text with their numbers, leaving out fenced blocks and inline code."""
+    lines = []
+    in_fence = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+        elif not in_fence:
+            lines.append((number, INLINE_CODE.sub('', line)))
+    return lines
+
+
+def _example_prose(text: str) -> list[tuple[int, str]]:
+    """Return the prose lines of a gallery example with their numbers: its docstring and its comments."""
+    docstring = ast.get_docstring(ast.parse(text), clean=False) or ''
+    lines = [(number + 1, line) for number, line in _markdown_prose(docstring)]
+    first = len(docstring.splitlines()) + 2
+    for number, line in enumerate(text.splitlines()[first:], start=first + 1):
+        if line.lstrip().startswith('#') and not line.lstrip().startswith('# %%'):
+            lines.append((number, INLINE_CODE.sub('', line.lstrip()[1:])))
+    return lines
+
+
+def _unnatural_lines(root: Path, documents: tuple[str, ...]) -> list[str]:
+    """Return every prose line of the documents with a semicolon, a dash, or a banned phrase, as `file:line: faults`."""
+    found = []
+    for document in documents:
+        text = (root / document).read_text(encoding='utf-8')
+        prose = _example_prose(text) if document.endswith('.py') else _markdown_prose(text)
+        found += [
+            f'{document}:{number}: {", ".join(faults)}: {line.strip()}'
+            for number, line in prose
+            if (faults := _prose_faults(line))
+        ]
+    return found
+
+
+def test_documents_read_naturally(request):
+    """Test that the prose of the rewritten documents holds no semicolon, dash, or banned phrase."""
+    found = _unnatural_lines(request.config.rootpath, REWRITTEN_DOCUMENTS)
+    assert not found, f'{len(found)} lines that do not read naturally:\n' + '\n'.join(found)
+
+
+def test_banned_phrases_match_the_core_guard(request):
+    """Test that the banned phrases of the documents equal those of the docstring guard of the core."""
+    tree = ast.parse((request.config.rootpath / CORE_GUARD).read_text(encoding='utf-8'))
+    values = [
+        ast.literal_eval(node.value)
+        for node in tree.body
+        if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ['BANNED_PHRASES']
+    ]
+    assert values == [BANNED_PHRASES]
 
 
 def _imported_modules(path: Path, package: str) -> list[str]:
@@ -1125,4 +1223,32 @@ def test_factory_calls_are_named(tmp_path):
     assert _factory_calls(path) == [
         f'{path}:3: function factory at module level',
         f'{path}:5: function factory print_func',
+    ]
+
+
+def test_unnatural_lines_are_named(tmp_path):
+    """Test that a dash, a semicolon, and a banned phrase in prose are named, and code and list markers are not."""
+    (tmp_path / 'page.md').write_text(
+        textwrap.dedent(
+            """
+            # Page
+
+            - A list item stays allowed, and so does `a - b` in inline code.
+            The text runs on \u2014 and on.
+            It is a test - nothing more; it is robust.
+
+            ```python
+            total = 1 - 2  # a dash in code
+            ```
+            """,
+        ),
+        encoding='utf-8',
+    )
+    example = '"""\n# Example\n\nThe text runs on - and on.\n"""\n\n# %%\n# Note that it ends.\n'
+    _write_module(tmp_path, 'plot_example', example)
+    assert _unnatural_lines(tmp_path, ('page.md', 'plot_example.py')) == [
+        'page.md:5: dash: The text runs on \u2014 and on.',
+        'page.md:6: semicolon, dash, robust: It is a test - nothing more; it is robust.',
+        'plot_example.py:5: dash: The text runs on - and on.',
+        'plot_example.py:8: note that: Note that it ends.',
     ]
