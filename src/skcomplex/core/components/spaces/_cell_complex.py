@@ -24,7 +24,6 @@ LOWEST_DIMENSION = 2
 CUBE_DIMENSION = 3
 TRIANGLE_NODES = 3
 PLAQUETTE_ROWS = 4
-CUBE_ROWS = 6
 
 
 class CellComplexSpace(NetworkSpace):
