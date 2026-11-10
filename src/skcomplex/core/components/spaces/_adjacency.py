@@ -1,7 +1,4 @@
-"""Define adjacency neighbourhoods.
-
-They are the nodes along the edges of a node of a network.
-"""
+"""Define the neighbourhood of the nodes joined to a node by edges of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,10 +7,17 @@ from ._base import BaseNeighborhood
 
 
 class AdjacencyNeighborhood(BaseNeighborhood):
-    """Nodes along the edges of a node of a network, in node order.
+    """A neighbourhood of the nodes joined to a node by the edges of a network.
 
-    The node itself comes first when it is included. Rules receive the values of the neighbours padded to the largest
-    degree of the graph. On a directed graph the neighbours are the successors.
+    The neighbours come in node order, after the node itself when `center` includes it. A local rule receives the values
+    of the neighbours padded to the largest degree of the graph, the largest number of edges at a node. On a directed
+    graph the neighbours are the successors.
+
+    Unlike `BallNeighborhood`, which reads offsets on a lattice, it reads the edges of a graph, so each node may have a
+    different number of neighbours. Choose it when members sit on the nodes of a network.
+
+    It appears in many fields. A person catches a disease from their contacts, a voter copies the opinion of a friend,
+    and a bus of a power grid exchanges power with the buses it is wired to.
 
     Args:
         center:
@@ -23,7 +27,7 @@ class AdjacencyNeighborhood(BaseNeighborhood):
             The label of the layer whose edges join the neighbours, or `None` for the graph of the network.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Examples:
         >>> from skcomplex.core.components.spaces import AdjacencyNeighborhood

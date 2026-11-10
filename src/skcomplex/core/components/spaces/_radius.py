@@ -1,7 +1,4 @@
-"""Define radius neighbourhoods.
-
-They are the members of a continuous space within a distance, and within a cone around a direction.
-"""
+"""Define the neighbourhood of the members within a distance, and within a cone."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,13 +10,18 @@ from ._base import BaseNeighborhood
 
 
 class RadiusNeighborhood(BaseNeighborhood):
-    """Members of a continuous space within a distance of a member.
+    """A neighbourhood of the members of a continuous space within a distance.
 
-    This is the metric neighbourhood. Distances are measured between the position states of the members, by the minimum
-    image in a periodic box. With an `angle` below `pi`, a neighbour must also lie in the cone around the direction of
-    the member: its direction from the member makes an angle of at most `angle` with the member's direction, so
-    `angle = pi` is the whole disk and `angle = pi / 2` the half ahead. The direction is a vector state of the members,
-    or in two dimensions a scalar state that holds the direction angle.
+    Distances are measured between the position states of the members, by the nearest periodic image in a periodic box.
+    With an `angle` below `pi`, a neighbour must also lie in the cone around the direction of the member, so `angle =
+    pi` is the whole disk and `angle = pi / 2` the half ahead. The direction is a vector state of the members, or in two
+    dimensions a scalar state that holds the angle.
+
+    Unlike `NearestNeighborhood`, which takes a fixed number of members, it takes every member within a distance, so the
+    number of neighbours varies. Choose it when members sense others up to a range, optionally within a field of view.
+
+    It appears in many fields. Birds align with flockmates within sight in the Vicsek model, atoms interact within a
+    cutoff, and pedestrians react to people ahead of them.
 
     Args:
         radius:
@@ -36,7 +38,7 @@ class RadiusNeighborhood(BaseNeighborhood):
             Whether a member is its own neighbour.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Examples:
         >>> import math

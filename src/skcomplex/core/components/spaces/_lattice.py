@@ -1,7 +1,4 @@
-"""Define lattice spaces.
-
-They are boxes of Z^d or of the triangular lattice whose sites hold lattice group members.
-"""
+"""Define the space of a box of `Z^d` or of the triangular lattice."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,11 +24,17 @@ TRIANGULAR_DIMENSIONS = 2
 
 
 class LatticeSpace(BaseSpace):
-    """Box of `Z^d`, or of the triangular lattice in 2D, holding lattice group members.
+    """A space of a box of `Z^d`, or of the triangular lattice in two dimensions.
 
-    `Z^d` is the integer lattice, and the sites hold the members. Sites are numbered in row-major order, so site `(i,
-    j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular site `(i, j)` keeps its integer coordinates
-    on a skewed grid and sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
+    `Z^d` is the lattice of points with integer coordinates in `d` dimensions. The sites hold the members of a group and
+    are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular
+    site `(i, j)` sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
+
+    Unlike `NetworkSpace`, whose links are arbitrary, it has regular neighbours, a shape, and a boundary. Choose it when
+    members sit on a grid of cells, or a field discretizes a partial differential equation.
+
+    It appears in many fields. Spins of a magnet sit on a square lattice, trees of a forest fire on a grid, and the
+    cells of a reaction diffusion model on a mesh of points.
 
     Args:
         shape:
@@ -60,7 +63,7 @@ class LatticeSpace(BaseSpace):
             The largest number of agents in a cell, or `None` for no limit.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         spacings_:

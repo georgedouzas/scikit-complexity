@@ -1,7 +1,4 @@
-"""Define simplex spaces.
-
-They are phase spaces whose class axes are the free frequencies of a simplex.
-"""
+"""Define the phase space whose class axes are the frequencies of a simplex."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +12,19 @@ from ._phase import PhaseSpace
 
 
 class SimplexSpace(PhaseSpace):
-    """Phase space whose class axes are the free frequencies of a simplex.
+    """A space whose extra axes are frequencies that sum to at most one.
 
-    The frequencies sum to at most one. The class axes run over `[0, 1]` with the same number of cells `n`, and the last
-    frequency is one minus the sum of the others, so two class axes hold the 2-simplex of three frequencies. The cells
-    whose corner farthest from the origin lies inside the simplex are whole, the cells cut by the slanted face are
-    partial, and the cells beyond it are empty. Every cell has the fraction of its volume inside the simplex, and every
-    face between two cells the fraction of its area inside. Finite-volume fluxes pass only through the open part of
-    every face, and reductions over the class axes weight every cell by its volume.
+    A simplex is the set of frequencies that are nonnegative and sum to one, such as the shares of three strategies. The
+    class axes run over `[0, 1]` with the same number of cells, and the last frequency is one minus the sum of the
+    others, so two class axes hold the simplex of three frequencies. The cells cut by the slanted face are partial, and
+    each cell and face keeps the fraction of its volume or area inside the simplex. Finite-volume fluxes pass only
+    through the open part of each face, and reductions over the class axes weight each cell by its volume.
+
+    Unlike `PhaseSpace`, whose class axes are independent, it constrains the frequencies to a simplex. Choose it when a
+    density lives over the shares of several types.
+
+    It appears in many fields. Populations evolve over the shares of strategies in evolutionary game theory, genotypes
+    over allele frequencies in population genetics, and voters over the shares of parties.
 
     Args:
         position:
@@ -35,7 +37,7 @@ class SimplexSpace(PhaseSpace):
             The largest number of sites of the space.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         volumes_:

@@ -121,6 +121,7 @@ REWRITTEN: tuple[str, ...] = (
     'skcomplex.core.components.elements',
     'skcomplex.core.components.interactions',
     'skcomplex.core.components.laws',
+    'skcomplex.core.components.spaces',
 )
 
 

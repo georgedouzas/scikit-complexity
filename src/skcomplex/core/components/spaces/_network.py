@@ -1,7 +1,4 @@
-"""Define network spaces.
-
-They are graphs whose nodes members occupy, with named layers of relations over their nodes.
-"""
+"""Define the space of a graph whose nodes members occupy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,14 +22,19 @@ MIN_HYPEREDGE_NODES = 2
 
 
 class NetworkSpace(BaseSpace):
-    """Network whose nodes agents occupy or lattice sites sit on.
+    """A space of a graph whose nodes the members occupy, with layers of relations.
 
-    The neighbours of a node are given by its edges. Lattice groups on a network hold one member per node, in the order
-    of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes. Edges of a
-    layer are numbered in the order of `graph.edges`, and every layer lowers to arrays: the source and target node index
-    of every edge, and the adjacency of every node in compressed sparse row form. On an undirected graph the source of
-    an edge is the end that comes first in node order. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100,
-    0.1, seed=0)`.
+    The neighbours of a node are given by its edges. A group on the sites of a network holds one member per node, in the
+    order of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes, such
+    as work and home. Edges of a layer are numbered in the order of `graph.edges`, and on an undirected graph the source
+    of an edge is the end that comes first in node order. A network may also hold hyperedges, links of more than two
+    nodes. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100, 0.1, seed=0)`.
+
+    Unlike `LatticeSpace`, whose neighbours are regular, it takes any pattern of links. Choose it when the members are
+    joined by contacts, roads, wires, or trades.
+
+    It appears in many fields. A disease spreads on a contact network, generators synchronize on a power grid, banks
+    lend to each other on an interbank network, and neurons fire along their synapses.
 
     Args:
         graph:
@@ -53,7 +55,7 @@ class NetworkSpace(BaseSpace):
             its hyperedges. The members of an XGI hyperedge follow the order of the nodes of the graph.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         graphs_:

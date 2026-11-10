@@ -1,6 +1,8 @@
-"""Define the spaces that systems live in, with neighbourhoods and time.
+"""Define spaces, neighbourhoods, and times, where and when a system runs.
 
-The neighbourhoods are those of their members, and the time is that of a system.
+A space places the members of a group and says who neighbours whom, such as a lattice, a network, or a continuous box. A
+neighbourhood picks the members a law reads around a member. A time says whether the system flows, steps, or is solved
+once.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

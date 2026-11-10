@@ -1,4 +1,4 @@
-"""Define ball neighbourhoods, the lattice offsets within a radius under a metric."""
+"""Define the neighbourhood of the lattice offsets within a radius under a metric."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,14 +17,24 @@ HEXAGONAL_DIMENSIONS = 2
 
 
 class BallNeighborhood(LatticeNeighborhood):
-    """Lattice offsets within a radius under a metric.
+    """A neighbourhood of the lattice offsets within a radius under a metric.
 
-    The Chebyshev metric bounds every coordinate of an offset by the radius, and the Manhattan metric bounds the sum of
-    their absolute values. Both give the offsets in lexicographic order. In two dimensions and for radius 1 they are the
-    8 cells of the Moore neighbourhood and the 4 cells of the von Neumann neighbourhood. The hexagonal metric bounds
-    `max(|a|, |b|, |a + b|)` on a two-dimensional triangular lattice and gives the offsets ring by ring, each ring
-    counterclockwise from the direction of the second axis. For radius 1 direction `k` points at `60 k` degrees in the
-    plane, so direction `k + 3` modulo 6 is opposite to direction `k`.
+    The `metric` decides which offsets lie within `radius`:
+
+    - `'chebyshev'`: every coordinate of the offset is at most the radius. For radius 1 in two dimensions these are the
+      8 cells of the Moore neighbourhood.
+    - `'manhattan'`: the sum of the absolute coordinates is at most the radius. For radius 1 in two dimensions these are
+      the 4 cells of the von Neumann neighbourhood.
+    - `'hexagonal'`: `max(|a|, |b|, |a + b|)` is at most the radius on a triangular lattice. The offsets come ring by
+      ring, each counterclockwise, and for radius 1 direction `k` points at `60 k` degrees.
+
+    The first two give the offsets in lexicographic order.
+
+    Unlike `LatticeNeighborhood`, which takes its offsets one by one, it builds them from a radius and a metric. Choose
+    it when a law reads the usual neighbours on a grid.
+
+    It appears in many fields. A sandpile topples grains to its four neighbours, a cell of the Game of Life counts its
+    eight neighbours, and a voter model copies a random neighbour on a grid.
 
     Args:
         radius:
@@ -41,7 +51,7 @@ class BallNeighborhood(LatticeNeighborhood):
             lexicographic place, the order of Wolfram's rule numbers in one dimension.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Attributes:
         offsets_:

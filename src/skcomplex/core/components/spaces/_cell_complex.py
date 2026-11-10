@@ -1,7 +1,4 @@
-"""Define cell complexes.
-
-A cell complex is a network of the sites, links, and faces of a lattice or a network with oriented incidence.
-"""
+"""Define the space of the cells of a lattice or network, with oriented incidence."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,19 +28,24 @@ CUBE_ROWS = 6
 
 
 class CellComplexSpace(NetworkSpace):
-    """Network of the cells of a lattice or a network, with their oriented incidence.
+    """A space of the sites, links, and faces of a lattice or network, oriented.
 
-    The incidence is between consecutive degrees. Its nodes are the sites or nodes of the space it derives from, its
-    edges the oriented links or edges, and its hyperedges the oriented plaquettes or faces in cyclic node order. Every
-    group, binding, and neighbourhood of a network space applies to it, so groups on its edges and hyperedges hold
-    states on links and plaquettes. It has no layers.
+    A cell complex holds cells of several degrees: sites, the links between them, and the faces that the links bound.
+    Its nodes are the sites or nodes of the space it derives from, its edges the oriented links, and its hyperedges the
+    oriented faces in cyclic node order. Every group and neighbourhood of a network space applies to it, so groups on
+    its edges and hyperedges hold states on links and faces. It has no layers.
 
     The links of a lattice are numbered by direction and then by site, and point along the positive direction of their
-    axis. The plaquettes are numbered by plane and then by site, with planes `(0, 1), (0, 2), ...` in increasing order,
-    and turn from the first axis of the plane to the second. Fixed and reflecting edges drop the cells that leave the
-    box. A face of a network is oriented by its node cycle. The faces of a clique complex and the triangles of
-    simplicial hyperedges take their incidence from `xgi.linalg.hodge_matrix.boundary_matrix`, and the other faces from
-    the sum of the oriented edges around them.
+    axis. The faces are numbered by plane and then by site, with planes `(0, 1), (0, 2), ...` in increasing order, and
+    turn from the first axis of the plane to the second. Fixed and reflecting edges drop the cells that leave the box. A
+    face of a network is oriented by its node cycle. The faces of a clique complex and the triangles of simplicial
+    hyperedges take their incidence from `xgi.linalg.hodge_matrix.boundary_matrix`.
+
+    Unlike `NetworkSpace`, which knows nodes and edges, it also knows faces and the orientation of each cell, so states
+    on links can have a circulation. Choose it when a state lives on links or faces, as in discrete exterior calculus.
+
+    It appears in many fields. Lattice gauge theories hold angles on the links of a lattice, discrete exterior calculus
+    models flows on meshes, and the Hodge decomposition splits the flows of a network into gradient and cyclic parts.
 
     Args:
         space:
@@ -58,7 +60,7 @@ class CellComplexSpace(NetworkSpace):
             lives on sites, edges, or hyperedges.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         incidences_:

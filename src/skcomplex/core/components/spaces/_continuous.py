@@ -1,4 +1,4 @@
-"""Define continuous spaces, boxes of real positions or the whole of R^d."""
+"""Define the space of real positions, a box with a boundary or the whole of `R^d`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,14 +19,23 @@ REGION_DIMENSIONS = 2
 
 
 class ContinuousSpace(BaseSpace):
-    """Continuous space of real positions, a box with a boundary or the whole of `R^d`.
+    """A space of real positions, a box with a boundary or the whole of `R^d`.
 
-    A box has an extent along every dimension, from 0 to the extent. Its boundary acts on every position state of the
-    members on it: `'open'` leaves positions alone, `'periodic'` joins opposite sides and measures pair distances by the
-    minimum image, and `'reflecting'` mirrors positions back into the box and reverses the velocity across the wall.
-    Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so
-    the space has no sites, and a site has no neighbours in it. A space of two dimensions can hold layers of regions,
-    the polygons of a map in the coordinates of the space, which agents are placed in, moved to, and ask about.
+    A box runs from 0 to `extent` along every dimension. Its `boundary` acts on every position state of the members:
+
+    - `'open'`: positions stay as they are.
+    - `'periodic'`: opposite sides join, and pair distances use the nearest periodic image.
+    - `'reflecting'`: positions mirror back into the box and the velocity across the wall reverses.
+
+    Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so the
+    space has no sites. A space of two dimensions can hold layers of `regions`, the polygons of a map, which agents are
+    placed in, moved to, and ask about.
+
+    Unlike `LatticeSpace`, whose sites are fixed, it lets members move to any real position. Choose it when members move
+    freely, such as particles or animals.
+
+    It appears in many fields. Atoms move in a box of a gas, birds fly in a flock, pedestrians walk through a station,
+    and households live in the districts of a map.
 
     Args:
         extent:
@@ -42,7 +51,7 @@ class ContinuousSpace(BaseSpace):
             The polygons of every layer of regions by the name of the layer, or `None` for no layers.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         extent_:

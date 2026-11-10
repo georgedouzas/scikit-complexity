@@ -1,7 +1,4 @@
-"""Define the bases of the space and the time of a system, and of neighbourhoods.
-
-The neighbourhoods are those of the members of a space.
-"""
+"""Define the abstract bases of spaces, neighbourhoods, and times."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,16 +18,21 @@ from ..base import BasePart
 
 
 class BaseNeighborhood(BasePart[None, SimpleNamespace]):
-    """Base of the neighbourhoods.
+    """An abstract neighbourhood, the members a law reads around a member of a space.
 
-    A neighbourhood is the part of a system that gives the members a law reads around a member of a space. A
-    neighbourhood is a part: it stores its arguments in its own `__init__`, `prepare` validates them and derives what
-    the engine reads, such as the offsets of a lattice neighbourhood. The space that reads it rejects a neighbourhood of
-    another kind. It contributes no laws.
+    A neighbourhood stores its arguments in its `__init__`, and `prepare` checks them and derives what the engine reads,
+    such as the offsets of a lattice neighbourhood. The space that reads it rejects a neighbourhood of another kind. It
+    returns no laws.
+
+    Unlike `BaseSpace`, which places members, it selects some of them around one member. Choose it when a new rule for
+    choosing neighbours is needed, and choose an existing neighbourhood, such as `BallNeighborhood`, otherwise.
+
+    It appears in every field through its subclasses, such as the eight cells around a site of a lattice, the contacts
+    of a person in a network, and the birds within sight of a bird in a flock.
 
     Args:
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
     """
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
@@ -46,20 +48,25 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
 
 
 class BaseSpace(BasePart[None, SimpleNamespace]):
-    """Base of the spaces.
+    """An abstract space, where the members of a group live and who neighbours whom.
 
-    A space is the part of a system where members live and which gives vector states their dimension. A space is a part
-    of its system: it stores its arguments in its own `__init__`, `prepare` validates them and derives the facts of the
-    space, and `_get_laws` returns the laws the space contributes, none by default. A space with sites answers the hooks
-    the engine reads: `_get_neighbors` gives the sites around a site, `_index_table` the neighbour of every site in
-    every slot of a neighbourhood, `_translation_table` the sites a group space reads at the products of a site and a
-    group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs of neighbouring sites, and
-    `_default_neighborhood` the neighbourhood `_get_neighbors` reads when it is given none. A space without sites, such
-    as a continuous one, answers none of them.
+    A space also gives vector states their dimension. It stores its arguments in its `__init__`, `prepare` checks them
+    and derives its facts, such as its size and shape, and `_get_laws` returns the laws it adds, none by default. A
+    space with sites answers the hooks the engine reads: `_get_neighbors` gives the sites around a site, `_index_table`
+    the neighbour of every site in every slot of a neighbourhood, `_translation_table` the sites a group space reads at
+    the products of a site and a group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs
+    of neighbouring sites, and `_default_neighborhood` the neighbourhood that `_get_neighbors` reads when none is given.
+    A space without sites, such as a continuous one, answers none of them.
+
+    Unlike `BaseElement`, it holds no states, only the structure that members sit on. Choose it when members live on a
+    new kind of structure, and choose `LatticeSpace`, `NetworkSpace`, or `ContinuousSpace` otherwise.
+
+    It appears in every field through its subclasses, such as a grid of cells in an ecosystem, a contact network in an
+    epidemic, and a box of particles in a gas.
 
     Args:
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         size_:
@@ -218,11 +225,16 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
 
 
 class BaseTime(BasePart[None, SimpleNamespace]):
-    """Base of the time of a system.
+    """An abstract time, which decides the kind of laws a system may hold.
 
-    A time is the part that decides the laws the system may hold. A time is a part of its system: it stores its
-    arguments in its own `__init__`, `prepare` validates them and sets its schedule, and `_get_frames` returns the times
-    of the frames of a run up to a time. It contributes no laws.
+    A time stores its arguments in its `__init__`, `prepare` checks them and sets its schedule, and `_get_frames`
+    returns the times of the frames of a run up to a time. It returns no laws.
+
+    Unlike `BaseSpace`, which says where members are, it says how the states advance. Choose it when a system advances
+    in a new way, and choose `ContinuousTime`, `DiscreteTime`, or `StaticTime` otherwise.
+
+    It appears in every field through its subclasses, such as the flow of an epidemic in continuous time, the
+    generations of a population in discrete time, and the static balance of an economy.
 
     Args:
         label:

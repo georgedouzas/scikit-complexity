@@ -1,7 +1,4 @@
-"""Define mesh spaces.
-
-They are unstructured triangular and tetrahedral meshes that finite element fields live on.
-"""
+"""Define the space of an unstructured mesh of triangles or tetrahedra."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,10 +15,16 @@ TRIANGLE_DIMENSIONS = 2
 
 
 class MeshSpace(BaseSpace):
-    """Unstructured mesh of triangles or tetrahedra.
+    """A space of an unstructured mesh of triangles or tetrahedra.
 
-    Its nodes hold the members of finite element fields. Build the nodes and cells with scikit-fem, such as
+    The nodes of the mesh hold the members of finite element fields. Build the nodes and cells with scikit-fem, such as
     `skfem.MeshTri.init_lshaped().refined(3)`, and pass its `p` and `t` arrays.
+
+    Unlike `LatticeSpace`, which is a regular grid, it fits domains of any shape. Choose it when a partial differential
+    equation on an irregular domain is solved by finite elements.
+
+    It appears in many fields. Heat flows through a machine part, groundwater seeps through an aquifer, and a membrane
+    deforms under a load.
 
     Args:
         points:
@@ -31,7 +34,7 @@ class MeshSpace(BaseSpace):
             The node indices of every triangle or tetrahedron, one column per cell.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         mesh_:
