@@ -30,6 +30,7 @@ from ..components.systems import CompositeSystem
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
 from ..errors import ValidationError
+from ..specs import VariableSpec
 from ..types import VariableKind
 from ._runs import _check_source
 from ._utils import build_system
@@ -78,6 +79,12 @@ def _check_plain(system: CompositeSystem) -> None:
         raise ValidationError(error_msg)
 
 
+def _is_declared_companion(element: Element, variable: VariableSpec) -> bool:
+    """Return whether a variable is a companion state of a state an element declares from data."""
+    state = variable.derivative_of or variable.lag_of
+    return state is not None and state in element._get_declared()
+
+
 def _value_names(element: Element) -> list[str]:
     """Return the names of the states and parameters an element holds.
 
@@ -86,7 +93,8 @@ def _value_names(element: Element) -> list[str]:
     return [
         name
         for name, (variable, _) in declared_variables(element).items()
-        if variable.kind != VariableKind.ROLE and (hasattr(element, name) or name in element._get_declared())
+        if variable.kind != VariableKind.ROLE
+        and (hasattr(element, name) or name in element._get_declared() or _is_declared_companion(element, variable))
     ]
 
 

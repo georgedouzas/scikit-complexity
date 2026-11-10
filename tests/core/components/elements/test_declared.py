@@ -127,6 +127,29 @@ def test_declared_element_declares_the_companions_of_a_state():
     assert [variables[name][1] for name in ('x_lag1', 'x_lag2', 'v_d1')] == [0.5, 0.25, 3.0]
 
 
+def test_declared_element_sets_the_initial_values_of_its_companions():
+    """Test that setting a companion state changes the initial value the spec of its state holds."""
+    specs = {
+        'x': DeclaredVariableSpec(1.0, StateSpec(lags=2)),
+        'v': DeclaredVariableSpec(1.0, StateSpec(order=3, initial=(3.0,))),
+    }
+    element = DeclaredElement('cell', variables=specs)
+    assert [element.get_value(name) for name in ('x_lag1', 'x_lag2', 'v_d1', 'v_d2')] == [1.0, 1.0, 3.0, 0.0]
+    element.set_params(x_lag2=0.5, v=2.0, v_d2=4.0)
+    assert element.variables['x'].spec.initial == (1.0, 0.5)
+    assert element.variables['v'] == DeclaredVariableSpec(2.0, StateSpec(order=3, initial=(3.0, 4.0)))
+    variables = declared_variables(element)
+    assert [variables[name][1] for name in ('x_lag1', 'x_lag2', 'v_d1', 'v_d2')] == [1.0, 0.5, 3.0, 4.0]
+
+
+def test_declared_element_replicates_the_derivatives_of_a_state():
+    """Test that replicating a system takes one initial derivative of a declared state per member."""
+    element = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(0.0, StateSpec(order=2))})
+    system = CompositeSystem(elements=[element], time=ContinuousTime())
+    ensemble = _replicate(system, 2, {'mass.x_d1': np.array([1.0, -2.0])})
+    assert _simulate(ensemble).get_values('mass.x')[-1] == pytest.approx(np.array([1.0, -2.0]), rel=1e-6)
+
+
 def test_declared_element_runs_a_map_on_its_lags():
     """Test that a map reads the lags of a declared state under discrete time."""
     specs = {'x': DeclaredVariableSpec(1.0, StateSpec(lags=1, initial=(0.0,)))}
