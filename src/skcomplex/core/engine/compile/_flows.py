@@ -1,7 +1,4 @@
-"""Expand flows and delays into laws and check conserved quantities.
-
-A conserved quantity changes only through flows.
-"""
+"""Expand flows and delays into laws and check conserved quantities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -57,7 +54,7 @@ SHIFT = 'shift_member'
 
 
 class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of flows and delays.
+    """A lowering of flows and delays.
 
     It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
     tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows

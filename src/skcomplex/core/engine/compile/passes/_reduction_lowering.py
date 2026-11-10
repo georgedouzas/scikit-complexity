@@ -1,7 +1,4 @@
-"""Lower the reductions of laws to placeholders compiled once each.
-
-Neighbourhood reductions are lowered too.
-"""
+"""Lower the reductions of laws to placeholders compiled once each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -72,7 +69,7 @@ PAIRWISE_KINDS = ('sum', 'mean', 'count', 'max', 'min')
 
 
 class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of the reductions of laws to placeholders compiled once each.
+    """A lowering of the reductions of laws to placeholders compiled once each.
 
     Neighbourhood reductions are lowered too. `prepare(compilation)` reads the layout and the drawn values of the
     compilation, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with every reduction

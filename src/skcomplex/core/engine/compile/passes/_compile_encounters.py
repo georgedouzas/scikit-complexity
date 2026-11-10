@@ -1,7 +1,4 @@
-"""Pass that compiles and takes out the encounter laws.
-
-It runs before reductions prune the groups the laws read.
-"""
+"""Pass that compiles and takes out the encounter laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +28,7 @@ from .._compilation import Compilation, Laws
 
 
 class CompileEncountersPass(BasePass):
-    """Pass that compiles and takes out the encounter laws.
+    """A pass that compiles and takes out the encounter laws.
 
     It runs before reductions prune the groups the laws read.
     """

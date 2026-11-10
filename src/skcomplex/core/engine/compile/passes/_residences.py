@@ -1,7 +1,4 @@
-"""Read the residence of states through hidden states.
-
-The hidden states keep their previous values and counts.
-"""
+"""Read the residence of states through hidden states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ RESIDENCE_PREFIX = '__residence'
 
 
 class ResidencesPass(BasePass):
-    """Pass that reads the residence of states through hidden states.
+    """A pass that reads the residence of states through hidden states.
 
     The hidden states keep their previous values and counts.
     """

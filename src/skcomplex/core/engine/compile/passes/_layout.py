@@ -1,7 +1,4 @@
-"""Declare the states and parameters of every component of a system.
-
-They are declared in the layout of its problem.
-"""
+"""Declare the states and parameters of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +38,7 @@ MAX_SHOWN_COMPONENTS = 10
 
 
 class LayoutPass(BasePass):
-    """Pass that declares every component in tree order.
+    """A pass that declares every component in tree order.
 
     It checks that no two variables share a symbol.
     """

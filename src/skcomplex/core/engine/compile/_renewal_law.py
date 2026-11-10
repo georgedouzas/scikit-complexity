@@ -13,7 +13,7 @@ from ...specs import RequirementSpec
 
 
 class RenewalLaw(BaseLaw):
-    """Renewal of states after waiting times drawn anew at every renewal.
+    """A law that renews states after waiting times drawn anew at every renewal.
 
     The compiler runs it for a waiting jump. Every member of a group renews on its own clock. A renewal applies its
     reset to the states all at once, then draws the next waiting time from the states after the reset. Renewals combine

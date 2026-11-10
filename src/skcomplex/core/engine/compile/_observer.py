@@ -1,7 +1,4 @@
-"""Values of the observables that laws read at the current state.
-
-They are built from the blocks of a system.
-"""
+"""Values of the observables that laws read at the current state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +34,7 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 
 
 class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
-    """Values of the observables that laws read at the current state.
+    """An observer of the values of the observables that laws read at a state.
 
     They are built from the blocks of a system. `prepare()` starts with no observable evaluated, and `run((node,
     label))` sets `observed_`, the namespace of the observable a role of a component binds to, evaluating every

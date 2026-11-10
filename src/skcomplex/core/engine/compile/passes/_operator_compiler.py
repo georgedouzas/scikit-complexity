@@ -49,7 +49,7 @@ DEFAULT_MAX_DIMENSION = 2**20
 
 
 class OperatorCompiler(BaseCompiler):
-    """Compiler of a system holding operator elements into an operator problem.
+    """A compiler of a system holding operator elements into an operator problem.
 
     Args:
         backend:

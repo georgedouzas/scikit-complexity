@@ -1,7 +1,4 @@
-"""Pass that takes the renewal laws out of the laws lowered into kernels.
-
-The renewal laws compile on their own.
-"""
+"""Pass that takes the renewal laws out of the laws lowered into kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._renewal_law import RenewalLaw
 
 
 class SetRenewalsApartPass(BasePass):
-    """Pass that takes the renewal laws out of the laws lowered into kernels.
+    """A pass that takes the renewal laws out of the laws lowered into kernels.
 
     The renewal laws compile on their own.
     """

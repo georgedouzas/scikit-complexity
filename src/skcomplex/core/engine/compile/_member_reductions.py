@@ -1,7 +1,4 @@
-"""Reductions in the member expression of an observable.
-
-They are compiled with the reduction lowering of laws.
-"""
+"""Reductions in the member expression of an observable."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

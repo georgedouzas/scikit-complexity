@@ -1,7 +1,4 @@
-"""Add to the drift the correction of every non-Itô noise law.
-
-A non-Itô noise law has a convention other than Itô.
-"""
+"""Add to the drift the correction of every non-Itô noise law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +27,7 @@ from .._compilation import Compilation
 
 
 class NoisePass(BasePass):
-    """Pass that adds the drift correction of every noise law of a convention.
+    """A pass that adds the drift correction of every noise law of a convention.
 
     The correction follows the law, in the Itô form.
     """

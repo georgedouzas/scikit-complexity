@@ -10,7 +10,7 @@ from .._compilation import Compilation
 
 
 class TopologyProblemPass(BasePass):
-    """Pass that adds the topology changes to the problem."""
+    """A pass that adds the topology changes to the problem."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

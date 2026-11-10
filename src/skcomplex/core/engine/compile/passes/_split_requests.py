@@ -1,7 +1,4 @@
-"""Pass that sets the topology request update laws apart from the kernel laws.
-
-They are the update laws that request topology changes, and the kernel laws are those lowered into kernels.
-"""
+"""Pass that sets the topology request update laws apart from the kernel laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from .._compilation import BlockLaws, Compilation
 
 
 class SplitRequestsPass(BasePass):
-    """Pass that sets the topology request update laws apart from the kernel laws.
+    """A pass that sets the topology request update laws apart from the kernel laws.
 
     They are the update laws that request topology changes, and the kernel laws are those lowered into kernels.
     """

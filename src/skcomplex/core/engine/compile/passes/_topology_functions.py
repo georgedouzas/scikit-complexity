@@ -1,7 +1,4 @@
-"""Pass that compiles the topology changes.
-
-It leaves out the compiled stepper loops when laws request them.
-"""
+"""Pass that compiles the topology changes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,7 +32,7 @@ from ._specs import SpecsPass
 
 
 class TopologyFunctionsPass(BasePass):
-    """Pass that compiles the topology changes.
+    """A pass that compiles the topology changes.
 
     It leaves out the compiled stepper loops when laws request them.
     """

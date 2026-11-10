@@ -1,7 +1,4 @@
-"""Pass that adds the transfer network to the problem.
-
-It adds the quantities, flows, and records of the network.
-"""
+"""Pass that adds the transfer network to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._compilation import Compilation
 
 
 class FlowsProblemPass(BasePass):
-    """Pass that adds the transfer network to the problem.
+    """A pass that adds the transfer network to the problem.
 
     It adds the quantities, flows, and records of the network.
     """

@@ -1,7 +1,4 @@
-"""Read the degree of the groups on a cell complex and its sparse matrices.
-
-The matrices are those of its exterior calculus.
-"""
+"""Read the degree of the groups on a cell complex and its sparse matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ STAR_PARAMETER = 'weight'
 
 
 class CellTables:
-    """Degrees of the groups on a cell complex, and their exterior calculus matrices."""
+    """A table of the degrees of the groups on a cell complex and their matrices."""
 
     @staticmethod
     def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:

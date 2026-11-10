@@ -1,7 +1,4 @@
-"""Pass that checks the conserved quantities and lowers flows and delays.
-
-It lowers them into the laws of every spec, in place.
-"""
+"""Pass that checks the conserved quantities and lowers flows and delays."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._flows import TransferLowering
 
 
 class LowerFlowsPass(BasePass):
-    """Pass that checks the conserved quantities and lowers flows and delays.
+    """A pass that checks the conserved quantities and lowers flows and delays.
 
     It lowers them into the laws of every spec, in place.
     """

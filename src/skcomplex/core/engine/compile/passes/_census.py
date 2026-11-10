@@ -69,7 +69,7 @@ SYMMETRY_TRIALS = 3
 
 
 class CensusPass(BasePass):
-    """Pass that takes the census of the laws of the system.
+    """A pass that takes the census of the laws of the system.
 
     It keeps going past failing components.
     """

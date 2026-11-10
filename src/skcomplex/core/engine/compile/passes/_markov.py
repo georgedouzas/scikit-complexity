@@ -1,7 +1,4 @@
-"""Take the Markov laws out of the component laws and check their matrices.
-
-The laws are taken out of the laws of every component.
-"""
+"""Take the Markov laws out of the component laws and check their matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +31,7 @@ MEMBER_NDIM = 3
 
 
 class MarkovPass(BasePass):
-    """Pass that rewrites transition laws into Markov matrices.
+    """A pass that rewrites transition laws into Markov matrices.
 
     It rewrites laws with or without a source.
 

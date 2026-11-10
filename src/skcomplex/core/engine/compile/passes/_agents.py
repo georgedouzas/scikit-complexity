@@ -1,7 +1,4 @@
-"""Compile agent-based systems.
-
-They are the rules of agents and matchings, which the agent stepper runs on Mesa.
-"""
+"""Compile agent-based systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
 
 class AgentsPass(BasePass):
-    """Pass that marks the nodes of the elements and groups of the agent stepper.
+    """A pass that marks the nodes of the elements and groups of the agent stepper.
 
     They are the elements and groups that run on the agent stepper. An agent is a member of a variable group, or of an
     element or group whose own laws include a `RuleLaw`. When the tree holds rules, of components or of interactions,

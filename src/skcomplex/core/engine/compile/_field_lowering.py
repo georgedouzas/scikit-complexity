@@ -1,7 +1,4 @@
-"""Lower differential operators on fields to stencils and graph Laplacians.
-
-The stencils are finite-difference stencils.
-"""
+"""Lower differential operators on fields to stencils and graph Laplacians."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,7 +76,7 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """Lowering of the differential operators in the laws of one component to stencils.
+    """A lowering of the differential operators in the laws of one part to stencils.
 
     The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
     values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the

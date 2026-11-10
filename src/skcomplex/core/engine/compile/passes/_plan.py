@@ -1,7 +1,4 @@
-"""Plan the partitions of a system from the census of its laws.
-
-The plan also uses their classes once lowered.
-"""
+"""Plan the partitions of a system from the census of its laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ from ._form import FormPass
 
 
 class PlanPass(BasePass):
-    """Pass that plans the partitions of the system.
+    """A pass that plans the partitions of the system.
 
     It uses the registered forms and solvers.
     """

@@ -1,7 +1,4 @@
-"""Pass that adds the field terms to the exact Jacobian.
-
-The terms are the conservation laws, symmetries, and fixed nodes of the fields.
-"""
+"""Pass that adds the field terms to the exact Jacobian."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +9,7 @@ from .._base import BasePass
 
 
 class FieldJacobianPass(BasePass):
-    """Pass that adds the field terms to the exact Jacobian.
+    """A pass that adds the field terms to the exact Jacobian.
 
     The terms are the conservation laws, symmetries, and fixed nodes of the fields.
     """

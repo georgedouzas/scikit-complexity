@@ -10,7 +10,7 @@ from .._flows import TransferLowering
 
 
 class ExpandFlowsPass(BasePass):
-    """Pass that expands the flows of components into laws of other kinds."""
+    """A pass that expands the flows of components into laws of other kinds."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

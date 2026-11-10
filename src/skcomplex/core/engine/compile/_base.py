@@ -1,7 +1,4 @@
-"""Define the bases of compilation.
-
-They are the compiler of a system, the passes of a compilation, and the lowerings of laws.
-"""
+"""Define the bases of compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,7 +53,7 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 
 
 class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
-    """Compiler of a system into a problem of one mathematical form.
+    """An abstract compiler of a system into a problem of one mathematical form.
 
     `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
     and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
@@ -419,7 +416,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
 
 
 class BasePass(BaseConfig[Compilation, None]):
-    """Step of a compilation that reads fields of the compilation and writes others.
+    """An abstract pass, a step of a compilation that reads fields and writes others.
 
     A pass declares the fields it reads and writes through the hooks `_get_reads` and `_get_writes`, which order the
     passes of a compilation. `prepare(compilation)` takes the compilation the pass serves, and `run()` calls the hook
@@ -522,7 +519,7 @@ class BasePass(BaseConfig[Compilation, None]):
 
 
 class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
-    """Lowering of one family of laws.
+    """An abstract lowering of one family of laws.
 
     One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
     lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets

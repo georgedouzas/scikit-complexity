@@ -1,7 +1,4 @@
-"""Compile particles.
-
-They have pair interactions within a cutoff and move inside the boundaries of a continuous space.
-"""
+"""Compile particles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ from .._compilation import Compilation
 
 
 class BoundaryLawsPass(BasePass):
-    """Pass that adds the laws of the boundary of a continuous space.
+    """A pass that adds the laws of the boundary of a continuous space.
 
     By these laws the boundary acts on the positions of components.
     """

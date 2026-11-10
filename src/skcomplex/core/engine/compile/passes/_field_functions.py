@@ -1,7 +1,4 @@
-"""Pass that writes operators back into the equations and adds field terms.
-
-It adds flux differences, symmetries, and fixed nodes.
-"""
+"""Pass that writes operators back into the equations and adds field terms."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +37,7 @@ PAIR = 2
 
 
 class FieldFunctionsPass(BasePass):
-    """Pass that writes operators back into the equations and adds field terms.
+    """A pass that writes operators back into the equations and adds field terms.
 
     It adds flux differences, symmetries, and fixed nodes.
     """

@@ -1,7 +1,4 @@
-"""Pass that drops the exact Jacobian of a problem with encounter laws.
-
-It does not derive their rates.
-"""
+"""Pass that drops the exact Jacobian of a problem with encounter laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +7,7 @@ from .._base import BasePass
 
 
 class EncounterJacobianPass(BasePass):
-    """Pass that drops the exact Jacobian of a problem with encounter laws.
+    """A pass that drops the exact Jacobian of a problem with encounter laws.
 
     It does not derive their rates.
     """

@@ -49,7 +49,7 @@ STAND_IN = '_split_part_'
 
 
 class LowerComplexPass(BasePass):
-    """Pass that splits every law of a complex state into laws of its parts.
+    """A pass that splits every law of a complex state into laws of its parts.
 
     The parts are the real and imaginary parts.
     """

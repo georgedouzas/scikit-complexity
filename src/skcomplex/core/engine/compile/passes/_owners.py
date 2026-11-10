@@ -1,7 +1,4 @@
-"""Keep the laws of the owners a compilation compiles.
-
-They are masked to the rows present of capacity groups.
-"""
+"""Keep the laws of the owners a compilation compiles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._mask_requests import MaskRequestsPass
 
 
 class OwnersPass(BasePass):
-    """Pass that keeps the laws of the compiled owners.
+    """A pass that keeps the laws of the compiled owners.
 
     It masks them to the rows present and finds their kinds.
     """

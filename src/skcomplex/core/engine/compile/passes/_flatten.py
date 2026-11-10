@@ -1,7 +1,4 @@
-"""Flatten the system tree into the nodes of its parts.
-
-The parts are its elements, groups, and interactions, and it runs once per compilation.
-"""
+"""Flatten the system tree into the nodes of its parts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ TOPOLOGY_PARTS = ('sites', 'edges', 'hyperedges')
 
 
 class FlattenPass(BasePass):
-    """Pass that flattens the system tree into its nodes."""
+    """A pass that flattens the system tree into its nodes."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

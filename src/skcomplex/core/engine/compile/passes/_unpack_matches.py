@@ -10,7 +10,7 @@ from .._compilation import Compilation
 
 
 class UnpackMatchesPass(BasePass):
-    """Pass that replaces every matching by the rule it runs."""
+    """A pass that replaces every matching by the rule it runs."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

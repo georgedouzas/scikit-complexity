@@ -1,11 +1,4 @@
-"""Name the forms of sets of law classes and infer the form of components.
-
-A set of law classes compiles to a form, and the form of a set of components is inferred.
-
-`FORMS` maps the law classes to the forms they compile to, and `STEPWISE_FORMS` the forms whose solvers evaluate
-kernels step by step on the NumPy backend. `COMBINED` lists the law classes that combine with laws of other classes
-of the same components into their form, with those classes.
-"""
+"""Name the forms of sets of law classes and infer the form of components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

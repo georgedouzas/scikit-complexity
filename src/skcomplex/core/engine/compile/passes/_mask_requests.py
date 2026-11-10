@@ -1,7 +1,4 @@
-"""Pass that makes the requests of update laws vanish on free rows.
-
-The free rows are those of capacity layouts.
-"""
+"""Pass that makes the requests of update laws vanish on free rows."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,7 @@ from .._compilation import Compilation
 
 
 class MaskRequestsPass(BasePass):
-    """Pass that makes the requests of update laws vanish on free rows.
+    """A pass that makes the requests of update laws vanish on free rows.
 
     The free rows are those of capacity layouts.
     """

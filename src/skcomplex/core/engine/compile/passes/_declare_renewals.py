@@ -1,7 +1,4 @@
-"""Pass that declares the hidden state that counts the renewals of renewal laws.
-
-It runs once delays are lowered, for every renewal law.
-"""
+"""Pass that declares the hidden state that counts the renewals of renewal laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._layout import LayoutPass
 
 
 class DeclareRenewalsPass(BasePass):
-    """Pass that declares the hidden state that counts the renewals of renewal laws.
+    """A pass that declares the hidden state that counts the renewals of renewal laws.
 
     It runs once delays are lowered, for every renewal law.
     """

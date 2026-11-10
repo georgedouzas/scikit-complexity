@@ -1,7 +1,4 @@
-"""Lower the laws of every kernel spec into kernels.
-
-There is one kernel per law kind and component.
-"""
+"""Lower the laws of every kernel spec into kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,7 +36,7 @@ ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
 
 
 class KernelsPass(BasePass):
-    """Pass that lowers the reduced laws into the kernels of every law kind."""
+    """A pass that lowers the reduced laws into the kernels of every law kind."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

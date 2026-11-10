@@ -1,7 +1,4 @@
-"""Assemble the problem of a compilation.
-
-It comes from its layout, its numeric functions, and its compiled events.
-"""
+"""Assemble the problem of a compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +37,7 @@ from ._events import RELATIONS, SWITCHES
 
 
 class ProblemPass(BasePass):
-    """Pass that assembles the problem of the general parts of a compilation."""
+    """A pass that assembles the problem of the general parts of a compilation."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

@@ -1,7 +1,4 @@
-"""Pass that checks the Hurst index and amplitude of noise laws with one.
-
-Laws of Hurst index 1/2 become noise laws without one.
-"""
+"""Pass that checks the Hurst index and amplitude of noise laws with one."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
-    """Pass that checks the Hurst index and amplitude of noise laws with one.
+    """A pass that checks the Hurst index and amplitude of noise laws with one.
 
     Laws of Hurst index 1/2 become noise laws without one.
     """

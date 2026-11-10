@@ -1,7 +1,4 @@
-"""Pass that sets apart the weights and scores of the candidate nodes of requests.
-
-They are read like laws, for every request.
-"""
+"""Pass that sets apart the weights and scores of the candidate nodes of requests."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ from ._topology_functions import TopologyFunctionsPass
 
 
 class TowardsPass(BasePass):
-    """Pass that sets apart the weights and scores of the candidate nodes of requests.
+    """A pass that sets apart the weights and scores of the candidates of requests.
 
     They are read like laws, for every request.
     """

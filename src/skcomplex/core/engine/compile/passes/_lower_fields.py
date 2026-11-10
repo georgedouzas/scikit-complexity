@@ -1,7 +1,4 @@
-"""Pass that lowers the differential operators of laws to stencils.
-
-It notes stable steps and linear terms.
-"""
+"""Pass that lowers the differential operators of laws to stencils."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from .._field_lowering import FieldLowering
 
 
 class LowerFieldsPass(BasePass):
-    """Pass that lowers the differential operators of laws to stencils.
+    """A pass that lowers the differential operators of laws to stencils.
 
     It notes stable steps and linear terms.
     """

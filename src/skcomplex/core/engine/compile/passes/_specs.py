@@ -1,7 +1,4 @@
-"""Build the kernel spec of every component of a system.
-
-The spec holds the namespace and the rows its laws are lowered with.
-"""
+"""Build the kernel spec of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -63,7 +60,7 @@ SECOND_PARTS = ('edges', 'hyperedges')
 
 
 class SpecsPass(BasePass):
-    """Pass that builds the kernel specs of every component.
+    """A pass that builds the kernel specs of every component.
 
     There is one spec per element set entry of an interaction.
     """

@@ -17,7 +17,7 @@ from .._compilation import Compilation
 
 
 class EncounterFunctionsPass(BasePass):
-    """Pass that adds the gain and loss rates of encounter laws to the drift."""
+    """A pass that adds the gain and loss rates of encounter laws to the drift."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

@@ -7,4 +7,4 @@ from ....errors import SkcomplexError
 
 
 class HilbertSpaceError(SkcomplexError):
-    """An operator system has a Hilbert space larger than its declared limit."""
+    """An error for an operator system whose Hilbert space exceeds its declared limit."""

@@ -43,7 +43,7 @@ DISTRIBUTIONS = tuple(
 
 
 class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of the draws of every component to values in a parameter vector.
+    """A lowering of the draws of every component to values in a parameter vector.
 
     The parameter vector is extended with the drawn values. `prepare(compilation)` reads where the parameters end and
     the time symbol, and `run(laws)` takes the laws of every kernel spec, replaces every draw of their update laws by a

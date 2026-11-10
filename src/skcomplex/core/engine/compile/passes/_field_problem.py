@@ -1,7 +1,4 @@
-"""Pass that adds the field parts to the problem.
-
-They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields.
-"""
+"""Pass that adds the field parts to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ from .._field_lowering import FieldLowering
 
 
 class FieldProblemPass(BasePass):
-    """Pass that adds the field parts to the problem.
+    """A pass that adds the field parts to the problem.
 
     They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields. An
     observable of a field whose expression applies field operators, such as `inverse_helmholtz` or `gradient`, is

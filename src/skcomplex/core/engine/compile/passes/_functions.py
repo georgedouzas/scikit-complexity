@@ -1,7 +1,4 @@
-"""Lower the kernels of a problem into the numeric functions of its form.
-
-The functions run on the chosen backend.
-"""
+"""Lower the kernels of a problem into the numeric functions of its form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -52,7 +49,7 @@ from .._forms import STEPWISE_FORMS
 
 
 class FunctionsPass(BasePass):
-    """Pass that lowers the kernels into the numeric functions and form equations.
+    """A pass that lowers the kernels into the numeric functions and form equations.
 
     The equations are those of the form.
     """

@@ -1,7 +1,4 @@
-"""Pass that lowers every conserved noise law to the divergence of random fluxes.
-
-There is one random flux per link of its field.
-"""
+"""Pass that lowers every conserved noise law to the divergence of random fluxes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ from .._field_lowering import FieldLowering
 
 
 class ConservedNoisePass(BasePass):
-    """Pass that lowers every conserved noise law to the divergence of random fluxes.
+    """A pass that lowers every conserved noise law to the divergence of random fluxes.
 
     There is one random flux per link of its field.
     """

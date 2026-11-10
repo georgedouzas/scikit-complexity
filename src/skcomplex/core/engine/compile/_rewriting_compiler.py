@@ -36,7 +36,7 @@ type Production = ProductionLaw | SubstitutionLaw
 
 
 class RewritingCompiler(BaseCompiler):
-    """Compiler of a system of words or patches into a problem of the rewriting form.
+    """A compiler of a system of words or patches into a problem of the rewriting form.
 
     The backend, the solver, and the initial state do not change a problem of the rewriting form.
 

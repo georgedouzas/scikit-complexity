@@ -1,7 +1,4 @@
-"""Match, order into blocks, and solve the equations of a system.
-
-The equations are those of a system with algebraic states, matched to their unknowns.
-"""
+"""Match, order into blocks, and solve the equations of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,7 +53,7 @@ class _NumericBlockSpec(BaseSpec):
 
 
 class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]]):
-    """Lowering of equations into rate and algebraic laws.
+    """A lowering of equations into rate and algebraic laws.
 
     The equations are in highest derivatives and algebraic states. `run(specs)` matches the relations of the specs to
     their unknowns, orders the matched pairs into blocks, and solves every block: a block linear in its unknowns

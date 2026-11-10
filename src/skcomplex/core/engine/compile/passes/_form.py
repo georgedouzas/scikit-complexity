@@ -15,7 +15,7 @@ from .._laws import FORMLESS_LAWS
 
 
 class FormPass(BasePass):
-    """Pass that infers the form of the problem from the law classes of its owners."""
+    """A pass that infers the form of the problem from the law classes of its owners."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

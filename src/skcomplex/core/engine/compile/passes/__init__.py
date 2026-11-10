@@ -1,6 +1,3 @@
-"""Hold the passes of a compilation.
-
-The passes are the private steps of the shared core that turn a system into a problem.
-"""
+"""Hold the private passes that turn a system into a problem, step by step."""
 
 __all__: list[str] = []

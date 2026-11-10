@@ -1,7 +1,4 @@
-"""Derive the exact Jacobian of an ODE or static problem from its kernels.
-
-It is the Jacobian of the drift of an ODE problem, or of the residuals of a static one.
-"""
+"""Derive the exact Jacobian of an ODE or static problem from its kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from .._compilation import Compilation
 
 
 class JacobianPass(BasePass):
-    """Pass that derives the exact Jacobian of an ODE or static problem.
+    """A pass that derives the exact Jacobian of an ODE or static problem.
 
     It derives none for other forms.
     """

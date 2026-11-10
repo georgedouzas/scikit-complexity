@@ -1,7 +1,4 @@
-"""Read derivatives and lags of states and solve for highest derivatives.
-
-Derivatives and lags are read through companion states, and equations are solved for highest derivatives.
-"""
+"""Read derivatives and lags of states and solve for highest derivatives."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +37,7 @@ EQUATION_UNKNOWNS = 6
 
 
 class OrdersPass(BasePass):
-    """Pass that reads derivatives and lags through companion states.
+    """A pass that reads derivatives and lags through companion states.
 
     It also adds their chains and solves equations.
     """

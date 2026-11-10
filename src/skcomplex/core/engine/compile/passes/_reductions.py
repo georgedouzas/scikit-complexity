@@ -1,7 +1,4 @@
-"""Replace the reductions of laws by placeholders compiled once each.
-
-Neighbourhood reductions are replaced too.
-"""
+"""Replace the reductions of laws by placeholders compiled once each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,7 @@ from ._reduction_lowering import ReductionLowering
 
 
 class ReductionsPass(BasePass):
-    """Pass that lowers the reductions of the laws, the laws set apart, and the events.
+    """A pass that lowers the reductions of the laws, the laws set apart, and events.
 
     They are lowered in that order.
     """

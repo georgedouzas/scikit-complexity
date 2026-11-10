@@ -1,7 +1,4 @@
-"""Read delayed states through hidden parameters and take events aside.
-
-Both are compiled with the breakpoints.
-"""
+"""Read delayed states through hidden parameters and take events aside."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +30,7 @@ DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, Rea
 
 
 class DelaysPass(BasePass):
-    """Pass that reads delayed states through hidden parameters and sets events aside.
+    """A pass that reads delayed states through hidden parameters.
 
     It takes the events of the laws aside.
     """

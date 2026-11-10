@@ -1,7 +1,4 @@
-"""Compile a system through the passes of a compilation.
-
-The system is first validated against what the passes need.
-"""
+"""Compile a system through the passes of a compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -148,7 +145,7 @@ FIELDS = (
 
 
 class PassCompiler(BaseCompiler):
-    """General compiler of a system that runs passes over a compilation.
+    """A general compiler of a system that runs passes over a compilation.
 
     The passes run in the order of the fields they share. `prepare(system)` validates the system: it compares the
     requirements every law declares with the states it targets, the space it lives on, and the system's time, checks

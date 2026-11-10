@@ -30,7 +30,7 @@ from .._renewal_law import RenewalLaw
 
 
 class RenewalProblemPass(BasePass):
-    """Pass that adds the compiled renewal laws and their count symbols to the problem."""
+    """A pass that adds the compiled renewal laws and their counts to the problem."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

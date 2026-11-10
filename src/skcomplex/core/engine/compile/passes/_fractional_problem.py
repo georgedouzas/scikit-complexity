@@ -1,7 +1,4 @@
-"""Pass that adds the fractional noise rows and the state orders to the problem.
-
-The noise rows are those of noise laws with a Hurst index.
-"""
+"""Pass that adds the fractional noise rows and the state orders to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ from ._fractional_form import FractionalFormPass
 
 
 class FractionalProblemPass(BasePass):
-    """Pass that adds the fractional noise rows and the state orders to the problem.
+    """A pass that adds the fractional noise rows and the state orders to the problem.
 
     The noise rows are those of noise laws with a Hurst index.
     """

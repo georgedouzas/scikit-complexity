@@ -1,7 +1,4 @@
-"""Build the gather tables of the hyperedges of a network and expand reductions.
-
-There is one table per size, and the reductions over their members are expanded.
-"""
+"""Build the gather tables of the hyperedges of a network and expand reductions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,7 +35,7 @@ type Tables = tuple[Indices, list[Indices], Indices, Indices | None]
 
 
 class HyperedgeTables:
-    """Gather tables of the members of the hyperedges of one size.
+    """A table of the members of the hyperedges of one size, for gathering.
 
     The laws of a hyperedge interaction read them. The laws of the focal member run over one row per member of every
     hyperedge, and the laws of the member of a group on hyperedges or edges over one row per hyperedge. Every symbol of

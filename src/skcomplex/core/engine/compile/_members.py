@@ -1,7 +1,4 @@
-"""Lower reads of group members at an offset to neighbour reads.
-
-The offset runs along the group order, and the reads are of an index table.
-"""
+"""Lower reads of group members at an offset to neighbour reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +27,7 @@ SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """Lowering of the member offset reads of the laws of one component.
+    """A lowering of the member offset reads of the laws of one component.
 
     They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the
     compilation, and `run(laws)` sets `lowered_`, the laws with every member offset read replaced by a symbol that reads

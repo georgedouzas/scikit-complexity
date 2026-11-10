@@ -1,7 +1,4 @@
-"""Compile the observables of a system tree into one evaluator.
-
-The evaluator is called at every frame.
-"""
+"""Compile the observables of a system tree into one evaluator."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -63,7 +60,7 @@ class _HeldElement(Element):
 
 
 class ObservableEvaluator:
-    """Evaluator of every observable of a problem.
+    """An evaluator of every observable of a problem.
 
     It evaluates them from a state vector, a parameter vector, and the agents. Preparing compiles every observable into
     a getter, in declaration order, the prepared `getters_`.

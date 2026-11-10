@@ -1,7 +1,4 @@
-"""Compile the laws of lattices.
-
-They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
-"""
+"""Compile the laws of lattices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -78,7 +75,7 @@ type LoweredObjective = tuple[
 
 
 class LatticeProblemPass(BasePass):
-    """Pass that adds the steps of lattice laws.
+    """A pass that adds the steps of lattice laws.
 
     They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
     """

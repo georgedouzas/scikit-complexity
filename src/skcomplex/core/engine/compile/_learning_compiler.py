@@ -1,7 +1,4 @@
-"""Compile a system that trains a nested system into a learning problem.
-
-The learning problem wraps the problem of the nested system.
-"""
+"""Compile a system that trains a nested system into a learning problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

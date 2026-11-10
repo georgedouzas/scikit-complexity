@@ -1,7 +1,4 @@
-"""Hold the state of one compilation.
-
-Its passes produce the fields of the state in order, from the system to the problem.
-"""
+"""Hold the state of one compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -49,7 +46,7 @@ type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
-    """State of one compilation of a system.
+    """A state of one compilation of a system, which passes read and write.
 
     Its passes read and write its fields in order. The constructor stores the inputs of the compilation, and the passes
     set every other field, from `nodes` to `problem` in the order they are listed. A field that no pass has set yet is

@@ -1,7 +1,4 @@
-"""Pass that takes the rules out of the laws lowered into kernels.
-
-The agent stepper runs the rules.
-"""
+"""Pass that takes the rules out of the laws lowered into kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._compilation import Compilation
 
 
 class SetRulesApartPass(BasePass):
-    """Pass that takes the rules out of the laws lowered into kernels.
+    """A pass that takes the rules out of the laws lowered into kernels.
 
     The agent stepper runs the rules.
     """

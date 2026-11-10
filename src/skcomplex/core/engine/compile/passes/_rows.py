@@ -1,7 +1,4 @@
-"""Settle the rows every kernel spec is evaluated over.
-
-It first checks where its laws draw random values.
-"""
+"""Settle the rows every kernel spec is evaluated over."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +23,7 @@ from .._renewal_law import RenewalLaw
 
 
 class RowsPass(BasePass):
-    """Pass that checks the draws of the laws and settles the rows of every spec.
+    """A pass that checks the draws of the laws and settles the rows of every spec.
 
     The specs are kernel specs, with their laws set apart.
     """

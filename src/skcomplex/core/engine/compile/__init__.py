@@ -1,9 +1,7 @@
-"""Compile systems into problems of one mathematical form.
+"""Compile systems into problems of one mathematical form, with numeric functions.
 
-Every problem comes with fast numeric functions. The compilers of the library's forms are private: `simulate` chooses
-the one of the form a system holds. A system package that brings a form of its own defines its compiler on
-`BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowering`, and tunes it as the `compiler` run setting of
-its system.
+`simulate` chooses the compiler of the form a system holds. A system package that brings a form of its own writes its
+compiler on `BaseCompiler`, with passes on `BasePass` and lowerings on `BaseLowering`.
 """
 
 from ._base import BaseCompiler, BaseLowering, BasePass

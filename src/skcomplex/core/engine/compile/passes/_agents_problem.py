@@ -1,7 +1,4 @@
-"""Pass that adds the agents, the rules, and the agent space to the problem.
-
-The rules are those of the agents and of other components.
-"""
+"""Pass that adds the agents, the rules, and the agent space to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,7 +47,7 @@ AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
 
 
 class AgentsProblemPass(BasePass):
-    """Pass that adds the agents, the rules, and the agent space to the problem.
+    """A pass that adds the agents, the rules, and the agent space to the problem.
 
     The rules are those of the agents and of other components.
     """

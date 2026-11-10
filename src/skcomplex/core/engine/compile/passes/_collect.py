@@ -11,7 +11,7 @@ from ._census import CensusPass
 
 
 class CollectPass(BasePass):
-    """Pass that collects the declared laws of every kernel spec.
+    """A pass that collects the declared laws of every kernel spec.
 
     No laws are set apart yet.
     """

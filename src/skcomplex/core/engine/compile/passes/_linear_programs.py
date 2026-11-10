@@ -1,7 +1,4 @@
-"""Merge, lower, and solve the linear program laws.
-
-The laws are merged over shared variables, and the functions of the problem solve them.
-"""
+"""Merge, lower, and solve the linear program laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -64,7 +61,7 @@ class _LinearPartsSpec(BaseSpec):
 
 
 class LinearProgramsPass(BasePass):
-    """Pass that lowers the linear program laws of the owners of a compilation.
+    """A pass that lowers the linear program laws of the owners of a compilation.
 
     It solves them in its functions.
     """

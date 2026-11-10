@@ -1,7 +1,4 @@
-"""Pass that gives an ODE problem with a fractional state the fractional form.
-
-The fractional state is a state of a fractional order among its owners.
-"""
+"""Pass that gives an ODE problem with a fractional state the fractional form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ from .._forms import FORMS
 
 
 class FractionalFormPass(BasePass):
-    """Pass that gives an ODE problem with a fractional state the fractional form.
+    """A pass that gives an ODE problem with a fractional state the fractional form.
 
     The fractional state is a state of a fractional order among its owners.
     """

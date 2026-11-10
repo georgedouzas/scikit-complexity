@@ -1,7 +1,4 @@
-"""List the passes that the general compiler runs by default.
-
-`PASSES` holds them in the order the compiler keeps where their fields leave them unordered.
-"""
+"""List the passes that the general compiler runs by default."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
