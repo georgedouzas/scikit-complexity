@@ -298,11 +298,6 @@ class SocialImpactInteraction(MapInteraction):
         return -agent.opinion if self._get_impact(agent, system) + field > 0 else float(agent.opinion)
 
 
-def _shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return opinions that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(size) < share).astype(float)
-
-
 class PersuasionInteraction(GroupingInteraction):
     """Persuasion of the Sznajd system.
 
@@ -388,6 +383,11 @@ class SznajdSystem(BaseSystem):
     references = ('Sznajd-Weron and Sznajd 2000', 'Castellano, Fortunato, and Loreto 2009')
     until = 100
 
+    @staticmethod
+    def _get_shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return opinions that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(size) < share).astype(float)
+
     def __init__(
         self,
         graph: object = None,
@@ -410,7 +410,7 @@ class SznajdSystem(BaseSystem):
             'people',
             element=PersuaderElement,
             size=size,
-            values={'opinion': _shares(size, self.share, self.random_state)},
+            values={'opinion': SznajdSystem._get_shares(size, self.share, self.random_state)},
         )
         return CompositeSystem(
             self.label,
@@ -473,7 +473,7 @@ class GalamMajoritySystem(BaseSystem):
             'citizens',
             element=CitizenElement,
             size=self.n_agents,
-            values={'opinion': _shares(self.n_agents, self.share, self.random_state)},
+            values={'opinion': SznajdSystem._get_shares(self.n_agents, self.share, self.random_state)},
         )
         return CompositeSystem(
             self.label,
@@ -548,7 +548,7 @@ class SocialImpactSystem(BaseSystem):
             element=InfluenceeElement,
             size=size,
             values={
-                'opinion': 2 * _shares(size, self.share, rng) - 1,
+                'opinion': 2 * SznajdSystem._get_shares(size, self.share, rng) - 1,
                 'persuasiveness': rng.random(size),
                 'supportiveness': rng.random(size),
                 'exponent': self.exponent,

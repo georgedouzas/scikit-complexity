@@ -144,7 +144,7 @@ class MandelbrotLeastEffortSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
         >>> trajectory = simulate(MandelbrotLeastEffortSystem(50), until=1.0)
-        >>> round(float(trajectory.values('words.probability')[0].sum()), 6)
+        >>> round(float(trajectory.get_values('words.probability')[0].sum()), 6)
         1.0
     """
 

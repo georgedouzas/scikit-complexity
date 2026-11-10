@@ -21,6 +21,8 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import MovementInteraction
 
+PHASE = 'default'
+
 
 class DwellerView(AgentView):
     """View of a dweller of the stochastic Schelling system.
@@ -211,9 +213,6 @@ class BlockMovesInteraction(MovementInteraction):
         """Return the index of the block that holds a cell."""
         column, row = (int(item) for item in np.ravel(np.asarray(location)))
         return (row // side) * columns + column // side
-
-
-PHASE = 'default'
 
 
 class StochasticSchellingSystem(BaseSystem):

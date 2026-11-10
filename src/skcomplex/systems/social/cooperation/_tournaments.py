@@ -22,6 +22,10 @@ from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import EvolutionInteraction
 
+PAIR = 2
+PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (1.0, 1.0)}
+GENES = 7
+
 
 class StrategistView(AgentView):
     """View of a strategist of the iterated prisoner's dilemma.
@@ -79,12 +83,6 @@ class StrategistElement(Element):
         Their attributes are the states and parameters.
         """
         return StrategistView
-
-
-PAIR = 2
-
-
-PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (1.0, 1.0)}
 
 
 def _gene(history: list[int]) -> int:
@@ -197,9 +195,6 @@ class TournamentInteraction(GroupingInteraction):
         agent, *opponents = [member for member in members if isinstance(member, StrategistView)]
         total = sum(play(agent.genome, opponent.genome, self.rounds)[0] for opponent in opponents)
         agent.fitness = total / (PAIR * self.rounds)
-
-
-GENES = 7
 
 
 class PrisonersDilemmaTournamentSystem(BaseSystem):

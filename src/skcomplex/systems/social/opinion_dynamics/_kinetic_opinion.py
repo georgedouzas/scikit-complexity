@@ -189,11 +189,6 @@ class OpinionEncountersInteraction(EncounterInteraction):
         return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
 
 
-def _levels_of(system: CompositeSystem) -> int:
-    """Return the number of opinion levels of a system, the size of its distribution."""
-    return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
-
-
 def opinion_observables(levels: int) -> list[ObservableSpec]:
     """Return the mean opinion and the variance of the opinions of a distribution.
 
@@ -262,6 +257,11 @@ class KineticOpinionSystem(BaseSystem):
     until = 60
     dt = 0.5
 
+    @staticmethod
+    def _get_levels_of(system: CompositeSystem) -> int:
+        """Return the number of opinion levels of a system, the size of its distribution."""
+        return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
+
     def __init__(
         self,
         levels: int = 7,
@@ -316,5 +316,5 @@ class KineticOpinionSystem(BaseSystem):
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()
-        settings['observables'] = opinion_observables(_levels_of(system))
+        settings['observables'] = opinion_observables(KineticOpinionSystem._get_levels_of(system))
         return settings

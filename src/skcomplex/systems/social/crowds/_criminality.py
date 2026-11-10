@@ -24,6 +24,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
+CRIMINAL_THRESHOLD = 0.5
+CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
+
 
 class SecurityAgentsElement(ActivityDensityElement):
     """Density of security agents at one efficacy class.
@@ -327,12 +330,6 @@ class RecruitmentInteraction(RateInteraction):
         return s.recruitment * criminality * security.share - s.retirement * security.x
 
 
-CRIMINAL_THRESHOLD = 0.5
-
-
-CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
-
-
 def mean_criminality(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -> Expression:
     """Return the mean criminality of a distribution of citizens.
 
@@ -382,12 +379,6 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
             The order-0 moment.
     """
     return moment(s.x, 0, np.arange(forces, dtype=float))
-
-
-def _sizes_of(system: CompositeSystem) -> tuple[int, int]:
-    """Return the number of criminality classes and of efficacy classes of a system."""
-    sizes = {item.label: int(item.size or 0) for item in system.elements}
-    return sizes['citizens'], sizes['security']
 
 
 def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
@@ -475,6 +466,12 @@ class CriminalitySystem(BaseSystem):
     references = CRIMINALITY_REFERENCES
     until = 60
     dt = 0.5
+
+    @staticmethod
+    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+        """Return the number of criminality classes and of efficacy classes of a system."""
+        sizes = {item.label: int(item.size or 0) for item in system.elements}
+        return sizes['citizens'], sizes['security']
 
     def __init__(
         self,
@@ -564,5 +561,5 @@ class CriminalitySystem(BaseSystem):
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()
-        settings['observables'] = criminality_observables(*_sizes_of(system))
+        settings['observables'] = criminality_observables(*CriminalitySystem._get_sizes_of(system))
         return settings

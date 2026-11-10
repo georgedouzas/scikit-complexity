@@ -141,51 +141,6 @@ class ConnectionElement(Element):
         self.A = A
 
 
-def _differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
-    """Return the differences of the phases along the edges minus the connection.
-
-    They are wrapped into one period around 0.
-    """
-    phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
-    connection = np.ravel(np.asarray(values['links.A'], dtype=float))
-    return np.angle(np.exp(1j * (edges @ phases - connection)))
-
-
-def _energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the sum over the edges of one minus the cosine of the difference.
-
-    The difference is the transported one.
-    """
-    del t
-    return float((1.0 - np.cos(_differences(edges, values))).sum())
-
-
-def _twist(
-    edges: scipy.sparse.csr_array,
-    faces: scipy.sparse.csr_array,
-    t: float,
-    values: Mapping[str, object],
-) -> float:
-    """Return the largest absolute oriented sum of the transported differences.
-
-    The sums run around the faces.
-    """
-    del t
-    return float(np.abs(faces @ _differences(edges, values)).max(initial=0.0))
-
-
-def _agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the energy of the transported differences and their twist.
-
-    The twist is around the faces.
-    """
-    space = system.elements[0].space.prepare()
-    return [
-        ObservableSpec('energy', function=partial(_energy, space.incidences_[0])),
-        ObservableSpec('twist', function=partial(_twist, *space.incidences_[:2])),
-    ]
-
-
 class GaugeNetworkAgentsSystem(BaseSystem):
     """Agent phases on the nodes of a network.
 
@@ -235,6 +190,51 @@ class GaugeNetworkAgentsSystem(BaseSystem):
     references = ('Mihaylov and Cacciatori 2025',)
     until = 100.0
     dt = 0.5
+
+    @staticmethod
+    def _get_differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
+        """Return the differences of the phases along the edges minus the connection.
+
+        They are wrapped into one period around 0.
+        """
+        phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
+        connection = np.ravel(np.asarray(values['links.A'], dtype=float))
+        return np.angle(np.exp(1j * (edges @ phases - connection)))
+
+    @staticmethod
+    def _get_energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the sum over the edges of one minus the cosine of the difference.
+
+        The difference is the transported one.
+        """
+        del t
+        return float((1.0 - np.cos(GaugeNetworkAgentsSystem._get_differences(edges, values))).sum())
+
+    @staticmethod
+    def _get_twist(
+        edges: scipy.sparse.csr_array,
+        faces: scipy.sparse.csr_array,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the largest absolute oriented sum of the transported differences.
+
+        The sums run around the faces.
+        """
+        del t
+        return float(np.abs(faces @ GaugeNetworkAgentsSystem._get_differences(edges, values)).max(initial=0.0))
+
+    @staticmethod
+    def _get_agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the energy of the transported differences and their twist.
+
+        The twist is around the faces.
+        """
+        space = system.elements[0].space.prepare()
+        return [
+            ObservableSpec('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
+            ObservableSpec('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
+        ]
 
     def __init__(
         self,
@@ -292,5 +292,5 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _agent_observables(self._get_pass_parameters())
+        settings['observables'] = GaugeNetworkAgentsSystem._get_agent_observables(self._get_pass_parameters())
         return settings

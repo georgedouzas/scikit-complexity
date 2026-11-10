@@ -22,6 +22,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesSched
 from ....core.types import AnyArray, Array
 from ...general.agents import ChoiceInteraction
 
+MARKED = 2
+PHASE = 'default'
+
 
 class ComplexAgentView(AgentView):
     """View of an agent of the standardization system.
@@ -81,20 +84,6 @@ class ComplexAgentElement(Element):
         Their attributes are the states and parameters.
         """
         return ComplexAgentView
-
-
-MARKED = 2
-
-
-PHASE = 'default'
-
-
-def _standardization(spins: AnyArray) -> float:
-    """Return the share `q` of agents that show the characteristic.
-
-    It is the mean of `|S_i|`.
-    """
-    return float(np.mean(np.abs(spins)))
 
 
 class StandardizationInteraction(ChoiceInteraction):
@@ -191,6 +180,14 @@ class StandardizationInteraction(ChoiceInteraction):
         return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
+def _get_standardization(spins: AnyArray) -> float:
+    """Return the share `q` of agents that show the characteristic.
+
+    It is the mean of `|S_i|`.
+    """
+    return float(np.mean(np.abs(spins)))
+
+
 class StandardizedAgentsSystem(BaseSystem):
     """Complex agents whose interactions make them standardized.
 
@@ -238,7 +235,7 @@ class StandardizedAgentsSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin and Jensen 2019')
     until = 1000
     observables = (
-        ObservableSpec('q', group='agents', variable='spin', reduce=_standardization),
+        ObservableSpec('q', group='agents', variable='spin', reduce=_get_standardization),
         ObservableSpec('m', group='agents', variable='spin', reduce='mean'),
     )
 

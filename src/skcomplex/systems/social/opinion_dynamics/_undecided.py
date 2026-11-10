@@ -140,22 +140,6 @@ class UndecidedFlowsElement(Element):
         self.drive = drive
 
 
-def _logistic_half(argument: float) -> float:
-    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
-
-    Its values lie in (0, 1/2).
-    """
-    return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
-
-
-def _critical_size(s: SimpleNamespace) -> Expression:
-    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
-
-    It is the critical size of the flows driven by the undecided.
-    """
-    return s.omega * (1 / s.gamma + 1 / s.eta)
-
-
 class ThreeStateOpinionSystem(BaseSystem):
     """The three-state opinion system on a random regular network.
 
@@ -195,6 +179,14 @@ class ThreeStateOpinionSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 50
 
+    @staticmethod
+    def _get_logistic_half(argument: float) -> float:
+        """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
+
+        Its values lie in (0, 1/2).
+        """
+        return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
+
     def __init__(
         self,
         n_agents: int = 200,
@@ -214,8 +206,8 @@ class ThreeStateOpinionSystem(BaseSystem):
     def _redraw(voter: UndecidedView, system: SystemViewProtocol) -> float:
         """Return the opinion a voter draws from the sum of the opinions of its neighbours."""
         total = sum(neighbor.opinion for neighbor in voter.get_neighbors() if isinstance(neighbor, UndecidedView))
-        against = _logistic_half(-voter.sensitivity * total)
-        support = _logistic_half(voter.sensitivity * total)
+        against = ThreeStateOpinionSystem._get_logistic_half(-voter.sensitivity * total)
+        support = ThreeStateOpinionSystem._get_logistic_half(voter.sensitivity * total)
         draw = float(system.rng.random())
         if draw < against:
             return -1.0
@@ -240,6 +232,14 @@ class ThreeStateOpinionSystem(BaseSystem):
             form='agent',
         )
         return CompositeSystem(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+
+
+def _get_critical_size(s: SimpleNamespace) -> Expression:
+    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
+
+    It is the critical size of the flows driven by the undecided.
+    """
+    return s.omega * (1 / s.gamma + 1 / s.eta)
 
 
 class UndecidedFlowsSystem(BaseSystem):
@@ -287,7 +287,7 @@ class UndecidedFlowsSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 20.0
     dt = 0.1
-    observables = (ObservableSpec('critical_size', _critical_size, element='population'),)
+    observables = (ObservableSpec('critical_size', _get_critical_size, element='population'),)
 
     def __init__(
         self,

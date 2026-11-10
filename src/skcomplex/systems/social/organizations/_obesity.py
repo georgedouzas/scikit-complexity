@@ -26,6 +26,13 @@ from ....core.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesSchedule
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
+MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
+HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))
+DAYS_PER_WEEK = 7
+KCAL_PER_KG = 7700.0
+OBESE = 30.0
+MALE_SHARE = 0.5
+
 
 class EaterView(AgentView):
     """View of a person of the obesity system.
@@ -56,18 +63,6 @@ class RestaurantView(AgentView):
     kind: float
     sold: float
     sold_high: float
-
-
-MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
-
-
-HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))
-
-
-DAYS_PER_WEEK = 7
-
-
-KCAL_PER_KG = 7700.0
 
 
 def basal_metabolic_rate(weight: float, height: float, age: float, male: float) -> float:
@@ -385,12 +380,6 @@ class RestaurantElement(Element):
         Their attributes are the states and parameters.
         """
         return RestaurantView
-
-
-OBESE = 30.0
-
-
-MALE_SHARE = 0.5
 
 
 class ObesitySystem(BaseSystem):

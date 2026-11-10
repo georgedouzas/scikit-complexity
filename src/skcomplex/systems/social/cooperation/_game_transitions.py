@@ -25,16 +25,15 @@ from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 
+UPDATES = ('death-birth', 'pairwise')
+MUTUAL_COOPERATION = 2
+
 
 class DonorView(AgentView):
     """View of a player of the game transitions system, with its states as attributes."""
 
     strategy: float
     payoff: float
-
-
-UPDATES = ('death-birth', 'pairwise')
-MUTUAL_COOPERATION = 2
 
 
 class DonorElement(Element):

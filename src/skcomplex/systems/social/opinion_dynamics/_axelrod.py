@@ -239,14 +239,6 @@ def culture_observables(width: int, height: int) -> list[ObservableSpec]:
     ]
 
 
-def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
-    """Return the culture observables of the grid of a system."""
-    if not isinstance(system.space, LatticeSpace):
-        return []
-    width, height = (int(size) for size in np.atleast_1d(system.space.shape))
-    return culture_observables(width, height)
-
-
 class AxelrodSystem(BaseSystem):
     """Axelrod's culture dissemination system on a full grid.
 
@@ -284,6 +276,14 @@ class AxelrodSystem(BaseSystem):
     topics = ('culture', 'agents', 'grid', 'social influence', 'phase transition')
     references = ('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009')
     until = 200
+
+    @staticmethod
+    def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the culture observables of the grid of a system."""
+        if not isinstance(system.space, LatticeSpace):
+            return []
+        width, height = (int(size) for size in np.atleast_1d(system.space.shape))
+        return culture_observables(width, height)
 
     def __init__(
         self,
@@ -329,5 +329,5 @@ class AxelrodSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _get_culture_observables(self._get_pass_parameters())
+        settings['observables'] = AxelrodSystem._get_culture_observables(self._get_pass_parameters())
         return settings

@@ -23,6 +23,12 @@ from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+TOPICS = (0, 2)
+COHERENCE = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
+SETTLED = 0.01
+MAX_SETTLING = 1000
+POSITIVE = (1.0, 1.0, -1.0)
+
 
 class ThinkerView(AgentView):
     """View of an agent of the cognitive consistency system.
@@ -85,18 +91,6 @@ class ThinkerElement(Element):
         Their attributes are the states and parameters.
         """
         return ThinkerView
-
-
-TOPICS = (0, 2)
-
-
-COHERENCE = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
-
-
-SETTLED = 0.01
-
-
-MAX_SETTLING = 1000
 
 
 def _settle_once(valences: Array, decay: float) -> Array:
@@ -195,9 +189,6 @@ class ConversationsInteraction(GroupingInteraction):
         valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=np.float64)[topic]) / 2
         settled = settle(valences, hearer.decay)
         hearer.valences, hearer.attitude = settled, float(settled[1])
-
-
-POSITIVE = (1.0, 1.0, -1.0)
 
 
 class CognitiveConsistencySystem(BaseSystem):

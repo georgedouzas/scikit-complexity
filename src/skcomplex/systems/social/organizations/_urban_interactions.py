@@ -23,6 +23,8 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
+SMALLEST_ANGLE = 1e-12
+MIN_EXPONENT = 2.0
 
 
 class CityDwellerElement(Element):
@@ -70,10 +72,6 @@ class CityDwellerElement(Element):
         self.age = age
         self.degree = degree
         self.meetings = meetings
-
-
-SMALLEST_ANGLE = 1e-12
-MIN_EXPONENT = 2.0
 
 
 class UrbanScalingInteractionsSystem(BaseSystem):

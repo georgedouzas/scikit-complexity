@@ -26,6 +26,17 @@ from ....core.types import Array, Pair
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
 
+ORIGIN: Pair = (0, 0)
+REACH = 2
+HALF = 0.5
+VON_NEUMANN: tuple[Pair, ...] = ((1, 0), (-1, 0), (0, 1), (0, -1))
+DIAMOND = LatticeNeighborhood(
+    tuple((dx, dy) for dx in range(-REACH, REACH + 1) for dy in range(-REACH, REACH + 1) if abs(dx) + abs(dy) <= REACH),
+)
+IMITATIONS = ('best', 'fermi')
+MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
+
 
 class IteratedPrisonerElement(Element):
     """Player of the lattice iterated prisoner's dilemma.
@@ -138,23 +149,6 @@ class PrisonerElement(Element):
         self.strategy = strategy
         self.temptation = temptation
         self.noise = noise
-
-
-ORIGIN: Pair = (0, 0)
-
-
-REACH = 2
-
-
-HALF = 0.5
-
-
-VON_NEUMANN: tuple[Pair, ...] = ((1, 0), (-1, 0), (0, 1), (0, -1))
-
-
-DIAMOND = LatticeNeighborhood(
-    tuple((dx, dy) for dx in range(-REACH, REACH + 1) for dy in range(-REACH, REACH + 1) if abs(dx) + abs(dy) <= REACH),
-)
 
 
 class IteratedDilemmaInteraction(LocalRuleInteraction):
@@ -289,15 +283,6 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
             np.minimum(np.floor(draw * (np.asarray(rounds) + 1)), rounds),
         )
         return np.where(random < mutation, mutant, revised)
-
-
-IMITATIONS = ('best', 'fermi')
-
-
-MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
-
-
-SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
 
 
 class PrisonersDilemmaInteraction(LocalRuleInteraction):
@@ -459,18 +444,6 @@ class PublicGoodsInteraction(GroupingInteraction):
         return pot / count(over=group.members) - group.member.strategy
 
 
-def _random_strategies(
-    shape: Sequence[int],
-    share: float,
-    random_state: int | np.random.Generator | None,
-) -> Array:
-    """Return strategies that are 1, cooperation, with a probability.
-
-    The other strategies are 0, defection.
-    """
-    return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
-
-
 class SpatialPrisonersDilemmaSystem(BaseSystem):
     """The spatial prisoner's dilemma of Nowak and May.
 
@@ -510,6 +483,18 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
     until = 50
     dt = 1
 
+    @staticmethod
+    def _get_random_strategies(
+        shape: Sequence[int],
+        share: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return strategies that are 1, cooperation, with a probability.
+
+        The other strategies are 0, defection.
+        """
+        return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
+
     def __init__(
         self,
         shape: Sequence[int] = (50, 50),
@@ -536,7 +521,11 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
             element=PrisonerElement,
             space=LatticeSpace(tuple(self.shape)),
             values={
-                'strategy': _random_strategies(self.shape, self.share, self.random_state),
+                'strategy': SpatialPrisonersDilemmaSystem._get_random_strategies(
+                    self.shape,
+                    self.share,
+                    self.random_state,
+                ),
                 'temptation': self.temptation,
                 'noise': self.noise,
             },
@@ -607,7 +596,7 @@ class PublicGoodsGameSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        strategies = _random_strategies(self.shape, self.share, self.random_state)
+        strategies = SpatialPrisonersDilemmaSystem._get_random_strategies(self.shape, self.share, self.random_state)
         players = GroupElement(
             'players',
             element=ContributorElement,

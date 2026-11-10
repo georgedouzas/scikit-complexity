@@ -31,52 +31,8 @@ SIMPLEX_SAMPLES = 401
 REFERENCES = ('Cooney 2024',)
 SIMPLEX_VISUAL = VisualSpec('image', {'slices': {0: 0}})
 
+
 type Fraction = Expression | npt.NDArray[np.float64]
-
-
-def _get_pairwise_payoff(z: Fraction, payoffs: tuple[float, ...]) -> Fraction:
-    """Return the average payoff `G(z)` of a group of punishers `z` and defectors.
-
-    It follows equation 2.11.
-    """
-    benefit, cost, punishment, interaction, fixed = payoffs
-    return (benefit - cost - fixed - punishment - interaction) * z + (punishment + interaction) * z**2
-
-
-def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...]) -> Fraction:
-    """Return the average payoff `G(x, y)` of a group of three kinds.
-
-    The kinds are cooperators `x`, defectors `y`, and punishers, and the payoff follows equation 2.5.
-    """
-    benefit, cost, punishment, interaction, fixed = payoffs
-    strength = punishment + interaction
-    return (
-        benefit
-        - cost
-        - fixed
-        + fixed * x
-        - (benefit - cost - fixed + strength) * y
-        + strength * x * y
-        + strength * y**2
-    )
-
-
-def _get_payoff_range(payoffs: tuple[float, ...]) -> float:
-    """Return the largest difference `G* - G_*` of the average payoffs of two groups.
-
-    The groups lie on the simplex.
-    """
-    grid = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
-    x, y = np.meshgrid(grid, grid, indexing='ij')
-    values = np.asarray(_get_trimorphic_payoff(x, y, payoffs))[x + y <= 1]
-    return float(values.max() - values.min())
-
-
-def _check_victory(victory: str, victories: tuple[str, ...]) -> None:
-    """Raise an error for a victory probability that is not one of the given ones."""
-    if victory not in victories:
-        error_msg = f'Unknown victory probability {victory!r}. Use one of {", ".join(victories)}.'
-        raise ValidationError(error_msg)
 
 
 class SelectionDriftInteraction(ConservationInteraction):
@@ -140,7 +96,7 @@ class SelectionDriftInteraction(ConservationInteraction):
         >>> drift = SelectionDriftInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
         >>> system = CompositeSystem(elements=[field], interactions=[drift])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
-        >>> total = trajectory.values('tracer.u')[-1].sum()
+        >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
     """
@@ -270,6 +226,22 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
     dt = 0.5
     solver = RK4Solver(dt=0.01)
 
+    @staticmethod
+    def _get_pairwise_payoff(z: Fraction, payoffs: tuple[float, ...]) -> Fraction:
+        """Return the average payoff `G(z)` of a group of punishers `z` and defectors.
+
+        It follows equation 2.11.
+        """
+        benefit, cost, punishment, interaction, fixed = payoffs
+        return (benefit - cost - fixed - punishment - interaction) * z + (punishment + interaction) * z**2
+
+    @staticmethod
+    def _check_victory(victory: str, victories: tuple[str, ...]) -> None:
+        """Raise an error for a victory probability that is not one of the given ones."""
+        if victory not in victories:
+            error_msg = f'Unknown victory probability {victory!r}. Use one of {", ".join(victories)}.'
+            raise ValidationError(error_msg)
+
     def __init__(
         self,
         cells: int = 100,
@@ -311,19 +283,25 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
 
         The groups are `first` and `second`. It follows equations 3.12 to 3.14.
         """
-        own, other = (_get_pairwise_payoff(item, payoffs) for item in (first, second))
+        own, other = (
+            NonlinearPairwiseGroupConflictSystem._get_pairwise_payoff(item, payoffs) for item in (first, second)
+        )
         if victory == 'fermi':
             return (1 + tanh(sensitivity * (own - other))) / 2
         if victory == 'local':
             return (1 + (own - other) / (abs(own) + abs(other))) / 2
         centres = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
-        lowest = float(np.min(np.asarray(_get_pairwise_payoff(centres, payoffs), dtype=float)))
+        lowest = float(
+            np.min(
+                np.asarray(NonlinearPairwiseGroupConflictSystem._get_pairwise_payoff(centres, payoffs), dtype=float),
+            ),
+        )
         own_share, other_share = (own - lowest) ** (1 / exponent), (other - lowest) ** (1 / exponent)
         return own_share / (own_share + other_share)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        _check_victory(self.victory, PAIRWISE_VICTORIES)
+        NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
         win = self._get_pairwise_victory(
@@ -462,12 +440,14 @@ class TwoLevelReplicatorSystem(BaseSystem):
         if victory == 'punishers':
             return z
         centres = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
-        values = np.asarray(_get_pairwise_payoff(centres, payoffs), dtype=float)
-        return _get_pairwise_payoff(z, payoffs) / float(values.max() - values.min())
+        values = np.asarray(NonlinearPairwiseGroupConflictSystem._get_pairwise_payoff(centres, payoffs), dtype=float)
+        return NonlinearPairwiseGroupConflictSystem._get_pairwise_payoff(z, payoffs) / float(
+            values.max() - values.min(),
+        )
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        _check_victory(self.victory, ADDITIVE_VICTORIES)
+        NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
         gain = self._get_group_rate(z, payoffs, self.victory) - self._get_group_rate(u, payoffs, self.victory)
@@ -556,6 +536,35 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
     dt = 1.0
     solver = RK4Solver(dt=0.01)
 
+    @staticmethod
+    def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...]) -> Fraction:
+        """Return the average payoff `G(x, y)` of a group of three kinds.
+
+        The kinds are cooperators `x`, defectors `y`, and punishers, and the payoff follows equation 2.5.
+        """
+        benefit, cost, punishment, interaction, fixed = payoffs
+        strength = punishment + interaction
+        return (
+            benefit
+            - cost
+            - fixed
+            + fixed * x
+            - (benefit - cost - fixed + strength) * y
+            + strength * x * y
+            + strength * y**2
+        )
+
+    @staticmethod
+    def _get_payoff_range(payoffs: tuple[float, ...]) -> float:
+        """Return the largest difference `G* - G_*` of the average payoffs of two groups.
+
+        The groups lie on the simplex.
+        """
+        grid = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
+        x, y = np.meshgrid(grid, grid, indexing='ij')
+        values = np.asarray(TrimorphicMultilevelSelectionSystem._get_trimorphic_payoff(x, y, payoffs))[x + y <= 1]
+        return float(values.max() - values.min())
+
     def __init__(
         self,
         cells: int = 30,
@@ -589,8 +598,12 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         u, v = integration_variable('x'), integration_variable('y')
         if victory == 'defectors':
             return v - y
-        own, other = _get_trimorphic_payoff(x, y, payoffs), _get_trimorphic_payoff(u, v, payoffs)
-        return (own - other) / _get_payoff_range(payoffs)
+        own, other = TrimorphicMultilevelSelectionSystem._get_trimorphic_payoff(
+            x,
+            y,
+            payoffs,
+        ), TrimorphicMultilevelSelectionSystem._get_trimorphic_payoff(u, v, payoffs)
+        return (own - other) / TrimorphicMultilevelSelectionSystem._get_payoff_range(payoffs)
 
     @staticmethod
     def _get_simplex_drift(payoffs: tuple[float, ...]) -> list[Expression]:
@@ -606,7 +619,7 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        _check_victory(self.victory, TRIMORPHIC_VICTORIES)
+        NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)
         axes = [AxisSpec('x', self.cells, 0.0, 1.0), AxisSpec('y', self.cells, 0.0, 1.0)]

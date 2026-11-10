@@ -24,6 +24,13 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SpaceError
 from ....core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
+MONTH = 30
+QUARTER = 90
+DAILY = 'default'
+MONTHLY = 'trafficking'
+BILLING = 'billing'
+QUARTERLY = 'quarter'
+
 
 class PremisesView(AgentView):
     """View of a premises of the trafficking system.
@@ -286,24 +293,6 @@ class DailyMovementsInteraction(Interaction):
         """Return a grid location as a tuple of integers."""
         column, row = (int(item) for item in np.ravel(np.asarray(location)))
         return column, row
-
-
-MONTH = 30
-
-
-QUARTER = 90
-
-
-DAILY = 'default'
-
-
-MONTHLY = 'trafficking'
-
-
-BILLING = 'billing'
-
-
-QUARTERLY = 'quarter'
 
 
 class TraffickingSystem(BaseSystem):

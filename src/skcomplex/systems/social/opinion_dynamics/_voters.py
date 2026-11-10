@@ -22,6 +22,8 @@ from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array, IntArray
 
+MAJORITY = 5
+
 
 class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood.
@@ -266,9 +268,6 @@ class VoterImitationInteraction(MapInteraction):
         if not neighbors:
             return float(agent.opinion)
         return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)
-
-
-MAJORITY = 5
 
 
 class MajorityRuleSystem(BaseSystem):

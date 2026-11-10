@@ -22,6 +22,11 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
+MODES = ('infection', 'influence')
+N_LEVELS = 4
+PASSIONATE = 3
+INNOVATORS = 0.025
+
 
 class BelieverView(AgentView):
     """View of an agent of the influentials system.
@@ -159,9 +164,6 @@ class AdopterElement(Element):
         return AdopterView
 
 
-MODES = ('infection', 'influence')
-
-
 class AdoptionInteraction(TransitionInteraction):
     """Synchronous adoption of the threshold system.
 
@@ -236,15 +238,6 @@ class AdoptionInteraction(TransitionInteraction):
             return 100 * adopters / len(circle) > agent.threshold
         society = [item for item in system.get_agents('target') if isinstance(item, AdopterView)]
         return 100 * sum(item.adopted for item in society) / len(society) > agent.threshold
-
-
-N_LEVELS = 4
-
-
-PASSIONATE = 3
-
-
-INNOVATORS = 0.025
 
 
 class InfluentialsSystem(BaseSystem):

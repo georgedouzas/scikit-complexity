@@ -21,15 +21,14 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+PAIR = 2
+
 
 class RadicalView(AgentView):
     """View of an agent of the echo chamber system, with its states as attributes."""
 
     opinion: float
     activity: float
-
-
-PAIR = 2
 
 
 class RadicalElement(Element):

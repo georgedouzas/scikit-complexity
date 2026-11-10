@@ -19,6 +19,12 @@ from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
+DAYS_PER_YEAR = 365
+PREDISPOSED = 0.1
+AFFECTS = (0.0, 0.5, 1.0)
+AFFECT_SHARES = (0.1, 0.8, 0.1)
+HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
+
 
 class EmployeeView(AgentView):
     """View of an employee of the insider sabotage system.
@@ -212,21 +218,6 @@ class EmployeeElement(Element):
         Their attributes are the states and parameters.
         """
         return EmployeeView
-
-
-DAYS_PER_YEAR = 365
-
-
-PREDISPOSED = 0.1
-
-
-AFFECTS = (0.0, 0.5, 1.0)
-
-
-AFFECT_SHARES = (0.1, 0.8, 0.1)
-
-
-HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
 
 
 class InsiderSabotageSystem(BaseSystem):

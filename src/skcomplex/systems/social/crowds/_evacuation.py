@@ -24,6 +24,8 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
+EVACUATION_REFERENCES = ('Bellomo et al. 2017 §3.4', 'Bellomo and Gibelli 2015')
+
 
 def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.float64], ...]:
     """Return the rate pattern and the transition table of crowding encounters.
@@ -363,9 +365,6 @@ class WalkingInteraction(EncounterInteraction):
         return walking_table(building, 0, int(self.speeds))[1]
 
 
-EVACUATION_REFERENCES = ('Bellomo et al. 2017 §3.4', 'Bellomo and Gibelli 2015')
-
-
 def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     """Return the fraction of the crowd that has left the building.
 
@@ -405,15 +404,6 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
             The normalized first moment of the speeds of the sites.
     """
     return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
-
-
-def _sizes_of(system: CompositeSystem) -> tuple[int, int]:
-    """Return the number of rooms and of speed classes of a system.
-
-    They are read from its crowding interaction.
-    """
-    crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
-    return int(crowding.rooms), int(crowding.speeds)
 
 
 def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
@@ -492,6 +482,15 @@ class EvacuationSystem(BaseSystem):
     until = 40
     dt = 0.5
 
+    @staticmethod
+    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+        """Return the number of rooms and of speed classes of a system.
+
+        They are read from its crowding interaction.
+        """
+        crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
+        return int(crowding.rooms), int(crowding.speeds)
+
     def __init__(
         self,
         branching: int = 2,
@@ -567,5 +566,5 @@ class EvacuationSystem(BaseSystem):
         """
         settings = super().get_run_settings()
         system = self._get_pass_parameters()
-        settings['observables'] = evacuation_observables(*_sizes_of(system))
+        settings['observables'] = evacuation_observables(*EvacuationSystem._get_sizes_of(system))
         return settings

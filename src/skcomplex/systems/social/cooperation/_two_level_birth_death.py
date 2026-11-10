@@ -21,6 +21,8 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
+PAIR = 2
+
 
 class PunisherGroupView(AgentView):
     """View of a group of the two-level birth-death process.
@@ -29,9 +31,6 @@ class PunisherGroupView(AgentView):
     """
 
     punishers: float
-
-
-PAIR = 2
 
 
 class PunisherGroupElement(Element):

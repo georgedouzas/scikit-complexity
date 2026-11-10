@@ -27,6 +27,10 @@ from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpe
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
 
+PAIR = 2
+CLIQUE = 5
+PHASES = ('play', 'imitate')
+
 
 class DilemmaElement(Element):
     """Player of the social dilemmas on a simplicial complex, with its payoff.
@@ -114,9 +118,6 @@ class HyperedgeGoodsInteraction(CouplingInteraction):
         """
         pot = hyperedge.member.synergy * total(hyperedge.members.strategy, over=hyperedge.members)
         return pot / count(over=hyperedge.members) - hyperedge.member.strategy
-
-
-PAIR = 2
 
 
 class SimplicialDilemmaInteraction(CouplingInteraction):
@@ -225,12 +226,6 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
         They are divided by twice its number of triangles.
         """
         return games / (PAIR * player.member.triangles)
-
-
-CLIQUE = 5
-
-
-PHASES = ('play', 'imitate')
 
 
 class HypergraphPublicGoodsSystem(BaseSystem):

@@ -31,6 +31,38 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 
+AT_WORK = 1
+AT_PLACE = 2
+STOPS = 3
+AGE_RANGE = 100.0
+SENTIMENT_RANGE = 2.0
+DEMOGRAPHIC_TERMS = 5
+PACKAGE = 'skcomplex.systems.social.organizations'
+ISLAND_LAYERS = ('boundary', 'census', 'places', 'facilities')
+MIN_WEIGHT = 0.5
+OCCUPATION_SHARES = (
+    0.48,
+    2.80,
+    0.54,
+    2.65,
+    1.22,
+    14.97,
+    4.97,
+    24.25,
+    3.63,
+    1.66,
+    1.41,
+    14.26,
+    7.69,
+    3.31,
+    2.85,
+    8.09,
+    5.20,
+)
+RACES = 6
+GENDERS = 2
+OLDEST_AGE = 90.0
+
 
 class ResidentView(AgentView):
     """View of a resident of the Kauai population system.
@@ -165,11 +197,6 @@ class ResidentElement(Element):
         return ResidentView
 
 
-AT_WORK = 1
-AT_PLACE = 2
-STOPS = 3
-
-
 class CommuteInteraction(MovementInteraction):
     """Commute of every resident in a cycle of three steps.
 
@@ -244,11 +271,6 @@ class PlaceVisitsInteraction(MapInteraction):
         """Return 1 for a resident that stands in its favourite place and 0 for any other."""
         resident = cast(ResidentView, agent)
         return float(int(resident.favourite) in resident.get_regions_here('places'))
-
-
-AGE_RANGE = 100.0
-SENTIMENT_RANGE = 2.0
-DEMOGRAPHIC_TERMS = 5
 
 
 class SentimentInteraction(MapInteraction):
@@ -364,10 +386,6 @@ class SentimentInteraction(MapInteraction):
         return own + (1 - abs(own) * resident.convergence) * (other - own)
 
 
-PACKAGE = 'skcomplex.systems.social.organizations'
-ISLAND_LAYERS = ('boundary', 'census', 'places', 'facilities')
-
-
 def _read_layer(layer: str) -> str:
     """Return the GeoJSON text of a layer of the synthetic island."""
     return (files(PACKAGE) / f'island_{layer}.geojson').read_text()
@@ -408,31 +426,6 @@ def load_island_populations() -> list[int]:
         [100, 50, 0]
     """
     return [int(item['properties']['population']) for item in json.loads(_read_layer('census'))['features']]
-
-
-MIN_WEIGHT = 0.5
-OCCUPATION_SHARES = (
-    0.48,
-    2.80,
-    0.54,
-    2.65,
-    1.22,
-    14.97,
-    4.97,
-    24.25,
-    3.63,
-    1.66,
-    1.41,
-    14.26,
-    7.69,
-    3.31,
-    2.85,
-    8.09,
-    5.20,
-)
-RACES = 6
-GENDERS = 2
-OLDEST_AGE = 90.0
 
 
 class KauaiPopulationSystem(BaseSystem):

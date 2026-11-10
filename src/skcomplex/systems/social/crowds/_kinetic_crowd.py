@@ -23,6 +23,8 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 
+TINY = 1e-12
+
 
 class KineticWalkerView(AgentView):
     """View of a walker of the kinetic crowd system, with its states as attributes."""
@@ -32,9 +34,6 @@ class KineticWalkerView(AgentView):
     speed: float
     direction: float
     target: float
-
-
-TINY = 1e-12
 
 
 class KineticWalkerElement(Element):

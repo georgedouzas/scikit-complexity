@@ -24,6 +24,8 @@ from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+TRIANGLE = 3
+
 
 class OpinionElement(Element):
     """Node of a consensus process with a continuous opinion.
@@ -85,9 +87,6 @@ class ScheduleElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.phase = phase
-
-
-TRIANGLE = 3
 
 
 class ThreeBodyConsensusInteraction(HyperedgeInteraction):

@@ -25,6 +25,8 @@ from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ._random_pairs import RandomPairsInteraction
 
+PAIR = 2
+
 
 class ConfidentElement(Element):
     """Agent of the Hegselmann-Krause system.
@@ -250,9 +252,6 @@ class EncountersInteraction(RandomPairsInteraction):
             second.opinion -= first.convergence * difference
 
 
-PAIR = 2
-
-
 class DeffuantSystem(BaseSystem):
     """The Deffuant bounded confidence system.
 
@@ -350,7 +349,7 @@ class HegselmannKrauseSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import HegselmannKrauseSystem
         >>> trajectory = simulate(HegselmannKrauseSystem(50, confidence=0.3), until=20, random_state=0)
-        >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
+        >>> len(np.unique(np.round(trajectory.get_values('people.opinion')[-1], 6))) <= 3
         True
     """
 

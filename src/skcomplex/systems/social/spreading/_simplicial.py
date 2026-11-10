@@ -25,6 +25,9 @@ from ....core.components.spaces import NetworkSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+PAIR = 2
+TRIANGLE = 3
+
 
 class InfectiveElement(Element):
     """Node of a contagion, susceptible at 0 and infected at 1.
@@ -67,9 +70,6 @@ class InfectiveElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the recovery of an infected node."""
         return [JumpLaw(s.recovery * where(s.infected == 1, 1, 0), {s.infected: -1})]
-
-
-PAIR = 2
 
 
 class SimplicialInfectionInteraction(HyperedgeInteraction):
@@ -122,9 +122,6 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         rate = s.beta if len(s.others) + 1 == PAIR else s.beta_triangle
         exposed = math.prod((other.infected for other in s.others), start=where(infected == 0, 1, 0))
         return [JumpLaw(rate * exposed, {infected: 1})]
-
-
-TRIANGLE = 3
 
 
 class SimplicialContagionSystem(BaseSystem):
