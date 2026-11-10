@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37248,7 +37248,7 @@ Here two states <code>a</code> and <code>b</code> decay at the rate <code>k</cod
 <div class="highlight"><pre><span></span><code><span class="n">system</span> <span class="o">=</span> <span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">decay</span><span class="p">],</span> <span class="n">time</span><span class="o">=</span><span class="n">ContinuousTime</span><span class="p">())</span>
 <span class="n">simulate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'decay.b'</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>1.2130632897209055
+<div class="highlight"><pre><span></span><code>1.2130632897209057
 </code></pre></div>
 <p>The state <code>b</code> falls from 2.0 to 1.213 at time 1, which is <code>2 exp(-0.5)</code>. Declared variables follow these rules.</p>
 <ul>

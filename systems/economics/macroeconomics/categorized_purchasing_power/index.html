@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37450,9 +37450,9 @@
 </code></pre></div>
 <h2 id="equations">Equations</h2>
 <p>The equations are those that <code>symbolic</code> returns for the system with its default parameters.</p>
-<div class="highlight"><pre><span></span><code>economy.z1: diff(z1_economy(t), t) == 0.9900398406374502*w11_economy(t) + 0.29701195219123505*w12_economy(t) + 0.0019920318725099606*w22_economy(t) + 0.0005976095617529881*w23_economy(t) + 0.019920318725099605*w31_economy(t) + 0.09960159362549802*w33_economy(t) + 0.9900398406374502*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.0019920318725099606*where(t &gt;= policy_time2_economy, policy2_economy, 0) + 0.09960159362549802*where(t &gt;= policy_time3_economy, policy3_economy, 0) - 2.00996015936255*z1_economy(t) + 0.000996015936254952*z2_economy(t) + 0.099800796812749*z3_economy(t)
-economy.z2: diff(z2_economy(t), t) == 0.099601593625498*w11_economy(t) + 0.029880478087649404*w12_economy(t) + 0.9800796812749004*w22_economy(t) + 0.2940239043824701*w23_economy(t) + 0.0007968127490039847*w31_economy(t) + 0.003984063745019917*w33_economy(t) + 0.099601593625498*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.9800796812749004*where(t &gt;= policy_time2_economy, policy2_economy, 0) + 0.003984063745019917*where(t &gt;= policy_time3_economy, policy3_economy, 0) + 0.099601593625498*z1_economy(t) - 1.8099601593625498*z2_economy(t) + 0.0019920318725099306*z3_economy(t)
-economy.z3: diff(z3_economy(t), t) == 0.10159362549800798*w11_economy(t) + 0.030478087649402394*w12_economy(t) + 0.07968127490039842*w22_economy(t) + 0.02390438247011952*w23_economy(t) + 0.19681274900398407*w31_economy(t) + 0.9840637450199203*w33_economy(t) + 0.10159362549800798*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.07968127490039842*where(t &gt;= policy_time2_economy, policy2_economy, 0) + 0.9840637450199203*where(t &gt;= policy_time3_economy, policy3_economy, 0) - 0.19840637450199206*z1_economy(t) + 0.2898406374501992*z2_economy(t) - 1.60796812749004*z3_economy(t)
+<div class="highlight"><pre><span></span><code>economy.z1: diff(z1_economy(t), t) == 0.9900398406374502*w11_economy(t) + 0.29701195219123505*w12_economy(t) + 0.0019920318725099606*w22_economy(t) + 0.0005976095617529881*w23_economy(t) + 0.019920318725099605*w31_economy(t) + 0.09960159362549802*w33_economy(t) + 0.9900398406374502*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.09960159362549802*where(t &gt;= policy_time3_economy, policy3_economy, 0) + 0.0019920318725099606*where(t &gt;= policy_time2_economy, policy2_economy, 0) - 2.00996015936255*z1_economy(t) + 0.000996015936254952*z2_economy(t) + 0.099800796812749*z3_economy(t)
+economy.z2: diff(z2_economy(t), t) == 0.099601593625498*w11_economy(t) + 0.029880478087649404*w12_economy(t) + 0.9800796812749004*w22_economy(t) + 0.2940239043824701*w23_economy(t) + 0.0007968127490039847*w31_economy(t) + 0.003984063745019917*w33_economy(t) + 0.099601593625498*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.003984063745019917*where(t &gt;= policy_time3_economy, policy3_economy, 0) + 0.9800796812749004*where(t &gt;= policy_time2_economy, policy2_economy, 0) + 0.099601593625498*z1_economy(t) - 1.8099601593625498*z2_economy(t) + 0.0019920318725099306*z3_economy(t)
+economy.z3: diff(z3_economy(t), t) == 0.10159362549800798*w11_economy(t) + 0.030478087649402394*w12_economy(t) + 0.07968127490039842*w22_economy(t) + 0.02390438247011952*w23_economy(t) + 0.19681274900398407*w31_economy(t) + 0.9840637450199203*w33_economy(t) + 0.10159362549800798*where(t &gt;= policy_time1_economy, policy1_economy, 0) + 0.9840637450199203*where(t &gt;= policy_time3_economy, policy3_economy, 0) + 0.07968127490039842*where(t &gt;= policy_time2_economy, policy2_economy, 0) - 0.19840637450199206*z1_economy(t) + 0.2898406374501992*z2_economy(t) - 1.60796812749004*z3_economy(t)
 economy.w11: diff(w11_economy(t), t) == -1.0*w11_economy(t) + 0.3*w12_economy(t) + 0.2*w13_economy(t) + 1.0*where(t &gt;= policy_time1_economy, policy1_economy, 0)
 economy.w12: diff(w12_economy(t), t) == 0.2*w11_economy(t) - 0.8*w12_economy(t) + 0.3*w13_economy(t) + 0.1*where(t &gt;= policy_time1_economy, policy1_economy, 0)
 economy.w13: diff(w13_economy(t), t) == 0.1*w11_economy(t) + 0.4*w12_economy(t) - 0.6*w13_economy(t) + 0.2*where(t &gt;= policy_time1_economy, policy1_economy, 0)

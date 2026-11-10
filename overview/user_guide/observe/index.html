@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37337,7 +37337,7 @@ save to a temporary file, so they run without a viewer.</p>
 <span class="n">simulate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">observers</span><span class="o">=</span><span class="p">[</span><span class="n">observer</span><span class="p">])</span>
 <span class="p">(</span><span class="n">folder</span> <span class="o">/</span> <span class="s1">'pelts.rrd'</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="n">observer</span><span class="o">.</span><span class="n">logged_frames_</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x707f66be30&gt;
+<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x752fc80957b0&gt;
 (True, 41)
 </code></pre></div>
 <p>The recording exists, and with <code>interval=5</code> the observer logged every fifth of the 201 frames, 41 in all. Open it with
@@ -37507,7 +37507,7 @@ three dimensions, and the second atom asks for points coloured by its velocity <
 <span class="n">simulate</span><span class="p">(</span><span class="n">molecule</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">observers</span><span class="o">=</span><span class="p">[</span><span class="n">atoms</span><span class="p">])</span>
 <span class="p">[</span><span class="nb">type</span><span class="p">(</span><span class="n">visual</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">visual</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">visuals_</span><span class="p">],</span> <span class="nb">type</span><span class="p">(</span><span class="n">atoms</span><span class="o">.</span><span class="n">views_</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="vm">__name__</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x707f58ef60&gt;
+<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x752fc8095bd0&gt;
 (['ScalarsVisual', 'PointsVisual'], 'Spatial3DView')
 </code></pre></div>
 <p>The first atom keeps the default visual of a new type of element, a <code>ScalarsVisual</code> of time series. The second is drawn
@@ -37552,7 +37552,7 @@ with the same stem. Below, a blueprint of your own shows the hares alone, with t
 <span class="n">simulate</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">observers</span><span class="o">=</span><span class="p">[</span><span class="n">custom</span><span class="p">])</span>
 <span class="nb">sorted</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">folder</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">'hares.*'</span><span class="p">))</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x707f6220f0&gt;
+<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x752fc8095c80&gt;
 ['hares.rbl', 'hares.rrd']
 </code></pre></div>
 <p>The folder holds the recording <code>hares.rrd</code> and its blueprint <code>hares.rbl</code>. Open both with
@@ -37603,14 +37603,14 @@ The tutorial <a href="../build_a_custom_system/">Build a custom system</a> trace
 <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">figure</span><span class="p">)</span>
 <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">left</span><span class="o">.</span><span class="n">lines</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">right</span><span class="o">.</span><span class="n">lines</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x707f621e50&gt;]
-[&lt;matplotlib.lines.Line2D object at 0x707f6d4d40&gt;]
-[&lt;matplotlib.lines.Line2D object at 0x707f6d64e0&gt;]
-[&lt;matplotlib.lines.Line2D object at 0x707fb2b020&gt;]
+<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x752fc72a6850&gt;]
+[&lt;matplotlib.lines.Line2D object at 0x752fc72a6990&gt;]
+[&lt;matplotlib.lines.Line2D object at 0x752fc72a6ad0&gt;]
+[&lt;matplotlib.lines.Line2D object at 0x752fc72a6c10&gt;]
 [Text(0.5, 0, 'year'), Text(0, 0.5, 'thousands'), Text(0.5, 1.0, 'Populations')]
-&lt;matplotlib.legend.Legend object at 0x707f9e3860&gt;
-[&lt;matplotlib.lines.Line2D object at 0x707f9b8bf0&gt;]
-[&lt;matplotlib.lines.Line2D object at 0x707f546b40&gt;]
+&lt;matplotlib.legend.Legend object at 0x752fc72a6d50&gt;
+[&lt;matplotlib.lines.Line2D object at 0x752fc82460d0&gt;]
+[&lt;matplotlib.lines.Line2D object at 0x752fc8246350&gt;]
 [Text(0.5, 0, 'hares (thousands)'), Text(0, 0.5, 'lynx (thousands)'), Text(0.5, 1.0, 'Phase plane')]
 (True, 4, 2)
 </code></pre></div>
@@ -37636,7 +37636,7 @@ the peak of the hares on one axis and the rate on the other, from <code>get_colu
 <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">figure</span><span class="p">)</span>
 <span class="n">swept</span><span class="o">.</span><span class="n">get_column</span><span class="p">(</span><span class="s1">'hare_peak'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x707f4b0dd0&gt;]
+<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x752fc5da11d0&gt;]
 [Text(0.5, 0, 'growth rate of the hares (per year)'), Text(0, 0.5, 'highest count of hares (thousands)')]
 [65.0, 70.3, 76.0, 81.5, 87.2, 92.4, 98.6]
 </code></pre></div>

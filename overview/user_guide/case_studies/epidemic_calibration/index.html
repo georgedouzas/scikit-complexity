@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37392,10 +37392,10 @@ and opens no window.</p>
 <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
 <span class="p">[</span><span class="n">text</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span> <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_legend</span><span class="p">()</span><span class="o">.</span><span class="n">get_texts</span><span class="p">()]</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x7055a91400&gt;]
+<div class="highlight"><pre><span></span><code>[&lt;matplotlib.lines.Line2D object at 0x753012924cd0&gt;]
 Text(0.5, 0, 'days from 22 January 1978')
 Text(0, 0.5, 'boys')
-&lt;matplotlib.legend.Legend object at 0x70843fddf0&gt;
+&lt;matplotlib.legend.Legend object at 0x753012924e10&gt;
 ['baseline', 'isolation from day 4', 'isolation from day 2', 'in bed, 1978']
 </code></pre></div>
 <p>The legend names the three scenarios and the counts of 1978. A script saves the figure with <code>fig.savefig('school.png')</code>.

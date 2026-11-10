@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37550,7 +37550,7 @@
 <h2 id="equations">Equations</h2>
 <p>The equations are those that <code>symbolic</code> returns for the system with its default parameters.</p>
 <div class="highlight"><pre><span></span><code>people.s[i]: s_people(t + 1) == -s_people(t)*where(bernoulli_infect_spread &lt; -e^(-(_reduced_2*beta_company_people + _reduced_1*beta_household_people + _reduced_0*beta_school_people)*psi_people) + 1, 1, 0) + s_people(t)
-people.i[i]: i_people(t + 1) == -i_people(t)*where(bernoulli_recover_spread &lt; gamma_people, 1, 0) + s_people(t)*where(bernoulli_infect_spread &lt; -e^(-(_reduced_2*beta_company_people + _reduced_1*beta_household_people + _reduced_0*beta_school_people)*psi_people) + 1, 1, 0) + i_people(t)
+people.i[i]: i_people(t + 1) == s_people(t)*where(bernoulli_infect_spread &lt; -e^(-(_reduced_2*beta_company_people + _reduced_1*beta_household_people + _reduced_0*beta_school_people)*psi_people) + 1, 1, 0) - i_people(t)*where(bernoulli_recover_spread &lt; gamma_people, 1, 0) + i_people(t)
 people.r[i]: r_people(t + 1) == i_people(t)*where(bernoulli_recover_spread &lt; gamma_people, 1, 0) + r_people(t)
 people.new[i]: new_people(t + 1) == s_people(t)*where(bernoulli_infect_spread &lt; -e^(-(_reduced_2*beta_company_people + _reduced_1*beta_household_people + _reduced_0*beta_school_people)*psi_people) + 1, 1, 0)
 cases.children: children_cases(t + 1) == _reduced_3

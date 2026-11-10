@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
+      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
-      <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
       <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
+      <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37226,6 +37226,18 @@
 <ul>
 <li><code>FractionalVanDerPol_0p9</code>, from <a href="../../../../parts/elements/#element"><code>Element</code></a></li>
 </ul>
+<div class="highlight"><pre><span></span><code>    <span class="k">class</span><span class="w"> </span><span class="nc">FractionalElement</span><span class="p">(</span><span class="n">VanDerPolElement</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">visual</span><span class="p">:</span> <span class="n">VisualSpec</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">,</span>
+            <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+            <span class="n">y</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">mu</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="n">mu</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="equations">Equations</h2>
 <p>The equations are those that <code>symbolic</code> returns for the system with its default parameters.</p>
 <div class="highlight"><pre><span></span><code>oscillator.x: caputo(x_oscillator(t), t, 9/10) == y_oscillator(t)
