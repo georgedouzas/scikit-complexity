@@ -13,8 +13,8 @@
 
 ## 3. Spaces
 
-- [ ] 3.1 Check the points and cells of `MeshSpace` when prepared, verified by tests in `tests/core/components/spaces/test_mesh.py` for one-dimensional points, transposed points, empty cells, one-dimensional cells, and out-of-range indices, each a `ValidationError` naming the argument
-- [ ] 3.2 Route both layer lookups of `NetworkSpace` through the existing layer check, verified by a test in `tests/core/components/spaces/test_adjacency.py` that a neighbourhood naming a missing layer raises `SpaceError` listing the layers
+- [x] 3.1 Check the points and cells of `MeshSpace` when prepared, verified by tests in `tests/core/components/spaces/test_mesh.py` for one-dimensional points, transposed points, empty cells, one-dimensional cells, and out-of-range indices, each a `ValidationError` naming the argument
+- [x] 3.2 Route both layer lookups of `NetworkSpace` through the existing layer check, verified by a test in `tests/core/components/spaces/test_adjacency.py` that a neighbourhood naming a missing layer raises `SpaceError` listing the layers
 
 ## 4. Errors
 

@@ -186,14 +186,27 @@ class NetworkSpace(BaseSpace):
                 The network has no such layer, or no hyperedges.
         """
         if on == 'edges':
-            if layer not in self.edges_:
-                known = ', '.join(repr(label) for label in self.edges_)
-                error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
-                raise SpaceError(error_msg)
+            self._check_layer(layer)
             return int(self.edges_[layer][0].size)
         if on == 'hyperedges' and self.hyperedges_:
             return len(self.hyperedges_)
         return super()._count_parts(on, layer)
+
+    def _check_layer(self, layer: str | None) -> None:
+        """Raise an error for a layer the network does not have.
+
+        Args:
+            layer:
+                The label of the layer, or `None` for the graph of the network.
+
+        Raises:
+            SpaceError:
+                The network has no such layer.
+        """
+        if layer not in self.edges_:
+            known = ', '.join(repr(label) for label in self.edges_)
+            error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
+            raise SpaceError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
         """Set the graph, the edges, the adjacency of every layer, and the node positions.
@@ -264,6 +277,7 @@ class NetworkSpace(BaseSpace):
         if not isinstance(neighborhood, AdjacencyNeighborhood):
             error_msg = f'A network reads an adjacency neighbourhood, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
+        self._check_layer(neighborhood.layer)
         size = self.size_
         indptr, indices, _ = self.adjacency_[neighborhood.layer]
         degrees = np.diff(indptr)
@@ -279,6 +293,7 @@ class NetworkSpace(BaseSpace):
 
         They come in the order of its edges.
         """
+        self._check_layer(layer)
         sources, targets = self.edges_[layer]
         return [
             (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second

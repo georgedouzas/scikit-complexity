@@ -481,6 +481,9 @@ class LatticeProblemPass(BasePass):
         """
         try:
             return space._get_index_table(neighborhood)
+        except SpaceError as error:
+            error_msg = f'{owner}: {error}'
+            raise SpaceError(error_msg) from error
         except (ValueError, ValidationError) as error:
             error_msg = f'{owner}: {error}'
             raise ValidationError(error_msg) from error
