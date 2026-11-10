@@ -1,7 +1,4 @@
-"""Solve optimal control problems by Pontryagin's principle.
-
-It uses symbolic costates and a forward-backward sweep.
-"""
+"""Solve optimal control problems by Pontryagin's principle."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +31,7 @@ CONTROL_SUPPORT = SupportSpec(
 
 
 class PontryaginSolver(OptimalControlSolver):
-    """Optimal control by Pontryagin's principle.
+    """A solver of optimal control by the maximum principle of Pontryagin.
 
     Its costates and the stationarity condition are derived symbolically. The solver builds the Hamiltonian `H = L + λ ·
     f` from the running cost `L` and the rates `f` of the states, and derives the costate equations `λ' = -∂H/∂x` with
@@ -44,6 +41,9 @@ class PontryaginSolver(OptimalControlSolver):
     towards their update until they converge. The weight of the update halves whenever the distance of the controls to
     their update stops falling, which breaks the cycles of the sweep. An objective to maximise is minimised with its
     sign changed. The solution holds the costates.
+
+    Choose it for smooth control problems with few states. It appears in many fields, such as optimal treatment in
+    medicine, optimal harvest in ecology, and optimal growth in economics.
 
     Args:
         objective:

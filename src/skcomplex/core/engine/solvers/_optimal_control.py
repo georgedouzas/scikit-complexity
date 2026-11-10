@@ -1,7 +1,4 @@
-"""Read optimal control problems from compiled systems.
-
-Their solutions are followed over the horizon of a run.
-"""
+"""Read optimal control problems from compiled systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,7 +31,7 @@ NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo)
 
 
 class OptimalControlSolver(Solver):
-    """Base class of solvers that compute the optimal controls of a run of a system.
+    """An abstract solver that computes the optimal controls of a run.
 
     The controls minimise or maximise an objective over the run. The solver reads the bounded adaptive parameters of the
     system as its controls. Its objective is the running cost `objective` integrated over the run plus the terminal cost

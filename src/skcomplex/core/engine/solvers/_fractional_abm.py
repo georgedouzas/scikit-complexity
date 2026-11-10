@@ -1,7 +1,4 @@
-"""Fractional Adams-Bashforth-Moulton predictor-corrector.
-
-It is the scheme of Diethelm, Ford, and Freed. It is of order `1 + alpha`.
-"""
+"""Fractional Adams-Bashforth-Moulton predictor-corrector."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,12 +14,15 @@ from ._rows import INITIAL_ROWS, _Rows
 
 
 class FractionalABMSolver(CaputoSolver):
-    """Fractional Adams-Bashforth-Moulton predictor-corrector.
+    """A solver of fractional equations by the Adams-Bashforth-Moulton method.
 
     It is the scheme of Diethelm, Ford, and Freed. It is of order `1 + alpha`. The scheme solves the equivalent Volterra
     equation `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1) f(s, x(s)) ds`. A rectangle rule over the
     drifts of the whole run predicts the next state, and a trapezoidal rule with the drift at the prediction corrects
     it. States of order 1 take Heun steps.
+
+    Choose it for Caputo fractional equations of moderate size, which remember their whole past. It appears in models of
+    viscoelastic materials, anomalous diffusion, and epidemics with memory.
 
     Args:
         dt:

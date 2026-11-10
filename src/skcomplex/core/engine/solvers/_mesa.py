@@ -74,7 +74,7 @@ class _AgentSystem(mesa.Model):
 
 
 class SystemView:
-    """System as rules see it: parameters, random numbers, time, agents, and the space.
+    """A view of the system as agent rules see it: parameters, time, agents, and space.
 
     Every rule receives the view scoped to the interaction or agent group that owns it, so the rule reads the owner's
     parameters by name and the groups bound to the owner's roles by role, also when its system is nested in another.
@@ -651,7 +651,7 @@ class SystemView:
 
 
 class AgentView:
-    """Agent as rules see it.
+    """A view of an agent as agent rules see it.
 
     It shows its states as attributes, its group's parameters, its neighbours, and its location. The stepper gives every
     agent one view of the class of its group, whose states and parameters are properties, so two views of an agent are
@@ -1027,7 +1027,7 @@ class AgentView:
 
 
 class MesaSolver(ExternalSolver):
-    """Mesa backend of agent-based problems, one Mesa step per unit of time.
+    """A solver that runs agent-based problems in Mesa, one step per unit of time.
 
     The agents are the members of the elements and groups whose laws include `RuleLaw`s, and of the variable groups.
     Every step advances Mesa's clock by one, activates all agents in random order, or by the phases of the system's

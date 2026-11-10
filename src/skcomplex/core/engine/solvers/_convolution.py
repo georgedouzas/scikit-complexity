@@ -1,7 +1,4 @@
-"""Base class of explicit schemes that weigh the displacements of the states.
-
-The displacements are taken from the start of a run.
-"""
+"""Base class of explicit schemes that weigh the displacements of the states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ MODE_SPACING = 0.35
 
 
 class ConvolutionSolver(CaputoSolver):
-    """Base class of explicit schemes that weigh the displacements of the states.
+    """An abstract solver of explicit schemes that weigh past steps of the states.
 
     The displacements are taken from the start of a run. A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j
     (x_(k-j) - x_0)` with `c_0 = 1`. With a memory window, the displacements older than the window enter through

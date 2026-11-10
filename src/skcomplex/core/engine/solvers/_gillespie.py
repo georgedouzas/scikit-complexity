@@ -18,11 +18,14 @@ from ._solver import Solver
 
 
 class GillespieSolver(Solver):
-    """Exact stochastic simulation of jump processes by the Gillespie direct method.
+    """A solver that simulates jump processes exactly by the Gillespie direct method.
 
     An event that would fire after `until` is discarded, which is exact because waiting times are memoryless. A run
     that records its draws keeps the time and the law of every firing, and a run that replays them fires the recorded
     laws at the recorded times and sums the log-likelihood of the path under its own propensities.
+
+    Choose it when the units are few and each event matters. It appears in many fields, such as molecules in a cell,
+    small outbreaks of an epidemic, and queues.
 
     Examples:
         >>> from typing import Annotated

@@ -1,7 +1,4 @@
-"""Euler-Maruyama integrator of stochastic differential equations.
-
-It takes a fixed internal step.
-"""
+"""Euler-Maruyama integrator of stochastic differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +18,12 @@ from ._sde import SDESolver
 
 
 class EulerMaruyamaSolver(SDESolver):
-    """Euler-Maruyama integrator of stochastic differential equations.
+    """A solver that steps stochastic differential equations by Euler-Maruyama.
 
     It takes a fixed internal step.
+
+    Choose it as the default for noise in continuous time. It appears in many fields, such as stock prices, diffusing
+    particles, and noisy gene expression.
 
     Args:
         dt:

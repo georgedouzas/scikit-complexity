@@ -19,7 +19,7 @@ SEPARATION = 1e-10
 
 
 class EventLocator:
-    """Locates events between two times of a step, applies resets, and records them.
+    """A locator of events between two times of a step, which applies their resets.
 
     Args:
         problem:

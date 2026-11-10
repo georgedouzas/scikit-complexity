@@ -1,7 +1,4 @@
-"""Advance operator problems with QuTiP.
-
-Evolution is unitary, Lindblad, or by operator trajectories.
-"""
+"""Advance operator problems with QuTiP."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ from ._base import BaseSolver
 
 
 class OperatorSolver(BaseSolver[OperatorProblemSpec]):
-    """Base class of solvers that advance operator problems.
+    """An abstract solver of operator problems, such as evolutions on a Hilbert space.
 
     They use a stepwise QuTiP solver. The solver is created at the first frame and again whenever the parameters change,
     from the current state, so a parameter update or a schedule applies from the next frame on. Coefficients that depend

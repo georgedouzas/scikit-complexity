@@ -1,7 +1,4 @@
-"""Past states of a run and the declared history before the start.
-
-Past states are interpolants over time segments.
-"""
+"""Past states of a run and the declared history before the start."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ RESTART = 1e-12
 
 
 class History:
-    """Past states of a run and the declared history before the start.
+    """A record of the past states of a run, and the declared history before it.
 
     Past states are interpolants over time segments.
 

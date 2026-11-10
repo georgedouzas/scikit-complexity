@@ -1,7 +1,4 @@
-"""Integrator of ordinary differential equations based on `scipy.integrate`.
-
-It uses the step solvers of `scipy.integrate`.
-"""
+"""Integrator of ordinary differential equations based on `scipy.integrate`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -57,7 +54,7 @@ FALLBACK_STEP = 1e-6
 
 
 class ScipyODESolver(Solver):
-    """Integrator of ordinary differential equations based on `scipy.integrate`.
+    """A solver of ordinary differential equations with `scipy.integrate`.
 
     It uses the step solvers of `scipy.integrate`. One integrator runs across the frames of a run, and every frame reads
     its state from the dense output of the step that covers the frame's time, and it restarts at every frame when a
@@ -70,6 +67,9 @@ class ScipyODESolver(Solver):
     differences over groups of independent columns and factor it with sparse LU, which makes them the stiff path for
     finite-difference and finite element fields. An explicit method that spans more than 1000 stable steps of the
     diffusion of a field in one call warns once.
+
+    Choose it as the default for continuous flows, with adaptive steps and stiff methods. It appears in every field,
+    such as epidemics, chemical kinetics, and circuits.
 
     Args:
         method:

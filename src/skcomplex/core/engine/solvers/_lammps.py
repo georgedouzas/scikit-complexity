@@ -1,7 +1,4 @@
-"""Run systems of points in LAMMPS.
-
-Groups of points, pair potentials, boxes, and native fixes are translated.
-"""
+"""Run systems of points in LAMMPS."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +55,7 @@ os.environ.setdefault('FI_PROVIDER', 'tcp')
 
 
 class LammpsSolver(ExternalSolver):
-    """Solver that runs systems of points in LAMMPS.
+    """A solver that runs systems of points in the LAMMPS program.
 
     It uses LAMMPS velocity Verlet integration. An element or group whose members declare a vector position state of
     order 2, such as a point, becomes an atom type, whose atoms move with the first derivative of the position as
@@ -67,6 +64,9 @@ class LammpsSolver(ExternalSolver):
     with a potential becomes the native pair style `pairs` gives for its class, or a Lepton expression potential
     otherwise. An interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only
     changes the derivatives of the positions runs through `fix external`, evaluated by the framework.
+
+    Choose it for large systems of particles with standard potentials. It appears in molecular dynamics of liquids,
+    solids, and polymers.
 
     Args:
         dt:

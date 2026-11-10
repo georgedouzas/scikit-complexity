@@ -1,7 +1,4 @@
-"""Rows of values at consecutive grid steps, kept in one array.
-
-The array grows or keeps only the latest rows.
-"""
+"""Rows of values at consecutive grid steps, kept in one array."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

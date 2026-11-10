@@ -1,7 +1,4 @@
-"""Classical fourth-order Runge-Kutta integrator of ODEs.
-
-ODEs are ordinary differential equations. It takes a fixed internal step.
-"""
+"""Classical fourth-order Runge-Kutta integrator of ODEs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -34,10 +31,12 @@ from ._solver import Solver
 
 
 class RK4Solver(Solver):
-    """Classical fourth-order Runge-Kutta integrator of ODEs.
+    """A solver of ordinary differential equations by the classical Runge-Kutta method.
 
     ODEs are ordinary differential equations. It takes a fixed internal step. With the Numba backend every internal step
     of a frame runs in compiled code.
+
+    Choose it for smooth flows with a fixed step. It appears in every field, such as orbits, oscillators, and epidemics.
 
     Args:
         dt:

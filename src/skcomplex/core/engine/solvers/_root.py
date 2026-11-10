@@ -1,7 +1,4 @@
-"""Solve the equations of a static system once.
-
-They are solved by the compiled solution or numerically from the initial state.
-"""
+"""Solve the equations of a static system once."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ from ._solver import Solver
 
 
 class RootSolver(Solver):
-    """Solver of the equations of a static system.
+    """A solver of the equations of a static system.
 
     It solves them once for the one frame of the run. The compiled solution gives the states when Sage finds a unique
     explicit one. Otherwise `scipy.optimize.root` solves the residuals of the equations with their exact Jacobian, from

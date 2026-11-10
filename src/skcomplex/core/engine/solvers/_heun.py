@@ -1,7 +1,4 @@
-"""Predictor-corrector scheme for SDEs.
-
-It averages the drift over the step and keeps the Itô noise.
-"""
+"""Predictor-corrector scheme for SDEs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,11 +23,14 @@ from ._sde import SDESolver
 
 
 class HeunSolver(SDESolver):
-    """Predictor-corrector scheme for SDEs.
+    """A solver of stochastic differential equations by a predictor and corrector.
 
     It averages the drift over the step and keeps the Itô noise. The predictor `X~ = X + f(X) h + g(X) dW` gives the
     corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which has strong order 1 for additive noise and integrates the Itô
     form for any noise.
+
+    Choose it for noise in the Stratonovich convention. It appears in models of physical noise, such as Brownian
+    particles and noisy oscillators.
 
     Args:
         dt:

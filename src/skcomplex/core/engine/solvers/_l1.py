@@ -11,11 +11,14 @@ from ._convolution import MODE_SPACING, ConvolutionSolver
 
 
 class L1Solver(ConvolutionSolver):
-    """Explicit L1 scheme of Caputo fractional differential equations, of order 1.
+    """A solver of Caputo fractional equations by the L1 scheme of order 1.
 
     The L1 scheme interpolates the state linearly between grid points inside the Caputo integral. A step sets
     `Gamma(2 - alpha) dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^(k-1) b_j (x_(k-j) - x_(k-j-1))` with the weights
     `b_j = (j + 1)^(1 - alpha) - j^(1 - alpha)`. States of order 1 take explicit Euler steps.
+
+    Choose it for fractional orders below one with a smooth solution. It appears in models of subdiffusion and of
+    materials with memory.
 
     Args:
         dt:

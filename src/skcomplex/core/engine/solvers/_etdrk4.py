@@ -1,7 +1,4 @@
-"""Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews.
-
-It is for spectral fields.
-"""
+"""Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +13,14 @@ CONTOUR_POINTS = 64
 
 
 class ETDRK4Solver(SplitSolver):
-    """Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews.
+    """A solver of fourth-order exponential time differencing of Cox and Matthews.
 
     It is for spectral fields. The linear part is integrated exactly per Fourier mode and the remainder by a
     fourth-order scheme, with the coefficients computed by contour integrals as Kassam and Trefethen propose. Coupled
     states of a field use a small matrix exponential per mode. States outside spectral fields follow classical RK4.
+
+    Choose it for stiff fields with a linear part on a periodic grid. It appears in pattern formation, such as the
+    Kuramoto-Sivashinsky and Swift-Hohenberg equations.
 
     Args:
         dt:

@@ -1,7 +1,4 @@
-"""Define the base of the solvers.
-
-Solvers advance a compiled problem through time.
-"""
+"""Define the base of the solvers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._history import RESTART, History
 
 
 class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
-    """Base of the solvers.
+    """An abstract solver, which advances a compiled problem in time.
 
     A solver advances a problem of one form through time. A solver stores its settings in its constructor, among them
     the random state of stochastic solvers and the end time of the run it prepares for. `prepare(problem)` prepares it

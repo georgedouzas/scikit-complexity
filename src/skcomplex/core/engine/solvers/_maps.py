@@ -15,7 +15,7 @@ from ._solver import Solver
 
 
 class IterationSolver(Solver):
-    """Iteration of a discrete map, one application per unit of time.
+    """A solver that iterates a discrete map, one application per unit of time.
 
     A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
     recorder of a run that records or replays its draws.

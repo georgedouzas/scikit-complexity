@@ -1,7 +1,4 @@
-"""Base of the solvers of the compiler's problem.
-
-They run its events, renewals, delays, and boundary laws.
-"""
+"""Base of the solvers of the compiler's problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +19,7 @@ from ._renewals import RenewalClock
 
 
 class Solver(BaseSolver[ProblemSpec]):
-    """Base of the solvers of the compiler's problem.
+    """An abstract solver of the problem of the general compiler.
 
     They run its events, renewals, delays, and boundary laws. Every call to `run` receives the current parameters, so
     parameter changes apply at the next call, and applies the boundary laws of the problem after every internal step.

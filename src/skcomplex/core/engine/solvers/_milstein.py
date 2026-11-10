@@ -1,7 +1,4 @@
-"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
-
-It is of strong order 1.
-"""
+"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,10 +14,13 @@ from ._sde import SDESolver
 
 
 class MilsteinSolver(SDESolver):
-    """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
+    """A solver of stochastic differential equations by the Milstein scheme of Platen.
 
     It is of strong order 1. It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with `(g(Y) -
     g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
+
+    Choose it for diagonal noise whose amplitude depends on the state, where it converges faster than Euler-Maruyama. It
+    appears in models of interest rates and of population noise.
 
     Args:
         dt:

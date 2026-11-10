@@ -1,7 +1,4 @@
-"""Crank-Nicolson for the linear part with a Heun predictor-corrector.
-
-The predictor-corrector handles the remainder, and the scheme is of second order.
-"""
+"""Crank-Nicolson for the linear part with a Heun predictor-corrector."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,11 +8,14 @@ from ._split import SplitSolver
 
 
 class CrankNicolsonSolver(SplitSolver):
-    """Crank-Nicolson for the linear part with a Heun predictor-corrector.
+    """A solver that steps the linear part by Crank-Nicolson, the rest by Heun.
 
     The predictor-corrector handles the remainder, and the scheme is of second order. The predictor takes a
     Crank-Nicolson step with the remainder at the start, and the corrector repeats it with the remainder averaged over
     the start and the predicted end. For linear fields it is the trapezoidal rule.
+
+    Choose it for stiff diffusion with a mild nonlinear part. It appears in models of heat flow, reaction diffusion, and
+    option pricing.
 
     Args:
         dt:

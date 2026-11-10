@@ -1,7 +1,4 @@
-"""Yoshida integrator of fourth order.
-
-It takes three velocity Verlet steps over two blocks of states.
-"""
+"""Yoshida integrator of fourth order."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +26,7 @@ WEIGHTS = np.array([OUTER_WEIGHT, 1 - 2 * OUTER_WEIGHT, OUTER_WEIGHT])
 
 
 class Yoshida4Solver(Solver):
-    """Yoshida integrator of fourth order.
+    """A solver of fourth order by the symplectic method of Yoshida.
 
     It takes three velocity Verlet steps over two blocks of states. The solver splits the states into two blocks whose
     rates each read only the other block: a state of order 2 into its position and velocity, and states of order 1 by
@@ -38,6 +35,9 @@ class Yoshida4Solver(Solver):
     2^(1/3))` and `w0 = 1 - 2 w1`, which kick the second block by half a step, drift the first, and kick the second
     again. The scheme is symplectic, so the energy of a separable Hamiltonian stays bounded over long runs. With the
     Numba backend every internal step of a frame runs in compiled code.
+
+    Choose it for Hamiltonian systems that need high accuracy over long runs. It appears in celestial mechanics and in
+    models of particle accelerators.
 
     Args:
         dt:

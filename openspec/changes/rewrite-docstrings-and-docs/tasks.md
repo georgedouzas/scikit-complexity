@@ -34,7 +34,7 @@
 ## 6. Engine
 
 - [x] 6.1 Rewrite `engine/runtime`, `engine/viz`, `engine/backends`, `engine/translators`, and the engine root modules, add them to `REWRITTEN`, and verify the guard and their doctests pass
-- [ ] 6.2 Rewrite `engine/solvers`, naming uses where a user picks a solver by hand, add it to `REWRITTEN`, and verify the guard and its doctests pass
+- [x] 6.2 Rewrite `engine/solvers`, naming uses where a user picks a solver by hand, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 6.3 Rewrite `engine/compile`, add it to `REWRITTEN`, and verify the guard and its doctests pass
 - [ ] 6.4 Rewrite `engine/problems`, add it to `REWRITTEN`, and verify the guard and its doctests pass
 
@@ -90,7 +90,14 @@
 - [ ] 11.4 Rewrite the docstrings and text cells of the gallery examples under `docs/examples`, keeping each caption of what the screenshot shows, and verify the gallery coverage check passes
 - [ ] 11.5 Rewrite `CONTRIBUTING.md`, add the documents of this group to `REWRITTEN_DOCUMENTS`, read each through for flow, and verify `test_documents_read_naturally` passes
 
-## 12. Integration
+## 12. Dead code
 
-- [ ] 12.1 Remove `REWRITTEN` and `REWRITTEN_DOCUMENTS` so the guards check the whole core and every document, and verify they pass
-- [ ] 12.2 Run `pdm checks`, the full test session with doctests, and the documentation build, and verify all pass with no suppression added
+- [ ] 12.1 Scan `src/skcomplex` for dead code with vulture at high confidence, run from a throwaway environment such as `uvx vulture`, never as a project dependency, plus an AST check for private module functions, private methods, private constants, and private classes that nothing references in `src`, `tests`, or `docs`, and find modules nothing imports, unreachable branches, parameters never read, and compatibility leftovers
+- [ ] 12.2 Review every hit by hand: a public name in `__all__` is API and stays, and a name used dynamically stays, such as one read by `getattr`, a Sage hook, a scikit-learn or Mesa protocol, pickling, an entry point, a registry, a name built from a string, or a Numba kernel found as a global
+- [ ] 12.3 Remove the dead code with the tests that only exercise it, one commit per package, keeping behaviour identical, and list what was removed in each commit body
+- [ ] 12.4 Verify with the full checks before integration
+
+## 13. Integration
+
+- [ ] 13.1 Remove `REWRITTEN` and `REWRITTEN_DOCUMENTS` so the guards check the whole core and every document, and verify they pass
+- [ ] 13.2 Run `pdm checks`, the full test session with doctests, and the documentation build, and verify all pass with no suppression added

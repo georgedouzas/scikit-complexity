@@ -1,7 +1,4 @@
-"""Explicit Euler integrator of ordinary differential equations.
-
-It takes a fixed internal step.
-"""
+"""Explicit Euler integrator of ordinary differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +20,13 @@ from ._solver import Solver
 
 
 class EulerSolver(Solver):
-    """Explicit Euler integrator of ordinary differential equations.
+    """A solver that steps ordinary differential equations by the explicit Euler rule.
 
     It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
     a run with the time step of a system file reproduces the run of those tools step by step.
+
+    Choose it for teaching and for quick checks with a small step. It appears in every field, as the simplest
+    integrator.
 
     Args:
         dt:

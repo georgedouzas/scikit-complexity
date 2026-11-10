@@ -20,7 +20,7 @@ from ._solver import Solver
 
 
 class KineticSolver(Solver):
-    """Direct simulation Monte Carlo of encounter laws with finite particles.
+    """A solver that simulates encounter laws with finite particles by Monte Carlo.
 
     The particles live on activity grids. Every density is held as counts of particles of one common mass, chosen so
     that the largest initial density has `n` particles. Every step of length at most `dt` applies the encounter laws in
@@ -29,6 +29,9 @@ class KineticSolver(Solver):
     k] A[h, k, i] g_k`. A proliferation adds a Poisson number of particles and a destruction removes a binomial number.
     The state holds the empirical densities, so the trajectories match those of the gain and loss equations, which the
     particles approach as `n` grows.
+
+    Choose it when a kinetic model needs the noise of a finite population. It appears in kinetic models of wealth
+    exchange, of opinion, and of rarefied gases.
 
     Args:
         n:

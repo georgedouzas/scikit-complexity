@@ -1,7 +1,4 @@
-"""Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations.
-
-It is of order 1.
-"""
+"""Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +10,13 @@ from ._convolution import MODE_SPACING, ConvolutionSolver
 
 
 class GrunwaldLetnikovSolver(ConvolutionSolver):
-    """Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations.
+    """A solver of Caputo fractional equations by the Grünwald-Letnikov scheme.
 
     It is of order 1. A step sets `dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k w_j (x_(k-j) - x_0)` with the weights `w_j
     = (-1)^j binomial(alpha, j)`. States of order 1 take explicit Euler steps.
+
+    Choose it for a simple explicit fractional scheme with a small step. It appears in models of anomalous diffusion and
+    of fractional chaotic flows.
 
     Args:
         dt:

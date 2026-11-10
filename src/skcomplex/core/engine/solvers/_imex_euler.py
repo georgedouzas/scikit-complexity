@@ -1,7 +1,4 @@
-"""Implicit-explicit Euler of first order.
-
-The linear part is implicit and the nonlinear remainder explicit.
-"""
+"""Implicit-explicit Euler of first order."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,11 +8,14 @@ from ._split import SplitSolver
 
 
 class IMEXEulerSolver(SplitSolver):
-    """Implicit-explicit Euler of first order.
+    """A solver of first order that steps stiff parts implicitly, the rest explicitly.
 
     The linear part is implicit and the nonlinear remainder explicit. Every step solves `(I - h L) x_{n+1} = x_n + h
     N(x_n)`, with sparse solves for finite differences and finite elements and division per Fourier mode for spectral
     fields.
+
+    Choose it for a stable first try on a stiff field. It appears in models of pattern formation and of heat flow with
+    sources.
 
     Args:
         dt:

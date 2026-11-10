@@ -1,7 +1,4 @@
-"""Advance the partitions of a co-simulation with their own solvers.
-
-Values are exchanged at synchronisation points.
-"""
+"""Advance the partitions of a co-simulation with their own solvers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -60,7 +57,7 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """Scheduler that advances every partition of a co-simulation with its own solver.
+    """A solver that advances every partition of a co-simulation with its own solver.
 
     Every partition is advanced to each synchronisation point. Between synchronisation points a partition holds the
     states of the other partitions at their last values, so a split adds an error of the order of `sync_dt`. A discrete
@@ -69,6 +66,9 @@ class CoSimulationSolver(Solver):
     another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and holds
     until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
     it already advanced. Jacobi advances every partition from the same values.
+
+    Choose it when parts of a system need different solvers, such as agents beside a field. It appears in many fields,
+    such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
 
     Args:
         solvers:

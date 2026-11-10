@@ -1,7 +1,4 @@
-"""Alternate transport and collision steps of a field.
-
-The scheme has second-order accuracy in the time step.
-"""
+"""Alternate transport and collision steps of a field."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,11 +21,14 @@ from ._solver import Solver
 
 
 class StrangSplittingSolver(Solver):
-    """Strang splitting of half transport steps around a full collision step.
+    """A solver that splits half transport steps around a full collision step.
 
     A half transport step, a full collision step, and a half transport step follow each other. The transport solver
     advances the flux differences of the finite-volume fields and the collision solver the source rates, which the
     problem keeps apart.
+
+    Choose it for kinetic equations with collisions. It appears in models of rarefied gases and of particles in a
+    plasma.
 
     Args:
         transport:

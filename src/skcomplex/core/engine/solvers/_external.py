@@ -1,7 +1,4 @@
-"""Base class of solvers that translate a compiled problem.
-
-They translate it into a third-party library.
-"""
+"""Base class of solvers that translate a compiled problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from ._solver import Solver
 
 
 class ExternalSolver(Solver):
-    """Base class of solvers that translate a compiled problem.
+    """An abstract solver that translates a compiled problem for another program.
 
     They translate it into a third-party library. Subclasses implement the hooks `_get_name`, `_get_form`,
     `_unsupported`, `_build`, and `_advance`, and list the other forms the library runs in `_get_forms`. Before the

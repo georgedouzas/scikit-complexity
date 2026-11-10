@@ -1,7 +1,4 @@
-"""Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
-
-SDEs are stochastic differential equations.
-"""
+"""Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,12 +33,15 @@ MAX_INCREMENTS = 100_000_000
 
 
 class FractionalEulerMaruyamaSolver(Solver):
-    """Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
+    """A solver of stochastic equations driven by fractional and ordinary noise.
 
     SDEs are stochastic differential equations. The stepper draws the correlated increments of every fractional noise
     row for the whole run when it first advances, on the grid `t0 + k dt` up to the horizon, and adds the stored
     increment of each step times the amplitude. Ordinary noise rows take independent Wiener increments. A simulation
     passes the end time of its run as the horizon when the stepper has none.
+
+    Choose it when the noise has long memory, set by a Hurst index. It appears in models of rough volatility in finance,
+    river flows, and network traffic.
 
     Args:
         dt:

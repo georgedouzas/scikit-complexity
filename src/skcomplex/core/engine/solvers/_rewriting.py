@@ -17,7 +17,7 @@ from ._base import BaseSolver
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
-    """Solver of rewriting systems.
+    """A solver of rewriting systems, one generation per unit of time.
 
     It rewrites every structure in parallel once per generation. The structures live next to the state vector, whose
     components are their symbol, prototile, or label counts and sizes. Stochastic productions draw from the simulation's

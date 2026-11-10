@@ -1,7 +1,4 @@
-"""Base of steppers that treat the linear part of the rates of fields apart.
-
-The linear part is treated apart from the nonlinear remainder.
-"""
+"""Base of steppers that treat the linear part of the rates of fields apart."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -43,7 +40,7 @@ TIME = symbol('t')
 
 
 class SplitSolver(Solver):
-    """Base of steppers that treat the linear part of the rates of fields apart.
+    """An abstract solver that treats the linear part of the rates of fields apart.
 
     The linear part is treated apart from the nonlinear remainder. The linear part is held in Fourier blocks for
     spectral fields, a small matrix per Fourier mode, and in a sparse matrix over the whole state vector for the other

@@ -831,6 +831,16 @@ and the moments read. The moments of the distribution, such as its mean, give th
 A population with several kinds of members, such as traders and banks, is several such groups.
 ````
 
+### Dead code
+
+The user asked to scan for dead code and remove it before the change is synced, so a task group runs after the other
+documents and before integration. Dead means unreachable from the public API. vulture, run at high confidence from a
+throwaway environment and never added as a dependency, and an AST check of private names that nothing in `src`,
+`tests`, or `docs` references give the candidates. Every hit is reviewed by hand, because names in `__all__` are API
+and some names are used dynamically, through `getattr`, Sage hooks, scikit-learn and Mesa protocols, pickling,
+registries, or Numba kernels found as globals. The code goes with the tests that only exercise it, one commit per
+package, and behaviour stays identical.
+
 ## Risks / Trade-offs
 
 - [The earlier changes rename classes again or slip] → The first task checks that the five changes are archived and

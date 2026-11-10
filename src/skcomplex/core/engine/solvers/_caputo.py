@@ -1,7 +1,4 @@
-"""Base class of steppers of Caputo fractional differential equations.
-
-They step on a fixed grid from the start of a run.
-"""
+"""Base class of steppers of Caputo fractional differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ CHANGE_TOLERANCE = 1e-12
 
 
 class CaputoSolver(Solver):
-    """Base class of steppers of Caputo fractional differential equations.
+    """An abstract solver of Caputo fractional differential equations.
 
     They step on a fixed grid from the start of a run. A state of order `alpha` follows `D^alpha x = f(t, x)`, and a
     state of order 1 follows `dx/dt = f(t, x)`. The stepper keeps the history of the run on the grid `t0 + k dt`. A

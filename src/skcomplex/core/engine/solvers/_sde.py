@@ -1,7 +1,4 @@
-"""Integrate stochastic differential equations with fixed steps.
-
-The schemes are Euler-Maruyama, Milstein, and Heun.
-"""
+"""Integrate stochastic differential equations with fixed steps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,7 @@ from ._solver import Solver
 
 
 class SDESolver(Solver):
-    """Base class of fixed-step schemes of stochastic differential equations.
+    """An abstract solver of fixed-step schemes of stochastic differential equations.
 
     They take one increment per step. Subclasses set `supports` and implement `_increment`. The steps stop at
     breakpoints, read delays by linear interpolation of the steps, and locate events in them.

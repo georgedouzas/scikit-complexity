@@ -1,7 +1,4 @@
-"""Solver of the Lindblad master equation with QuTiP's `MESolver`.
-
-Pure closed systems are solved with `SESolver`.
-"""
+"""Solver of the Lindblad master equation with QuTiP's `MESolver`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,11 +12,14 @@ from ._operator import OperatorSolver
 
 
 class LindbladSolver(OperatorSolver):
-    """Solver of the Lindblad master equation with QuTiP's `MESolver`.
+    """A solver of the Lindblad master equation with the `MESolver` of QuTiP.
 
     Pure closed systems are solved with `SESolver`. It is the default solver of the operator form. A system without
     dissipators that starts in a pure state follows the linear evolution `dx/dt = -i H x`, which is the master equation
     without dissipators.
+
+    Choose it for open quantum systems small enough to hold the density matrix. It appears in quantum optics and in the
+    decoherence of qubits.
 
     Args:
         atol:

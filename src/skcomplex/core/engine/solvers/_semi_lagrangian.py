@@ -1,7 +1,4 @@
-"""Advance fields whose fluxes are linear drifts.
-
-Each slice shifts along its characteristics.
-"""
+"""Advance fields whose fluxes are linear drifts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,13 +24,16 @@ SPLINE_MODES = {'zero-flux': 'nearest', 'fixed': 'constant'}
 
 
 class SemiLagrangianSolver(Solver):
-    """Directional splitting of Cheng and Knorr.
+    """A solver of kinetic equations by the directional splitting of Cheng and Knorr.
 
     It shifts every slice of a field along each axis in turn. Every flux of the field must be a linear drift `a u`, with
     `a` free of the state and constant along its own axis. A shift along a periodic axis multiplies the Fourier modes of
     the slices through `scipy.fft`, which conserves the total, and a shift along an interval evaluates a cubic spline
     through `scipy.ndimage.map_coordinates`. The solver is stable at any Courant number. Rate laws advance by one
     midpoint step between two half transport steps.
+
+    Choose it for transport in phase space, such as the Vlasov equation. It appears in plasma physics and in kinetic
+    models of bacteria.
 
     Args:
         dt:

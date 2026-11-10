@@ -1,7 +1,4 @@
-"""Keep the next renewal times of every member and fire renewals.
-
-Renewals fire alone or between the steps of other solvers.
-"""
+"""Keep the next renewal times of every member and fire renewals."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,7 @@ from ._event_locator import EventLocator
 
 
 class RenewalClock:
-    """Next renewal time of every member of every renewal law.
+    """A clock of the next renewal time of every member of every renewal law.
 
     It holds the renewals that fire as time passes. Members of one component renew in time order across its renewal
     laws. Every firing pass draws for all the members it renews at once, so the stream of random values depends only on

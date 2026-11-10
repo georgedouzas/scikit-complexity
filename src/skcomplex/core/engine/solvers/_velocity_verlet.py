@@ -1,7 +1,4 @@
-"""Velocity Verlet integrator of particle systems.
-
-The positions of the particles move with their velocities.
-"""
+"""Velocity Verlet integrator of particle systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,12 +22,15 @@ from ._solver import Solver
 
 
 class VelocityVerletSolver(Solver):
-    """Velocity Verlet integrator of particle systems.
+    """A solver of particle systems by velocity Verlet, stable over long runs.
 
     The positions of the particles move with their velocities. Every step kicks the velocities by half a step, moves the
     positions, applies the boundary laws, and kicks the velocities again with the accelerations at the new positions, so
     a step costs one drift evaluation. It conserves energy over long runs of conservative forces. With the Numba backend
     every internal step of a frame runs in compiled code.
+
+    Choose it for Newtonian particles over long runs. It appears in molecular dynamics, celestial mechanics, and models
+    of crowds.
 
     Args:
         dt:

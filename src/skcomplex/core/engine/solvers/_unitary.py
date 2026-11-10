@@ -1,7 +1,4 @@
-"""Solver of the linear evolution `dx/dt = -i H x` of a pure state.
-
-It uses QuTiP's `SESolver`.
-"""
+"""Solver of the linear evolution `dx/dt = -i H x` of a pure state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +13,11 @@ from ._operator import OperatorSolver
 
 
 class UnitarySolver(OperatorSolver):
-    """Solver of the linear evolution `dx/dt = -i H x` of a pure state.
+    """A solver of the linear evolution `dx/dt = -i H x` of a pure state.
 
     It uses QuTiP's `SESolver`.
+
+    Choose it for closed quantum systems. It appears in quantum mechanics, such as spin chains and quantum walks.
 
     Args:
         atol:

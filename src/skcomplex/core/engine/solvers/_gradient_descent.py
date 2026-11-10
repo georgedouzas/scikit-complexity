@@ -1,7 +1,4 @@
-"""Define the gradient descent solver.
-
-The solver trains the parameters of a nested system epoch by epoch.
-"""
+"""Define the gradient descent solver."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +30,7 @@ type Unroll = Callable[[TracedArray, tuple[TracedArray, ...]], TracedArray]
 
 
 class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
-    """Solver of the learning form.
+    """A solver of the learning form, which takes optimizer steps per epoch.
 
     It trains the parameters of a nested system by gradient steps on JAX and Optax. Every unit of time is one epoch. The
     solver shuffles the sequences of the dataset with its random number generator, splits them into batches, and for

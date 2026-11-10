@@ -1,7 +1,4 @@
-"""Solve optimal control problems by direct collocation.
-
-Collocation is a transcription solved by nonlinear programming.
-"""
+"""Solve optimal control problems by direct collocation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,7 @@ MIN_NODES = 2
 
 
 class CollocationSolver(OptimalControlSolver):
-    """Optimal control by direct collocation.
+    """A solver of optimal control by direct collocation.
 
     Collocation is a transcription of the problem solved by nonlinear programming. The states and the controls at the
     points of a grid are the variables of a nonlinear programme. The trapezoidal scheme requires the states of
@@ -37,6 +34,9 @@ class CollocationSolver(OptimalControlSolver):
     states of nonnegative domains stay nonnegative. SciPy's `minimize` solves the programme with the gradient of the
     cost and the Jacobian of the constraints derived symbolically. An objective to maximise is minimised with its sign
     changed.
+
+    Choose it when the controls of a run must minimise a cost under constraints. It appears in many fields, such as the
+    timing of vaccination in an epidemic, the harvest of a fishery, and the trajectory of a rocket.
 
     Args:
         objective:

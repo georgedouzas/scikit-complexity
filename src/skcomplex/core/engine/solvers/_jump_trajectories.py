@@ -1,7 +1,4 @@
-"""Solver that samples the master equation by jumps of a pure state.
-
-It uses QuTiP's `MCSolver`.
-"""
+"""Solver that samples the master equation by jumps of a pure state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,11 +17,14 @@ PURITY_TOLERANCE = 1e-8
 
 
 class JumpTrajectoriesSolver(OperatorSolver):
-    """Solver that samples the master equation by jumps of a pure state.
+    """A solver that samples the master equation by random jumps of a pure state.
 
     It uses QuTiP's `MCSolver`. Every run is one trajectory, whose jumps are drawn from the simulation's random number
     generator, so a seeded run is reproducible. A problem stored as a density matrix records the projector on the pure
     state of every frame.
+
+    Choose it for large open quantum systems, where averaging pure states costs less than the density matrix. It appears
+    in quantum optics, such as the photon counts of a cavity.
 
     Args:
         atol:
