@@ -21,14 +21,47 @@ from shapely import Polygon
 from shapely.geometry import shape
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MovementInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
+
+AT_WORK = 1
+AT_PLACE = 2
+STOPS = 3
+AGE_RANGE = 100.0
+SENTIMENT_RANGE = 2.0
+DEMOGRAPHIC_TERMS = 5
+PACKAGE = 'skcomplex.systems.social.organizations'
+ISLAND_LAYERS = ('boundary', 'census', 'places', 'facilities')
+MIN_WEIGHT = 0.5
+OCCUPATION_SHARES = (
+    0.48,
+    2.80,
+    0.54,
+    2.65,
+    1.22,
+    14.97,
+    4.97,
+    24.25,
+    3.63,
+    1.66,
+    1.41,
+    14.26,
+    7.69,
+    3.31,
+    2.85,
+    8.09,
+    5.20,
+)
+RACES = 6
+GENDERS = 2
+OLDEST_AGE = 90.0
 
 
 class ResidentView(AgentView):
@@ -164,11 +197,6 @@ class ResidentElement(Element):
         return ResidentView
 
 
-AT_WORK = 1
-AT_PLACE = 2
-STOPS = 3
-
-
 class CommuteInteraction(MovementInteraction):
     """Commute of every resident in a cycle of three steps.
 
@@ -203,9 +231,9 @@ class CommuteInteraction(MovementInteraction):
             resident.home = np.asarray(resident.location, dtype=float)
         stop = int(system.time) % STOPS
         if stop == AT_WORK:
-            return system.region('facilities', int(resident.work))
+            return system.get_region('facilities', int(resident.work))
         if stop == AT_PLACE:
-            return system.region('places', int(resident.favourite))
+            return system.get_region('places', int(resident.favourite))
         return resident.home
 
 
@@ -242,12 +270,7 @@ class PlaceVisitsInteraction(MapInteraction):
     def _count(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return 1 for a resident that stands in its favourite place and 0 for any other."""
         resident = cast(ResidentView, agent)
-        return float(int(resident.favourite) in resident.regions_here('places'))
-
-
-AGE_RANGE = 100.0
-SENTIMENT_RANGE = 2.0
-DEMOGRAPHIC_TERMS = 5
+        return float(int(resident.favourite) in resident.get_regions_here('places'))
 
 
 class SentimentInteraction(MapInteraction):
@@ -340,7 +363,7 @@ class SentimentInteraction(MapInteraction):
         """
         diagonal = resident.cell_size * np.sqrt(2.0)
         cell = self._read_grid_cell(resident)
-        around = [cast(ResidentView, other) for other in resident.neighbors(diagonal)]
+        around = [cast(ResidentView, other) for other in resident.get_neighbors(diagonal)]
         here = [other for other in around if self._read_grid_cell(other) == cell]
         count = min(int(resident.partners), len(here))
         if count == 0:
@@ -361,10 +384,6 @@ class SentimentInteraction(MapInteraction):
         other = partner.sentiment
         partner.sentiment = other + (1 - abs(other) * partner.convergence) * (own - other)
         return own + (1 - abs(own) * resident.convergence) * (other - own)
-
-
-PACKAGE = 'skcomplex.systems.social.organizations'
-ISLAND_LAYERS = ('boundary', 'census', 'places', 'facilities')
 
 
 def _read_layer(layer: str) -> str:
@@ -407,31 +426,6 @@ def load_island_populations() -> list[int]:
         [100, 50, 0]
     """
     return [int(item['properties']['population']) for item in json.loads(_read_layer('census'))['features']]
-
-
-MIN_WEIGHT = 0.5
-OCCUPATION_SHARES = (
-    0.48,
-    2.80,
-    0.54,
-    2.65,
-    1.22,
-    14.97,
-    4.97,
-    24.25,
-    3.63,
-    1.66,
-    1.41,
-    14.26,
-    7.69,
-    3.31,
-    2.85,
-    8.09,
-    5.20,
-)
-RACES = 6
-GENDERS = 2
-OLDEST_AGE = 90.0
 
 
 class KauaiPopulationSystem(BaseSystem):
@@ -544,7 +538,7 @@ class KauaiPopulationSystem(BaseSystem):
             weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
         return weights
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         regions = load_island_layers() if self.layers is None else self.layers
         counts = load_island_populations() if self.populations is None else self.populations
@@ -586,4 +580,4 @@ class KauaiPopulationSystem(BaseSystem):
             SentimentInteraction('sentiment', target='residents', events=self.events),
         ]
         space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
-        return System(self.label, elements=[residents], interactions=interactions, space=space)
+        return CompositeSystem(self.label, elements=[residents], interactions=interactions, space=space)

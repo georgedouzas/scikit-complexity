@@ -5,7 +5,7 @@ They cover population growth, predation, competition, food webs, succession, gra
 
 from ..common.populations import PredationInteraction
 from ._agent_predation import AgentBasedLotkaVolterraSystem, PredatorElement, PreyElement
-from ._cell_quota import DroopCellQuotaSystem, QuotaPhytoplanktonElement
+from ._cell_quota import DroopCellQuotaSystem
 from ._clustering import HabitatPatchElement, HoppingInteraction, NeutralClusteringSystem
 from ._comets import CometsSystem
 from ._communities import (
@@ -32,15 +32,13 @@ from ._factories import (
     LogisticGrowthSystem,
     LotkaVolterraSystem,
     PenaeidShrimpSystem,
-    RabbitsElement,
     RickerGrowthInteraction,
     RickerSystem,
     SeasonalLogisticGrowthInteraction,
-    ShrimpElement,
     VaryingCapacityLogisticSystem,
 )
-from ._forest_size_structure import ForestSizeStructureSystem
-from ._fronts import FisherKPPElement, FisherKPPSystem
+from ._forest_size_structure import ForestSizeStructureSystem, SizeGrowthInteraction
+from ._fronts import FisherKPPSystem
 from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
 from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
@@ -85,7 +83,6 @@ __all__: list[str] = [
     'EmotionMarksElement',
     'ExponentialGrowthSystem',
     'FibonacciRabbitsSystem',
-    'FisherKPPElement',
     'FisherKPPSystem',
     'FoodWebsSystem',
     'ForagerElement',
@@ -125,8 +122,6 @@ __all__: list[str] = [
     'PredatorElement',
     'PredatorPreyEventsInteraction',
     'PreyElement',
-    'QuotaPhytoplanktonElement',
-    'RabbitsElement',
     'ResourceElement',
     'ResourceTurnoverInteraction',
     'RickerGrowthInteraction',
@@ -136,7 +131,7 @@ __all__: list[str] = [
     'SeasonalLogisticGrowthInteraction',
     'SequentiallyLinearEcosystemSystem',
     'SheepElement',
-    'ShrimpElement',
+    'SizeGrowthInteraction',
     'StandElement',
     'StigmergicPredatorElement',
     'StigmergicPredatorPreySystem',

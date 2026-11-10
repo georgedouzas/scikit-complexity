@@ -9,7 +9,7 @@ from skcomplex.systems.physics.waves import ChargedSchrodingerSystem
 def _packet_centres(**potential):
     """Return the times and the centres of the charged packet over a run."""
     trajectory = simulate(ChargedSchrodingerSystem(256, **potential), until=6, dt=0.5)
-    density = trajectory.values('packet.u') ** 2 + trajectory.values('packet.w') ** 2
+    density = trajectory.get_values('packet.u') ** 2 + trajectory.get_values('packet.w') ** 2
     positions = 80 / 256 * np.arange(256) - 40
     return trajectory.times, density @ positions / density.sum(axis=1)
 

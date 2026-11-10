@@ -30,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 # of the image around the ring telescopes to `x(0)^-1 x(0)`, the identity, at every step.
 
 product = system.prepare().system_.interactions[0].rule.keywords['product']
-values = trajectory.values('cells.value').astype(int)
+values = trajectory.get_values('cells.value').astype(int)
 loops = []
 for row in values[1:]:
     total = 0
@@ -48,7 +48,7 @@ image.set_title('Elements of S3 along the ring')
 check.plot(np.arange(1, values.shape[0]), loops, 'o')
 check.set_xlabel('step')
 check.set_ylabel('product of the image around the ring')
-identity = all(not trajectory.values('cells.value')[-1].any() for trajectory in constants)
+identity = all(not trajectory.get_values('cells.value')[-1].any() for trajectory in constants)
 check.set_title(f'Every constant maps to the identity: {identity}')
 fig.tight_layout()
 plt.show()

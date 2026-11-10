@@ -8,21 +8,22 @@ import pytest
 from sage.all__sagemath_symbolics import cos, pi
 from scipy.special import iv
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import SamplingInteraction
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
 from skcomplex.core.components.spaces import (
+    BallNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
     DiscreteTime,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import MatrixGroupSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.systems.physics.common.fields import HolonomyScoreSpec, WilsonSamplingInteraction
 
 SIDE = 16
 ISOSPIN = MatrixGroupSpec('SU', 2)
@@ -69,7 +70,7 @@ def _link_system(shape, sampling, values):
     """Return a system of a group on the edges of the complex of a lattice, sampled by an interaction."""
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges', values=values)
-    return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
+    return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 
 
 def _ising(namespace):
@@ -79,8 +80,14 @@ def _ising(namespace):
 
 def _final(sampling, until, initial, seed=0):
     """Return the values of the sites after some sweeps."""
-    sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': initial})
-    system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
+    sites = GroupElement(
+        'sites',
+        element=SiteElement,
+        space=LatticeSpace((SIDE, SIDE)),
+        values={'s': initial},
+        on='sites',
+    )
+    system = CompositeSystem(elements=[sites], interactions=[sampling], time=DiscreteTime())
     return simulate(system, until=until, random_state=seed).states[-1]
 
 
@@ -159,8 +166,14 @@ def _magnetization(move, temperature, seed):
         intensity=1 / temperature,
         move=move,
     )
-    sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': _spins(seed)})
-    system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
+    sites = GroupElement(
+        'sites',
+        element=SiteElement,
+        space=LatticeSpace((SIDE, SIDE)),
+        values={'s': _spins(seed)},
+        on='sites',
+    )
+    system = CompositeSystem(elements=[sites], interactions=[sampling], time=DiscreteTime())
     states = simulate(system, until=300, random_state=seed).states
     return float(np.abs(states[100:].mean(axis=1)).mean())
 
@@ -230,12 +243,12 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         width=0.5,
         intensity=1 / 5.0,
         schedule='colored',
-        neighborhood=VonNeumannNeighborhood(n_dim=1),
+        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
         cooling=_geometric,
     )
-    candidates = LatticeElement('candidates', element=CandidateElement, space=LatticeSpace((200,)))
-    system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
-    frames = simulate(system, until=500, random_state=0).values('candidates.x')
+    candidates = GroupElement('candidates', element=CandidateElement, space=LatticeSpace((200,)), on='sites')
+    system = CompositeSystem(elements=[candidates], interactions=[anneal], time=DiscreteTime())
+    frames = simulate(system, until=500, random_state=0).get_values('candidates.x')
     accepted = np.mean(frames[1:] != frames[:-1], axis=1)
     assert accepted[:50].mean() > 0.8
     assert accepted[-50:].mean() < 0.2
@@ -262,7 +275,7 @@ def test_two_dimensional_u1_reproduces_the_exact_plaquette():
     initial = np.random.default_rng(0).uniform(-np.pi, np.pi, 2048)
     space, system = _link_system((32, 32), sampling, {'theta': initial})
     trajectory = simulate(system, until=5000, random_state=3)
-    states = trajectory.values('links.theta')
+    states = trajectory.get_values('links.theta')
     plaquettes = np.cos(space.incidences_[1] @ states.T).mean(axis=0)
     assert abs(plaquettes[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
 
@@ -282,7 +295,7 @@ def test_z3_heat_bath_is_reproducible_with_a_seed():
     )
     initial = np.random.default_rng(1).choice(values, 72)
     frames = [
-        simulate(_link_system((6, 6), sampling, {'theta': initial})[1], until=20, random_state=seed).values(
+        simulate(_link_system((6, 6), sampling, {'theta': initial})[1], until=20, random_state=seed).get_values(
             'links.theta',
         )
         for seed in (5, 5, 6)
@@ -391,6 +404,13 @@ class ColorLinkElement(Element):
         self.beta = beta
 
 
+class HolonomySamplingInteraction(WilsonSamplingInteraction):
+    """Sampling of matrix links by any holonomy score, the sampler of the Wilson action."""
+
+    def __init__(self, label, *, target, state, objective, **settings):
+        SamplingInteraction.__init__(self, label, target=target, state=state, objective=objective, **settings)
+
+
 def _trace_action(holonomies, beta):
     """Return the Wilson action of the holonomies, `-(beta / N) Re tr`."""
     return -beta / holonomies.shape[-1] * np.trace(holonomies, axis1=-2, axis2=-1).real
@@ -399,9 +419,9 @@ def _trace_action(holonomies, beta):
 def _matrix_system(shape, group, sampling, seed=0, element=IsospinLinkElement):
     """Return a system of matrix links of a lattice complex from random links, sampled by an interaction."""
     space = CellComplexSpace(LatticeSpace(shape)).prepare()
-    initial = group.components_of(group.uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
+    initial = group.get_components_of(group.get_uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0]))
     links = GroupElement('links', element=element, space=space, on='edges', values={'U': initial})
-    return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
+    return space, CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
 
 
 def _matrix_sampling(group, **arguments):
@@ -409,19 +429,22 @@ def _matrix_sampling(group, **arguments):
     settings = {'move': 'rotate', 'width': 0.6, 'schedule': 'colored', **arguments}
     hits = settings.pop('hits', 4)
     score = HolonomyScoreSpec(_trace_action, group, hits=hits)
-    return SamplingInteraction('wilson', target='links', state='U', objective=score, **settings)
+    return HolonomySamplingInteraction('wilson', target='links', state='U', objective=score, **settings)
 
 
 def _plaquettes(space, group, values):
     """Return the mean of `Re tr U_p / N` over the plaquettes at every frame."""
-    loops = [group.holonomy_of(group.matrices_of(frame), space.boundaries_, space.boundary_signs_) for frame in values]
+    loops = [
+        group.get_holonomy_of(group.get_matrices_of(frame), space.boundaries_, space.boundary_signs_)
+        for frame in values
+    ]
     return np.trace(np.stack(loops), axis1=-2, axis2=-1).real.mean(axis=1) / group.degree
 
 
 def test_two_dimensional_su2_reproduces_the_exact_plaquette():
     """Test that 300 sweeps after 100 of transient on a 16 by 16 lattice give `I_2(2) / I_1(2)` within 0.01."""
     space, system = _matrix_system((16, 16), ISOSPIN, _matrix_sampling(ISOSPIN))
-    values = simulate(system, until=400, random_state=3).values('links.U')
+    values = simulate(system, until=400, random_state=3).get_values('links.U')
     assert abs(_plaquettes(space, ISOSPIN, values)[101:].mean() - iv(2, 2) / iv(1, 2)) < 0.01
 
 
@@ -436,7 +459,7 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
     exact = (weights * traces).sum() / weights.sum()
     sampling = _matrix_sampling(COLOR)
     space, system = _matrix_system((12, 12), COLOR, sampling, element=ColorLinkElement)
-    values = simulate(system, until=300, random_state=4).values('links.U')
+    values = simulate(system, until=300, random_state=4).get_values('links.U')
     assert abs(_plaquettes(space, COLOR, values)[101:].mean() - exact) < 0.01
 
 
@@ -444,8 +467,8 @@ def test_two_dimensional_su3_reproduces_the_one_plaquette_integral():
 def test_matrix_links_stay_in_the_group(schedule):
     """Test that SU(3) links stay unitary of unit determinant within 1e-12 after 20 sweeps."""
     _, system = _matrix_system((4, 4), COLOR, _matrix_sampling(COLOR, schedule=schedule), element=ColorLinkElement)
-    values = simulate(system, until=20, random_state=0).values('links.U')
-    matrices = COLOR.matrices_of(values[-1])
+    values = simulate(system, until=20, random_state=0).get_values('links.U')
+    matrices = COLOR.get_matrices_of(values[-1])
     assert np.abs(matrices @ np.conj(np.swapaxes(matrices, -1, -2)) - np.eye(3)).max() < 1e-12
     assert np.abs(np.linalg.det(matrices) - 1.0).max() < 1e-12
 
@@ -454,7 +477,7 @@ def test_infinite_intensity_never_raises_the_action_of_matrix_links():
     """Test that at an infinite intensity the total plaquette never falls, since links of a class share no face."""
     sampling = _matrix_sampling(ISOSPIN, intensity=float('inf'), move='random-value', hits=1)
     space, system = _matrix_system((5, 4), ISOSPIN, sampling)
-    values = simulate(system, until=10, random_state=1).values('links.U')
+    values = simulate(system, until=10, random_state=1).get_values('links.U')
     plaquettes = _plaquettes(space, ISOSPIN, values)
     assert np.all(np.diff(plaquettes) >= -1e-12)
     assert plaquettes[-1] > plaquettes[0]
@@ -464,12 +487,12 @@ def test_matrix_sampling_is_reproducible_with_a_seed_and_takes_function_moves():
     """Test that one seed repeats a Glauber run with a function move, and another seed does not."""
 
     def move(matrices, random):
-        return ISOSPIN.near_identity_of(random, 0.3, len(matrices)) @ matrices
+        return ISOSPIN.get_near_identity_of(random, 0.3, len(matrices)) @ matrices
 
     runs = []
     for seed in (5, 5, 6):
         _, system = _matrix_system((4, 4), ISOSPIN, _matrix_sampling(ISOSPIN, move=move, rule='glauber'))
-        runs.append(simulate(system, until=5, random_state=seed).values('links.U'))
+        runs.append(simulate(system, until=5, random_state=seed).get_values('links.U'))
     assert np.array_equal(runs[0], runs[1])
     assert not np.array_equal(runs[0], runs[2])
 
@@ -490,7 +513,7 @@ def test_holonomy_score_rejects_moves_rules_and_schedules_of_scalars(arguments, 
 
 def test_holonomy_score_needs_a_group_on_the_edges_of_a_cell_complex():
     """Test that a matrix state on the sites of a lattice raises an error at the first sweep."""
-    sites = LatticeElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)))
-    system = System(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
+    sites = GroupElement('links', element=IsospinLinkElement, space=LatticeSpace((4, 4)), on='sites')
+    system = CompositeSystem(elements=[sites], interactions=[_matrix_sampling(ISOSPIN)], time=DiscreteTime())
     with pytest.raises(ValidationError, match='edges of a CellComplexSpace'):
         simulate(system, until=1, random_state=0)

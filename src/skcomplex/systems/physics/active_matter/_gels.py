@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import AdvectionInteraction, DiffusionInteraction, RateInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class ContractileGelSiteElement(Element):
@@ -93,7 +94,7 @@ class ContractileGelSiteElement(Element):
         self.c_sat = c_sat
 
 
-def _gel_velocity(s: SimpleNamespace) -> Expression:
+def _get_gel_velocity(s: SimpleNamespace) -> Expression:
     """Return the gel velocity.
 
     The velocity solves `(gamma - eta d_xx) v = d_x (E d_x u + T0 c / (c + c_sat))`.
@@ -103,7 +104,7 @@ def _gel_velocity(s: SimpleNamespace) -> Expression:
     return velocity
 
 
-def _sites(values: np.ndarray) -> np.ndarray:
+def _get_sites(values: np.ndarray) -> np.ndarray:
     """Return the values of every site, the observed field itself."""
     return np.array(values)
 
@@ -173,7 +174,14 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     until = 30.0
     dt = 0.1
     solver = RK4Solver(dt=0.005)
-    observables = (ObservableSpec('v', _gel_velocity, group='gel', reduce=_sites),)
+    observables = (
+        ObservableSpec(
+            'v',
+            _get_gel_velocity,
+            group='gel',
+            reduce=_get_sites,
+        ),
+    )
 
     def __init__(
         self,
@@ -207,15 +215,15 @@ class ActiveViscoelasticGelSystem(BaseSystem):
     @staticmethod
     def _transport(s: SimpleNamespace) -> Expression:
         """Return the velocity of a site of the target gel."""
-        return _gel_velocity(s.target)
+        return _get_gel_velocity(s.target)
 
     @staticmethod
-    def _diffusion(s: SimpleNamespace) -> Expression:
+    def _get_diffusion(s: SimpleNamespace) -> Expression:
         """Return the diffusion coefficient of the cells."""
         diffusion: Expression = s.target.D
         return diffusion
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a one-dimensional active viscoelastic gel.
 
         Contractile cells concentrate by dragging the gel.
@@ -245,6 +253,6 @@ class ActiveViscoelasticGelSystem(BaseSystem):
             limiter=None,
             riemann=None,
         )
-        diffusion = DiffusionInteraction('diffusion', target='gel', state='c', coefficient=self._diffusion)
+        diffusion = DiffusivityInteraction('diffusion', target='gel', state='c', coefficient=self._get_diffusion)
         displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
-        return System(self.label, elements=[gel], interactions=[transport, diffusion, displacement])
+        return CompositeSystem(self.label, elements=[gel], interactions=[transport, diffusion, displacement])

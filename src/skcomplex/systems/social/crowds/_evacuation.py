@@ -16,12 +16,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import DensityElement, GroupElement
-from ....core.components.interactions import EncounterInteraction
+from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ...general.kinetics import EncounterInteraction
+from ..common.kinetics import ActivityDensityElement
+
+EVACUATION_REFERENCES = ('Bellomo et al. 2017 §3.4', 'Bellomo and Gibelli 2015')
 
 
 def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.float64], ...]:
@@ -362,9 +365,6 @@ class WalkingInteraction(EncounterInteraction):
         return walking_table(building, 0, int(self.speeds))[1]
 
 
-EVACUATION_REFERENCES = ('Bellomo et al. 2017 §3.4', 'Bellomo and Gibelli 2015')
-
-
 def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     """Return the fraction of the crowd that has left the building.
 
@@ -383,7 +383,7 @@ def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expressio
             The moment of the indicator of the outside sites, divided by the density.
     """
     outside = (np.arange((rooms + 1) * speeds) >= rooms * speeds).astype(float)
-    return moment(s.f, 1, outside, normalized=True)
+    return moment(s.x, 1, outside, normalized=True)
 
 
 def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
@@ -403,16 +403,7 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
         speed:
             The normalized first moment of the speeds of the sites.
     """
-    return moment(s.f, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
-
-
-def _sizes_of(system: System) -> tuple[int, int]:
-    """Return the number of rooms and of speed classes of a system.
-
-    They are read from its crowding interaction.
-    """
-    crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
-    return int(crowding.rooms), int(crowding.speeds)
+    return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
 def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
@@ -491,6 +482,15 @@ class EvacuationSystem(BaseSystem):
     until = 40
     dt = 0.5
 
+    @staticmethod
+    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+        """Return the number of rooms and of speed classes of a system.
+
+        They are read from its crowding interaction.
+        """
+        crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
+        return int(crowding.rooms), int(crowding.speeds)
+
     def __init__(
         self,
         branching: int = 2,
@@ -510,23 +510,23 @@ class EvacuationSystem(BaseSystem):
         self.crowding = crowding
         self.recovery = recovery
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rooms = building_of(self.branching, self.depth).number_of_nodes()
         initial = np.zeros((rooms + 1, self.speeds))
         initial[:rooms, self.speeds // 2] = 1.0 / rooms
         crowd_space = LatticeSpace((rooms + 1, self.speeds), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     'crowd',
-                    element=DensityElement,
+                    element=ActivityDensityElement,
                     on='sites',
                     space=crowd_space,
-                    values={'f': initial.ravel()},
+                    values={'x': initial.ravel()},
                 ),
-                GroupElement('signs', element=DensityElement, size=1, values={'f': 1.0}),
+                GroupElement('signs', element=ActivityDensityElement, size=1, values={'x': 1.0}),
             ],
             interactions=[
                 WalkingInteraction(
@@ -565,6 +565,6 @@ class EvacuationSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        system = self._pass_parameters()
-        settings['observables'] = evacuation_observables(*_sizes_of(system))
+        system = self._get_pass_parameters()
+        settings['observables'] = evacuation_observables(*EvacuationSystem._get_sizes_of(system))
         return settings

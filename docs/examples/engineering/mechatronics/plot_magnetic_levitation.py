@@ -8,7 +8,7 @@ triangular and a rectangular wave.
 """
 
 # %%
-# The system is built from its class with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
+# The example builds `MagneticLevitationSystem` with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
 # default blueprint shows the velocity.
 
 import matplotlib.pyplot as plt
@@ -36,7 +36,7 @@ for damping in [0.5, 1.0, 2.0]:
     tau = 2 / np.pi * np.arcsin(np.sin(np.pi * times / 2))
     wave = np.sign(np.cos(np.pi * times / 2))
     exact = 0.2 / (2 * np.cosh(damping)) * np.exp(-damping * tau * wave) * wave
-    ax.plot(times, np.ravel(trajectory.values('ball.v')), label=f'b = {damping}')
+    ax.plot(times, np.ravel(trajectory.get_values('ball.v')), label=f'b = {damping}')
     ax.plot(times, exact, linestyle=':', color='black')
 ax.set_xlabel('time')
 ax.set_ylabel('velocity v')

@@ -16,25 +16,19 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
-from ....core.components.types import MatchingRule
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    ContinuousMatchingSpec,
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RandomSearchSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import ImitationInteraction
+from ...general.matching import ContinuousMatchingSpec, MatchingInteraction, MatchSpec, RandomSearchSpec
+from ...general.matching.types import MatchingRule
 from ..common.forecasting import heuristics
+
+LOWEST_PRICE = 0.01
+HOLDINGS = ('money', 'shares')
 
 
 class StockTraderView(AgentView):
@@ -54,9 +48,6 @@ class StockTraderView(AgentView):
     wealth: float
     gain: float
     fundamental: float
-
-
-LOWEST_PRICE = 0.01
 
 
 class StockTraderElement(Element):
@@ -177,9 +168,9 @@ class StockTraderElement(Element):
         return [RuleLaw(self.quote, phase='quote')]
 
     @staticmethod
-    def _prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
+    def _get_prices(agent: StockTraderView, system: SystemView) -> tuple[float, float]:
         """Return the last two prices of the book, the fundamental value before the first."""
-        history = system.history('book.price', 2)
+        history = system.get_history('book.price', 2)
         prices = [value for value in history if math.isfinite(value)] or [agent.fundamental]
         return prices[-1], prices[0]
 
@@ -193,13 +184,17 @@ class StockTraderElement(Element):
             system:
                 The system.
         """
-        price, previous = self._prices(agent, system)
+        price, previous = self._get_prices(agent, system)
         if agent.strategy:
-            expected = heuristics.trend([previous, price], strength=system.parameter('extrapolation'))
+            expected = heuristics.trend([previous, price], strength=system.get_parameter('extrapolation'))
         else:
-            reversion = 1 - system.parameter('reversion')
-            expected = heuristics.fundamental([price], fundamental=system.parameter('fundamental'), reversion=reversion)
-        expected = max(LOWEST_PRICE, expected * (1 + system.parameter('noise') * system.rng.normal()))
+            reversion = 1 - system.get_parameter('reversion')
+            expected = heuristics.fundamental(
+                [price],
+                fundamental=system.get_parameter('fundamental'),
+                reversion=reversion,
+            )
+        expected = max(LOWEST_PRICE, expected * (1 + system.get_parameter('noise') * system.rng.normal()))
         buying = expected > price
         new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)
         agent.bid = new_bid
@@ -241,7 +236,7 @@ class StockTraderElement(Element):
             wealth:
                 The wealth of the trader.
         """
-        price, _ = StockTraderElement._prices(agent, system)
+        price, _ = StockTraderElement._get_prices(agent, system)
         return agent.money + agent.shares * price
 
 
@@ -267,13 +262,13 @@ class BookInteraction(MatchingInteraction[SystemView]):
         rule:
             The spec of the algorithm that matches the orders, such as `ContinuousMatchingSpec()`.
 
-        limit:
+        reserve:
             The states with the limit prices of the buyers and of the sellers.
 
         quantity:
             The states with the quantities the buyers want and the sellers offer.
 
-        allowance:
+        cap:
             The state of a buyer with the money it can spend.
 
         transfers:
@@ -303,9 +298,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
         rule: MatchingRule = RandomSearchSpec(),
-        limit: str | tuple[str, str] = ('bid', 'ask'),
+        reserve: str | tuple[str, str] = ('bid', 'ask'),
         quantity: str | tuple[str, str] = ('demand', 'supply'),
-        allowance: str = 'money',
+        cap: str = 'money',
         transfers: Sequence[tuple[str, int]] = (('money', -1), ('shares', 1)),
         phase: str | None = 'trade',
         on_match: Callable[[MatchSpec, SystemView], None] | None = None,
@@ -316,9 +311,9 @@ class BookInteraction(MatchingInteraction[SystemView]):
             requesters=requesters,
             providers=providers,
             rule=rule,
-            limit=limit,
+            reserve=reserve,
             quantity=quantity,
-            allowance=allowance,
+            cap=cap,
             transfers=transfers,
             phase=phase,
             on_match=on_match,
@@ -341,13 +336,10 @@ class BookInteraction(MatchingInteraction[SystemView]):
                 The system view of the book.
         """
         del unmatched
-        last = system.history('price', 1)
+        last = system.get_history('price', 1)
         price = matches[-1].value if matches else (float(last[-1]) if len(last) else self.opening)
         system.report('price', price)
         system.report('volume', sum(match.quantity for match in matches))
-
-
-HOLDINGS = ('money', 'shares')
 
 
 class OrderBookSystem(BaseSystem):
@@ -439,7 +431,7 @@ class OrderBookSystem(BaseSystem):
         self.imitation = imitation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -470,7 +462,7 @@ class OrderBookSystem(BaseSystem):
             )
             for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[
@@ -493,7 +485,7 @@ class OrderBookSystem(BaseSystem):
                     phase='imitation',
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='manhattan'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec(
                     [

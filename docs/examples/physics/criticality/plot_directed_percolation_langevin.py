@@ -1,16 +1,16 @@
 """
 # Directed percolation Langevin field
 
-An active density fed by an energy field sits just above its absorbing-state transition. Its multiplicative noise
+An active density fed by an energy field sits slightly above its absorbing-state transition. Its multiplicative noise
 vanishes where the density does, so activity survives in shifting patches that spread, merge, and die out. The view
 shows the active density on a 64 x 64 lattice, small bright patches of activity scattered over dark regions near the
 absorbing state.
 """
 
 # %%
-# The system is built from its class with the energy `nu = 1.05`, just above the threshold `nu_c = 1` of
-# the growth rate `a + b nu` with `a = -1` and `b = 1`, and with the noise amplitude `e = 0.5`. Without drive and
-# dissipation the energy stays fixed, so it is the control parameter. The Euler-Maruyama solver of the catalog
+# The example builds `DirectedPercolationLangevinSystem` with the energy `nu = 1.05`, slightly above the threshold
+# `nu_c = 1` of the growth rate `a + b nu` with `a = -1` and `b = 1`, and with the noise amplitude `e = 0.5`. Without
+# drive and dissipation the energy stays fixed, so it is the control parameter. The Euler-Maruyama solver of the catalog
 # integrates the noise. The default blueprint puts the view of the active density `rho` first, with the energy beside
 # it.
 
@@ -51,7 +51,7 @@ for energy in energies:
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.01),
     )
-    densities.append(np.asarray(run.values('neurons.rho'))[-10:].mean())
+    densities.append(np.asarray(run.get_values('neurons.rho'))[-10:].mean())
 
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(energies, densities, 'o', label='Langevin field, 16 x 16')

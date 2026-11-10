@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(FragmentationSystem(size=10**6), until=14, dt=1, observers=[observer], random_state=0)
-lengths = [trajectory.agents('fragments', frame).values['length'] for frame in range(len(trajectory.times))]
+lengths = [trajectory.get_agents('fragments', frame).values['length'] for frame in range(len(trajectory.times))]
 rows = np.zeros((15 * len(lengths), 800, 3), dtype=np.uint8)
 for step, row in enumerate(lengths):
     edges = np.round(800 * np.concatenate([[0], np.cumsum(np.sort(row)[::-1])]) / 10**6).astype(int)

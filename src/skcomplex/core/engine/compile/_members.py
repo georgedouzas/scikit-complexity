@@ -1,7 +1,4 @@
-"""Lower reads of group members at an offset to neighbour reads.
-
-The offset runs along the group order, and the reads are of an index table.
-"""
+"""Lower reads of group members at an offset to neighbour reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +9,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import draws_in, shift_member
+from ...components.laws.utils import shift_member
+from ...components.laws.utils._draws import draws_in
 from ...components.spaces import LatticeNeighborhood, LatticeSpace
 from ...components.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
@@ -25,11 +23,11 @@ from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
-_SHIFT = 'shift_member'
+SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """Lowering of the member offset reads of the laws of one component.
+    """A lowering of the member offset reads of the laws of one component.
 
     They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the
     compilation, and `run(laws)` sets `lowered_`, the laws with every member offset read replaced by a symbol that reads
@@ -97,7 +95,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                         changes[key] += float(SR(increment))
                 result.append(JumpLaw(self._lower(law.rate), {**changes, **functions}))
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-                result.append(BasePass._replaced(law, value=self._lower(law.value)))
+                result.append(BasePass._get_replaced(law, value=self._lower(law.value)))
             else:
                 result.append(law)
         self.lowered_ = result
@@ -117,7 +115,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         The lowering of draws reads the wrapped draws.
         """
         draws = draws_in(expression)
-        if draws and BasePass._calls_of(expression, _SHIFT):
+        if draws and BasePass._get_calls_of(expression, SHIFT):
             error_msg = (
                 f'A law of {self.spec.owner} nests member offsets around a draw. Read a draw at one member offset.'
             )
@@ -125,7 +123,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         calls = {draw.call: shift_member(draw.call, offset, boundary=boundary, fill=fill) for draw in draws}
         return expression.subs(calls) if calls else expression
 
-    def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
+    def _get_member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
         """Return the member symbol a symbol reads, with its offset, boundary, and fill.
 
         They are the ones it is already read at.
@@ -155,7 +153,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 return item
         reference = self.spec.references[base]
         target = symbol(f'{base}__shift{len(self.shifted_)}', domain_of(base))
-        read = self._neighbor_read(reference.entry.rows, offset, boundary, fill)
+        read = self._get_neighbor_read(reference.entry.rows, offset, boundary, fill)
         self._add_reference(
             self.spec,
             target,
@@ -191,7 +189,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 The expression reads a single element, two groups, or nests reads with different boundaries.
         """
         expression = self._shift_draws(SR(expression), offset, boundary, fill)
-        members = {item: self._member(item) for item in expression.variables() if not self._is_single(item)}
+        members = {item: self._get_member(item) for item in expression.variables() if not self._is_single(item)}
         groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (
@@ -225,22 +223,22 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         if isinstance(value, FreeModuleElement):
             return vector(self._lower(item) for item in value)
-        if not isinstance(value, Expression) or not BasePass._calls_of(value, _SHIFT):
+        if not isinstance(value, Expression) or not BasePass._get_calls_of(value, SHIFT):
             return value
         operator = value.operator()
-        if getattr(operator, 'name', lambda: '')() != _SHIFT:
+        if getattr(operator, 'name', lambda: '')() != SHIFT:
             return operator(*(self._lower(item) for item in value.operands()))
         expression, offset, boundary, fill = self._shift_arguments(value)
         return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
-    def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
+    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
         """Return the read of the member at an offset of every member of a group.
 
         The group has `rows` members.
         """
         lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).prepare()
-        table = lattice._index_table(LatticeNeighborhood(((offset,),)))[:, 0]
+        table = lattice._get_index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
         return NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])
@@ -257,13 +255,6 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             arguments:
                 The expression of member symbols, the number of members along the group order, the boundary, and the
                 value read past the ends of a fixed boundary.
-
-        Examples:
-            >>> from skcomplex.core.engine._utils import symbol
-            >>> from skcomplex.core.engine.compile._members import MemberLowering
-            >>> from skcomplex.core.components.laws.utils import shift_member
-            >>> MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
-            (x, -2, 'fixed', 1.0)
         """
         expression, offset, boundary, fill = call.operands()
         return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)

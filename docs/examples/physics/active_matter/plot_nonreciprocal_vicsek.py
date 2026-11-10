@@ -52,7 +52,7 @@ def headings(coupling):
     """Return the times and the mean headings of both species for a coupling `(J_ab, J_ba)`."""
     system_system = NonreciprocalVicsekSystem(J_ab=coupling[0], J_ba=coupling[1])
     run = simulate(system_system, backend=NumbaBackend(), random_state=0)
-    return run.times, run.values('heading_a'), run.values('heading_b')
+    return run.times, run.get_values('heading_a'), run.get_values('heading_b')
 
 
 fig, (relative, turning) = plt.subplots(1, 2, figsize=(10, 4))

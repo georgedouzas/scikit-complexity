@@ -1,7 +1,4 @@
-"""Velocity Verlet integrator of particle systems.
-
-The positions of the particles move with their velocities.
-"""
+"""Velocity Verlet integrator of particle systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,12 +22,15 @@ from ._solver import Solver
 
 
 class VelocityVerletSolver(Solver):
-    """Velocity Verlet integrator of particle systems.
+    """A solver of particle systems by velocity Verlet, stable over long runs.
 
     The positions of the particles move with their velocities. Every step kicks the velocities by half a step, moves the
     positions, applies the boundary laws, and kicks the velocities again with the accelerations at the new positions, so
     a step costs one drift evaluation. It conserves energy over long runs of conservative forces. With the Numba backend
     every internal step of a frame runs in compiled code.
+
+    Choose it for Newtonian particles over long runs. It appears in molecular dynamics, celestial mechanics, and models
+    of crowds.
 
     Args:
         dt:
@@ -46,11 +46,20 @@ class VelocityVerletSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class BallElement(Element):
+        ...     def __init__(
+        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.x_d1 = x_d1
         >>> from skcomplex.core.engine.solvers import VelocityVerletSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
+        >>> system = CompositeSystem(elements=[BallElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = simulate(system, until=0).problem
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
@@ -99,7 +108,7 @@ class VelocityVerletSolver(Solver):
         super()._prepare(context)
         problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
-        self.positions_, self.velocities_ = self._position_pairs(problem)
+        self.positions_, self.velocities_ = self._get_position_pairs(problem)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate positions and velocities from time `t` to time `until`.
@@ -144,13 +153,13 @@ class VelocityVerletSolver(Solver):
             time = t + (index + 1) * step
             state[self.velocities_] += step / 2 * rates[self.velocities_]
             state[self.positions_] += step * state[self.velocities_]
-            state = self._bounded(time, state, p)
+            state = self._get_bounded(time, state, p)
             rates = drift(time, state, p)
             state[self.velocities_] += step / 2 * rates[self.velocities_]
         return state
 
     @staticmethod
-    def _position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    def _get_position_pairs(problem: ProblemSpec) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
         """Return the flat indices of the position components and of their velocities.
 
         They come in matching order.

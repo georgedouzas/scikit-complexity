@@ -1,7 +1,4 @@
-"""Define the tags an analysis needs.
-
-They are the kind of data it reads and the capability tags of the system behind it.
-"""
+"""Define the tags that an analysis needs of its data and of the system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,7 @@ from ._tags import RANDOMNESS, SPACES, TIMES, Tags
 
 @dataclass(frozen=True)
 class AnalysisTags(BaseSpec):
-    """Tags an analysis needs.
+    """A set of tags that an analysis needs of its data and of the system.
 
     They are the kind of data it reads and the capability tags of the system that produced it. An analysis module
     declares its tags as the module constant `TAGS`, and a family of kinds declares the tags of the kinds that differ in
@@ -41,7 +38,7 @@ class AnalysisTags(BaseSpec):
     Examples:
         >>> from skcomplex.core.specs import AnalysisTags, Tags
         >>> needed = AnalysisTags('system', randomness='deterministic')
-        >>> needed.missing(Tags(time=frozenset({'continuous'}), randomness='stochastic'))
+        >>> needed.get_missing(Tags(time=frozenset({'continuous'}), randomness='stochastic'))
         {'randomness': ['stochastic']}
     """
 
@@ -69,7 +66,7 @@ class AnalysisTags(BaseSpec):
                 error_msg = f'The {name} tag {unknown[0]!r} is unknown. Use one of {", ".join(map(repr, known))}.'
                 raise ValidationError(error_msg)
 
-    def missing(self, tags: Tags) -> dict[str, list[str]]:
+    def get_missing(self, tags: Tags) -> dict[str, list[str]]:
         """Return the tags of a system that do not give what the analysis needs, by field.
 
         The system needs one of the needed times and one of the needed spaces, and the needed randomness. A field of

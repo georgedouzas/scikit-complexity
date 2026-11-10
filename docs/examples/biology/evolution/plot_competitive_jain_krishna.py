@@ -7,8 +7,8 @@ ecosystem turn from half positive to mostly positive, the emergence of cooperati
 """
 
 # %%
-# The system is built from its class with fifty species, and the observer saves every other step with the default
-# blueprint, whose primary view is the count of species.
+# The example builds `CompetitiveJainKrishnaSystem` with fifty species, and the observer saves every other step with the
+# default blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,7 +35,7 @@ def positive_share(links):
 
 
 frames = range(0, 401, 5)
-shares = [positive_share(trajectory.agents('species', frame).values['links']) for frame in frames]
+shares = [positive_share(trajectory.get_agents('species', frame).values['links']) for frame in frames]
 fig, ax = plt.subplots(figsize=(8, 4.5))
 ax.plot(list(frames), shares)
 ax.axhline(0.5, color='gray', linestyle='--')

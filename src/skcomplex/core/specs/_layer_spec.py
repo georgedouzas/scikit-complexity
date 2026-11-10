@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class LayerSpec(BaseSpec):
-    """Spec of a relation over the nodes of a network space.
+    """A spec of a named relation over the nodes of a network space.
 
     Examples are contacts or employment. The relation is held as a graph of its own. A network space holds several
     layers over the same nodes. Edge groups and interactions over neighbours name the layer they bind to, and reductions

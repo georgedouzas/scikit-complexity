@@ -8,8 +8,8 @@ as the shoal turns to swim to the right.
 """
 
 # %%
-# The system is built from its class with 50 fish, of which 10% are informed with the weight `omega = 0.5` of the
-# preferred direction at angle 0, on a torus of side 50. The primary view shows the observable `heading_x`, the mean
+# The example builds `CouzinLeadershipSystem` with 50 fish, of which 10% are informed with the weight `omega = 0.5` of
+# the preferred direction at angle 0, on a torus of side 50. The primary view shows the observable `heading_x`, the mean
 # of the horizontal headings, over the whole run. The view of the torus beside it draws the fish larger than the
 # system's visual does, with the informed fish in a lighter colour.
 
@@ -29,7 +29,7 @@ SIZE = 50.0
 
 def mean_heading(trajectory, frame):
     """Return the angle of the mean heading of the shoal at a frame."""
-    fish = trajectory.agents('shoal', frame)
+    fish = trajectory.get_agents('shoal', frame)
     return np.arctan2(np.mean(fish.values['vy']), np.mean(fish.values['vx']))
 
 

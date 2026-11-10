@@ -1,7 +1,4 @@
-"""Define coupling.
-
-Coupling gives every member a reduction over other members of a function of both of them.
-"""
+"""Define the interaction that couples each member to its neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,12 +15,12 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, Tags
-from ...types import Array, ElementKind
-from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
+from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
+from ...types import ElementKind
+from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood, BaseSpace
-from ..types import AgentCombination, AgentViewProtocol, Combination, NamespaceFunction, SystemViewProtocol, Target
+from ..types import Combination, NamespaceFunction, Target
 from ._neighbor import NeighborInteraction
 
 MODES = ('edges', 'group', 'next', 'hyperedges')
@@ -31,158 +28,179 @@ MIN_SIZE = 2
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'normalized-mean', 'circular-mean')
 SUMS = ('sum', 'mean')
 EXTREMES = ('max', 'min')
-FORMS = ('rate', 'map', 'agent')
+FORMS = ('rate', 'map')
 ENDS = ('source', 'target')
+
 
 type Weights = str | npt.ArrayLike | scipy.sparse.sparray | NamespaceFunction | None
 type Part = Callable[[Target, Target], Target]
 
 
 class CouplingInteraction(NeighborInteraction):
-    """Coupling of every member to other members.
+    """An interaction that combines a function of each member and its neighbours.
 
-    The coupling is a reduction over the other members of a function of both members. Every member `i` gets the
-    reduction over other members `j` of `function(namespace)`, where `namespace.member` reads the states of `i`,
-    `namespace.other` those of `j`, `namespace.edge` the member of the edge group that joins them, or `None`, and the
-    namespace also holds the parameters and the time `t`. The function is the difference `x_j - x_i` of the state `read`
-    by default. The members `j` are, by `mode`:
+    Every member `i` of a group receives a sum, a mean, a maximum, or another reduction of `function` over the members
+    `j` it is coupled to. By default the function is the difference `x_j - x_i` of the state `read`. The result adds to
+    the rate of the state `write`, or sets its next value at every step, as `form` says.
 
-    - `'edges'`: the neighbours of `i` along the edges of its lattice or network, or within the `neighborhood`.
-    - `'group'`: every other member of the group, or every member of the group `source` when it is given.
+    The argument `mode` chooses the members `j`:
 
-    In the mode `'group'` the roles may also bind separate elements. A target that lists elements couples every element
-    to the other elements of the list, a single target element is a hub that reduces over every member of the group
-    `source`, and a source that is one element or a list of elements couples every member of the target to them. The
-    reduction over separate elements is written out term by term.
-    - `'next'`: the next member of the group in member order, the first after the last.
-    - `'hyperedges'`: the other members of every hyperedge around `i` of `size` members, or of every size, on a network
-      with hyperedges, or with a `neighborhood` in a continuous space, every set of `size - 1` current neighbours of
-      `i`. The function then reads `namespace.member`, `namespace.others`, the other members of one hyperedge in its
-      order, and `namespace.members`, all its members, which reductions over them read, and the reduction runs over the
-      hyperedges around `i`. The default function is the sum over the other members of the difference of `read`.
+    - `'edges'`: the neighbours of `i` along the edges of its lattice or network, or within `neighborhood`.
+    - `'group'`: every other member of the group, or the members of the group `source`.
+    - `'next'`: the next member in order, and the first after the last, as in a ring.
+    - `'hyperedges'`: the other members of each hyperedge around `i`, a link that joins more than two members of a
+      network.
 
-    With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
-    state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of
-    the matrix `weights` or of the shaped parameter of the interaction that `weights` names, which a subclass declares,
-    and in every mode a callable `weights(namespace)` of the namespace of the term, such as an
-    indicator of the states of both members. The reductions are `'sum'`, `sum_j w_ij f_ij`, `'mean'`, the sum divided
-    by the number of members `j`, `'max'` and `'min'`, the largest and smallest `w_ij f_ij`, `'normalized-mean'`,
-    `sum_j w_ij f_ij / sum_j w_ij`, and `'circular-mean'`, the angle `arctan2(sum_j w_ij sin f_ij, sum_j w_ij cos
-    f_ij)`. The state `read` of `j` is read `delay` earlier, and the one of `i` shifted by the phase lag `lag`, when
-    they are not 0.
+    Unlike `PairInteraction`, which runs its laws for every pair within a cutoff, it reduces over the members each
+    member is coupled to, by edges, a group, or hyperedges, and it can either add to a rate or set the next value of a
+    state. Choose it when every member responds to an aggregate of its neighbours.
 
-    In the form `'rate'` the reduction adds to the rate of the state `write`, and in the form `'map'` it sets the next
-    value of `write` every step of discrete time to `combine(namespace, reduction)`, where `namespace.member` reads the
-    states of `i` and the namespace holds the parameters and the time, or to the reduction itself by default. The sum
-    and the mean of the rate on the edges of a lattice or network run once per edge along both directions, and every
-    other coupling runs once per member. On a `FieldElement`, a rate that is a constant times the difference of the
-    ends becomes that constant times the field's Laplacian times its squared spacing, and on a lattice the other end is
-    read across the field's boundary conditions, so beyond fixed edges it reads the fixed value.
-
-    In the form `'agent'` the target is a group of agents, and every agent runs the coupling in its own activation in
-    the phase `phase`. Every `RadiusSpec` of `radii` gives the vector `function(agent, other, system)` of every other
-    agent of the source group, or of the target group, within its radius, reduced by its sum or mean. Only the radii
-    of the highest priority that hold another agent count, and their reductions add up. The states `write` of the
-    agent form a vector `v`, which becomes `combine(agent, system, reduction, priority)`, or `v` plus the reduction by
-    default, where `reduction` and `priority` are `None` when no radius holds another agent. `clamp` then bounds the
-    angle the vector turns and its norm.
+    It appears in many fields. Phase oscillators, such as fireflies that flash in step or the generators of a power
+    grid, sum the sine of their phase differences. Heat flow between the cells of a lattice and consensus in a social
+    network sum differences of a state. Flocks of birds and schools of fish average the headings of their neighbours
+    within a radius.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'consensus'`.
 
         target:
-            The path of the group of the members, or in the mode `'group'` the path of one element or the paths of
-            separate elements.
+            The path of the group of the members, such as `'people'`. In the mode `'group'` it may also be the path of
+            one element, a hub that reduces over every member of `source`, or the paths of separate elements, each
+            coupled to the others in the list.
 
         source:
-            The path of the group, the element, or the paths of the separate elements of the other members in the mode
-            `'group'`, or `None` for the members of the target.
+            The path of the group whose members are the `j` of the mode `'group'`, or `None` for the members of the
+            target. It may also be the path of one element or the paths of separate elements, to which every member of
+            the target is coupled term by term.
 
         read:
-            The name of the state that the default function, the delay, and the lag read.
+            The name of the state that the default function, the delay, and the lag read, such as `'theta'` for a phase.
 
         write:
-            The name of the state that the coupling changes, or the names of the components of the vector of the agent
-            form.
+            The name of the state that the coupling changes, such as `'theta'`.
 
         function:
-            The term of one other member, a callable of the namespace, or `None` for the difference of `read`.
+            The term `f_ij` of one other member, a function of a namespace, or `None` for the difference `x_j - x_i` of
+            `read`. The namespace reads the states of `i` from `member`, those of `j` from `other`, and the member of
+            the edge group that joins them from `edge`, or `None`. It also holds the parameters and the time `t`. In the
+            mode `'hyperedges'` it reads `others`, the other members of one hyperedge in order, and `members`, all its
+            members, in place of `other`, and the default sums the differences of `read` over the other members.
 
         reduce:
-            `'sum'`, `'mean'`, `'max'`, `'min'`, `'normalized-mean'`, or `'circular-mean'`.
+            How the weighted terms `w_ij f_ij` combine over the members `j`.
+
+            - `'sum'`: their sum, `sum_j w_ij f_ij`.
+            - `'mean'`: the sum divided by the number of members `j`.
+            - `'max'` and `'min'`: the largest and the smallest term.
+            - `'normalized-mean'`: the sum divided by the sum of the weights, `sum_j w_ij f_ij / sum_j w_ij`.
+            - `'circular-mean'`: the mean angle, `arctan2(sum_j w_ij sin f_ij, sum_j w_ij cos f_ij)`, as for headings.
 
         mode:
-            `'edges'`, `'group'`, `'next'`, or `'hyperedges'`.
+            How the members `j` of each member `i` are chosen, one of the modes above.
 
         size:
-            The number of members of the hyperedges of the mode `'hyperedges'`, or `None` for every size.
+            The number of members of each hyperedge in the mode `'hyperedges'`, such as `3` for triangles, or `None` for
+            every size.
 
         weights:
-            The name of the state of the edge group in the mode `'edges'`, a matrix with one row per member and one
-            column per other member or the name of a parameter of the interaction declared
-            `ParameterSpec(shape=('target', 'source'))` in the mode `'group'`, a callable of the namespace of a term in
-            any mode, or `None` for no weights.
+            The weight `w_ij` of each term, or `None` for a weight of 1.
+
+            - In the mode `'edges'`, the name of a state of the edge group, which a subclass binds with a second role.
+            - In the mode `'group'`, a matrix with one row per member and one column per other member, or the name of a
+              parameter that a subclass declares with `ParameterSpec(shape=('target', 'source'))`.
+            - In any mode, a function of the namespace of the term, such as an indicator that both members agree.
 
         include_self:
-            Whether the reduction also runs over the member itself.
+            Whether the reduction also runs over `j = i`.
 
         lag:
-            The phase lag added to the state `read` of the member.
+            The phase lag added to the state `read` of the member, in the units of that state, such as `0.5` radians.
 
         delay:
-            The delay of the state `read` of the other member, 0 for none.
+            How long ago the state `read` of the other member is read, in units of time, or 0 for the present value.
 
         form:
-            `'rate'`, `'map'`, or `'agent'`.
+            What the reduction changes.
+
+            - `'rate'`: it adds to the rate of `write`. The sum and the mean on the edges of a lattice or network run
+              once per edge in both directions, and every other coupling runs once per member. On a `FieldElement`, a
+              rate that is a constant times the difference of the two ends becomes that constant times the Laplacian of
+              the field times its squared spacing, and the other end is read across the boundary conditions of the
+              field.
+            - `'map'`: it sets the next value of `write` at every step of discrete time.
 
         combine:
-            The next value in the form `'map'`, a callable of the namespace of the member and the reduction, or in the
-            form `'agent'` a callable of the agent, the system view, the reduction, and its priority, or `None` for the
-            default.
+            The next value in the form `'map'`, a function of the namespace of the member and the reduction, or `None`
+            for the reduction itself. The namespace reads the states of `i` from `member` and holds the parameters and
+            the time.
 
         neighborhood:
-            The neighbourhood of the mode `'edges'`, such as `RadiusNeighborhood(1.0)` in a continuous space, or `None`
-            for the edges of the lattice or network. In the mode `'hyperedges'`, the neighbourhood of a continuous
-            space whose current neighbours form the hyperedges, or `None` for the hyperedges of the network.
+            In the mode `'edges'`, the neighbourhood that gives the members `j`, such as `RadiusNeighborhood(1.0)` in a
+            continuous space, or `None` for the edges of the lattice or network. In the mode `'hyperedges'`, the
+            neighbourhood of a continuous space whose sets of `size - 1` current neighbours form the hyperedges, or
+            `None` for the hyperedges of the network.
 
         layer:
-            The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
-
-        radii:
-            The terms of the agent form over the radii around an agent.
-
-        clamp:
-            The clamp of the turn and the norm of the vector of the agent form, or `None`.
+            The layer of the network whose edges the interaction runs on, such as `'work'`, or `None` for the main
+            graph.
 
         phase:
-            The phase of the step the agent and the map forms run in, or `None` for the default phase.
+            The phase of the step in which the map form runs, or `None` for the default phase.
 
     Raises:
         ValidationError:
             A variant is unknown, the function or the combination is not callable, the weights, the source, the
-            reduction, or the neighbourhood do not suit the mode and the form, or the radii, the clamp, the phase, or
-            the written states do not suit the form, raised by `prepare`.
+            reduction, or the neighbourhood do not suit the mode and the form, or the phase or the written states do not
+            suit the form, raised by `prepare`.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import sin, var
+        Two fireflies, as in the Kuramoto model of synchrony, pull each other by the sine of their phase difference
+        until they flash in step.
+
+        >>> from sage.all__sagemath_symbolics import sin
+        >>> from skcomplex.core.components.elements import DeclaredElement, GroupElement
         >>> from skcomplex.core.components.interactions import CouplingInteraction
-        >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+        >>> phases = {'variables': {'theta': DeclaredVariableSpec(0.0, StateSpec())}, 'theta': [0.0, 1.0]}
+        >>> fireflies = GroupElement('fireflies', element=DeclaredElement, size=2, values=phases)
         >>> sine = lambda s: sin(s.other.theta - s.member.theta)
-        >>> coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
-        >>> [law.value for law in coupling.prepare().run(SimpleNamespace(source=source, target=target)).laws_]
+        >>> pull = CouplingInteraction(
+        ...     'pull', target='fireflies', read='theta', write='theta', function=sine, mode='group'
+        ... )
+        >>> system = CompositeSystem(elements=[fireflies], interactions=[pull])
+        >>> simulate(system, until=4, dt=2.0).get_values('fireflies.theta').round(3).tolist()
+        [[0.0, 1.0], [0.49, 0.51], [0.5, 0.5]]
+
+        Three people on a line move their opinions toward those of their neighbours until they agree on the mean.
+
+        >>> import networkx as nx
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> opinions = {'variables': {'x': DeclaredVariableSpec(0.0, StateSpec())}, 'x': [0.0, 3.0, 9.0]}
+        >>> line = NetworkSpace(nx.path_graph(3))
+        >>> people = GroupElement('people', element=DeclaredElement, space=line, on='sites', values=opinions)
+        >>> consensus = CouplingInteraction('consensus', target='people')
+        >>> system = CompositeSystem(elements=[people], interactions=[consensus])
+        >>> simulate(system, until=10, dt=10.0).get_values('people.x').round(2).tolist()
+        [[0.0, 3.0, 9.0], [4.0, 4.0, 4.0]]
+
+        On edges the coupling writes its laws once per edge, and each law reads the states of both ends.
+
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> edges = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
+        >>> [law.value for law in edges.prepare().run(SimpleNamespace(source=source, target=target)).laws_]
         [sin(a - b), sin(-a + b)]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, UpdateLaw)
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the agent rules, the map updates, or the rates otherwise.
-
-        These are the rules of the agent form, the updates of the map form, or the rates.
-        """
-        forms: dict[object, tuple[type[BaseLaw], ...]] = {'agent': (RuleLaw,), 'map': (UpdateLaw,)}
+        """Return the tags of the map updates, or the rates otherwise."""
+        forms: dict[object, tuple[type[BaseLaw], ...]] = {'map': (UpdateLaw,)}
         return self._get_variant_tags(forms.get(self._get_argument('form'), (RateLaw,)))
 
     def __init__(
@@ -202,11 +220,9 @@ class CouplingInteraction(NeighborInteraction):
         lag: Annotated[float, ParameterSpec()] = 0.0,
         delay: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         form: str = 'rate',
-        combine: Combination | AgentCombination | None = None,
+        combine: Combination | Callable[..., object] | None = None,
         neighborhood: BaseNeighborhood | None = None,
         layer: str | None = None,
-        radii: Sequence[RadiusSpec] = (),
-        clamp: ClampSpec | None = None,
         phase: str | None = None,
     ) -> None:
         super().__init__(label, layer=layer)
@@ -225,8 +241,6 @@ class CouplingInteraction(NeighborInteraction):
         self.form = form
         self.combine = combine
         self.neighborhood = neighborhood
-        self.radii = radii
-        self.clamp = clamp
         self.phase = phase
 
     def _check_variants(self) -> None:
@@ -269,7 +283,7 @@ class CouplingInteraction(NeighborInteraction):
                 'a separate source group.'
             )
             raise ValidationError(error_msg)
-        if self.reduce in EXTREMES and (self._has_matrix() or self._names_matrix()):
+        if self.reduce in EXTREMES and (self._has_matrix() or self._get_names_matrix()):
             error_msg = f'The {self.reduce} of coupling takes no matrix of weights. Give the weights as a callable.'
             raise ValidationError(error_msg)
 
@@ -286,14 +300,16 @@ class CouplingInteraction(NeighborInteraction):
                 'hyperedges.'
             )
             raise ValidationError(error_msg)
-        if isinstance(self.weights, str) and not self._is_per_edge() and not self._names_matrix():
+        if isinstance(self.weights, str) and not self._is_per_edge() and not self._get_names_matrix():
             error_msg = (
                 f'The weights {self.weights!r} of coupling name a state of the edges, which only the sum or mean rate '
                 'on the edges of a lattice or network reads, or a shaped parameter in the mode group. Give a matrix '
                 'in the mode group, or a callable.'
             )
             raise ValidationError(error_msg)
-        if self._names_matrix() and (self._excludes_self() or not isinstance(self.target, str) or self._is_separate()):
+        if self._get_names_matrix() and (
+            self._excludes_self() or not isinstance(self.target, str) or self._is_separate()
+        ):
             error_msg = (
                 f'The weights {self.weights!r} of coupling name a shaped parameter, whose matrix product runs over '
                 'every member of a group. Pass include_self=True or a separate source group, and bind groups.'
@@ -319,39 +335,21 @@ class CouplingInteraction(NeighborInteraction):
                 f'the mode is {self.mode!r}.'
             )
             raise ValidationError(error_msg)
-        if self.mode == 'hyperedges' and (self.include_self or self._is_nonzero('delay') or self.form == 'agent'):
+        if self.mode == 'hyperedges' and (self.include_self or self._is_nonzero('delay')):
             error_msg = (
-                'The coupling over hyperedges takes no include_self, no delay, and no agent form. Couple the member '
+                'The coupling over hyperedges takes no include_self and no delay. Couple the member '
                 'to itself with another interaction.'
             )
             raise ValidationError(error_msg)
 
-    def _check_agent(self) -> None:
-        """Raise an error for agent settings outside the agent form, or no radii.
-
-        The settings are radii, a clamp, or several written states.
-        """
-        if self.form != 'agent':
-            if self.radii or self.clamp is not None or not isinstance(self.write, str):
-                error_msg = (
-                    f'The coupling {self.label!r} takes radii, a clamp, and several written states in the agent form '
-                    f'only, but its form is {self.form!r}.'
-                )
-                raise ValidationError(error_msg)
-            if self.phase is not None and self.form != 'map':
-                error_msg = (
-                    f'The coupling {self.label!r} takes a phase in the agent and the map forms, but its form is '
-                    f'{self.form!r}.'
-                )
-                raise ValidationError(error_msg)
-            return
-        if not self.radii or not isinstance(self.target, str):
-            error_msg = f'The agent form of coupling {self.label!r} needs one group of agents and at least one radius.'
+    def _check_form(self) -> None:
+        """Raise an error for several written states, or a phase outside the map form."""
+        if not isinstance(self.write, str):
+            error_msg = f'The coupling {self.label!r} writes one state, but it got {self.write!r}.'
             raise ValidationError(error_msg)
-        for spec in self.radii:
-            spec._check()
-        if self.clamp is not None:
-            self.clamp._check()
+        if self.phase is not None and self.form != 'map':
+            error_msg = f'The coupling {self.label!r} takes a phase in the map form, but its form is {self.form!r}.'
+            raise ValidationError(error_msg)
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Raise an error for unknown variants, bad functions, or unsuitable weights.
@@ -370,7 +368,7 @@ class CouplingInteraction(NeighborInteraction):
         self._check_reduction()
         self._check_structure()
         self._check_hyperedges()
-        self._check_agent()
+        self._check_form()
 
     def _get_written(self) -> str:
         """Return the name of the one state that the symbolic forms write."""
@@ -380,7 +378,7 @@ class CouplingInteraction(NeighborInteraction):
         """Return whether the weights are a matrix."""
         return self.weights is not None and not isinstance(self.weights, str) and not callable(self.weights)
 
-    def _names_matrix(self) -> bool:
+    def _get_names_matrix(self) -> bool:
         """Return whether the weights name a shaped parameter in the mode group."""
         return isinstance(self.weights, str) and self.mode == 'group'
 
@@ -406,7 +404,7 @@ class CouplingInteraction(NeighborInteraction):
         """
         return self.mode == 'edges' and self.form == 'rate' and self.neighborhood is None and self.reduce in SUMS
 
-    def _parameters(self, namespace: SimpleNamespace) -> dict[str, object]:
+    def _get_parameters(self, namespace: SimpleNamespace) -> dict[str, object]:
         """Return the parameters and the time of a namespace.
 
         It leaves out the ends and the edge.
@@ -434,7 +432,7 @@ class CouplingInteraction(NeighborInteraction):
             return other_values[self.read] - member_values[self.read]
         return self.function(
             SimpleNamespace(
-                **self._parameters(namespace),
+                **self._get_parameters(namespace),
                 member=SimpleNamespace(**member_values),
                 other=SimpleNamespace(**other_values),
                 edge=edge,
@@ -454,7 +452,9 @@ class CouplingInteraction(NeighborInteraction):
         """
         if not callable(self.weights):
             return SR(1)
-        return self.weights(SimpleNamespace(**self._parameters(namespace), member=member, other=other, edge=edge))
+        return self.weights(
+            SimpleNamespace(**self._get_parameters(namespace), member=member, other=other, edge=edge),
+        )
 
     def _get_matrix(self, namespace: SimpleNamespace) -> npt.ArrayLike | scipy.sparse.sparray | Expression | None:
         """Return the matrix of weights, or `None`.
@@ -462,7 +462,7 @@ class CouplingInteraction(NeighborInteraction):
         The diagonal is zero unless the member is included. Weights that name a shaped parameter give the symbol of that
         parameter.
         """
-        if self._names_matrix():
+        if self._get_names_matrix():
             name = cast(str, self.weights)
             if not hasattr(namespace, name):
                 error_msg = (
@@ -493,7 +493,7 @@ class CouplingInteraction(NeighborInteraction):
         return operation(SR(value))
 
     @staticmethod
-    def _shifted(member: SimpleNamespace) -> SimpleNamespace:
+    def _get_shifted(member: SimpleNamespace) -> SimpleNamespace:
         """Return the namespace of the next member of the group in member order."""
         return SimpleNamespace(
             **{
@@ -591,7 +591,7 @@ class CouplingInteraction(NeighborInteraction):
     def _get_next_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the next member of the group."""
         target = self._get_member(namespace, 'target')
-        shifted = self._shifted(target)
+        shifted = self._get_shifted(target)
         reduction = self._get_term(namespace, target, shifted) * self._get_weight(namespace, target, shifted)
         if self.include_self:
             own = self._get_term(namespace, target, target) * self._get_weight(namespace, target, target)
@@ -640,7 +640,7 @@ class CouplingInteraction(NeighborInteraction):
             own = getattr(around.member, self.read)
             others = total(getattr(members, self.read), over=members) - own
             return others - (count(over=members) - 1) * getattr(member, self.read)
-        return self.function(SimpleNamespace(**self._parameters(namespace), **{**vars(around), 'member': member}))
+        return self.function(SimpleNamespace(**self._get_parameters(namespace), **{**vars(around), 'member': member}))
 
     def _get_hyperedge_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the hyperedges around the member.
@@ -672,7 +672,7 @@ class CouplingInteraction(NeighborInteraction):
         term = self._get_hyperedge_term(namespace, around)
         weight = None
         if callable(self.weights):
-            weight = self.weights(SimpleNamespace(**self._parameters(namespace), **vars(around)))
+            weight = self.weights(SimpleNamespace(**self._get_parameters(namespace), **vars(around)))
         return self._map(
             term,
             lambda item: hyperedges(item, reduce=self.reduce, size=self.size, weight=weight, over=self.neighborhood),
@@ -721,90 +721,6 @@ class CouplingInteraction(NeighborInteraction):
             laws.append(RateLaw(getattr(target, self._get_written()), own / divisor))
         return laws
 
-    @staticmethod
-    def _get_bound(agent: AgentViewProtocol, bound: float | str) -> float:
-        """Return a bound given as a number or as the name of a parameter of the agent."""
-        return float(cast(float, getattr(agent, bound))) if isinstance(bound, str) else float(bound)
-
-    def _get_agent_reduction(
-        self,
-        agent: AgentViewProtocol,
-        system: SystemViewProtocol,
-    ) -> tuple[Array | None, int | None]:
-        """Return the sum of the reduced terms of the top-priority radii holding an agent.
-
-        The radii are those of the highest priority that hold another agent.
-        """
-        groups = set(system.groups(self._get_role('source' if self.source is not None else 'target')))
-        found: dict[float, list[AgentViewProtocol]] = {}
-        levels: dict[int, list[Array]] = {}
-        for spec in self.radii:
-            radius = self._get_bound(agent, spec.radius)
-            if radius not in found:
-                found[radius] = [other for other in agent.neighbors(radius=radius) if other.group in groups]
-            others = found[radius]
-            if not others:
-                continue
-            terms = np.array([np.asarray(spec.function(agent, other, system), dtype=float) for other in others])
-            levels.setdefault(spec.priority, []).append(
-                terms.mean(axis=0) if spec.reduce == 'mean' else terms.sum(axis=0),
-            )
-        if not levels:
-            return None, None
-        priority = max(levels)
-        return np.sum(levels[priority], axis=0), priority
-
-    @staticmethod
-    def _turn(current: Array, value: Array, max_angle: float) -> Array:
-        """Return a vector turned from the current direction toward its own by an angle.
-
-        The turn is at most the angle and keeps the norm.
-        """
-        norm, size = float(np.linalg.norm(value)), float(np.linalg.norm(current))
-        if norm == 0 or size == 0:
-            return value
-        direction, facing = value / norm, current / size
-        angle = float(np.arccos(np.clip(facing @ direction, -1.0, 1.0)))
-        if angle <= max_angle:
-            return value
-        if angle == np.pi:
-            direction = np.eye(len(facing))[int(np.argmin(np.abs(facing)))]
-        normal = direction - (facing @ direction) * facing
-        normal = normal / np.linalg.norm(normal)
-        return norm * (np.cos(max_angle) * facing + np.sin(max_angle) * normal)
-
-    def _get_clamped(self, agent: AgentViewProtocol, current: Array, value: Array) -> Array:
-        """Return a new vector with its turn and its norm clamped."""
-        clamp = self.clamp
-        if clamp is None:
-            return value
-        if clamp.max_angle is not None:
-            value = self._turn(current, value, self._get_bound(agent, clamp.max_angle))
-        norm = float(np.linalg.norm(value))
-        if norm == 0:
-            return value
-        low = 0.0 if clamp.min_norm is None else self._get_bound(agent, clamp.min_norm)
-        high = np.inf if clamp.max_norm is None else self._get_bound(agent, clamp.max_norm)
-        return value * min(max(norm, low), high) / norm
-
-    def _update_member(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Set the written states of one agent to the clamped combination of the reduction.
-
-        The reduction is over its radii.
-        """
-        if not agent.alive:
-            return
-        names = [self.write] if isinstance(self.write, str) else list(self.write)
-        current = np.array([float(cast(float, getattr(agent, name))) for name in names])
-        reduction, priority = self._get_agent_reduction(agent, system)
-        if self.combine is not None:
-            combine = cast(AgentCombination, self.combine)
-            value = np.asarray(combine(agent, system, reduction, priority), dtype=float)
-        else:
-            value = current if reduction is None else current + reduction
-        for name, item in zip(names, self._get_clamped(agent, current, value), strict=True):
-            setattr(agent, name, float(item))
-
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rates of both ends of every edge, or the laws of every member.
 
@@ -818,8 +734,6 @@ class CouplingInteraction(NeighborInteraction):
             laws:
                 The laws of the coupling.
         """
-        if self.form == 'agent':
-            return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]
         if self._is_per_edge():
             return self._get_edge_laws(namespace)
         target = self._get_member(namespace, 'target')
@@ -829,5 +743,5 @@ class CouplingInteraction(NeighborInteraction):
         state = getattr(target, self._get_written())
         if self.combine is None:
             return [UpdateLaw(state, reduction, phase=self.phase)]
-        member = SimpleNamespace(**self._parameters(namespace), member=target)
+        member = SimpleNamespace(**self._get_parameters(namespace), member=target)
         return [UpdateLaw(state, cast(Combination, self.combine)(member, reduction), phase=self.phase)]

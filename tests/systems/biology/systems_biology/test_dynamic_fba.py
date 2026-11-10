@@ -14,8 +14,8 @@ KM = 0.015
 def test_batch_culture_grows_in_one_phase_until_the_glucose_ends():
     """Test the falling glucose, the growth rate, and the plateau of the batch culture."""
     trajectory = simulate(DynamicFBASystem())
-    biomass = trajectory.values('culture/biomass.x')
-    glucose = trajectory.values('culture/glucose.c')
+    biomass = trajectory.get_values('culture/biomass.x')
+    glucose = trajectory.get_values('culture/glucose.c')
     assert np.all(np.diff(glucose) <= 1e-12)
     assert glucose[-1] < 1e-3
     plenty = glucose > 10 * KM
@@ -28,7 +28,7 @@ def test_batch_culture_grows_in_one_phase_until_the_glucose_ends():
 def test_batch_culture_records_a_zero_exchange_after_depletion():
     """Test that the glucose exchange is recorded at every frame and is zero after depletion."""
     trajectory = simulate(DynamicFBASystem())
-    exchange = trajectory.values('fba/cell.v_EX_glc__D_e')
+    exchange = trajectory.get_values('fba/cell.v_EX_glc__D_e')
     assert exchange.size == trajectory.times.size
     assert exchange[0] == pytest.approx(-10, rel=0.01)
     assert exchange[-1] == pytest.approx(0.0, abs=1e-9)
@@ -37,12 +37,12 @@ def test_batch_culture_records_a_zero_exchange_after_depletion():
 def test_static_optimisation_approaches_the_direct_approach():
     """Test that the biomass at 6 h approaches the direct approach, with an error that falls at least linearly."""
     direct = simulate(DynamicFBASystem(approach='direct'), until=6.0)
-    reference = float(direct.values('biomass.x')[-1])
+    reference = float(direct.get_values('biomass.x')[-1])
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(sync_dt=interval, solvers={'culture': RK4Solver(dt=0.005)})
         trajectory = simulate(DynamicFBASystem(interval=interval).prepare().system_, until=6.0, solver=solver, dt=0.1)
-        errors.append(abs(float(trajectory.values('culture/biomass.x')[-1]) - reference))
+        errors.append(abs(float(trajectory.get_values('culture/biomass.x')[-1]) - reference))
     assert errors[1] <= errors[0] * 0.75 + 1e-9
     assert errors[2] <= errors[1] * 0.75 + 1e-9
 

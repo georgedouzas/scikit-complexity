@@ -9,7 +9,7 @@ from .conftest import _run
 
 def _growth_rate(trajectory, names):
     """Return the late exponential growth rate of the total cells."""
-    total = np.log(sum(trajectory.values(f'tumour.{name}') for name in names))
+    total = np.log(sum(trajectory.get_values(f'tumour.{name}') for name in names))
     late = trajectory.times >= 300.0
     return np.polyfit(trajectory.times[late], total[late], 1)[0]
 
@@ -32,6 +32,9 @@ def test_cell_cycle_chemotherapy_kills_above_half():
 def test_erythropoiesis_mercaptopurine_steady_volume():
     """Test that the mean volume settles at `MCV0 + g1 U` and the mature cells at `r1 Q / d1`."""
     trajectory = _run(ErythropoiesisMercaptopurineSystem(U=500.0), until=6000.0, dt=20.0)
-    assert abs(trajectory.values('patient.MCV')[-1] / (85.0 + 0.0317 * 500.0) - 1) < 1e-3
-    assert abs(trajectory.values('patient.L')[-1] / (0.00139 * trajectory.values('patient.Q')[-1] / 0.0071) - 1) < 1e-3
-    assert trajectory.values('patient.L')[-1] < 0.9 * trajectory.values('patient.L')[0]
+    assert abs(trajectory.get_values('patient.MCV')[-1] / (85.0 + 0.0317 * 500.0) - 1) < 1e-3
+    assert (
+        abs(trajectory.get_values('patient.L')[-1] / (0.00139 * trajectory.get_values('patient.Q')[-1] / 0.0071) - 1)
+        < 1e-3
+    )
+    assert trajectory.get_values('patient.L')[-1] < 0.9 * trajectory.get_values('patient.L')[0]

@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
+from ....core.components.elements import FieldElement
+from ....core.components.interactions import RateInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.dynamics import ReactionDiffusionSystem
+from ...general.reactions import ReactionInteraction
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 
 
@@ -75,150 +78,7 @@ class BrusselatorElement(BrusselatorReactionElement):
         self.Dv = Dv
 
 
-class GrayScottElement(Element):
-    """Site of the Gray-Scott system, the substrate `u` and the activator `v`.
-
-    The reactions of `GrayScottSystem` at every site, the cubic autocatalysis of the activator on the substrate, the
-    feed `F` of the substrate, and the removal `F + k` of the activator, read `F` and `k`, and its diffusions read `Du`
-    and `Dv`.
-
-    Args:
-        label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial substrate.
-
-        v:
-            The initial activator.
-
-        Du:
-            The diffusion of the substrate.
-
-        Dv:
-            The diffusion of the activator.
-
-        F:
-            The feed rate.
-
-        k:
-            The kill rate.
-
-    Examples:
-        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottElement
-        >>> GrayScottElement('cell').k
-        0.065
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[object, StateSpec()] = 1.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        Du: Annotated[object, ParameterSpec()] = 0.16,
-        Dv: Annotated[object, ParameterSpec()] = 0.08,
-        F: Annotated[object, ParameterSpec()] = 0.035,
-        k: Annotated[object, ParameterSpec()] = 0.065,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
-        self.Du = Du
-        self.Dv = Dv
-        self.F = F
-        self.k = k
-
-
-class SchnakenbergElement(Element):
-    """Site of the Schnakenberg system, the activator `u` and the inhibitor `v`.
-
-    The reactions of `SchnakenbergSystem` at every site, the productions `a` of `u` and `b` of `v`, the decay of `u`,
-    and the autocatalysis `2U + V -> 3U`, read `a` and `b`, and its diffusions read `Du` and `Dv`.
-
-    Args:
-        label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial activator.
-
-        v:
-            The initial inhibitor.
-
-        a:
-            The production of `u`.
-
-        b:
-            The production of `v`.
-
-        Du:
-            The diffusion of the activator.
-
-        Dv:
-            The diffusion of the inhibitor.
-
-    Examples:
-        >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergElement
-        >>> SchnakenbergElement('cell').Dv
-        40.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[object, StateSpec()] = 1.0,
-        v: Annotated[object, StateSpec()] = 0.9,
-        a: Annotated[object, ParameterSpec()] = 0.1,
-        b: Annotated[object, ParameterSpec()] = 0.9,
-        Du: Annotated[object, ParameterSpec()] = 1.0,
-        Dv: Annotated[object, ParameterSpec()] = 40.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
-        self.a = a
-        self.b = b
-        self.Du = Du
-        self.Dv = Dv
-
-
-def _get_u_diffusion(s: SimpleNamespace) -> Expression:
-    """Return the diffusion coefficient `Du` of the sites."""
-    return s.target.Du
-
-
-def _get_v_diffusion(s: SimpleNamespace) -> Expression:
-    """Return the diffusion coefficient `Dv` of the sites."""
-    return s.target.Dv
-
-
-def _get_diffusions() -> list[DiffusionInteraction]:
-    """Return the diffusions of `u` and `v` on the field `cells`.
-
-    They run at the coefficients `Du` and `Dv` of its sites.
-    """
-    return [
-        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
-        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
-    ]
-
-
-def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return small uniform noise of a shape."""
-    return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
-
-
-class GrayScottSystem(BaseSystem):
+class GrayScottSystem(ReactionDiffusionSystem):
     """The Gray-Scott reaction-diffusion system, seeded in its middle.
 
     It grows spots that replicate.
@@ -251,7 +111,7 @@ class GrayScottSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].values['F']
+        >>> GrayScottSystem((32, 32), F=0.04).prepare().system_.elements[0].get_declaring_part().get_value('F')
         0.04
     """
 
@@ -261,6 +121,21 @@ class GrayScottSystem(BaseSystem):
     until = 2000.0
     dt = 20.0
     solver = RK4Solver(dt=1.0)
+
+    @staticmethod
+    def _get_u_diffusion(s: SimpleNamespace) -> Expression:
+        """Return the diffusion coefficient `Du` of the sites."""
+        return s.target.Du
+
+    @staticmethod
+    def _get_v_diffusion(s: SimpleNamespace) -> Expression:
+        """Return the diffusion coefficient `Dv` of the sites."""
+        return s.target.Dv
+
+    @staticmethod
+    def _get_noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return small uniform noise of a shape."""
+        return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
     def __init__(
         self,
@@ -273,8 +148,8 @@ class GrayScottSystem(BaseSystem):
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
-        self.shape = shape
+        super().__init__(label=label)
+        self.shape: Sequence[int] = shape
         self.Du = Du
         self.Dv = Dv
         self.F = F
@@ -292,19 +167,37 @@ class GrayScottSystem(BaseSystem):
             ReactionInteraction('decay', target='cells', reactants={'v': 1}, modifiers={'k': 1}),
         ]
 
-    def _build_system(self) -> System:
-        """Return the field seeded in its middle, its reactions, and its diffusions."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'cells'
+
+    def _get_space(self) -> LatticeSpace:
+        """Return the periodic lattice of the shape."""
+        return LatticeSpace(tuple(self.shape))
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the fields seeded in their middle, and the parameters."""
         shape = tuple(self.shape)
         u, v = np.ones(shape), np.zeros(shape)
         middle = tuple(slice(size // 2 - size // 10, size // 2 + size // 10) for size in shape)
         u[middle], v[middle] = 0.5, 0.25
-        noise = _noise(shape, 0.01, self.random_state)
-        values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': self.Du, 'Dv': self.Dv, 'F': self.F, 'k': self.k}
-        return System(
-            self.label,
-            elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
-            interactions=[*self._get_reactions(), *_get_diffusions()],
-        )
+        noise = GrayScottSystem._get_noise(shape, 0.01, self.random_state)
+        return {
+            'u': DeclaredVariableSpec(u + noise, StateSpec()),
+            'v': DeclaredVariableSpec(v + np.abs(noise), StateSpec()),
+            'Du': DeclaredVariableSpec(self.Du, ParameterSpec()),
+            'Dv': DeclaredVariableSpec(self.Dv, ParameterSpec()),
+            'F': DeclaredVariableSpec(self.F, ParameterSpec()),
+            'k': DeclaredVariableSpec(self.k, ParameterSpec()),
+        }
+
+    def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
+        """Return the diffusivities `Du` and `Dv` of the sites."""
+        return {'u': GrayScottSystem._get_u_diffusion, 'v': GrayScottSystem._get_v_diffusion}
+
+    def _get_equation_interactions(self) -> list[ReactionInteraction]:
+        """Return the reactions at every site."""
+        return self._get_reactions()
 
 
 class BrusselatorSystem(BaseSystem):
@@ -350,6 +243,27 @@ class BrusselatorSystem(BaseSystem):
     dt = 1.0
     solver = RK4Solver(dt=0.01)
 
+    @staticmethod
+    def _get_diffusions() -> list[RateInteraction]:
+        """Return the diffusions of `u` and `v` on the field `cells`.
+
+        They run at the coefficients `Du` and `Dv` of its sites.
+        """
+        return [
+            RateInteraction(
+                'u_diffusion',
+                target='cells',
+                state='u',
+                rate=lambda s: GrayScottSystem._get_u_diffusion(s) * laplacian(s.target.u),
+            ),
+            RateInteraction(
+                'v_diffusion',
+                target='cells',
+                state='v',
+                rate=lambda s: GrayScottSystem._get_v_diffusion(s) * laplacian(s.target.v),
+            ),
+        ]
+
     def __init__(
         self,
         shape: Sequence[int] = (64, 64),
@@ -362,7 +276,7 @@ class BrusselatorSystem(BaseSystem):
         label: str = 'system',
     ) -> None:
         super().__init__(label)
-        self.shape = shape
+        self.shape: Sequence[int] = shape
         self.a = a
         self.b = b
         self.Du = Du
@@ -385,25 +299,25 @@ class BrusselatorSystem(BaseSystem):
             ReactionInteraction('decay', target='cells', reactants={'u': 1}),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the field near its steady state, its reactions, and its diffusions."""
         shape = tuple(self.shape)
         values = {
-            'u': self.a + _noise(shape, 0.01, self.random_state),
+            'u': self.a + GrayScottSystem._get_noise(shape, 0.01, self.random_state),
             'v': np.full(shape, self.b / self.a),
             'a': self.a,
             'b': self.b,
             'Du': self.Du,
             'Dv': self.Dv,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
-            interactions=[*self._get_reactions(), *_get_diffusions()],
+            interactions=[*self._get_reactions(), *BrusselatorSystem._get_diffusions()],
         )
 
 
-class SchnakenbergSystem(BaseSystem):
+class SchnakenbergSystem(ReactionDiffusionSystem):
     """The Schnakenberg reaction-diffusion system.
 
     It forms Turing patterns from noise when `Dv >> Du`.
@@ -438,7 +352,7 @@ class SchnakenbergSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem
-        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].values['Dv']
+        >>> SchnakenbergSystem((8, 8)).prepare().system_.elements[0].get_declaring_part().get_value('Dv')
         40.0
     """
 
@@ -461,8 +375,8 @@ class SchnakenbergSystem(BaseSystem):
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
-        self.shape = shape
+        super().__init__(label=label)
+        self.shape: Sequence[int] = shape
         self.a = a
         self.b = b
         self.Du = Du
@@ -480,27 +394,34 @@ class SchnakenbergSystem(BaseSystem):
             ReactionInteraction('production_v', target='cells', products={'v': 1}, modifiers={'b': 1}),
         ]
 
-    def _build_system(self) -> System:
-        """Return the field near its steady state, its reactions, and its diffusions."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'cells'
+
+    def _get_space(self) -> LatticeSpace:
+        """Return the periodic lattice of the shape."""
+        return LatticeSpace(tuple(self.shape))
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the fields near its steady state, and the parameters."""
         shape = tuple(self.shape)
         steady_u, steady_v = self.a + self.b, self.b / (self.a + self.b) ** 2
-        values = {
-            'u': steady_u * (1 + _noise(shape, 0.01, self.random_state)),
-            'v': np.full(shape, steady_v),
-            'a': self.a,
-            'b': self.b,
-            'Du': self.Du,
-            'Dv': self.Dv,
+        return {
+            'u': DeclaredVariableSpec(
+                steady_u * (1 + GrayScottSystem._get_noise(shape, 0.01, self.random_state)),
+                StateSpec(),
+            ),
+            'v': DeclaredVariableSpec(np.full(shape, steady_v), StateSpec()),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec()),
+            'b': DeclaredVariableSpec(self.b, ParameterSpec()),
+            'Du': DeclaredVariableSpec(self.Du, ParameterSpec()),
+            'Dv': DeclaredVariableSpec(self.Dv, ParameterSpec()),
         }
-        return System(
-            self.label,
-            elements=[
-                FieldElement(
-                    'cells',
-                    element=SchnakenbergElement,
-                    space=LatticeSpace(shape, spacing=self.spacing),
-                    values=values,
-                ),
-            ],
-            interactions=[*self._get_reactions(), *_get_diffusions()],
-        )
+
+    def _get_diffusivities(self) -> dict[str, Callable[[SimpleNamespace], object]]:
+        """Return the diffusivities `Du` and `Dv` of the sites."""
+        return {'u': GrayScottSystem._get_u_diffusion, 'v': GrayScottSystem._get_v_diffusion}
+
+    def _get_equation_interactions(self) -> list[ReactionInteraction]:
+        """Return the reactions at every site."""
+        return self._get_reactions()

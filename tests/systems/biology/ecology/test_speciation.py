@@ -17,4 +17,4 @@ def test_neutral_biodiversity_species_number_matches_ewens_sum():
         until=3000,
     )
     expected = np.sum(theta / (theta + np.arange(size)))
-    assert trajectory.values('richness')[500:].mean() == pytest.approx(expected, rel=0.05)
+    assert trajectory.get_values('richness')[500:].mean() == pytest.approx(expected, rel=0.05)

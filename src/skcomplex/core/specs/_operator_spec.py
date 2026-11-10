@@ -21,7 +21,7 @@ type Product = tuple[Factor, ...]
 
 @dataclass(frozen=True, eq=False)
 class OperatorSpec(BaseSpec):
-    """Sum of products of local operators of subsystems.
+    """A spec of a sum of products of local operators of subsystems.
 
     Each product has a symbolic coefficient. The compiler lowers the Sage operator expressions of laws and observables
     to operators. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient
@@ -45,16 +45,16 @@ class OperatorSpec(BaseSpec):
 
     terms: Mapping[Product, object]
 
-    def _items(self) -> dict[Product, Expression]:
+    def _get_items(self) -> dict[Product, Expression]:
         """Return the terms with Sage coefficients."""
         return {key: SR(value) for key, value in self.terms.items()}
 
     @staticmethod
-    def _combined(terms: dict[Product, Expression]) -> 'OperatorSpec':
+    def _get_combined(terms: dict[Product, Expression]) -> 'OperatorSpec':
         """Return an operator from terms, without the terms whose coefficient is zero."""
         return OperatorSpec({key: value for key, value in terms.items() if not value.is_trivial_zero()})
 
-    def _as_operator(self, other: object, operation: str) -> 'OperatorSpec':
+    def _convert_to_operator(self, other: object, operation: str) -> 'OperatorSpec':
         """Return an operator, or a scalar as a multiple of the identity.
 
         Args:
@@ -74,9 +74,9 @@ class OperatorSpec(BaseSpec):
         """
         if isinstance(other, OperatorSpec):
             return other
-        return OperatorSpec({(): self._scalar(other, operation)})
+        return OperatorSpec({(): self._get_scalar(other, operation)})
 
-    def _scalar(self, other: object, operation: str) -> Expression:
+    def _get_scalar(self, other: object, operation: str) -> Expression:
         """Return a scalar as a Sage expression.
 
         Args:
@@ -94,7 +94,7 @@ class OperatorSpec(BaseSpec):
             ValidationError:
                 The operand is not a number or a symbolic expression.
         """
-        coefficient = self._coefficient(other)
+        coefficient = self._get_coefficient(other)
         if coefficient is None:
             error_msg = (
                 f'An operator cannot {operation} {other!r} of type {type(other).__name__}. The operand must be an '
@@ -125,10 +125,10 @@ class OperatorSpec(BaseSpec):
             >>> z.add(1).text
             'q.z + 1'
         """
-        terms = self._items()
-        for key, value in self._as_operator(other, 'add')._items().items():
-            self._added(terms, key, value)
-        return self._combined(terms)
+        terms = self._get_items()
+        for key, value in self._convert_to_operator(other, 'add')._get_items().items():
+            self._add_term(terms, key, value)
+        return self._get_combined(terms)
 
     def negate(self) -> 'OperatorSpec':
         """Return the operator with every coefficient negated.
@@ -137,7 +137,7 @@ class OperatorSpec(BaseSpec):
             negation:
                 The negated operator.
         """
-        return OperatorSpec({key: -value for key, value in self._items().items()})
+        return OperatorSpec({key: -value for key, value in self._get_items().items()})
 
     def subtract(self, other: object) -> 'OperatorSpec':
         """Return the difference of the operator and an operator or a multiple of identity.
@@ -154,7 +154,7 @@ class OperatorSpec(BaseSpec):
             ValidationError:
                 The operand is neither an operator nor a scalar.
         """
-        return self.add(self._as_operator(other, 'subtract').negate())
+        return self.add(self._convert_to_operator(other, 'subtract').negate())
 
     def multiply(self, other: object) -> 'OperatorSpec':
         """Return the product of the operator and an operator or a scalar, in this order.
@@ -172,12 +172,12 @@ class OperatorSpec(BaseSpec):
             ValidationError:
                 The operand is neither an operator nor a scalar.
         """
-        operand = self._as_operator(other, 'multiply by')
+        operand = self._convert_to_operator(other, 'multiply by')
         terms: dict[Product, Expression] = {}
-        for left, first in self._items().items():
-            for right, second in operand._items().items():
-                self._added(terms, left + right, first * second)
-        return self._combined(terms)
+        for left, first in self._get_items().items():
+            for right, second in operand._get_items().items():
+                self._add_term(terms, left + right, first * second)
+        return self._get_combined(terms)
 
     def divide(self, other: object) -> 'OperatorSpec':
         """Return the operator divided by a scalar.
@@ -194,7 +194,7 @@ class OperatorSpec(BaseSpec):
             ValidationError:
                 The operand is not a scalar.
         """
-        return self.multiply(1 / self._scalar(other, 'divide by'))
+        return self.multiply(1 / self._get_scalar(other, 'divide by'))
 
     @property
     def text(self) -> str:
@@ -205,7 +205,7 @@ class OperatorSpec(BaseSpec):
         if not self.terms:
             return '0'
         parts = []
-        for key, value in self._items().items():
+        for key, value in self._get_items().items():
             factors = '*'.join(f'{subsystem}.{local.name}' for subsystem, local in key)
             if not factors:
                 parts.append(str(value))
@@ -216,7 +216,7 @@ class OperatorSpec(BaseSpec):
                 parts.append(f'({text})*{factors}' if any(sign in text for sign in '+- ') else f'{text}*{factors}')
         return ' + '.join(parts)
 
-    def adjoint(self) -> 'OperatorSpec':
+    def get_adjoint(self) -> 'OperatorSpec':
         """Return the adjoint operator.
 
         It has conjugate coefficients and reversed products of adjoint factors.
@@ -229,13 +229,13 @@ class OperatorSpec(BaseSpec):
             >>> import qutip
             >>> from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
             >>> plus = LocalOperatorSpec('plus', qutip.sigmap())
-            >>> OperatorSpec({(('q', plus),): 1}).multiply(2j).adjoint().text
+            >>> OperatorSpec({(('q', plus),): 1}).multiply(2j).get_adjoint().text
             '(-2j)*q.minus'
         """
         return OperatorSpec(
             {
-                tuple((subsystem, local.adjoint()) for subsystem, local in reversed(key)): value.conjugate()
-                for key, value in self._items().items()
+                tuple((subsystem, local.get_adjoint()) for subsystem, local in reversed(key)): value.conjugate()
+                for key, value in self._get_items().items()
             },
         )
 
@@ -245,7 +245,7 @@ class OperatorSpec(BaseSpec):
         return [{subsystem for subsystem, _ in key} for key in self.terms]
 
     @staticmethod
-    def _coefficient(value: object) -> Expression | None:
+    def _get_coefficient(value: object) -> Expression | None:
         """Return a number or a symbolic expression as a Sage expression.
 
         It returns `None` for any other value.
@@ -260,6 +260,6 @@ class OperatorSpec(BaseSpec):
             return None
 
     @staticmethod
-    def _added(terms: dict[Product, Expression], key: Product, coefficient: Expression) -> None:
+    def _add_term(terms: dict[Product, Expression], key: Product, coefficient: Expression) -> None:
         """Add a coefficient to the term of a key, in place."""
         terms[key] = terms[key] + coefficient if key in terms else coefficient

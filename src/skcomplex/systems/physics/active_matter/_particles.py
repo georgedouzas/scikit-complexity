@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, EulerMaruyamaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -407,16 +407,6 @@ class TumblerElement(Element):
             agent.theta = float(system.rng.uniform(0.0, 2 * math.pi))
 
 
-def _swimmers(
-    n_particles: int,
-    size: float,
-    random_state: int | np.random.Generator | None,
-) -> tuple[Array, Array]:
-    """Return uniform positions in a square and uniform orientations."""
-    rng = np.random.default_rng(random_state)
-    return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(0.0, 2 * math.pi, n_particles)
-
-
 class ActiveBrownianParticlesSystem(BaseSystem):
     """Active Brownian particles in the plane.
 
@@ -461,6 +451,16 @@ class ActiveBrownianParticlesSystem(BaseSystem):
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=0.01)
 
+    @staticmethod
+    def _get_swimmers(
+        n_particles: int,
+        size: float,
+        random_state: int | np.random.Generator | None,
+    ) -> tuple[Array, Array]:
+        """Return uniform positions in a square and uniform orientations."""
+        rng = np.random.default_rng(random_state)
+        return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(0.0, 2 * math.pi, n_particles)
+
     def __init__(
         self,
         n_particles: int = 200,
@@ -480,12 +480,12 @@ class ActiveBrownianParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return active Brownian particles in the plane.
 
         The particles swim at a constant speed in a diffusing direction.
         """
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=ActiveParticleElement,
@@ -493,7 +493,7 @@ class ActiveBrownianParticlesSystem(BaseSystem):
             values={'x': positions, 'theta': angles, 'D_t': self.D_t, 'D_r': self.D_r},
         )
         propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
-        return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
 class ChiralActiveParticlesSystem(BaseSystem):
@@ -563,12 +563,12 @@ class ChiralActiveParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return chiral active particles.
 
         The particles swim along circles of radius `v / omega` that drift by diffusion.
         """
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=ActiveParticleElement,
@@ -576,7 +576,7 @@ class ChiralActiveParticlesSystem(BaseSystem):
             values={'x': positions, 'theta': angles, 'omega': self.omega, 'D_t': self.D_t, 'D_r': self.D_r},
         )
         propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
-        return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
 class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
@@ -641,7 +641,7 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return active Ornstein-Uhlenbeck particles in the plane.
 
         The particles are driven by exponentially correlated propulsion.
@@ -655,7 +655,7 @@ class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
             size=self.n_particles,
             values={'x': positions, 'u': propulsion, 'tau': self.tau, 'D': self.D, 'D_t': self.D_t},
         )
-        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
 
 class RunAndTumbleSystem(BaseSystem):
@@ -714,9 +714,9 @@ class RunAndTumbleSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        positions, angles = _swimmers(self.n_agents, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_agents, self.size, self.random_state)
         group = GroupElement(
             'bacteria',
             element=TumblerElement,
@@ -724,7 +724,7 @@ class RunAndTumbleSystem(BaseSystem):
             values={'theta': angles, 'speed': self.speed, 'tumble_rate': self.tumble_rate, 'width': self.size},
             location=positions,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
@@ -797,7 +797,7 @@ class DepotBrownianParticlesSystem(BaseSystem):
         self.D = D
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
         group = GroupElement(
@@ -806,7 +806,7 @@ class DepotBrownianParticlesSystem(BaseSystem):
             size=self.n_particles,
             values={'v': velocities, 'gamma': self.gamma, 'q': self.q, 'c': self.c, 'd': self.d, 'D': self.D},
         )
-        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
 
 class InertialActiveBrownianParticlesSystem(BaseSystem):
@@ -887,9 +887,9 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        positions, angles = ActiveBrownianParticlesSystem._get_swimmers(self.n_particles, self.size, self.random_state)
         group = GroupElement(
             'swimmers',
             element=InertialActiveParticleElement,
@@ -904,4 +904,4 @@ class InertialActiveBrownianParticlesSystem(BaseSystem):
                 'D_r': self.D_r,
             },
         )
-        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[group], space=ContinuousSpace(n_dim=2))

@@ -6,8 +6,8 @@ grows into a self-sustained oscillation of fixed amplitude, the limit cycle of t
 """
 
 # %%
-# The system is built from its class with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1, and
-# runs for 50 time units. The default blueprint shows the voltage and the current in one time series view.
+# The example builds `TunnelDiodeOscillatorSystem` with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1,
+# and runs for 50 time units. The default blueprint shows the voltage and the current in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,9 +31,9 @@ trajectory = simulate(system, observers=[observer])
 fig, ax = plt.subplots(figsize=(6, 5))
 for V0, i0 in [(0.1, 0.0), (2.0, 1.0), (-1.5, -1.5), (0.0, 2.5)]:
     run = simulate(TunnelDiodeOscillatorSystem(V=V0, i=i0))
-    ax.plot(run.values('circuit.V'), run.values('circuit.i'), linewidth=0.8)
+    ax.plot(run.get_values('circuit.V'), run.get_values('circuit.i'), linewidth=0.8)
     ax.plot(V0, i0, 'o', color='gray', markersize=4)
-amplitude = np.abs(trajectory.values('circuit.V')[trajectory.times > 30]).max()
+amplitude = np.abs(trajectory.get_values('circuit.V')[trajectory.times > 30]).max()
 for side in (-1, 1):
     ax.axvline(side * 2 * np.sqrt(1 / 3), color='black', linestyle='--', linewidth=0.8)
 ax.set_xlabel('voltage V')

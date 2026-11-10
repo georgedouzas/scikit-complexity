@@ -44,11 +44,11 @@ trajectory = simulate(
 # Letting a negative quota restock the fishery, as the formula of the source does, keeps every stock alive.
 
 errors = np.array([0.0, 0.1, 0.2, 0.3, 0.4])
-floored = [run(error=error).values('extinct')[-1] for error in errors]
-restocked = [run(error=error, restocking=True).values('extinct')[-1] for error in errors]
+floored = [run(error=error).get_values('extinct')[-1] for error in errors]
+restocked = [run(error=error, restocking=True).get_values('extinct')[-1] for error in errors]
 fig, (stock, extinction) = plt.subplots(1, 2, figsize=(10, 4))
-stock.plot(trajectory.times * 0.01, trajectory.values('mean_stock'), label='mean stock')
-stock.plot(trajectory.times * 0.01, trajectory.values('mean_catch'), label='mean quota')
+stock.plot(trajectory.times * 0.01, trajectory.get_values('mean_stock'), label='mean stock')
+stock.plot(trajectory.times * 0.01, trajectory.get_values('mean_catch'), label='mean quota')
 stock.axhline(2**-0.5, color='black', linestyle='--', lw=0.8, label='K / sqrt(2)')
 stock.set_xlabel('time')
 stock.set_ylabel('stock and quota per unit of K')

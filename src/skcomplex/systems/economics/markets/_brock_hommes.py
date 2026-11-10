@@ -15,13 +15,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, FeedbackInteraction, ReinforcementInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
+from ..common.learning import PayoffLearningInteraction
+from ..common.policy import PolicyRuleInteraction
+
+PREDICTORS = ('fundamentalist', 'trend')
+PRICING = 'pricing'
 
 
 @dataclass(frozen=True)
@@ -51,12 +56,6 @@ class HeuristicTraderView(AgentView):
     predictor: float
     fundamentalist_fitness: float
     trend_fitness: float
-
-
-PREDICTORS = ('fundamentalist', 'trend')
-
-
-PRICING = 'pricing'
 
 
 class HeuristicTraderElement(Element):
@@ -148,11 +147,11 @@ class HeuristicTraderElement(Element):
             fitness:
                 The last reported fitness of the heuristic.
         """
-        reported = system.history(f'{PRICING}.fitness_{PREDICTORS[index]}', 1)
+        reported = system.get_history(f'{PRICING}.fitness_{PREDICTORS[index]}', 1)
         return float(reported[-1]) if len(reported) else 0.0
 
 
-class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
+class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
     """Market maker that clears the risky asset.
 
     It clears at the price where the mean forecast of the traders is met. The deviation `x` of the price from its
@@ -232,24 +231,24 @@ class HeuristicPricingInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the institution.
         """
-        rate, strength = system.parameter('rate'), system.parameter('strength')
+        rate, strength = system.get_parameter('rate'), system.get_parameter('strength')
         state = system.storage.get('market')
         if not isinstance(state, _MarketStateSpec):
-            state = _MarketStateSpec((system.parameter('initial'),))
+            state = _MarketStateSpec((system.get_parameter('initial'),))
         history = list(state.history)
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = system.agents('traders', HeuristicTraderView)
+        traders = system.get_agents('traders', HeuristicTraderView)
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
-        price = float(forecasts @ [1 - share, share] + system.rng.normal(0.0, system.parameter('noise'))) / rate
+        price = float(forecasts @ [1 - share, share] + system.rng.normal(0.0, system.get_parameter('noise'))) / rate
         previous = state.forecasts
         excess = price - rate * history[-1]
         if previous is None:
             fitness = np.zeros(len(PREDICTORS))
         else:
-            fitness = excess * (previous - rate * history[-1]) / system.parameter('risk')
-        fitness -= [system.parameter('cost'), 0.0]
+            fitness = excess * (previous - rate * history[-1]) / system.get_parameter('risk')
+        fitness -= [system.get_parameter('cost'), 0.0]
         system.storage['market'] = _MarketStateSpec((history[-1], price), forecasts)
         system.report('deviation', price)
         system.report('trend_share', share)
@@ -333,10 +332,10 @@ class BrockHommesSystem(BaseSystem):
         self.noise = noise
         self.initial = initial
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         traders = GroupElement('traders', element=HeuristicTraderElement, size=self.n_traders)
-        learning = ReinforcementInteraction(
+        learning = PayoffLearningInteraction(
             'learning',
             target='traders',
             scores=tuple(f'{name}_fitness' for name in PREDICTORS),
@@ -366,7 +365,7 @@ class BrockHommesSystem(BaseSystem):
             noise=self.noise,
             initial=self.initial,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[learning, choice, pricing],

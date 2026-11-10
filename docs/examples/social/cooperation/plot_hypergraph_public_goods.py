@@ -34,7 +34,7 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 def cooperators(synergy):
     """Return the share of cooperators at the end of a run."""
     run = simulate(HypergraphPublicGoodsSystem(synergy=synergy), until=ROUNDS, random_state=0)
-    return np.asarray(run.values('players.strategy'))[-1].mean()
+    return np.asarray(run.get_values('players.strategy'))[-1].mean()
 
 
 synergies = np.linspace(1.0, 7.0, 7)

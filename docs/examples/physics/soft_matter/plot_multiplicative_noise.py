@@ -8,7 +8,7 @@ equilibrium, they spread evenly. The view shows eight particles in the Itô sens
 """
 
 # %%
-# The system is built from its class in a box of length 10 whose noise amplitude grows from 0.1 to 1.9,
+# The example builds `MultiplicativeNoiseSystem` in a box of length 10 whose noise amplitude grows from 0.1 to 1.9,
 # read in the Itô sense. The Euler-Maruyama stepper takes steps of 0.01, the walls reflect the particles at every
 # frame of 0.1, and the observer saves every tenth frame with the default blueprint, whose primary view is the time
 # series of the positions.
@@ -42,7 +42,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
     system_n = MultiplicativeNoiseSystem(n_particles=800, L=10.0, convention=noise)
     run = simulate(system_n, until=300, solver=solver, dt=0.1, random_state=1)
-    histogram = distribution(run.values('particles.x')[1500::20].ravel(), kind='histogram', bins=25)
+    histogram = distribution(run.get_values('particles.x')[1500::20].ravel(), kind='histogram', bins=25)
     edges, density = histogram.edges, histogram.density
     ax.stairs(density, edges, color=color, label=f'{noise}')
     expected = sigma**-power

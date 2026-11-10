@@ -19,7 +19,7 @@ from ._reduction_kernel import ReductionKernel
 
 @dataclass(frozen=True)
 class ReductionScheduleSpec(BaseSpec):
-    """Reductions of a problem.
+    """A spec of the reductions of a problem.
 
     They are evaluated in dependency order into the extended parameter vector.
 

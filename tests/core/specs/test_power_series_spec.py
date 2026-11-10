@@ -15,8 +15,8 @@ def test_product_is_the_truncated_cauchy_product():
     first, second = rng.integers(-3, 4, (2, 7, 5)).astype(float)
     product = ring.multiply(first, second)
     for row in range(7):
-        exact = ring.series_of(first[row]) * ring.series_of(second[row])
-        np.testing.assert_array_equal(product[row], ring.coefficients_of(exact))
+        exact = ring.get_series_of(first[row]) * ring.get_series_of(second[row])
+        np.testing.assert_array_equal(product[row], ring.get_coefficients_of(exact))
 
 
 def test_prime_field_reduces_coefficients():
@@ -32,11 +32,11 @@ def test_prime_field_reduces_coefficients():
 def test_coefficients_round_trip_through_sage():
     """Test that coefficients become a Sage series of the order and come back unchanged."""
     ring = PowerSeriesSpec(4, variable='s')
-    series = ring.series_of([1, 0, -2, 5])
+    series = ring.get_series_of([1, 0, -2, 5])
     assert series.prec() == 4
     assert str(series) == '1 - 2*s^2 + 5*s^3 + O(s^4)'
-    assert ring.coefficients_of(series).tolist() == [1.0, 0.0, -2.0, 5.0]
-    assert ring.coefficients_of(1 + ring.ring.gen()).tolist() == [1.0, 1.0, 0.0, 0.0]
+    assert ring.get_coefficients_of(series).tolist() == [1.0, 0.0, -2.0, 5.0]
+    assert ring.get_coefficients_of(1 + ring.ring.gen()).tolist() == [1.0, 1.0, 0.0, 0.0]
 
 
 def test_fields_and_alphabets():

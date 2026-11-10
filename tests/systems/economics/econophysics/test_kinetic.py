@@ -17,7 +17,7 @@ def _final_wealth(until, **options):
         random_state=0,
         observables=KineticWealthExchangeSystem().get_run_settings()['observables'],
     )
-    return trajectory.agents('traders', until).values['wealth']
+    return trajectory.get_agents('traders', until).values['wealth']
 
 
 def test_kinetic_exchange_stationary_distributions():

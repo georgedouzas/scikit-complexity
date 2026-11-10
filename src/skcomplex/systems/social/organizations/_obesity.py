@@ -17,13 +17,20 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, MovementInteraction, TransferInteraction
+from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
+
+MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
+HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))
+DAYS_PER_WEEK = 7
+KCAL_PER_KG = 7700.0
+MALE_SHARE = 0.5
 
 
 class EaterView(AgentView):
@@ -55,18 +62,6 @@ class RestaurantView(AgentView):
     kind: float
     sold: float
     sold_high: float
-
-
-MEAL_RANGES = ((400.0, 900.0), (600.0, 1100.0), (800.0, 1500.0))
-
-
-HABIT_RANGES = ((0.0, 0.5), (0.25, 0.75), (0.5, 1.0))
-
-
-DAYS_PER_WEEK = 7
-
-
-KCAL_PER_KG = 7700.0
 
 
 def basal_metabolic_rate(weight: float, height: float, age: float, male: float) -> float:
@@ -386,12 +381,6 @@ class RestaurantElement(Element):
         return RestaurantView
 
 
-OBESE = 30.0
-
-
-MALE_SHARE = 0.5
-
-
 class ObesitySystem(BaseSystem):
     """The obesity system of adults who eat near home and work, one step per day.
 
@@ -452,7 +441,7 @@ class ObesitySystem(BaseSystem):
         self.activity = activity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         homes, works = rng.uniform(0, self.size, (2, self.n_places, 2))
@@ -510,7 +499,7 @@ class ObesitySystem(BaseSystem):
                 ),
             ]
         phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people, restaurants],
             interactions=interactions,

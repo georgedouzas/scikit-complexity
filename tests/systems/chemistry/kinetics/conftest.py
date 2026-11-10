@@ -1,6 +1,6 @@
 """Share the run helper of the chemical kinetics system tests."""
 
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import BaseSolver
 

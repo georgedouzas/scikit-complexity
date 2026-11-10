@@ -241,11 +241,11 @@ functions of a system or of its results.
 
 ### Requirement: Systems form a class hierarchy
 `BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the parts,
-nesting, and the passing of model parameters down to the parts. `System(BaseSystem)` SHALL be the generic composite of
+nesting, and the passing of model parameters down to the parts. `CompositeSystem(BaseSystem)` SHALL be the generic composite of
 elements, interactions, and nested systems. A class SHALL NOT be chosen by mathematical form, which the tags give.
 
 #### Scenario: Generic composite
-- **WHEN** a user builds `System(elements=[...], interactions=[...])`
+- **WHEN** a user builds `CompositeSystem(elements=[...], interactions=[...])`
 - **THEN** it is a `BaseSystem`, and its tags come from its parts
 
 ### Requirement: Ready-made systems are classes with model parameters
@@ -258,10 +258,23 @@ constructor only stores the model's own parameters and whose `prepare` builds it
 - **THEN** the prepared system's infection rate is 0.5, and `get_params()` returns `beta=0.5`
 
 ### Requirement: General systems enter the core only when fields share them
-A general system of the core SHALL be named after its mathematics, such as `MassActionSystem`, and SHALL enter the
-core only when systems of two fields share its structure. A ready-made system SHALL subclass only general systems of
-the core or systems of its own field.
+The core SHALL hold only the systems that are building blocks: `BaseSystem`, the base of every system, and
+`CompositeSystem`, the composite of elements, interactions, and nested systems that the engine flattens. A general
+system that builds a `CompositeSystem` from core parts, such as `ReactionNetworkSystem`, is a recipe. It SHALL be named
+after its mathematics, never after a field quantity, and SHALL live in a subpackage of `skcomplex.systems.general` when
+systems of two fields share its structure, or in the `common` package of one field otherwise. A ready-made system SHALL
+subclass only `BaseSystem`, general systems of `skcomplex.systems.general`, or systems of its own field.
 
 #### Scenario: Shared structure
-- **WHEN** an epidemic model and a chemical kinetics model both build compartments with mass-action rates
-- **THEN** both subclass `MassActionSystem` of the core, and neither imports the other's field
+- **WHEN** an epidemic model and a chemical kinetics model both build species and reactions with product propensities
+- **THEN** both subclass `ReactionNetworkSystem` of `skcomplex.systems.general.reactions`, and neither imports the
+  other's field
+
+#### Scenario: Import a general system
+- **WHEN** a user imports `ReactionNetworkSystem` from `skcomplex.systems.general.reactions`
+- **THEN** the import succeeds, and the class is a subclass of `BaseSystem` from `skcomplex.core.components.systems`
+
+#### Scenario: The core holds no general system
+- **WHEN** a user lists `skcomplex.core.components.systems`
+- **THEN** it exports `BaseSystem`, `RunSettings`, and `CompositeSystem`, and importing `ReactionNetworkSystem` from it
+  fails with `ImportError`

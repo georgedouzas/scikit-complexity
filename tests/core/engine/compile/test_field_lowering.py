@@ -13,23 +13,24 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.laws import RateLaw, RuleLaw
 from skcomplex.core.components.laws.utils import (
     advection,
+    collision_integral,
     convolve,
     displacement,
     divergence,
     gradient,
     inverse_helmholtz,
-    inverse_laplacian,
     laplacian,
     shifted,
 )
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import AxisSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):
@@ -115,7 +116,13 @@ def _heat_kernel(backend):
     initial = np.zeros(n)
     initial[n // 2] = 1 / spacing
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(n, spacing=spacing), values={'u': initial})
-    values = simulate(System(elements=[rod]), until=0.5, dt=0.5, solver=RK4Solver(dt=0.001), backend=backend).states[-1]
+    values = simulate(
+        CompositeSystem(elements=[rod]),
+        until=0.5,
+        dt=0.5,
+        solver=RK4Solver(dt=0.001),
+        backend=backend,
+    ).states[-1]
     kernel = np.exp(-((positions - positions[n // 2]) ** 2) / 2) / np.sqrt(2 * np.pi)
     return values, kernel
 
@@ -123,12 +130,12 @@ def _heat_kernel(backend):
 def test_uniform_decay():
     """Test that every site of a 50 x 50 field follows the exponential decay of the single-site equation."""
     trajectory = simulate(
-        System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
+        CompositeSystem(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
         until=2,
         dt=0.5,
     )
     expected = 2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500)
-    assert trajectory.values('grid.u') == pytest.approx(expected, rel=1e-5)
+    assert trajectory.get_values('grid.u') == pytest.approx(expected, rel=1e-5)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -142,10 +149,10 @@ def test_diffusion_on_network():
     """Test that a field diffusing on a connected network keeps its sum and converges to the mean."""
     graph = nx.connected_watts_strogatz_graph(50, 4, 0.2, seed=1)
     initial = np.random.default_rng(0).random(50)
-    system = System(
+    system = CompositeSystem(
         elements=[FieldElement('net', element=HeatElement, space=NetworkSpace(graph), values={'u': initial})],
     )
-    values = simulate(system, until=60, dt=1).values('net.u')
+    values = simulate(system, until=60, dt=1).get_values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
@@ -153,12 +160,12 @@ def test_diffusion_on_network():
 def test_diffusion_on_network_without_edges():
     """Test that a field on nodes without edges compiles, with no diffusive step limit, and stays put."""
     initial = np.array([0.2, 0.7])
-    system = System(
+    system = CompositeSystem(
         elements=[
             FieldElement('net', element=HeatElement, space=NetworkSpace(nx.empty_graph(2)), values={'u': initial}),
         ],
     )
-    values = simulate(system, until=3, dt=1).values('net.u')
+    values = simulate(system, until=3, dt=1).get_values('net.u')
     assert values[-1] == pytest.approx(initial)
 
 
@@ -173,7 +180,7 @@ def test_zero_flux_conserves_mass(backend):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    totals = simulate(System(elements=[plate]), until=30, dt=1, backend=backend()).values('plate.u').sum(1)
+    totals = simulate(CompositeSystem(elements=[plate]), until=30, dt=1, backend=backend()).get_values('plate.u').sum(1)
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
 
@@ -181,7 +188,7 @@ def test_zero_flux_conserves_mass(backend):
 def test_fixed_boundary_holds_edge_value():
     """Test that a fixed boundary drives a line towards the linear profile between its two edge values."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(20), boundary={'u': ('fixed', 1.0)})
-    values = simulate(System(elements=[rod]), until=500, dt=50).states[-1]
+    values = simulate(CompositeSystem(elements=[rod]), until=500, dt=50).states[-1]
     assert values == pytest.approx(np.ones(20), abs=1e-3)
 
 
@@ -191,14 +198,14 @@ def test_advection_and_divergence():
     profile = np.exp(-((positions - 3) ** 2))
     space = LatticeSpace(200, spacing=0.05)
     moved = simulate(
-        System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
+        CompositeSystem(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
         until=2,
         dt=1,
     ).states[-1]
     assert positions[np.argmax(moved)] == pytest.approx(5.0)
     assert moved.sum() == pytest.approx(profile.sum())
     spread = simulate(
-        System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
+        CompositeSystem(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
         until=1,
         dt=1,
     ).states[-1]
@@ -208,7 +215,7 @@ def test_advection_and_divergence():
 
 def test_equations_keep_operators():
     """Test that the equations of a field show its operators, not the stencils they lower to."""
-    system = System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))])
+    system = CompositeSystem(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))])
     problem = PassCompiler().prepare(system).run().problem_
     assert str(problem.equations['rod.u[i]']) == 'D_rod*laplacian(u_rod)'
 
@@ -216,19 +223,19 @@ def test_equations_keep_operators():
 def test_operator_outside_field_is_rejected():
     """Test that an operator on a group that is not a field is rejected."""
     with pytest.raises(ValidationError, match='Create the group with `FieldElement`'):
-        PassCompiler().prepare(System(elements=[GroupElement('rod', element=HeatElement, size=5)])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('rod', element=HeatElement, size=5)])).run()
 
 
 def test_unknown_boundary_is_rejected():
     """Test that an unknown boundary condition names the known ones."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(10), boundary={'u': 'open'})
     with pytest.raises(ValidationError, match='zero-flux'):
-        PassCompiler().prepare(System(elements=[rod])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[rod])).run()
 
 
 def test_too_large_step_warns():
     """Test that RK4 with four times the diffusive stability limit warns with the limit before the run."""
-    system = System(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))])
+    system = CompositeSystem(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
@@ -257,7 +264,7 @@ class MarkerElement(Element):
 
     def mark(self, agent, system):
         """Keep the field value at the cell and deposit one unit."""
-        agent.seen = system.field('ground/level.u', agent.location)
+        agent.seen = system.get_field('ground/level.u', agent.location)
         system.deposit('ground/level.u', agent.location, 1.0)
 
 
@@ -281,21 +288,24 @@ def test_agents_read_and_deposit_fields():
             """Return the laws of the still element."""
             return [RateLaw(s.u, 0 * laplacian(s.u))]
 
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System(
+            CompositeSystem(
                 'walkers',
                 elements=[GroupElement('markers', element=MarkerElement, size=1, location=(1, 2))],
                 space=LatticeSpace((4, 3), boundary='fixed'),
             ),
-            System('ground', elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))]),
+            CompositeSystem(
+                'ground',
+                elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))],
+            ),
         ],
     )
     trajectory = simulate(system, until=5, dt=1)
-    level = trajectory.lattice('ground/level.u')[-1]
+    level = trajectory.get_lattice('ground/level.u')[-1]
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
-    assert trajectory.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
+    assert trajectory.get_agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
 
 
 class GrowthElement(Element):
@@ -329,7 +339,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         discretization=discretization,
     )
     final = np.asarray(
-        simulate(System(elements=[field]), until=0.5, dt=0.01).values('m.u'),
+        simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.01).get_values('m.u'),
     )[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)
@@ -371,7 +381,7 @@ def _operator_element(law):
 def _rate(law, space, values, backend=None, **settings):
     """Return the rate of the first state of a field at its initial values, at every site."""
     field = FieldElement('m', element=_operator_element(law), space=space, values=values, **settings)
-    problem = PassCompiler(backend=backend or NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=backend or NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.ravel(problem.states.read(drift, 'm.u'))
 
@@ -408,19 +418,19 @@ def test_inverse_helmholtz_converges_in_a_closed_basin():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_has_zero_mean_on_a_periodic_lattice():
+def test_inverse_helmholtz_has_zero_mean_on_a_periodic_lattice():
     """Test that an unscreened periodic inversion has zero mean and its Laplacian is the field minus its mean."""
     n, spacing = 32, 2 * np.pi / 32
     x, y = np.meshgrid(np.arange(n) * spacing, np.arange(n) * spacing, indexing='ij')
     field = 1 + np.sin(x) + np.cos(2 * y) * np.sin(x)
     space = LatticeSpace((n, n), spacing=spacing)
-    solution = _rate(lambda s: inverse_laplacian(s.u), space, {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), space, {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), space, {'u': np.reshape(solution, (n, n))})
     assert abs(solution.mean()) < 1e-10
     assert np.abs(curvature - np.ravel(field - field.mean())).max() < 1e-10
 
 
-def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
+def test_inverse_helmholtz_has_zero_mean_at_zero_flux_edges():
     """Test that an unscreened inversion at zero-flux edges recovers a cosine with zero mean at second order."""
     errors = []
     for n in (40, 80):
@@ -428,7 +438,7 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
         solution = np.cos(np.pi * x)
         space = LatticeSpace(n, spacing=1 / n)
         rate = _rate(
-            lambda s: inverse_laplacian(s.u),
+            lambda s: inverse_helmholtz(s.u),
             space,
             {'u': 3 - np.pi**2 * solution},
             boundary={'u': 'zero-flux'},
@@ -438,11 +448,11 @@ def test_inverse_laplacian_has_zero_mean_at_zero_flux_edges():
     assert errors[0] / errors[1] > 3.8
 
 
-def test_inverse_laplacian_on_a_network_has_zero_mean():
+def test_inverse_helmholtz_on_a_network_has_zero_mean():
     """Test that an unscreened inversion on a network has zero mean and inverts the graph Laplacian."""
     graph = nx.connected_watts_strogatz_graph(30, 4, 0.2, seed=1)
     field = np.random.default_rng(0).random(30)
-    solution = _rate(lambda s: inverse_laplacian(s.u), NetworkSpace(graph), {'u': field})
+    solution = _rate(lambda s: inverse_helmholtz(s.u), NetworkSpace(graph), {'u': field})
     curvature = _rate(lambda s: laplacian(s.u), NetworkSpace(graph), {'u': solution})
     assert abs(solution.mean()) < 1e-12
     assert np.abs(curvature - (field - field.mean())).max() < 1e-12
@@ -693,8 +703,8 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     positions = np.arange(n) * spacing
 
     def law(s):
-        solution = inverse_laplacian(s.u)
-        return inverse_laplacian(s.u) ** 2 + solution + laplacian(solution**2)
+        solution = inverse_helmholtz(s.u)
+        return inverse_helmholtz(s.u) ** 2 + solution + laplacian(solution**2)
 
     field = FieldElement(
         'm',
@@ -703,7 +713,7 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
         values={'u': np.sin(positions)},
         discretization='spectral',
     )
-    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     state, parameters = problem.initial_state, problem.initial_parameters
     transforms.clear()
     first = problem.drift(0.0, state, parameters)
@@ -714,3 +724,59 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), expected)
     assert np.array_equal(problem.drift(0.0, state, parameters), first)
     assert len(transforms) == 6
+
+
+def _colliding_gas(kernel):
+    """Return a system of a gas on two velocity axes whose rate is its collision integral with a kernel."""
+
+    class GasElement(Element):
+        """Gas element whose density relaxes by binary collisions."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            nu: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.nu = nu
+
+        def _get_laws(self, s):
+            """Return the collision rate of the gas."""
+            return [RateLaw(s.x, collision_integral(s.x, lambda speed, cosine: kernel(speed, cosine, s.nu)))]
+
+    axes = [AxisSpec('vx', 8, -4.0, 4.0), AxisSpec('vy', 8, -4.0, 4.0)]
+    space = PhaseSpace(LatticeSpace((1,)), axes).prepare()
+    vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
+    start = np.exp(-((vx - 1) ** 2 + vy**2) / 2) + np.exp(-((vx + 1) ** 2 + vy**2) / 2)
+    gas = FieldElement('gas', element=GasElement, space=space, values={'x': start[None]})
+    return CompositeSystem(elements=[gas]), start
+
+
+def test_collision_integral_of_maxwell_molecules_matches_the_fast_spectral_integral():
+    """Test that the kernel 1 / (2 pi) gives the fast spectral integral of the same constant within 1e-12."""
+    system, start = _colliding_gas(lambda speed, cosine, nu: 1 / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    kernel = CollisionKernel((1, 8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
+    expected = kernel.run(RunStateSpec(0.0, start.ravel(), np.zeros(0))).values_
+    np.testing.assert_allclose(rates, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_collision_integral_takes_a_kernel_of_the_speed():
+    """Test that a kernel of the speed lowers and keeps the total density within 1e-12."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: speed / (2 * pi))
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert np.abs(rates).max() > 0
+    assert abs(rates.sum()) < 1e-12
+
+
+def test_collision_integral_rejects_a_kernel_that_reads_a_parameter():
+    """Test that a kernel that reads a parameter raises an error that names the law and the parameter."""
+    system, _ = _colliding_gas(lambda speed, cosine, nu: nu / (2 * pi))
+    with pytest.raises(ValidationError, match=r'law of gas has a kernel that reads gas\.nu'):
+        PassCompiler(backend=NumpyBackend()).prepare(system).run()

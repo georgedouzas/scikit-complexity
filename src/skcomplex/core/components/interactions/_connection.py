@@ -1,7 +1,4 @@
-"""Define connection interactions.
-
-A connection is the node where the potentials of ports agree and their flows sum to zero.
-"""
+"""Define the interaction that joins the ports of elements at one node."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,15 +19,22 @@ from ._interaction import Interaction
 
 
 class ConnectionInteraction(Interaction):
-    """Node of connected ports, whose potentials are equal and whose flows sum to zero.
+    """An interaction that joins ports so that their potentials agree and flows cancel.
 
-    The interaction binds the elements of one node through a variadic role and names the port of each. A node with many
-    ports is one connection, and a port belongs to one connection. A port that no connection names has a zero flow,
-    which the compiler adds.
+    A port is a named connector of an element, such as a pin of a resistor, with a potential and a flow. The interaction
+    binds the elements of one node through a role that takes any number of elements, and names the port of each. At the
+    node the potentials of the ports are equal and their flows sum to zero. A port that no connection names has a zero
+    flow.
+
+    Unlike `Interaction`, which returns rates or maps, it returns algebraic equations, which hold at every time. Choose
+    it when elements with ports connect into a network of components, as in Modelica.
+
+    It appears in many fields. Kirchhoff's laws join the pins of an electric circuit, pipes meet at a junction of a
+    hydraulic network, and shafts join in a mechanical drive train.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'node'`.
 
         members:
             The paths of the elements of the node.
@@ -47,7 +51,7 @@ class ConnectionInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import ConnectionInteraction
         >>> from skcomplex.core.components.laws import EquationLaw
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> PIN = ConnectorSpec('pin', potential='v', flow='i')
@@ -70,12 +74,12 @@ class ConnectionInteraction(Interaction):
         ...
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.a_i, s.g * (s.a_v - s.e))]
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )
         >>> trajectory = simulate(system, until=1.0, dt=1.0)
-        >>> float(trajectory.values('first.a_v')[-1])
+        >>> float(trajectory.get_values('first.a_v')[-1])
         2.0
     """
 

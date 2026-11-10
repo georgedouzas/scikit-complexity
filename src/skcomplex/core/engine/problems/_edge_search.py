@@ -1,7 +1,4 @@
-"""Edges of a network layer that an interaction over neighbours runs its laws on.
-
-There is one evaluation index per edge.
-"""
+"""Edges of a network layer that an interaction over neighbours runs its laws on."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from ._base import BaseSearch
 
 
 class EdgeSearch(BaseSearch):
-    """Edges of a network layer that an interaction over neighbours runs its laws on.
+    """A search of the edges of a layer that an interaction over neighbours runs on.
 
     There is one evaluation index per edge. The edges are fixed node index arrays, or on a network whose topology
     changes, hidden parameters of its variable edge group that topology requests rewrite, read as node indices at every
@@ -60,9 +57,9 @@ class EdgeSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the source and target node of every edge."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         p = state.p
         if self.source is None or self.target is None:
             self.pairs_ = self.sources, self.targets
         else:
-            self.pairs_ = self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+            self.pairs_ = self.source.get_view(p)[:, 0].astype(np.intp), self.target.get_view(p)[:, 0].astype(np.intp)

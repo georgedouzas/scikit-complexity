@@ -33,7 +33,7 @@ trajectory = simulate(system, until=YEARS, dt=DT, observers=[observer], random_s
 # the one-step log returns should follow that normal density.
 
 long_run = simulate(GeometricBrownianMotionSystem(price=PRICE, mu=MU, sigma=SIGMA), until=200, dt=DT, random_state=1)
-logs = np.log(long_run.values('asset.price'))
+logs = np.log(long_run.get_values('asset.price'))
 lags = np.unique(np.logspace(0, 2.5, 20).astype(int))
 returns = logs[1:] - logs[:-1]
 grid = np.linspace(returns.min(), returns.max(), 200)

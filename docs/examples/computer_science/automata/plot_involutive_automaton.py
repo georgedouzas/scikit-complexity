@@ -2,7 +2,7 @@
 # Involutive automaton
 
 The cells sit on a ring of 80 cells and hold 0 or 1, and every cell reads the window from its left neighbour to the
-`n`-th cell on its right. A cell at the left end of a run of exactly `n` ones becomes 0, a cell just before a run of
+`n`-th cell on its right. A cell at the left end of a run of exactly `n` ones becomes 0, a cell right before a run of
 exactly `n - 1` ones becomes 1, and every other cell keeps its value. The two moves undo each other, so the automaton
 is its own inverse.
 """
@@ -30,12 +30,12 @@ trajectory = simulate(InvolutiveAutomatonSystem(n=3, size=80, density=0.6, rando
 # Every configuration should come back after two steps, so the distance to the start alternates between a positive
 # value and 0, and over all rings of 12 cells the second step returns every one of them.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 distance = (alive != alive[0]).sum(axis=1)
 configurations = np.asarray(list(itertools.product((0, 1), repeat=12)), dtype=float)
 returned = [
     np.array_equal(
-        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).values(
+        simulate(InvolutiveAutomatonSystem(n=3, initial=configuration), until=2).get_values(
             'cells.alive',
         )[-1],
         configuration,

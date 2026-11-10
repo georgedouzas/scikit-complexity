@@ -9,7 +9,7 @@ warm and cold plumes side by side.
 """
 
 # %%
-# The system is built from its class at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
+# The example builds `RayleighBenardSystem` at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
 # layer and its mirror image for the free-slip walls. The catalog registers the fourth-order exponential time
 # differencing stepper for this spectral system, so it is passed explicitly with steps of 0.005. The observer saves
 # every frame of 0.05 with the default blueprint, here with the temperature as the primary view.
@@ -41,7 +41,7 @@ rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
     run = simulate(RayleighBenardSystem(Ra=rayleigh, shape=(16, 16)), solver=solver)
-    amplitudes.append(np.abs(run.values('flow.theta')[-1]).max())
+    amplitudes.append(np.abs(run.get_values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')
 ax.axvline(27 * np.pi**4 / 4, color='gray', linestyle='--', label='Ra_c = 657.5')

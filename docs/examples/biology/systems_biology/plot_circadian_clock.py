@@ -7,8 +7,8 @@ self-sustained circadian rhythm.
 """
 
 # %%
-# The system is built from its class with Goldbeter's parameters and run for ten days. The observer saves every second
-# frame with the default blueprint, whose primary view is the time series of the mRNA and the forms of PER.
+# The example builds `CircadianClockSystem` with Goldbeter's parameters and runs it for ten days. The observer saves
+# every second frame with the default blueprint, whose primary view is the time series of the mRNA and the forms of PER.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,8 +31,8 @@ trajectory = simulate(CircadianClockSystem(), observers=[observer])
 # by a few hours either way.
 
 fig, (series, periods) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(trajectory.times, trajectory.values('clock.M'), label='mRNA M')
-series.plot(trajectory.times, trajectory.values('clock.PN'), label='nuclear PER')
+series.plot(trajectory.times, trajectory.get_values('clock.M'), label='mRNA M')
+series.plot(trajectory.times, trajectory.get_values('clock.PN'), label='nuclear PER')
 series.set_xlabel('time (h)')
 series.set_ylabel('concentration (µM)')
 series.set_title('Self-sustained oscillations')
@@ -41,7 +41,7 @@ rates = np.linspace(0.8, 1.6, 9)
 lengths = []
 for rate in rates:
     run = simulate(CircadianClockSystem(v_d=rate), until=480)
-    peaks, _ = find_peaks(run.values('clock.M'))
+    peaks, _ = find_peaks(run.get_values('clock.M'))
     lengths.append(np.diff(run.times[peaks][-4:]).mean())
 periods.plot(rates, lengths, 'o-')
 periods.axhline(24.0, color='grey', linestyle=':', label='24 hours')
@@ -49,7 +49,7 @@ periods.axvline(0.95, color='black', linestyle='--', label='published v_d')
 periods.set_xlabel('maximal degradation rate v_d (µM/h)')
 periods.set_ylabel('period (h)')
 periods.set_title(
-    f'Period {np.diff(trajectory.times[find_peaks(trajectory.values("clock.M"))[0]]).mean():.1f} h at v_d = 0.95',
+    f'Period {np.diff(trajectory.times[find_peaks(trajectory.get_values("clock.M"))[0]]).mean():.1f} h at v_d = 0.95',
 )
 periods.legend()
 fig.tight_layout()

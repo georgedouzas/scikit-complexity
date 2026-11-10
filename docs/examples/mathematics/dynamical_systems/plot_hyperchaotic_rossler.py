@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
 trajectory = simulate(HyperchaoticRosslerSystem(), observers=[observer])
-points = np.column_stack([trajectory.values(f'rossler.{state}') for state in 'xyw'])[400:]
+points = np.column_stack([trajectory.get_values(f'rossler.{state}') for state in 'xyw'])[400:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.05, colors=[200, 90, 200]), static=True)
 observer.recording_.flush()
 

@@ -1,7 +1,4 @@
-"""Draw the states of a lattice group as images.
-
-A one-dimensional lattice also gets a space-time image.
-"""
+"""Draw the states of a lattice group as images."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,16 +15,16 @@ from ...components.spaces import PhaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _MODULUS, _PHASE, BaseVisual
+from ._base import MODULUS, PHASE, BaseVisual
 
-_MIN_HISTORY = 64
-_MAX_HISTORY = 256
-_IMAGE_RANK = 2
-_SPACE_TIME = 'space_time'
+MIN_HISTORY = 64
+MAX_HISTORY = 256
+IMAGE_RANK = 2
+SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
-    """Visual that logs every state of a lattice group as an image colored by value.
+    """A visual that logs every state of a lattice group as an image coloured by value.
 
     In 3D and more, it logs a tensor. A one-dimensional lattice also logs a space-time image under
     `<path>/space_time/<state>`, with one row per logged frame, the oldest at the top, and at most `history` rows. Its
@@ -106,7 +103,7 @@ class ImageVisual(BaseVisual):
         self.plane_: dict[str | int, int] = {}
         super()._prepare(context)
 
-    def _phase_space_of(self, element: CompiledElementSpec) -> PhaseSpace:
+    def _get_phase_space_of(self, element: CompiledElementSpec) -> PhaseSpace:
         """Return the phase space of a group.
 
         It raises an error for a group on another space.
@@ -117,7 +114,7 @@ class ImageVisual(BaseVisual):
             raise ValidationError(error_msg)
         return space
 
-    def _plane_of(self, space: PhaseSpace) -> dict[str | int, int]:
+    def _get_plane_of(self, space: PhaseSpace) -> dict[str | int, int]:
         """Return the fixed index of every axis of a plane through a phase space.
 
         They are given by the index of the axis.
@@ -126,7 +123,7 @@ class ImageVisual(BaseVisual):
             space.class_axes_[axis] if isinstance(axis, str) and axis in space.class_axes_ else axis: index
             for axis, index in (self.slices or {}).items()
         }
-        if len(plane) != space.n_dim_ - _IMAGE_RANK or not all(isinstance(axis, int) for axis in plane):
+        if len(plane) != space.n_dim_ - IMAGE_RANK or not all(isinstance(axis, int) for axis in plane):
             error_msg = (
                 f'ImageVisual fixes the axes {list(plane)} of a phase space of {space.n_dim_} axes. Fix every axis but '
                 'two, each by the name of a class axis or the index of an axis.'
@@ -134,14 +131,14 @@ class ImageVisual(BaseVisual):
             raise ValidationError(error_msg)
         return plane
 
-    def _sliced(self, values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def _get_sliced(self, values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the plane of the values of a state, or the whole state without slices."""
         index: list[int | slice] = [slice(None)] * values.ndim
         for axis, position in self.plane_.items():
             index[int(axis)] = position
         return values[tuple(index)]
 
-    def _moment_of(self, values: npt.NDArray[np.float64], space: PhaseSpace, order: int) -> npt.NDArray[np.float64]:
+    def _get_moment_of(self, values: npt.NDArray[np.float64], space: PhaseSpace, order: int) -> npt.NDArray[np.float64]:
         """Return a moment of the values of a state over the class axes of a phase space.
 
         The moment is a field over position.
@@ -162,24 +159,24 @@ class ImageVisual(BaseVisual):
 
         They are logged as a bar series or an image over position.
         """
-        space = self._phase_space_of(element)
+        space = self._get_phase_space_of(element)
         for order in self.moments or ():
-            moment = self._moment_of(values, space, order)
+            moment = self._get_moment_of(values, space, order)
             if moment.ndim == 1:
                 recording.log(f'{path}/moment_{order}', rr.BarChart(moment))
             else:
                 self._log_image(recording, f'{path}/moment_{order}', moment, cyclic=False)
 
-    def _history_of(self, sites: int) -> int:
+    def _get_history_of(self, sites: int) -> int:
         """Return the number of rows of the space-time image of a one-dimensional lattice.
 
         It depends on the number of sites.
         """
         if self.history is not None:
             return self.history
-        return int(np.clip(sites, _MIN_HISTORY, _MAX_HISTORY))
+        return int(np.clip(sites, MIN_HISTORY, MAX_HISTORY))
 
-    def _range(self, values: npt.NDArray[np.float64]) -> tuple[float, float]:
+    def _get_range(self, values: npt.NDArray[np.float64]) -> tuple[float, float]:
         """Return the values of the two ends of the color scale.
 
         They are the given ones or the extremes of the values.
@@ -193,13 +190,17 @@ class ImageVisual(BaseVisual):
 
         The image is a depth image with a color map.
         """
-        rows = self._history_of(len(values))
+        rows = self._get_history_of(len(values))
         if not rows:
             return
         history = self.rows_.setdefault(path, deque(maxlen=rows))
         history.append(values)
         image = np.stack(history)
-        depth = rr.DepthImage(self._levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
+        depth = rr.DepthImage(
+            self._get_levels_of(image, *self._get_range(image)),
+            colormap='viridis',
+            depth_range=(0.0, 255.0),
+        )
         recording.log(path, depth)
 
     def _log_image(
@@ -214,12 +215,14 @@ class ImageVisual(BaseVisual):
 
         The image is colored by value or by a cyclic palette.
         """
-        if values.ndim > _IMAGE_RANK:
+        if values.ndim > IMAGE_RANK:
             recording.log(path, rr.Tensor(values))
             return
         values = np.atleast_2d(values)
         colors = (
-            BaseVisual._phase_colors(values) if cyclic else BaseVisual._palette_colors(values, *self._range(values))
+            BaseVisual._get_phase_colors(values)
+            if cyclic
+            else BaseVisual._get_palette_colors(values, *self._get_range(values))
         )
         height, width = values.shape
         recording.log(
@@ -246,25 +249,26 @@ class ImageVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            if (self.states is not None and state not in self.states) or frame.problem.states.entry(name).member_shape:
+            shaped = frame.problem.states.get_entry(name).member_shape
+            if (self.states is not None and state not in self.states) or shaped:
                 continue
-            values = np.asarray(frame.lattice(name))
+            values = np.asarray(frame.get_lattice(name))
             path = f'{element.path}/{state}'
             if self.moments:
                 self._log_moments(recording, element, path, np.asarray(values, dtype=float))
             if self.plane_:
-                values = self._sliced(np.asarray(values, dtype=float))
+                values = self._get_sliced(np.asarray(values, dtype=float))
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
-                self._log_space_time(recording, f'{element.path}/{_SPACE_TIME}/{state}', magnitudes)
+                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                cyclic = frame.problem.states.entry(name).period is not None
+                cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
-            self._log_image(recording, f'{path}/{_MODULUS}', magnitudes, cyclic=False)
-            self._log_image(recording, f'{path}/{_PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
+            self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
+            self._log_image(recording, f'{path}/{PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state.
 
         A lattice of three or more dimensions gets a tensor view. A one-dimensional lattice gets the 2D spatial views of
@@ -300,41 +304,41 @@ class ImageVisual(BaseVisual):
         if not isinstance(element, CompiledElementSpec):
             return []
         if self.slices is not None:
-            self.plane_ = self._plane_of(self._phase_space_of(element))
+            self.plane_ = self._get_plane_of(self._get_phase_space_of(element))
         histories: list[rrb.View] = []
         views: list[rrb.View] = []
         for state, name in element.states.items():
-            if (self.states is not None and state not in self.states) or problem.states.entry(name).member_shape:
+            if (self.states is not None and state not in self.states) or problem.states.get_entry(name).member_shape:
                 continue
             path, shape = (
                 f'{element.path}/{state}',
-                problem.lattice_shape(name) or (),
+                problem.get_lattice_shape(name) or (),
             )
-            if len(shape) == 1 and self._history_of(shape[0]):
+            if len(shape) == 1 and self._get_history_of(shape[0]):
                 histories.append(
-                    rrb.Spatial2DView(origin=f'{element.path}/{_SPACE_TIME}/{state}', name=f'{state} history'),
+                    rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
                 )
-            kind = rrb.TensorView if len(shape) - len(self.plane_) > _IMAGE_RANK else rrb.Spatial2DView
-            views += self._moment_views(element, path)
-            if problem.states.entry(name).is_complex:
-                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)]
+            kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
+            views += self._get_moment_views(element, path)
+            if problem.states.get_entry(name).is_complex:
+                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]
 
-    def _moment_views(self, element: CompiledElementSpec, path: str) -> list[rrb.View]:
+    def _get_moment_views(self, element: CompiledElementSpec, path: str) -> list[rrb.View]:
         """Return the view of every logged moment.
 
         It is a bar chart over one position axis and else a 2D spatial view.
         """
         if not self.moments:
             return []
-        rank = len(self._phase_space_of(element).position_axes_)
+        rank = len(self._get_phase_space_of(element).position_axes_)
         kind = rrb.BarChartView if rank == 1 else rrb.Spatial2DView
         return [kind(origin=f'{path}/moment_{order}', name=f'moment {order}') for order in self.moments]
 
     @staticmethod
-    def _levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    def _get_levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
         """Return the values as levels from 1 to 255 of a color map.
 
         The level 0 is left for no data.

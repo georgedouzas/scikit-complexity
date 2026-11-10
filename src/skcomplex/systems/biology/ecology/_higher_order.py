@@ -14,7 +14,7 @@ from scipy.special import comb
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import contraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import LogisticGrowthInteraction, PopulationElement
 
@@ -44,8 +44,8 @@ class TripletInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import TripletInteraction
-        >>> TripletInteraction('triplets', target='species', a=0.0, state='n').state
-        'n'
+        >>> TripletInteraction('triplets', target='species', a=0.0, state='x').state
+        'x'
     """
 
     def __init__(
@@ -56,10 +56,10 @@ class TripletInteraction(RateInteraction):
         a: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state, rate=self._triplets)
+        super().__init__(label, target=target, state=state, rate=self._get_triplets)
         self.a = a
 
-    def _triplets(self, namespace: SimpleNamespace) -> object:
+    def _get_triplets(self, namespace: SimpleNamespace) -> object:
         """Return the growth of a species from the pairs of other species."""
         abundance = getattr(namespace.target, self.state)
         return abundance * contraction(namespace.a, abundance, abundance) / 2
@@ -75,7 +75,7 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
     with uncorrelated coefficients at `mu = -4` and `sigma = 1`, in its phase with a unique stable fixed point, where
     the theory gives a fraction `0.928` of surviving species and a mean abundance `0.392`. The paper does not state the
     distribution of the initial abundances, which are drawn uniformly from the interval from 0 to 1. The system has the
-    abundances `species.n` of the members of the group `species`, the growth `growth`, and the interactions `triplets`,
+    abundances `species.x` of the members of the group `species`, the growth `growth`, and the interactions `triplets`,
     whose tensor is the parameter `triplets.a`.
 
     Args:
@@ -158,7 +158,7 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
             tensor[i, j, k] = tensor[i, k, j] = values[:, position]
         return tensor
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a random Lotka-Volterra community of third order.
 
         Its interactions are of third order.
@@ -169,13 +169,13 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
             'species',
             element=PopulationElement,
             size=self.size,
-            values={'n': rng.random(self.size)},
+            values={'x': rng.random(self.size)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species],
             interactions=[
                 LogisticGrowthInteraction('growth', target='species', r=self.k, K=self.k),
-                TripletInteraction('triplets', target='species', a=tensor, state='n'),
+                TripletInteraction('triplets', target='species', a=tensor, state='x'),
             ],
         )

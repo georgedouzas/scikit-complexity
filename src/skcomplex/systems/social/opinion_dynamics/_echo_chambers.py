@@ -16,10 +16,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+PAIR = 2
 
 
 class RadicalView(AgentView):
@@ -27,9 +29,6 @@ class RadicalView(AgentView):
 
     opinion: float
     activity: float
-
-
-PAIR = 2
 
 
 class RadicalElement(Element):
@@ -185,7 +184,7 @@ class RadicalizationInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.agents(self.target, RadicalView)
+        agents = system.get_agents(self.target, RadicalView)
         if len(agents) < PAIR:
             return
         opinions = np.array([agent.opinion for agent in agents])
@@ -280,7 +279,7 @@ class EchoChamberRadicalizationSystem(BaseSystem):
         self.least_activity = least_activity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
@@ -300,4 +299,4 @@ class EchoChamberRadicalizationSystem(BaseSystem):
             contacts=self.contacts,
             reciprocity=self.reciprocity,
         )
-        return System(self.label, elements=[agents], interactions=[influence])
+        return CompositeSystem(self.label, elements=[agents], interactions=[influence])

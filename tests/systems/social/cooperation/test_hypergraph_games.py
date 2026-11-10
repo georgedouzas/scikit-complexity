@@ -21,13 +21,13 @@ GAMES = {
 
 def _cooperation(trajectory):
     """Return the share of cooperators at every frame of a game."""
-    return trajectory.values('players.strategy').mean(axis=1)
+    return trajectory.get_values('players.strategy').mean(axis=1)
 
 
 def _first_payoffs(system, backend):
     """Return the payoffs of the play of the first step."""
     trajectory = simulate(system, until=1, random_state=0, dt=1, backend=backend)
-    return trajectory.values('players.payoff')[1]
+    return trajectory.get_values('players.payoff')[1]
 
 
 def _game(own, other, sucker, temptation):

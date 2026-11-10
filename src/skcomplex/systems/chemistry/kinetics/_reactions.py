@@ -13,26 +13,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ReactionInteraction
-from ....core.components.mass_action import MassActionSystem
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ....core.types import ReactionTable
+from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
+from ...general.reactions.types import ReactionTable
 
 X = ('reactor', 'x')
-
-
-def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
-    """Return the binding, unbinding, and catalysis of the enzyme reaction.
-
-    The reaction is `E + S <-> C -> E + P`.
-    """
-    return {
-        'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
-        'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
-        'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
-    }
 
 
 class SchloglElement(Element):
@@ -100,14 +87,14 @@ class SchloglElement(Element):
         self.B = B
 
 
-class MichaelisMentenSystem(MassActionSystem):
+class MichaelisMentenSystem(ReactionNetworkSystem):
     """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten.
 
     It runs as rate equations or as jumps.
 
     The total enzyme `E + C` and the total substrate `S + C + P` are conserved. In stochastic mode the amounts are
-    numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.n`,
-    `S.n`, `C.n`, and `P.n`.
+    numbers of molecules and the reactions are the random events of Gillespie's algorithm. The amounts are `E.x`,
+    `S.x`, `C.x`, and `P.x`.
 
     Args:
         enzyme:
@@ -145,6 +132,18 @@ class MichaelisMentenSystem(MassActionSystem):
     until = 50.0
     dt = 0.5
 
+    @staticmethod
+    def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction.
+
+        The reaction is `E + S <-> C -> E + P`.
+        """
+        return {
+            'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
+            'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
+            'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
+        }
+
     def __init__(
         self,
         enzyme: float = 100.0,
@@ -170,7 +169,7 @@ class MichaelisMentenSystem(MassActionSystem):
 
     def _get_reactions(self) -> ReactionTable:
         """Return the binding, unbinding, and catalysis of the enzyme reaction."""
-        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+        return MichaelisMentenSystem._get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
 
     def _get_mode(self) -> str:
         """Return the mode of the reactions.
@@ -274,7 +273,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         reactor = s.reactants[0]
         return reactor.c4 * reactor.x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the reactor and the four channels of Schlögl's reaction.
 
         The channels are chemical Langevin equations.
@@ -289,7 +288,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
             A=self.A,
             B=self.B,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[reactor],
             interactions=[
@@ -313,13 +312,13 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         )
 
 
-class ChemicalLangevinNetworkSystem(MassActionSystem):
+class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
     """The chemical Langevin equation of the enzyme reaction `E + S <-> C -> E + P`.
 
     Every reaction adds its rate times its change of every species to the drift, and one Wiener process with the
     amplitude the square root of its rate drives every species it changes. Since one increment changes all of them, the
     total enzyme `E + C` and the total substrate `S + C + P` stay constant under the noise, as in the jump process. The
-    amounts are `E.n`, `S.n`, `C.n`, and `P.n`.
+    amounts are `E.x`, `S.x`, `C.x`, and `P.x`.
 
     Args:
         enzyme:
@@ -376,7 +375,7 @@ class ChemicalLangevinNetworkSystem(MassActionSystem):
 
     def _get_reactions(self) -> ReactionTable:
         """Return the binding, unbinding, and catalysis of the enzyme reaction."""
-        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+        return MichaelisMentenSystem._get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
 
     def _get_mode(self) -> str:
         """Return the mode of the reactions, the chemical Langevin equation."""

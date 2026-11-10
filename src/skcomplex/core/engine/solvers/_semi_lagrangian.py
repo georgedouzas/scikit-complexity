@@ -1,7 +1,4 @@
-"""Advance fields whose fluxes are linear drifts.
-
-Each slice shifts along its characteristics.
-"""
+"""Advance fields whose fluxes are linear drifts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,13 +24,16 @@ SPLINE_MODES = {'zero-flux': 'nearest', 'fixed': 'constant'}
 
 
 class SemiLagrangianSolver(Solver):
-    """Directional splitting of Cheng and Knorr.
+    """A solver of kinetic equations by the directional splitting of Cheng and Knorr.
 
     It shifts every slice of a field along each axis in turn. Every flux of the field must be a linear drift `a u`, with
     `a` free of the state and constant along its own axis. A shift along a periodic axis multiplies the Fourier modes of
     the slices through `scipy.fft`, which conserves the total, and a shift along an interval evaluates a cubic spline
     through `scipy.ndimage.map_coordinates`. The solver is stable at any Courant number. Rate laws advance by one
     midpoint step between two half transport steps.
+
+    Choose it for transport in phase space, such as the Vlasov equation. It appears in plasma physics and in kinetic
+    models of bacteria.
 
     Args:
         dt:
@@ -47,23 +47,31 @@ class SemiLagrangianSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import DensityElement, FieldElement
-        >>> from skcomplex.core.components.interactions import AdvectionInteraction
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
+        >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
         >>> from skcomplex.core.specs import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
         >>> gas = FieldElement(
-        ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
+        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
-        >>> system = System(elements=[gas], interactions=[stream])
+        >>> stream = ConservationInteraction(
+        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
+        ... )
+        >>> system = CompositeSystem(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = simulate(system, until=2.0, solver=solver).values('gas.f')[-1]
+        >>> final = simulate(system, until=2.0, solver=solver).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """
@@ -132,7 +140,7 @@ class SemiLagrangianSolver(Solver):
                 )
                 raise SolverError(error_msg)
 
-    def _shifted_periodic(self, values: Array, displacement: Array, axis: int, spacing: float) -> Array:
+    def _get_shifted_periodic(self, values: Array, displacement: Array, axis: int, spacing: float) -> Array:
         """Return slices of an axis shifted by a displacement per slice.
 
         The shift uses the Fourier shift theorem.
@@ -147,7 +155,7 @@ class SemiLagrangianSolver(Solver):
             modes = np.where(waves.reshape(shape) == waves[-1], np.cos(waves[-1] * slices), modes)
         return np.asarray(scipy.fft.irfft(scipy.fft.rfft(values, axis=axis) * modes, n=length, axis=axis))
 
-    def _shifted_spline(self, values: Array, displacement: Array, axis: int, *, spacing: float, kind: str) -> Array:
+    def _get_shifted_spline(self, values: Array, displacement: Array, axis: int, *, spacing: float, kind: str) -> Array:
         """Return slices of an axis shifted by a displacement per slice.
 
         The shift uses a cubic spline, slice by slice.
@@ -165,24 +173,33 @@ class SemiLagrangianSolver(Solver):
             )
         return np.moveaxis(result, -1, axis)
 
-    def _shifted_state(self, volume: FiniteVolumeKernel, x: Array, p: Array, *, t: float, h: float, axis: int) -> Array:
+    def _get_shifted_state(
+        self,
+        volume: FiniteVolumeKernel,
+        x: Array,
+        p: Array,
+        *,
+        t: float,
+        h: float,
+        axis: int,
+    ) -> Array:
         """Return the state vector after one field shifts along one axis.
 
         The states of the field shift for a time.
         """
         result = x.copy()
-        states = volume._states(x)
-        drifts = volume.drift_of(axis, states, x, p, t)
+        states = volume._get_states(x)
+        drifts = volume.get_drift_of(axis, states, x, p, t)
         spacing = volume.spacings[axis]
         for start, values, drift, (given, _) in zip(volume.starts, states, drifts, volume.boundaries, strict=True):
-            kind = volume._kind(axis, given)
+            kind = volume._get_kind(axis, given)
             displacement = np.broadcast_to(drift, values.shape) * h
             if not np.any(displacement):
                 continue
             if kind == 'periodic':
-                shifted = self._shifted_periodic(values, displacement, axis, spacing)
+                shifted = self._get_shifted_periodic(values, displacement, axis, spacing)
             else:
-                shifted = self._shifted_spline(values, displacement, axis, spacing=spacing, kind=kind)
+                shifted = self._get_shifted_spline(values, displacement, axis, spacing=spacing, kind=kind)
             result[start : start + volume.size] = shifted.ravel()
         return result
 
@@ -196,10 +213,10 @@ class SemiLagrangianSolver(Solver):
             axes = range(len(volume.dimensions))
             *outer, inner = axes
             for axis in outer:
-                state = self._shifted_state(volume, state, p, t=t, h=h / 2, axis=axis)
-            state = self._shifted_state(volume, state, p, t=t, h=h, axis=inner)
+                state = self._get_shifted_state(volume, state, p, t=t, h=h / 2, axis=axis)
+            state = self._get_shifted_state(volume, state, p, t=t, h=h, axis=inner)
             for axis in reversed(outer):
-                state = self._shifted_state(volume, state, p, t=t + h / 2, h=h / 2, axis=axis)
+                state = self._get_shifted_state(volume, state, p, t=t + h / 2, h=h / 2, axis=axis)
         return state
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

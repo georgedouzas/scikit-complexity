@@ -1,66 +1,101 @@
 # Select a ready-made system
 
-Find a system of the catalog, read what it is, and simulate it with the settings it was tuned for.
+This page finds a system of the catalog, reads what it models, and runs it with the settings it was tuned for. The
+catalog is the set of ready-made systems of `skcomplex.systems`, each a class built from the public parts of the core.
 
 ## The catalog
 
-Every ready-made system is a class, named after the system with the suffix `System`, such as `SIRSystem`. You import
-it from its subfield, the package `skcomplex.systems.<field>.<subfield>`, and `simulate` runs it with its tuned
-settings. `all_systems` returns the name and the class of every system.
+This section runs one system of the catalog and reads its description. Every ready-made system is a class named after
+the system with the suffix `System`, such as `SIRSystem`, the epidemic model of Kermack and McKendrick (1927). You
+import it from its subfield, the package `skcomplex.systems.<field>.<subfield>`, and `simulate` runs it with its tuned
+settings.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 trajectory = simulate(SIRSystem())
-trajectory.values('I.n').max().round()
+trajectory.get_values('I.x').max().round()
 ```
 
-A system class tells you what it is through plain attributes and methods:
+The number of infected people peaks at 304. `simulate` returns a [trajectory](glossary.md#trajectory), the recorded
+run. Its method `get_values` returns the values of a state, an observable, or a parameter by its dotted path, such as
+`I.x`, the state `x` of the element `I`, and its attribute `names` lists every path.
 
-- the first line of its docstring describes it,
-- `field`, `topics`, and `references` are class attributes,
-- `get_params()` gives the parameters of its model with their defaults, as for any scikit-learn estimator,
-- `get_tags()` gives its capability tags, such as its time, its space, the kinds of its laws, and its randomness,
-- `get_run_settings()` gives the tuned run settings that `simulate` uses for every argument a call leaves out, such as
+A system class says what it is through plain attributes and methods.
+
+- The first line of its docstring describes it.
+- `field`, `topics`, and `references` are class attributes.
+- `get_params()` returns the parameters of its model with their defaults, as for any scikit-learn estimator.
+- `get_tags()` returns its capability [tags](glossary.md#tag), such as its time, its space, the kinds of its laws, and
+  its randomness.
+- `get_run_settings()` returns the tuned run settings that `simulate` uses for every argument a call leaves out, such as
   the end time `until` and the time between frames `dt`.
 
 ```python continuation
 SIRSystem.__doc__.splitlines()[0], SIRSystem.field, SIRSystem.topics, SIRSystem.references
 ```
 
+The docstring reads "An epidemic that moves individuals from susceptible to infected to recovered." The field path is
+`'biology/epidemiology'`, the topics are `'compartments'`, `'ode'`, and `'jump'`, and the reference is Kermack and
+McKendrick (1927).
+
 ```python continuation
 system = SIRSystem()
 system.get_params(), system.get_tags().laws, system.get_run_settings()['until']
 ```
 
-`simulate` returns a `Trajectory`. Its `values` method returns the recorded values of a state, an observable, or a
-parameter by its dotted path, such as `I.n`, and `names` lists every path.
+The parameters are 990 susceptible, 10 infected, and 0 recovered people, the infection rate `beta = 0.0003`, the
+recovery rate `gamma = 0.1`, `stochastic=False`, and the label. The system holds rate laws, so it runs as differential
+equations, and its tuned run ends at time 160.
 
-### Finding a system
+## Finding a system
 
-`all_systems` filters by a field, such as `biology`, by a field path, such as `biology/ecology`, by topics, and by
-capability tags. Listing by field and topics reads the sources of the catalog, so it imports only the modules of the
-systems it returns. Filtering by tags builds every selected class with its default parameters.
+This section finds systems by field, by topic, and by what they do. `all_systems` returns the name and the class of
+every system that matches its filters. A field path such as `'biology/ecology'` selects one subfield.
 
 ```python
 from skcomplex.systems import all_systems
 
 [name for name, _ in all_systems(field='biology/ecology')][:5]
+```
+
+The first five systems of ecology are `AgentBasedLotkaVolterraSystem`, `CometsSystem`, `CommunityFBASystem`,
+`CompetitionSystem`, and `ConsumerResourceSystem`. A field alone, such as `'chemistry'`, selects all its subfields.
+
+```python continuation
 sorted({cls.field for _, cls in all_systems(field='chemistry')})
+```
+
+The systems of chemistry belong to `'chemistry/kinetics'` and `'chemistry/pattern_formation'`. A topic selects systems
+across every field.
+
+```python continuation
 [name for name, _ in all_systems(topics='oscillation')][:5]
+```
+
+The first five oscillators are `AdlerEquationSystem`, `AgentBasedLotkaVolterraSystem`, `BrusselatorODESystem`,
+`BrusselatorSystem`, and `CoupledPendulumsSystem`. Tags select systems by what they do, here the systems of chemistry
+that draw random numbers.
+
+```python continuation
 [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
 ```
 
-The tags describe a system with its default parameters. `SIRSystem` runs as differential equations by default, so it
-is deterministic, and `SIRSystem(stochastic=True)` is stochastic.
+They are `ChemicalLangevinEquationSystem` and `ChemicalLangevinNetworkSystem`. A listing by field and topics reads the
+sources of the catalog, so it imports only the modules of the systems it returns. A filter by tags builds every
+selected class with its default parameters, and the tags describe that default. `SIRSystem` is deterministic by
+default, and `SIRSystem(stochastic=True)` is stochastic.
 
-The catalog belongs to the catalog alone. `simulate`, the analyses, and the experiments take a system instance, or a
-class or a factory where a function builds several systems, never a name.
+`simulate`, the analyses, and the experiments take a system instance, never a name. A function that builds several
+systems, such as a sweep, takes a class or a factory.
 
-Each system has a field path `<field>/<subfield>`, which `all_systems` takes as a filter, and is imported from the
-subfield package of the same path, such as `skcomplex.systems.biology.epidemiology` for `biology/epidemiology`. The
-page of each system under [Systems](../../systems/index.md) shows its import.
+### Fields and subfields
+
+This section lists the field paths of the catalog. Each system has a field path `<field>/<subfield>`, which
+`all_systems` takes as a filter, and you import the system from the subfield package of the same path, such as
+`skcomplex.systems.biology.epidemiology` for `biology/epidemiology`. The page of each system under
+[Systems](../../systems/index.md) shows its import.
 
 | Field | Subfields |
 | --- | --- |
@@ -73,19 +108,19 @@ page of each system under [Systems](../../systems/index.md) shows its import.
 | `mathematics` | `dynamical_systems`, `stochastic_processes`, `networks`, `fractals`, `fractional_dynamics` |
 | `computer_science` | `automata`, `evolutionary_computation`, `neural_networks` |
 
-A system lives where the science that poses it lives, and its topics carry its reach into other fields. The library
-keeps the catalog apart from the core by three rules, which the checks of the package layout enforce.
+A system lives in the field whose science poses it, and its topics carry its reach into other fields. Three rules keep
+the catalog apart from the core, and the checks of the package layout enforce them.
 
 - The core never imports the systems.
 - Every system is built only from the public names of the core.
-- Every subfield package is self-contained, so no system package imports another. Code that several subfields of one
-  field share lives in the `common` package of that field, and no field uses the `common` package of another.
+- No subfield package imports another. Code that several subfields of one field share lives in the `common` package of
+  that field, and no field uses the `common` package of another.
 
 ### Optional extras
 
-Most systems run on the default install. A few take a library from an optional extra. Without the extra they stay in
-the catalog, and preparing or simulating one raises `MissingExtraError` with the name of the system, the extra, and
-the install command.
+This section says which systems need an optional install. Most systems run on the default install. A few need a
+library from an optional extra. Without the extra they stay in the catalog, and preparing or simulating one raises
+`MissingExtraError` with the name of the system, the extra, and the install command.
 
 | Extra | Library | Systems | Install notes |
 | --- | --- | --- | --- |
@@ -95,33 +130,35 @@ the install command.
 
 ### Systems as patterns
 
-The ready-made systems are examples of the core interface, not a separate one. So each is also the pattern for a system
-of your own. The page of every field, under [Systems](../../systems/index.md) in the documentation, shows for each
-system:
+This section shows how a ready-made system serves as the pattern of a system of your own. The ready-made systems use
+the core interface and no other, so the page of every field under [Systems](../../systems/index.md) shows for each
+system what a builder needs to copy:
 
 - its class, with its parameters and tags,
 - its element and interaction types, with their states, parameters, and laws as written,
 - for differential equations and maps, its equations as `symbolic(system).equations` returns them.
 
 A system of your own follows the same steps. Declare the element and interaction types, and write a class that builds
-the system from its parameters, as the page [System classes](system_classes.md) shows. The section [Choosing compatible components](build_a_custom_system/choosing_compatible_components.md) shows how to find
-which parts fit together, and the
+the system from its parameters, as the page [System classes](system_classes.md) shows. The tutorial
+[Check a system](check.md#what-an-interaction-needs) shows how to find which parts fit together, and the
 [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) covers adding a system to the
 catalog.
 
 ### Inventory
 
-The system inventory, `docs/overview/inventory.toml`, records every system surveyed from the reference books and
-articles, with its sources and its status: implemented, pending a planned change, or blocked by a missing feature of the
-core. A system the core cannot express is recorded as blocked on the OpenSpec change that specifies the missing general
-feature. It is never worked around inside the system package. A test checks the inventory against the catalog and the
-changes. An entry writes the components and the bindings of its system by hand, while the time, the space, the laws,
-and the domains of an implemented system are read from `get_tags()` of its class, so they cannot drift from the code.
-Every system class has its own page under Systems in the documentation, by field and subfield.
+This section explains the record of every system the library has surveyed. The inventory,
+`docs/overview/inventory.toml`, lists the systems found in the reference books and articles, with their sources and
+their status: implemented, pending a planned change, or blocked by a missing feature of the core. A system that the
+core cannot express is recorded as blocked on the OpenSpec change that specifies the missing general feature. It is
+never worked around inside the system package.
 
-Systems exist first to exercise the core, and ready-made systems are a by-product. Every entry lists the core primitives
-it exercises, such as `rates`, `jumps`, `groups`, `reductions`, `member-offsets`, `lattices`, `fields`, `agents`, or
-`stocks-and-flows`, from a vocabulary the inventory defines. A primitive that the core does not have yet names the
-change that adds it. An entry's priority is `core` when it exercises a primitive, or a combination of primitives, that
-no earlier implemented entry exercises, or when it needs a missing one. It is `example` when it repeats a covered
-pattern. So new systems go first where the core is least exercised.
+An entry writes the components and the bindings of its system by hand. The time, the space, the laws, and the domains
+of an implemented system come from `get_tags()` of its class, so they cannot drift from the code. A check that the
+documentation build runs compares the inventory with the catalog and the changes.
+
+The systems exist first to exercise the core, and the ready-made systems are a by-product. Every entry lists the core
+primitives it exercises, such as `rates`, `jumps`, `groups`, `lattices`, or `agents`, from a vocabulary that the
+inventory defines. A primitive that the core lacks names the change that adds it. The priority of an entry is `core`
+when it exercises a primitive, or a combination of primitives, that no earlier implemented entry exercises, or when it
+needs a missing one. It is `example` when it repeats a covered pattern. So new systems go first where the core is least
+exercised.

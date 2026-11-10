@@ -14,7 +14,7 @@ def _waits(trajectory, frames):
     """Return the waiting times of the tasks executed in a run of the priority queue."""
     waits = []
     for frame in range(1, frames + 1):
-        values = trajectory.agents('tasks', frame).values
+        values = trajectory.get_agents('tasks', frame).values
         waits += values['wait'][values['age'] == 0].tolist()
     return np.array(waits)
 
@@ -31,4 +31,4 @@ def test_priority_queue_waits():
 def test_priority_queue_reports_every_wait():
     """Test that the execution reports the wait of every executed task as a series of the trajectory."""
     trajectory = _run(PriorityQueuesSystem(random_state=0), 500)
-    np.testing.assert_array_equal(trajectory.values('execution.wait')[1:], _waits(trajectory, 500))
+    np.testing.assert_array_equal(trajectory.get_values('execution.wait')[1:], _waits(trajectory, 500))

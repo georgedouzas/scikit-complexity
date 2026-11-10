@@ -1,7 +1,4 @@
-"""Measure emergence across scales.
-
-The measures are effective information, causal emergence, integrated criteria, and closure.
-"""
+"""Measure emergence across scales."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +24,6 @@ from ._markov import _stationary_distribution
 from .types import Partition, Source
 
 MATRIX_DIMENSIONS = 2
-
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
 MATRIX_KINDS = ('effective-information', 'causal')
 WEIGHTINGS = ('uniform', 'stationary')
@@ -39,11 +35,8 @@ SETTINGS = {
     'criteria': {'partition', 'lag', 'estimator', 'k', 'base'},
     'closure': {'partition', 'history', 'base'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'effective-information': AnalysisTags(DataKind.PATH),
@@ -53,7 +46,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EmergenceResult:
-    """Emergence of a macro scale over a micro scale, of one kind.
+    """A result of `emergence`, the emergence of a macro scale over a micro scale.
 
     Args:
         matrix:
@@ -164,6 +157,8 @@ def emergence(
       by `partition`, estimated `lag` steps ahead with the minimum mutual information redundancy.
     - `'closure'`: how well the macro past and the micro past of the macro series given by `partition` predict the
       macro future. The coarse-graining is closed when the gap is zero up to the bias of the plug-in estimator.
+
+    It appears in many fields. It asks whether a flock, a brain region, or an economy behaves as more than its parts.
 
     Args:
         source:

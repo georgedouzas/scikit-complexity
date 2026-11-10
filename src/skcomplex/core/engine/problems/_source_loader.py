@@ -15,11 +15,10 @@ from ...base import BaseConfig
 from ...errors import ValidationError
 
 CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
-"""The default directory of the generated sources and of Numba's cache."""
 
 
 class SourceLoader(BaseConfig[str | Path | None, str]):
-    """Loader of generated source.
+    """A loader of generated source code.
 
     The source is imported from a file of the cache directory named by its digest. `prepare(cache_dir)` sets the
     directory of the generated files, `~/.cache/skcomplex/kernels` by default, and `run(source)` writes the source there

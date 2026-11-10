@@ -19,7 +19,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import total
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -150,7 +150,7 @@ class EchoStateNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _recurrent_weights(
+    def _get_recurrent_weights(
         n_units: int,
         connectivity: float,
         spectral_radius: float,
@@ -161,7 +161,7 @@ class EchoStateNetworkSystem(BaseSystem):
         return scipy.sparse.csr_array(weights)
 
     @staticmethod
-    def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
+    def _get_leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
         """Return the next activity of a unit.
 
         It is `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))`.
@@ -170,10 +170,10 @@ class EchoStateNetworkSystem(BaseSystem):
         drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
         return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        weights = self._recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
+        weights = self._get_recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
         units = GroupElement(
             'units',
             element=ReservoirUnitElement,
@@ -190,6 +190,6 @@ class EchoStateNetworkSystem(BaseSystem):
             'reservoir',
             target='units',
             state='r',
-            function=functools.partial(self._leaky_tanh, weights=weights),
+            function=functools.partial(self._get_leaky_tanh, weights=weights),
         )
-        return System(self.label, elements=[units], interactions=[reservoir])
+        return CompositeSystem(self.label, elements=[units], interactions=[reservoir])

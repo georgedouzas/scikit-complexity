@@ -7,7 +7,7 @@ stops. The escape times draw bands that wrap ever closer around the set as the r
 """
 
 # %%
-# The system is built from its class on a lattice of 240 by 300 points that covers the set. The map runs
+# The example builds `MandelbrotSystem` on a lattice of 240 by 300 points that covers the set. The map runs
 # for 100 steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image
 # of the escape counts.
 
@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 # The points still bounded after `k` steps cover a region that shrinks towards the set as `k` grows. Its area should
 # fall quickly at first and then level off near the area of the Mandelbrot set, about 1.506.
 
-counts = trajectory.lattice('plane.n')
+counts = trajectory.get_lattice('plane.n')
 cell = (WINDOW[1] - WINDOW[0]) / (counts.shape[2] - 1) * (WINDOW[3] - WINDOW[2]) / (counts.shape[1] - 1)
 steps = trajectory.times
 bounded = (counts == steps[:, np.newaxis, np.newaxis]).sum(axis=(1, 2)) * cell

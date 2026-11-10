@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.analysis import bind_analysis, clusters
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
 
@@ -11,7 +11,7 @@ FILLINGS = [0.8, 1.0, 1.25, 1.5]
 SEEDS = list(range(40))
 
 
-def _disks(**parameters: object) -> System:
+def _disks(**parameters: object) -> CompositeSystem:
     """Return the disks of a continuum percolation system for its model parameters, as an experiment runs them."""
     return ContinuumPercolationSystem(**parameters).prepare().system_
 
@@ -26,7 +26,7 @@ def _spanning_shares(side: float) -> np.ndarray:
         analyses=[bind_analysis(clusters, kind='percolation', radius=1.0)],
         outputs=[],
     )
-    spans = result.column('clusters.spanning').astype(float)
+    spans = result.get_column('clusters.spanning').astype(float)
     return spans.reshape(len(FILLINGS), len(SEEDS)).mean(axis=1)
 
 

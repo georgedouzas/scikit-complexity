@@ -14,15 +14,17 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+TREE_ASPECT = 0.7
 
 
 class ParticleSiteElement(Element):
@@ -294,15 +296,15 @@ class ZeroRangeHopInteraction(TransferInteraction):
     @staticmethod
     def _get_forward_rate(s: SimpleNamespace) -> Expression:
         """Return the rate `p u(n)` of a hop from the first site."""
-        return s.p * ZeroRangeHopInteraction._departure_rate(s.source.n, s.b)
+        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
 
     @staticmethod
     def _get_backward_rate(s: SimpleNamespace) -> Expression:
         """Return the rate `q u(n')` of a hop from the second site."""
-        return s.q * ZeroRangeHopInteraction._departure_rate(s.target.n, s.b)
+        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
 
     @staticmethod
-    def _departure_rate(n: Expression, b: Expression) -> Expression:
+    def _get_departure_rate(n: Expression, b: Expression) -> Expression:
         """Return the zero-range rate `u(n) = 1 + b / n` of a site with `n` particles.
 
         The rate is 0 for an empty site.
@@ -371,15 +373,12 @@ class ZeroRangeHopsInteraction(TransferInteraction):
     @staticmethod
     def _get_right_rate(s: SimpleNamespace) -> Expression:
         """Return the rate `p u(n)` of a hop to the right."""
-        return s.p * ZeroRangeHopInteraction._departure_rate(s.source.n, s.b)
+        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
 
     @staticmethod
     def _get_left_rate(s: SimpleNamespace) -> Expression:
         """Return the rate `q u(n)` of a hop to the left, from the site on the right."""
-        return s.q * ZeroRangeHopInteraction._departure_rate(s.target.n, s.b)
-
-
-TREE_ASPECT = 0.7
+        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
 
 
 class ZeroRangeProcessSystem(BaseSystem):
@@ -456,16 +455,17 @@ class ZeroRangeProcessSystem(BaseSystem):
         sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
         return np.bincount(sites, minlength=n_sites).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
-        sites = LatticeElement(
+        sites = GroupElement(
             'sites',
             element=ParticleSiteElement,
             space=LatticeSpace(self.n_sites),
             values={'n': occupations},
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[sites],
             interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
@@ -547,7 +547,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
         self.dissipation = dissipation
 
     @staticmethod
-    def _level_start(level: int, branches: int) -> int:
+    def _get_level_start(level: int, branches: int) -> int:
         """Return the index of the first node of a level of a tree.
 
         The levels are counted from level 1, in breadth-first order.
@@ -555,7 +555,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
         return (branches ** (level - 1) - 1) // (branches - 1)
 
     @staticmethod
-    def _tree_layout(n_levels: int, branches: int) -> Array:
+    def _get_tree_layout(n_levels: int, branches: int) -> Array:
         """Return the drawing positions of the nodes of a tree in breadth-first order.
 
         The positions lie on ellipses around the root.
@@ -568,19 +568,19 @@ class DissipativeZeroRangeSystem(BaseSystem):
             rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
         return np.concatenate(rings)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        n_nodes = self._level_start(self.n_levels + 1, self.branches)
+        n_nodes = self._get_level_start(self.n_levels + 1, self.branches)
         nodes = GroupElement(
             'nodes',
             element=TreeNodeElement,
             size=n_nodes,
-            values={'x': self._tree_layout(self.n_levels, self.branches)},
+            values={'x': self._get_tree_layout(self.n_levels, self.branches)},
         )
         interactions: list[BaseInteraction] = []
         for level in range(1, self.n_levels):
             rate = self.nu * float(self.branches ** (level - 1)) ** self.alpha
-            start, below = self._level_start(level, self.branches), self._level_start(level + 1, self.branches)
+            start, below = self._get_level_start(level, self.branches), self._get_level_start(level + 1, self.branches)
             for index in range(self.branches ** (level - 1)):
                 for branch in range(self.branches):
                     child = below + self.branches * index + branch
@@ -588,7 +588,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
                     interactions.append(
                         ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
                     )
-        leaves = [f'nodes[{index}]' for index in range(self._level_start(self.n_levels, self.branches), n_nodes)]
+        leaves = [f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)]
         interactions += [
             ReservoirInteraction(
                 'injection',
@@ -598,7 +598,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
             ),
             ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
         ]
-        return System(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
 
 class ASEPSystem(BaseSystem):
@@ -669,21 +669,22 @@ class ASEPSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the asymmetric simple exclusion process on an open line.
 
         The process runs in continuous time.
         """
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
-        lane = LatticeElement(
+        lane = GroupElement(
             'lane',
             element=ParticleSiteElement,
             space=LatticeSpace(self.n_sites, boundary='fixed'),
             values={'n': occupied},
+            on='sites',
         )
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
             ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
             ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
         ]
-        return System(self.label, elements=[lane], interactions=interactions)
+        return CompositeSystem(self.label, elements=[lane], interactions=interactions)

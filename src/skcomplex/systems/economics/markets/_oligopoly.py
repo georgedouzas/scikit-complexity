@@ -18,14 +18,18 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.base import BasePart
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, ReinforcementInteraction
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from ....core.types import Array
+from ...general.agents import ChoiceInteraction
+from ..common.learning import PayoffLearningInteraction
+
+DYNAMICS = ('static', 'fictitious-play')
+DUOPOLY = 2
 
 
 class CournotBestResponseElement(Element):
@@ -224,7 +228,7 @@ class PricingGameSpec(BaseSpec):
     alpha: float
     beta: float
 
-    def utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
+    def get_utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
         """Return what a price has earned so far against the prices of the rival.
 
         It is its score.
@@ -245,7 +249,7 @@ class PricingGameSpec(BaseSpec):
         """
         return float(agent.scores[int(np.searchsorted(self.prices, option))])
 
-    def payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
+    def get_payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
         """Return what the price of index `k` earns against the rival's price.
 
         The rival's price is the one charged in this step.
@@ -264,7 +268,7 @@ class PricingGameSpec(BaseSpec):
             payoff:
                 The profit of the price.
         """
-        rival = cast(PricingFirmView, next(item for item in system.agents(agent.group) if item.id != agent.id))
+        rival = cast(PricingFirmView, next(item for item in system.get_agents(agent.group) if item.id != agent.id))
         price, against = float(self.prices[k]), float(rival.price)
         share = 1.0 if price < against else 0.5 if price == against else 0.0
         return price * (self.alpha + self.beta * share)
@@ -309,27 +313,6 @@ class PricingFirmElement(Element):
         It types their states.
         """
         return PricingFirmView
-
-
-DYNAMICS = ('static', 'fictitious-play')
-DUOPOLY = 2
-
-
-def _price_observables(system: System) -> list[ObservableSpec]:
-    """Return the lowest and the highest expected profit over the prices.
-
-    Under learning, it returns the prices charged.
-    """
-    if isinstance(system.time, StaticTime):
-        profit = PricePointElement.get_profit
-        return [
-            ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
-            ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
-        ]
-    return [
-        ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
-        ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
-    ]
 
 
 class OligopolyEquilibriaSystem(BaseSystem):
@@ -385,13 +368,30 @@ class OligopolyEquilibriaSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
         >>> trajectory = simulate(OligopolyEquilibriaSystem(), until=1.0)
-        >>> round(float(trajectory.values('cournot.q_i')[0]), 6)
+        >>> round(float(trajectory.get_values('cournot.q_i')[0]), 6)
         3.333333
     """
 
     field = 'economics/markets'
     topics = ('oligopoly', 'equilibrium', 'static', 'game theory')
     references = ('Forrest 2018', 'Brown 1951')
+
+    @staticmethod
+    def _get_price_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the lowest and the highest expected profit over the prices.
+
+        Under learning, it returns the prices charged.
+        """
+        if isinstance(system.time, StaticTime):
+            profit = PricePointElement.get_profit
+            return [
+                ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
+                ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
+            ]
+        return [
+            ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
+            ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
+        ]
 
     def __init__(
         self,
@@ -419,7 +419,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         self.dynamics = dynamics
 
     @staticmethod
-    def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> System:
+    def _get_fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> CompositeSystem:
         """Return two firms that best respond to the payoffs of every price so far.
 
         The payoffs are summed against the rival.
@@ -436,24 +436,29 @@ class OligopolyEquilibriaSystem(BaseSystem):
             target='firms',
             state='price',
             options=tuple(prices.tolist()),
-            utility=game.utility,
+            utility=game.get_utility,
             rule='best',
             form='agent',
             phase='choose',
         )
-        beliefs = ReinforcementInteraction(
+        beliefs = PayoffLearningInteraction(
             'beliefs',
             target='firms',
             scores='scores',
-            payoff=game.payoff,
+            payoff=game.get_payoff,
             rule='cumulative',
             form='agent',
             phase='learn',
         )
         schedule = PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('learn')])
-        return System(label, elements=[firms], interactions=[choice, beliefs], time=DiscreteTime(schedule=schedule))
+        return CompositeSystem(
+            label,
+            elements=[firms],
+            interactions=[choice, beliefs],
+            time=DiscreteTime(schedule=schedule),
+        )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
             error_msg = (
@@ -464,7 +469,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
         beta = 1 - self.n_firms * self.alpha
         prices = np.linspace(self.alpha / (self.alpha + beta), 1.0, self.n_prices)
         if self.dynamics == 'fictitious-play':
-            return self._fictitious_play(self.label, prices, self.alpha, beta)
+            return self._get_fictitious_play(self.label, prices, self.alpha, beta)
         points = GroupElement(
             'prices',
             element=PricePointElement,
@@ -479,7 +484,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             lambda_i=self.lambda_i,
             lambda_j=self.lambda_j,
         )
-        return System(self.label, elements=[cournot, points], time=StaticTime())
+        return CompositeSystem(self.label, elements=[cournot, points], time=StaticTime())
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
@@ -487,5 +492,5 @@ class OligopolyEquilibriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _price_observables(self._pass_parameters())
+        settings['observables'] = OligopolyEquilibriaSystem._get_price_observables(self._get_pass_parameters())
         return settings

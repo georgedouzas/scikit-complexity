@@ -6,7 +6,7 @@ with the handling time of the partner's resource, so the populations settle inst
 """
 
 # %%
-# The system is built from its class with its default saturating mutualism and run from small populations. The
+# The example builds `MutualismSystem` with its default saturating mutualism and runs it from small populations. The
 # observer saves every second frame with the default blueprint, whose primary view is the time series of both
 # populations.
 
@@ -29,15 +29,15 @@ trajectory = simulate(MutualismSystem(first=5.0, second=2.0), observers=[observe
 
 alone = simulate(MutualismSystem(first=5.0, second=0.0), until=30)
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(trajectory.times, trajectory.values('first.n'), label='first, with partner')
-ax.plot(trajectory.times, trajectory.values('second.n'), label='second, with partner')
-ax.plot(alone.times, alone.values('first.n'), '--', color='black', label='first, alone')
+ax.plot(trajectory.times, trajectory.get_values('first.x'), label='first, with partner')
+ax.plot(trajectory.times, trajectory.get_values('second.x'), label='second, with partner')
+ax.plot(alone.times, alone.get_values('first.x'), '--', color='black', label='first, alone')
 ax.axhline(50.0, color='grey', linestyle=':', label='carrying capacity')
 ax.set_xlabel('time')
 ax.set_ylabel('population')
 ax.set_title(
-    f'Mutualists settle at {trajectory.values("first.n")[-1]:.0f} and '
-    f'{trajectory.values("second.n")[-1]:.0f}, above 50',
+    f'Mutualists settle at {trajectory.get_values("first.x")[-1]:.0f} and '
+    f'{trajectory.get_values("second.x")[-1]:.0f}, above 50',
 )
 ax.legend()
 plt.show()

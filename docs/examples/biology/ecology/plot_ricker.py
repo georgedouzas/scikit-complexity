@@ -6,7 +6,7 @@ growth, and at high growth overshoots and crashes in cycles that double their pe
 """
 
 # %%
-# The system is built from its class with the growth factor `r = 14`, in the chaotic range, and the observer saves
+# The example builds `RickerSystem` with the growth factor `r = 14`, in the chaotic range, and the observer saves
 # every generation with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
@@ -30,12 +30,12 @@ trajectory = simulate(RickerSystem(r=14.0), observers=[observer])
 
 rates = np.linspace(1.5, 20.0, 150)
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(11, 4.5))
-series.plot(trajectory.times, trajectory.values('population.n'), '.-')
+series.plot(trajectory.times, trajectory.get_values('population.x'), '.-')
 series.set_xlabel('generation')
 series.set_ylabel('population n')
 series.set_title('r = 14')
 for r in rates:
-    late = simulate(RickerSystem(r=r), until=200).values('population.n')[-60:]
+    late = simulate(RickerSystem(r=r), until=200).get_values('population.x')[-60:]
     diagram.plot(np.full(late.size, r), late, ',', color='black')
 diagram.plot(rates[rates < np.e**2], np.log(rates[rates < np.e**2]), color='tab:red', label='fixed point ln r')
 diagram.axvline(np.e**2, color='gray', linestyle='--', label='r = e^2')

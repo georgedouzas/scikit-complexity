@@ -47,8 +47,8 @@ trajectory = simulate(CatMapSystem(), observers=[observer])
 grid = np.linspace(0.4, 0.6, 40)
 starts = np.array([(x, y) for x in grid for y in grid])
 runs = [simulate(CatMapSystem(x=x, y=y), until=6) for x, y in starts]
-x = np.array([run.values('map.x') for run in runs])
-y = np.array([run.values('map.y') for run in runs])
+x = np.array([run.get_values('map.x') for run in runs])
+y = np.array([run.get_values('map.y') for run in runs])
 colors = plt.get_cmap('plasma')((starts[:, 0] - 0.4) / 0.2)[:, :3]
 observer.recording_.log(
     'mixing',

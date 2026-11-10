@@ -6,10 +6,10 @@ recover close to their carrying capacity.
 """
 
 # %%
-# The system is built from its class with a constant infusion of one dose unit a day, from the initial conditions of
-# de Pillis and Radunskaya: a tumour at a quarter of the capacity, few immune cells, and healthy normal cells. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the cells and
-# the drug.
+# The example builds `DePillisRadunskayaSystem` with a constant infusion of one dose unit a day, from the initial
+# conditions of de Pillis and Radunskaya: a tumour at a quarter of the capacity, few immune cells, and healthy normal
+# cells. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# cells and the drug.
 
 import matplotlib.pyplot as plt
 
@@ -32,16 +32,16 @@ trajectory = simulate(DePillisRadunskayaSystem(u=1.0), observers=[observer])
 untreated = simulate(DePillisRadunskayaSystem())
 treated = trajectory
 fig, (tumour, normal) = plt.subplots(1, 2, figsize=(10, 4))
-tumour.semilogy(untreated.times, untreated.values('patient.A'), label='untreated')
-tumour.semilogy(treated.times, treated.values('patient.A'), label='infusion u = 1')
+tumour.semilogy(untreated.times, untreated.get_values('patient.A'), label='untreated')
+tumour.semilogy(treated.times, treated.get_values('patient.A'), label='infusion u = 1')
 tumour.axhline(0.0025, color='grey', linestyle=':', label='1% of the initial tumour')
 tumour.set_ylim(1e-8, 1)
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells (normalised)')
 tumour.set_title('The infusion clears the tumour')
 tumour.legend()
-normal.plot(untreated.times, untreated.values('patient.N'), label='untreated')
-normal.plot(treated.times, treated.values('patient.N'), label='infusion u = 1')
+normal.plot(untreated.times, untreated.get_values('patient.N'), label='untreated')
+normal.plot(treated.times, treated.get_values('patient.N'), label='infusion u = 1')
 normal.axhline(0.7, color='grey', linestyle=':', label='lower bound 0.7')
 normal.set_xlabel('time (days)')
 normal.set_ylabel('normal cells (normalised)')

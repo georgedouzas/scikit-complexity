@@ -6,8 +6,9 @@ of 67.8 mm³ a day, near day 15.
 """
 
 # %%
-# The system is built from its class and run for 40 days from 2 mm³ with the breast cancer fit of Padmanabhan et al.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the volume.
+# The example builds `ExponentialLinearGrowthSystem` and runs it for 40 days from 2 mm³ with the breast cancer fit of
+# Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series of
+# the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,7 +28,7 @@ trajectory = simulate(ExponentialLinearGrowthSystem(n=2.0), observers=[observer]
 # The growth rate `dn/dt` should rise in proportion to the volume, as `r0 n`, until it reaches `r` at
 # `tau = log(r / (r0 n0)) / r0`, and stay constant after.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.get_values('tumour.x')
 r0, r = 0.31, 67.8
 tau = np.log(r / (r0 * 2.0)) / r0
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

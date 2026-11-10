@@ -17,8 +17,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 
 class EchelonElement(Element):
@@ -124,10 +126,10 @@ class EchelonElement(Element):
             laws:
                 The laws of the component.
         """
-        return EchelonElement._echelon_laws(s)
+        return EchelonElement._get_echelon_laws(s)
 
     @staticmethod
-    def _shipments(echelon: SimpleNamespace) -> Expression:
+    def _get_shipments(echelon: SimpleNamespace) -> Expression:
         """Return the shipments of an echelon.
 
         They are its backlog limited by its inventory over the dispatch time.
@@ -135,13 +137,13 @@ class EchelonElement(Element):
         return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
 
     @staticmethod
-    def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of an echelon.
 
         They are the shipping of its backlog and the decay of its expectation.
         """
         return [
-            RateLaw(s.backlog, -EchelonElement._shipments(s)),
+            RateLaw(s.backlog, -EchelonElement._get_shipments(s)),
             RateLaw(s.expected, -s.theta * s.expected),
         ]
 
@@ -377,9 +379,9 @@ class BreweryInteraction(TransferInteraction):
             target=factory,
             state=Source('brewery'),
             into='in_transit',
-            amount=lambda s: BreweryInteraction._orders(s.factory),
+            amount=lambda s: BreweryInteraction._get_orders(s.factory),
             flow='starts',
-            legs=[('in_transit', 'inventory', lambda s: BreweryInteraction._completions(s.factory), 'completions')],
+            legs=[('in_transit', 'inventory', lambda s: BreweryInteraction._get_completions(s.factory), 'completions')],
         )
         self.factory = factory
 
@@ -388,7 +390,7 @@ class BreweryInteraction(TransferInteraction):
         return [(namespace.factory, namespace.factory)]
 
     @staticmethod
-    def _orders(echelon: SimpleNamespace) -> Expression:
+    def _get_orders(echelon: SimpleNamespace) -> Expression:
         """Return the orders of an echelon by Sterman's anchoring and adjustment rule.
 
         They are never negative.
@@ -398,12 +400,12 @@ class BreweryInteraction(TransferInteraction):
         return maximum(orders, 0)
 
     @staticmethod
-    def _completions(factory: SimpleNamespace) -> Expression:
+    def _get_completions(factory: SimpleNamespace) -> Expression:
         """Return the brews completed for the factory.
 
         They are its orders after a third-order production delay.
         """
-        return distributed_delay(BreweryInteraction._orders(factory), order=3, time=factory.production_delay)
+        return distributed_delay(BreweryInteraction._get_orders(factory), order=3, time=factory.production_delay)
 
 
 class RetailDemandInteraction(TransferInteraction):
@@ -436,7 +438,7 @@ class RetailDemandInteraction(TransferInteraction):
             target=retailer,
             state='inventory',
             into=Sink('customers'),
-            amount=lambda s: EchelonElement._shipments(s.retailer),
+            amount=lambda s: EchelonElement._get_shipments(s.retailer),
             flow='sales',
         )
         self.retailer = retailer
@@ -482,13 +484,13 @@ class SupplyLinkInteraction(TransferInteraction):
             target=downstream,
             state='inventory',
             into='in_transit',
-            amount=lambda s: EchelonElement._shipments(s.upstream),
+            amount=lambda s: EchelonElement._get_shipments(s.upstream),
             flow='shipments',
             legs=[
                 (
                     'downstream.in_transit',
                     'downstream.inventory',
-                    lambda s: SupplyLinkInteraction._arrivals(s.upstream, s.downstream),
+                    lambda s: SupplyLinkInteraction._get_arrivals(s.upstream, s.downstream),
                     'arrivals',
                 ),
             ],
@@ -504,36 +506,25 @@ class SupplyLinkInteraction(TransferInteraction):
         return [(namespace.upstream, namespace.downstream)]
 
     @staticmethod
-    def _arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
+    def _get_arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
         """Return the arrivals at the downstream echelon.
 
         They are the shipments after a third-order shipping delay.
         """
-        return distributed_delay(EchelonElement._shipments(upstream), order=3, time=downstream.shipping_delay)
+        return distributed_delay(EchelonElement._get_shipments(upstream), order=3, time=downstream.shipping_delay)
 
 
-ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
-
-
-def _received(downstream: SimpleNamespace) -> Expression:
-    """Return the orders of the downstream echelon that reach its supplier.
-
-    They arrive after a third-order mail delay.
-    """
-    return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
-
-
-def _demand(retailer: SimpleNamespace, t: Expression) -> Expression:
-    """Return the orders of the customers of the retailer, their demand after its step."""
-    return retailer.demand + step(t, retailer.step_time, retailer.demand_step)
-
-
-def _customer_orders(s: SimpleNamespace) -> Expression:
+def _get_customer_orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the customers of the namespace of the system.
 
     The namespace holds the retailer.
     """
-    return _demand(s.retailer, s.t)
+    return _get_demand(s.retailer, s.t)
+
+
+def _get_demand(retailer: SimpleNamespace, t: Expression) -> Expression:
+    """Return the orders of the customers of the retailer, their demand after its step."""
+    return retailer.demand + step(t, retailer.step_time, retailer.demand_step)
 
 
 class BeerGameSystem(BaseSystem):
@@ -608,10 +599,18 @@ class BeerGameSystem(BaseSystem):
     until = 36.0
     dt = 0.5
     observables = (
-        *(ObservableSpec('orders', BreweryInteraction._orders, element=label) for label in ECHELONS),
-        *(ObservableSpec('shipments', EchelonElement._shipments, element=label) for label in ECHELONS),
-        ObservableSpec('customers.orders', _customer_orders),
+        *(ObservableSpec('orders', BreweryInteraction._get_orders, element=label) for label in ECHELONS),
+        *(ObservableSpec('shipments', EchelonElement._get_shipments, element=label) for label in ECHELONS),
+        ObservableSpec('customers.orders', _get_customer_orders),
     )
+
+    @staticmethod
+    def _get_received(downstream: SimpleNamespace) -> Expression:
+        """Return the orders of the downstream echelon that reach its supplier.
+
+        They arrive after a third-order mail delay.
+        """
+        return distributed_delay(BreweryInteraction._get_orders(downstream), order=3, time=downstream.mail_delay)
 
     def __init__(
         self,
@@ -654,22 +653,22 @@ class BeerGameSystem(BaseSystem):
                 target=downstream,
                 state='supply_line',
                 sources=[upstream],
-                rate=lambda s: BreweryInteraction._orders(s.target)
-                - SupplyLinkInteraction._arrivals(s.sources[0], s.target),
+                rate=lambda s: BreweryInteraction._get_orders(s.target)
+                - SupplyLinkInteraction._get_arrivals(s.sources[0], s.target),
             ),
             RateInteraction(
                 f'{upstream}_backlog',
                 target=upstream,
                 state='backlog',
                 sources=[downstream],
-                rate=lambda s: _received(s.sources[0]),
+                rate=lambda s: BeerGameSystem._get_received(s.sources[0]),
             ),
             RateInteraction(
                 f'{upstream}_expected',
                 target=upstream,
                 state='expected',
                 sources=[downstream],
-                rate=lambda s: s.target.theta * _received(s.sources[0]),
+                rate=lambda s: s.target.theta * BeerGameSystem._get_received(s.sources[0]),
             ),
         ]
 
@@ -684,13 +683,13 @@ class BeerGameSystem(BaseSystem):
                 'retailer_backlog',
                 target='retailer',
                 state='backlog',
-                rate=lambda s: _demand(s.target, s.t),
+                rate=lambda s: _get_demand(s.target, s.t),
             ),
             RateInteraction(
                 'retailer_expected',
                 target='retailer',
                 state='expected',
-                rate=lambda s: s.target.theta * _demand(s.target, s.t),
+                rate=lambda s: s.target.theta * _get_demand(s.target, s.t),
             ),
         ]
 
@@ -704,10 +703,10 @@ class BeerGameSystem(BaseSystem):
             'factory_supply_line',
             target='factory',
             state='supply_line',
-            rate=lambda s: BreweryInteraction._orders(s.target) - BreweryInteraction._completions(s.target),
+            rate=lambda s: BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         throughput = self.demand * self.dispatch_time
         echelons: list[EchelonElement] = []
@@ -745,4 +744,4 @@ class BeerGameSystem(BaseSystem):
         ]
         customers = [*self._get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
         brewery = [self._get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
-        return System(self.label, elements=echelons, interactions=[*links, *customers, *brewery])
+        return CompositeSystem(self.label, elements=echelons, interactions=[*links, *customers, *brewery])

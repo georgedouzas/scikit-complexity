@@ -36,7 +36,7 @@ def _fold_of(sequence):
 
 def _sequences(trajectory):
     """Return the sequence of every walker at every frame."""
-    return [[''.join(row) for row in frame] for frame in trajectory.lattice('walkers.base')]
+    return [[''.join(row) for row in frame] for frame in trajectory.get_lattice('walkers.base')]
 
 
 def _run(until=300, **arguments):
@@ -100,13 +100,13 @@ def test_neutral_walk_keeps_the_fold():
 
 def test_neutral_walk_records_a_score_of_zero():
     """Test that the recorded scores are those of the target at every frame."""
-    assert np.all(_run(until=50).values('walk.score') == 0)
+    assert np.all(_run(until=50).get_values('walk.score') == 0)
 
 
 def test_adaptive_walk_approaches_the_target():
     """Test that the base-pair distance of every walker never grows, and that its mean falls."""
     trajectory = _run(start=None, regime='adaptive')
-    scores = trajectory.values('walk.score')
+    scores = trajectory.get_values('walk.score')
     assert np.all(np.diff(scores, axis=0) <= 0)
     assert scores[-1].mean() < scores[0].mean()
     frames = _sequences(trajectory)

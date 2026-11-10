@@ -43,7 +43,7 @@ trajectory = simulate(ImmuneCompetitionSystem(), until=10, dt=0.1, observers=[ob
 def final_density(activation):
     """Return the tumour density after 20 time units for an initial immune activation."""
     run = simulate(ImmuneCompetitionSystem(activation=activation), until=20, dt=20.0)
-    return run.values('tumour_density')[-1]
+    return run.get_values('tumour_density')[-1]
 
 
 activations = np.linspace(0.0, 1.0, 5)

@@ -15,11 +15,11 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MobilityInteraction
 from ....core.components.laws.utils import pulse_train
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.particles import StokesianMobilityInteraction
 
 SPHERES = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
@@ -64,7 +64,7 @@ class TrappedSphereElement(Element):
         self.center = center
 
 
-class BlinkingTrapsInteraction(MobilityInteraction):
+class BlinkingTrapsInteraction(StokesianMobilityInteraction):
     """Blinking optical traps on spheres that move through a shared fluid.
 
     The spheres move in steps of Brownian dynamics.
@@ -241,7 +241,7 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
         self.off_time = off_time
         self.step = step
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two Brownian spheres in blinking optical traps.
 
         The free motion of the spheres is correlated through the fluid.
@@ -266,7 +266,7 @@ class HydrodynamicallyCoupledTrapsSystem(BaseSystem):
             temperature=self.kT,
             dt=self.step,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[spheres],
             interactions=[traps],

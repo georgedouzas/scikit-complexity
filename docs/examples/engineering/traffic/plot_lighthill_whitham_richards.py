@@ -6,9 +6,9 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 """
 
 # %%
-# The system is built from its class on a road of 200 cells with free traffic at density 0.3 running into a
-# queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The default
-# blueprint puts the history of the density first, where the shock is the edge that moves left.
+# The example builds `LighthillWhithamRichardsSystem` on a road of 200 cells with free traffic at density 0.3 running
+# into a queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The
+# default blueprint puts the history of the density first, where the shock is the edge that moves left.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +31,7 @@ trajectory = simulate(system, dt=0.02, solver=SSPRKSolver(), observers=[observer
 # `vmax (1 - (rho_u + rho_d) / rho_max) = -0.1`, so its position should fall on a line of that slope from the middle of
 # the road.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 fronts = [x[np.argmax(row > 0.55)] for row in rho]
 fig, (profiles, front) = plt.subplots(1, 2, figsize=(10, 4))

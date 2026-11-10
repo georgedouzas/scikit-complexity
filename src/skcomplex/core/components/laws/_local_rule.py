@@ -1,7 +1,4 @@
-"""Define local rule laws.
-
-They give the next values of lattice cells from the ordered values of their neighbourhoods.
-"""
+"""Define the law that sets cells from the ordered values of their neighbourhoods."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -35,17 +32,22 @@ TABLE_AXES = 2
 
 
 class LocalRuleLaw(BaseLaw):
-    """Next value of lattice cells from the ordered values of their neighbourhoods.
+    """A law that sets the next value of cells from their ordered neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
-    site, and keyword arguments for the parameters of the element that it names, plus `random`, an array of uniform
-    numbers per site, when the rule is stochastic, and `degree`, the number of neighbours of every site besides the
-    site itself, when it names it. It returns the next values of the target, or a tuple with one array per target.
+    site. It also receives the parameters of the element it names, `random`, a uniform number per site, when the rule is
+    stochastic, and `degree`, the number of neighbours of every site, when it names it. It returns the next values of
+    the target, or one array per target. A table or a totalistic rule may stand in place of the function.
 
-    A run computes one synchronous step. Its input is a mapping with `space`, the space of the sites, the values of
-    every read state under the name of its symbol, with one value per site or one row of values per configuration, and
-    the keyword arguments a function rule names. Sites outside a lattice with fixed edges or outside a ball read the
-    fill value of the space.
+    A run computes one synchronous step. Its input holds `space`, the space of the sites, the values of every read state
+    by the name of its symbol, and the arguments a function rule names. Sites outside a lattice with fixed edges read
+    the fill value of the space.
+
+    Unlike `UpdateLaw`, which gives the next value by an expression of one member, it reads the ordered neighbourhood of
+    each cell. Choose it when the next value of a cell depends on the exact pattern around it.
+
+    It appears in many fields. Conway's Game of Life, elementary cellular automata, models of excitable tissue, and
+    models of traffic on a ring road follow local rules.
 
     Args:
         targets:
@@ -58,7 +60,7 @@ class LocalRuleLaw(BaseLaw):
 
         rule:
             A function, a `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, a `LinearRuleSpec`, or an
-            object whose `table()` returns a `TableSpec`, such as a rule code.
+            object whose `get_table()` returns a `TableSpec`, such as a rule code.
 
         reads:
             The lattice states whose neighbourhoods a function rule reads, or `None` for the targets.
@@ -83,11 +85,12 @@ class LocalRuleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import LocalRuleLaw
         >>> from skcomplex.core.specs import LinearRuleSpec, TotalisticSpec
-        >>> from skcomplex.core.components.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> cell = var('cell')
-        >>> LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_
+        >>> box = BallNeighborhood(n_dim=1, center='inline')
+        >>> LocalRuleLaw(cell, box, TotalisticSpec({2: 1})).prepare().targets_
         (cell,)
-        >>> parity = LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec(lambda total: total % 2)).prepare()
+        >>> parity = LocalRuleLaw(cell, box, TotalisticSpec(lambda total: total % 2)).prepare()
         >>> parity.run({'space': LatticeSpace(5), 'cell': [0, 0, 1, 0, 0]}).value_.tolist()
         [0, 1, 1, 1, 0]
         >>> around = LatticeNeighborhood(((-1,), (1,)))
@@ -146,9 +149,9 @@ class LocalRuleLaw(BaseLaw):
     def _get_rule(self) -> object:
         """Return a rule code as its table, and any other rule unchanged.
 
-        The table comes from its `table()` method.
+        The table comes from its `get_table()` method.
         """
-        convert = getattr(self.rule, 'table', None)
+        convert = getattr(self.rule, 'get_table', None)
         return convert() if not callable(self.rule) and callable(convert) else self.rule
 
     def _get_neighborhood(self) -> BaseNeighborhood:
@@ -184,8 +187,8 @@ class LocalRuleLaw(BaseLaw):
         """
         neighborhood = self._get_neighborhood()
         if not isinstance(neighborhood, StateTranslationNeighborhood):
-            return space._index_table(neighborhood)
-        translations = space._translation_table(neighborhood)
+            return space._get_index_table(neighborhood)
+        translations = space._get_translation_table(neighborhood)
         size = translations.shape[0]
         elements = np.rint(np.asarray(values, dtype=float))
         named = (elements >= 0) & (elements < size)
@@ -242,7 +245,7 @@ class LocalRuleLaw(BaseLaw):
         if callable(rule):
             return rule(*patterns.T, **keywords)
         error_msg = (
-            f'The rule {rule!r} is not a TableSpec, a totalistic rule, a linear rule, a rule code with a table() '
+            f'The rule {rule!r} is not a TableSpec, a totalistic rule, a linear rule, a rule code with a get_table() '
             'method, or a function.'
         )
         raise ValidationError(error_msg)

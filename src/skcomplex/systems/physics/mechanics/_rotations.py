@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction, RateInteraction
 from ....core.components.laws.utils import derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -452,9 +452,9 @@ class RotatingSwingSystem(BaseSystem):
         self.torque = torque
         self.friction = friction
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RotatingSwingElement(
@@ -528,13 +528,13 @@ class RotatingBallsOnRodsSystem(BaseSystem):
         self.beta = beta
         self.m = m
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two balls on rods that turn about a vertical axis.
 
         The balls conserve their angular momentum.
         """
         momentum = self.m * self.omega * self.r**2 * math.sin(self.beta) ** 2
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RotatingBallElement('right', theta=0.0, m=self.m, r=self.r, beta=self.beta, H=momentum),
@@ -632,12 +632,12 @@ class GimballedGyroscopeSystem(BaseSystem):
         self.A2 = A2
         self.torque = torque
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a gyroscope in a gimbal.
 
         A rotor in an inner ring turns in an outer ring about a fixed axis.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GyroscopeElement(

@@ -7,10 +7,11 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import DiffusionInteraction, Interaction
+from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import BaseLaw, LinearProgramLaw, RateLaw
+from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import LinearObjectiveSpec, RoleSpec, StateSpec
 
@@ -56,17 +57,17 @@ class ChosenGrowthInteraction(Interaction):
         return [RateLaw(namespace.amount.x, namespace.choice.v * namespace.amount.x)]
 
 
-def _system() -> System:
+def _system() -> CompositeSystem:
     """Return a uniform field that grows at the rate a program sets and diffuses."""
     space = LatticeSpace((4, 4))
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement('choice', element=ChoiceElement, on='sites', space=space),
             FieldElement('amount', element=AmountElement, space=space, values={'x': np.ones((4, 4))}),
         ],
         interactions=[
             ChosenGrowthInteraction('growth', choice='choice', amount='amount'),
-            DiffusionInteraction('spread', target='amount', state='x', coefficient=1.0),
+            RateInteraction('spread', target='amount', state='x', rate=lambda s: laplacian(s.target.x)),
         ],
         space=space,
     )

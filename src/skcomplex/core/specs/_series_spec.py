@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SeriesSpec(BaseSpec):
-    """Named series on common times.
+    """A spec of named series on common times.
 
     Args:
         times:

@@ -14,7 +14,7 @@ from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.base import BasePart
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import BaseSpec
 
@@ -75,7 +75,7 @@ def test_no_public_check_remains():
 def test_bad_part_fails_before_it_is_prepared():
     """Test that a part with a bad label raises from `prepare` of its system, before it sets any attribute."""
     interaction = RateInteraction(1, target='stock', state='n', rate=1.0)
-    system = System(elements=[Element('stock')], interactions=[interaction])
+    system = CompositeSystem(elements=[Element('stock')], interactions=[interaction])
     with pytest.raises(ValidationError, match='label'):
         system.prepare()
     assert not [name for name in vars(interaction) if name.endswith('_')]

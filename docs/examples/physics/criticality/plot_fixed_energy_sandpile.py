@@ -32,7 +32,7 @@ densities = np.linspace(1.9, 2.6, 15)
 activities = []
 for density in densities:
     run = simulate(FixedEnergySandpileSystem(density=density), until=500, random_state=0)
-    activities.append(np.mean(run.values('activity')[-100:]))
+    activities.append(np.mean(run.get_values('activity')[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(densities, activities, 'o-')
 ax.axvline(2.125, linestyle='--', color='black')

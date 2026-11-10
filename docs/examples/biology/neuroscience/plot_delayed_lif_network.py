@@ -7,8 +7,8 @@ than it would alone.
 """
 
 # %%
-# The system is built from its class with excitatory links of 0.5 mV, a delay of 1.5 ms, and a drive of 25 mV. The
-# observer saves every frame with the default blueprint, whose primary view is the time series of the potentials.
+# The example builds `DelayedLIFNetworkSystem` with excitatory links of 0.5 mV, a delay of 1.5 ms, and a drive of 25 mV.
+# The observer saves every frame with the default blueprint, whose primary view is the time series of the potentials.
 
 import matplotlib.pyplot as plt
 import numpy as np

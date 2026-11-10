@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "release", "rna", "structures", "tests", "trajectories"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "relativity", "release", "rna", "structures", "tests", "trajectories"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:cfb66018e9ede733202f5d3cfec9d55efb6f183ab24f822d44f4964245a24dc1"
+content_hash = "sha256:a823e367eadbe92f4284b443b2f310699e00a9915c4c825c5e2fcee54e26a8a8"
 
 [[metadata.targets]]
 requires_python = ">=3.12,!=3.14.1,<3.15"
@@ -203,7 +203,7 @@ name = "astropy"
 version = "8.0.2"
 requires_python = ">=3.11"
 summary = "Astronomy and astrophysics core library"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "PyYAML>=6.0.0",
@@ -229,7 +229,7 @@ name = "astropy-iers-data"
 version = "0.2026.11.2.0.34.55"
 requires_python = ">=3.11"
 summary = "IERS Earth Rotation and Leap Second tables for the astropy core package"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "astropy_iers_data-0.2026.11.2.0.34.55-py3-none-any.whl", hash = "sha256:785cd5bc193d9206316bd7c786fe0647e212ebf017cd861beabedd91cbe585bf"},
@@ -856,7 +856,7 @@ name = "contourpy"
 version = "1.4.0"
 requires_python = ">=3.12"
 summary = "Python library for calculating contours of 2D quadrilateral grids"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy>=2.0",
@@ -1134,7 +1134,7 @@ name = "cycler"
 version = "0.12.1"
 requires_python = ">=3.8"
 summary = "Composable style cycles"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "cycler-0.12.1-py3-none-any.whl", hash = "sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"},
@@ -1541,7 +1541,7 @@ name = "einsteinpy"
 version = "0.5.0"
 requires_python = ">=3.10"
 summary = "Python package for General Relativity"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "astropy>=5.1.1",
@@ -1644,7 +1644,7 @@ name = "fonttools"
 version = "4.68.0"
 requires_python = ">=3.11"
 summary = "Tools to manipulate font files"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "fonttools-4.68.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:f265c85432c398d86f26add143423924a4747879b2dce001a3ffe0a5fed30638"},
@@ -2002,6 +2002,52 @@ dependencies = [
 files = [
     {file = "h5netcdf-1.8.2-py3-none-any.whl", hash = "sha256:a0306ee81addee2abe2d2e18433fd5e9f33952272f4db960679d2e41db4ac079"},
     {file = "h5netcdf-1.8.2.tar.gz", hash = "sha256:3c34102269d99f7631d6529ff7a3067f51677f23ebf14669da1dc795af1caac5"},
+]
+
+[[package]]
+name = "h5py"
+version = "3.16.0"
+requires_python = ">=3.10"
+summary = "Read and write HDF5 files from Python"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "numpy>=1.21.2",
+]
+files = [
+    {file = "h5py-3.16.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c5313566f4643121a78503a473f0fb1e6dcc541d5115c44f05e037609c565c4d"},
+    {file = "h5py-3.16.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:42b012933a83e1a558c673176676a10ce2fd3759976a0fedee1e672d1e04fc9d"},
+    {file = "h5py-3.16.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:ff24039e2573297787c3063df64b60aab0591980ac898329a08b0320e0cf2527"},
+    {file = "h5py-3.16.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:dfc21898ff025f1e8e67e194965a95a8d4754f452f83454538f98f8a3fcb207e"},
+    {file = "h5py-3.16.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:698dd69291272642ffda44a0ecd6cd3bda5faf9621452d255f57ce91487b9794"},
+    {file = "h5py-3.16.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:2b2c02b0a160faed5fb33f1ba8a264a37ee240b22e049ecc827345d0d9043074"},
+    {file = "h5py-3.16.0-cp312-cp312-win_amd64.whl", hash = "sha256:96b422019a1c8975c2d5dadcf61d4ba6f01c31f92bbde6e4649607885fe502d6"},
+    {file = "h5py-3.16.0-cp312-cp312-win_arm64.whl", hash = "sha256:39c2838fb1e8d97bcf1755e60ad1f3dd76a7b2a475928dc321672752678b96db"},
+    {file = "h5py-3.16.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:370a845f432c2c9619db8eed334d1e610c6015796122b0e57aa46312c22617d9"},
+    {file = "h5py-3.16.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:42108e93326c50c2810025aade9eac9d6827524cdccc7d4b75a546e5ab308edb"},
+    {file = "h5py-3.16.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:099f2525c9dcf28de366970a5fb34879aab20491589fa89ce2863a84218bb524"},
+    {file = "h5py-3.16.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:9300ad32dea9dfc5171f94d5f6948e159ed93e4701280b0f508773b3f582f402"},
+    {file = "h5py-3.16.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:171038f23bccddfc23f344cadabdfc9917ff554db6a0d417180d2747fe4c75a7"},
+    {file = "h5py-3.16.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:7e420b539fb6023a259a1b14d4c9f6df8cf50d7268f48e161169987a57b737ff"},
+    {file = "h5py-3.16.0-cp313-cp313-win_amd64.whl", hash = "sha256:18f2bbcd545e6991412253b98727374c356d67caa920e68dc79eab36bf5fedad"},
+    {file = "h5py-3.16.0-cp313-cp313-win_arm64.whl", hash = "sha256:656f00e4d903199a1d58df06b711cf3ca632b874b4207b7dbec86185b5c8c7d4"},
+    {file = "h5py-3.16.0-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:9c9d307c0ef862d1cd5714f72ecfafe0a5d7529c44845afa8de9f46e5ba8bd65"},
+    {file = "h5py-3.16.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:8c1eff849cdd53cbc73c214c30ebdb6f1bb8b64790b4b4fc36acdb5e43570210"},
+    {file = "h5py-3.16.0-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:e2c04d129f180019e216ee5f9c40b78a418634091c8782e1f723a6ca3658b965"},
+    {file = "h5py-3.16.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:e4360f15875a532bc7b98196c7592ed4fc92672a57c0a621355961cafb17a6dd"},
+    {file = "h5py-3.16.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:3fae9197390c325e62e0a1aa977f2f62d994aa87aab182abbea85479b791197c"},
+    {file = "h5py-3.16.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:43259303989ac8adacc9986695b31e35dba6fd1e297ff9c6a04b7da5542139cc"},
+    {file = "h5py-3.16.0-cp314-cp314-win_amd64.whl", hash = "sha256:fa48993a0b799737ba7fd21e2350fa0a60701e58180fae9f2de834bc39a147ab"},
+    {file = "h5py-3.16.0-cp314-cp314-win_arm64.whl", hash = "sha256:1897a771a7f40d05c262fc8f37376ec37873218544b70216872876c627640f63"},
+    {file = "h5py-3.16.0-cp314-cp314t-macosx_10_15_x86_64.whl", hash = "sha256:15922e485844f77c0b9d275396d435db3baa58292a9c2176a386e072e0cf2491"},
+    {file = "h5py-3.16.0-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:df02dd29bd247f98674634dfe41f89fd7c16ba3d7de8695ec958f58404a4e618"},
+    {file = "h5py-3.16.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:0f456f556e4e2cebeebd9d66adf8dc321770a42593494a0b6f0af54a7567b242"},
+    {file = "h5py-3.16.0-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:3e6cb3387c756de6a9492d601553dffea3fe11b5f22b443aac708c69f3f55e16"},
+    {file = "h5py-3.16.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:8389e13a1fd745ad2856873e8187fd10268b2d9677877bb667b41aebd771d8b7"},
+    {file = "h5py-3.16.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:346df559a0f7dcb31cf8e44805319e2ab24b8957c45e7708ce503b2ec79ba725"},
+    {file = "h5py-3.16.0-cp314-cp314t-win_amd64.whl", hash = "sha256:4c6ab014ab704b4feaa719ae783b86522ed0bf1f82184704ed3c9e4e3228796e"},
+    {file = "h5py-3.16.0-cp314-cp314t-win_arm64.whl", hash = "sha256:faca8fb4e4319c09d83337adc80b2ca7d5c5a343c2d6f1b6388f32cfecca13c1"},
+    {file = "h5py-3.16.0.tar.gz", hash = "sha256:a0dbaad796840ccaa67a4c144a0d0c8080073c34c76d5a6941d6818678ef2738"},
 ]
 
 [[package]]
@@ -2590,7 +2636,7 @@ name = "kiwisolver"
 version = "1.5.1"
 requires_python = ">=3.10"
 summary = "A fast implementation of the Cassowary constraint solver"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "kiwisolver-1.5.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:63fb7294b768f444eb4b068965f2662f28c2fd4161e23bd60fcf3ff27b74c046"},
@@ -2807,7 +2853,7 @@ name = "llvmlite"
 version = "0.50.0"
 requires_python = ">=3.10"
 summary = "lightweight wrapper around basic LLVM functionality"
-groups = ["default", "tests"]
+groups = ["default", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "llvmlite-0.50.0-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:55f50a6b7c0b8de88b05d6bc407d70a60486ce024013997dc97e202bd187c75b"},
@@ -3103,7 +3149,7 @@ name = "matplotlib"
 version = "3.11.2"
 requires_python = ">=3.11"
 summary = "Python plotting package"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "contourpy>=1.0.1",
@@ -3263,7 +3309,7 @@ ref = "a10433af16682386548b360297e2476152d46ede"
 revision = "a10433af16682386548b360297e2476152d46ede"
 summary = "mfapy: a python package for the 13C metabolic flux analysis"
 groups = ["tests"]
-marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+marker = "python_version >= \"3.12\" and python_full_version != \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "joblib",
     "matplotlib",
@@ -3593,7 +3639,7 @@ name = "more-itertools"
 version = "11.2.1"
 requires_python = ">=3.11"
 summary = "More routines for operating on iterables, beyond itertools"
-groups = ["release", "tests"]
+groups = ["default", "release", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "more_itertools-11.2.1-py3-none-any.whl", hash = "sha256:35a7377edd1dd6608dcb2cdf534ded55ea32d49448875ad042cd3f879fb1ded0"},
@@ -3617,7 +3663,7 @@ files = [
 name = "mpmath"
 version = "1.3.0"
 summary = "Python library for arbitrary-precision floating-point arithmetic"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
@@ -3789,7 +3835,7 @@ name = "narwhals"
 version = "2.28.0"
 requires_python = ">=3.10"
 summary = "Extremely lightweight compatibility layer between dataframe libraries"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "narwhals-2.28.0-py3-none-any.whl", hash = "sha256:1f69d6385ec30e2fa6e1fdeb37c562ecabd0f713f6f3e3b58a668c5c9df9567f"},
@@ -3944,7 +3990,7 @@ name = "numba"
 version = "0.68.1"
 requires_python = ">=3.10"
 summary = "compiling Python code using LLVM"
-groups = ["default", "tests"]
+groups = ["default", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "llvmlite<0.51,>=0.50.0dev0",
@@ -3978,7 +4024,7 @@ name = "numpy"
 version = "2.5.4"
 requires_python = ">=3.12"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "docs", "metabolism", "structures", "tests", "trajectories"]
+groups = ["default", "docs", "metabolism", "relativity", "structures", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "numpy-2.5.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c6342f54c67093cae5c0227eb0eb772fdb79f2a2c37a6eb278b9909ee06aa356"},
@@ -4227,7 +4273,7 @@ name = "packaging"
 version = "26.3"
 requires_python = ">=3.9"
 summary = "Core utilities for Python packages"
-groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "metabolism", "release", "tests", "trajectories"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "metabolism", "relativity", "release", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
@@ -5154,7 +5200,7 @@ name = "pillow"
 version = "13.0.0"
 requires_python = ">=3.11"
 summary = "Python Imaging Library (fork)"
-groups = ["default", "docs", "gallery", "metabolism", "tests"]
+groups = ["default", "docs", "gallery", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pillow-13.0.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:67c8d44ad89fa7eb88de5d6ef6199b1e03dd24974f85a67639fc8badb801fe79"},
@@ -5313,7 +5359,7 @@ name = "plotly"
 version = "7.1.0"
 requires_python = ">=3.8"
 summary = "An open-source interactive data visualization library for Python"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "narwhals>=1.15.1",
@@ -5775,7 +5821,7 @@ name = "pyerfa"
 version = "2.0.1.5"
 requires_python = ">=3.9"
 summary = "Python bindings for ERFA"
-groups = ["default"]
+groups = ["relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy>=1.19.3",
@@ -5866,11 +5912,35 @@ name = "pyparsing"
 version = "3.3.2"
 requires_python = ">=3.9"
 summary = "pyparsing - Classes and methods to define and execute parsing grammars"
-groups = ["default", "checks", "docs", "metabolism", "tests", "trajectories"]
+groups = ["default", "checks", "docs", "metabolism", "relativity", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d"},
     {file = "pyparsing-3.3.2.tar.gz", hash = "sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc"},
+]
+
+[[package]]
+name = "pypesto"
+version = "0.8.0"
+requires_python = ">=3.12"
+summary = "python-based Parameter EStimation TOolbox"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "cloudpickle>=2.1.0",
+    "h5py!=3.15.0,>=3.10.0",
+    "matplotlib>=3.7.3",
+    "more-itertools>=9.0.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.1",
+    "scipy>=1.11.2",
+    "seaborn>=0.12.2",
+    "tabulate>=0.8.10",
+    "tqdm>=4.46.0",
+]
+files = [
+    {file = "pypesto-0.8.0-py3-none-any.whl", hash = "sha256:389b86bd2b4d70154c11954caea57cef42cf8d3e78d0473e4b6278efcd0399ca"},
+    {file = "pypesto-0.8.0.tar.gz", hash = "sha256:0d965903fee929868303aee1f6d1ff87b0ee4df20b231175264fb8049eb5962d"},
 ]
 
 [[package]]
@@ -6109,7 +6179,7 @@ name = "python-dateutil"
 version = "4.0.0"
 requires_python = ">=3.11"
 summary = "Extensions to the standard Python datetime module"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "tzdata",
@@ -6313,7 +6383,7 @@ name = "pyyaml"
 version = "6.0.3"
 requires_python = ">=3.8"
 summary = "YAML parser and emitter for Python"
-groups = ["default", "checks", "docs"]
+groups = ["default", "checks", "docs", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pyyaml-6.0.3-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:7f047e29dcae44602496db43be01ad42fc6f1cc0d8cd6c83d342306c32270196"},
@@ -6812,7 +6882,7 @@ name = "scipy"
 version = "1.18.1"
 requires_python = ">=3.12"
 summary = "Fundamental algorithms for scientific computing in Python"
-groups = ["default", "metabolism", "tests", "trajectories"]
+groups = ["default", "metabolism", "relativity", "tests", "trajectories"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "numpy<2.8,>=2.0.0",
@@ -6859,6 +6929,23 @@ files = [
     {file = "scipy-1.18.1-cp314-cp314t-win_amd64.whl", hash = "sha256:c24acac1e18912761c4700239bbc1fd32f615af690f1584d49b35859be51324d"},
     {file = "scipy-1.18.1-cp314-cp314t-win_arm64.whl", hash = "sha256:9f2897bf7737392ad0d5213ea7b6add72a4edf5679b3153106aeb88b6507b3b9"},
     {file = "scipy-1.18.1.tar.gz", hash = "sha256:52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307"},
+]
+
+[[package]]
+name = "seaborn"
+version = "0.13.2"
+requires_python = ">=3.8"
+summary = "Statistical data visualization"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "matplotlib!=3.6.1,>=3.4",
+    "numpy!=1.24.0,>=1.20",
+    "pandas>=1.2",
+]
+files = [
+    {file = "seaborn-0.13.2-py3-none-any.whl", hash = "sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987"},
+    {file = "seaborn-0.13.2.tar.gz", hash = "sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7"},
 ]
 
 [[package]]
@@ -7154,7 +7241,7 @@ name = "sympy"
 version = "1.14.0"
 requires_python = ">=3.9"
 summary = "Computer algebra system (CAS) in Python"
-groups = ["default", "metabolism"]
+groups = ["default", "metabolism", "relativity"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 dependencies = [
     "mpmath<1.4,>=1.1.0",
@@ -7169,7 +7256,7 @@ name = "tabulate"
 version = "0.10.0"
 requires_python = ">=3.10"
 summary = "Pretty-print tabular data"
-groups = ["checks"]
+groups = ["default", "checks"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3"},
@@ -7466,7 +7553,7 @@ name = "tzdata"
 version = "2026.6"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
-groups = ["default", "docs", "metabolism", "tests"]
+groups = ["default", "docs", "metabolism", "relativity", "tests"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "tzdata-2026.6-py2.py3-none-any.whl", hash = "sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec"},

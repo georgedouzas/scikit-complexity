@@ -1,7 +1,4 @@
-"""Classical fourth-order Runge-Kutta integrator of ODEs.
-
-ODEs are ordinary differential equations. It takes a fixed internal step.
-"""
+"""Classical fourth-order Runge-Kutta integrator of ODEs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,6 @@ from ...components.laws import (
     BilinearLaw,
     BoundaryLaw,
     CrossingLaw,
-    EncounterLaw,
     EquationLaw,
     FluxLaw,
     JumpLaw,
@@ -35,10 +31,12 @@ from ._solver import Solver
 
 
 class RK4Solver(Solver):
-    """Classical fourth-order Runge-Kutta integrator of ODEs.
+    """A solver of ordinary differential equations by the classical Runge-Kutta method.
 
     ODEs are ordinary differential equations. It takes a fixed internal step. With the Numba backend every internal step
     of a frame runs in compiled code.
+
+    Choose it for smooth flows with a fixed step. It appears in every field, such as orbits, oscillators, and epidemics.
 
     Args:
         dt:
@@ -53,12 +51,12 @@ class RK4Solver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> problem = simulate(system, until=0).problem
@@ -83,7 +81,6 @@ class RK4Solver(Solver):
                 CrossingLaw,
                 BoundaryLaw,
                 TransferLaw,
-                EncounterLaw,
                 BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),
@@ -115,12 +112,12 @@ class RK4Solver(Solver):
 
         There is one step length, or one per state.
         """
-        drift = self._drift()
+        drift = self._get_drift()
 
         def field(time: float, state: Array) -> Array:
             return drift(time, state, p)
 
-        return self._bounded(time + float(np.max(lengths)), self._rk4_step(field, time, state, lengths), p)
+        return self._get_bounded(time + float(np.max(lengths)), self._get_rk4_step(field, time, state, lengths), p)
 
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate with fixed RK4 steps.
@@ -128,16 +125,16 @@ class RK4Solver(Solver):
         Every step is interpolated for delays, and events are located in it.
         """
         problem = self.problem_
-        drift = self._drift()
+        drift = self._get_drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
             def field(time: float, state: Array) -> Array:
                 time = min(time, ceiling)
-                return drift(time, state, History._with_delays(problem, history, time, state, p))
+                return drift(time, state, History._copy_with_delays(problem, history, time, state, p))
 
-            following = self._rk4_step(field, time, state, step)
-            interpolant = self._hermite(
+            following = self._get_rk4_step(field, time, state, step)
+            interpolant = self._get_hermite(
                 time,
                 state,
                 field(time, state),
@@ -155,7 +152,7 @@ class RK4Solver(Solver):
             dt=self.dt,
             locator=self.locator_,
             history=history,
-            bounded=self._bounded,
+            bounded=self._get_bounded,
             take=take,
         )
 
@@ -206,7 +203,7 @@ class RK4Solver(Solver):
         return state
 
     @staticmethod
-    def _rk4_step(field: Callable[[float, Array], Array], time: float, state: Array, step: float | Array) -> Array:
+    def _get_rk4_step(field: Callable[[float, Array], Array], time: float, state: Array, step: float | Array) -> Array:
         """Return the state after one classical Runge-Kutta step.
 
         There is one step length, or one per state component. The step spans the longest of the step lengths in time.
@@ -236,7 +233,7 @@ class RK4Solver(Solver):
         return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
     @staticmethod
-    def _hermite(t0: float, x0: Array, f0: Array, *, t1: float, x1: Array, f1: Array) -> Interpolant:
+    def _get_hermite(t0: float, x0: Array, f0: Array, *, t1: float, x1: Array, f1: Array) -> Interpolant:
         """Return the cubic Hermite interpolant between two states with their derivatives.
 
         Args:

@@ -44,7 +44,7 @@ curve = path.read_points(np.linspace(0, 2 * np.pi, 400))
 probabilities = read_cell_probabilities()
 residues = [residue for _, _, residue in structure.residues]
 site = residues.index('GLY')
-cells = trajectory.lattice('residues.cell').astype(int)[-200:, 0, site]
+cells = trajectory.get_lattice('residues.cell').astype(int)[-200:, 0, site]
 frequencies = np.bincount(cells, minlength=72) / 200
 
 fig, (ramachandran, sampled) = plt.subplots(1, 2, figsize=(11, 4.5))

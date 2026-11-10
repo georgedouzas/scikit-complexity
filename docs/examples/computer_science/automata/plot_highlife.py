@@ -35,14 +35,14 @@ replicator = np.zeros((64, 64))
 replicator[30:35, 30:35] = [[0, 0, 1, 1, 1], [0, 1, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 1, 0], [1, 1, 1, 0, 0]]
 grown = {
     rule: simulate(HighlifeSystem(shape=(64, 64), rule=rule, initial=replicator), until=90)
-    .lattice('cells.alive')
+    .get_lattice('cells.alive')
     .sum(axis=(1, 2))
     for rule in ('B36/S23', 'B3/S23')
 }
 fig, (soup, copies) = plt.subplots(1, 2, figsize=(11, 4))
 times = trajectory.times
-soup.plot(times, trajectory.lattice('cells.alive').mean(axis=(1, 2)), label='HighLife B36/S23')
-soup.plot(times, life.lattice('cells.alive').mean(axis=(1, 2)), label='Life B3/S23')
+soup.plot(times, trajectory.get_lattice('cells.alive').mean(axis=(1, 2)), label='HighLife B36/S23')
+soup.plot(times, life.get_lattice('cells.alive').mean(axis=(1, 2)), label='Life B3/S23')
 soup.set_xlabel('generation')
 soup.set_ylabel('density of live cells')
 soup.set_title('Random soups decay alike')

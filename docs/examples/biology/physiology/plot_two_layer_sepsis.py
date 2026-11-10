@@ -7,8 +7,8 @@ one leaves them in a desynchronized, pathological state.
 """
 
 # %%
-# The system is built from its class with 20 cells per layer at the age parameter `beta = pi / 2`. The observer saves
-# every frame with the default blueprint, whose primary view is the network of cells with their phases.
+# The example builds `TwoLayerSepsisSystem` with 20 cells per layer at the age parameter `beta = pi / 2`. The observer
+# saves every frame with the default blueprint, whose primary view is the network of cells with their phases.
 
 import math
 
@@ -34,7 +34,7 @@ betas = np.linspace(0.2, 0.6, 5) * math.pi
 spreads = []
 for beta in betas:
     run = simulate(TwoLayerSepsisSystem(beta=beta))
-    phases = np.unwrap(run.values('cells.phi'), axis=0)
+    phases = np.unwrap(run.get_values('cells.phi'), axis=0)
     spreads.append(((phases[-1] - phases[-51]) / 50)[:20].std())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(betas / math.pi, spreads, 'o-')

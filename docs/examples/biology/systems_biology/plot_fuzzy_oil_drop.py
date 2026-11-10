@@ -48,8 +48,8 @@ distributions.plot(residues, profile.uniform, color='0.5', label='R')
 distributions.set_xlabel('residue')
 distributions.set_ylabel('share of hydrophobicity')
 distributions.legend()
-ensemble.plot(trajectory.times, trajectory.values('RD'), label='RD')
-ensemble.plot(trajectory.times, trajectory.values('K'), label='K')
+ensemble.plot(trajectory.times, trajectory.get_values('RD'), label='RD')
+ensemble.plot(trajectory.times, trajectory.get_values('K'), label='K')
 ensemble.set_xlabel('NMR system')
 ensemble.legend()
 fig.tight_layout()
@@ -65,12 +65,12 @@ plt.show()
 
 folded = simulate(FuzzyOilDropSystem(dynamics='folding'), until=200, random_state=0)
 geometry = BackboneGeometry(structure).prepare()
-angles = folded.lattice('chain.angle').astype(float)[:, 0]
+angles = folded.get_lattice('chain.angle').astype(float)[:, 0]
 chains = np.array([geometry.run(row).read_effective_atoms() for row in angles[::20]])
 radii = chain_shape(chains).values
 
 fig, (score, size) = plt.subplots(1, 2, figsize=(11, 4))
-score.plot(folded.times, folded.values('folding.score')[:, 0])
+score.plot(folded.times, folded.get_values('folding.score')[:, 0])
 score.set_xlabel('time')
 score.set_ylabel('RD')
 size.plot(folded.times[::20], radii, marker='o')

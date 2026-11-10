@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
 from ....core.components.laws.utils import bernoulli, normal
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -311,7 +311,7 @@ class RandomWalkSystem(BaseSystem):
         self.rate = rate
         self.bias = bias
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return independent walkers on the integers that step at random times.
 
         This is a continuous-time random walk.
@@ -329,7 +329,7 @@ class RandomWalkSystem(BaseSystem):
             changes={'x': -1},
             rate=lambda s: s.target.rate * (1 - s.target.bias),
         )
-        return System(self.label, elements=[walkers], interactions=[up, down])
+        return CompositeSystem(self.label, elements=[walkers], interactions=[up, down])
 
 
 class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
@@ -382,7 +382,7 @@ class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
         self.ell = ell
         self.D = D
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Brownian particles held by a restoring force that weakens with distance."""
         particles = GroupElement(
             'particles',
@@ -397,7 +397,7 @@ class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
             rate=lambda s: -s.target.k * s.target.x / (1 + (s.target.x / s.target.ell) ** 2),
             noise=lambda s: sqrt(2 * s.target.D),
         )
-        return System(self.label, elements=[particles], interactions=[restoring])
+        return CompositeSystem(self.label, elements=[particles], interactions=[restoring])
 
 
 class AgeingRandomWalkSystem(BaseSystem):
@@ -447,7 +447,7 @@ class AgeingRandomWalkSystem(BaseSystem):
         self.p = p
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return ageing random walks.
 
         The up steps become rarer the more of them a walker has taken.
@@ -464,11 +464,11 @@ class AgeingRandomWalkSystem(BaseSystem):
             'step',
             target='walkers',
             state='x',
-            function=lambda agent, system: 2 * (agent.ups - agent.lags('ups')[-1]) - 1,
+            function=lambda agent, system: 2 * (agent.ups - agent.get_lags('ups')[-1]) - 1,
             mode='increment',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -532,7 +532,7 @@ class PersistentRandomWalkSystem(BaseSystem):
         self.persistence = persistence
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return walkers on the integers that keep the direction of their last step.
 
         A walker keeps the direction with a probability.
@@ -557,7 +557,7 @@ class PersistentRandomWalkSystem(BaseSystem):
             function=lambda s: s.target.d,
             mode='increment',
         )
-        return System(self.label, elements=[walkers], interactions=[turn, step])
+        return CompositeSystem(self.label, elements=[walkers], interactions=[turn, step])
 
 
 class RandomWalkWithMemorySystem(BaseSystem):
@@ -610,7 +610,7 @@ class RandomWalkWithMemorySystem(BaseSystem):
         self.alpha = alpha
         self.sigma = sigma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return random walks whose velocity is an autoregressive process.
 
         The walks follow `x ← x + v` and `v ← alpha v + xi`.
@@ -628,4 +628,4 @@ class RandomWalkWithMemorySystem(BaseSystem):
             state='v',
             function=lambda s: s.target.alpha * s.target.v + normal('xi', 0, s.target.sigma),
         )
-        return System(self.label, elements=[walkers], interactions=[step, velocity])
+        return CompositeSystem(self.label, elements=[walkers], interactions=[step, velocity])

@@ -12,18 +12,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    DiffusionInteraction,
-    MapInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
 PHEROMONE = 'ground/pheromone.level'
@@ -254,7 +251,7 @@ class PheromoneForagingSystem(BaseSystem):
         """Return the cell of the nest of an ant."""
         return round(ant.nest_x), round(ant.nest_y)
 
-    def _homes(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _is_homing(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether an ant carries food away from the nest.
 
         Such an ant walks home.
@@ -292,11 +289,11 @@ class PheromoneForagingSystem(BaseSystem):
             return None
         x, y = cast('tuple[int, int]', ant.location)
         nest = self._get_nest(ant)
-        cells = cast('list[tuple[int, int]]', list(ant.neighbor_cells()))
+        cells = cast('list[tuple[int, int]]', list(ant.get_neighbor_cells()))
         distance = np.hypot(x - nest[0], y - nest[1])
         weights = np.asarray(
             [
-                (1.0 + ant.attraction * system.field(PHEROMONE, cell))
+                (1.0 + ant.attraction * system.get_field(PHEROMONE, cell))
                 * np.exp(ant.outward * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
                 for cell in cells
             ],
@@ -335,9 +332,9 @@ class PheromoneForagingSystem(BaseSystem):
         """
         if not isinstance(ant, AntView):
             return 0.0
-        return float(not self._homes(ant, system) and not self._searches(ant, system))
+        return float(not self._is_homing(ant, system) and not self._searches(ant, system))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that find food and lay a pheromone trail home."""
         nest, food = (5, self.height // 2), (self.width - 6, self.height // 2)
         ants = GroupElement(
@@ -360,19 +357,23 @@ class PheromoneForagingSystem(BaseSystem):
             boundary={'level': 'zero-flux'},
             values={'D': self.D, 'evaporation': self.evaporation},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('colony', elements=[ants], space=LatticeSpace((self.width, self.height), boundary='fixed')),
-                System(
+                CompositeSystem(
+                    'colony',
+                    elements=[ants],
+                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
+                ),
+                CompositeSystem(
                     'ground',
                     elements=[pheromone],
                     interactions=[
-                        DiffusionInteraction(
+                        RateInteraction(
                             'diffusion',
                             target='pheromone',
                             state='level',
-                            coefficient=self._get_diffusion,
+                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.level),
                         ),
                         EvaporationInteraction('evaporation', target='pheromone', state='level'),
                     ],
@@ -383,7 +384,7 @@ class PheromoneForagingSystem(BaseSystem):
                     'homing',
                     target='colony/ants',
                     step=self._get_home_step,
-                    condition=self._homes,
+                    condition=self._is_homing,
                     schedule='member',
                 ),
                 TransferInteraction(

@@ -1,7 +1,4 @@
-"""Define gradient interactions.
-
-They move states down the gradient of a potential.
-"""
+"""Define the interaction that moves states down the gradient of a potential."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,37 +18,36 @@ from ...specs import RoleSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RateLaw
-from ..laws.utils import distribute_operators, laplacian, partial
+from ..laws.utils import laplacian, partial
+from ..laws.utils._tensors import distribute_operators
 from ..spaces import BaseSpace
 from ..types import Target
 from ._interaction import Interaction
 
 
 class GradientInteraction(Interaction):
-    """Motion of states down the gradient of a potential `U(ns)`.
+    """An interaction that moves states down the gradient of a potential.
 
-    The motion is a gradient flow or Newtonian motion. Every state `x` the interaction moves gets the rate `-dU/dx / d`
-    on its highest time derivative, with `d` the divisor of its member: a state or parameter of the member, an
-    expression of them such as a moment of inertia `m l^2`, or one divisor per state, such as the masses of two
-    coordinates of one element. On a state of order 1 this is the gradient flow `x' = -dU/dx / d`, with `d` a friction,
-    and on a state of order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the
-    gradient of every component, and a tensor state the matrix gradient, the projection of the derivative onto the
-    matrices of its symmetry.
+    Every state `x` that the interaction moves gets the rate `-dU/dx / d` on its highest time derivative, where `U` is
+    the potential and `d` the divisor of its member. On a state of order 1 this is a gradient flow `x' = -dU/dx / d`,
+    with `d` a friction. On a state of order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` a mass or an inertia. A
+    vector state gets the gradient of every component.
 
-    On a field the potential is the density `f` of a functional `F = integral f`, which may read the field, its
-    derivatives `partial(x, k)` or `gradient(x)`, and its `laplacian(x)`. A variational interaction moves the field by
-    the functional derivative `dF/dx = df/dx - sum_k partial(df/dx_k, k) + laplacian(df/d laplacian(x))`, as in the
-    Allen-Cahn equation, and a conserved interaction gives the rate `laplacian(dF/dx) / d` instead, as in the
-    Cahn-Hilliard equation, so the total of the field stays constant.
+    On a field, the potential is the density `f` of a functional `F`, the integral of `f` over space, and may read the
+    field, its derivatives, and its Laplacian. With `variational` the field moves by the functional derivative of `F`,
+    as in the Allen-Cahn equation. With `conserved` the rate is the Laplacian of that derivative, as in the
+    Cahn-Hilliard equation, so the total of the field stays constant. The potential function takes a namespace with the
+    roles, the `sources`, the time `t`, and the parameters a subclass declares.
 
-    The interaction moves the states of every role that binds one element or group, `target` by default. A subclass
-    may bind several such roles instead, such as both members of a pair potential, and every one of them moves. The
-    potential function takes the namespace of the interaction, with the namespaces of the roles and of the `sources`,
-    the time `t`, and the symbols of the parameters a subclass declares.
+    Unlike `RateInteraction`, which takes the rate itself, it takes a potential and derives the rates from it. Choose it
+    when the dynamics descend an energy or a cost, so that one scalar function gives every rate.
+
+    It appears in many fields. Particles move in a potential well, phases separate in an alloy, a neural network
+    descends its loss, and cells sort by their adhesion energy.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'descent'`.
 
         target:
             The path of the element or group whose states move.
@@ -81,14 +77,20 @@ class GradientInteraction(Interaction):
             A state or the divisor is not a name, or the potential is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import GradientInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
-        >>> system = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
+        >>> well = GradientInteraction('well', target='walker', states='x', potential=lambda s: s.target.x**2 / 2)
+        >>> system = CompositeSystem(elements=[AmountElement('walker', x=1.0)], interactions=[well])
         >>> trajectory = simulate(system, until=1.0, dt=0.01)
-        >>> round(float(trajectory.values('walker.n')[-1]), 4)
+        >>> round(float(trajectory.get_values('walker.x')[-1]), 4)
         0.3679
     """
 

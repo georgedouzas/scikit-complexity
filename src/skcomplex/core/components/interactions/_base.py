@@ -1,7 +1,4 @@
-"""Define the base of interactions.
-
-Interactions are the parts of a system that act between elements.
-"""
+"""Define the abstract base of every interaction."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
+from ...specs import BaseSpec, InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
 from ..base import BasePart
 from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
@@ -27,30 +24,31 @@ RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
-    """Base of every interaction.
+    """An abstract interaction, the part of a system that changes states of elements.
 
-    An interaction is a part of a system whose laws couple elements to each other or to the environment. A subclass
-    takes its roles and parameters as arguments of its own `__init__`, annotated with `Annotated` and the spec
-    `RoleSpec` or `ParameterSpec`, and stores each under its own name, as in scikit-learn. It returns its laws from
-    `_get_laws`, where `namespace.<role>` is the namespace of the element bound to the role and `namespace.<parameter>`
-    is a symbol. Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network
-    space. A general interaction reads the members of its roles, such as `'source'` or `'target'`, by the name
-    `_get_role` returns for them, the role itself by default, so a subclass that names its roles otherwise returns its
-    own names, in the agent forms and, through `_get_member`, in the symbolic forms. It reads its parameters by the name
-    `_get_parameter` returns for them, and a parameter the class does not declare reads the plain attribute, so a
-    subclass renames a parameter or fixes its value by setting the attribute.
+    An interaction binds elements through roles, such as `'source'` and `'target'`, reads their states, and returns laws
+    that change them. It holds no state of its own. A state on a coupling, such as the weight of an edge, lives in a
+    group on the edges or hyperedges of a network. A subclass takes each role and parameter as an argument of its
+    `__init__`, annotated with `RoleSpec` or `ParameterSpec` inside `Annotated`, and stores it under the same name, as a
+    scikit-learn estimator does. It returns its laws from `_get_laws`, where `namespace.<role>` reads the states of the
+    element a role binds and `namespace.<parameter>` is a symbol.
 
-    A role states what it needs in its `RoleSpec`, and the class lists the laws it may return in `law_classes`, which
-    `get_requirements` reads. Its capability tags come from the laws it returns for its arguments: a class whose
-    arguments choose among its laws overrides `_get_tags` and passes the chosen classes to `_get_variant_tags`. A
-    subclass that writes its laws in `_get_laws` without listing them leaves its law kinds unknown. An interaction
-    whose agents act in a new random order every step, under the schedule `'random-sequential'` or in their own
-    activations under `'member'`, which the agent stepper orders at random, or that breaks ties or picks members at
-    random, draws random numbers whatever its laws, so its randomness is stochastic.
+    A role states the element kinds and states it needs in its `RoleSpec`, and the class lists the laws it may return in
+    `law_classes`, so that `get_requirements` and `get_tags` can name them before a run. A subclass whose arguments
+    choose among its laws overrides `_get_tags`. A subclass that names its roles or parameters otherwise returns their
+    names from `_get_role` and `_get_parameter`. An interaction that draws a random order of agents, breaks ties at
+    random, or picks members at random is stochastic whatever its laws.
+
+    Unlike `BasePart`, it changes the states of other parts and holds none of its own. Choose it when a new kind of
+    interaction runs its laws in a way of its own, as `NeighborInteraction` runs them once per edge. Choose
+    `Interaction` for laws that run once for the elements the roles bind.
+
+    It appears in every field through its subclasses, such as infection in an epidemic, a chemical reaction, a payment
+    between accounts, and the coupling of oscillators.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'growth'`.
 
     Attributes:
         laws_:
@@ -129,7 +127,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         return self._get_law_tags(self._get_declared_laws())
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the interaction draws.
 
         It draws, by `draws`, a random order of its agents, or random ties or picks.
@@ -147,7 +145,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             inputs:
                 The namespace of the symbols the laws can use.
         """
-        self.laws_ = self._laws_of(inputs)
+        self.laws_ = self._get_laws_of(inputs)
 
     def _get_role(self, role: str) -> str:
         """Return the role a subclass binds in place of a role of its general interaction.
@@ -220,7 +218,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         parameter = self._get_parameter(name)
         if self._declares(parameter):
-            return system.parameter(parameter)
+            return system.get_parameter(parameter)
         return float(getattr(self, parameter))
 
     def _get_parameter_symbol(self, name: str, namespace: SimpleNamespace) -> object:
@@ -280,8 +278,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
-        accepted = [*(kind.__name__ for kind in kinds), *map(repr, values), *(['a function'] if functions else [])]
-        error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
+        named = [kind.__name__ for kind in kinds if kind is not BaseSpec]
+        accepted = [*named, *map(repr, values), *(['a function'] if functions else [])]
+        spec = ', or a spec that the part handles' if BaseSpec in kinds else ''
+        error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)
 
     def _get_variant_error(self, value: object, name: str, method: str) -> ValidationError:
@@ -333,7 +333,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             set_next:
                 The function that sets the next value of an agent.
         """
-        agents = list(system.agents(self._get_role('target')))
+        agents = list(system.get_agents(self._get_role('target')))
         if schedule == 'synchronous':
             values = [get_next(agent, system) for agent in agents]
             for agent, value in zip(agents, values, strict=True):

@@ -6,8 +6,8 @@ acting on the temperature receptors in fever, shifts the set point while it acts
 """
 
 # %%
-# The system is built from its class with a steering signal from time 20 to 40, and the observer saves every third
-# frame with the default blueprint, whose primary view is the time series of the product and the effector.
+# The example builds `SteerableFeedbackLoopSystem` with a steering signal from time 20 to 40, and the observer saves
+# every third frame with the default blueprint, whose primary view is the time series of the product and the effector.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
@@ -34,8 +34,8 @@ def set_point(sensitivity):
 
 delayed = simulate(SteerableFeedbackLoopSystem(tau=3.0))
 fig, ax = plt.subplots(figsize=(8, 4.5))
-ax.plot(trajectory.times, trajectory.values('loop.x'), label='delay 0.5')
-ax.plot(delayed.times, delayed.values('loop.x'), alpha=0.6, label='delay 3')
+ax.plot(trajectory.times, trajectory.get_values('loop.x'), label='delay 0.5')
+ax.plot(delayed.times, delayed.get_values('loop.x'), alpha=0.6, label='delay 3')
 ax.axhline(set_point(1.0), color='black', linestyle='--', label='set point')
 ax.axhline(set_point(1.5), color='tab:red', linestyle='--', label='steered set point')
 ax.axvspan(20, 40, color='gray', alpha=0.15, label='steering signal')

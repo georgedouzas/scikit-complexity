@@ -13,9 +13,10 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, total, variance
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -196,7 +197,7 @@ def _group_of(laws, size=10, values=None):
 
     unit = ReducingElement
     values = RNG.normal(size=size) if values is None else np.asarray(values, dtype=float)
-    return System(elements=[GroupElement('units', element=unit, size=size, values={'x': values})]), values
+    return CompositeSystem(elements=[GroupElement('units', element=unit, size=size, values={'x': values})]), values
 
 
 def _rates(system, backend=NumpyBackend):
@@ -211,7 +212,7 @@ def _kuramoto(size, *, observables=False):
     oscillators = GroupElement('oscillators', element=PhaseElement, size=size, values={'theta': theta, 'omega': omega})
     if observables:
         return (
-            System(
+            CompositeSystem(
                 elements=[oscillators],
                 interactions=[MeanCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
             ),
@@ -248,7 +249,7 @@ def _kuramoto(size, *, observables=False):
 
     coupling = CouplingInteraction
     return (
-        System(elements=[oscillators], interactions=[coupling('coupling', target='oscillators', K=2.0)]),
+        CompositeSystem(elements=[oscillators], interactions=[coupling('coupling', target='oscillators', K=2.0)]),
         theta,
         omega,
     )
@@ -283,7 +284,7 @@ def test_instantaneous_mean_in_interaction():
             super().__init__(label, visual=visual)
             self.theta = theta
 
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('neurons', element=NeuronElement, size=40, values={'theta': theta})],
         interactions=[MeanPulseInteraction('pulses', neurons='neurons')],
     )
@@ -301,7 +302,7 @@ def test_instantaneous_mean_in_interaction():
 def test_maximum_drives_single_element(largest, drive):
     """Test that the inhibitor is driven exactly when some oscillator exceeds the threshold."""
     values = np.linspace(-1.0, largest, 8)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('oscillators', element=UnitElement, size=8, values={'x': values}),
             InhibitorElement('inhibitor'),
@@ -310,7 +311,7 @@ def test_maximum_drives_single_element(largest, drive):
     )
     problem = PassCompiler().prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    assert rates[problem.states.entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
+    assert rates[problem.states.get_entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -404,7 +405,7 @@ def test_two_groups_in_one_reduction():
             """Return the laws of the predation interaction."""
             return [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('prey', element=UnitElement, size=3),
             GroupElement('predators', element=UnitElement, size=3),
@@ -438,7 +439,7 @@ def test_interaction_reads_second_group_through_reductions():
             return [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
 
     first, second = RNG.normal(size=4), RNG.normal(size=6)
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('first', element=UnitElement, size=4, values={'x': first}),
             GroupElement('second', element=UnitElement, size=6, values={'x': second}),
@@ -465,7 +466,7 @@ def test_kuramoto_through_observables(backend):
 
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('herd', element=UnitElement, size=3), UnitElement('soil')],
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
@@ -497,7 +498,7 @@ def test_observable_read_in_its_own_partition():
             """Return the laws of the saver element."""
             return [RateLaw(s.W, s.r * s.W)]
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'savers',
@@ -513,10 +514,10 @@ def test_observable_read_in_its_own_partition():
     simulation = simulate(system, until=5, dt=0.5, observables=observables)
     problem, trajectory = simulation.problem, simulation
     assert not problem.partitions
-    index = problem.states.entry('account.x').start
+    index = problem.states.get_entry('account.x').start
     for row, values in enumerate(trajectory.states):
         rate = problem.drift(0.0, values, problem.initial_parameters)[index]
-        assert rate == pytest.approx(trajectory.values('mean_wealth')[row], abs=1e-12)
+        assert rate == pytest.approx(trajectory.get_values('mean_wealth')[row], abs=1e-12)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -555,7 +556,7 @@ def test_propensity_after_event(backend):
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
     trajectory = simulate(system, until=2, backend=backend())
-    assert set(np.unique(trajectory.values('units.x'))) <= {0.0, 1.0}
+    assert set(np.unique(trajectory.get_values('units.x'))) <= {0.0, 1.0}
 
 
 def test_backends_agree():
@@ -601,7 +602,7 @@ def test_element_set_reduction():
             """Return the laws of the total interaction."""
             return [RateLaw(s.units.x, total(s.units.x))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[UnitElement(f'unit_{index}', x=float(index + 1)) for index in range(3)],
         interactions=[TotalInteraction('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
@@ -630,7 +631,7 @@ def _shared(share, values):
             """Return the laws of the share interaction."""
             return [RateLaw(s.cells.x, share(s))]
 
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('units', element=UnitElement, size=len(values), values={'x': values})],
         interactions=[ShareInteraction('share', cells='units')],
     )
@@ -682,9 +683,14 @@ def test_element_set_of_mixed_types():
             """Return the laws of the total interaction."""
             return [RateLaw(s.units.x, total(s.units.x))]
 
-    system = System(
+    system = CompositeSystem(
         elements=[UnitElement('a'), OtherElement('b')],
         interactions=[TotalInteraction('total', units=['a', 'b'])],
     )
     with pytest.raises(RoleError, match=r"'units'.*UnitElement and OtherElement"):
         PassCompiler().prepare(system).run()
+
+
+def test_reduction_kernel_reduce_values():
+    """Test `ReductionKernel._reduce_values` on a small case."""
+    assert ReductionKernel._reduce_values([1.0, 2.0, 6.0], 'mean') == 3.0

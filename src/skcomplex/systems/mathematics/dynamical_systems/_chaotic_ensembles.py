@@ -16,8 +16,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+
+DOUBLING_DENOMINATOR = 1125899906840747.0
 
 
 class CubicWalkElement(Element):
@@ -80,9 +82,6 @@ class CubicWalkElement(Element):
             UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
             UpdateLaw(s.y, s.y + 2 * s.x - 1),
         ]
-
-
-DOUBLING_DENOMINATOR = 1125899906840747.0
 
 
 class DoublingMapElement(Element):
@@ -185,19 +184,9 @@ class SkewTentMapElement(Element):
         return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
 
 
-def _square_displacement(member: SimpleNamespace) -> Expression:
+def _get_square_displacement(member: SimpleNamespace) -> Expression:
     """Return the squared position of a walker."""
     return member.y**2
-
-
-def _draw_cloud(
-    size: int,
-    start: float,
-    spread: float,
-    random_state: int | np.random.Generator | None,
-) -> np.ndarray:
-    """Return points drawn uniformly from the interval `[start, start + spread]`."""
-    return np.random.default_rng(random_state).uniform(start, start + spread, size)
 
 
 class CubicChaoticMapSystem(BaseSystem):
@@ -235,7 +224,7 @@ class CubicChaoticMapSystem(BaseSystem):
     dt = 1
     observables = (
         ObservableSpec('displacement', group='walkers', variable='y'),
-        ObservableSpec('square_displacement', _square_displacement, group='walkers'),
+        ObservableSpec('square_displacement', _get_square_displacement, group='walkers'),
     )
 
     def __init__(
@@ -249,7 +238,7 @@ class CubicChaoticMapSystem(BaseSystem):
         self.n_walkers = n_walkers
         self.lam = lam
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Bertin's cubic chaotic map and the chaotic walk it drives.
 
         The walk spreads like a random walk.
@@ -261,7 +250,7 @@ class CubicChaoticMapSystem(BaseSystem):
             size=self.n_walkers,
             values={'x': start, 'y': 0.0, 'lam': self.lam},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
         )
@@ -309,6 +298,16 @@ class SkewTentMapSystem(BaseSystem):
     until = 50
     dt = 1
 
+    @staticmethod
+    def _draw_cloud(
+        size: int,
+        start: float,
+        spread: float,
+        random_state: int | np.random.Generator | None,
+    ) -> np.ndarray:
+        """Return points drawn uniformly from the interval `[start, start + spread]`."""
+        return np.random.default_rng(random_state).uniform(start, start + spread, size)
+
     def __init__(
         self,
         n_points: int = 100,
@@ -326,10 +325,10 @@ class SkewTentMapSystem(BaseSystem):
         self.spread = spread
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        start = _draw_cloud(self.n_points, self.x, self.spread, self.random_state)
-        return System(
+        start = SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state)
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -402,10 +401,15 @@ class DoublingMapSystem(BaseSystem):
         self.q = q
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        start = np.floor(self.q * _draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2) / self.q
-        return System(
+        start = (
+            np.floor(
+                self.q * SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2,
+            )
+            / self.q
+        )
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

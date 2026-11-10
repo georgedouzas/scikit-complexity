@@ -10,7 +10,7 @@ from skcomplex.core.analysis import renormalization
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -128,7 +128,7 @@ def test_prepare_reads_the_last_frame_of_a_trajectory_with_its_node_states():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=40)
     growth = TopologyInteraction('growth', action='add-node', values={'angle': lambda rng: rng.uniform(0.0, 6.0)})
     space = NetworkSpace(nx.complete_graph(2))
-    system = System(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=6, random_state=0)
     analysis = renormalization(trajectory, kind='geometric', steps=1)
     assert analysis.graphs[0].number_of_nodes() == 8

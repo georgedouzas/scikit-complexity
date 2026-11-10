@@ -38,7 +38,7 @@ for recovery in (0.0, 0.5):
             [
                 simulate(
                     DefaultCascadeSystem(degree=degree, recovery=recovery, shocked=(seed,), random_state=seed),
-                ).values('cascade.defaults')[-1]
+                ).get_values('cascade.defaults')[-1]
                 / 250
                 for seed in range(10)
             ]

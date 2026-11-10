@@ -4,25 +4,42 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
 from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def equilibrium(namespace: SimpleNamespace) -> object:
     """Return the maximum-entropy equilibrium of the field."""
-    return maximum_entropy(namespace.target.f, axes=('v',))
+    return maximum_entropy(namespace.target.x, axes=('v',))
 
 
 def bgk_final(step: float) -> npt.NDArray[np.float64]:
@@ -34,12 +51,18 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
         1.0 + 0.5 * np.cos(x),
         np.exp(-((v - 1) ** 2)),
     )
-    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
-    stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
-    relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
+    gas = FieldElement(
+        'gas',
+        element=AmountElement,
+        space=space,
+        values={'x': start},
+        discretization='finite-volume',
+    )
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
+    relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
-    system = System(elements=[gas], interactions=[stream, relax])
-    return simulate(system, until=1.0, dt=1.0, solver=solver).values('gas.f')[-1]
+    system = CompositeSystem(elements=[gas], interactions=[stream, relax])
+    return simulate(system, until=1.0, dt=1.0, solver=solver).get_values('gas.x')[-1]
 
 
 def test_splitting_is_second_order_in_the_time_step() -> None:
@@ -54,17 +77,23 @@ def test_splitting_is_second_order_in_the_time_step() -> None:
 def test_prepare_rejects_a_problem_without_fluxes() -> None:
     """Raise a named error for a problem with no flux to split from its sources."""
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
-    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0})
-    relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
+    gas = FieldElement('gas', element=AmountElement, space=space, values={'x': 1.0})
+    relax = RateInteraction('r', target='gas', state='x', rate=lambda s: (equilibrium(s) - s.target.x) / 0.5)
     with pytest.raises(SolverError, match='no flux'):
-        simulate(System(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
+        simulate(CompositeSystem(elements=[gas], interactions=[relax]), until=0.1, solver=StrangSplittingSolver(dt=0.1))
 
 
 def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
     """Raise a named error for a transport solver that does not advance flux laws."""
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
-    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0}, discretization='finite-volume')
-    stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
+    gas = FieldElement(
+        'gas',
+        element=AmountElement,
+        space=space,
+        values={'x': 1.0},
+        discretization='finite-volume',
+    )
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = StrangSplittingSolver(EulerMaruyamaSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
     with pytest.raises(SolverError):
-        simulate(System(elements=[gas], interactions=[stream]), until=0.1, solver=solver)
+        simulate(CompositeSystem(elements=[gas], interactions=[stream]), until=0.1, solver=solver)

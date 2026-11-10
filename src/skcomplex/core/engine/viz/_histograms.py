@@ -1,7 +1,4 @@
-"""Draw the variables of agents and the states of groups without a space.
-
-They are drawn as histograms and statistics.
-"""
+"""Draw the variables of agents and the states of groups without a space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +15,17 @@ from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...specs import AgentSnapshotSpec
 from ..problems import BaseProblemSpec, FrameSpec
 from ._agents import AgentsVisual
-from ._base import _SERIES_COLORS, BaseVisual
+from ._base import SERIES_COLORS, BaseVisual
 
 BINS = 20
-_MAX_LEVELS = 50
-_MAX_AGENT_SERIES = 10
-_STATISTICS = ('mean', 'std', 'distinct')
-_NUMERIC_KINDS = frozenset('biuf')
+MAX_LEVELS = 50
+MAX_AGENT_SERIES = 10
+STATISTICS = ('mean', 'std', 'distinct')
+NUMERIC_KINDS = frozenset('biuf')
 
 
 class HistogramVisual(AgentsVisual):
-    """Visual that logs histograms and statistics of agents or groups without a space.
+    """A visual that logs histograms of agents or of groups without a space.
 
     It logs the traits of the agents or the states of the group. For every trait of the agents, a number per agent is
     taken: the value of a numeric trait, the total of a row of numbers such as the ones of a genome, or the size of a
@@ -130,21 +127,21 @@ class HistogramVisual(AgentsVisual):
                 One number per agent or member.
         """
         if path not in self.spans_:
-            for index, statistic in enumerate(_STATISTICS):
-                style = rr.SeriesLines(colors=_SERIES_COLORS[index], names=statistic)
+            for index, statistic in enumerate(STATISTICS):
+                style = rr.SeriesLines(colors=SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
         start = self.spans_.get(path)
         if start is None and self.color_range is not None and trait == self.color_by:
             start = self.color_range
-        span = BaseVisual._widened(start, numbers)
+        span = BaseVisual._get_widened(start, numbers)
         self.spans_[path] = span
-        counts, centres, width = self._histogram(numbers, span, self.bins)
+        counts, centres, width = self._get_histogram(numbers, span, self.bins)
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
         recording.log(f'{path}/std', rr.Scalars(float(numbers.std())))
         if np.all(numbers == np.round(numbers)):
             recording.log(f'{path}/distinct', rr.Scalars(float(np.unique(numbers).size)))
-        if numbers.size <= _MAX_AGENT_SERIES:
+        if numbers.size <= MAX_AGENT_SERIES:
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
@@ -163,7 +160,7 @@ class HistogramVisual(AgentsVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            numbers = self._numbers_of(frame.value(name))
+            numbers = self._get_numbers_of(frame.get_value(name))
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{element.path}/{state}', state, numbers)
 
@@ -194,11 +191,11 @@ class HistogramVisual(AgentsVisual):
         if not len(snapshot.ids):
             return
         for trait, values in snapshot.values.items():
-            numbers = self._numbers_of(values)
+            numbers = self._get_numbers_of(values)
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', trait, numbers)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the views of the traits.
 
         They show the statistics of one trait over time, its histogram, and the statistics of every trait.
@@ -231,13 +228,13 @@ class HistogramVisual(AgentsVisual):
         return [*first, rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits')]
 
     @staticmethod
-    def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
+    def _get_numbers_of(values: object) -> npt.NDArray[np.float64] | None:
         """Return one number per agent.
 
         It is the value, the total of a row of numbers, or the size of a collection.
         """
         array = np.asarray(values)
-        if array.dtype.kind in _NUMERIC_KINDS:
+        if array.dtype.kind in NUMERIC_KINDS:
             numbers = array.astype(float)
             return numbers if numbers.ndim == 1 else numbers.reshape(len(numbers), -1).sum(axis=1)
         items = list(np.ravel(array)) if array.ndim else [array.item()]
@@ -246,7 +243,7 @@ class HistogramVisual(AgentsVisual):
         return None
 
     @staticmethod
-    def _histogram(
+    def _get_histogram(
         numbers: npt.NDArray[np.float64],
         span: tuple[float, float],
         bins: int,
@@ -256,7 +253,7 @@ class HistogramVisual(AgentsVisual):
         There is one bar per value for few integers.
         """
         low, high = span
-        if np.all(numbers == np.round(numbers)) and high - low < _MAX_LEVELS:
+        if np.all(numbers == np.round(numbers)) and high - low < MAX_LEVELS:
             levels = np.arange(np.floor(low), np.floor(high) + 1)
             counts = np.bincount((numbers - levels[0]).astype(np.int64), minlength=len(levels))
             return counts, levels, 1.0

@@ -7,7 +7,7 @@ amplitudes stay irregular.
 """
 
 # %%
-# The system is built from its class with the coupling `k = 0.4`. The default blueprint shows the three
+# The example builds `CoupledColpittsSystem` with the coupling `k = 0.4`. The default blueprint shows the three
 # variables of both oscillators.
 
 import matplotlib.pyplot as plt
@@ -35,8 +35,8 @@ for coupling in [0.0, 0.4]:
     settled = trajectory.times > 100
     phases = []
     for index in range(2):
-        y = np.ravel(trajectory.values(f'oscillator_{index}.y'))[settled]
-        z = np.ravel(trajectory.values(f'oscillator_{index}.z'))[settled]
+        y = np.ravel(trajectory.get_values(f'oscillator_{index}.y'))[settled]
+        z = np.ravel(trajectory.get_values(f'oscillator_{index}.z'))[settled]
         phases.append(np.unwrap(np.arctan2(z - z.mean(), y - y.mean())))
     ax.plot(trajectory.times[settled], (phases[0] - phases[1]) / (2 * np.pi), label=f'k = {coupling}')
 ax.set_xlabel('time')

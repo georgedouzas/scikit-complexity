@@ -18,10 +18,12 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
+SMALLEST_DEGREE = 1e-9
+FIRST_OPINION_SHARE = 0.5
 
 
 class CoevolvingVoterElement(Element):
@@ -139,9 +141,6 @@ class ClubMemberElement(Element):
         self.rewiring = rewiring
 
 
-SMALLEST_DEGREE = 1e-9
-
-
 class SeparationInteraction(TopologyInteraction):
     """Rewiring of discordant edges by one end.
 
@@ -208,48 +207,6 @@ class SeparationInteraction(TopologyInteraction):
         return chance * (1 - actor.opinion) * other.opinion
 
 
-FIRST_OPINION_SHARE = 0.5
-
-
-def _count_neighbors(namespace: SimpleNamespace) -> object:
-    """Return the number of neighbours of a voter."""
-    return neighbors(1)
-
-
-def _coevolving(
-    label: str,
-    element: type[Element],
-    space: NetworkSpace,
-    opinions: np.ndarray,
-    choice: MapInteraction,
-    **values: object,
-) -> System:
-    """Return a coevolving network of agents with opinions and its variable ties.
-
-    The ties are rewired by separation.
-    """
-    agents = GroupElement(
-        'voters',
-        element=element,
-        on='sites',
-        variable=True,
-        capacity=space.prepare().size_,
-        values={'opinion': opinions, **values},
-        visual=OPINION_VISUAL,
-    )
-    ties = GroupElement('ties', element=Element, on='edges', variable=True)
-    interactions = [
-        MapInteraction('degree', target='voters', state='degree', function=_count_neighbors),
-        choice,
-        *(
-            SeparationInteraction(f'separation_{keep}_{int(opinion)}', voters='voters', keep=keep, opinion=opinion)
-            for keep in ('source', 'target')
-            for opinion in (1.0, 0.0)
-        ),
-    ]
-    return System(label, elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
-
-
 class CoevolvingVoterSystem(BaseSystem):
     """The coevolving voter system.
 
@@ -282,7 +239,7 @@ class CoevolvingVoterSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
         >>> trajectory = simulate(CoevolvingVoterSystem(30), until=5, random_state=0)
-        >>> int(trajectory.network(-1).sources.size) == int(trajectory.network(0).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size) == int(trajectory.get_network(0).sources.size)
         True
     """
 
@@ -290,6 +247,51 @@ class CoevolvingVoterSystem(BaseSystem):
     topics = ('opinion', 'voter', 'adaptive network', 'rewiring', 'fragmentation')
     references = ('Holme and Newman 2006', 'Vazquez, Eguíluz, and San Miguel 2008', 'Thurner et al. 2018')
     until = 200
+
+    @staticmethod
+    def _count_neighbors(namespace: SimpleNamespace) -> object:
+        """Return the number of neighbours of a voter."""
+        return neighbors(1)
+
+    @staticmethod
+    def _get_coevolving(
+        label: str,
+        element: type[Element],
+        space: NetworkSpace,
+        opinions: np.ndarray,
+        choice: MapInteraction,
+        **values: object,
+    ) -> CompositeSystem:
+        """Return a coevolving network of agents with opinions and its variable ties.
+
+        The ties are rewired by separation.
+        """
+        agents = GroupElement(
+            'voters',
+            element=element,
+            on='sites',
+            variable=True,
+            capacity=space.prepare().size_,
+            values={'opinion': opinions, **values},
+            visual=OPINION_VISUAL,
+        )
+        ties = GroupElement('ties', element=Element, on='edges', variable=True)
+        interactions = [
+            MapInteraction('degree', target='voters', state='degree', function=CoevolvingVoterSystem._count_neighbors),
+            choice,
+            *(
+                SeparationInteraction(f'separation_{keep}_{int(opinion)}', voters='voters', keep=keep, opinion=opinion)
+                for keep in ('source', 'target')
+                for opinion in (1.0, 0.0)
+            ),
+        ]
+        return CompositeSystem(
+            label,
+            elements=[agents, ties],
+            interactions=interactions,
+            space=space,
+            time=DiscreteTime(),
+        )
 
     def __init__(
         self,
@@ -319,13 +321,13 @@ class CoevolvingVoterSystem(BaseSystem):
         copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
         return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
         opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
         copying = MapInteraction('copying', target='voters', state='opinion', function=self._copy_discordant)
-        return _coevolving(
+        return CoevolvingVoterSystem._get_coevolving(
             self.label,
             CoevolvingVoterElement,
             space,
@@ -410,13 +412,13 @@ class JoinAClubSystem(BaseSystem):
         choice = where(uniform('u') < joining, 1, 0)
         return where(uniform('d') < agent.deciding, choice, agent.opinion)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
         opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)
         choice = MapInteraction('choice', target='voters', state='opinion', function=self._choose_club)
-        return _coevolving(
+        return CoevolvingVoterSystem._get_coevolving(
             self.label,
             ClubMemberElement,
             space,

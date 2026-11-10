@@ -18,7 +18,7 @@ def test_curie_weiss_magnetization(temperature):
     """Test that 2000 spins order at `T = 0.5 J` as `m = tanh(m J / T)` predicts and stay disordered at `T = 2 J`."""
     system = CurieWeissSystem(2000, temperature=temperature, random_state=1).prepare().system_
     trajectory = simulate(system, until=30, dt=1.0, random_state=0, observables=CurieWeissSystem.observables)
-    magnetization = np.abs(trajectory.values('magnetization')[10:]).mean()
+    magnetization = np.abs(trajectory.get_values('magnetization')[10:]).mean()
     if temperature < 1:
         assert abs(magnetization - spontaneous_magnetization(temperature)) < 0.02
     else:
@@ -38,7 +38,7 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
             random_state=0,
             observables=SherringtonKirkpatrickSystem.observables,
         )
-        spins = trajectory.values('spins.spin')[50:]
+        spins = trajectory.get_values('spins.spin')[50:]
         energy = -0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200
         frozen.append(np.mean(spins.mean(axis=0) ** 2))
         if temperature > 1:

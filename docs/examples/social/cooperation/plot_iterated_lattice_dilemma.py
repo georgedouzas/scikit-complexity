@@ -30,7 +30,7 @@ trajectory = simulate(IteratedLatticeDilemmaSystem(), until=200, observers=[obse
 # always-defect, cooperation should dominate at `R = 0.82`, coexist at `R = 0.84`, and vanish at `R = 0.86`, as in
 # Exercise 13.3.
 
-strategies = trajectory.values('players.strategy').reshape(201, -1)
+strategies = trajectory.get_values('players.strategy').reshape(201, -1)
 shares = np.array([np.bincount(row.astype(int), minlength=8) / row.size for row in strategies])
 fig, (cycles, regimes) = plt.subplots(1, 2, figsize=(10, 4))
 cycles.stackplot(trajectory.times, shares.T, labels=[f'n = {n}' for n in range(8)])
@@ -40,7 +40,7 @@ cycles.set_title('Strategies emerge, grow, and vanish')
 cycles.legend(fontsize='small', ncol=2)
 for reward in (0.82, 0.84, 0.86):
     system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True)
-    values = simulate(system, random_state=0).values('players.strategy')
+    values = simulate(system, random_state=0).get_values('players.strategy')
     regimes.plot(np.mean(values.reshape(101, -1) == 7, axis=1), label=f'R = {reward}')
 regimes.set_xlabel('steps')
 regimes.set_ylabel('share of cooperators')

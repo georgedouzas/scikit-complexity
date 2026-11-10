@@ -143,7 +143,7 @@ def test_sample_entropy_of_white_noise():
 def test_sample_entropy_of_periodic_orbits_on_two_domains():
     """Test that the Van der Pol limit cycle and the logistic map at r = 3.2 give sample entropies below 0.05."""
     trajectory = simulate(VanDerPolSystem().prepare().system_, until=100.0, dt=0.01)
-    cycle = trajectory.values('oscillator.x')[len(trajectory.times) // 2 :]
+    cycle = trajectory.get_values('oscillator.x')[len(trajectory.times) // 2 :]
     assert _entropy('sample', cycle, dimension=2)[0] < 0.05
     assert _entropy('sample', _logistic(3.2, 3000), dimension=2)[0] < 0.05
 
@@ -167,8 +167,8 @@ def test_spectral_entropy_of_a_tone_and_of_noise():
 def test_every_series_of_a_trajectory_gets_an_entropy():
     """Test that the named series of a trajectory each get an entropy, labelled by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
-    analysis = entropy(trajectory, kind='sample', variables=['prey.n', 'predators.n'], dimension=2)
-    assert analysis.labels == ['prey.n', 'predators.n']
+    analysis = entropy(trajectory, kind='sample', variables=['prey.x', 'predators.x'], dimension=2)
+    assert analysis.labels == ['prey.x', 'predators.x']
     assert analysis.entropy.shape == (2,)
 
 

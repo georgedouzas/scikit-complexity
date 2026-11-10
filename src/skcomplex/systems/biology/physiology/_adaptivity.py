@@ -13,11 +13,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction, RelaxationInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import pulse_train, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 
@@ -228,7 +229,7 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         self.width = width
         self.period = period
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a system that meets recurring demands by stimulus-response."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
@@ -269,12 +270,11 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 state='c',
                 rate=lambda s: s.target.eta * s.target.e**2,
             ),
-            RelaxationInteraction(
+            RateInteraction(
                 'capacity_relaxation',
                 target='organism',
                 state='c',
-                goal=lambda s: s.target.c0,
-                time=lambda s: s.target.tau,
+                rate=lambda s: (s.target.c0 - s.target.c) / s.target.tau,
             ),
             RateInteraction(
                 'restoration',
@@ -301,4 +301,4 @@ class AdaptiveResponseCostsSystem(BaseSystem):
                 rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
             ),
         ]
-        return System(self.label, elements=[organism], interactions=interactions)
+        return CompositeSystem(self.label, elements=[organism], interactions=interactions)

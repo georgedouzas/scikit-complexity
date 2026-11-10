@@ -11,9 +11,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import ReactionInteraction
 from .....core.specs import ParameterSpec, RoleSpec
-from .....core.types import Stoichiometry
+from ....general.reactions import ReactionInteraction
+from ....general.reactions.types import Stoichiometry
 
 
 class CubicAutocatalysisInteraction(ReactionInteraction):
@@ -50,13 +50,13 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
             The mode is unknown, or a state name is not an identifier.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisElement
         >>> reaction = CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b')
         >>> reactor = CubicAutocatalysisElement('reactor', a=1.0, b=0.5)
-        >>> states = simulate(System(elements=[reactor], interactions=[reaction]), until=10, dt=1.0).states
+        >>> states = simulate(CompositeSystem(elements=[reactor], interactions=[reaction]), until=10, dt=1.0).states
         >>> round(float(states[-1].sum()), 6)
         1.5
     """

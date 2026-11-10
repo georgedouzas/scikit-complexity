@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -106,7 +106,7 @@ class CreativePhaseTransitionSystem(BaseSystem):
         self.r = r
 
     @staticmethod
-    def _new_entities(s: SimpleNamespace) -> Expression:
+    def _get_new_entities(s: SimpleNamespace) -> Expression:
         """Return the share of new entities that the new pairs produce.
 
         It is at most the share that does not exist yet.
@@ -115,9 +115,9 @@ class CreativePhaseTransitionSystem(BaseSystem):
         produced = s.target.r * (1 - current) * (current**2 - previous**2)
         return where(produced < 1 - current, produced, 1 - current)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[AdjacentPossibleElement('system', x=self.x, d=self.r * self.x**2 * (1 - self.x), r=self.r)],
             interactions=[
@@ -128,6 +128,6 @@ class CreativePhaseTransitionSystem(BaseSystem):
                     function=lambda s: s.target.d,
                     mode='increment',
                 ),
-                MapInteraction('adjacent_possible', target='system', state='d', function=self._new_entities),
+                MapInteraction('adjacent_possible', target='system', state='d', function=self._get_new_entities),
             ],
         )

@@ -14,7 +14,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -223,23 +223,23 @@ class ShepherdingInteraction(Interaction):
             system:
                 The system.
         """
-        flock = system.agents(self.sheep, HerdedSheepView)
-        dogs = system.agents(self.shepherds, ShepherdView)
+        flock = system.get_agents(self.sheep, HerdedSheepView)
+        dogs = system.get_agents(self.shepherds, ShepherdView)
         sheep = np.array([np.asarray(item.location, dtype=float) for item in flock])
         shepherds = np.array([np.asarray(item.location, dtype=float) for item in dogs])
         headings = np.array([[item.hx, item.hy] for item in flock])
         moved, headings = self._move_sheep(sheep, shepherds, headings, system.rng)
-        targets, driving = self._targets(sheep, shepherds)
-        steps = self._unit(targets - shepherds) + 0.3 * self._unit(system.rng.normal(size=shepherds.shape))
+        targets, driving = self._get_targets(sheep, shepherds)
+        steps = self._get_unit(targets - shepherds) + 0.3 * self._get_unit(system.rng.normal(size=shepherds.shape))
         distances = np.linalg.norm(sheep[None, :, :] - shepherds[:, None, :], axis=2)
         blocked = distances.min(axis=1) < 3 * self.ra
-        shepherds = shepherds + np.where(blocked[:, None], 0.0, self.delta_s * self._unit(steps))
+        shepherds = shepherds + np.where(blocked[:, None], 0.0, self.delta_s * self._get_unit(steps))
         width, height = system.dimensions or (np.inf, np.inf)
         for sheep_view, position, heading in zip(flock, moved, headings, strict=True):
-            sheep_view.move_to(self._inside(position, width, height))
+            sheep_view.move_to(self._get_inside(position, width, height))
             sheep_view.hx, sheep_view.hy = float(heading[0]), float(heading[1])
         for dog, position, mode in zip(dogs, shepherds, driving, strict=True):
-            dog.move_to(self._inside(position, width, height))
+            dog.move_to(self._get_inside(position, width, height))
             dog.driving = float(mode)
 
     def _move_sheep(
@@ -255,31 +255,31 @@ class ShepherdingInteraction(Interaction):
         distances = np.linalg.norm(offsets, axis=2)
         np.fill_diagonal(distances, np.inf)
         close = distances < self.ra
-        repulsion = self._unit((offsets * close[:, :, None] / np.maximum(distances, 1e-9)[:, :, None]).sum(axis=1))
+        repulsion = self._get_unit((offsets * close[:, :, None] / np.maximum(distances, 1e-9)[:, :, None]).sum(axis=1))
         nearest = np.argsort(distances, axis=1)[:, : self.n]
-        attraction = self._unit(sheep[nearest].mean(axis=1) - sheep)
+        attraction = self._get_unit(sheep[nearest].mean(axis=1) - sheep)
         dog_offsets = sheep[:, None, :] - shepherds[None, :, :]
         dog_distances = np.linalg.norm(dog_offsets, axis=2)
         alert = dog_distances.min(axis=1) < self.rs
-        fear = self._unit((dog_offsets / np.maximum(dog_distances, 1e-9)[:, :, None]).sum(axis=1))
-        noise = self._unit(rng.normal(size=sheep.shape))
-        herded = h * self._unit(headings) + c * attraction + rho_a * repulsion + rho_s * fear + e * noise
+        fear = self._get_unit((dog_offsets / np.maximum(dog_distances, 1e-9)[:, :, None]).sum(axis=1))
+        noise = self._get_unit(rng.normal(size=sheep.shape))
+        herded = h * self._get_unit(headings) + c * attraction + rho_a * repulsion + rho_s * fear + e * noise
         grazing = rho_a * repulsion + (rng.random(len(sheep)) < self.graze)[:, None] * noise
-        heading = np.where(alert[:, None], self._unit(herded), grazing)
+        heading = np.where(alert[:, None], self._get_unit(herded), grazing)
         return sheep + self.delta * heading, heading
 
-    def _targets(self, sheep: Array, shepherds: Array) -> tuple[Array, Array]:
+    def _get_targets(self, sheep: Array, shepherds: Array) -> tuple[Array, Array]:
         """Return the points the shepherds head to and whether each drives the flock."""
         centre, goal = sheep.mean(axis=0), np.asarray(self.goal, dtype=float)
         spread = np.linalg.norm(sheep - centre, axis=1)
         stray = int(np.argmax(spread))
         if spread[stray] > self.ra * len(sheep) ** (2 / 3):
-            target = sheep[stray] + self.ra * self._unit((sheep[stray] - centre)[None, :])[0]
+            target = sheep[stray] + self.ra * self._get_unit((sheep[stray] - centre)[None, :])[0]
             return np.broadcast_to(target, shepherds.shape), np.zeros(len(shepherds), dtype=bool)
-        target = centre + self.ra * np.sqrt(len(sheep)) * self._unit((centre - goal)[None, :])[0]
+        target = centre + self.ra * np.sqrt(len(sheep)) * self._get_unit((centre - goal)[None, :])[0]
         return np.broadcast_to(target, shepherds.shape), np.ones(len(shepherds), dtype=bool)
 
-    def _unit(self, vectors: Array) -> Array:
+    def _get_unit(self, vectors: Array) -> Array:
         """Return the vectors scaled to unit length.
 
         Zero vectors stay unchanged.
@@ -287,7 +287,7 @@ class ShepherdingInteraction(Interaction):
         lengths = np.linalg.norm(vectors, axis=-1, keepdims=True)
         return vectors / np.where(lengths > 0, lengths, 1.0)
 
-    def _inside(self, position: Array, width: float, height: float) -> tuple[float, float]:
+    def _get_inside(self, position: Array, width: float, height: float) -> tuple[float, float]:
         """Return a position clipped to the field."""
         margin = 1e-6
         return float(np.clip(position[0], margin, width - margin)), float(np.clip(position[1], margin, height - margin))
@@ -346,7 +346,7 @@ class ShepherdingSystem(BaseSystem):
         self.goal = goal
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a shepherd that drives a scattered flock to a goal.
 
         The shepherd collects the flock first.
@@ -372,7 +372,7 @@ class ShepherdingSystem(BaseSystem):
             goal=self.goal,
             n=max(1, round(0.9 * self.n_sheep)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[sheep, dogs],
             interactions=[herding],

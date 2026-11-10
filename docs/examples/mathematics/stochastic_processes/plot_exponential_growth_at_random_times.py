@@ -36,7 +36,7 @@ trajectory = simulate(
     observers=[observer],
     random_state=0,
 )
-x = trajectory.values('samples.x')
+x = trajectory.get_values('samples.x')
 for index in range(5):
     observer.recording_.send_columns(
         f'samples/sample_{index}',
@@ -54,7 +54,7 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 for mu, lam in ((1.0, 0.8), (1.0, 1.5), (1.0, 3.0)):
     run = simulate(ExponentialGrowthAtRandomTimesSystem(n_samples=4000, mu=mu, lam=lam), random_state=0)
-    values = np.sort(run.values('samples.x')[-1])
+    values = np.sort(run.get_values('samples.x')[-1])
     survival = 1 - np.arange(values.size) / values.size
     (line,) = ax.loglog(values, survival, label=f'lam / mu = {lam / mu:g}')
     ax.loglog(values, values ** (-lam / mu), ':', color=line.get_color())

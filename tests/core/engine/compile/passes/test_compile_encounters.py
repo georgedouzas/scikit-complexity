@@ -9,11 +9,12 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
+from skcomplex.core.components.laws import BilinearLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._compile_encounters import CompileEncountersPass
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -22,18 +23,18 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 CLASSES = 9
 
 
-class DensityElement(Element):
-    """Density of particles at one activity value."""
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
-        self.f = f
+        self.x = x
 
 
 def _exchange_table(size, share=0.5):
@@ -48,7 +49,7 @@ def _exchange_table(size, share=0.5):
 
 
 class ExchangeInteraction(Interaction):
-    """Conservative encounters of a population with itself, with a transition table."""
+    """Conservative encounters of a population with itself, as a conserved bilinear law with an outcome table."""
 
     def __init__(
         self,
@@ -65,7 +66,20 @@ class ExchangeInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the encounter."""
-        return [EncounterLaw(s.population.f, s.population.f, s.eta, self.table)]
+        return [BilinearLaw(s.population.x, s.population.x, s.population.x, s.eta, self.table, conserved=True)]
+
+
+class RedistributionInteraction(Interaction):
+    """Linear redistribution of a population from its first class to its second at rate one."""
+
+    def __init__(self, label: str, *, population: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.population = population
+
+    def _get_laws(self, s):
+        """Return the conserved bilinear law without a second density."""
+        outcomes = np.asarray([[[0.0, 1.0]], [[0.0, 1.0]]])
+        return [BilinearLaw(s.population.x, s.population.x, None, 1.0, outcomes, conserved=True)]
 
 
 class GrowthInteraction(Interaction):
@@ -89,8 +103,8 @@ class GrowthInteraction(Interaction):
     def _get_laws(self, s):
         """Return the proliferation and the destruction."""
         return [
-            BilinearLaw(s.population.f, s.population.f, s.field.f, s.mu),
-            BilinearLaw(s.population.f, s.population.f, s.field.f, -s.kill),
+            BilinearLaw(s.population.x, s.population.x, s.field.x, s.mu),
+            BilinearLaw(s.population.x, s.population.x, s.field.x, -s.kill),
         ]
 
 
@@ -103,8 +117,8 @@ def _profile(size=CLASSES):
 
 def _wealth_system(table=None, time=None, space=None):
     """Return a system of one density on an activity lattice with conservative encounters."""
-    return System(
-        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+    return CompositeSystem(
+        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()})],
         interactions=[
             ExchangeInteraction(
                 'exchange',
@@ -120,9 +134,9 @@ def _wealth_system(table=None, time=None, space=None):
 def test_conservative_encounters_keep_the_density():
     """Test that conservative encounters keep the total density within 1e-10 over 100 time units."""
     trajectory = simulate(_wealth_system(), until=100, dt=1.0)
-    totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
+    totals = np.asarray(trajectory.get_values('wealth.x')).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-10)
-    assert not np.allclose(trajectory.values('wealth.f')[-1], _profile())
+    assert not np.allclose(trajectory.get_values('wealth.x')[-1], _profile())
 
 
 def test_encounter_rates_follow_gain_and_loss():
@@ -134,6 +148,20 @@ def test_encounter_rates_follow_gain_and_loss():
     np.testing.assert_allclose(problem.drift(0.0, problem.initial_state, problem.initial_parameters), expected)
     assert problem.jacobian is None
     assert problem.encounters[0].kind == 'transition'
+
+
+def test_conserved_bilinear_law_without_a_second_density_redistributes_linearly():
+    """Test that a linear redistribution at rate one empties the first class as exp(-t) and keeps the total."""
+    system = CompositeSystem(
+        elements=[GroupElement('mass', element=AmountElement, on='sites', values={'x': [1.0, 0.0]})],
+        interactions=[RedistributionInteraction('move', population='mass')],
+        space=LatticeSpace(2, boundary='fixed'),
+        time=ContinuousTime(),
+    )
+    trajectory = simulate(system, until=3, dt=0.5, solver=RK4Solver(dt=1e-3))
+    values = np.asarray(trajectory.get_values('mass.x'))
+    np.testing.assert_allclose(values[:, 0], np.exp(-np.asarray(trajectory.times)), atol=1e-6)
+    np.testing.assert_allclose(values.sum(axis=1), 1.0, atol=1e-12)
 
 
 def test_numba_backend_fuses_the_gain():
@@ -150,7 +178,7 @@ def test_encounter_rate_reads_its_parameter():
     problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     base = problem.drift(0.0, x, p)
-    p[problem.parameters.entry('exchange.eta').start] = 3.0
+    p[problem.parameters.get_entry('exchange.eta').start] = 3.0
     np.testing.assert_allclose(problem.drift(0.0, x, p), 3 * base)
 
 
@@ -177,10 +205,10 @@ def test_parameter_in_transition_table_is_evaluated():
             for candidate in range(CLASSES):
                 table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
                 table[candidate, :, candidate] += 1 - s.q
-            return [EncounterLaw(s.population.f, s.population.f, 1.0, table)]
+            return [BilinearLaw(s.population.x, s.population.x, s.population.x, 1.0, table, conserved=True)]
 
-    system = System(
-        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+    system = CompositeSystem(
+        elements=[GroupElement('wealth', element=AmountElement, on='sites', values={'x': _profile()})],
         interactions=[BiasedInteraction('bias', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -197,10 +225,10 @@ def test_parameter_in_transition_table_is_evaluated():
 
 def test_proliferation_and_destruction_change_the_density():
     """Test that proliferation adds and destruction removes density at the declared rates."""
-    system = System(
+    system = CompositeSystem(
         elements=[
-            GroupElement('cells', element=DensityElement, on='sites', values={'f': _profile()}),
-            GroupElement('signal', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 0.1)}),
+            GroupElement('cells', element=AmountElement, on='sites', values={'x': _profile()}),
+            GroupElement('signal', element=AmountElement, on='sites', values={'x': np.full(CLASSES, 0.1)}),
         ],
         interactions=[GrowthInteraction('growth', population='cells', field='signal', mu=0.5, kill=0.2)],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -209,7 +237,7 @@ def test_proliferation_and_destruction_change_the_density():
     problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     x, p = problem.initial_state, problem.initial_parameters
     rates = problem.drift(0.0, x, p)
-    cells = problem.states.entry('cells.f')
+    cells = problem.states.get_entry('cells.x')
     signal_total = 0.1 * CLASSES
     np.testing.assert_allclose(rates[cells.indices], (0.5 - 0.2) * _profile() * signal_total)
     assert [item.kind for item in problem.encounters] == ['bilinear', 'bilinear']
@@ -217,16 +245,16 @@ def test_proliferation_and_destruction_change_the_density():
 
 def test_encounter_reads_a_field_on_a_grid_of_another_size():
     """Test that a candidate density reads a field density on an activity grid of another size."""
-    system = System(
+    system = CompositeSystem(
         elements=[
-            GroupElement('cells', element=DensityElement, on='sites', size=CLASSES, values={'f': _profile()}),
+            GroupElement('cells', element=AmountElement, on='sites', size=CLASSES, values={'x': _profile()}),
             GroupElement(
                 'signal',
-                element=DensityElement,
+                element=AmountElement,
                 on='sites',
                 size=3,
                 space=LatticeSpace(3),
-                values={'f': 0.1},
+                values={'x': 0.1},
             ),
         ],
         interactions=[GrowthInteraction('growth', population='signal', field='cells')],
@@ -259,17 +287,22 @@ def test_encounter_in_discrete_time_is_reported():
 
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
-    first = simulate(_wealth_system(), until=5, dt=1.0).values('wealth.f')[-1]
-    second = simulate(_wealth_system(), until=5, dt=1.0, solver=RK4Solver(dt=0.01)).values('wealth.f')[-1]
+    first = simulate(_wealth_system(), until=5, dt=1.0).get_values('wealth.x')[-1]
+    second = simulate(_wealth_system(), until=5, dt=1.0, solver=RK4Solver(dt=0.01)).get_values('wealth.x')[-1]
     np.testing.assert_allclose(first, second, atol=1e-5)
 
 
 def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
-    system = System(
-        elements=[GroupElement('wealth', element=DensityElement, size=CLASSES, values={'f': _profile()})],
+    system = CompositeSystem(
+        elements=[GroupElement('wealth', element=AmountElement, size=CLASSES, values={'x': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth', table=_exchange_table(CLASSES))],
         time=ContinuousTime(),
     )
     issue = next(item for item in PassCompiler().prepare(system).report_.errors if item.code == 'law-space')
     assert 'LatticeSpace' in issue.message
+
+
+def test_compile_encounters_pass_get_kinetic_table():
+    """Test `CompileEncountersPass._get_kinetic_table` on a small case."""
+    assert CompileEncountersPass._get_kinetic_table([[0.5, 0.5]]).dtype == np.float64

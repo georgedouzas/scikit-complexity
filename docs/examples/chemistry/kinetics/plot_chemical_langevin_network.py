@@ -1,14 +1,14 @@
 """
 # Chemical Langevin network
 
-The enzyme reaction `E + S <-> C -> E + P` written as a chemical Langevin equation. Every reaction drives all the
-species it changes with one Wiener process, so the amounts fluctuate around the rate equations while the total enzyme
-`E + C` and the total substrate `S + C + P` stay exactly constant.
+The enzyme reaction `E + S <-> C -> E + P` runs here as a chemical Langevin equation, a rate equation with noise. Every
+reaction drives all the species it changes with one Wiener process, so the amounts fluctuate around the rate equations
+while the total enzyme `E + C` and the total substrate `S + C + P` stay exactly constant.
 """
 
 # %%
-# The system is built from its class with the rate constants of the Michaelis-Menten system, and starts with
-# 100 enzymes and 300 substrates. It is integrated with the Euler-Maruyama scheme for 50 time units. The default
+# The example builds `ChemicalLangevinNetworkSystem` with the rate constants of the Michaelis-Menten system, and starts
+# with 100 enzymes and 300 substrates. It is integrated with the Euler-Maruyama scheme for 50 time units. The default
 # blueprint shows the four amounts in one time series view.
 
 import matplotlib.pyplot as plt
@@ -30,13 +30,13 @@ trajectory = simulate(ChemicalLangevinNetworkSystem(), observers=[observer], ran
 # and 300 to rounding error at every frame.
 
 deterministic = simulate(MichaelisMentenSystem())
-enzyme = trajectory.values('E.n') + trajectory.values('C.n')
-substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
+enzyme = trajectory.get_values('E.x') + trajectory.get_values('C.x')
+substrate = trajectory.get_values('S.x') + trajectory.get_values('C.x') + trajectory.get_values('P.x')
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))
-amounts.plot(trajectory.times, trajectory.values('C.n'), label='complex, Langevin')
+amounts.plot(trajectory.times, trajectory.get_values('C.x'), label='complex, Langevin')
 amounts.plot(
     deterministic.times,
-    deterministic.values('C.n'),
+    deterministic.get_values('C.x'),
     color='black',
     linestyle='--',
     label='complex, rate equations',

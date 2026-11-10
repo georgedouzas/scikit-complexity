@@ -6,9 +6,9 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 """
 
 # %%
-# The system is built from its class with a drug level of 500 pMol per 8 x 10^8 red cells, within the range of the
-# book. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
-# cells and the mean volume.
+# The example builds `ErythropoiesisMercaptopurineSystem` with a drug level of 500 pMol per 8 x 10^8 red cells, within
+# the range of the book of Padmanabhan, Meskin, and Al Moustafa (2021). The observer saves every second frame with the
+# default blueprint, whose primary view is the time series of the cells and the mean volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,10 +33,10 @@ levels = np.array([0.0, 158.0, 300.0, 500.0, 750.0, 1000.0])
 volumes, cells = [], []
 for level in levels:
     trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=level), dt=20.0, until=8000)
-    volumes.append(trajectory.values('patient.MCV')[-1])
-    cells.append(trajectory.values('patient.L')[-1])
+    volumes.append(trajectory.get_values('patient.MCV')[-1])
+    cells.append(trajectory.get_values('patient.L')[-1])
 fig, (course, steady) = plt.subplots(1, 2, figsize=(10, 4))
-course.plot(trajectory.times, trajectory.values('patient.MCV'), label='mean volume (fL)')
+course.plot(trajectory.times, trajectory.get_values('patient.MCV'), label='mean volume (fL)')
 course.axhline(85.0 + 0.0317 * 500.0, color='grey', linestyle=':', label='MCV0 + g1 U')
 course.set_xlabel('time (days)')
 course.set_ylabel('mean corpuscular volume (fL)')

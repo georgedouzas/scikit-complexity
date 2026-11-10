@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...components.spaces import BaseSpace
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
-from ...components.system import System
+from ...components.systems import CompositeSystem
 from ...specs._base_spec import BaseSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._observable_spec import ObservableSpec
@@ -27,7 +27,7 @@ from ._transfer_network_spec import TransferNetworkSpec
 
 @dataclass(frozen=True)
 class BaseProblemSpec(BaseSpec):
-    """Base of the problems a system compiles to.
+    """An abstract spec of a problem that a system compiles to.
 
     It holds what every solver, observer, and visual reads of a problem. A problem is a value. Its fields hold what the
     runtime reads, with trivial defaults for what a form does not have, and its readers answer the runtime's questions,
@@ -99,7 +99,7 @@ class BaseProblemSpec(BaseSpec):
         >>> from skcomplex.core.engine.problems import BaseProblemSpec
         >>> layout = LayoutSpec(())
         >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.stochastic, problem.adaptive_parameters, problem.lattice_shape('a.n')
+        >>> problem.stochastic, problem.adaptive_parameters, problem.get_lattice_shape('a.n')
         (False, {}, None)
     """
 
@@ -113,7 +113,7 @@ class BaseProblemSpec(BaseSpec):
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)
     elements: tuple[CompiledElementSpec, ...] = ()
     interactions: tuple[CompiledInteractionSpec, ...] = ()
-    system: System | None = field(default=None, repr=False)
+    system: CompositeSystem | None = field(default=None, repr=False)
     agents: tuple[CompiledAgentsSpec, ...] = ()
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
@@ -147,7 +147,7 @@ class BaseProblemSpec(BaseSpec):
         """
         return {}
 
-    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+    def get_lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lives on the sites of a lattice.
 
         Other states return `None`.

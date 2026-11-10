@@ -9,8 +9,8 @@ and dark where it has faded.
 """
 
 # %%
-# The system is built from its class on a modular Erdős-Rényi network of 100 cells like the default, with the
-# metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
+# The example builds `NanotubeGapJunctionExchangeSystem` on a modular Erdős-Rényi network of 100 cells like the default,
+# with the metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
 # nanotubes is where the largest eigenvalue of `xi A - g L` reaches `alpha / beta`, found by root finding, and the run
 # sets `xi = 1.2 xi_crit`. The observer saves every second frame with the default blueprint, whose primary view is the
 # network colored by the concentrations.
@@ -62,7 +62,7 @@ spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
     run = simulate(NanotubeGapJunctionExchangeSystem(graph=graph, xi=share * critical, x=0.01))
-    totals.semilogy(run.times, run.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
+    totals.semilogy(run.times, run.get_values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')
 totals.set_title('Decay below and growth above the threshold')

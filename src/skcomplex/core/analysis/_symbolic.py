@@ -30,9 +30,8 @@ from sage.rings.real_mpfr import RealNumber
 from sage.structure.element import Element
 from sage.structure.parent import Parent
 from sage.symbolic.assumptions import assume, forget
-from sage.symbolic.function import Function
-from sage.symbolic.function_factory import function as formal_function
 
+from ..components.laws.utils._operators import _OperatorFunction
 from ..engine._utils import components_of, domain_of
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.compile._rewriting_compiler import RewritingCompiler
@@ -43,13 +42,13 @@ from ..errors import AnalysisError, ConservationError
 from ..specs import AnalysisTags
 from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray, DataKind, FormKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
+from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._operator import _operator_problem
+from ._utils import compile_problem
 from .types import Source
 
 ASYMPTOTIC_ORDER = 2
 DESOLVE_ORDER = 2
-
 KINDS = ('equations', 'solve', 'hamiltonian', 'conservation')
 SETTINGS: dict[str, set[str]] = {
     'equations': set(),
@@ -57,52 +56,187 @@ SETTINGS: dict[str, set[str]] = {
     'hamiltonian': set(),
     'conservation': set(),
 }
-"""Settings every kind reads, besides `kind`."""
-
 PURPOSES = {
     'equations': 'The equations of a system',
     'solve': 'Symbolic solving',
     'conservation': 'The conservation analysis',
 }
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
-CAPUTO = formal_function('caputo', nargs=3)
+CAPUTO = _OperatorFunction('caputo', nargs=3)
 ASYMPTOTIC_SCALE = 50.0
 LARGEST_SCALE = 2000.0
 GUARD_BITS = 64
 DECLARED: set[str] = set()
 SIGNS: dict[str, Expression] = {}
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
-def _evaluate_mittag_leffler(
-    self: Function,
-    alpha: Element | complex,
-    beta: Element | complex,
-    z: Element | complex,
-    *,
-    parent: Parent | None = None,
-    algorithm: str | None = None,
-) -> Element | complex | float:
-    """Return the numeric value of the symbolic Mittag-Leffler function.
+class _MittagLefflerFunction(_OperatorFunction):
+    """Symbolic Mittag-Leffler function `mittag_leffler(alpha, beta, z)`.
 
-    The value lies in the field of its arguments.
+    It has a numeric value at numbers.
     """
-    del self, algorithm
-    if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
-        error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
-        raise TypeError(error_msg)
-    value = complex(_mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
-    result = value.real if value.imag == 0 else value
-    return result if parent is None else parent(result)
+
+    @staticmethod
+    def _get_reciprocal_gamma(argument: RealNumber) -> RealNumber:
+        """Return `1 / Gamma(argument)` of a real number of a Sage field.
+
+        It is 0 at the poles of gamma.
+        """
+        if argument <= 0 and argument == argument.round():
+            return argument.parent()(0)
+        return 1 / argument.gamma()
+
+    @staticmethod
+    @cache
+    def _get_mittag_leffler_coefficients(alpha: float, beta: float, bits: int, count: int) -> tuple[RealNumber, ...]:
+        """Return the coefficients `1 / Gamma(alpha k + beta)` of the power series.
+
+        The coefficients are those for `k < count`, in a Sage field.
+        """
+        reals = RealField(bits)
+        a, b = reals(alpha), reals(beta)
+        return tuple(_MittagLefflerFunction._get_reciprocal_gamma(a * index + b) for index in range(count))
+
+    @staticmethod
+    def _get_mittag_leffler_series(alpha: float, beta: float, z: complex, scale: float) -> complex:
+        """Return the Mittag-Leffler function by its power series.
+
+        The series is summed precisely enough for the cancellations.
+        """
+        extra = math.ceil(scale / math.log(2) + 2 * math.log2(1 + abs(z)))
+        bits = 53 + GUARD_BITS * (1 + extra // GUARD_BITS)
+        complexes = ComplexField(bits)
+        w = complexes(z.real, z.imag)
+        total, power = complexes(0), complexes(1)
+        tolerance = RealField(bits)(2) ** -(53 + 10)
+        count = 2 ** math.ceil(math.log2(scale / alpha + 16))
+        coefficients = _MittagLefflerFunction._get_mittag_leffler_coefficients(alpha, beta, bits, count)
+        index = 0
+        while True:
+            if index == len(coefficients):
+                coefficients = _MittagLefflerFunction._get_mittag_leffler_coefficients(
+                    alpha,
+                    beta,
+                    bits,
+                    2 * len(coefficients),
+                )
+            term = power * coefficients[index]
+            total += term
+            if index > scale / alpha + 2 and abs(term) <= tolerance * abs(total):
+                return complex(total)
+            power *= w
+            index += 1
+
+    @staticmethod
+    def _get_mittag_leffler_asymptotic(alpha: float, beta: float, z: complex, scale: float) -> complex:
+        """Return the Mittag-Leffler function by its asymptotic expansion for large `|z|`.
+
+        The expansion holds with `0 < alpha < 2`. The expansion `E(z) = (1 / alpha) z^((1 - beta) / alpha) exp(z^(1 /
+        alpha)) - sum_k z^(-k) / Gamma(beta - alpha k)` holds for `|arg z| < alpha pi`, and the exponential term drops
+        out of it for larger arguments. The sum stops where the bound `|z|^(-k) Gamma(1 + alpha k - beta) / pi` of its
+        terms falls below the precision or starts to grow.
+        """
+        reals, complexes = RealField(53 + GUARD_BITS), ComplexField(53 + GUARD_BITS)
+        a, b, w = reals(alpha), reals(beta), complexes(z.real, z.imag)
+        tolerance = reals(2) ** -(53 + 10)
+        total = complexes(0)
+        if abs(w.arg()) < a * reals.pi():
+            total += w ** ((1 - b) / a) * (w ** (1 / a)).exp() / a
+        for index in range(1, math.floor(scale) + 1):
+            total -= w ** (-index) * _MittagLefflerFunction._get_reciprocal_gamma(b - a * index)
+            bound = abs(w) ** (-index) * (1 + a * index - b).gamma() / reals.pi()
+            if bound <= tolerance * abs(total):
+                break
+        return complex(total)
+
+    @staticmethod
+    def _get_mittag_leffler_scalar(alpha: float, beta: float, z: complex) -> complex:
+        """Return the Mittag-Leffler function at one point.
+
+        It uses its series or its asymptotic expansion.
+        """
+        if alpha == 1 and beta == 1:
+            return complex(np.exp(z))
+        scale = abs(z) ** (1 / alpha)
+        if scale <= ASYMPTOTIC_SCALE:
+            return _MittagLefflerFunction._get_mittag_leffler_series(alpha, beta, z, scale)
+        if alpha < ASYMPTOTIC_ORDER:
+            return _MittagLefflerFunction._get_mittag_leffler_asymptotic(alpha, beta, z, scale)
+        if scale <= LARGEST_SCALE:
+            return _MittagLefflerFunction._get_mittag_leffler_series(alpha, beta, z, scale)
+        error_msg = (
+            f'E_(alpha, beta)(z) with alpha = {alpha} >= 2 is evaluated for |z|^(1/alpha) <= {LARGEST_SCALE}, but got '
+            f'|z| = {abs(z)}. Rescale the argument.'
+        )
+        raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _get_mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> Array | ComplexArray:
+        """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z)`.
+
+        It is `sum_k z^k / Gamma(alpha k + beta)`. `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)`
+        solves the fractional relaxation `D^alpha x = -lambda x` of a Caputo derivative of order `alpha`, which decays
+        as the power law `t^(-alpha)` at long times. The function sums its power series in arbitrary precision with Sage
+        for `|z|^(1/alpha) <= 50`, and takes its asymptotic expansion beyond.
+
+        Args:
+            alpha:
+                The positive first parameter, the order of the derivative.
+
+            beta:
+                The real second parameter.
+
+            z:
+                The real or complex arguments.
+
+        Returns:
+            values:
+                The values with the shape of `z`, real for real arguments.
+
+        Raises:
+            AnalysisError:
+                `alpha` is not positive, or the argument is too large for `alpha >= 2`.
+        """
+        if not alpha > 0:
+            error_msg = f'alpha = {alpha!r} must be positive.'
+            raise AnalysisError(error_msg)
+        values = np.asarray(z)
+        flat = [
+            _MittagLefflerFunction._get_mittag_leffler_scalar(float(alpha), float(beta), complex(item))
+            for item in values.ravel()
+        ]
+        result = np.asarray(flat, dtype=complex).reshape(values.shape)
+        return result if np.iscomplexobj(values) else result.real
+
+    def _evalf_(
+        self,
+        alpha: Element | complex,
+        beta: Element | complex,
+        z: Element | complex,
+        *,
+        parent: Parent | None = None,
+        algorithm: str | None = None,
+    ) -> Element | complex | float:
+        """Return the numeric value of the symbolic Mittag-Leffler function.
+
+        The value lies in the field of its arguments.
+        """
+        del algorithm
+        if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
+            error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
+            raise TypeError(error_msg)
+        value = complex(_MittagLefflerFunction._get_mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
+        result = value.real if value.imag == 0 else value
+        return result if parent is None else parent(result)
 
 
-MITTAG_LEFFLER = formal_function('mittag_leffler', nargs=3, evalf_func=_evaluate_mittag_leffler)
+MITTAG_LEFFLER = _MittagLefflerFunction('mittag_leffler', nargs=3)
 
 
 @dataclass(frozen=True)
 class SymbolicResult:
-    """Symbolic form of a system.
+    """A result of `symbolic`, the symbolic form of a system.
 
     It is its equations, their exact solution, its Hamiltonian, or its boundary flows.
 
@@ -158,6 +292,9 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
     - `'conservation'`: the net inflow from the environment of every quantity of a system with a transfer network, after
       checking that its internal flows cancel, so the total changes only through the boundary.
 
+    It appears in many fields. It writes the equations of an epidemic, of a circuit, and of a mechanical system, and
+    solves them exactly where it can.
+
     Args:
         source:
             The system, its compiled problem, or a trajectory of it.
@@ -184,16 +321,16 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
 
     Examples:
         >>> from skcomplex.core.analysis import symbolic
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=2)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('a', x=2)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
         ... )
-        >>> symbolic(system).equations['a.n']
-        diff(n_a(t), t) == r_g*n_a(t)
-        >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.n']
-        n_a(t) == 2*e^(r_g*t)
+        >>> symbolic(system).equations['a.x']
+        diff(x_a(t), t) == r_g*x_a(t)
+        >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.x']
+        x_a(t) == 2*e^(r_g*t)
     """
     source = _composite(source)
     _check_choice('symbolic', 'kind', kind, KINDS)
@@ -215,7 +352,7 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
             "`symbolic(system, kind='hamiltonian')`."
         )
         raise AnalysisError(error_msg)
-    problem = _compiled_problem(compiled, PURPOSES[kind])
+    problem = compile_problem(compiled, PURPOSES[kind])
     if kind == 'equations':
         return SymbolicResult(problem, equations=_equations_of_problem(problem))
     if kind == 'solve':
@@ -260,138 +397,6 @@ def _declare_domains(items: Iterable[Expression], values: Mapping[Expression, fl
             forget(previous)
         assume(sign)
         SIGNS[name] = sign
-
-
-def _reciprocal_gamma(argument: RealNumber) -> RealNumber:
-    """Return `1 / Gamma(argument)` of a real number of a Sage field.
-
-    It is 0 at the poles of gamma.
-    """
-    if argument <= 0 and argument == argument.round():
-        return argument.parent()(0)
-    return 1 / argument.gamma()
-
-
-@cache
-def _mittag_leffler_coefficients(alpha: float, beta: float, bits: int, count: int) -> tuple[RealNumber, ...]:
-    """Return the coefficients `1 / Gamma(alpha k + beta)` of the power series.
-
-    The coefficients are those for `k < count`, in a Sage field.
-    """
-    reals = RealField(bits)
-    a, b = reals(alpha), reals(beta)
-    return tuple(_reciprocal_gamma(a * index + b) for index in range(count))
-
-
-def _mittag_leffler_series(alpha: float, beta: float, z: complex, scale: float) -> complex:
-    """Return the Mittag-Leffler function by its power series.
-
-    The series is summed precisely enough for the cancellations.
-    """
-    extra = math.ceil(scale / math.log(2) + 2 * math.log2(1 + abs(z)))
-    bits = 53 + GUARD_BITS * (1 + extra // GUARD_BITS)
-    complexes = ComplexField(bits)
-    w = complexes(z.real, z.imag)
-    total, power = complexes(0), complexes(1)
-    tolerance = RealField(bits)(2) ** -(53 + 10)
-    count = 2 ** math.ceil(math.log2(scale / alpha + 16))
-    coefficients = _mittag_leffler_coefficients(alpha, beta, bits, count)
-    index = 0
-    while True:
-        if index == len(coefficients):
-            coefficients = _mittag_leffler_coefficients(alpha, beta, bits, 2 * len(coefficients))
-        term = power * coefficients[index]
-        total += term
-        if index > scale / alpha + 2 and abs(term) <= tolerance * abs(total):
-            return complex(total)
-        power *= w
-        index += 1
-
-
-def _mittag_leffler_asymptotic(alpha: float, beta: float, z: complex, scale: float) -> complex:
-    """Return the Mittag-Leffler function by its asymptotic expansion for large `|z|`.
-
-    The expansion holds with `0 < alpha < 2`. The expansion `E(z) = (1 / alpha) z^((1 - beta) / alpha) exp(z^(1 /
-    alpha)) - sum_k z^(-k) / Gamma(beta - alpha k)` holds for `|arg z| < alpha pi`, and the exponential term drops out
-    of it for larger arguments. The sum stops where the bound `|z|^(-k) Gamma(1 + alpha k - beta) / pi` of its terms
-    falls below the precision or starts to grow.
-    """
-    reals, complexes = RealField(53 + GUARD_BITS), ComplexField(53 + GUARD_BITS)
-    a, b, w = reals(alpha), reals(beta), complexes(z.real, z.imag)
-    tolerance = reals(2) ** -(53 + 10)
-    total = complexes(0)
-    if abs(w.arg()) < a * reals.pi():
-        total += w ** ((1 - b) / a) * (w ** (1 / a)).exp() / a
-    for index in range(1, math.floor(scale) + 1):
-        total -= w ** (-index) * _reciprocal_gamma(b - a * index)
-        bound = abs(w) ** (-index) * (1 + a * index - b).gamma() / reals.pi()
-        if bound <= tolerance * abs(total):
-            break
-    return complex(total)
-
-
-def _mittag_leffler_scalar(alpha: float, beta: float, z: complex) -> complex:
-    """Return the Mittag-Leffler function at one point.
-
-    It uses its series or its asymptotic expansion.
-    """
-    if alpha == 1 and beta == 1:
-        return complex(np.exp(z))
-    scale = abs(z) ** (1 / alpha)
-    if scale <= ASYMPTOTIC_SCALE:
-        return _mittag_leffler_series(alpha, beta, z, scale)
-    if alpha < ASYMPTOTIC_ORDER:
-        return _mittag_leffler_asymptotic(alpha, beta, z, scale)
-    if scale <= LARGEST_SCALE:
-        return _mittag_leffler_series(alpha, beta, z, scale)
-    error_msg = (
-        f'E_(alpha, beta)(z) with alpha = {alpha} >= 2 is evaluated for |z|^(1/alpha) <= {LARGEST_SCALE}, but got '
-        f'|z| = {abs(z)}. Rescale the argument.'
-    )
-    raise AnalysisError(error_msg)
-
-
-def _mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> Array | ComplexArray:
-    """Return the two-parameter Mittag-Leffler function `E_(alpha, beta)(z)`.
-
-    It is `sum_k z^k / Gamma(alpha k + beta)`. `E_(1, 1)(z)` is `exp(z)`, and `x_0 E_(alpha, 1)(-lambda t^alpha)` solves
-    the fractional relaxation `D^alpha x = -lambda x` of a Caputo derivative of order `alpha`, which decays as the power
-    law `t^(-alpha)` at long times. The function sums its power series in arbitrary precision with Sage for
-    `|z|^(1/alpha) <= 50`, and takes its asymptotic expansion beyond.
-
-    Args:
-        alpha:
-            The positive first parameter, the order of the derivative.
-
-        beta:
-            The real second parameter.
-
-        z:
-            The real or complex arguments.
-
-    Returns:
-        values:
-            The values with the shape of `z`, real for real arguments.
-
-    Raises:
-        AnalysisError:
-            `alpha` is not positive, or the argument is too large for `alpha >= 2`.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.analysis._symbolic import _mittag_leffler
-        >>> bool(np.isclose(_mittag_leffler(1.0, 1.0, -2.0), np.exp(-2.0)))
-        True
-        >>> round(float(_mittag_leffler(0.5, 1.0, -1.0)), 6)
-        0.427584
-    """
-    if not alpha > 0:
-        error_msg = f'alpha = {alpha!r} must be positive.'
-        raise AnalysisError(error_msg)
-    values = np.asarray(z)
-    flat = [_mittag_leffler_scalar(float(alpha), float(beta), complex(item)) for item in values.ravel()]
-    result = np.asarray(flat, dtype=complex).reshape(values.shape)
-    return result if np.iscomplexobj(values) else result.real
 
 
 def _exact(value: float) -> Expression:

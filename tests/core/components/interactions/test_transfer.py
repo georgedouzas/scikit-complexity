@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import TransferInteraction
 from skcomplex.core.components.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
 from skcomplex.core.components.laws.utils import bernoulli
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import (
@@ -24,6 +24,14 @@ from skcomplex.core.specs import (
     StateSpec,
     VisualSpec,
 )
+
+NAMED_SHORTHANDS = {
+    'random': PartnerSpec('all', 'uniform'),
+    'pairs': PartnerSpec('all', 'uniform', capacity=1),
+    'neighbors': PartnerSpec('neighbors', 'all'),
+    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
+    'cell': PartnerSpec('cell', 'all'),
+}
 
 
 class StockElement(Element):
@@ -71,14 +79,14 @@ class DrainInteraction(TransferInteraction):
         return 'drain' if role == 'target' else role
 
 
-def _run(system: System, until: float) -> Trajectory:
+def _run(system: CompositeSystem, until: float) -> Trajectory:
     """Return the trajectory of a system run to a time."""
     return simulate(system, until=until, random_state=0)
 
 
 def _levels(trajectory: Trajectory, frame: int, group: str = 'cells') -> list[float]:
     """Return the levels of the members of a group at a frame."""
-    return trajectory.agents(group, frame).values['level'].tolist()
+    return trajectory.get_agents(group, frame).values['level'].tolist()
 
 
 def _refill(until: int, values: dict[str, object], amount: object, legs: tuple = ()) -> Trajectory:
@@ -94,7 +102,7 @@ def _refill(until: int, values: dict[str, object], amount: object, legs: tuple =
         legs=legs,
         form='agent',
     )
-    return _run(System(elements=[cells], interactions=[refill]), until)
+    return _run(CompositeSystem(elements=[cells], interactions=[refill]), until)
 
 
 def test_transfer_conserves_the_total_of_a_continuous_flow():
@@ -106,9 +114,12 @@ def test_transfer_conserves_the_total_of_a_continuous_flow():
         state='level',
         amount=lambda s: s.source.level - s.target.level,
     )
-    system = System(elements=[StockElement('upper', level=4.0), StockElement('lower')], interactions=[exchange])
+    system = CompositeSystem(
+        elements=[StockElement('upper', level=4.0), StockElement('lower')],
+        interactions=[exchange],
+    )
     trajectory = _run(system, 5.0)
-    upper, lower = trajectory.values('upper.level'), trajectory.values('lower.level')
+    upper, lower = trajectory.get_values('upper.level'), trajectory.get_values('lower.level')
     assert np.allclose(upper + lower, 4.0)
     assert upper[-1] == pytest.approx(2.0 + 2.0 * np.exp(-10.0), abs=1e-4)
 
@@ -125,8 +136,8 @@ def test_transfer_moves_between_the_members_of_groups_and_the_environment():
         into=Sink(),
         amount=lambda s: s.source.level / 2,
     )
-    trajectory = _run(System(elements=[tanks], interactions=[inflow, outflow]), 20.0)
-    assert np.asarray(trajectory.values('tanks.level'))[-1] == pytest.approx([2.0, 2.0], abs=1e-3)
+    trajectory = _run(CompositeSystem(elements=[tanks], interactions=[inflow, outflow]), 20.0)
+    assert np.asarray(trajectory.get_values('tanks.level'))[-1] == pytest.approx([2.0, 2.0], abs=1e-3)
 
 
 def test_transfer_guard_stops_a_flow_where_it_does_not_hold():
@@ -141,10 +152,10 @@ def test_transfer_guard_stops_a_flow_where_it_does_not_hold():
         guard=lambda s: s.source.level > 1,
     )
     level = simulate(
-        System(elements=[StockElement('tank', level=3.0)], interactions=[drain]),
+        CompositeSystem(elements=[StockElement('tank', level=3.0)], interactions=[drain]),
         until=4.0,
         dt=0.01,
-    ).values('tank.level')[-1]
+    ).get_values('tank.level')[-1]
     assert level == pytest.approx(1.0, abs=0.02)
 
 
@@ -158,9 +169,9 @@ def test_transfer_rate_moves_units_by_jumps_and_conserves_the_total():
         amount=1.0,
         rate=lambda s: s.source.level,
     )
-    system = System(elements=[StockElement('left', level=50.0), StockElement('right')], interactions=[hop])
+    system = CompositeSystem(elements=[StockElement('left', level=50.0), StockElement('right')], interactions=[hop])
     trajectory = _run(system, 1.0)
-    left, right = trajectory.values('left.level'), trajectory.values('right.level')
+    left, right = trajectory.get_values('left.level'), trajectory.get_values('right.level')
     assert np.allclose(left + right, 50.0)
     assert np.allclose(right, np.round(right))
     assert 20 < right[-1] < 40
@@ -181,8 +192,8 @@ def test_transfer_agent_pairings_conserve_the_total(pairing):
         form='agent',
         guard=lambda source, target, system: source.level >= 1,
     )
-    space = LatticeSpace((4, 4), neighborhood='von_neumann')
-    trajectory = _run(System(elements=[traders], interactions=[give], space=space), 30)
+    space = LatticeSpace((4, 4), metric='manhattan')
+    trajectory = _run(CompositeSystem(elements=[traders], interactions=[give], space=space), 30)
     levels = np.asarray(_levels(trajectory, 30, 'traders'))
     assert levels.sum() == pytest.approx(80.0)
     assert levels.min() >= 0
@@ -202,12 +213,17 @@ def test_transfer_reports_named_flows_under_the_element_they_move_within():
         legs=(('capacity', Sink(), 0.5, 'spill'), ('clock', Sink(), 0.25)),
     )
     between = TransferInteraction('between', source='tank', target='other', state='level', amount=0.5, flow='leak')
-    system = System(elements=[StockElement('tank', level=10.0), StockElement('other')], interactions=[within, between])
+    system = CompositeSystem(
+        elements=[StockElement('tank', level=10.0), StockElement('other')],
+        interactions=[within, between],
+    )
     trajectory = _run(system, 1.0)
     assert {'tank.filling', 'tank.spill', 'within.flow_2', 'between.leak'} <= set(trajectory.names)
-    assert trajectory.values('tank.filling')[-1] == pytest.approx(1.0)
-    assert trajectory.values('between.leak')[-1] == pytest.approx(0.5)
-    nested = System(systems=[System('plant', elements=[StockElement('tank', level=10.0)], interactions=[within])])
+    assert trajectory.get_values('tank.filling')[-1] == pytest.approx(1.0)
+    assert trajectory.get_values('between.leak')[-1] == pytest.approx(0.5)
+    nested = CompositeSystem(
+        systems=[CompositeSystem('plant', elements=[StockElement('tank', level=10.0)], interactions=[within])],
+    )
     assert {'plant/tank.filling', 'plant/within.flow_2'} <= set(_run(nested, 1.0).names)
 
 
@@ -225,10 +241,10 @@ def test_transfer_neighbor_pairs_are_disjoint_neighbours():
         pairing='neighbor-pairs',
         form='agent',
     )
-    space = LatticeSpace((6, 1), neighborhood='von_neumann')
-    trajectory = _run(System(elements=[traders], interactions=[give], space=space), 1)
-    levels = trajectory.agents('traders', 1).values['level'].tolist()
-    clocks = trajectory.agents('traders', 1).values['clock'].tolist()
+    space = LatticeSpace((6, 1), metric='manhattan')
+    trajectory = _run(CompositeSystem(elements=[traders], interactions=[give], space=space), 1)
+    levels = trajectory.get_agents('traders', 1).values['level'].tolist()
+    clocks = trajectory.get_agents('traders', 1).values['clock'].tolist()
     assert sorted(set(levels)) <= [0.0, 1.0]
     assert levels.count(0.0) == sum(clocks) >= 1
     assert all(level + clock <= 1.0 + 1.0 for level, clock in zip(levels, clocks, strict=True))
@@ -251,7 +267,7 @@ def test_transfer_fallback_receives_when_no_target_lives():
         phase='pay',
     )
     time = DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('pay'), PhaseSpec('die')]))
-    trajectory = _run(System(elements=[payers, payees, others], interactions=[pay], time=time), 2)
+    trajectory = _run(CompositeSystem(elements=[payers, payees, others], interactions=[pay], time=time), 2)
     assert _levels(trajectory, 2, 'others') == [2.0]
     assert _levels(trajectory, 2, 'payers') == [1.0, 1.0]
 
@@ -293,7 +309,7 @@ def test_transfer_legs_restore_the_capacity_after_a_delay():
     trajectory = _refill(3, values, restores, legs=(('clock', Sink(), ticks),))
     assert _levels(trajectory, 2) == [0.0, 1.0]
     assert _levels(trajectory, 3) == [1.0, 1.0]
-    assert trajectory.agents('cells', 3).values['clock'].tolist() == [5.0, 3.0]
+    assert trajectory.get_agents('cells', 3).values['clock'].tolist() == [5.0, 3.0]
 
 
 def test_transfer_moves_every_leg_between_two_agents():
@@ -348,7 +364,7 @@ def test_transfer_leg_end_moves_the_state_of_a_referenced_member():
         amount=1.0,
         form='agent',
     )
-    trajectory = _run(System(elements=[clients, holders], interactions=[deposit]), 1)
+    trajectory = _run(CompositeSystem(elements=[clients, holders], interactions=[deposit]), 1)
     assert _levels(trajectory, 1, 'clients') == [0.0, 0.0, 0.0]
     assert _levels(trajectory, 1, 'holders') == [1.0, 2.0]
 
@@ -356,13 +372,13 @@ def test_transfer_leg_end_moves_the_state_of_a_referenced_member():
 def test_transfer_symbolic_flows_run_in_discrete_time():
     """Test that a symbolic transfer in discrete time moves its amount every step."""
     flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=1.0)
-    system = System(
+    system = CompositeSystem(
         elements=[StockElement('upper', level=3.0), StockElement('lower')],
         interactions=[flow],
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=2, dt=1, random_state=0)
-    assert trajectory.values('lower.level').tolist() == [0.0, 1.0, 2.0]
+    assert trajectory.get_values('lower.level').tolist() == [0.0, 1.0, 2.0]
 
 
 @pytest.mark.parametrize(
@@ -421,11 +437,11 @@ def test_transfer_actors_take_one_partner_of_their_cell_and_remove_it():
         partners=1,
         remove='source',
     )
-    system = System(elements=[prey, hunters], interactions=[eating], space=LatticeSpace((2, 2)))
+    system = CompositeSystem(elements=[prey, hunters], interactions=[eating], space=LatticeSpace((2, 2)))
     trajectory = _run(system, 2)
-    assert len(trajectory.agents('prey', 1).values['level']) == 2
-    assert len(trajectory.agents('prey', 2).values['level']) == 1
-    assert trajectory.agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]
+    assert len(trajectory.get_agents('prey', 1).values['level']) == 2
+    assert len(trajectory.get_agents('prey', 2).values['level']) == 1
+    assert trajectory.get_agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]
 
 
 class LevelElement(Element):
@@ -461,17 +477,20 @@ def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(sc
         form='agent',
         schedule=schedule,
     )
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System('walkers', elements=[markers], space=LatticeSpace((4, 3))),
-            System('ground', elements=[FieldElement('level', element=LevelElement, space=LatticeSpace((4, 3)))]),
+            CompositeSystem('walkers', elements=[markers], space=LatticeSpace((4, 3))),
+            CompositeSystem(
+                'ground',
+                elements=[FieldElement('level', element=LevelElement, space=LatticeSpace((4, 3)))],
+            ),
         ],
         interactions=[marking],
     )
     trajectory = simulate(system, until=3, dt=1)
-    level = trajectory.lattice('ground/level.u')[-1]
+    level = trajectory.get_lattice('ground/level.u')[-1]
     assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
-    assert trajectory.agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
+    assert trajectory.get_agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
 
 
 class RelayInteraction(TransferInteraction):
@@ -510,10 +529,10 @@ def test_transfer_legs_move_between_the_holders_of_several_roles_at_a_parameter_
     """Test that legs naming roles move amounts along a chain of three holders, reported under the interaction."""
     relay = RelayInteraction('relay', first='a', middle='b', last='c', k=0.5)
     holders = [StockElement('a', level=2.0), StockElement('b'), StockElement('c')]
-    trajectory = _run(System(elements=holders, interactions=[relay]), 40.0)
-    levels = [trajectory.values(f'{label}.level')[-1] for label in 'abc']
+    trajectory = _run(CompositeSystem(elements=holders, interactions=[relay]), 40.0)
+    levels = [trajectory.get_values(f'{label}.level')[-1] for label in 'abc']
     assert levels == pytest.approx([0.0, 0.0, 2.0], abs=1e-3)
-    assert trajectory.values('relay.inner')[0] == pytest.approx(1.0)
+    assert trajectory.get_values('relay.inner')[0] == pytest.approx(1.0)
 
 
 def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
@@ -527,9 +546,9 @@ def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
         amount=lambda s: s.source.level,
         offset=1,
     )
-    system = System(elements=[cells], interactions=[shift], time=DiscreteTime())
+    system = CompositeSystem(elements=[cells], interactions=[shift], time=DiscreteTime())
     trajectory = simulate(system, until=4, dt=1, random_state=0)
-    levels = np.asarray(trajectory.values('cells.level'))[1:].tolist()
+    levels = np.asarray(trajectory.get_values('cells.level'))[1:].tolist()
     assert levels == [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [0.0, 0.0, 0.0, 4.0], [4.0, 0.0, 0.0, 0.0]]
 
 
@@ -545,8 +564,8 @@ def test_transfer_offset_moves_nothing_past_a_fixed_boundary():
         offset=1,
         boundary='fixed',
     )
-    trajectory = _run(System(elements=[cells], interactions=[flow]), 30.0)
-    levels = np.asarray(trajectory.values('cells.level'))
+    trajectory = _run(CompositeSystem(elements=[cells], interactions=[flow]), 30.0)
+    levels = np.asarray(trajectory.get_values('cells.level'))
     assert np.allclose(levels.sum(axis=1), 3.0)
     assert levels[-1] == pytest.approx([0.0, 0.0, 3.0], abs=1e-3)
 
@@ -563,13 +582,13 @@ def test_transfer_offset_shares_one_draw_per_edge():
         flow='hops',
         offset=1,
     )
-    system = System(elements=[cells], interactions=[hops], time=DiscreteTime())
+    system = CompositeSystem(elements=[cells], interactions=[hops], time=DiscreteTime())
     trajectory = simulate(system, until=50, dt=1, random_state=0)
-    levels = np.asarray(trajectory.values('cells.level'))
+    levels = np.asarray(trajectory.get_values('cells.level'))
     assert set(np.unique(levels)) == {0.0, 1.0}
     assert set(levels.sum(axis=1)) == {25.0}
     current = (1 - np.sqrt(1 - 4 * 0.5 * 0.5 * 0.5)) / 2
-    assert np.asarray(trajectory.values('cells.hops'))[25:].mean() == pytest.approx(current, rel=0.2)
+    assert np.asarray(trajectory.get_values('cells.hops'))[25:].mean() == pytest.approx(current, rel=0.2)
 
 
 def test_transfer_reverse_rate_returns_units_to_the_environment():
@@ -584,8 +603,8 @@ def test_transfer_reverse_rate_returns_units_to_the_environment():
         rate=2.0,
         reverse_rate=lambda s: s.target.level,
     )
-    trajectory = _run(System(elements=[StockElement('tank')], interactions=[bath]), 400.0)
-    levels = np.asarray(trajectory.values('tank.level'))
+    trajectory = _run(CompositeSystem(elements=[StockElement('tank')], interactions=[bath]), 400.0)
+    levels = np.asarray(trajectory.get_values('tank.level'))
     assert np.allclose(levels, np.round(levels))
     assert levels[50:].mean() == pytest.approx(2.0, rel=0.25)
 
@@ -636,12 +655,12 @@ def test_transfer_subclass_resolves_its_own_role_names_in_both_forms(form, pairi
     donors = GroupElement('givers', element=StockElement, size=1, values={'level': 4.0}, variable=variable)
     receivers = GroupElement('takers', element=StockElement, size=1, variable=variable)
     gift = GiftInteraction('gift', donors='givers', receivers='takers', pairing=pairing, form=form, schedule=schedule)
-    trajectory = _run(System(elements=[donors, receivers], interactions=[gift]), 1)
+    trajectory = _run(CompositeSystem(elements=[donors, receivers], interactions=[gift]), 1)
     if variable:
         assert _levels(trajectory, 1, 'givers') + _levels(trajectory, 1, 'takers') == [3.0, 1.0]
     else:
-        assert np.asarray(trajectory.values('givers.level'))[-1] == pytest.approx([3.0])
-        assert np.asarray(trajectory.values('takers.level'))[-1] == pytest.approx([1.0])
+        assert np.asarray(trajectory.get_values('givers.level'))[-1] == pytest.approx([3.0])
+        assert np.asarray(trajectory.get_values('takers.level'))[-1] == pytest.approx([1.0])
 
 
 def test_transfer_symbolic_reads_a_renamed_target():
@@ -657,7 +676,10 @@ def test_transfer_symbolic_reads_a_renamed_target():
         ),
         DrainInteraction('exchange', source='upper', drain='lower', state='level', amount=lambda s: s.source.level / 2),
     ):
-        system = System(elements=[StockElement('upper', level=4.0), StockElement('lower')], interactions=[exchange])
+        system = CompositeSystem(
+            elements=[StockElement('upper', level=4.0), StockElement('lower')],
+            interactions=[exchange],
+        )
         trajectories.append(_run(system, 2.0).states)
     np.testing.assert_allclose(trajectories[1], trajectories[0])
     assert trajectories[0][-1][0] < 4.0
@@ -692,7 +714,7 @@ def test_transfer_pairing_function_gives_the_pairs_of_the_step():
         pairing=_richest_pairs,
         form='agent',
     )
-    trajectory = _run(System(elements=[traders], interactions=[give], space=LatticeSpace((2, 2))), 1)
+    trajectory = _run(CompositeSystem(elements=[traders], interactions=[give], space=LatticeSpace((2, 2))), 1)
     assert _levels(trajectory, 1, 'traders') == [2.0, 3.0, 4.0, 3.0]
 
 
@@ -733,7 +755,7 @@ class ReachElement(StockElement):
         self.reach = reach
 
 
-def _reach_system(partners: PartnerSpec, reach: list[float]) -> System:
+def _reach_system(partners: PartnerSpec, reach: list[float]) -> CompositeSystem:
     """Return two eaters at the origin and at x = 8 and providers at x = 1, x = 2, and x = 9, in a continuous space."""
     eaters = GroupElement(
         'eaters',
@@ -757,7 +779,11 @@ def _reach_system(partners: PartnerSpec, reach: list[float]) -> System:
         pairing=partners,
         form='agent',
     )
-    return System(elements=[eaters, providers], interactions=[give], space=ContinuousSpace(extent=(10.0, 10.0)))
+    return CompositeSystem(
+        elements=[eaters, providers],
+        interactions=[give],
+        space=ContinuousSpace(extent=(10.0, 10.0)),
+    )
 
 
 def test_transfer_partner_spec_picks_within_reach_or_else_the_nearest():
@@ -822,15 +848,6 @@ def test_prepare_names_the_radius_for_grid_candidates_in_a_continuous_space():
         give.prepare(ContinuousSpace(extent=(5.0, 5.0)))
 
 
-NAMED_SHORTHANDS = {
-    'random': PartnerSpec('all', 'uniform'),
-    'pairs': PartnerSpec('all', 'uniform', capacity=1),
-    'neighbors': PartnerSpec('neighbors', 'all'),
-    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
-    'cell': PartnerSpec('cell', 'all'),
-}
-
-
 def _shorthand_levels(pairing: object, seed: int) -> list[float]:
     """Return the levels after three steps of a transfer of half the level on a small lattice, by a pairing."""
     holders = GroupElement(
@@ -849,7 +866,7 @@ def _shorthand_levels(pairing: object, seed: int) -> list[float]:
         pairing=pairing,
         form='agent',
     )
-    system = System(elements=[holders], interactions=[give], space=LatticeSpace((2, 2)))
+    system = CompositeSystem(elements=[holders], interactions=[give], space=LatticeSpace((2, 2)))
     return _levels(simulate(system, until=3, random_state=seed), 3, 'holders')
 
 
@@ -874,7 +891,11 @@ def test_transfer_member_schedule_draws_partners_by_a_partner_spec():
         form='agent',
         schedule='member',
     )
-    system = System(elements=[eaters, providers], interactions=[give], space=ContinuousSpace(extent=(10.0, 10.0)))
+    system = CompositeSystem(
+        elements=[eaters, providers],
+        interactions=[give],
+        space=ContinuousSpace(extent=(10.0, 10.0)),
+    )
     trajectory = simulate(system, until=1, random_state=0)
     assert _levels(trajectory, 1, 'providers') == [1.0, 1.0]
 
@@ -937,12 +958,14 @@ def test_transfer_settlement_credits_both_ends_from_one_draw():
         form='agent',
         settlement=settle,
     )
-    system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
+    system = CompositeSystem(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
     assert len(draws) == 3
     assert sum(_levels(trajectory, 1, 'eaters')) == pytest.approx(sum(draws))
-    assert trajectory.agents('providers', 1).values['sold'].tolist() == [3.0]
-    assert trajectory.agents('providers', 1).values['large'].tolist() == [float(sum(draw > 650.0 for draw in draws))]
+    assert trajectory.get_agents('providers', 1).values['sold'].tolist() == [3.0]
+    assert trajectory.get_agents('providers', 1).values['large'].tolist() == [
+        float(sum(draw > 650.0 for draw in draws)),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -976,6 +999,6 @@ def test_transfer_partner_spec_runs_on_grids_and_networks(space, locations, expe
         pairing=PartnerSpec(1.5),
         form='agent',
     )
-    system = System(elements=[eaters, providers], interactions=[give], space=space)
+    system = CompositeSystem(elements=[eaters, providers], interactions=[give], space=space)
     trajectory = simulate(system, until=1, random_state=0)
     assert _levels(trajectory, 1, 'providers') == expected

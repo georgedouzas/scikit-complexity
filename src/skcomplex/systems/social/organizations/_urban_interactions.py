@@ -18,11 +18,13 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
+SMALLEST_ANGLE = 1e-12
+MIN_EXPONENT = 2.0
 
 
 class CityDwellerElement(Element):
@@ -70,10 +72,6 @@ class CityDwellerElement(Element):
         self.age = age
         self.degree = degree
         self.meetings = meetings
-
-
-SMALLEST_ANGLE = 1e-12
-MIN_EXPONENT = 2.0
 
 
 class UrbanScalingInteractionsSystem(BaseSystem):
@@ -127,7 +125,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
         >>> trajectory = simulate(UrbanScalingInteractionsSystem(13, internal=0.0), until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 
@@ -179,7 +177,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
@@ -230,7 +228,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
             state='meetings',
             function=lambda s: draw('meet', 'binom', n=s.target.degree, p=self.meeting),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[residents, links],
             interactions=[growth, bridging, ageing, degree, meetings],

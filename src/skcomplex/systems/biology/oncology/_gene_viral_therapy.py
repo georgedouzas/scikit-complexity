@@ -10,10 +10,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.interactions import RateInteraction
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -578,7 +579,7 @@ class TCRGeneTherapySystem(BaseSystem):
         self.a = a
         self.g2 = g2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the predator-prey system of a gene therapy.
 
         The therapy lets the T cells recognise the tumour.
@@ -631,7 +632,7 @@ class TCRGeneTherapySystem(BaseSystem):
                 modifiers={'E': 1},
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class SirnaTGFBetaSystem(BaseSystem):
@@ -711,7 +712,7 @@ class SirnaTGFBetaSystem(BaseSystem):
         self.u = u
         self.du = du
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Kirschner-Panetta system with TGF-beta."""
         site = SirnaTgfBetaElement(
             'site',
@@ -807,7 +808,7 @@ class SirnaTGFBetaSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.G,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)
 
 
 class OncolyticVirusSystem(BaseSystem):
@@ -869,7 +870,7 @@ class OncolyticVirusSystem(BaseSystem):
         self.r = r
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of uninfected and infected tumour cells.
 
         The cells share a carrying capacity.
@@ -903,7 +904,7 @@ class OncolyticVirusSystem(BaseSystem):
                 propensity=lambda s: s.target.d * s.target.AV,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class OncolyticVirusDendriticSystem(BaseSystem):
@@ -974,7 +975,7 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         self.m = m
         self.a5 = a5
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour treated with an oncolytic adenovirus."""
         site = OncolyticVirusDendriticElement(
             'site',
@@ -1061,4 +1062,4 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 propensity=lambda s: s.target.du2 * s.target.D,
             ),
         ]
-        return System(self.label, elements=[site], interactions=interactions)
+        return CompositeSystem(self.label, elements=[site], interactions=interactions)

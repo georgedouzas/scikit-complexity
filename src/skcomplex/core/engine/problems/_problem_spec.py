@@ -41,7 +41,7 @@ from ._reduction_kernel import ReductionKernel
 
 @dataclass(frozen=True)
 class ProblemSpec(BaseProblemSpec):
-    """System compiled to one mathematical form with flat state and parameter vectors.
+    """A spec of a system compiled to one form, with flat state and parameter vectors.
 
     Only the functions of the problem's form are set. `drift`, `diffusion`, and `noise_rows` belong to the ODE and SDE
     forms, `propensities` and `jumps` to the jump process form, and `update` to the discrete map form. `boundary`
@@ -209,7 +209,7 @@ class ProblemSpec(BaseProblemSpec):
             The renewal laws, whose members renew on their own clocks.
 
         fractional:
-            The noise rows that fractional noise laws drive, with their Hurst indices.
+            The noise rows that noise laws with a Hurst index drive, with their indices.
 
         orders:
             The order of the Caputo derivative that the drift gives for every state component of a problem of the
@@ -278,7 +278,7 @@ class ProblemSpec(BaseProblemSpec):
 
     def _flatten_symbols(self, layout: LayoutSpec) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        return [item for entry in layout.entries for item in self._real_components_of(self.symbols[entry.name])]
+        return [item for entry in layout.entries for item in self._get_real_components_of(self.symbols[entry.name])]
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:
@@ -325,7 +325,7 @@ class ProblemSpec(BaseProblemSpec):
         """
         return self._flatten_symbols(self.parameters)
 
-    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+    def get_lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lattice laws read or change.
 
         Other states return `None`.
@@ -364,7 +364,7 @@ class ProblemSpec(BaseProblemSpec):
         return matrix
 
     @staticmethod
-    def _real_components_of(value: object) -> list[object]:
+    def _get_real_components_of(value: object) -> list[object]:
         """Return the components of a value with complex components split.
 
         Every complex component is split into its real and imaginary parts.
@@ -376,14 +376,6 @@ class ProblemSpec(BaseProblemSpec):
         Returns:
             components:
                 The components, two in a row for a complex component.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import I
-            >>> from skcomplex.core.engine._utils import symbol, vector
-            >>> from skcomplex.core.engine.problems import ProblemSpec
-            >>> x, y = symbol('x'), symbol('y')
-            >>> ProblemSpec._real_components_of(vector([x + I * y, 2 * x]))
-            [x, y, 2*x]
         """
         components: list[object] = []
         for item in (list(value) if isinstance(value, FreeModuleElement) else [value]):

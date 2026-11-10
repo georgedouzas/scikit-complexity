@@ -29,7 +29,7 @@ trajectory = simulate(MotterLaiOverloadSystem(tolerance=0.2), observers=[observe
 def giant_share(tolerance, attack, seed):
     """Return the share of the nodes in the largest component once the cascade stops."""
     system = MotterLaiOverloadSystem(tolerance=tolerance, attack=attack, random_state=seed)
-    graph = simulate(system).network(-1).graph()
+    graph = simulate(system).get_network(-1).get_graph()
     return max(len(component) for component in nx.connected_components(graph)) / 300
 
 

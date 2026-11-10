@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -154,9 +154,9 @@ class CobwebSystem(BaseSystem):
         self.c = c
         self.d = d
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MarketElement('market', price=self.price)],
             interactions=[CobwebInteraction('cobweb', target='market', a=self.a, b=self.b, c=self.c, d=self.d)],

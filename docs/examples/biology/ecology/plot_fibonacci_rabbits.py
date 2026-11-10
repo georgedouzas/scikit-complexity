@@ -6,8 +6,8 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 """
 
 # %%
-# The system is built from its class from one newborn pair and run for 20 months. The observer saves every month with
-# the default blueprint, whose primary view is the time series of the pairs.
+# The example builds `FibonacciRabbitsSystem` from one newborn pair and runs it for 20 months. The observer saves every
+# month with the default blueprint, whose primary view is the time series of the pairs.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,7 +27,7 @@ trajectory = simulate(FibonacciRabbitsSystem(pairs=1.0, previous=0.0), observers
 # The ratio of successive Fibonacci numbers tends to the golden ratio `(1 + sqrt 5) / 2 ≈ 1.618`, alternately from
 # above and below. The simulated ratio should converge to it within a few months.
 
-pairs = trajectory.values('rabbits.pairs')
+pairs = trajectory.get_values('rabbits.pairs')
 months = trajectory.times
 golden = (1 + np.sqrt(5)) / 2
 fig, (counts, ratio) = plt.subplots(1, 2, figsize=(10, 4))

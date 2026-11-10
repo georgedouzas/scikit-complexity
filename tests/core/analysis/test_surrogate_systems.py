@@ -44,7 +44,7 @@ def _damped_rotation():
 def _last_values(analysis, states, until, dt):
     """Return the last values of states of the surrogate of an analysis."""
     trajectory = simulate(analysis.system, until=until, dt=dt)
-    return [float(np.ravel(trajectory.values(f'surrogate.{state}'))[-1]) for state in states]
+    return [float(np.ravel(trajectory.get_values(f'surrogate.{state}'))[-1]) for state in states]
 
 
 def test_sparse_identification_keeps_its_reference_values():

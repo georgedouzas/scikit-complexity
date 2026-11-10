@@ -12,13 +12,24 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BoxNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
+
+BUSY_BEAVER = {
+    ('A', 0): (1, 'R', 'B'),
+    ('A', 1): (1, 'L', 'C'),
+    ('B', 0): (1, 'L', 'A'),
+    ('B', 1): (1, 'R', 'B'),
+    ('C', 0): (1, 'L', 'B'),
+    ('C', 1): (1, 'N', 'H'),
+}
+HALT = 'H'
+MOVES = {'L': -1, 'N': 0, 'R': 1}
 
 
 class TapeCellElement(Element):
@@ -58,22 +69,6 @@ class TapeCellElement(Element):
         super().__init__(label, visual=visual)
         self.symbol = symbol
         self.head = head
-
-
-BUSY_BEAVER = {
-    ('A', 0): (1, 'R', 'B'),
-    ('A', 1): (1, 'L', 'C'),
-    ('B', 0): (1, 'L', 'A'),
-    ('B', 1): (1, 'R', 'B'),
-    ('C', 0): (1, 'L', 'B'),
-    ('C', 1): (1, 'N', 'H'),
-}
-
-
-HALT = 'H'
-
-
-MOVES = {'L': -1, 'N': 0, 'R': 1}
 
 
 class TuringMachineSystem(BaseSystem):
@@ -132,7 +127,7 @@ class TuringMachineSystem(BaseSystem):
         self.start = start
 
     @staticmethod
-    def _turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
+    def _get_turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
         """Return the local rule of a Turing machine of an action table.
 
         The rule reads the symbols and heads of three cells.
@@ -168,7 +163,7 @@ class TuringMachineSystem(BaseSystem):
 
         return rule
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Turing machine, a head that reads, writes, and moves on a tape.
 
         The tape holds symbols. The head has an internal state.
@@ -180,8 +175,14 @@ class TuringMachineSystem(BaseSystem):
             raise ParameterError(error_msg)
         head = np.full(self.size, -1.0)
         head[self.size // 2] = states.index(self.start)
-        tape = LatticeElement('tape', element=TapeCellElement, space=LatticeSpace(self.size), values={'head': head})
-        return System(
+        tape = GroupElement(
+            'tape',
+            element=TapeCellElement,
+            space=LatticeSpace(self.size),
+            values={'head': head},
+            on='sites',
+        )
+        return CompositeSystem(
             self.label,
             elements=[tape],
             interactions=[
@@ -189,8 +190,8 @@ class TuringMachineSystem(BaseSystem):
                     'machine',
                     target='tape',
                     state=('symbol', 'head'),
-                    rule=self._turing_rule(actions),
-                    neighborhood=BoxNeighborhood(),
+                    rule=self._get_turing_rule(actions),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     reads=('symbol', 'head'),
                 ),
             ],

@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -151,7 +151,7 @@ class AssemblyInteraction(Interaction):
             system:
                 The system.
         """
-        for watchmaker in system.agents(self.target, WatchmakerView):
+        for watchmaker in system.get_agents(self.target, WatchmakerView):
             if system.rng.random() < self.interruption:
                 watchmaker.progress = 0.0
                 continue
@@ -216,7 +216,7 @@ class WatchmakersSystem(BaseSystem):
         self.subassembly = subassembly
         self.interruption = interruption
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         hora_tasks = (self.parts - 1) // (self.subassembly - 1)
         group = GroupElement(
@@ -225,7 +225,7 @@ class WatchmakersSystem(BaseSystem):
             size=2,
             values={'task_size': [float(self.subassembly), float(self.parts)], 'tasks': [float(hora_tasks), 1.0]},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[AssemblyInteraction('assembly', target='watchmakers', interruption=self.interruption)],

@@ -28,14 +28,14 @@ def _giant(graph):
 def test_targeted_attacks_break_the_giant_component_faster_than_failures():
     """Test that removing hubs destroys the giant component while as many random failures leave it mostly whole."""
     trajectory = simulate(NetworkAttackSystem(500, strategy='targeted'), until=24, dt=1, random_state=0)
-    frame = next(frame for frame in range(25) if len(trajectory.network(frame).nodes) <= 425)
-    attacked = trajectory.network(frame).graph()
+    frame = next(frame for frame in range(25) if len(trajectory.get_network(frame).nodes) <= 425)
+    attacked = trajectory.get_network(frame).get_graph()
     removed = 500 - attacked.number_of_nodes()
     failures = NetworkAttackSystem(500, strategy='random', rate=removed / 500 / frame)
     failed, _ = _final_graph(failures, frame)
     assert _giant(attacked) < 0.5
     assert _giant(failed) > 0.9
-    assert len(trajectory.network(0).nodes) == 500
+    assert len(trajectory.get_network(0).nodes) == 500
 
 
 def test_network_attack_rejects_an_unknown_strategy():
@@ -48,8 +48,8 @@ def test_erdos_renyi_construction_gives_a_giant_component_past_mean_degree_one()
     """Test that the edge by edge Erdős-Rényi construction reaches its mean degree and a giant component after 1."""
     system = RandomGraphEnsemblesSystem(400, ensemble='erdos_renyi', mean_degree=4, steps=40)
     trajectory = simulate(system, until=40, dt=1.0, random_state=1)
-    means = np.array([2 * len(trajectory.network(frame).sources) / 400 for frame in range(41)])
-    giants = np.array([_giant(trajectory.network(frame).graph()) for frame in range(41)])
+    means = np.array([2 * len(trajectory.get_network(frame).sources) / 400 for frame in range(41)])
+    giants = np.array([_giant(trajectory.get_network(frame).get_graph()) for frame in range(41)])
     assert means[-1] == pytest.approx(4, rel=0.1)
     assert giants[np.argmin(np.abs(means - 0.5))] < 0.1
     assert giants[-1] > 0.9
@@ -102,11 +102,11 @@ def test_configuration_model_shows_the_friendship_paradox():
 
 def test_interdependent_networks_keep_a_mutual_giant_component_above_the_threshold_only():
     """Test that the cascade stops at `S = p (1 - exp(-k S))²` above `p_c = 2.4554 / k` and collapses below it."""
-    survived = _run(InterdependentNetworkCascadeSystem(2000, p=0.85), 40).values('nodes.active')
+    survived = _run(InterdependentNetworkCascadeSystem(2000, p=0.85), 40).get_values('nodes.active')
     share = 0.85
     for _ in range(500):
         share = 0.85 * (1 - np.exp(-4 * share)) ** 2
     assert survived[-1].mean() == pytest.approx(share, abs=0.04)
-    collapsed = _run(InterdependentNetworkCascadeSystem(2000, p=0.55), 40).values('nodes.active')
+    collapsed = _run(InterdependentNetworkCascadeSystem(2000, p=0.55), 40).get_values('nodes.active')
     assert collapsed[-1].sum() == 0
     assert collapsed[1].mean() > 0.4

@@ -7,8 +7,8 @@ a constant rate in the logarithm of time.
 """
 
 # %%
-# The system is built from its class with 2000 residents and run for 300 years. The observer saves every other year
-# with the default blueprint, whose primary view is the time series of the strength of the strain.
+# The example builds `RecordDynamicsEpidemicSystem` with 2000 residents and runs it for 300 years. The observer saves
+# every other year with the default blueprint, whose primary view is the time series of the strength of the strain.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,7 @@ years = np.arange(1, 301)
 counts = []
 for seed in range(20):
     run = simulate(RecordDynamicsEpidemicSystem(n=2000, seed=seed), until=300, random_state=seed)
-    counts.append(np.cumsum(run.values('residents.infected').sum(axis=1)[1:] > 0))
+    counts.append(np.cumsum(run.get_values('residents.infected').sum(axis=1)[1:] > 0))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(years, np.mean(counts, axis=0), label='mean of 20 runs')
 ax.plot(years, np.cumsum(1 / years) - 1 / years, '--', color='black', label='harmonic number of the strains drawn')

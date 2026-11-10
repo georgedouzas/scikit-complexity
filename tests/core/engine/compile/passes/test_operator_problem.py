@@ -2,9 +2,9 @@
 
 import math
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.engine.problems import BaseProblemSpec, ProblemSpec
 from skcomplex.core.engine.problems._operator_problem_spec import OperatorProblemSpec
@@ -16,9 +16,9 @@ from .....conftest import SpinElement
 
 def test_compiler_gives_the_dimensions_of_a_chain_and_a_mode():
     """Test that a chain of spins and a mode compile to the tensor product of their spaces."""
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(10)),
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(10), on='sites'),
             ModeElement('cavity', hilbert=mode_space(4)),
         ],
     )

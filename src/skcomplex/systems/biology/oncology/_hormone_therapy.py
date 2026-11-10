@@ -11,17 +11,17 @@ from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction, ReactionInteraction
+from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 PATIENT_FACTORS = {
     1: {
         'on': (0.956156, 0.00130716, 0.995718, 0.0, 0.0, 1.00181),
@@ -1062,17 +1062,6 @@ class TherapySwitchInteraction(CrossingInteraction):
         return self.value
 
 
-def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
-    """Return the relay with hysteresis of a signal that starts and stops the therapy.
-
-    The relay starts the therapy above `h1` and stops it below `h0`.
-    """
-    return [
-        TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
-        TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
-    ]
-
-
 class ContinuousAndrogenSuppressionSystem(BaseSystem):
     """Prostate cancer under continuous androgen suppression.
 
@@ -1173,7 +1162,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.du = du
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prostate cancer under continuous androgen suppression."""
         tumour = AndrogenSuppressionElement(
             'tumour',
@@ -1233,7 +1222,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
                 rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class IdetaIntermittentAndrogenSystem(BaseSystem):
@@ -1309,6 +1298,17 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
     until = 600.0
     dt = 2.0
 
+    @staticmethod
+    def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
+        """Return the relay with hysteresis of a signal that starts and stops the therapy.
+
+        The relay starts the therapy above `h1` and stops it below `h0`.
+        """
+        return [
+            TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
+            TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
+        ]
+
     def __init__(
         self,
         AD: float = 5.0,
@@ -1346,7 +1346,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Ideta system of intermittent androgen suppression."""
         tumour = IntermittentSuppressionElement(
             'tumour',
@@ -1365,7 +1365,11 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             U0=self.U0,
             du=self.du,
         )
-        switches = _get_switches(lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI, self.h0, self.h1)
+        switches = IdetaIntermittentAndrogenSystem._get_switches(
+            lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI,
+            self.h0,
+            self.h1,
+        )
         interactions = [
             RateInteraction(
                 'dependent_growth',
@@ -1416,7 +1420,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             ),
             *switches,
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateCellQuotaSystem(BaseSystem):
@@ -1543,7 +1547,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         self.width = width
 
     @staticmethod
-    def _quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
+    def _get_quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
         """Return the uptake of androgen into a quota.
 
         The uptake slows as the quota fills.
@@ -1551,7 +1555,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
         return uptake
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Portz cell-quota system of prostate cancer."""
         tumour = CellQuotaProstateElement(
             'tumour',
@@ -1617,7 +1621,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 'dependent_uptake',
                 target='tumour',
                 state='Q1',
-                rate=lambda s: self._quota_uptake(s.target, s.target.Q1, s.target.q1),
+                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q1, s.target.q1),
             ),
             RateInteraction(
                 'dependent_use',
@@ -1635,7 +1639,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 'independent_uptake',
                 target='tumour',
                 state='Q2',
-                rate=lambda s: self._quota_uptake(s.target, s.target.Q2, s.target.q2),
+                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q2, s.target.q2),
             ),
             RateInteraction(
                 'independent_use',
@@ -1680,7 +1684,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 ),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateAndrogenReceptorSystem(BaseSystem):
@@ -1760,7 +1764,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         self.age = age
 
     @staticmethod
-    def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
+    def _get_prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
         """Return the prostate volume in cm³ at the age of the patient.
 
         The volume is `v1 a^phi / (v2^phi + a^phi) + v3`.
@@ -1770,7 +1774,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return volume
 
     @staticmethod
-    def _receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
+    def _get_receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
         """Return the growth rate that the activated receptors drive.
 
         The receptors are activated by DHT and testosterone.
@@ -1780,21 +1784,23 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return growth
 
     @staticmethod
-    def _receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
+    def _get_receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
         """Return the death rate that the activated receptors lower."""
         death: Expression = psi3 / (target.psi4 + target.UD + target.UT)
         return death
 
-    def _dependent_division(self, target: SimpleNamespace) -> Expression:
+    def _get_dependent_division(self, target: SimpleNamespace) -> Expression:
         """Return the division of androgen-dependent cells.
 
         The normal and the cancer cells crowd the division.
         """
         crowding = (target.c1 * target.N + target.AD + target.AI) / target.b2
-        division: Expression = self._receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
+        division: Expression = (
+            self._get_receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
+        )
         return division
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         prostate = AndrogenReceptorProstateElement(
             'prostate',
@@ -1811,44 +1817,44 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 'normal_growth',
                 target='prostate',
                 state='N',
-                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
+                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
                 * s.target.N
                 * (
                     1
                     - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
-                    / (self._prostate_volume(s.target, s.t) / s.target.Vc)
+                    / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
                 ),
             ),
             ReactionInteraction(
                 'normal_death',
                 target='prostate',
                 reactants={'N': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_n) * s.target.N,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_n) * s.target.N,
             ),
             RateInteraction(
                 'dependent_division',
                 target='prostate',
                 state='AD',
-                rate=lambda s: self._dependent_division(s.target),
+                rate=lambda s: self._get_dependent_division(s.target),
             ),
             ReactionInteraction(
                 'mutation',
                 target='prostate',
                 reactants={'AD': 1},
                 products={'AI': 1},
-                propensity=lambda s: s.target.m1 * self._dependent_division(s.target),
+                propensity=lambda s: s.target.m1 * self._get_dependent_division(s.target),
             ),
             ReactionInteraction(
                 'dependent_death',
                 target='prostate',
                 reactants={'AD': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_d) * s.target.AD,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_d) * s.target.AD,
             ),
             RateInteraction(
                 'independent_growth',
                 target='prostate',
                 state='AI',
-                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
+                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
                 * s.target.AI
                 * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
             ),
@@ -1856,7 +1862,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 'independent_death',
                 target='prostate',
                 reactants={'AI': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_i) * s.target.AI,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_i) * s.target.AI,
             ),
             RateInteraction(
                 'psa_production',
@@ -1873,7 +1879,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du1
                 * s.target.UIP
                 * s.target.N
-                / (self._prostate_volume(s.target, s.t) / s.target.Vc),
+                / (self._get_prostate_volume(s.target, s.t) / s.target.Vc),
             ),
             ReactionInteraction(
                 'cancer_leak',
@@ -1898,7 +1904,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du3 * s.target.UP,
             ),
         ]
-        return System(self.label, elements=[prostate], interactions=interactions)
+        return CompositeSystem(self.label, elements=[prostate], interactions=interactions)
 
 
 class PiecewiseLinearIASSystem(BaseSystem):
@@ -1957,7 +1963,7 @@ class PiecewiseLinearIASSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
@@ -1983,12 +1989,12 @@ class PiecewiseLinearIASSystem(BaseSystem):
             w22_off=off22 - 1,
             w33_off=off33 - 1,
         )
-        switches = _get_switches(
+        switches = IdetaIntermittentAndrogenSystem._get_switches(
             lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII,
             self.h0,
             self.h1,
         )
-        return System(self.label, elements=[tumour], interactions=switches)
+        return CompositeSystem(self.label, elements=[tumour], interactions=switches)
 
 
 class TamoxifenCellCycleSystem(BaseSystem):
@@ -2059,7 +2065,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         self.a2 = a2
 
     @staticmethod
-    def _room(target: SimpleNamespace) -> Expression:
+    def _get_room(target: SimpleNamespace) -> Expression:
         """Return the Gompertz room `log(Asat / (Ag + As + Am))`.
 
         The room slows the passage through the cell cycle.
@@ -2067,7 +2073,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
         return room
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
@@ -2076,7 +2082,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 target='tumour',
                 reactants={'Ag': 1},
                 products={'As': 1},
-                propensity=lambda s: s.target.mg * s.target.Ag * self._room(s.target),
+                propensity=lambda s: s.target.mg * s.target.Ag * self._get_room(s.target),
             ),
             ReactionInteraction(
                 'synthesis',
@@ -2090,7 +2096,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 target='tumour',
                 reactants={'Am': 1},
                 products={'Ag': 2},
-                propensity=lambda s: s.target.mm * s.target.Am * self._room(s.target),
+                propensity=lambda s: s.target.mm * s.target.Am * self._get_room(s.target),
             ),
             ReactionInteraction(
                 'drug_kill',
@@ -2150,4 +2156,4 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)

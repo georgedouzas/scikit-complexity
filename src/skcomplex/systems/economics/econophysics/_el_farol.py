@@ -14,14 +14,18 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, ReinforcementInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
+from ..common.learning import PayoffLearningInteraction
+
+N_SEEDED_WEEKS = 10
+MAX_ATTENDANCE = 100.0
 
 
 class PatronView(AgentView):
@@ -46,12 +50,6 @@ class PredictorPoolView(AgentView):
     errors: Array
 
 
-N_SEEDED_WEEKS = 10
-
-
-MAX_ATTENDANCE = 100.0
-
-
 def _lag(history: Array, weeks: int) -> float:
     """Return the attendance a number of weeks ago.
 
@@ -71,10 +69,7 @@ def _fitted_trend(history: Array, weeks: int) -> float:
     return float(slope * weeks + intercept)
 
 
-Predictor = tuple[Callable[..., float], Mapping[str, float]]
-
-
-PREDICTORS: tuple[Predictor, ...] = (
+PREDICTORS: tuple[tuple[Callable[..., float], Mapping[str, float]], ...] = (
     *((_lag, {'weeks': weeks}) for weeks in range(1, 7)),
     *((_average, {'weeks': weeks}) for weeks in (2, 3, 4, 5, 6, 8, 10)),
     *((_fitted_trend, {'weeks': weeks}) for weeks in (3, 4, 5, 6, 8, 10)),
@@ -115,7 +110,7 @@ class PredictorPoolElement(Element):
     It holds the forecast and the accuracy of every predictor. The accuracy of a predictor depends only on the history
     of attendance, the observable `attendance` of the run, so one member holds it for every patron. Every week the pool
     forecasts the attendance with every predictor, from ten random weeks it draws at the first week followed by the
-    observed attendances, and a `ReinforcementInteraction` moves the error of every predictor towards its last absolute
+    observed attendances, and a `PayoffLearningInteraction` moves the error of every predictor towards its last absolute
     error, a discounted mean of the errors.
 
     Args:
@@ -172,13 +167,13 @@ class PredictorPoolElement(Element):
         """
         return [RuleLaw(self.forecast, phase='forecast')]
 
-    def _history(self, system: SystemView) -> Array:
+    def _get_history(self, system: SystemView) -> Array:
         """Return the attendances, after ten random weeks drawn at the first week."""
         seeded = system.storage.get('seeded')
         if not isinstance(seeded, np.ndarray):
             seeded = system.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
             system.storage['seeded'] = seeded
-        return np.concatenate([seeded, system.history(self.attendance)])
+        return np.concatenate([seeded, system.get_history(self.attendance)])
 
     def forecast(self, agent: PredictorPoolView, system: SystemView) -> None:
         """Forecast next week's attendance with every predictor of the pool.
@@ -190,10 +185,10 @@ class PredictorPoolElement(Element):
             system:
                 The system.
         """
-        agent.forecasts = forecasts(self._history(system))
+        agent.forecasts = forecasts(self._get_history(system))
 
     @staticmethod
-    def error(agent: PredictorPoolView, system: SystemView, index: int) -> float:
+    def get_error(agent: PredictorPoolView, system: SystemView, index: int) -> float:
         """Return the absolute error of a predictor last week.
 
         Before the first attendance, it is its error so far.
@@ -212,7 +207,7 @@ class PredictorPoolElement(Element):
             error:
                 The absolute error of the forecast of the predictor.
         """
-        attendance = system.history(PredictorPoolElement.attendance)
+        attendance = system.get_history(PredictorPoolElement.attendance)
         if not len(attendance):
             return float(np.ravel(agent.errors)[index])
         return float(abs(np.ravel(agent.forecasts)[index] - attendance[-1]))
@@ -299,7 +294,7 @@ class PatronElement(Element):
             system:
                 The system.
         """
-        pool = system.agents(self.pool, PredictorPoolView)[0]
+        pool = system.get_agents(self.pool, PredictorPoolView)[0]
         errors, predicted = np.ravel(pool.errors), np.ravel(pool.forecasts)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
@@ -367,7 +362,7 @@ class ElFarolSystem(BaseSystem):
         self.discount = discount
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         masks = [
@@ -386,11 +381,11 @@ class ElFarolSystem(BaseSystem):
             size=1,
             values={'forecasts': np.zeros((1, len(PREDICTORS))), 'errors': np.zeros((1, len(PREDICTORS)))},
         )
-        scoring = ReinforcementInteraction(
+        scoring = PayoffLearningInteraction(
             'scoring',
             target='pool',
             scores='errors',
-            payoff=PredictorPoolElement.error,
+            payoff=PredictorPoolElement.get_error,
             rate=1 - self.discount,
             form='agent',
             phase='learn',
@@ -405,7 +400,7 @@ class ElFarolSystem(BaseSystem):
             form='agent',
             phase='decide',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[patrons, pool],
             interactions=[scoring, choice],

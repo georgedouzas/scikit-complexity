@@ -15,64 +15,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common import SandpileCellElement
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
+from ..common.avalanches import SandpileCellElement, TopplingInteraction
 
-
-class BranchingTreeElement(Element):
-    """Self-organized branching process.
-
-    Avalanches on a binary tree tune its branching probability.
-
-    The probability `p` that an active site relaxes into two active sites of the next generation, the number `z` of
-    active sites of the current generation of the avalanche, and its generation `g`. Map interactions advance the
-    avalanche by one generation per step.
-
-    Args:
-        label:
-            The label of the tree.
-
-        visual:
-            How the tree is drawn, or `None` for `default_visual_`.
-
-        p:
-            The initial branching probability.
-
-        z:
-            The initial number of active sites.
-
-        g:
-            The initial generation.
-
-    Attributes:
-        default_visual_:
-            The visual of the tree when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.criticality import BranchingTreeElement
-        >>> BranchingTreeElement('tree').p
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.3,
-        z: Annotated[float, StateSpec(domain=NN)] = 1,
-        g: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.p = p
-        self.z = z
-        self.g = g
+THRESHOLD = 4
 
 
 class EnergySiteElement(Element):
@@ -143,34 +97,23 @@ class ToppleInteraction(LocalRuleInteraction):
             label,
             target=target,
             state='height',
-            rule=self._topple,
-            neighborhood=VonNeumannNeighborhood(center=True),
+            rule=self._get_topple,
+            neighborhood=BallNeighborhood(metric='manhattan', center='first'),
         )
         self.threshold = threshold
 
-    def _topple(self, height: Array, *around: Array) -> Array:
+    def _get_topple(self, height: Array, *around: Array) -> Array:
         """Return the heights after every site at or above the threshold topples once."""
         gained = np.sum([neighbor >= self.threshold for neighbor in around], axis=0)
         return height - self.threshold * (height >= self.threshold) + gained
 
 
-THRESHOLD = 4
-
-
-def _active(site: SimpleNamespace) -> Expression:
+def _get_active(site: SimpleNamespace) -> Expression:
     """Return 1 for an active site and 0 otherwise.
 
     An active site holds at least the threshold.
     """
     return where(site.height >= THRESHOLD, 1, 0)
-
-
-def _ends(tree: SimpleNamespace, generations: int) -> Expression:
-    """Return whether the avalanche of a tree ends this step.
-
-    It ends at the last generation or with no active site.
-    """
-    return either(tree.g >= generations, tree.z == 0)
 
 
 class FixedEnergySandpileSystem(BaseSystem):
@@ -209,7 +152,7 @@ class FixedEnergySandpileSystem(BaseSystem):
     references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
     until = 500
     dt = 1
-    observables = (ObservableSpec('activity', _active, group='pile'),)
+    observables = (ObservableSpec('activity', _get_active, group='pile'),)
 
     def __init__(
         self,
@@ -224,16 +167,18 @@ class FixedEnergySandpileSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         size = int(np.prod(self.shape))
         rng = np.random.default_rng(self.random_state)
         grains = rng.integers(size, size=round(self.density * size))
         heights = np.bincount(grains, minlength=size).reshape(tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='periodic')
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[ToppleInteraction('topple', target='pile', threshold=THRESHOLD)],
         )
 
@@ -299,14 +244,14 @@ class ZhangSandpileSystem(BaseSystem):
         following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
         return following
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Zhang sandpile.
 
         It is a continuous sandpile whose unstable sites give away all their energy.
         """
         energies = np.random.default_rng(self.random_state).uniform(0.0, self.threshold, size=tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        avalanche = CascadeInteraction(
+        avalanche = TopplingInteraction(
             'avalanche',
             target='pile',
             state='energy',
@@ -315,14 +260,16 @@ class ZhangSandpileSystem(BaseSystem):
             mode='reset',
             drive=partial(self._load, self.threshold),
         )
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('pile', element=EnergySiteElement, space=space, values={'energy': energies})],
+            elements=[
+                GroupElement('pile', element=EnergySiteElement, space=space, values={'energy': energies}, on='sites'),
+            ],
             interactions=[avalanche],
         )
 
 
-class SelfOrganizedBranchingSystem(BaseSystem):
+class SelfOrganizedBranchingSystem(DynamicalSystem):
     """The self-organized branching process of Zapperi, Lauritsen, and Stanley.
 
     It is a mean-field sandpile.
@@ -349,7 +296,7 @@ class SelfOrganizedBranchingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
-        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].p
+        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].get_value('p')
         0.4
     """
 
@@ -361,6 +308,14 @@ class SelfOrganizedBranchingSystem(BaseSystem):
     until = 30000
     dt = 1
 
+    @staticmethod
+    def _get_ends(tree: SimpleNamespace, generations: int) -> Expression:
+        """Return whether the avalanche of a tree ends this step.
+
+        It ends at the last generation or with no active site.
+        """
+        return either(tree.g >= generations, tree.z == 0)
+
     def __init__(
         self,
         p: float = 0.3,
@@ -368,19 +323,23 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         generations: int = 10,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.p = p
         self.generations = generations
 
     @staticmethod
-    def _branch(generations: int, s: SimpleNamespace) -> Expression:
+    def _get_branch(generations: int, s: SimpleNamespace) -> Expression:
         """Return the active sites of the next generation, or a new avalanche's one site."""
-        return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
+        return where(
+            SelfOrganizedBranchingSystem._get_ends(s.target, generations),
+            1,
+            2 * draw('children', 'binom', n=s.target.z, p=s.target.p),
+        )
 
     @staticmethod
     def _advance(generations: int, s: SimpleNamespace) -> Expression:
         """Return the next generation, or 0 for a new avalanche."""
-        return where(_ends(s.target, generations), 0, s.target.g + 1)
+        return where(SelfOrganizedBranchingSystem._get_ends(s.target, generations), 0, s.target.g + 1)
 
     @staticmethod
     def _tune(generations: int, s: SimpleNamespace) -> Expression:
@@ -390,25 +349,32 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         """
         sites = 2 ** (generations + 1) - 1
         dissipated = where(s.target.g >= generations, s.target.z, 0)
-        return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
-
-    def _build_system(self) -> System:
-        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley.
-
-        It is a mean-field sandpile.
-        """
-        return System(
-            self.label,
-            elements=[BranchingTreeElement('tree', p=self.p)],
-            interactions=[
-                MapInteraction('branching', target='tree', state='z', function=partial(self._branch, self.generations)),
-                MapInteraction(
-                    'generation',
-                    target='tree',
-                    state='g',
-                    function=partial(self._advance, self.generations),
-                ),
-                MapInteraction('tuning', target='tree', state='p', function=partial(self._tune, self.generations)),
-            ],
-            time=DiscreteTime(),
+        return where(
+            SelfOrganizedBranchingSystem._get_ends(s.target, generations),
+            s.target.p + (1 - dissipated) / sites,
+            s.target.p,
         )
+
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'tree'
+
+    def _get_time(self) -> str:
+        """Return the discrete time of the map."""
+        return 'discrete'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'p': DeclaredVariableSpec(self.p, StateSpec(domain=RealSet.closed(0, 1))),
+            'z': DeclaredVariableSpec(1, StateSpec(domain=NN)),
+            'g': DeclaredVariableSpec(0, StateSpec(domain=NN)),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley."""
+        return {
+            'z': partial(self._get_branch, self.generations),
+            'g': partial(self._advance, self.generations),
+            'p': partial(self._tune, self.generations),
+        }

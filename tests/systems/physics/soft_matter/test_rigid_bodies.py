@@ -17,9 +17,9 @@ def _bodies(n_particles=400, **settings):
         until=1.0,
         random_state=0,
     )
-    positions = np.stack([np.asarray(trajectory.values(f'particles.{name}')) for name in 'xyz'], axis=-1)
-    axes = np.stack([np.asarray(trajectory.values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
-    return np.asarray(trajectory.times), positions, axes, np.asarray(trajectory.values('particles.psi'))
+    positions = np.stack([np.asarray(trajectory.get_values(f'particles.{name}')) for name in 'xyz'], axis=-1)
+    axes = np.stack([np.asarray(trajectory.get_values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
+    return np.asarray(trajectory.times), positions, axes, np.asarray(trajectory.get_values('particles.psi'))
 
 
 def test_janus_axes_stay_on_the_sphere_and_decorrelate_as_exp_minus_two_d_r_t():
@@ -56,7 +56,7 @@ def test_rigid_dimers_diffuse_as_their_free_draining_limit(v0, expected):
     """Test the rod's rotational diffusion `2 D_t / L²` and the long-time diffusion `D_t / 2 + v0² / (4 D_r)`."""
     trajectory = simulate(RigidDimersSystem(n_dimers=400, v0=v0), until=20.0, random_state=0)
     times = np.asarray(trajectory.times)
-    centres, angles = np.asarray(trajectory.values('dimers.c')), np.asarray(trajectory.values('dimers.phi'))
+    centres, angles = np.asarray(trajectory.get_values('dimers.c')), np.asarray(trajectory.get_values('dimers.phi'))
     diffusion = ((centres[-1] - centres[100]) ** 2).sum(axis=-1).mean() / (4 * (times[-1] - times[100]))
     assert diffusion == pytest.approx(expected, rel=0.2)
     if v0 == 0:

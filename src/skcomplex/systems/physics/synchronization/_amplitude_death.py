@@ -17,7 +17,7 @@ from scipy import stats
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import CouplingInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..common.oscillators import StuartLandauElement
@@ -82,42 +82,14 @@ class GlobalCouplingInteraction(CouplingInteraction):
         return namespace.K * (getattr(namespace.other, self.state) - getattr(namespace.member, self.state))
 
 
-def _amplitude(member: SimpleNamespace) -> Expression:
+def _get_amplitude(member: SimpleNamespace) -> Expression:
     """Return the amplitude `|z|` of an oscillator."""
     return sqrt(member.x**2 + member.y**2)
 
 
-def _order(s: SimpleNamespace) -> Expression:
+def _get_order(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean field `X + iY`."""
     return sqrt(s.X**2 + s.Y**2)
-
-
-def _time_scale_deviation_x(member: SimpleNamespace) -> Expression:
-    """Return the time scale deviation from its mean 1 times the first variable."""
-    return (member.tau - 1) * member.x
-
-
-def _time_scale_deviation_y(member: SimpleNamespace) -> Expression:
-    """Return the time scale deviation from its mean 1 times the second variable."""
-    return (member.tau - 1) * member.y
-
-
-def _quartic_cumulative(t: np.ndarray) -> np.ndarray:
-    """Return the cumulative distribution of a quartic density.
-
-    The density is proportional to `1 / (t⁴ + 1)`.
-    """
-    root = math.sqrt(2)
-    antiderivative = np.log((t**2 + root * t + 1) / (t**2 - root * t + 1)) + 2 * (
-        np.arctan(root * t + 1) + np.arctan(root * t - 1)
-    )
-    return 1 / 2 + antiderivative / (4 * math.pi)
-
-
-def _spread_on_circle(size: int, random_state: int | np.random.Generator | None) -> tuple[np.ndarray, np.ndarray]:
-    """Return points of the unit circle at phases drawn uniformly."""
-    phases = np.random.default_rng(random_state).uniform(0, 2 * math.pi, size)
-    return np.cos(phases), np.sin(phases)
 
 
 class OscillatorDeathSystem(BaseSystem):
@@ -168,11 +140,29 @@ class OscillatorDeathSystem(BaseSystem):
     until = 20.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _amplitude, group='oscillators'),
+        ObservableSpec('amplitude', _get_amplitude, group='oscillators'),
         ObservableSpec('X', group='oscillators', variable='x'),
         ObservableSpec('Y', group='oscillators', variable='y'),
-        ObservableSpec('order', _order),
+        ObservableSpec('order', _get_order),
     )
+
+    @staticmethod
+    def _get_quartic_cumulative(t: np.ndarray) -> np.ndarray:
+        """Return the cumulative distribution of a quartic density.
+
+        The density is proportional to `1 / (t⁴ + 1)`.
+        """
+        root = math.sqrt(2)
+        antiderivative = np.log((t**2 + root * t + 1) / (t**2 - root * t + 1)) + 2 * (
+            np.arctan(root * t + 1) + np.arctan(root * t - 1)
+        )
+        return 1 / 2 + antiderivative / (4 * math.pi)
+
+    @staticmethod
+    def _spread_on_circle(size: int, random_state: int | np.random.Generator | None) -> tuple[np.ndarray, np.ndarray]:
+        """Return points of the unit circle at phases drawn uniformly."""
+        phases = np.random.default_rng(random_state).uniform(0, 2 * math.pi, size)
+        return np.cos(phases), np.sin(phases)
 
     def __init__(
         self,
@@ -192,7 +182,7 @@ class OscillatorDeathSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
+    def _get_frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
         """Return the midpoint quantiles of a density of frequencies of a given width.
 
         The density is Lorentzian or quartic.
@@ -202,21 +192,21 @@ class OscillatorDeathSystem(BaseSystem):
             return width * stats.cauchy.ppf(levels)
         if distribution == 'quartic':
             grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
-            return width * np.interp(levels, _quartic_cumulative(grid), grid)
+            return width * np.interp(levels, OscillatorDeathSystem._get_quartic_cumulative(grid), grid)
         message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
         raise ValidationError(message)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        omegas = self._frequency_quantiles(self.n_oscillators, self.width, self.distribution)
-        x, y = _spread_on_circle(self.n_oscillators, self.random_state)
+        omegas = self._get_frequency_quantiles(self.n_oscillators, self.width, self.distribution)
+        x, y = OscillatorDeathSystem._spread_on_circle(self.n_oscillators, self.random_state)
         oscillators = GroupElement(
             'oscillators',
             element=StuartLandauElement,
             size=self.n_oscillators,
             values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[oscillators],
             interactions=[
@@ -224,6 +214,16 @@ class OscillatorDeathSystem(BaseSystem):
                 for state in 'xy'
             ],
         )
+
+
+def _get_time_scale_deviation_x(member: SimpleNamespace) -> Expression:
+    """Return the time scale deviation from its mean 1 times the first variable."""
+    return (member.tau - 1) * member.x
+
+
+def _get_time_scale_deviation_y(member: SimpleNamespace) -> Expression:
+    """Return the time scale deviation from its mean 1 times the second variable."""
+    return (member.tau - 1) * member.y
 
 
 class HeterogeneousGlobalCouplingSystem(BaseSystem):
@@ -274,11 +274,11 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
     until = 40.0
     dt = 0.2
     observables = (
-        ObservableSpec('amplitude', _amplitude, group='systems'),
+        ObservableSpec('amplitude', _get_amplitude, group='systems'),
         ObservableSpec('X', group='systems', variable='x'),
         ObservableSpec('Y', group='systems', variable='y'),
-        ObservableSpec('V', _time_scale_deviation_x, group='systems'),
-        ObservableSpec('W', _time_scale_deviation_y, group='systems'),
+        ObservableSpec('V', _get_time_scale_deviation_x, group='systems'),
+        ObservableSpec('W', _get_time_scale_deviation_y, group='systems'),
     )
 
     def __init__(
@@ -300,10 +300,10 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
         self.heterogeneity = heterogeneity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
-        x, y = _spread_on_circle(self.n_systems, self.random_state)
+        x, y = OscillatorDeathSystem._spread_on_circle(self.n_systems, self.random_state)
         radius = math.sqrt(abs(self.beta))
         systems = GroupElement(
             'systems',
@@ -311,7 +311,7 @@ class HeterogeneousGlobalCouplingSystem(BaseSystem):
             size=self.n_systems,
             values={'x': radius * x, 'y': radius * y, 'mu': self.beta, 'omega': self.gamma, 'tau': taus},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[systems],
             interactions=[

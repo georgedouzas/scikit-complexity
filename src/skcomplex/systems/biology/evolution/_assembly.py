@@ -17,7 +17,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import shift_member
 from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -216,7 +216,7 @@ class PolymerJoiningInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.agents(self.polymers, PolymerView)
+        pool = system.get_agents(self.polymers, PolymerView)
         partner = pool[int(system.rng.integers(len(pool)))]
         if self.mode == 'directed':
             first = max(pool, key=lambda polymer: polymer.born)
@@ -275,7 +275,7 @@ class AssemblyGrowthSystem(BaseSystem):
         self.k = k
         self.alpha = alpha
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the numbers of objects at successive assembly indices."""
         group = GroupElement(
             'levels',
@@ -283,7 +283,7 @@ class AssemblyGrowthSystem(BaseSystem):
             size=self.levels,
             values={'k': self.k, 'alpha': self.alpha},
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])
 
 
 class PolymerAssemblyPoolSystem(BaseSystem):
@@ -328,10 +328,10 @@ class PolymerAssemblyPoolSystem(BaseSystem):
         self.mode = mode
         self.capacity = capacity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         pool = GroupElement('pool', element=PolymerElement, size=1, variable=True, capacity=self.capacity)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[pool],
             interactions=[PolymerJoiningInteraction('joining', polymers='pool', mode=self.mode)],

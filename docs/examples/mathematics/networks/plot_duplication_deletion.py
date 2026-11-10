@@ -28,15 +28,16 @@ def connectance(inherit, n_nodes=100, until=4000):
     system = DuplicationDeletionSystem(n_nodes=n_nodes, inherit=inherit)
     run = simulate(system, until=until, random_state=0)
     steps = np.arange(0, until + 1, 40)
-    links = np.array([len(run.network(int(step)).sources) for step in steps])
+    links = np.array([len(run.get_network(int(step)).sources) for step in steps])
     return steps, links / (n_nodes * (n_nodes - 1) / 2)
 
 
 # %%
 # Steady connectance
 # ------------------
-# The connectance should relax to Eq. 8.84 of Jensen, `C = (new (N - 2) + parent) / (N - 1 + (new - inherit)
-# (N - 2))`, from any starting network, at a level that rises with the fidelity `inherit` of the duplication.
+# The connectance should relax to Eq. 8.84 of Jensen,
+# `C = (new (N - 2) + parent) / (N - 1 + (new - inherit) (N - 2))`, from any starting network, at a level that rises
+# with the fidelity `inherit` of the duplication.
 
 fig, axis = plt.subplots(figsize=(6, 4))
 for index, inherit in enumerate((0.3, 0.5, 0.7)):

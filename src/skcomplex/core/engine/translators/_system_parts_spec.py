@@ -1,7 +1,4 @@
-"""Define the parts of a stock-and-flow system that a file declares.
-
-They are sorted by what they become.
-"""
+"""Define the parts of a stock-and-flow system that a file declares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -201,7 +198,7 @@ class _SystemPartsSpec(BaseSpec):
         visiting.remove(name)
         ordered.append(name)
 
-    def order_auxiliaries(self, problems: list[str]) -> list[str]:
+    def get_order_auxiliaries(self, problems: list[str]) -> list[str]:
         """Return the auxiliaries so that each comes after those it reads.
 
         It collects those that read themselves.

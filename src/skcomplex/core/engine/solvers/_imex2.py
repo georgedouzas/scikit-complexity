@@ -1,7 +1,4 @@
-"""Crank-Nicolson Adams-Bashforth scheme of second order.
-
-It has a trapezoidal linear part and an extrapolated remainder.
-"""
+"""Crank-Nicolson Adams-Bashforth scheme of second order."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,11 +8,14 @@ from ._split import SplitSolver
 
 
 class IMEX2Solver(SplitSolver):
-    """Crank-Nicolson Adams-Bashforth scheme of second order.
+    """A solver of second order that steps stiff parts implicitly, the rest explicitly.
 
     It has a trapezoidal linear part and an extrapolated remainder. Every step solves `(I - h L / 2) x_{n+1} = (I + h L
     / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one Crank-Nicolson step with an Euler remainder. A call that does
     not continue the time, state, and step of the previous call starts the scheme again.
+
+    Choose it for fields with stiff diffusion and nonlinear reactions. It appears in reaction diffusion models, such as
+    the Gray-Scott and FitzHugh-Nagumo equations.
 
     Args:
         dt:
@@ -34,13 +34,13 @@ class IMEX2Solver(SplitSolver):
         """
         self._previous: Array | None = None
 
-    def _built(self, p: Array) -> None:
+    def _check_built(self, p: Array) -> None:
         """Forget the previous remainder when the linear part changes."""
         self._forget()
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:
         """Return the state after one Crank-Nicolson Adams-Bashforth step."""
-        remainder = self._remainder(t, x, p)
+        remainder = self._get_remainder(t, x, p)
         extrapolated = remainder if self._previous is None else 1.5 * remainder - 0.5 * self._previous
         self._previous = remainder
-        return self._solve_linear(h / 2, x + h / 2 * self._linear(x) + h * extrapolated)
+        return self._solve_linear(h / 2, x + h / 2 * self._get_linear(x) + h * extrapolated)

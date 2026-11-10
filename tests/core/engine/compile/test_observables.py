@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw
 from skcomplex.core.components.laws.utils import inverse_helmholtz, total
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -20,6 +20,7 @@ from skcomplex.core.errors import RoleError
 from skcomplex.core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems import all_systems
 from skcomplex.systems.biology.common.populations import PopulationElement
+from skcomplex.systems.economics.resources import HarvestingSystem
 from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
 from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
 
@@ -98,7 +99,7 @@ def test_reductions_agree_with_observables(system_class):
         for index, path in enumerate(paths)
     ]
     nested = [dataclasses.replace(observable, label=f'system/{observable.label}') for observable in observables]
-    system = System(elements=probes, systems=[observed], interactions=readers)
+    system = CompositeSystem(elements=probes, systems=[observed], interactions=readers)
     problem = PassCompiler(backend=NumpyBackend(), observables=nested).prepare(system).run().problem_
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
@@ -106,7 +107,7 @@ def test_reductions_agree_with_observables(system_class):
     frame = x if problem.algebraic is None else problem.algebraic(0.0, x, p)
     recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, frame, p, agents_of=lambda group: [])
     for index, path in enumerate(paths):
-        value = rates[problem.states.entry(f'probe_{index}.y').start]
+        value = rates[problem.states.get_entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'system/{path}']), rel=1e-12, abs=1e-12)
 
 
@@ -119,14 +120,14 @@ def test_laws_read_an_observable_of_time():
         for item in QuarterCarSystem().get_run_settings()['observables']
     ]
     reader = ReadInteraction('read', probe='probe', source='system/energy')
-    system = System(elements=[ObservedValueElement('probe')], systems=[observed], interactions=[reader])
+    system = CompositeSystem(elements=[ObservedValueElement('probe')], systems=[observed], interactions=[reader])
     problem = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
     reading = next((item.problem for item in problem.partitions if 'probe' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(1.0, x, p)
     recorded = ObservableEvaluator(problem).prepare().evaluate(1.0, x, p, agents_of=lambda group: [])
     assert recorded['system/energy'] > 0
-    assert rates[problem.states.entry('probe.y').start] == pytest.approx(recorded['system/energy'], rel=1e-12)
+    assert rates[problem.states.get_entry('probe.y').start] == pytest.approx(recorded['system/energy'], rel=1e-12)
 
 
 def test_function_observable_reads_the_names_of_its_own_system():
@@ -137,7 +138,12 @@ def test_function_observable_reads_the_names_of_its_own_system():
     expected = ObservableEvaluator(alone).prepare().evaluate(0.0, alone.initial_state, alone.initial_parameters)
     system.label = 'system'
     nested = [dataclasses.replace(item, label=f'system/{item.label}') for item in observables]
-    problem = PassCompiler(backend=NumpyBackend(), observables=nested).prepare(System(systems=[system])).run().problem_
+    problem = (
+        PassCompiler(backend=NumpyBackend(), observables=nested)
+        .prepare(CompositeSystem(systems=[system]))
+        .run()
+        .problem_
+    )
     recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert recorded['system/mean_plaquette'] == pytest.approx(expected['mean_plaquette'])
 
@@ -182,7 +188,7 @@ class MixedReductionInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a rate that reads the reduction the interaction tests."""
-        return [RateLaw(s.target.n, total(s.first.wealth + s.second.wealth))]
+        return [RateLaw(s.target.x, total(s.first.wealth + s.second.wealth))]
 
 
 class ForeignReductionInteraction(Interaction):
@@ -201,20 +207,20 @@ class ForeignReductionInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return a rate that reduces the wealth of the agents times the target."""
-        return [RateLaw(s.target.n, total(s.first.wealth * s.target.n))]
+        return [RateLaw(s.target.x, total(s.first.wealth * s.target.x))]
 
 
 def _village(interaction):
     """Return a land and a village of two agent groups, coupled by an interaction."""
-    village = System(
+    village = CompositeSystem(
         'village',
         elements=[
             GroupElement('a', element=WealthyElement, size=2),
             GroupElement('b', element=WealthyElement, size=2),
         ],
     )
-    land = System('land', elements=[PopulationElement('soil')])
-    return System(systems=[land, village], interactions=[interaction])
+    land = CompositeSystem('land', elements=[PopulationElement('soil')])
+    return CompositeSystem(systems=[land, village], interactions=[interaction])
 
 
 def test_held_reduction_reads_one_group():
@@ -230,7 +236,7 @@ def test_held_reduction_reads_only_agents():
     interaction = ForeignReductionInteraction('foreign', target='land/soil', first='village/a')
     (issue,) = PassCompiler().prepare(_village(interaction)).report_.errors
     assert issue.code == 'reduction'
-    assert 'n_land_soil' in issue.message
+    assert 'x_land_soil' in issue.message
 
 
 def _field_streamfunction(s):
@@ -255,8 +261,21 @@ def test_observable_evaluator_lowers_field_operators():
     space = LatticeSpace(8, boundary='fixed')
     field = FieldElement('field', element=SiteElement, space=space, values={'u': values}, boundary={'u': ('fixed', 0)})
     observable = ObservableSpec('psi', _field_streamfunction, group='field', reduce=_field_values)
-    problem = PassCompiler(observables=[observable]).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(observables=[observable]).prepare(CompositeSystem(elements=[field])).run().problem_
     evaluator = ObservableEvaluator(problem).prepare()
     psi = evaluator.evaluate(0.0, problem.initial_state, problem.initial_parameters)['psi']
     stencil = np.diff(np.concatenate([[0.0], psi, [0.0]]), 2)
     np.testing.assert_allclose(stencil, values, atol=1e-12)
+
+
+def test_observable_evaluator_get_namespace_of():
+    """Test `ObservableEvaluator._get_namespace_of` on a small case."""
+    system = CompositeSystem(elements=[PopulationElement('rabbits')])
+    problem = PassCompiler().prepare(system).run().problem_
+    assert str(ObservableEvaluator._get_namespace_of(problem).rabbits.x) == 'x_rabbits'
+
+
+def test_observable_evaluator_get_held_reductions_of():
+    """Test `ObservableEvaluator._get_held_reductions_of` on a small case."""
+    problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
+    assert [path for path, _ in ObservableEvaluator._get_held_reductions_of(problem)] == ['village/farmers_count']

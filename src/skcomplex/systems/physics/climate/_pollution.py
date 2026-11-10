@@ -7,170 +7,58 @@ The births, deaths, food, and quality of life of a population suffer from its po
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import lookup
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.laws.utils import series
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
-ABSORPTION_TIME = ((0.0, 0.6), (10.0, 2.5), (20.0, 5.0), (30.0, 8.0), (40.0, 11.5), (50.0, 15.5), (60.0, 20.0))
-BIRTHS_FROM_FOOD = ((0.0, 0.0), (1.0, 1.0), (2.0, 1.6), (3.0, 1.9), (4.0, 2.0))
-BIRTHS_FROM_POLLUTION = ((0.0, 1.02), (10.0, 0.9), (20.0, 0.7), (30.0, 0.4), (40.0, 0.25), (50.0, 0.15), (60.0, 0.1))
-DEATHS_FROM_FOOD = (
-    (0.0, 30.0),
-    (0.25, 3.0),
-    (0.5, 2.0),
-    (0.75, 1.4),
-    (1.0, 1.0),
-    (1.25, 0.7),
-    (1.5, 0.6),
-    (1.75, 0.5),
-    (2.0, 0.5),
-)
-DEATHS_FROM_POLLUTION = ((0.0, 0.92), (10.0, 1.3), (20.0, 3.3), (30.0, 4.8), (40.0, 6.8), (50.0, 9.2), (60.0, 9.5))
-FOOD_FROM_POLLUTION = ((0.0, 1.02), (10.0, 0.9), (20.0, 0.65), (30.0, 0.35), (40.0, 0.2), (50.0, 0.1), (60.0, 0.05))
-CROPPING_INTENSITY = ((0.0, 1.75), (10.0, 1.8), (20.0, 1.9), (30.0, 2.0), (40.0, 2.3), (50.0, 2.5))
-LIFE_FROM_FOOD = ((0.0, 0.0), (1.0, 1.0), (2.0, 1.8), (3.0, 2.4), (4.0, 2.7))
-LIFE_FROM_POLLUTION = ((0.0, 1.05), (10.0, 0.85), (20.0, 0.6), (30.0, 0.3), (40.0, 0.15), (50.0, 0.05), (60.0, 0.02))
+ABSORPTION_TIME = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (0.6, 2.5, 5.0, 8.0, 11.5, 15.5, 20.0))
+BIRTHS_FROM_FOOD = ((0.0, 1.0, 2.0, 3.0, 4.0), (0.0, 1.0, 1.6, 1.9, 2.0))
+BIRTHS_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.02, 0.9, 0.7, 0.4, 0.25, 0.15, 0.1))
+DEATHS_FROM_FOOD = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0), (30.0, 3.0, 2.0, 1.4, 1.0, 0.7, 0.6, 0.5, 0.5))
+DEATHS_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (0.92, 1.3, 3.3, 4.8, 6.8, 9.2, 9.5))
+FOOD_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.02, 0.9, 0.65, 0.35, 0.2, 0.1, 0.05))
+CROPPING_INTENSITY = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0), (1.75, 1.8, 1.9, 2.0, 2.3, 2.5))
+LIFE_FROM_FOOD = ((0.0, 1.0, 2.0, 3.0, 4.0), (0.0, 1.0, 1.8, 2.4, 2.7))
+LIFE_FROM_POLLUTION = ((0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0), (1.05, 0.85, 0.6, 0.3, 0.15, 0.05, 0.02))
 
 
-class PollutedRegionElement(Element):
-    """Population of a region and the pollution it generates.
+def _get_food_per_capita(s: SimpleNamespace) -> Expression:
+    """Return the food per capita."""
+    return _get_food(s, s.t)
 
-    The environment absorbs the pollution ever more slowly.
 
-    The pollution grows by `pollution_normal` per person and is absorbed over a time that a table lengthens with the
-    pollution ratio, the pollution over its standard. The births and the deaths are the normal rates times table
-    multipliers of the food ratio, the food per capita over the subsistence food, and of the pollution ratio. The food
-    is the cultivated land times the yield, a cropping intensity that a table raises over time, and a table
-    multiplier of the pollution ratio.
+def _get_quality_of_life(s: SimpleNamespace) -> Expression:
+    """Return the quality of life.
 
-    Args:
-        label:
-            The label of the region.
-
-        visual:
-            How the region is drawn, or `None` for `default_visual_`.
-
-        population:
-            The initial population.
-
-        pollution:
-            The initial pollution.
-
-        pollution_normal:
-            The pollution one person generates per year.
-
-        pollution_standard:
-            The pollution that the pollution ratio divides by.
-
-        birth_normal:
-            The normal birth rate per year.
-
-        death_normal:
-            The normal death rate per year.
-
-        subsistence_food:
-            The food per capita that the food ratio divides by.
-
-        cultivated_land:
-            The cultivated land.
-
-        crop_yield:
-            The yield of the land per crop.
-
-    Attributes:
-        default_visual_:
-            The visual of the region when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import PollutedRegionElement
-        >>> PollutedRegionElement('region').birth_normal
-        0.04
+    It is the product of the table multipliers of the food and the pollution ratios.
     """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e8,
-        pollution: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e7,
-        pollution_normal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        pollution_standard: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5e7,
-        birth_normal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
-        death_normal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.028,
-        subsistence_food: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 180.0,
-        cultivated_land: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 7.4e6,
-        crop_yield: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2200.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.population = population
-        self.pollution = pollution
-        self.pollution_normal = pollution_normal
-        self.pollution_standard = pollution_standard
-        self.birth_normal = birth_normal
-        self.death_normal = death_normal
-        self.subsistence_food = subsistence_food
-        self.cultivated_land = cultivated_land
-        self.crop_yield = crop_yield
-
-    @staticmethod
-    def _pollution_ratio(s: SimpleNamespace) -> Expression:
-        """Return the pollution ratio, the pollution over its standard."""
-        return s.pollution / s.pollution_standard
-
-    @staticmethod
-    def _food_per_capita(s: SimpleNamespace) -> Expression:
-        """Return the food per capita.
-
-        The food follows from the land, the yield, the cropping intensity, and the pollution.
-        """
-        ratio = PollutedRegionElement._pollution_ratio(s)
-        intensity = lookup(s.t, CROPPING_INTENSITY)
-        food = s.cultivated_land * s.crop_yield * intensity * lookup(ratio, FOOD_FROM_POLLUTION)
-        return food / s.population
-
-    @staticmethod
-    def _quality_of_life(s: SimpleNamespace) -> Expression:
-        """Return the quality of life.
-
-        It is the product of the table multipliers of the food and the pollution ratios.
-        """
-        food_ratio = PollutedRegionElement._food_per_capita(s) / s.subsistence_food
-        ratio = PollutedRegionElement._pollution_ratio(s)
-        return lookup(food_ratio, LIFE_FROM_FOOD) * lookup(ratio, LIFE_FROM_POLLUTION)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of the population and the pollution.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the two stocks.
-        """
-        ratio = self._pollution_ratio(s)
-        food_ratio = self._food_per_capita(s) / s.subsistence_food
-        births = s.birth_normal * lookup(food_ratio, BIRTHS_FROM_FOOD) * lookup(ratio, BIRTHS_FROM_POLLUTION)
-        deaths = s.death_normal * lookup(food_ratio, DEATHS_FROM_FOOD) * lookup(ratio, DEATHS_FROM_POLLUTION)
-        absorption = s.pollution / lookup(ratio, ABSORPTION_TIME)
-        return [
-            RateLaw(s.population, s.population * (births - deaths)),
-            RateLaw(s.pollution, s.pollution_normal * s.population - absorption),
-        ]
+    food_ratio = _get_food_per_capita(s) / s.subsistence_food
+    ratio = _get_pollution_ratio(s)
+    return series(food_ratio, *LIFE_FROM_FOOD) * series(ratio, *LIFE_FROM_POLLUTION)
 
 
-class PopulationPollutionSystem(BaseSystem):
+def _get_food(region: SimpleNamespace, t: Expression) -> Expression:
+    """Return the food per capita at a time.
+
+    The food follows from the land, the yield, the cropping intensity, and the pollution.
+    """
+    ratio = _get_pollution_ratio(region)
+    intensity = series(t, *CROPPING_INTENSITY)
+    food = region.cultivated_land * region.crop_yield * intensity * series(ratio, *FOOD_FROM_POLLUTION)
+    return food / region.population
+
+
+def _get_pollution_ratio(region: SimpleNamespace) -> Expression:
+    """Return the pollution ratio, the pollution over its standard."""
+    return region.pollution / region.pollution_standard
+
+
+class PopulationPollutionSystem(DynamicalSystem):
     """The pollution model of Bala, Arshad, and Noh.
 
     A population degrades its environment.
@@ -208,7 +96,7 @@ class PopulationPollutionSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import PopulationPollutionSystem
-        >>> PopulationPollutionSystem(pollution_normal=0.5).prepare().system_.elements[0].pollution_normal
+        >>> PopulationPollutionSystem(pollution_normal=0.5).prepare().system_.elements[0].get_value('pollution_normal')
         0.5
     """
 
@@ -218,8 +106,8 @@ class PopulationPollutionSystem(BaseSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('food_per_capita', PollutedRegionElement._food_per_capita, element='region'),
-        ObservableSpec('quality_of_life', PollutedRegionElement._quality_of_life, element='region'),
+        ObservableSpec('food_per_capita', _get_food_per_capita, element='region'),
+        ObservableSpec('quality_of_life', _get_quality_of_life, element='region'),
     )
 
     def __init__(
@@ -233,7 +121,7 @@ class PopulationPollutionSystem(BaseSystem):
         death_normal: float = 0.028,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.population = population
         self.pollution = pollution
         self.pollution_normal = pollution_normal
@@ -241,18 +129,47 @@ class PopulationPollutionSystem(BaseSystem):
         self.birth_normal = birth_normal
         self.death_normal = death_normal
 
-    def _build_system(self) -> System:
-        """Return the pollution model of Bala, Arshad, and Noh.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'region'
 
-        A population degrades its environment.
-        """
-        region = PollutedRegionElement(
-            'region',
-            population=self.population,
-            pollution=self.pollution,
-            pollution_normal=self.pollution_normal,
-            pollution_standard=self.pollution_standard,
-            birth_normal=self.birth_normal,
-            death_normal=self.death_normal,
-        )
-        return System(self.label, elements=[region])
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'population': DeclaredVariableSpec(self.population, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'pollution': DeclaredVariableSpec(self.pollution, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'pollution_normal': DeclaredVariableSpec(
+                self.pollution_normal,
+                ParameterSpec(domain=RealSet.closed_open(0, oo)),
+            ),
+            'pollution_standard': DeclaredVariableSpec(
+                self.pollution_standard,
+                ParameterSpec(domain=RealSet.open(0, oo)),
+            ),
+            'birth_normal': DeclaredVariableSpec(self.birth_normal, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'death_normal': DeclaredVariableSpec(self.death_normal, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'subsistence_food': DeclaredVariableSpec(180.0, ParameterSpec(domain=RealSet.open(0, oo))),
+            'cultivated_land': DeclaredVariableSpec(7.4e6, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'crop_yield': DeclaredVariableSpec(2200.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the flows of the population and the pollution."""
+        return {'population': self._get_population_rate, 'pollution': self._get_pollution_rate}
+
+    @staticmethod
+    def _get_population_rate(s: SimpleNamespace) -> Expression:
+        """Return the births minus the deaths of the population."""
+        region = s.target
+        ratio = _get_pollution_ratio(region)
+        food_ratio = _get_food(region, s.t) / region.subsistence_food
+        births = region.birth_normal * series(food_ratio, *BIRTHS_FROM_FOOD) * series(ratio, *BIRTHS_FROM_POLLUTION)
+        deaths = region.death_normal * series(food_ratio, *DEATHS_FROM_FOOD) * series(ratio, *DEATHS_FROM_POLLUTION)
+        return region.population * (births - deaths)
+
+    @staticmethod
+    def _get_pollution_rate(s: SimpleNamespace) -> Expression:
+        """Return the generation minus the absorption of the pollution."""
+        region = s.target
+        absorption = region.pollution / series(_get_pollution_ratio(region), *ABSORPTION_TIME)
+        return region.pollution_normal * region.population - absorption

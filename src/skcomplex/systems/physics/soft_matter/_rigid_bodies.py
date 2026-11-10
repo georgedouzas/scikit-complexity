@@ -1,6 +1,9 @@
 """Rigid Brownian bodies.
 
 The module covers axisymmetric particles in three dimensions and dimers of two spheres on a rod.
+
+`AXES` holds the names of the coordinates of the position. `DIRECTIONS` holds the names of the components of the unit
+vector along the axis.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -17,16 +20,13 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 AXES = ('x', 'y', 'z')
-"""The names of the coordinates of the position."""
-
 DIRECTIONS = ('ux', 'uy', 'uz')
-"""The names of the components of the unit vector along the axis."""
 
 
 class AnisotropicParticleElement(Element):
@@ -350,7 +350,7 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         self.D_c = D_c
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return overdamped axisymmetric Brownian particles in three dimensions.
 
         The particles translate and rotate.
@@ -373,7 +373,7 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
             'D_c': self.D_c,
         }
         particles = GroupElement('particles', element=AnisotropicParticleElement, size=self.n_particles, values=values)
-        return System(self.label, elements=[particles])
+        return CompositeSystem(self.label, elements=[particles])
 
 
 class RigidDimersSystem(BaseSystem):
@@ -445,7 +445,7 @@ class RigidDimersSystem(BaseSystem):
         self.D_r = D_r
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return colloidal molecules.
 
         Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
@@ -463,4 +463,4 @@ class RigidDimersSystem(BaseSystem):
             'D_r': self.D_r,
         }
         dimers = GroupElement('dimers', element=DimerElement, size=self.n_dimers, values=values)
-        return System(self.label, elements=[dimers], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[dimers], space=ContinuousSpace(n_dim=2))

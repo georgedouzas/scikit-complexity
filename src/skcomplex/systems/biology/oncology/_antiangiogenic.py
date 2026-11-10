@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 import math
 from types import SimpleNamespace
 from typing import Annotated
@@ -12,16 +11,17 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import logistic, pulse_train
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
+from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
 INHIBITOR_CLEARANCE = math.log(2) / 3.9
-
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
@@ -125,261 +125,6 @@ class AngiogenicTumourElement(Element):
         self.start = start
 
 
-class VascularizedSpheroidElement(Element):
-    """Tumour spheroid with a live core, a live periphery, and a necrotic core.
-
-    The core and the periphery each have their own vasculature.
-
-    The radius grows as `dAr/dt = r1 g(Ap / Vp)`, with `g` a sigmoid of the peripheral cell density. The core volume
-    `Vc = 4/3 pi (dc Ar)^3` and the periphery `Vp = 4/3 pi Ar^3 - Vc` follow from the radius and the core-periphery
-    ratio `dc(Ar)`. The increments of the radius, the core volume, and the tumour volume are read as rates, so
-    `dAr = dAr/dt`, `dVc = 4/3 pi (dc (Ar + dAr))^3 - Vc` and `dVt = 4/3 pi ((Ar + dAr)^3 - Ar^3)` are per unit
-    time. Peripheral cells pass to the core at the rate `dVc / Vp`, proliferate with the nutrient `Vbp / (Vp rv_ref)`
-    and the density, and core cells die by necrosis when the core nutrient `Vbc / (Vc rv_ref)` is low. The vasculature
-    grows by tumour angiogenic factor, which the inhibitor `U` lowers by `exp(-xi_e U)`, the periphery takes in
-    external vasculature of density `Vx` as the tumour grows, and peripheral vessels pass to the core.
-
-    Args:
-        label:
-            The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        Ar:
-            The initial radius.
-
-        Ac:
-            The initial number of live core cells.
-
-        Ap:
-            The initial number of live peripheral cells.
-
-        An:
-            The initial number of necrotic cells.
-
-        Vbc:
-            The initial vascular volume of the core.
-
-        Vbp:
-            The initial vascular volume of the periphery.
-
-        U:
-            The initial concentration of the inhibitor.
-
-        r1:
-            The growth rate of the radius.
-
-        r2:
-            The proliferation rate of the peripheral cells.
-
-        r3:
-            The rate at which peripheral vessels pass to the core.
-
-        m:
-            The necrosis rate of the core cells.
-
-        a1:
-            The angiogenesis rate.
-
-        p1:
-            The peripheral nutrient at half proliferation.
-
-        p2:
-            The peripheral density at half proliferation.
-
-        p3:
-            The core nutrient at half necrosis.
-
-        p4:
-            The core nutrient at half angiogenic factor production.
-
-        p_g:
-            The peripheral density at half the radial growth.
-
-        kappa1:
-            The width of the nutrient switch of proliferation.
-
-        kappa2:
-            The width of the density switch of proliferation, negative so that crowding stops it.
-
-        kappa3:
-            The width of the necrosis switch, negative so that starvation causes it.
-
-        kappa4:
-            The width of the angiogenic factor switch, negative so that starvation causes it.
-
-        kappa_g:
-            The width of the density switch of the radial growth.
-
-        theta1:
-            The exponent of the necrosis switch.
-
-        theta2:
-            The exponent of the angiogenic factor switch.
-
-        beta:
-            The exponent of the radius in the passage of vessels to the core.
-
-        xi_e:
-            The efficiency of the inhibitor.
-
-        rv_ref:
-            The reference vascular fraction that supports tumour cells.
-
-        Vx:
-            The vascular density of the surrounding tissue.
-
-        du:
-            The clearance rate of the inhibitor.
-
-        dose:
-            The infusion rate during a dose.
-
-        period:
-            The time between the starts of doses.
-
-        width:
-            The duration of a dose.
-
-        start:
-            The time of the first dose.
-
-    Examples:
-        >>> from skcomplex.systems.biology.oncology import VascularizedSpheroidElement
-        >>> VascularizedSpheroidElement('tumour').Ap
-        495.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        Ar: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 13.0,
-        Ac: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 495.0,
-        An: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Vbc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Vbp: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        p1: Annotated[float, ParameterSpec()] = 1.0,
-        p2: Annotated[float, ParameterSpec()] = 400000.0,
-        p3: Annotated[float, ParameterSpec()] = 0.2,
-        p4: Annotated[float, ParameterSpec()] = 0.45,
-        p_g: Annotated[float, ParameterSpec()] = 400000.0,
-        kappa1: Annotated[float, ParameterSpec()] = 0.17,
-        kappa2: Annotated[float, ParameterSpec()] = -45000.0,
-        kappa3: Annotated[float, ParameterSpec()] = -0.04,
-        kappa4: Annotated[float, ParameterSpec()] = -0.06,
-        kappa_g: Annotated[float, ParameterSpec()] = 55000.0,
-        theta1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        theta2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        xi_e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        rv_ref: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
-        Vx: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = INHIBITOR_CLEARANCE,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        period: float = 7.0,
-        width: float = 1.0,
-        start: float = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.Ar = Ar
-        self.Ac = Ac
-        self.Ap = Ap
-        self.An = An
-        self.Vbc = Vbc
-        self.Vbp = Vbp
-        self.U = U
-        self.r1 = r1
-        self.r2 = r2
-        self.r3 = r3
-        self.m = m
-        self.a1 = a1
-        self.p1 = p1
-        self.p2 = p2
-        self.p3 = p3
-        self.p4 = p4
-        self.p_g = p_g
-        self.kappa1 = kappa1
-        self.kappa2 = kappa2
-        self.kappa3 = kappa3
-        self.kappa4 = kappa4
-        self.kappa_g = kappa_g
-        self.theta1 = theta1
-        self.theta2 = theta2
-        self.beta = beta
-        self.xi_e = xi_e
-        self.rv_ref = rv_ref
-        self.Vx = Vx
-        self.du = du
-        self.dose = dose
-        self.period = period
-        self.width = width
-        self.start = start
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the radius, the balances, and the inhibitor kinetics.
-
-        The balances are the ones of the cells and of the vasculature.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        ratio = VascularizedSpheroidElement._core_ratio(s.Ar)
-        core = VascularizedSpheroidElement._ball(ratio * s.Ar)
-        periphery = VascularizedSpheroidElement._ball(s.Ar) - core
-        density = s.Ap / periphery
-        growth = s.r1 * logistic(density, s.p_g, s.kappa_g)
-        core_increment = VascularizedSpheroidElement._ball(ratio * (s.Ar + growth)) - core
-        volume_increment = VascularizedSpheroidElement._ball(s.Ar + growth) - VascularizedSpheroidElement._ball(s.Ar)
-        transfer = core_increment / periphery
-        core_nutrient = s.Vbc / (core * s.rv_ref)
-        periphery_nutrient = s.Vbp / (periphery * s.rv_ref)
-        necrosis = s.m * logistic(core_nutrient, s.p3, s.kappa3) ** s.theta1 * s.Ac
-        proliferation = s.r2 * logistic(periphery_nutrient, s.p1, s.kappa1) * logistic(density, s.p2, s.kappa2) * s.Ap
-        signal = logistic(core_nutrient, s.p4, s.kappa4) ** s.theta2
-        angiogenesis = s.a1 * exp(-s.xi_e * s.U) * signal * s.Vbp
-        internalization = s.r3 * s.Ar**s.beta * transfer * s.Vbp
-        infusion = s.dose * pulse_train(s.t, self.period, self.width, start=self.start)
-        return [
-            RateLaw(s.Ar, growth),
-            RateLaw(s.Ac, transfer * s.Ap - necrosis),
-            RateLaw(s.Ap, -transfer * s.Ap + proliferation),
-            RateLaw(s.An, necrosis),
-            RateLaw(s.Vbc, internalization + angiogenesis),
-            RateLaw(s.Vbp, s.Vx * volume_increment - internalization + angiogenesis),
-            RateLaw(s.U, infusion - s.du * s.U),
-        ]
-
-    @staticmethod
-    def _ball(radius: Expression) -> Expression:
-        """Return the volume of a ball of a radius."""
-        return 4 * pi * radius**3 / 3
-
-    @staticmethod
-    def _core_ratio(radius: Expression) -> Expression:
-        """Return the core-periphery ratio of a tumour radius.
-
-        The ratio is `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15`.
-        """
-        return logistic(radius, 0.5, 0.333) ** 2.2 - 0.15
-
-
 class HahnfeldtSystem(BaseSystem):
     """The Hahnfeldt system, a tumour whose carrying capacity is its vasculature.
 
@@ -476,7 +221,7 @@ class HahnfeldtSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Hahnfeldt system."""
         tumour = AngiogenicTumourElement(
             'tumour',
@@ -535,10 +280,10 @@ class HahnfeldtSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.U,
             ),
         ]
-        return System(self.label, elements=[tumour], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
 
 
-class VascularCorePeripherySystem(BaseSystem):
+class VascularCorePeripherySystem(DynamicalSystem):
     """A tumour with a live core, a live periphery, and a necrotic core.
 
     Each compartment is fed by its own vasculature.
@@ -581,7 +326,7 @@ class VascularCorePeripherySystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import VascularCorePeripherySystem
-        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].dose
+        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].get_value('dose')
         0.0
     """
 
@@ -604,7 +349,7 @@ class VascularCorePeripherySystem(BaseSystem):
         start: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.Vx = Vx
         self.xi_e = xi_e
         self.du = du
@@ -613,16 +358,147 @@ class VascularCorePeripherySystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> System:
-        """Return the parts of a tumour with a live core."""
-        tumour = VascularizedSpheroidElement(
-            'tumour',
-            Vx=self.Vx,
-            xi_e=self.xi_e,
-            du=self.du,
-            dose=self.dose,
-            period=self.period,
-            width=self.width,
-            start=self.start,
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'tumour'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'Ar': DeclaredVariableSpec(13.0, StateSpec(domain=RealSet.open(0, oo))),
+            'Ac': DeclaredVariableSpec(3.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'Ap': DeclaredVariableSpec(495.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'An': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'Vbc': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'Vbp': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'U': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'r1': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
+            'r2': DeclaredVariableSpec(12.0, ParameterSpec(domain=RealSet.open(0, oo))),
+            'r3': DeclaredVariableSpec(0.06, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'm': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'a1': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'p1': DeclaredVariableSpec(1.0, ParameterSpec()),
+            'p2': DeclaredVariableSpec(400000.0, ParameterSpec()),
+            'p3': DeclaredVariableSpec(0.2, ParameterSpec()),
+            'p4': DeclaredVariableSpec(0.45, ParameterSpec()),
+            'p_g': DeclaredVariableSpec(400000.0, ParameterSpec()),
+            'kappa1': DeclaredVariableSpec(0.17, ParameterSpec()),
+            'kappa2': DeclaredVariableSpec(-45000.0, ParameterSpec()),
+            'kappa3': DeclaredVariableSpec(-0.04, ParameterSpec()),
+            'kappa4': DeclaredVariableSpec(-0.06, ParameterSpec()),
+            'kappa_g': DeclaredVariableSpec(55000.0, ParameterSpec()),
+            'theta1': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
+            'theta2': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
+            'beta': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
+            'xi_e': DeclaredVariableSpec(self.xi_e, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'rv_ref': DeclaredVariableSpec(0.005, ParameterSpec(domain=RealSet.open(0, oo))),
+            'Vx': DeclaredVariableSpec(self.Vx, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'du': DeclaredVariableSpec(self.du, ParameterSpec(domain=RealSet.open(0, oo))),
+            'dose': DeclaredVariableSpec(self.dose, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the growth of the radius, the balances, and the inhibitor kinetics."""
+        return {
+            'Ar': self._get_growth,
+            'Ac': lambda s: self._transfer(s) * s.target.Ap - self._get_necrosis(s),
+            'Ap': lambda s: -self._transfer(s) * s.target.Ap + self._get_proliferation(s),
+            'An': self._get_necrosis,
+            'Vbc': lambda s: self._get_internalization(s) + self._get_angiogenesis(s),
+            'Vbp': lambda s: s.target.Vx * self._get_volume_increment(s)
+            - self._get_internalization(s)
+            + self._get_angiogenesis(s),
+            'U': lambda s: self._get_infusion(s) - s.target.du * s.target.U,
+        }
+
+    def _get_ratio(self, s: SimpleNamespace) -> Expression:
+        """Return `ratio` from the namespace of an equation."""
+        return VascularCorePeripherySystem._get_core_ratio(s.target.Ar)
+
+    def _get_core(self, s: SimpleNamespace) -> Expression:
+        """Return `core` from the namespace of an equation."""
+        return VascularCorePeripherySystem._get_ball(self._get_ratio(s) * s.target.Ar)
+
+    def _get_periphery(self, s: SimpleNamespace) -> Expression:
+        """Return `periphery` from the namespace of an equation."""
+        return VascularCorePeripherySystem._get_ball(s.target.Ar) - self._get_core(s)
+
+    def _get_density(self, s: SimpleNamespace) -> Expression:
+        """Return `density` from the namespace of an equation."""
+        return s.target.Ap / self._get_periphery(s)
+
+    def _get_growth(self, s: SimpleNamespace) -> Expression:
+        """Return `growth` from the namespace of an equation."""
+        return s.target.r1 * logistic(self._get_density(s), s.target.p_g, s.target.kappa_g)
+
+    def _get_core_increment(self, s: SimpleNamespace) -> Expression:
+        """Return `core_increment` from the namespace of an equation."""
+        return VascularCorePeripherySystem._get_ball(
+            self._get_ratio(s) * (s.target.Ar + self._get_growth(s)),
+        ) - self._get_core(s)
+
+    def _get_volume_increment(self, s: SimpleNamespace) -> Expression:
+        """Return `volume_increment` from the namespace of an equation."""
+        return VascularCorePeripherySystem._get_ball(
+            s.target.Ar + self._get_growth(s),
+        ) - VascularCorePeripherySystem._get_ball(
+            s.target.Ar,
         )
-        return System(self.label, elements=[tumour])
+
+    def _transfer(self, s: SimpleNamespace) -> Expression:
+        """Return `transfer` from the namespace of an equation."""
+        return self._get_core_increment(s) / self._get_periphery(s)
+
+    def _get_core_nutrient(self, s: SimpleNamespace) -> Expression:
+        """Return `core_nutrient` from the namespace of an equation."""
+        return s.target.Vbc / (self._get_core(s) * s.target.rv_ref)
+
+    def _get_periphery_nutrient(self, s: SimpleNamespace) -> Expression:
+        """Return `periphery_nutrient` from the namespace of an equation."""
+        return s.target.Vbp / (self._get_periphery(s) * s.target.rv_ref)
+
+    def _get_necrosis(self, s: SimpleNamespace) -> Expression:
+        """Return `necrosis` from the namespace of an equation."""
+        return (
+            s.target.m
+            * logistic(self._get_core_nutrient(s), s.target.p3, s.target.kappa3) ** s.target.theta1
+            * s.target.Ac
+        )
+
+    def _get_proliferation(self, s: SimpleNamespace) -> Expression:
+        """Return `proliferation` from the namespace of an equation."""
+        return (
+            s.target.r2
+            * logistic(self._get_periphery_nutrient(s), s.target.p1, s.target.kappa1)
+            * logistic(self._get_density(s), s.target.p2, s.target.kappa2)
+            * s.target.Ap
+        )
+
+    def _get_signal(self, s: SimpleNamespace) -> Expression:
+        """Return `signal` from the namespace of an equation."""
+        return logistic(self._get_core_nutrient(s), s.target.p4, s.target.kappa4) ** s.target.theta2
+
+    def _get_angiogenesis(self, s: SimpleNamespace) -> Expression:
+        """Return `angiogenesis` from the namespace of an equation."""
+        return s.target.a1 * exp(-s.target.xi_e * s.target.U) * self._get_signal(s) * s.target.Vbp
+
+    def _get_internalization(self, s: SimpleNamespace) -> Expression:
+        """Return `internalization` from the namespace of an equation."""
+        return s.target.r3 * s.target.Ar**s.target.beta * self._transfer(s) * s.target.Vbp
+
+    def _get_infusion(self, s: SimpleNamespace) -> Expression:
+        """Return `infusion` from the namespace of an equation."""
+        return s.target.dose * pulse_train(s.t, self.period, self.width, start=self.start)
+
+    @staticmethod
+    def _get_ball(radius: Expression) -> Expression:
+        """Return the volume of a ball of a radius."""
+        return 4 * pi * radius**3 / 3
+
+    @staticmethod
+    def _get_core_ratio(radius: Expression) -> Expression:
+        """Return the core-periphery ratio of a tumour radius.
+
+        The ratio is `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15`.
+        """
+        return logistic(radius, 0.5, 0.333) ** 2.2 - 0.15

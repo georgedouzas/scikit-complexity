@@ -1,14 +1,8 @@
-"""Define the helpers of agent rules.
-
-They are transfers between agents and the pairings of match laws.
-"""
+"""Define the helpers of agent rules, transfers and the pairs of a step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
-
-import numpy as np
 
 from ....errors import ValidationError
 from ...types import SystemViewProtocol
@@ -58,60 +52,6 @@ def transfer(source: object, sink: object, amount: float, state: str, sink_state
     source_value, sink_value = getattr(source, state), getattr(sink, target)
     setattr(source, state, source_value - amount)
     setattr(sink, target, sink_value + amount)
-
-
-def random_pairing(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Return pairs drawn uniformly at random.
-
-    Each member is in at most `capacity` pairs and never paired with itself.
-
-    Args:
-        left:
-            The members of the first group.
-
-        right:
-            The members of the second group, the same sequence as `left` for pairs within one group.
-
-        rng:
-            The random generator.
-
-        capacity:
-            The largest number of pairs of every member.
-
-    Returns:
-        pairs:
-            The pairs of members.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.components.laws.utils import random_pairing
-        >>> pairs = random_pairing(list(range(5)), list('abc'), np.random.default_rng(0), 1)
-        >>> len(pairs)
-        3
-    """
-    pairs: list[tuple[object, object]] = []
-    seen: set[tuple[int, int]] = set()
-    if left is right:
-        for _ in range(capacity):
-            order = rng.permutation(len(left))
-            for first, second in zip(order[::2], order[1::2], strict=False):
-                key = (min(first, second), max(first, second))
-                if key not in seen:
-                    seen.add(key)
-                    pairs.append((left[first], right[second]))
-        return pairs
-    firsts = rng.permutation(np.repeat(np.arange(len(left)), capacity))
-    seconds = rng.permutation(np.repeat(np.arange(len(right)), capacity))
-    for first, second in zip(firsts, seconds, strict=False):
-        if (first, second) not in seen:
-            seen.add((first, second))
-            pairs.append((left[first], right[second]))
-    return pairs
 
 
 def matches(system: SystemViewProtocol, label: str = 'match') -> list[tuple[object, object]]:

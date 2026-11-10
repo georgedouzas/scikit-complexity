@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.types import AnyArray
@@ -20,11 +20,11 @@ def _run(
 
 def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyArray]:
     """Return the states of a group's agents at a frame."""
-    return trajectory.agents(group, frame).values
+    return trajectory.get_agents(group, frame).values
 
 
 def _run_observed(
-    system: System,
+    system: CompositeSystem,
     until: float,
     observables: Sequence[ObservableSpec] = (),
     invariants: Mapping[str, float] | None = None,

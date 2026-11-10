@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction, MapInteraction
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -279,7 +279,7 @@ class SocialImpactInteraction(MapInteraction):
 
         The agent itself counts from distance 1.
         """
-        agents = [item for item in system.agents('target') if isinstance(item, InfluenceeView)]
+        agents = [item for item in system.get_agents('target') if isinstance(item, InfluenceeView)]
         locations = np.array([item.location for item in agents], dtype=float)
         distances = np.linalg.norm(locations - np.asarray(agent.location, dtype=float), axis=-1)
         distances[[item.id == agent.id for item in agents]] = 1.0
@@ -296,11 +296,6 @@ class SocialImpactInteraction(MapInteraction):
         """
         field = system.rng.uniform(-agent.noise, agent.noise)
         return -agent.opinion if self._get_impact(agent, system) + field > 0 else float(agent.opinion)
-
-
-def _shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return opinions that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(size) < share).astype(float)
 
 
 class PersuasionInteraction(GroupingInteraction):
@@ -353,7 +348,7 @@ class PersuasionInteraction(GroupingInteraction):
         partner = neighbors[int(system.rng.integers(len(neighbors)))]
         if partner.opinion != agent.opinion:
             return
-        for other in [*neighbors, *partner.neighbors()]:
+        for other in [*neighbors, *partner.get_neighbors()]:
             if isinstance(other, PersuaderView):
                 other.opinion = agent.opinion
 
@@ -388,6 +383,11 @@ class SznajdSystem(BaseSystem):
     references = ('Sznajd-Weron and Sznajd 2000', 'Castellano, Fortunato, and Loreto 2009')
     until = 100
 
+    @staticmethod
+    def _get_shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return opinions that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(size) < share).astype(float)
+
     def __init__(
         self,
         graph: object = None,
@@ -401,7 +401,7 @@ class SznajdSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         graph = nx.cycle_graph(50) if graph is None else graph
@@ -410,9 +410,9 @@ class SznajdSystem(BaseSystem):
             'people',
             element=PersuaderElement,
             size=size,
-            values={'opinion': _shares(size, self.share, self.random_state)},
+            values={'opinion': SznajdSystem._get_shares(size, self.share, self.random_state)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[PersuasionInteraction('persuasion', target='people')],
@@ -467,15 +467,15 @@ class GalamMajoritySystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         citizens = GroupElement(
             'citizens',
             element=CitizenElement,
             size=self.n_agents,
-            values={'opinion': _shares(self.n_agents, self.share, self.random_state)},
+            values={'opinion': SznajdSystem._get_shares(self.n_agents, self.share, self.random_state)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[citizens],
             interactions=[DiscussionsInteraction('talks', target='citizens', size=self.group_size)],
@@ -539,7 +539,7 @@ class SocialImpactSystem(BaseSystem):
         self.noise = noise
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -548,7 +548,7 @@ class SocialImpactSystem(BaseSystem):
             element=InfluenceeElement,
             size=size,
             values={
-                'opinion': 2 * _shares(size, self.share, rng) - 1,
+                'opinion': 2 * SznajdSystem._get_shares(size, self.share, rng) - 1,
                 'persuasiveness': rng.random(size),
                 'supportiveness': rng.random(size),
                 'exponent': self.exponent,
@@ -556,7 +556,7 @@ class SocialImpactSystem(BaseSystem):
             },
             location=[(column, row) for column in range(self.width) for row in range(self.height)],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[SocialImpactInteraction('impact', target='people')],

@@ -158,7 +158,7 @@ def test_power_exponent_of_two_mean_field_transitions():
         for coupling in couplings
     ]
     names = orders[0].problem.states.names
-    final = [float(np.abs(trajectory.values(names[0])[-1])) for trajectory in orders]
+    final = [float(np.abs(trajectory.get_values(names[0])[-1])) for trajectory in orders]
     power = _scaling('power', final, parameters=couplings, critical=1.0, above=True)
     assert power.exponent[0] == pytest.approx(0.5, abs=0.05)
     with pytest.raises(AnalysisError, match='chosen side'):

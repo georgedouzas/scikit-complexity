@@ -1,7 +1,4 @@
-"""Compile the stack walks of string rewriting.
-
-They are the bracket-aware contexts and the walk of a word geometry.
-"""
+"""Compile the stack walks of string rewriting."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +8,7 @@ import numpy.typing as npt
 from numba import njit
 
 DRAW, MOVE, LEFT, RIGHT, REVERSE, PUSH, POP, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT = range(1, 12)
-_ACTION_CODES = {
+ACTION_CODES = {
     'draw': DRAW,
     'move': MOVE,
     'left': LEFT,

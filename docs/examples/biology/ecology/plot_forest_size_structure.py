@@ -9,9 +9,9 @@ position across the strip, down, and height, across.
 """
 
 # %%
-# The system is built from its class on a strip of width 10 cut into 40 positions, with heights from the sapling
-# height 0.1 to the asymptotic height 50 in 100 cells, a Hurst exponent of 1, and the dispersal length 1. The observer
-# saves every frame of 5 up to `t = 200`.
+# The example builds `ForestSizeStructureSystem` on a strip of width 10 cut into 40 positions, with heights from the
+# sapling height 0.1 to the asymptotic height 50 in 100 cells, a Hurst exponent of 1, and the dispersal length 1. The
+# observer saves every frame of 5 up to `t = 200`.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,7 @@ SYSTEM = 'forest_size_structure'
 POSITIONS, HEIGHTS = 40, 100
 
 system = ForestSizeStructureSystem(positions=POSITIONS, heights=HEIGHTS).prepare().system_
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='forest/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='forest/x', interval=1)
 trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[observer], until=200)
 
 # %%
@@ -39,7 +39,7 @@ trajectory = simulate(system, dt=5.0, solver=RK4Solver(dt=0.1), observers=[obser
 space = system.elements[0].space.prepare()
 heights = space.coordinates_['h']
 positions = (np.arange(POSITIONS) + 0.5) * 10 / POSITIONS
-density = trajectory.values('forest.f')[-1].reshape(POSITIONS, HEIGHTS)
+density = trajectory.get_values('forest.x')[-1].reshape(POSITIONS, HEIGHTS)
 bulk, edge = density[POSITIONS // 2], density[0]
 fig, (sizes, profile) = plt.subplots(1, 2, figsize=(11, 4))
 sizes.loglog(heights, bulk, label='bulk')

@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import categorical, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from .types import AffineMap
@@ -26,6 +26,21 @@ SIERPINSKI_MAPS: tuple[AffineMap, ...] = (
     (0.5, 0.0, 0.0, 0.5, 0.5, 0.0),
     (0.5, 0.0, 0.0, 0.5, 0.25, 0.5),
 )
+PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
+    'sierpinski': (
+        SIERPINSKI_MAPS,
+        (1.0, 1.0, 1.0),
+    ),
+    'barnsley': (
+        (
+            (0.0, 0.0, 0.0, 0.16, 0.0, 0.0),
+            (0.85, 0.04, -0.04, 0.85, 0.0, 1.6),
+            (0.2, -0.26, 0.23, 0.22, 0.0, 1.6),
+            (-0.15, 0.28, 0.26, 0.24, 0.0, 0.44),
+        ),
+        (0.01, 0.85, 0.07, 0.07),
+    ),
+}
 
 
 class ChaosPointElement(Element):
@@ -144,23 +159,6 @@ class RandomAffineMapInteraction(MapInteraction):
         return vector(SR, [new_x, new_y])
 
 
-PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
-    'sierpinski': (
-        SIERPINSKI_MAPS,
-        (1.0, 1.0, 1.0),
-    ),
-    'barnsley': (
-        (
-            (0.0, 0.0, 0.0, 0.16, 0.0, 0.0),
-            (0.85, 0.04, -0.04, 0.85, 0.0, 1.6),
-            (0.2, -0.26, 0.23, 0.22, 0.0, 1.6),
-            (-0.15, 0.28, 0.26, 0.24, 0.0, 0.44),
-        ),
-        (0.01, 0.85, 0.07, 0.07),
-    ),
-}
-
-
 class ChaosGameSystem(BaseSystem):
     """Points that draw the attractor of an iterated function system by the chaos game.
 
@@ -224,13 +222,13 @@ class ChaosGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system_of(
+    def _get_system_of(
         label: str,
         maps: Sequence[AffineMap],
         weights: Sequence[float],
         n_points: int,
         random_state: int | np.random.Generator | None,
-    ) -> System:
+    ) -> CompositeSystem:
         """Return a group of points started uniformly in the unit square.
 
         The points iterate an iterated function system.
@@ -243,9 +241,9 @@ class ChaosGameSystem(BaseSystem):
             maps=tuple(map(tuple, maps)),
             weights=tuple(weights),
         )
-        return System(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(label, elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return points that draw the attractor of an iterated function system.
 
         The points draw it by the chaos game.
@@ -256,7 +254,7 @@ class ChaosGameSystem(BaseSystem):
         chosen_maps, preset_weights = (
             PRESETS[self.preset] if self.maps is None else (self.maps, (1.0,) * len(self.maps))
         )
-        return self._system_of(
+        return self._get_system_of(
             self.label,
             chosen_maps,
             self.weights if self.weights is not None else preset_weights,

@@ -9,8 +9,8 @@ from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
 def _swarm_order(J, K):
     """Return the order parameters `S+`, `S-`, and the phase coherence of swarmalators at the end of a run."""
     trajectory = simulate(SwarmalatorsSystem(60, J=J, K=K), until=60)
-    positions = np.asarray(trajectory.values('units.x'))[-1]
-    phases = np.asarray(trajectory.values('units.theta'))[-1]
+    positions = np.asarray(trajectory.get_values('units.x'))[-1]
+    phases = np.asarray(trajectory.get_values('units.theta'))[-1]
     centred = positions - positions.mean(axis=0)
     angles = np.arctan2(centred[:, 1], centred[:, 0])
     return [abs(np.exp(1j * (angles + sign * phases)).mean()) for sign in (1, -1)] + [abs(np.exp(1j * phases).mean())]

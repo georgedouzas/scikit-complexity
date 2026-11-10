@@ -7,9 +7,9 @@ size, the hubs fastest.
 """
 
 # %%
-# The system is built from its class on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission rate per contact
-# of 2.5 times the threshold `<k> / <k^2>` of the unit recovery rate. The observer saves every frame of the outbreak
-# with the default blueprint, whose primary view holds the densities of the 28 degree classes.
+# The example builds `HeterogeneousMeanFieldSIRSystem` on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission
+# rate per contact of 2.5 times the threshold `<k> / <k^2>` of the unit recovery rate. The observer saves every frame of
+# the outbreak with the default blueprint, whose primary view holds the densities of the 28 degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,12 +45,12 @@ final_sizes = [
         HeterogeneousMeanFieldSIRSystem(k_max=30, beta=rate, infected=1e-6),
         until=300,
         dt=1.0,
-    ).values(
+    ).get_values(
         'recovered',
     )[-1]
     for rate in rates
 ]
-infected = trajectory.values('network.i')
+infected = trajectory.get_values('network.i')
 
 fig, (sizes, timing) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.plot(rates, final_sizes, 'o-', label='simulated')

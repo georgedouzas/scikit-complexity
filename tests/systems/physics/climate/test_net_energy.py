@@ -15,7 +15,7 @@ def test_energy_return_net_energy_peaks_before_gross_energy():
     per_capita = _peak(trajectory, 'energy.net_per_capita')
     assert per_capita < net < gross
     np.testing.assert_allclose(
-        trajectory.values('energy.energy_cost') + trajectory.values('energy.net_energy'),
-        trajectory.values('energy.gross_energy'),
+        trajectory.get_values('energy.energy_cost') + trajectory.get_values('energy.net_energy'),
+        trajectory.get_values('energy.gross_energy'),
     )
-    assert trajectory.values('energy.eroi')[-1] < trajectory.values('energy.eroi')[0] / 2
+    assert trajectory.get_values('energy.eroi')[-1] < trajectory.get_values('energy.eroi')[0] / 2

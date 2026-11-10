@@ -9,7 +9,7 @@ from skcomplex.systems.mathematics.networks import NodeMergingSystem
 
 def _graph(trajectory: Trajectory, frame: int) -> nx.Graph:
     """Return the network present at a frame as a NetworkX graph."""
-    network = trajectory.network(frame)
+    network = trajectory.get_network(frame)
     graph = nx.Graph()
     graph.add_nodes_from(network.nodes.tolist())
     graph.add_edges_from(zip(network.sources.tolist(), network.targets.tolist(), strict=True))

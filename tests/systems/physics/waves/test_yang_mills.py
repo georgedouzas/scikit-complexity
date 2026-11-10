@@ -20,12 +20,12 @@ def _space(shape):
 
 def _random_links(space, group, seed=0):
     """Return random link matrices of a complex."""
-    return group.uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0])
+    return group.get_uniform_of(np.random.default_rng(seed), space.incidences_[0].shape[0])
 
 
 def _gauge_transform(links, space, group, seed=1):
     """Return link matrices after a random gauge transformation of the sites, `g_x U g_y^-1` on a link from x to y."""
-    gauge = group.uniform_of(np.random.default_rng(seed), space.size_)
+    gauge = group.get_uniform_of(np.random.default_rng(seed), space.size_)
     sources, targets = space.edges_[None]
     return gauge[sources] @ links @ np.conj(np.swapaxes(gauge[targets], -1, -2))
 
@@ -33,7 +33,7 @@ def _gauge_transform(links, space, group, seed=1):
 def test_four_dimensional_su2_plaquette_is_near_the_known_value():
     """Test that SU(2) at `beta = 2.3` on a 4^4 lattice has a mean plaquette within 0.03 of 0.60."""
     series = simulate(LatticeYangMillsSystem(size=4), until=100, random_state=0)
-    assert abs(series.values('mean_plaquette')[30:].mean() - 0.60) < 0.03
+    assert abs(series.get_values('mean_plaquette')[30:].mean() - 0.60) < 0.03
 
 
 def test_polyakov_loop_orders_above_the_deconfinement_coupling():
@@ -41,7 +41,7 @@ def test_polyakov_loop_orders_above_the_deconfinement_coupling():
     loops = []
     for beta in (1.5, 2.6):
         trajectory = simulate(LatticeYangMillsSystem(size=4, extent=2, beta=beta), until=100, random_state=0)
-        loops.append(trajectory.values('polyakov_loop')[30:].mean())
+        loops.append(trajectory.get_values('polyakov_loop')[30:].mean())
     assert loops[1] > 3 * loops[0]
 
 
@@ -51,11 +51,11 @@ def test_su3_links_stay_in_the_group_and_order_from_a_cold_start():
     cold = np.broadcast_to(np.eye(3), (space.incidences_[0].shape[0], 3, 3))
     system = LatticeYangMillsSystem(4, dimension=3, colors=3, beta=1.0, links=cold)
     trajectory = simulate(system, until=10, dt=1, random_state=0)
-    plaquettes = trajectory.values('mean_plaquette')
+    plaquettes = trajectory.get_values('mean_plaquette')
     assert plaquettes[0] == pytest.approx(1.0)
     assert plaquettes[-1] < 0.5
-    matrices = COLOR.matrices_of(trajectory.values('links.U')[-1])
-    assert np.allclose(COLOR.projection_of(matrices), matrices, atol=1e-12)
+    matrices = COLOR.get_matrices_of(trajectory.get_values('links.U')[-1])
+    assert np.allclose(COLOR.get_projection_of(matrices), matrices, atol=1e-12)
 
 
 @pytest.mark.parametrize(('group', 'kind'), [(ISOSPIN, 'wilson'), (COLOR, 'wilson'), (COLOR, 'polyakov')])
@@ -64,7 +64,7 @@ def test_loops_of_matrix_links_are_gauge_invariant(group, kind):
     space = _space((4, 4, 3))
     links = _random_links(space, group)
     values = [
-        gauge_observables(group.components_of(item), kind=kind, space=space, extents=(2, 1), group=group).value[0]
+        gauge_observables(group.get_components_of(item), kind=kind, space=space, extents=(2, 1), group=group).value[0]
         for item in (links, _gauge_transform(links, space, group))
     ]
     assert values[0] == pytest.approx(values[1], abs=1e-12)
@@ -74,9 +74,9 @@ def test_plaquette_loop_of_matrix_links_is_the_mean_plaquette():
     """Test that the 1 by 1 Wilson loop of random SU(3) links is the mean of `Re tr U_p / 3`."""
     space = _space((4, 4))
     links = _random_links(space, COLOR)
-    plaquettes = COLOR.holonomy_of(links, space.boundaries_, space.boundary_signs_)
+    plaquettes = COLOR.get_holonomy_of(links, space.boundaries_, space.boundary_signs_)
     expected = np.trace(plaquettes, axis1=1, axis2=2).real.mean() / 3
-    loop = gauge_observables(COLOR.components_of(links), kind='wilson', space=space, group=COLOR).value[0]
+    loop = gauge_observables(COLOR.get_components_of(links), kind='wilson', space=space, group=COLOR).value[0]
     assert loop == pytest.approx(expected, abs=1e-12)
 
 
@@ -85,7 +85,7 @@ def test_polyakov_loop_of_a_uniform_field_is_its_trace():
     space = _space((3, 2))
     links = np.broadcast_to(np.eye(2, dtype=complex), (space.incidences_[0].shape[0], 2, 2)).copy()
     links[space.link_axes_ == 1] = np.diag([1j, -1j])
-    result = gauge_observables(ISOSPIN.components_of(links)[None], kind='polyakov', space=space, group=ISOSPIN)
+    result = gauge_observables(ISOSPIN.get_components_of(links)[None], kind='polyakov', space=space, group=ISOSPIN)
     assert result.value.tolist() == pytest.approx([1.0])
 
 

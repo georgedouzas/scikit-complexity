@@ -10,7 +10,7 @@ from ..conftest import _run
 def test_sequentially_linear_ecosystem_settles_after_bursts_of_extinctions():
     """Test that abundances stay normalised and extinctions grow rarer as the network settles."""
     trajectory = _run(SequentiallyLinearEcosystemSystem(), 300, 1.0)
-    extinctions = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
-    assert np.allclose(np.nansum(trajectory.values('species.x')[-1]), 1.0, atol=0.05)
+    extinctions = np.nansum(trajectory.get_values('species.age')[1:] == 0, axis=1)
+    assert np.allclose(np.nansum(trajectory.get_values('species.x')[-1]), 1.0, atol=0.05)
     assert extinctions[:100].sum() > extinctions[200:].sum()
-    assert all(trajectory.network(frame).nodes.size == 60 for frame in (0, 150, 300))
+    assert all(trajectory.get_network(frame).nodes.size == 60 for frame in (0, 150, 300))

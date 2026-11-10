@@ -6,10 +6,10 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -35,12 +35,12 @@ class SiteElement(Element):
 
 def _states(space, spreading, initial, until, seed=0):
     """Return the states of the sites at every unit of time."""
-    system = System(
-        elements=[LatticeElement('sites', element=SiteElement, space=space, values={'state': initial})],
+    system = CompositeSystem(
+        elements=[GroupElement('sites', element=SiteElement, space=space, values={'state': initial}, on='sites')],
         interactions=[spreading],
     )
     trajectory = simulate(system, until=until, dt=1.0, random_state=seed)
-    return trajectory.values('sites.state')
+    return trajectory.get_values('sites.state')
 
 
 def test_contact_process_dies_out_below_and_survives_above_the_critical_rate():

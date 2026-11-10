@@ -1,14 +1,6 @@
-"""Realizations shared by several mathematics systems.
+"""Realizations shared by several mathematics systems, by family.
 
-The package holds flows and the nodes of networks.
+The families are flows and the nodes of networks.
 """
 
-from ._network_node import NetworkNodeElement
-from ._regulated_node import RegulatedNodeElement
-from ._vertex import VertexElement
-
-__all__: list[str] = [
-    'NetworkNodeElement',
-    'RegulatedNodeElement',
-    'VertexElement',
-]
+__all__: list[str] = []

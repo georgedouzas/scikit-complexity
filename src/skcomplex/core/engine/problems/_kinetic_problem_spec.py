@@ -13,7 +13,7 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class KineticProblemSpec(ProblemSpec):
-    """Problem whose drift holds the gain and loss rates of encounter laws.
+    """A spec of a problem whose drift holds the gain and loss rates of encounters.
 
     It holds the compiled encounters too.
 

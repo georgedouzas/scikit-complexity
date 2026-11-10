@@ -11,13 +11,27 @@ from skcomplex.core.analysis import coarse_grain, spectrum
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 CLASSES = np.arange(9.0)
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class TraderElement(Element):
@@ -28,28 +42,14 @@ class TraderElement(Element):
         self.wealth = wealth
 
 
-class DensityElement(Element):
-    """Density of members at one value of a state."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
 def density(s):
     """Return the density of a distribution."""
-    return moment(s.f, 0, CLASSES)
+    return moment(s.x, 0, CLASSES)
 
 
 def mean_class(s):
     """Return the mean class of a distribution."""
-    return moment(s.f, 1, CLASSES, normalized=True)
+    return moment(s.x, 1, CLASSES, normalized=True)
 
 
 def _coarse_grain(positions: object, shape: list[int], **settings: object) -> np.ndarray:
@@ -99,22 +99,22 @@ def test_density_over_a_state_starts_a_distribution():
     """Test that the densities of 1,000 traders start a distribution of density 1 whose mean is the traders' mean."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
     densities = coarse_grain(wealth, over=CLASSES).field
-    distribution = GroupElement('wealth', element=DensityElement, size=9, on='sites', values={'f': densities})
-    system = System(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
+    distribution = GroupElement('wealth', element=AmountElement, size=9, on='sites', values={'x': densities})
+    system = CompositeSystem(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
         ObservableSpec('density', density, group='wealth'),
         ObservableSpec('mean', mean_class, group='wealth'),
     ]
     trajectory = simulate(system, until=0, observables=observables, dt=1.0)
-    assert trajectory.values('density')[0] == pytest.approx(1.0)
-    assert trajectory.values('mean')[0] == pytest.approx(wealth.mean())
+    assert trajectory.get_values('density')[0] == pytest.approx(1.0)
+    assert trajectory.get_values('mean')[0] == pytest.approx(wealth.mean())
 
 
 def test_density_over_a_state_of_a_trajectory():
     """Test that the members of a group of a trajectory give one density per frame over the values of a state."""
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
     traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
-    trajectory = simulate(System(elements=[traders]), until=2, dt=1.0)
+    trajectory = simulate(CompositeSystem(elements=[traders]), until=2, dt=1.0)
     analysis = coarse_grain(trajectory, over=CLASSES, state='traders.wealth')
     assert analysis.field.shape == (3, 9)
     np.testing.assert_allclose(analysis.field.sum(axis=1), 1.0)

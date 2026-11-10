@@ -16,7 +16,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -175,7 +175,7 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
         self.kappa = kappa
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the nonreciprocal Cahn-Hilliard equations.
 
         A demixing field is coupled to a diffusing one.
@@ -191,7 +191,7 @@ class NonreciprocalCahnHilliardSystem(BaseSystem):
             'kappa': self.kappa,
         }
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('mixture', element=NonreciprocalMixtureElement, space=space, values=values)],
         )

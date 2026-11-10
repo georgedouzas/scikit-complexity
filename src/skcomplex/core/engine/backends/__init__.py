@@ -1,6 +1,6 @@
-"""Backends that write the numeric functions of compiled problems.
+"""Define backends, which write the numeric functions of compiled problems.
 
-They are NumPy, Numba, and JAX.
+They are NumPy, the default, Numba, which compiles kernels, and JAX, which differentiates them.
 """
 
 from ._base import BaseBackend

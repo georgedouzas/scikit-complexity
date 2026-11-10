@@ -12,7 +12,7 @@ def test_hopfield_recalls_a_stored_pattern_and_lowers_its_energy():
     rng = np.random.default_rng(1)
     patterns = rng.choice([-1.0, 1.0], size=(3, 64))
     trajectory = _run(HopfieldSystem(patterns, noise=0.2, random_state=1), 5)
-    snapshots = [trajectory.agents('neurons', frame) for frame in range(6)]
+    snapshots = [trajectory.get_agents('neurons', frame) for frame in range(6)]
     weights = snapshots[0].values['weights']
     spins = [snapshot.values['spin'] for snapshot in snapshots]
     energies = [-spin @ weights @ spin / 2 for spin in spins]

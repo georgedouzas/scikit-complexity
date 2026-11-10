@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import CC, I
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import simulate
@@ -54,7 +54,10 @@ def _run(system, observer, until=1.0, dt=0.1):
 def test_rerun_observer_saves_recording(tmp_path):
     """Test that a recording file is written."""
     path = tmp_path / 'run.rrd'
-    system = System(elements=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = CompositeSystem(
+        elements=[PopulationElement('a')],
+        interactions=[ExponentialGrowthInteraction('g', target='a')],
+    )
     _run(system, RerunObserver('test', save_path=path))
     assert path.exists()
     assert path.stat().st_size > 0
@@ -63,7 +66,10 @@ def test_rerun_observer_saves_recording(tmp_path):
 def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
     """Test that many observers in one process, as in the docs build, do not accumulate recording threads."""
     psutil = pytest.importorskip('psutil')
-    system = System(elements=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = CompositeSystem(
+        elements=[PopulationElement('a')],
+        interactions=[ExponentialGrowthInteraction('g', target='a')],
+    )
     _run(system, RerunObserver('test', save_path=tmp_path / 'first.rrd'))
     before = psutil.Process().num_threads()
     for index in range(20):
@@ -74,7 +80,7 @@ def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
 def test_rerun_observer_interval_thins_frames(tmp_path):
     """Test that only every n-th frame is logged."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)
-    system = System(elements=[PopulationElement('a')])
+    system = CompositeSystem(elements=[PopulationElement('a')])
     _run(system, observer, until=0.99, dt=0.01)
     assert observer.logged_frames_ == 10
 
@@ -82,18 +88,18 @@ def test_rerun_observer_interval_thins_frames(tmp_path):
 def test_scalars_visual_logs_nested_paths():
     """Test that scalar states are logged under the element path."""
     recording = LoggedPaths()
-    system = System(systems=[System('meadow', elements=[PopulationElement('rabbits')])])
+    system = CompositeSystem(systems=[CompositeSystem('meadow', elements=[PopulationElement('rabbits')])])
     trajectory = simulate(system, until=0.0)
     element = trajectory.problem.elements[0]
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     ScalarsVisual(path=element.path, recording=recording).prepare(frame.problem).run(frame)
-    assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
+    assert recording.logs == [('meadow/rabbits/x', 'Scalars')]
 
 
 @pytest.mark.parametrize(('n_dim', 'archetype'), [(3, 'Points3D'), (2, 'Points2D'), (1, 'Scalars')])
 def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassPointElement('ball')],
         interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
@@ -121,10 +127,13 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    system = System(elements=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = CompositeSystem(
+        elements=[PopulationElement('a')],
+        interactions=[ExponentialGrowthInteraction('g', target='a')],
+    )
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
-    assert logged.count('a/n') == 3
+    assert logged.count('a/x') == 3
 
 
 def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
@@ -156,7 +165,7 @@ def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path)
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
     observer = RerunObserver('test', spawn=True)
-    _run(System(elements=[PopulationElement('a')]), observer, until=0.0)
+    _run(CompositeSystem(elements=[PopulationElement('a')]), observer, until=0.0)
     assert calls[0]['executable_path'] == str(viewer)
     assert calls[0]['recording'] is observer.recording_
 
@@ -167,7 +176,7 @@ def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
-    _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+    _run(CompositeSystem(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert calls[0]['executable_path'] is None
 
 
@@ -184,9 +193,13 @@ def test_rerun_observer_warns_when_a_viewer_cannot_be_reached(monkeypatch):
     monkeypatch.setattr(rr, 'spawn', lambda **_: None)
     monkeypatch.setattr(rr.RecordingStream, 'flush', flush)
     with pytest.warns(UserWarning, match='unable to connect'):
-        trajectory = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+        trajectory = _run(
+            CompositeSystem(elements=[PopulationElement('a')]),
+            RerunObserver('test', spawn=True),
+            until=0.0,
+        )
     assert timeouts == [pytest.approx(30.0)]
-    assert trajectory.values('a.n').size > 0
+    assert trajectory.get_values('a.x').size > 0
 
 
 def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
@@ -197,9 +210,13 @@ def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
     with pytest.warns(UserWarning, match='needs a display'):
-        trajectory = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+        trajectory = _run(
+            CompositeSystem(elements=[PopulationElement('a')]),
+            RerunObserver('test', spawn=True),
+            until=0.0,
+        )
     assert calls == []
-    assert trajectory.values('a.n').size > 0
+    assert trajectory.get_values('a.x').size > 0
 
 
 def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
@@ -207,14 +224,14 @@ def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(rr.RecordingStream, 'flush', lambda _, **kwargs: calls.append(kwargs))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    _run(System(elements=[PopulationElement('a')]), observer, until=0.0)
+    _run(CompositeSystem(elements=[PopulationElement('a')]), observer, until=0.0)
     assert calls == [{}]
 
 
 def _gas(visual):
     """Return a compiled gas of two particles drawn with a visual spec."""
     gas = GroupElement('gas', element=MassPointElement, size=2, visual=visual)
-    return simulate(System(elements=[gas], space=ContinuousSpace(n_dim=2)), until=0).problem
+    return simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=2)), until=0).problem
 
 
 def test_rerun_observer_builds_the_visuals_the_specs_name():
@@ -257,7 +274,7 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 
 def test_points_colored_by_speed_follow_the_color_scale():
     """Test that faster members get colors further along the color scale."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -345,7 +362,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     logged = _agent_logs(
         monkeypatch,
         tmp_path,
-        System(
+        CompositeSystem(
             elements=[GroupElement('mortals', element=MortalElement, size=3, variable=True)],
             space=LatticeSpace((5, 5), boundary='fixed'),
         ),
@@ -393,7 +410,7 @@ def _logged(monkeypatch, tmp_path, system):
 def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
     """Test that a complex field at `medium` logs a modulus and a phase image for every logged frame."""
     values = {'z': np.exp(1j * np.linspace(-np.pi, np.pi, 64)).reshape(8, 8)}
-    system = System(
+    system = CompositeSystem(
         elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((8, 8)), values=values)],
     )
     logged = _logged(monkeypatch, tmp_path, system)
@@ -404,14 +421,14 @@ def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
 
 def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
     """Test that a complex state of a single element logs its real and imaginary parts as series."""
-    logged = _logged(monkeypatch, tmp_path, System(elements=[TurningElement('osc')]))
+    logged = _logged(monkeypatch, tmp_path, CompositeSystem(elements=[TurningElement('osc')]))
     assert logged.count(('osc/z/real', 'Scalars')) == 3
     assert logged.count(('osc/z/imag', 'Scalars')) == 3
 
 
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
-    system = System(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))])
+    system = CompositeSystem(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))])
     problem = PassCompiler().prepare(system).run().problem_
     views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
@@ -490,7 +507,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
 
     space = NetworkSpace(nx.complete_graph(2))
     owned = {} if on_system else {'space': space}
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=10, **owned),
             GroupElement('links', element=Element, on='edges', variable=True, capacity=10, **owned),

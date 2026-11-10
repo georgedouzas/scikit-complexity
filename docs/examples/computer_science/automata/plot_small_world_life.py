@@ -35,7 +35,7 @@ densities = [
     np.mean(
         [
             simulate(SmallWorldLifeSystem(p=p, random_state=seed), until=150, random_state=0)
-            .values('cells.alive')[-50:]
+            .get_values('cells.alive')[-50:]
             .mean()
             for seed in range(3)
         ],

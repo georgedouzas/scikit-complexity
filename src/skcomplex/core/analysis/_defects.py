@@ -1,7 +1,4 @@
-"""Find the point defects of a two-dimensional field of axes or vectors.
-
-The defects are found by the winding of their angles.
-"""
+"""Find the point defects of a two-dimensional field of axes or vectors."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,15 +15,13 @@ from ._base import _read_fields
 from .types import Source
 
 FIELD_RANK = 2
-
 CHARGE_TOLERANCE = 1e-6
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)
 class DefectsResult:
-    """Point defects of a two-dimensional field of angles at every frame.
+    """A result of `defects`, the point defects of a field of angles.
 
     They come with their topological charges.
 
@@ -60,6 +55,9 @@ def defects(
     winding that is not 0 holds a defect of that charge. The charges of a periodic lattice sum to 0.
 
     An array of two dimensions holds one snapshot, and an array of three dimensions one frame per row of its first axis.
+
+    It appears in many fields. It finds the vortices of a superfluid, the defects of a liquid crystal, and the swirls of
+    a bacterial swarm.
 
     Args:
         source:

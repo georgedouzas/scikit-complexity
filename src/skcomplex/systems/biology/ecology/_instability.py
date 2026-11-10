@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import bernoulli, clip, normal, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -187,7 +187,7 @@ class IntrinsicInstabilitySystem(BaseSystem):
         grown = s.y * (1 + s.beta) + sqrt(s.y) * s.sigma * normal('chi_y')
         return clip(where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown), low=0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Jensen's coupled populations."""
         populations = UnstablePopulationsElement(
             'populations',
@@ -199,7 +199,7 @@ class IntrinsicInstabilitySystem(BaseSystem):
             p=self.p,
             sigma=self.sigma,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[populations],
             interactions=[

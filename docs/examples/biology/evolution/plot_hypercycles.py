@@ -7,9 +7,9 @@ dominates the soup, boosts the next one, and gives way to it.
 """
 
 # %%
-# The system is built from its class as a ring of six molecules whose own growth rates differ only slightly, `alpha =
-# 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint, whose primary view is
-# the time series of the concentrations.
+# The example builds `HypercyclesSystem` as a ring of six molecules whose own growth rates differ only slightly,
+# `alpha = 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint, whose primary
+# view is the time series of the concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,9 +36,9 @@ trajectory = simulate(
 # over instead: about `sqrt(2 omega / alpha) ≈ 4.5` of them survive for `alpha = 0.1` and the slowest die out.
 
 ring = trajectory
-complete = simulate(HypercyclesSystem(molecules=10, topology='complete'), until=200).values('soup.x')
+complete = simulate(HypercyclesSystem(molecules=10, topology='complete'), until=200).get_values('soup.x')
 fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4))
-left.semilogy(ring.times, ring.values('soup.x'))
+left.semilogy(ring.times, ring.get_values('soup.x'))
 left.set_ylim(1e-5, 1)
 left.set_xlabel('time')
 left.set_ylabel('concentration (log scale)')

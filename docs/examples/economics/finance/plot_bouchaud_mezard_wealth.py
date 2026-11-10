@@ -57,7 +57,7 @@ trajectory = simulate(system, until=UNTIL, dt=DT, observables=observables, obser
 # motion of this system `mu = 1 + 2 J / sigma^2 = 2`. Pooling the relative wealth after a transient of ten time units,
 # the histogram should follow it, and the complementary cumulative distribution should fall as `w^-mu`.
 
-wealth = trajectory.values('agents.W')
+wealth = trajectory.get_values('agents.W')
 relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][::10].ravel()
 mu = 1 + 2 * J / SIGMA**2
 law = stats.invgamma(mu, scale=mu - 1)

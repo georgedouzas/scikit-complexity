@@ -1,7 +1,4 @@
-"""Yoshida integrator of fourth order.
-
-It takes three velocity Verlet steps over two blocks of states.
-"""
+"""Yoshida integrator of fourth order."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,7 +26,7 @@ WEIGHTS = np.array([OUTER_WEIGHT, 1 - 2 * OUTER_WEIGHT, OUTER_WEIGHT])
 
 
 class Yoshida4Solver(Solver):
-    """Yoshida integrator of fourth order.
+    """A solver of fourth order by the symplectic method of Yoshida.
 
     It takes three velocity Verlet steps over two blocks of states. The solver splits the states into two blocks whose
     rates each read only the other block: a state of order 2 into its position and velocity, and states of order 1 by
@@ -38,6 +35,9 @@ class Yoshida4Solver(Solver):
     2^(1/3))` and `w0 = 1 - 2 w1`, which kick the second block by half a step, drift the first, and kick the second
     again. The scheme is symplectic, so the energy of a separable Hamiltonian stays bounded over long runs. With the
     Numba backend every internal step of a frame runs in compiled code.
+
+    Choose it for Hamiltonian systems that need high accuracy over long runs. It appears in celestial mechanics and in
+    models of particle accelerators.
 
     Args:
         dt:
@@ -63,11 +63,20 @@ class Yoshida4Solver(Solver):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class BallElement(Element):
+        ...     def __init__(
+        ...         self, label, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1=0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.x_d1 = x_d1
         >>> from skcomplex.core.engine.solvers import Yoshida4Solver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
+        >>> system = CompositeSystem(elements=[BallElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = simulate(system, until=0).problem
         >>> stepper = Yoshida4Solver(dt=0.1).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
@@ -125,7 +134,7 @@ class Yoshida4Solver(Solver):
         """
         size = problem.initial_state.size
         jacobian = problem.jacobian
-        pattern = None if jacobian is None else jacobian.pattern()
+        pattern = None if jacobian is None else jacobian.get_pattern()
         if pattern is None:
             error_msg = (
                 'Yoshida4Solver splits the states by the sparsity of the Jacobian, which the problem does not state. '
@@ -155,7 +164,7 @@ class Yoshida4Solver(Solver):
             names[entry.start : entry.start + entry.size] = entry.component_names
         return names
 
-    def _color(self, reads: list[set[int]]) -> list[int]:
+    def _get_color(self, reads: list[set[int]]) -> list[int]:
         """Return the block of every component, alternating along the reads.
 
         Unread components go to the first block.
@@ -184,7 +193,7 @@ class Yoshida4Solver(Solver):
         An error is raised when the states cannot be split.
         """
         reads = self._get_reads(problem)
-        colors = self._color(reads)
+        colors = self._get_color(reads)
         conflicts = [{item for item in items if colors[item] == colors[index]} for index, items in enumerate(reads)]
         worst = max(range(len(reads)), key=lambda index: len(conflicts[index]), default=None)
         if worst is not None and conflicts[worst]:
@@ -199,7 +208,7 @@ class Yoshida4Solver(Solver):
         second = [index for index, color in enumerate(colors) if color == 1]
         return np.array(first, dtype=np.int64), np.array(second, dtype=np.int64)
 
-    def _stage(self, time: float, state: Array, p: Array, rates: Array, substep: float) -> tuple[Array, Array]:
+    def _get_stage(self, time: float, state: Array, p: Array, rates: Array, substep: float) -> tuple[Array, Array]:
         """Return the state and rates after one velocity Verlet step of a length.
 
         The step starts from the rates at its start.
@@ -209,7 +218,7 @@ class Yoshida4Solver(Solver):
         state[self.second_] += substep / 2 * rates[self.second_]
         rates = drift(time, state, p)
         state[self.first_] += substep * rates[self.first_]
-        state = self._bounded(time + substep, state, p)
+        state = self._get_bounded(time + substep, state, p)
         rates = drift(time + substep, state, p)
         state[self.second_] += substep / 2 * rates[self.second_]
         return state, rates
@@ -256,6 +265,6 @@ class Yoshida4Solver(Solver):
         for index in range(n_steps):
             time = t + index * step
             for weight in WEIGHTS:
-                state, rates = self._stage(time, state, p, rates, weight * step)
+                state, rates = self._get_stage(time, state, p, rates, weight * step)
                 time += weight * step
         return state

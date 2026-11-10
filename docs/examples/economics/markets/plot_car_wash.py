@@ -46,11 +46,11 @@ trajectory = simulate(CarWashSystem(n_workers=4), until=DAY, observers=[observer
 # forecourt keeps emptying and the revenue per worker keeps falling.
 
 frames = np.arange(0, len(trajectory.times), 100)
-revenue = [trajectory.agents('till', frame).values['revenue'][0] for frame in frames]
+revenue = [trajectory.get_agents('till', frame).values['revenue'][0] for frame in frames]
 expected = P_PASS * P_ENTER * ((1 - P_VALET) * WASH + P_VALET * VALET)
 workers = np.array([1, 2, 3, 4, 6])
 days = [simulate(CarWashSystem(n_workers=n), until=DAY, random_state=0) for n in workers]
-earned = np.array([day.agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
+earned = np.array([day.get_agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
 fig, (till, labour) = plt.subplots(1, 2, figsize=(10, 4))
 till.plot(trajectory.times[frames] / 3600, revenue, label='till')
 till.plot(trajectory.times[frames] / 3600, expected * trajectory.times[frames], 'k--', lw=0.8, label='expected')
@@ -62,7 +62,7 @@ labour.plot(workers, earned / workers, 'o-', label='revenue per worker')
 labour.axhline(expected * DAY, color='grey', linestyle=':', label='expected daily revenue')
 labour.plot(workers, earned, 's-', label='daily revenue')
 cars = labour.twinx()
-cars.plot(workers, [day.values('cars.count').mean() for day in days], '^--', color='C3')
+cars.plot(workers, [day.get_values('cars.count').mean() for day in days], '^--', color='C3')
 cars.set_ylabel('mean cars on the forecourt', color='C3')
 labour.set_xlabel('number of workers')
 labour.set_ylabel('revenue')

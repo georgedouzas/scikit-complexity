@@ -43,8 +43,8 @@ polarities = loops(SolidWasteSystem()).polarities
 reinforcing, balancing = polarities.count('reinforcing'), polarities.count('balancing')
 times = np.asarray(trajectory.times)
 fig, (stocks, flows) = plt.subplots(1, 2, figsize=(10, 4))
-stocks.plot(times, trajectory.values('city.landfill'), label='landfill')
-stocks.plot(times, trajectory.values('city.dumped'), label='dumped')
+stocks.plot(times, trajectory.get_values('city.landfill'), label='landfill')
+stocks.plot(times, trajectory.get_values('city.dumped'), label='dumped')
 stocks.axhline(2e6, color='grey', linestyle=':', label='landfill capacity')
 stocks.set_xlabel('years')
 stocks.set_ylabel('tonnes')
@@ -56,7 +56,7 @@ for path, label in [
     ('city.landfilling', 'landfilling'),
     ('city.dumping', 'dumping'),
 ]:
-    flows.plot(times, trajectory.values(path), label=label)
+    flows.plot(times, trajectory.get_values(path), label=label)
 flows.set_xlabel('years')
 flows.set_ylabel('tonnes per year')
 flows.set_title(f'Waste flows, {reinforcing} reinforcing and {balancing} balancing loops')

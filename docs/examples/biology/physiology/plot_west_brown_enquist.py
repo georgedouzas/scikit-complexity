@@ -30,8 +30,8 @@ depths = [2, 3, 4, 5, 6]
 volumes, capillaries = [], []
 for depth in depths:
     run = simulate(WestBrownEnquistSystem(depth=depth), until=1.0)
-    volumes.append(run.values('blood_volume')[-1])
-    capillaries.append(run.values('capillaries')[-1])
+    volumes.append(run.get_values('blood_volume')[-1])
+    capillaries.append(run.get_values('capillaries')[-1])
 exponents = np.diff(np.log(capillaries)) / np.diff(np.log(volumes))
 fig, (law, slope) = plt.subplots(1, 2, figsize=(11, 4.5))
 law.loglog(volumes, capillaries, 'o-', label='trees')

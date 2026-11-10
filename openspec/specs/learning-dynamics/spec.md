@@ -12,7 +12,7 @@ system, simulation, trajectory, and visualization interface as every other syste
 `GradientStepLaw` SHALL be a discrete-time law, returned by a `TrainingInteraction` bound to a nested system through
 its role `system`, that trains adaptive parameters of that system named by dotted path. A system holding it under
 discrete time SHALL advance one epoch, a pass over its dataset, per unit of time, record the trained parameters with
-their inner paths and shapes, and hold the inner system's initial values in frame 0, without any subclass of `System`.
+their inner paths and shapes, and hold the inner system's initial values in frame 0, without any subclass of `CompositeSystem`.
 
 #### Scenario: Epochs as frames
 - **WHEN** a system `elman` holding an Elman network `net` with 4 hidden units and a training interaction runs with

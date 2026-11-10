@@ -36,8 +36,8 @@ class SwingObserver(RerunObserver):
     def _run(self, frame=None):
         super()._run(frame)
         if frame is not None and frame.step % self.interval == 0:
-            self.recording_.log('chairs/chain_angle', rr.Scalars(frame.value('swing.theta')))
-            self.recording_.log('chairs/stand_speed', rr.Scalars(frame.value('swing.phi_d1')))
+            self.recording_.log('chairs/chain_angle', rr.Scalars(frame.get_value('swing.theta')))
+            self.recording_.log('chairs/stand_speed', rr.Scalars(frame.get_value('swing.phi_d1')))
 
 
 blueprint = rrb.Blueprint(
@@ -58,8 +58,8 @@ trajectory = simulate(system, observers=[observer])
 # momentum, the solution of `g tan θ = φ'^2 (a + l sin θ)` with `φ' = L / [J + n m (a + l sin θ)^2]`, dashed.
 
 times = np.asarray(trajectory.times)
-theta = np.ravel(trajectory.values('swing.theta'))
-speed = np.ravel(trajectory.values('swing.phi_d1'))
+theta = np.ravel(trajectory.get_values('swing.theta'))
+speed = np.ravel(trajectory.get_values('swing.phi_d1'))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)

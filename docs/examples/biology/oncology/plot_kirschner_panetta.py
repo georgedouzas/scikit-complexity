@@ -1,13 +1,14 @@
 """
 # Kirschner-Panetta immunotherapy
 
-Untreated, the tumour and the effector cells oscillate in long cycles in which the tumour nearly vanishes and
-regrows, while adoptive therapy with IL-2 above the book's treatment levels clears the tumour.
+Untreated, the tumour and the effector cells oscillate in long cycles in which the tumour nearly vanishes and regrows,
+while adoptive therapy with IL-2 above the treatment levels of the book of Padmanabhan, Meskin, and Al Moustafa (2021)
+clears the tumour.
 """
 
 # %%
-# The system is built from its class with an antigenicity of 0.02, in the oscillatory range, and no treatment, from
-# one unit of every population. The system is stiff, so it runs with LSODA. The observer saves every frame with the
+# The example builds `KirschnerPanettaSystem` with an antigenicity of 0.02, in the oscillatory range, and no treatment,
+# from one unit of every population. The system is stiff, so it runs with LSODA. The observer saves every frame with the
 # default blueprint, whose primary view is the time series of the effector cells, the tumour, and IL-2.
 
 import matplotlib.pyplot as plt
@@ -33,14 +34,14 @@ trajectory = simulate(KirschnerPanettaSystem(alpha_a=0.02), dt=5.0, solver=solve
 untreated = trajectory
 treated = simulate(KirschnerPanettaSystem(alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
-cycles.semilogy(untreated.times, untreated.values('site.A'), label='tumour')
-cycles.semilogy(untreated.times, untreated.values('site.E'), label='effector cells')
+cycles.semilogy(untreated.times, untreated.get_values('site.A'), label='tumour')
+cycles.semilogy(untreated.times, untreated.get_values('site.E'), label='effector cells')
 cycles.set_xlabel('time (days)')
 cycles.set_ylabel('volume')
 cycles.set_title('Untreated, tumour and effector cells oscillate')
 cycles.legend()
-therapy.semilogy(untreated.times, untreated.values('site.A'), label='untreated')
-therapy.semilogy(treated.times, treated.values('site.A').clip(1e-12), label='u1 = u2 = 1.1')
+therapy.semilogy(untreated.times, untreated.get_values('site.A'), label='untreated')
+therapy.semilogy(treated.times, treated.get_values('site.A').clip(1e-12), label='u1 = u2 = 1.1')
 therapy.axhline(1.0, color='grey', linestyle=':', label='one cell')
 therapy.set_xlabel('time (days)')
 therapy.set_ylabel('tumour volume')

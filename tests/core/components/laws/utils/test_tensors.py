@@ -10,8 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     antisymmetric_part,
-    distribute_operators,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     leray_projection,
     partial,
@@ -19,8 +18,9 @@ from skcomplex.core.components.laws.utils import (
     tensor_divergence,
     vector_gradient,
 )
+from skcomplex.core.components.laws.utils._tensors import distribute_operators
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import TensorShapeError
@@ -52,7 +52,7 @@ def _vector_element(rate):
 def _rate_of_w(rate, space, values, **settings):
     """Return the rate of the state `w` at its initial values, with one row per site."""
     field = FieldElement('m', element=_vector_element(rate), space=space, values=values, **settings)
-    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[field])).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[field])).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.reshape(problem.states.read(drift, 'm.w'), (np.prod(space.shape), -1))
 
@@ -151,7 +151,7 @@ def test_leray_projection_gives_the_poiseuille_profile_between_symmetric_walls()
     forces[:, 0] = np.tile(force, cross)
     space = LatticeSpace((cross, width), spacing=spacing)
     rate = _rate_of_w(
-        lambda s: leray_projection(s.g.apply_map(lambda item: inverse_laplacian(-item))),
+        lambda s: leray_projection(s.g.apply_map(lambda item: inverse_helmholtz(-item))),
         space,
         {'g': forces},
         discretization='spectral',

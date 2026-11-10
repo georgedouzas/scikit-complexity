@@ -13,13 +13,17 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, MapInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, Array
+from ...general.agents import ChoiceInteraction
+
+MARKED = 2
+PHASE = 'default'
 
 
 class ComplexAgentView(AgentView):
@@ -80,20 +84,6 @@ class ComplexAgentElement(Element):
         Their attributes are the states and parameters.
         """
         return ComplexAgentView
-
-
-MARKED = 2
-
-
-PHASE = 'default'
-
-
-def _standardization(spins: AnyArray) -> float:
-    """Return the share `q` of agents that show the characteristic.
-
-    It is the mean of `|S_i|`.
-    """
-    return float(np.mean(np.abs(spins)))
 
 
 class StandardizationInteraction(ChoiceInteraction):
@@ -172,22 +162,30 @@ class StandardizationInteraction(ChoiceInteraction):
 
         It is read from the counts of the configurations of the others.
         """
-        counts = system.composition('target', 'configuration')
+        counts = system.get_composition('target', 'configuration')
         up, down = counts.get(0.0, 0), counts.get(1.0, 0)
-        spin, new = float(StandardizationInteraction._spins_of(np.array(agent.configuration))), float(
-            StandardizationInteraction._spins_of(np.array(option)),
+        spin, new = float(StandardizationInteraction._get_spins(np.array(agent.configuration))), float(
+            StandardizationInteraction._get_spins(np.array(option)),
         )
-        standardizing = system.parameter('K') * abs(new) * (up + down - abs(spin))
-        ordering = system.parameter('J') * new * (up - down - spin)
+        standardizing = system.get_parameter('K') * abs(new) * (up + down - abs(spin))
+        ordering = system.get_parameter('J') * new * (up - down - spin)
         return (standardizing + ordering) / sum(counts.values())
 
     @staticmethod
-    def _spins_of(configurations: Array) -> Array:
+    def _get_spins(configurations: Array) -> Array:
         """Return the spin of each configuration.
 
         It is 1 for configuration 0, -1 for configuration 1, and 0 otherwise.
         """
         return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
+
+
+def _get_standardization(spins: AnyArray) -> float:
+    """Return the share `q` of agents that show the characteristic.
+
+    It is the mean of `|S_i|`.
+    """
+    return float(np.mean(np.abs(spins)))
 
 
 class StandardizedAgentsSystem(BaseSystem):
@@ -237,7 +235,7 @@ class StandardizedAgentsSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin and Jensen 2019')
     until = 1000
     observables = (
-        ObservableSpec('q', group='agents', variable='spin', reduce=_standardization),
+        ObservableSpec('q', group='agents', variable='spin', reduce=_get_standardization),
         ObservableSpec('m', group='agents', variable='spin', reduce='mean'),
     )
 
@@ -263,11 +261,11 @@ class StandardizedAgentsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _spin_of(agent: ComplexAgentView, system: SystemViewProtocol) -> float:
+    def _get_spin(agent: ComplexAgentView, system: SystemViewProtocol) -> float:
         """Return the spin of the configuration of an agent."""
-        return float(StandardizationInteraction._spins_of(np.array(agent.configuration)))
+        return float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         marked = rng.random(self.agents) < self.standardized
@@ -277,7 +275,7 @@ class StandardizedAgentsSystem(BaseSystem):
             rng.integers(MARKED, self.H + MARKED, size=self.agents),
         )
         configurations = configurations.astype(float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -286,7 +284,7 @@ class StandardizedAgentsSystem(BaseSystem):
                     size=self.agents,
                     values={
                         'configuration': configurations,
-                        'spin': StandardizationInteraction._spins_of(configurations),
+                        'spin': StandardizationInteraction._get_spins(configurations),
                     },
                 ),
             ],
@@ -304,7 +302,7 @@ class StandardizedAgentsSystem(BaseSystem):
                     'spin',
                     target='agents',
                     state='spin',
-                    function=self._spin_of,
+                    function=self._get_spin,
                     schedule='member',
                     form='agent',
                     phase=PHASE,

@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -116,7 +116,7 @@ class BirthDeathQueueSystem(BaseSystem):
         self.service_rate = service_rate
         self.n = n
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return independent M/M/1 queues.
 
         The queues are birth-death processes with constant arrival and service rates.
@@ -134,4 +134,4 @@ class BirthDeathQueueSystem(BaseSystem):
             changes={'n': -1},
             rate=lambda s: where(s.target.n > 0, s.target.service_rate, 0),
         )
-        return System(self.label, elements=[queue], interactions=[arrivals, departures])
+        return CompositeSystem(self.label, elements=[queue], interactions=[arrivals, departures])

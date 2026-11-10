@@ -13,15 +13,16 @@ import numpy as np
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import FeedbackInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
-from ..common._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common.banking import BalanceSheetElement
+from ..common.banking._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetView
+from ..common.policy import PolicyRuleInteraction
 
 
-class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
+class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
     """Synchronous cascade of defaults.
 
     The creditors of a defaulting bank write off their claims on it. Every step the banks that defaulted in the last
@@ -84,13 +85,13 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the cascade.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
         status = np.array([bank.status for bank in banks])
         equity = np.array([bank.equity for bank in banks])
         defaulting = status == DEFAULTING
-        losses = (1 - system.parameter('recovery')) * np.asarray(self.liabilities, dtype=float).T @ defaulting
+        losses = (1 - system.get_parameter('recovery')) * np.asarray(self.liabilities, dtype=float).T @ defaulting
         equity = equity - losses
-        hit = (status == SOLVENT) & (equity < system.parameter('threshold'))
+        hit = (status == SOLVENT) & (equity < system.get_parameter('threshold'))
         status = np.where(defaulting, DEFAULTED, np.where(hit, DEFAULTING, status))
         for bank, value, code in zip(banks, equity, status, strict=True):
             bank.equity, bank.status = float(value), float(code)
@@ -98,7 +99,7 @@ class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
         system.report('losses', float(losses.sum()))
 
 
-class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
+class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
     """Clearing of interbank payments of Eisenberg and Noe.
 
     It iterates `p <- min(p_bar, e + Pi^T p)`. Every step every bank pays the smaller of what it owes,
@@ -150,7 +151,7 @@ class PaymentClearingInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the clearing.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
         matrix = np.asarray(self.liabilities, dtype=float)
         owed = matrix.sum(axis=1)
         shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
@@ -259,7 +260,7 @@ class DefaultCascadeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _gai_kapadia_network(
+    def _get_gai_kapadia_network(
         n_banks: int,
         degree: float,
         interbank_share: float,
@@ -281,11 +282,11 @@ class DefaultCascadeSystem(BaseSystem):
         capital = np.full(n_banks, 100.0 * capital_ratio)
         return liabilities, external, capital
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.equity is None:
             rng = np.random.default_rng(self.random_state)
-            matrix, external, capital = self._gai_kapadia_network(
+            matrix, external, capital = self._get_gai_kapadia_network(
                 self.n_banks,
                 self.degree,
                 self.interbank_share,
@@ -314,7 +315,7 @@ class DefaultCascadeSystem(BaseSystem):
             threshold=self.threshold,
             recovery=self.recovery,
         )
-        return System(self.label, elements=[banks], interactions=[cascade])
+        return CompositeSystem(self.label, elements=[banks], interactions=[cascade])
 
 
 class EisenbergNoeClearingSystem(BaseSystem):
@@ -379,7 +380,7 @@ class EisenbergNoeClearingSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.external is None:
             rng = np.random.default_rng(self.random_state)
@@ -396,4 +397,4 @@ class EisenbergNoeClearingSystem(BaseSystem):
             values={'external': assets, 'payment': matrix.sum(axis=1)},
         )
         clearing = PaymentClearingInteraction('clearing', banks='banks', liabilities=matrix.tolist())
-        return System(self.label, elements=[banks], interactions=[clearing])
+        return CompositeSystem(self.label, elements=[banks], interactions=[clearing])

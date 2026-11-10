@@ -1,7 +1,4 @@
-"""Draw the states of the groups on the cells of a cell complex.
-
-The groups are on the edges and hyperedges, drawn as segments, images, and polygons.
-"""
+"""Draw the states of the groups on the cells of a cell complex."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ PLANE_AXES = 2
 
 
 class CellVisual(BaseVisual):
-    """Visual that logs a state of a group on the edges or hyperedges of a complex.
+    """A visual that logs a state of a group on the edges or faces of a complex.
 
     The complex is a cell complex. A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with
     a cyclic palette for an angle state, and its oriented sums around the faces log under `<path>/<state>/faces`. A
@@ -73,7 +70,7 @@ class CellVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _complex_of(self, element: CompiledElementSpec) -> CellComplexSpace:
+    def _get_complex_of(self, element: CompiledElementSpec) -> CellComplexSpace:
         """Return the cell complex of a group.
 
         It raises an error for a group on another space or part.
@@ -93,13 +90,13 @@ class CellVisual(BaseVisual):
             raise ValidationError(error_msg)
         return space
 
-    def _in_slice(self, lattice: LatticeSpace) -> npt.NDArray[np.bool_]:
+    def _get_in_slice(self, lattice: LatticeSpace) -> npt.NDArray[np.bool_]:
         """Return whether every site lies in the selected slice of a lattice."""
         coordinates = np.indices(lattice.shape_).reshape(lattice.n_dim_, -1)
         others = [axis for axis in range(lattice.n_dim_) if axis not in self.plane]
         return np.all(coordinates[others] == self.section, axis=0)
 
-    def _site_points(self, lattice: LatticeSpace) -> Array:
+    def _get_site_points(self, lattice: LatticeSpace) -> Array:
         """Return the position of every site in the plane.
 
         The second axis of the plane runs horizontally.
@@ -109,15 +106,15 @@ class CellVisual(BaseVisual):
         spacings = np.asarray(lattice.spacings_)
         return np.column_stack([coordinates[second] * spacings[second], coordinates[first] * spacings[first]])
 
-    def _lattice_segments(self, space: CellComplexSpace, lattice: LatticeSpace) -> tuple[Indices, Array]:
+    def _get_lattice_segments(self, space: CellComplexSpace, lattice: LatticeSpace) -> tuple[Indices, Array]:
         """Return the links in the plane and their segments.
 
         Each segment is one spacing long from its source.
         """
         sources = space.edges_[None][0]
         axes = space.link_axes_
-        kept = np.flatnonzero(np.isin(axes, self.plane) & self._in_slice(lattice)[sources])
-        points = self._site_points(lattice)
+        kept = np.flatnonzero(np.isin(axes, self.plane) & self._get_in_slice(lattice)[sources])
+        points = self._get_site_points(lattice)
         steps = np.zeros((kept.size, PLANE_AXES))
         along_first = axes[kept] == self.plane[0]
         steps[along_first, 1] = lattice.spacings_[self.plane[0]]
@@ -125,21 +122,21 @@ class CellVisual(BaseVisual):
         starts = points[sources[kept]]
         return kept, np.stack([starts, starts + steps], axis=1)
 
-    def _network_segments(self, space: CellComplexSpace) -> tuple[Indices, Array]:
+    def _get_network_segments(self, space: CellComplexSpace) -> tuple[Indices, Array]:
         """Return every edge of a network complex and its segment.
 
         The segment runs between the layout positions of its ends.
         """
-        layout = self._layout(space)
+        layout = self._get_layout(space)
         nodes = np.asarray([layout[str(node)] for node in space.graph.nodes], dtype=float)
         sources, targets = space.edges_[None]
         return np.arange(sources.size), np.stack([nodes[sources], nodes[targets]], axis=1)
 
-    def _colors_for(self, values: Array, period: float | None) -> npt.NDArray[np.uint8]:
+    def _get_colors_for(self, values: Array, period: float | None) -> npt.NDArray[np.uint8]:
         """Return the colors of values, from the cyclic palette for values with a period."""
         if period is None:
-            return self._colors(values, None, None)
-        return self._phase_colors(np.angle(np.exp(2j * np.pi * values / period)))
+            return self._get_colors(values, None, None)
+        return self._get_phase_colors(np.angle(np.exp(2j * np.pi * values / period)))
 
     def _log_segments(
         self,
@@ -151,9 +148,9 @@ class CellVisual(BaseVisual):
     ) -> None:
         """Log the values of the edges as colored segments."""
         lattice = space.space
-        found = self._lattice_segments(space, lattice) if isinstance(lattice, LatticeSpace) else None
-        links, segments = found if found is not None else self._network_segments(space)
-        colors = self._colors_for(values[links], period)
+        found = self._get_lattice_segments(space, lattice) if isinstance(lattice, LatticeSpace) else None
+        links, segments = found if found is not None else self._get_network_segments(space)
+        colors = self._get_colors_for(values[links], period)
         radius = EDGE_RADIUS * (min(lattice.spacings_) if isinstance(lattice, LatticeSpace) else 0.25)
         recording.log(path, rr.LineStrips2D(list(segments), colors=colors, radii=radius))
 
@@ -173,12 +170,12 @@ class CellVisual(BaseVisual):
         first, second = sorted(self.plane)
         in_plane = np.flatnonzero(np.all(space.face_planes_ == (first, second), axis=1))
         corners = np.asarray([space.hyperedges_[face][0] for face in in_plane], dtype=np.intp)
-        selected = in_plane[self._in_slice(lattice)[corners]]
-        coordinates = np.unravel_index(corners[self._in_slice(lattice)[corners]], lattice.shape_)
+        selected = in_plane[self._get_in_slice(lattice)[corners]]
+        coordinates = np.unravel_index(corners[self._get_in_slice(lattice)[corners]], lattice.shape_)
         rows, columns = coordinates[first], coordinates[second]
         height, width = lattice.shape_[first], lattice.shape_[second]
         colors = np.zeros((height, width, 3), dtype=np.uint8)
-        colors[rows, columns] = self._colors_for(values[selected], period)[..., :3]
+        colors[rows, columns] = self._get_colors_for(values[selected], period)[..., :3]
         recording.log(
             path,
             rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
@@ -193,10 +190,13 @@ class CellVisual(BaseVisual):
     ) -> None:
         """Log the values of the faces of a network complex as colored closed polygons."""
         values, period = faces
-        layout = self._layout(space)
+        layout = self._get_layout(space)
         nodes = list(space.graph.nodes)
         strips = [[layout[str(nodes[node])] for node in (*cycle, cycle[0])] for cycle in space.hyperedges_]
-        recording.log(path, rr.LineStrips2D(strips, colors=self._colors_for(values, period), radii=EDGE_RADIUS * 0.25))
+        recording.log(
+            path,
+            rr.LineStrips2D(strips, colors=self._get_colors_for(values, period), radii=EDGE_RADIUS * 0.25),
+        )
 
     def _log_faces(
         self,
@@ -230,11 +230,11 @@ class CellVisual(BaseVisual):
             frame:
                 The frame.
         """
-        space = self._complex_of(element)
+        space = self._get_complex_of(element)
         state = self.state if self.state is not None else next(iter(element.states))
         name = element.states[state]
-        values = np.ravel(np.asarray(frame.value(name), dtype=float))
-        period = frame.problem.states.entry(name).period
+        values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
+        period = frame.problem.states.get_entry(name).period
         cycle = None if period is None else float(period)
         path = f'{element.path}/{state}'
         if getattr(element.element, 'on', None) == 'hyperedges':
@@ -243,7 +243,7 @@ class CellVisual(BaseVisual):
         self._log_segments(recording, path, space, values, cycle)
         self._log_faces(recording, f'{path}/{FACES}', space, space.incidences_[1] @ values, cycle)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 2D spatial view of the state of the group.
 
         Args:
@@ -259,6 +259,6 @@ class CellVisual(BaseVisual):
         """
         if not isinstance(element, CompiledElementSpec):
             return []
-        self._complex_of(element)
+        self._get_complex_of(element)
         state = self.state if self.state is not None else next(iter(element.states))
         return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state)]

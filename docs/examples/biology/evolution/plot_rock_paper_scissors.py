@@ -7,8 +7,8 @@ that chase each other, and each keeps about a third of the lattice.
 """
 
 # %%
-# The system is built from its class on a periodic lattice of 60 by 60 sites with random strategies. The observer
-# saves every step with the default blueprint, whose primary view is the image of the strategies.
+# The example builds `RockPaperScissorsSystem` on a periodic lattice of 60 by 60 sites with random strategies. The
+# observer saves every step with the default blueprint, whose primary view is the image of the strategies.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,7 +28,7 @@ trajectory = simulate(RockPaperScissorsSystem(shape=(60, 60), random_state=0), o
 # The share of each strategy should fluctuate around one third without any of them dying out, while the domains of
 # the last snapshot show the cyclic fronts.
 
-strategies = trajectory.lattice('lattice.strategy')
+strategies = trajectory.get_lattice('lattice.strategy')
 values = np.unique(strategies[0])
 shares = np.array([[np.mean(frame == value) for value in values] for frame in strategies])
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

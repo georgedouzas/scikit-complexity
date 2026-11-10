@@ -7,7 +7,7 @@ orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after
 """
 
 # %%
-# The system is built from its class at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
+# The example builds `IsingSystem` at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
 # checkerboard Metropolis updates. The observer saves every frame with the default blueprint, whose primary view is
 # the image of the spins.
 
@@ -38,7 +38,7 @@ measured = []
 for temperature in temperatures:
     system_t = IsingSystem(size=48, temperature=temperature, initial='up')
     run = simulate(system_t, until=1500, random_state=1)
-    measured.append(np.abs(run.values('spins.spin')[300:].mean(axis=1)).mean())
+    measured.append(np.abs(run.get_values('spins.spin')[300:].mean(axis=1)).mean())
 grid = np.linspace(1.5, 2 / np.log(1 + np.sqrt(2)), 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, measured, 'o', label='simulation, 48 x 48')
@@ -65,7 +65,7 @@ redundancies = []
 for temperature in temperatures:
     system_t = IsingSystem(size=48, temperature=temperature, initial='up')
     run = simulate(system_t, until=600, random_state=1)
-    frames = np.asarray(run.values('spins.spin')[300::10]).reshape(-1, 48, 48)
+    frames = np.asarray(run.get_values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
     redundancies.append(information((blocks > 0).astype(int), kind='o-information').information)
 fig, ax = plt.subplots(figsize=(7, 4))

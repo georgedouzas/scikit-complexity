@@ -7,9 +7,9 @@
 import networkx as nx
 import numpy as np
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement
 
 NODES = 400
@@ -83,7 +83,7 @@ class GraphIsingSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Ising system on a graph.
 
         The system orders below a critical temperature set by the degrees of the nodes.
@@ -95,11 +95,12 @@ class GraphIsingSystem(BaseSystem):
         size = graph.number_of_nodes()
         spins = np.ones(size) if self.initial == 'up' else rng.choice([-1.0, 1.0], size=size)
         space = NetworkSpace(graph)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=IsingSpinElement,
             space=space,
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
         sampling = IsingSamplingInteraction(
             'sampling',
@@ -108,4 +109,4 @@ class GraphIsingSystem(BaseSystem):
             schedule='colored',
             neighborhood=AdjacencyNeighborhood(),
         )
-        return System(self.label, elements=[group], interactions=[sampling])
+        return CompositeSystem(self.label, elements=[group], interactions=[sampling])

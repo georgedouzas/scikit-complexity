@@ -6,8 +6,8 @@ that rotates steadily, sending out wave after wave, the pattern of re-entrant wa
 """
 
 # %%
-# The system is built from its class on a lattice of 100 by 100 sites, with the upper half excited and its left half
-# refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# The example builds `FitzhughNagumoSystem` on a lattice of 100 by 100 sites, with the upper half excited and its left
+# half refractory, and integrates it with Runge-Kutta steps of 0.05. The observer saves every frame with the default
 # blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ trajectory = simulate(
 # A rotating spiral excites every site once per turn, so the potential at a fixed probe should spike periodically with
 # the rotation period of the spiral, and the last snapshot should show the spiral arm.
 
-potential = trajectory.lattice('medium.u')
+potential = trajectory.get_lattice('medium.u')
 probe = potential[:, 75, 75]
 peaks, _ = find_peaks(probe, height=0.5)
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

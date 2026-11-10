@@ -7,9 +7,9 @@ hippocampus under optogenetic theta stimulation.
 """
 
 # %%
-# The system is built from its class with the PING settings of Segneri et al. (2020) and run for 600 ms at a theta
-# frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary view is the
-# time series of the rates and potentials.
+# The example builds `NextGenerationNeuralMassSystem` with the PING settings of Segneri et al. (2020) and run for 600 ms
+# at a theta frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary
+# view is the time series of the rates and potentials.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,11 +31,11 @@ trajectory = simulate(NextGenerationNeuralMassSystem(), dt=1.0, observers=[obser
 # the rate shows gamma bursts in every theta cycle.
 
 fine = simulate(NextGenerationNeuralMassSystem(), until=2000)
-potential = fine.values('excitatory.v')[400:]
+potential = fine.get_values('excitatory.v')[400:]
 frequencies, power = welch(potential - potential.mean(), fs=2000.0, nperseg=2048)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4.5))
-series.plot(fine.times[:2000], 1000 * fine.values('excitatory.r')[:2000], label='excitatory rate')
-series.plot(fine.times[:2000], 1000 * fine.values('inhibitory.r')[:2000], label='inhibitory rate')
+series.plot(fine.times[:2000], 1000 * fine.get_values('excitatory.r')[:2000], label='excitatory rate')
+series.plot(fine.times[:2000], 1000 * fine.get_values('inhibitory.r')[:2000], label='inhibitory rate')
 series.set_xlabel('time (ms)')
 series.set_ylabel('rate (Hz)')
 series.set_title('Gamma bursts in every theta cycle')

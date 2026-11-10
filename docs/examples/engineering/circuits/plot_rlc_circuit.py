@@ -6,7 +6,7 @@ damps the ringing so the oscillation decays exponentially.
 """
 
 # %%
-# The system is built from its class with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
+# The example builds `RlcCircuitSystem` with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
 # to `q = 1`, and runs for 50 time units. The default blueprint shows the charge and its rate, the current, in one time
 # series view.
 
@@ -18,6 +18,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import RlcCircuitSystem
 
 SYSTEM = 'rlc_circuit'
+L, R, C = 1.0, 0.1, 1.0
+
 
 system = RlcCircuitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
@@ -30,7 +32,6 @@ trajectory = simulate(system, observers=[observer])
 # Driven by `V cos(omega t)`, the steady amplitude should follow the resonance curve
 # `V / sqrt((1 / C - L omega^2)^2 + (R omega)^2)`, peaked at the natural frequency.
 
-L, R, C = 1.0, 0.1, 1.0
 times = trajectory.times
 omega_d = np.sqrt(1 / (L * C) - R**2 / (4 * L**2))
 exact = np.exp(-R * times / (2 * L)) * (np.cos(omega_d * times) + R / (2 * L * omega_d) * np.sin(omega_d * times))
@@ -38,10 +39,10 @@ frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for omega in frequencies:
     driven = simulate(RlcCircuitSystem(q=0.0, V=0.1, omega=omega), until=150, dt=0.1)
-    amplitudes.append(np.abs(driven.values('circuit.q')[-300:]).max())
+    amplitudes.append(np.abs(driven.get_values('circuit.q')[-300:]).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, (ringing, resonance) = plt.subplots(1, 2, figsize=(10, 4))
-ringing.plot(times, trajectory.values('circuit.q'), label='simulation')
+ringing.plot(times, trajectory.get_values('circuit.q'), label='simulation')
 ringing.plot(times, exact, color='black', linestyle='--', linewidth=1, label='exact solution')
 ringing.plot(times, np.exp(-R * times / (2 * L)), color='gray', linewidth=0.8, label='envelope exp(-R t / 2L)')
 ringing.set_xlabel('time')

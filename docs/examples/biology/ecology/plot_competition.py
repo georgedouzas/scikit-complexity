@@ -7,7 +7,7 @@ rival, both settle below their capacities and coexist.
 """
 
 # %%
-# The system is built from its class with its default coefficients, which satisfy the condition of coexistence
+# The example builds `CompetitionSystem` with its default coefficients, which satisfy the condition of coexistence
 # `alpha12 alpha21 < 1`. The observer saves every second frame with the default blueprint, whose primary view is the
 # time series of both populations.
 
@@ -29,7 +29,7 @@ trajectory = simulate(CompetitionSystem(first=5.0, second=60.0), observers=[obse
 # The first species stops growing on the line `n1 + alpha12 n2 = K1` and the second on `alpha21 n1 + n2 = K2`. The
 # lines cross at the coexistence equilibrium, and the trajectory should run into that crossing.
 
-first, second = trajectory.values('first.n'), trajectory.values('second.n')
+first, second = trajectory.get_values('first.x'), trajectory.get_values('second.x')
 K1, K2, alpha12, alpha21 = 100.0, 80.0, 0.5, 0.6
 n1 = (K1 - alpha12 * K2) / (1 - alpha12 * alpha21)
 n2 = (K2 - alpha21 * K1) / (1 - alpha12 * alpha21)

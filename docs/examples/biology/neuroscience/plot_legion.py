@@ -7,7 +7,7 @@ the stimulus take turns, each one a synchronized block.
 """
 
 # %%
-# The system is built from its class with its default stimulus of two objects on a 4 by 4 lattice, an L-shape at the
+# The example builds `LegionSystem` with its default stimulus of two objects on a 4 by 4 lattice, an L-shape at the
 # top left and a bar at the right, and the faster slow time scale `epsilon = 0.1`, so that several turns fit in the
 # run. The observer saves every step with the default blueprint, whose primary view shows the oscillators.
 
@@ -30,7 +30,7 @@ trajectory = simulate(LegionSystem(epsilon=0.1, random_state=0), dt=1.0, observe
 # at the same times, the two sites of the second object at the same times, the two objects never together, and the
 # unstimulated sites never.
 
-active = trajectory.lattice('oscillators.x') > 0
+active = trajectory.get_lattice('oscillators.x') > 0
 sites = {'object 1: (0, 0)': (0, 0), 'object 1: (0, 1)': (0, 1), 'object 1: (1, 0)': (1, 0)}
 sites |= {'object 2: (2, 3)': (2, 3), 'object 2: (3, 3)': (3, 3), 'unstimulated: (1, 1)': (1, 1)}
 fig, ax = plt.subplots(figsize=(9, 3.5))

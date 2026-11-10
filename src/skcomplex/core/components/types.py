@@ -1,7 +1,4 @@
-"""Define the types of the core.
-
-They are the targets of laws, the pairings and rules of matches, and the protocols.
-"""
+"""Define the types of the core, such as targets of laws and agent protocols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,17 +15,6 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from shapely import Polygon
 
-from ..specs import (
-    BatchMatchingSpec,
-    ContinuousMatchingSpec,
-    IterativeMatchingSpec,
-    PartnerSpec,
-    PartnerSwitchSpec,
-    QueueSpec,
-    RandomSearchSpec,
-    StableMatchingSpec,
-)
-from ..types import Array
 from .spaces import DelaunayNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
@@ -36,27 +22,16 @@ type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Feasibility = Callable[[AgentViewProtocol, AgentViewProtocol], bool]
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
-type MatchingRule = (
-    RandomSearchSpec
-    | PartnerSpec
-    | PartnerSwitchSpec
-    | QueueSpec
-    | IterativeMatchingSpec
-    | ContinuousMatchingSpec
-    | BatchMatchingSpec
-    | StableMatchingSpec
-)
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]
-type AgentCombination = Callable[[AgentViewProtocol, SystemViewProtocol, Array | None, int | None], npt.ArrayLike]
 
 
 @runtime_checkable
 class AgentViewProtocol(Protocol):
-    """Agent as agent rules read it, such as `AgentView` of the agent stepper.
+    """A protocol of an agent as agent rules read it, such as `AgentView`.
 
-    It exposes its id, location, moves, and life.
+    It exposes the id, the location, the moves, and the life of the agent.
     """
 
     @property
@@ -86,43 +61,43 @@ class AgentViewProtocol(Protocol):
     def alive(self) -> bool:
         """Whether the agent has not been removed."""
 
-    def neighbor_cells(self) -> list[object]:
+    def get_neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node.
 
         They are hashable as location keys.
         """
 
-    def agents_here(self, group: str | None = None) -> Sequence[AgentViewProtocol]:
+    def get_agents_here(self, group: str | None = None) -> Sequence[AgentViewProtocol]:
         """Return the other agents of the agent's cell or node.
 
         They are of every group or of the group of a path.
         """
 
-    def displacement_to(self, other: AgentViewProtocol | object) -> npt.NDArray[np.float64]:
+    def get_displacement_to(self, other: AgentViewProtocol | object) -> npt.NDArray[np.float64]:
         """Return the vector from the agent to another agent or a location.
 
         On a torus it is the shortest one.
         """
 
-    def distance_to(self, other: AgentViewProtocol | object) -> float:
+    def get_distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location.
 
         On a network it is the number of hops.
         """
 
-    def neighbors(
+    def get_neighbors(
         self,
         radius: float | None = None,
         layer: str | None = None,
         group: str | None = None,
         over: DelaunayNeighborhood | None = None,
     ) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes, or in a neighbourhood of a continuous space.
+        """Return the other agents in the neighbouring cells or nodes, or nearby in space.
 
         They are of every group or of the group of a path.
         """
 
-    def regions_here(self, layer: str) -> list[int]:
+    def get_regions_here(self, layer: str) -> list[int]:
         """Return the indices of the regions of a continuous space layer with the agent."""
 
     def move_to(self, location: object) -> None:
@@ -140,13 +115,13 @@ class AgentViewProtocol(Protocol):
         By default it is the agent's own group at the agent's location.
         """
 
-    def referenced(self, state: str) -> AgentViewProtocol | None:
+    def get_referenced(self, state: str) -> AgentViewProtocol | None:
         """Return the member of another group that a reference state of the agent names.
 
         The result is `None` when there is none.
         """
 
-    def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a state of the agent at the ends of the last steps.
 
         The last one comes last.
@@ -155,9 +130,9 @@ class AgentViewProtocol(Protocol):
 
 @runtime_checkable
 class SystemViewProtocol(Protocol):
-    """System as agent rules read it, such as `SystemView` of the agent stepper.
+    """A protocol of a system as agent rules read it, such as `SystemView`.
 
-    It exposes its agents, storage, and randomness.
+    It exposes the agents, the storage, and the random numbers of the system.
     """
 
     @property
@@ -167,8 +142,8 @@ class SystemViewProtocol(Protocol):
     def draw(self, name: str, distribution: str, **arguments: npt.ArrayLike) -> float:
         """Return a value drawn by name from a distribution, which runs record and replay.
 
-        The distribution is `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`,
-        `'bernoulli'` with `p`, `'categorical'` with `weights`, or a `scipy.stats` distribution with its keywords.
+        The distribution is `'uniform'` with `low` and `high`, `'normal'` with `mean` and `deviation`, `'bernoulli'`
+        with `p`, `'categorical'` with `weights`, or a `scipy.stats` distribution with its keywords.
         """
 
     @property
@@ -178,7 +153,7 @@ class SystemViewProtocol(Protocol):
         It persists across the steps of one run.
         """
 
-    def agents(self, name: str) -> Sequence[AgentViewProtocol]:
+    def get_agents(self, name: str) -> Sequence[AgentViewProtocol]:
         """Return the agents of a group bound to a role of the owner or of a group by path."""
 
     @property
@@ -192,16 +167,16 @@ class SystemViewProtocol(Protocol):
     def torus(self) -> bool:
         """Whether the agent space wraps around at its edges."""
 
-    def groups(self, name: str) -> list[str]:
+    def get_groups(self, name: str) -> list[str]:
         """Return the paths of the groups a role of the owner binds, or of a group by path."""
 
-    def regions(self, layer: str) -> int:
+    def get_regions(self, layer: str) -> int:
         """Return the number of regions of a layer of the continuous space."""
 
-    def region(self, layer: str, index: int) -> Polygon:
+    def get_region(self, layer: str, index: int) -> Polygon:
         """Return the polygon of a region of a layer of the continuous space."""
 
-    def parameter(self, name: str) -> float:
+    def get_parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
 
     @property
@@ -228,16 +203,16 @@ class SystemViewProtocol(Protocol):
     def count(self, name: str) -> int:
         """Return the number of agents of a group, a role of the owner or a path."""
 
-    def random_empty_cell(self) -> object:
+    def get_random_empty_cell(self) -> object:
         """Return the coordinates of a random empty cell of the grid or network."""
 
-    def observable(self, name: str) -> object:
+    def get_observable(self, name: str) -> object:
         """Return the current value of an observable of the system.
 
         An example is an aggregate of a group.
         """
 
-    def field(self, name: str, cell: object) -> float:
+    def get_field(self, name: str, cell: object) -> float:
         """Return the value of a field state at a cell or node.
 
         The state is given by path or as `<role>.<state>`.
@@ -262,19 +237,19 @@ class SystemViewProtocol(Protocol):
         It includes the fraction of the step that the visits of a phase reached.
         """
 
-    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter or of an observable.
 
         The values of an observable are those at the end of every earlier step.
         """
 
-    def composition(self, name: str, state: str) -> dict[Hashable, int]:
+    def get_composition(self, name: str, state: str) -> dict[Hashable, int]:
         """Return the number of agents by value of a state.
 
         The agents are those of a group, a role of the owner or a path.
         """
 
-    def occupancy(self, name: str) -> dict[Hashable, int]:
+    def get_occupancy(self, name: str) -> dict[Hashable, int]:
         """Return the number of agents by the key of their location.
 
         The agents are those of a group, a role of the owner or a path.

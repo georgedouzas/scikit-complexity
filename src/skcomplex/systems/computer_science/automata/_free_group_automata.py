@@ -13,16 +13,21 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import CayleySpace, GeneratorNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import CayleySpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import life
+from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import free_group
+
+FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
+TREE_RANK = 4
+MIN_MODULUS = 2
 
 
 class PairCellElement(Element):
@@ -65,61 +70,6 @@ class PairCellElement(Element):
         self.first = first
         self.second = second
         self.modulus = modulus
-
-
-FREE_GENERATORS = GeneratorNeighborhood(('a', 'b'), center=False)
-TREE_RANK = 4
-MIN_MODULUS = 2
-
-
-def _pair_cells(
-    space: CayleySpace,
-    modulus: int,
-    initial: npt.ArrayLike | None,
-    random_state: int | np.random.Generator | None,
-) -> Array:
-    """Return the initial pairs, one row of two coordinates per site.
-
-    By default they are random modulo the modulus.
-    """
-    if modulus < MIN_MODULUS:
-        error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
-        raise ParameterError(error_msg)
-    size = space.prepare().size_
-    if initial is not None:
-        return np.asarray(initial, dtype=float).reshape(size, 2)
-    return np.random.default_rng(random_state).integers(0, modulus, (size, 2)).astype(float)
-
-
-def _pair_system(
-    label: str,
-    rule: object,
-    *,
-    radius: int,
-    modulus: int,
-    initial: npt.ArrayLike | None,
-    random_state: int | np.random.Generator | None,
-) -> System:
-    """Return an automaton of pairs on a ball of the free group of rank 2.
-
-    It reads `a`, `a^-1`, `b`, and `b^-1`.
-    """
-    space = CayleySpace(free_group(2), ball=radius)
-    pairs = _pair_cells(space, modulus, initial, random_state)
-    values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
-    return System(
-        label,
-        elements=[LatticeElement('cells', element=PairCellElement, space=space, values=values)],
-        interactions=[
-            LocalRuleInteraction(
-                'rule',
-                target='cells',
-                state=('first', 'second'),
-                rule=rule,
-                neighborhood=FREE_GENERATORS,
-            ),
-        ],
-    )
 
 
 class MullerAutomatonSystem(BaseSystem):
@@ -168,6 +118,56 @@ class MullerAutomatonSystem(BaseSystem):
         ObservableSpec('second_mean', group='cells', variable='second'),
     )
 
+    @staticmethod
+    def _get_pair_cells(
+        space: CayleySpace,
+        modulus: int,
+        initial: npt.ArrayLike | None,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return the initial pairs, one row of two coordinates per site.
+
+        By default they are random modulo the modulus.
+        """
+        if modulus < MIN_MODULUS:
+            error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
+            raise ParameterError(error_msg)
+        size = space.prepare().size_
+        if initial is not None:
+            return np.asarray(initial, dtype=float).reshape(size, 2)
+        return np.random.default_rng(random_state).integers(0, modulus, (size, 2)).astype(float)
+
+    @staticmethod
+    def _get_pair_system(
+        label: str,
+        rule: object,
+        *,
+        radius: int,
+        modulus: int,
+        initial: npt.ArrayLike | None,
+        random_state: int | np.random.Generator | None,
+    ) -> CompositeSystem:
+        """Return an automaton of pairs on a ball of the free group of rank 2.
+
+        It reads `a`, `a^-1`, `b`, and `b^-1`.
+        """
+        space = CayleySpace(free_group(2), ball=radius)
+        pairs = MullerAutomatonSystem._get_pair_cells(space, modulus, initial, random_state)
+        values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
+        return CompositeSystem(
+            label,
+            elements=[GroupElement('cells', element=PairCellElement, space=space, values=values, on='sites')],
+            interactions=[
+                LocalRuleInteraction(
+                    'rule',
+                    target='cells',
+                    state=('first', 'second'),
+                    rule=rule,
+                    neighborhood=FREE_GENERATORS,
+                ),
+            ],
+        )
+
     def __init__(
         self,
         *,
@@ -184,7 +184,7 @@ class MullerAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _muller(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
+    def _get_muller(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
         """Return `p1(x(ga)) + p2(x(gb)) + p1(x(ga^-1)) + p2(x(gb^-1))`.
 
         The projections are `p1(h, k) = (h, 0)` and `p2(h, k) = (k, 0)`.
@@ -193,14 +193,14 @@ class MullerAutomatonSystem(BaseSystem):
         total = first[0] + first[1] + second[2] + second[3]
         return total % modulus, np.zeros_like(total)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Muller's automaton on the free group F2.
 
         It is pre-injective but not surjective.
         """
-        return _pair_system(
+        return MullerAutomatonSystem._get_pair_system(
             self.label,
-            self._muller,
+            self._get_muller,
             radius=self.radius,
             modulus=self.modulus,
             initial=self.initial,
@@ -271,7 +271,7 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _surjective_linear(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
+    def _get_surjective_linear(*values: Array, modulus: Array | float) -> tuple[Array, Array]:
         """Return `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`.
 
         The maps are `q1(h, k) = (h, 0)` and `q2(h, k) = (0, h)`.
@@ -279,14 +279,14 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         first = values[:4]
         return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a linear automaton over `K^2` on the free group F2.
 
         It is surjective but not pre-injective.
         """
-        return _pair_system(
+        return MullerAutomatonSystem._get_pair_system(
             self.label,
-            self._surjective_linear,
+            self._get_surjective_linear,
             radius=self.radius,
             modulus=self.modulus,
             initial=self.initial,
@@ -347,7 +347,7 @@ class LifeInATreeSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Game of Life on the free group F4, surjective but not pre-injective.
 
         The free group F4 is a tree of degree 8.
@@ -358,9 +358,11 @@ class LifeInATreeSystem(BaseSystem):
             cells = (np.random.default_rng(self.random_state).random(size) < self.density).astype(float)
         else:
             cells = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': cells}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'life',

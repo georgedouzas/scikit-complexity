@@ -6,10 +6,10 @@ to fill the tumour's capacity.
 """
 
 # %%
-# The system is built from its class with the book's parameters: a spontaneous resistance rate of 10^-6, a resistance
-# induced at the rate 0.01 per unit of dose, and a resistant population that grows at a fifth of the rate of the
-# sensitive one. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the three populations.
+# The example builds `DrugResistanceSwitchingSystem` with the parameters of the book of Padmanabhan, Meskin, and Al
+# Moustafa (2021): a spontaneous resistance rate of 10^-6, a resistance induced at the rate 0.01 per unit of dose, and a
+# resistant population that grows at a fifth of the rate of the sensitive one. The observer saves every frame with the
+# default blueprint, whose primary view is the time series of the three populations.
 
 import matplotlib.pyplot as plt
 
@@ -31,15 +31,15 @@ trajectory = simulate(DrugResistanceSwitchingSystem(), dt=0.5, observers=[observ
 spontaneous = simulate(DrugResistanceSwitchingSystem(alpha_m=0.0), dt=0.5, until=120)
 induced = trajectory
 fig, (resistant, sensitive) = plt.subplots(1, 2, figsize=(10, 4))
-resistant.plot(induced.times, induced.values('tumour.Rm'), label='induced, alpha_m = 0.01')
-resistant.plot(spontaneous.times, spontaneous.values('tumour.Rm'), label='spontaneous only')
+resistant.plot(induced.times, induced.get_values('tumour.Rm'), label='induced, alpha_m = 0.01')
+resistant.plot(spontaneous.times, spontaneous.get_values('tumour.Rm'), label='spontaneous only')
 resistant.axhline(0.5, color='grey', linestyle=':', label='half the capacity')
 resistant.set_xlabel('time')
 resistant.set_ylabel('resistant cells (fraction of capacity)')
 resistant.set_title('Induction speeds up resistance')
 resistant.legend()
-sensitive.semilogy(induced.times, induced.values('tumour.S'), label='induced, alpha_m = 0.01')
-sensitive.semilogy(spontaneous.times, spontaneous.values('tumour.S'), label='spontaneous only')
+sensitive.semilogy(induced.times, induced.get_values('tumour.S'), label='induced, alpha_m = 0.01')
+sensitive.semilogy(spontaneous.times, spontaneous.get_values('tumour.S'), label='spontaneous only')
 sensitive.set_xlabel('time')
 sensitive.set_ylabel('sensitive cells (fraction of capacity)')
 sensitive.set_title('The drug kills the sensitive cells')

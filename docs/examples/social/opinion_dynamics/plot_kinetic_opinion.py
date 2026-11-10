@@ -48,7 +48,7 @@ def final_distribution(confidence, repulsion):
     """Return the final distribution and variance of the opinions for a confidence and a repulsion."""
     system_system = KineticOpinionSystem(confidence=confidence, repulsion=repulsion)
     run = simulate(system_system, dt=60.0)
-    return run.values('opinions.f')[-1], run.values('opinion_variance')[-1]
+    return run.get_values('opinions.x')[-1], run.get_values('opinion_variance')[-1]
 
 
 opinions = opinion_grid(7)

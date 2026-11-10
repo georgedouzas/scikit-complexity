@@ -7,8 +7,8 @@ cycles irregular.
 """
 
 # %%
-# The system is built from its class with 300 prey and 60 predators on a 30 by 30 grid. The observer saves every step
-# with the default blueprint, whose primary view shows the animals on the grid.
+# The example builds `AgentBasedLotkaVolterraSystem` with 300 prey and 60 predators on a 30 by 30 grid. The observer
+# saves every step with the default blueprint, whose primary view shows the animals on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +33,7 @@ trajectory = simulate(
 # The predators should peak after the prey, so the cross-correlation of the two counts should be largest at a
 # positive lag of the predators, and the orbit in the phase plane should circle counterclockwise.
 
-prey, predators = trajectory.values('prey.count'), trajectory.values('predators.count')
+prey, predators = trajectory.get_values('prey.count'), trajectory.get_values('predators.count')
 lags = np.arange(0, 40)
 correlation = [np.corrcoef(prey[: len(prey) - lag], predators[lag:])[0, 1] for lag in lags]
 fig, (orbit, cross) = plt.subplots(1, 2, figsize=(11, 4))

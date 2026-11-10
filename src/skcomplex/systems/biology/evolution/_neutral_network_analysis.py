@@ -146,7 +146,7 @@ def _read_sequences(source: object, state: str | None) -> np.ndarray:
     """
     if isinstance(source, Trajectory):
         name = state if state is not None else source.problem.states.names[0]
-        source = source.lattice(name)
+        source = source.get_lattice(name)
     array = np.asarray(source)
     if array.dtype.kind in 'USO' and len(array.flat[0]) > 1:
         return array.astype(object)

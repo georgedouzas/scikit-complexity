@@ -11,11 +11,11 @@ import rerun.blueprint as rrb
 
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ..problems import BaseProblemSpec, FrameSpec
-from ._base import _SERIES_COLORS, PARTS, BaseVisual
+from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
-    """Visual that logs each state component of an element as a time series.
+    """A visual that logs each state component of an element as a time series.
 
     Every state gets static series colors from a categorical palette, by its position among the states of every element
     of the problem, so the series of one view are told apart. The lag states that keep the past values of a delayed
@@ -57,7 +57,7 @@ class ScalarsVisual(BaseVisual):
         self.styled_: set[str] = set()
         super()._prepare(context)
 
-    def _value(self, value: object) -> object:
+    def _get_value(self, value: object) -> object:
         """Return the chosen components of a vector value, or the value itself."""
         array = np.ravel(np.asarray(value))
         if self.components is None or array.size == 1:
@@ -82,13 +82,18 @@ class ScalarsVisual(BaseVisual):
         for state, name in element.states.items():
             if frame.problem.companions.get(name, ('',))[0] == 'lag':
                 continue
-            path, value = f'{element.path}/{state}', self._value(frame.value(name))
+            path, value = f'{element.path}/{state}', self._get_value(frame.get_value(name))
             if path not in self.styled_:
-                self._style_series(recording, path, value, self._series_index(frame.problem, element.path, state))
+                self._log_series_style(
+                    recording,
+                    path,
+                    value,
+                    self._get_series_index(frame.problem, element.path, state),
+                )
                 self.styled_.add(path)
             BaseVisual._log_scalars(recording, path, value)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:
@@ -116,7 +121,7 @@ class ScalarsVisual(BaseVisual):
         return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
 
     @staticmethod
-    def _series_index(problem: BaseProblemSpec, path: str, state: str) -> int:
+    def _get_series_index(problem: BaseProblemSpec, path: str, state: str) -> int:
         """Return the position of a state among the states of every element of a problem.
 
         The states are in declaration order.
@@ -125,7 +130,7 @@ class ScalarsVisual(BaseVisual):
         return names.index((path, state)) if (path, state) in names else 0
 
     @staticmethod
-    def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
+    def _log_series_style(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
         """Log static series colors for the components of a value.
 
         They come from the categorical palette starting at an index.
@@ -133,5 +138,5 @@ class ScalarsVisual(BaseVisual):
         values = np.ravel(np.asarray(value))
         parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
         for offset, entity in enumerate(parts):
-            colors = [_SERIES_COLORS[(index + offset + column) % len(_SERIES_COLORS)] for column in range(values.size)]
+            colors = [SERIES_COLORS[(index + offset + column) % len(SERIES_COLORS)] for column in range(values.size)]
             recording.log(entity, rr.SeriesLines(colors=colors), static=True)

@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AgentStateSpec(BaseSpec):
-    """Agents of every group and the system reporters at one frame.
+    """A spec of the agents of every group and the reporters at one frame.
 
     Args:
         groups:

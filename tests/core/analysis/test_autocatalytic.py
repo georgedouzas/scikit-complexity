@@ -5,10 +5,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import autocatalytic_sets
+from skcomplex.core.analysis._autocatalytic import _closure
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import NetworkSnapshotSpec
@@ -60,10 +61,15 @@ def test_reads_the_frames_of_a_trajectory_and_rejects_other_sources():
         toward=lambda node: 0.5,
     )
     space = NetworkSpace(nx.empty_graph(3, create_using=nx.DiGraph))
-    system = System(elements=[nodes, links, groups], interactions=[growth], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[nodes, links, groups], interactions=[growth], space=space, time=DiscreteTime())
     trajectory = simulate(system, until=20, random_state=0)
     analysis = autocatalytic_sets(trajectory, frames=[0, -1])
     assert analysis.sizes[0] == 0
     assert analysis.sizes[1] > 10
     with pytest.raises(AnalysisError, match='network snapshot'):
         autocatalytic_sets(nx.path_graph(3))
+
+
+def test_closure_holds_every_product_reachable_from_the_food_set():
+    """Test that a reaction adds its product once all its reactants are reachable from the food set."""
+    assert sorted(_closure({0, 1}, [([0, 1], 2), ([2, 5], 3), ([2], 4)])) == [0, 1, 2, 4]

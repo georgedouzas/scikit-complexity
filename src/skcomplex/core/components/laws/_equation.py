@@ -1,7 +1,4 @@
-"""Define equation laws.
-
-They are implicit relations in which the highest time derivatives of states appear.
-"""
+"""Define the law that states an implicit relation between derivatives of states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,14 +14,20 @@ from ._base import BaseLaw
 
 
 class EquationLaw(BaseLaw):
-    """Implicit relation in which the highest time derivatives of states appear.
+    """A law that states an implicit relation between the derivatives of states.
 
-    An example is Newton's second law. The states are Sage functions of time, such as `function('theta')(t)`, and their
-    derivatives are Sage derivatives, `theta.diff(t, 2)`. The compiler solves all equations of a system jointly for the
-    highest derivatives, which must appear linearly, and adds the rate laws on the same states to the solution. An
-    equation may name the state whose equation it is, its `target`, and the equations of one target, from any element or
-    interaction, add into one before the solve, so a term of it may hold no highest derivative, such as the part a
-    coupling Lagrangian adds to the Euler-Lagrange equation of a coordinate.
+    The relation `lhs == rhs` holds the highest time derivatives of its states linearly, as Newton's second law holds
+    the acceleration. The states are Sage functions of time, such as `function('theta')(t)`, and their derivatives are
+    Sage derivatives, such as `theta.diff(t, 2)`. The compiler solves all the equations of a system together for the
+    highest derivatives and adds the rate laws on the same states to the solution. The equations of one `target`, from
+    any part, add into one before the solve, so a term may hold no highest derivative, such as the part a coupling adds
+    to the equation of a coordinate.
+
+    Unlike `RateLaw`, which gives a derivative explicitly, it gives a relation that the compiler solves for the
+    derivatives. Choose it when the derivatives are coupled through a mass matrix, as in linked bodies.
+
+    It appears in many fields. The equations of a double pendulum, the coupled currents of an electric circuit, and the
+    joints of a robot arm are implicit in their accelerations.
 
     Args:
         lhs:

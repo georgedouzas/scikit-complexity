@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression, sqrt
 from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -168,12 +168,12 @@ class StormerProblemSystem(BaseSystem):
         kinetic = sum(item**2 for item in velocity) / 2
         return kinetic + charge.alpha * (charge.x * velocity[1] - charge.y * velocity[0]) / radius**3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a charged particle moving in the magnetic dipole field of a planet.
 
         This is the Störmer problem.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 DipoleChargeElement(

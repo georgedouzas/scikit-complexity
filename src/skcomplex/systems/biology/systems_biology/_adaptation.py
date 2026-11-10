@@ -16,20 +16,15 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 NODES = ('A', 'B', 'C')
-
 NEGATIVE_FEEDBACK_BUFFER = ((0, -1, 0), (0, 0, 1), (1, 0, 0))
-
 RATES = ((0.419, 0.3, 5.061), (7.809, 9.355, 4.852), (0.735, 1.176, 1.928), (7.282, 0.182, 7.914))
-
 CONSTANTS = ((0.1633, 2.5556, 0.0323), (0.0154, 0.3059, 0.0641), (4.3698, 0.0021, 0.3178), (0.0379, 0.0202, 1.802))
-
 BASAL_RATES = (3.092, 0.712, 0.337)
-
 BASAL_CONSTANTS = (0.143, 0.0031, 0.1074)
 
 
@@ -148,9 +143,9 @@ class EnzymeRegulationInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [RateLaw(s.target.X, self._conversion(s.source.X, s.target.X, s.k, s.K))]
+        return [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
 
-    def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
+    def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by a regulator.
 
         The conversion follows the sign of the interaction.
@@ -235,9 +230,9 @@ class EnzymeStimulusInteraction(Interaction):
                 The laws of the component.
         """
         regulator = s.level + step(s.t, self.at, self.change)
-        return [RateLaw(s.target.X, self._conversion(regulator, s.target.X, s.k, s.K))]
+        return [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
 
-    def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
+    def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by the stimulus.
 
         The conversion follows the sign of the interaction.
@@ -329,7 +324,7 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         self.change = change
         self.at = at
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a circuit of three enzymes A, B, and C of Ma et al."""
         signs = np.asarray(self.links)
         if signs.shape != (3, 3) or not np.isin(signs, (-1, 0, 1)).all():
@@ -371,4 +366,8 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
                             K=float(self.K_basal[index]),
                         ),
                     )
-        return System(self.label, elements=[EnzymeNodeElement(node) for node in NODES], interactions=interactions)
+        return CompositeSystem(
+            self.label,
+            elements=[EnzymeNodeElement(node) for node in NODES],
+            interactions=interactions,
+        )

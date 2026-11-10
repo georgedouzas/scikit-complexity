@@ -1,7 +1,4 @@
-"""Define conservation laws.
-
-A conservation law changes a conserved state of a field by the divergence of a flux and a source.
-"""
+"""Define the interaction that changes a field by a flux and a source."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,20 +24,26 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov', None)
 
 
 class ConservationInteraction(Interaction):
-    """Conservation law `du/dt + divergence(flux(ns)) = source(ns)` of a state `u`.
+    """An interaction that changes a field by the divergence of a flux and a source.
 
-    The state `u` is a state of a field. The flux is one expression for a field of one dimension, or one expression per
-    dimension, of the states of the field, and the interaction lowers it to a finite-volume flux law with a slope
-    limiter and a numerical flux, or, without a numerical flux, to the rate `-divergence(flux)` that the field
-    discretizes by its own operators, as a spectral or finite-difference field does. Without a source the total of the
-    state on a periodic field stays constant. The conservation laws of several states of one field form one system,
-    whose numerical flux reads the wave speeds of all of them, and a flux may read parameters that vary across the
-    cells. A flux or a source function takes the namespace of the interaction, with the namespace `target` of the field,
-    the time `t`, and the symbols of the parameters a subclass declares.
+    It gives the conservation law `du/dt + divergence(flux) = source` of a state `u` of a field. The flux is one
+    expression for a field of one dimension, or one per dimension. On a finite-volume field the interaction lowers to a
+    flux law with a slope limiter and a numerical flux, and on other fields to the rate `-divergence(flux)`, which the
+    field discretizes by its own operators. Without a source the total of the state on a periodic field stays constant.
+    Several conservation laws on one field form one system, whose numerical flux reads the wave speeds of all of them. A
+    flux or a source function takes a namespace with the field as `target`, the time `t`, and the parameters a subclass
+    declares.
+
+    Unlike `RateInteraction`, which gives the rate of a state directly, it writes the rate as the divergence of a flux,
+    so the scheme keeps the total and captures shocks. Choose it when an amount moves through space without being
+    created or destroyed, apart from a source.
+
+    It appears in many fields. Cars on a road follow the traffic flow model of Lighthill and Whitham, a gas follows the
+    Euler equations, and water in a channel follows the shallow water equations.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'traffic'`.
 
         target:
             The path of the field whose state is conserved.
@@ -75,7 +78,7 @@ class ConservationInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.interactions import ConservationInteraction
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CellElement(Element):
@@ -87,9 +90,9 @@ class ConservationInteraction(Interaction):
         >>> volumes = 'finite-volume'
         >>> field = FieldElement('wave', element=CellElement, space=space, values=values, discretization=volumes)
         >>> burgers = ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2)
-        >>> system = System(elements=[field], interactions=[burgers])
+        >>> system = CompositeSystem(elements=[field], interactions=[burgers])
         >>> trajectory = simulate(system, until=0.5, dt=0.01)
-        >>> round(float(trajectory.values('wave.u')[-1].sum()), 6)
+        >>> round(float(trajectory.get_values('wave.u')[-1].sum()), 6)
         50.0
     """
 

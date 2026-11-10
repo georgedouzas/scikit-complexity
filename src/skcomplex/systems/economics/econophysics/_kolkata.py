@@ -16,12 +16,15 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction, GroupingInteraction
+from ....core.components.interactions import GroupingInteraction
 from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
+from ...general.agents import ChoiceInteraction
+
+STRATEGIES = ('random', 'crowd_avoiding')
 
 
 class DinerView(AgentView):
@@ -222,7 +225,7 @@ class RestaurantsInteraction(GroupingInteraction):
             system:
                 The system view of the restaurants.
         """
-        visited = {float(getattr(agent, str(self.by))) for agent in system.agents('target')}
+        visited = {float(getattr(agent, str(self.by))) for agent in system.get_agents('target')}
         system.report('utilization', len(visited) / self.n_restaurants)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
@@ -239,9 +242,6 @@ class RestaurantsInteraction(GroupingInteraction):
                 The serving and the reporting rules.
         """
         return [*super()._get_laws(namespace), RuleLaw(self.report, phase=self.phase)]
-
-
-STRATEGIES = ('random', 'crowd_avoiding')
 
 
 class KolkataRestaurantSystem(BaseSystem):
@@ -299,7 +299,7 @@ class KolkataRestaurantSystem(BaseSystem):
         self.strategy = strategy
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         n_restaurants = self.n_restaurants
         if self.strategy not in STRATEGIES:
@@ -323,4 +323,4 @@ class KolkataRestaurantSystem(BaseSystem):
             )
         )
         restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
-        return System(self.label, elements=[diners], interactions=[choice, restaurants])
+        return CompositeSystem(self.label, elements=[diners], interactions=[choice, restaurants])

@@ -7,8 +7,8 @@ and MoMA and ROOM predict the adjusted fluxes from the wild-type solution.
 """
 
 # %%
-# The system is built from its class with the `pgi` gene knocked out, which needs the extra `metabolism`. The primary
-# view is the bar chart of the fluxes of the one frame.
+# The example builds `MetabolicPerturbationsSystem` with the `pgi` gene knocked out, which needs the extra `metabolism`.
+# The primary view is the bar chart of the fluxes of the one frame.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -46,7 +46,7 @@ plt.show()
 # FBA should give the new optimum, and MoMA, a quadratic program, and ROOM, a mixed-integer one, which both stay close
 # to the wild type, should give positive growth below it.
 
-optimum = float(knocked_out.values(GROWTH)[0])
+optimum = float(knocked_out.get_values(GROWTH)[0])
 moma = cobra_measures(wild_type, kind='moma', knockouts=('b4025',)).growth
 room = cobra_measures(wild_type, kind='room', knockouts=('b4025',)).growth
 fig, ax = plt.subplots(figsize=(9, 4))

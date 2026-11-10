@@ -15,9 +15,9 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
@@ -28,20 +28,7 @@ HEADINGS = VisualSpec(
 )
 
 
-def _heading(member: SimpleNamespace) -> Expression:
-    """Return the unit vector `exp(i theta)` of a member's heading.
-
-    The vector lies in the complex plane.
-    """
-    return exp(I * member.theta)
-
-
-def _polarization(s: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean heading, the polarization."""
-    return abs(s.mean_heading)
-
-
-class PolarAlignmentInteraction(PairCouplingInteraction):
+class PolarAlignmentInteraction(PairInteraction):
     """Alignment torque between two particles closer than the cutoff.
 
     The torque is `theta_i' += gamma sin(theta_j - theta_i)`.
@@ -95,15 +82,28 @@ class PolarAlignmentInteraction(PairCouplingInteraction):
             cutoff=cutoff,
             position=position,
             write='theta',
-            function=self._torque,
+            function=self._get_torque,
             period=period,
         )
         self.gamma = gamma
 
     @staticmethod
-    def _torque(namespace: SimpleNamespace) -> Expression:
+    def _get_torque(namespace: SimpleNamespace) -> Expression:
         """Return the torque `gamma sin(theta_j - theta_i)` on the first member of a pair."""
         return namespace.gamma * sin(namespace.second.theta - namespace.first.theta)
+
+
+def _get_heading(member: SimpleNamespace) -> Expression:
+    """Return the unit vector `exp(i theta)` of a member's heading.
+
+    The vector lies in the complex plane.
+    """
+    return exp(I * member.theta)
+
+
+def _get_polarization(s: SimpleNamespace) -> Expression:
+    """Return the modulus of the mean heading, the polarization."""
+    return abs(s.mean_heading)
 
 
 class AligningActiveBrownianParticlesSystem(BaseSystem):
@@ -159,8 +159,8 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
     dt = 1.0
     solver = EulerMaruyamaSolver(dt=0.05)
     observables = (
-        ObservableSpec('mean_heading', _heading, group='swimmers'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_heading', _get_heading, group='swimmers'),
+        ObservableSpec('polarization', _get_polarization),
     )
 
     def __init__(
@@ -186,7 +186,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
         self.D_t = D_t
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return active Brownian particles in a periodic box whose headings align.
 
         A particle aligns with its neighbours within `d0`.
@@ -212,7 +212,7 @@ class AligningActiveBrownianParticlesSystem(BaseSystem):
             period=self.size,
             gamma=self.gamma,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[swimmers],
             interactions=[alignment, SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)],

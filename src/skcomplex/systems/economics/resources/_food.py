@@ -6,6 +6,7 @@ It is set against the requirement of its growing population.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,57 +14,24 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RelaxationInteraction, TransferInteraction
+from ....core.components.interactions import RateInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
-from ....core.components.laws.utils import lookup
-from ....core.components.system import BaseSystem, System
+from ....core.components.laws.utils import series
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
-INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
-LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
+INPUT_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0, 1.5), (0.3, 0.45, 0.58, 0.68, 0.75, 0.8))
+LEARNING_EFFECT = ((0.0, 0.25, 0.5, 0.75, 1.0), (0.0, 0.4, 0.7, 0.9, 1.0))
 TONNES_PER_KG = 1e-3
 
 
-def _input_ratio(s: SimpleNamespace) -> Expression:
+def _get_input_ratio(s: SimpleNamespace) -> Expression:
     """Return the input ratio.
 
     It is the fraction of the recommended inputs that the farmers apply.
     """
     return s.bio_fraction + (1 - s.bio_fraction) * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs)
-
-
-def _productivity(s: SimpleNamespace) -> Expression:
-    """Return the productivity of the rice land."""
-    return s.potential * lookup(_input_ratio(s), INPUT_EFFECT) * s.soil_quality * s.practice
-
-
-def _production(s: SimpleNamespace) -> Expression:
-    """Return the production of milled rice."""
-    return s.milling_rate * _productivity(s) * s.rice_area * s.cropping_intensity
-
-
-def _requirement(s: SimpleNamespace) -> Expression:
-    """Return the rice the population requires."""
-    return s.consumption * TONNES_PER_KG * s.population
-
-
-def _self_sufficiency(s: SimpleNamespace) -> Expression:
-    """Return the self-sufficiency, the production over the requirement."""
-    return _production(s) / _requirement(s)
-
-
-def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the yield potential, the soil, and the practice."""
-    chemical = 1 - s.bio_fraction
-    return [
-        RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
-        RateLaw(
-            s.soil_quality,
-            (1 - s.soil_quality) / s.regeneration_time
-            - s.degradation * chemical * _input_ratio(s) * s.cropping_intensity * s.soil_quality,
-        ),
-        RateLaw(s.practice, lookup(s.training, LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
-    ]
 
 
 class RiceSectorElement(Element):
@@ -175,6 +143,20 @@ class RiceSectorElement(Element):
 
     law_classes = (RateLaw,)
 
+    @staticmethod
+    def _get_rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the yield potential, the soil, and the practice."""
+        chemical = 1 - s.bio_fraction
+        return [
+            RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
+            RateLaw(
+                s.soil_quality,
+                (1 - s.soil_quality) / s.regeneration_time
+                - s.degradation * chemical * _get_input_ratio(s) * s.cropping_intensity * s.soil_quality,
+            ),
+            RateLaw(s.practice, series(s.training, *LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
+        ]
+
     def __init__(
         self,
         label: str,
@@ -250,7 +232,125 @@ class RiceSectorElement(Element):
             laws:
                 The laws of the element.
         """
-        return _rice_laws(s)
+        return RiceSectorElement._get_rice_laws(s)
+
+
+class PartialAdjustmentInteraction(RateInteraction):
+    """Partial adjustment of a quantity towards a target over an adjustment time.
+
+    Economics names it partial adjustment, as of a policy or an investment that closes a gap to its target at a rate.
+    The rate is `(goal(ns) - x) / time(ns)` of a state `x` of a target, with optional noise. With a constant goal and
+    time and an additive noise of amplitude `sigma`, the state follows the Ornstein-Uhlenbeck process `dx = (goal - x) /
+    time dt + sigma dW`, whose stationary variance is `sigma**2 time / 2`. A goal or a time function takes the namespace
+    of the interaction, as for `RateInteraction`, and a number stands for a constant. A goal that is a number applies to
+    every component of a vector state.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the element or group whose state relaxes.
+
+        state:
+            The name of the state of the target that relaxes.
+
+        goal:
+            A function of the namespace that returns the goal, or a number.
+
+        time:
+            A function of the namespace that returns the relaxation time, or a positive number.
+
+        noise:
+            A function of the namespace that returns the amplitude of the noise, a number, or `None` for no noise.
+
+    Raises:
+        ValidationError:
+            The state is not a name, or a function is neither callable nor a number.
+
+    Examples:
+        >>> from skcomplex.systems.general.elements import NonnegativeElement
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.resources import PartialAdjustmentInteraction
+        >>> relaxation = PartialAdjustmentInteraction('relaxation', target='stock', goal=10.0, time=0.5)
+        >>> system = CompositeSystem(elements=[NonnegativeElement('stock')], interactions=[relaxation])
+        >>> trajectory = simulate(system, until=5.0, dt=0.01)
+        >>> round(float(trajectory.get_values('stock.x')[-1]), 3)
+        10.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: str,
+        state: str = 'x',
+        goal: Callable[[SimpleNamespace], object] | float = 0.0,
+        time: Callable[[SimpleNamespace], object] | float = 1.0,
+        noise: Callable[[SimpleNamespace], object] | float | None = None,
+    ) -> None:
+        super().__init__(label, target=target, state=state, noise=noise)
+        self.goal = goal
+        self.time = time
+
+    def _check_functions(self) -> None:
+        """Raise an error for a state that is not a name, or a bad function.
+
+        A bad function is neither callable nor a number.
+        """
+        super()._check_functions()
+        for name in ('goal', 'time'):
+            value = getattr(self, name)
+            if not (callable(value) or isinstance(value, int | float)):
+                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
+                raise ValidationError(error_msg)
+
+    def _get_goal(self, namespace: SimpleNamespace) -> object:
+        """Return the goal, the hook a subclass overrides to derive it from its parameters."""
+        return self._evaluate(self.goal, namespace)
+
+    def _get_time(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation time.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
+        return self._evaluate(self.time, namespace)
+
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation `(goal - x) / time` of the state.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The rate of the state.
+        """
+        state = getattr(self._get_member(namespace, 'target'), self.state)
+        goal = self._broadcast(self._get_goal(namespace), state)
+        return (goal - state) / self._get_time(namespace)
+
+
+def _get_productivity(s: SimpleNamespace) -> Expression:
+    """Return the productivity of the rice land."""
+    return s.potential * series(_get_input_ratio(s), *INPUT_EFFECT) * s.soil_quality * s.practice
+
+
+def _get_production(s: SimpleNamespace) -> Expression:
+    """Return the production of milled rice."""
+    return s.milling_rate * _get_productivity(s) * s.rice_area * s.cropping_intensity
+
+
+def _get_requirement(s: SimpleNamespace) -> Expression:
+    """Return the rice the population requires."""
+    return s.consumption * TONNES_PER_KG * s.population
+
+
+def _get_self_sufficiency(s: SimpleNamespace) -> Expression:
+    """Return the self-sufficiency, the production over the requirement."""
+    return _get_production(s) / _get_requirement(s)
 
 
 class FoodSecuritySystem(BaseSystem):
@@ -311,11 +411,11 @@ class FoodSecuritySystem(BaseSystem):
         [
             ObservableSpec(name, expression, element='rice')
             for name, expression in (
-                ('input_ratio', _input_ratio),
-                ('productivity', _productivity),
-                ('production', _production),
-                ('requirement', _requirement),
-                ('self_sufficiency', _self_sufficiency),
+                ('input_ratio', _get_input_ratio),
+                ('productivity', _get_productivity),
+                ('production', _get_production),
+                ('requirement', _get_requirement),
+                ('self_sufficiency', _get_self_sufficiency),
             )
         ],
     )
@@ -337,7 +437,7 @@ class FoodSecuritySystem(BaseSystem):
         self.training_target = training_target
         self.intensity_target = intensity_target
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         sector = RiceSectorElement(
             'rice',
@@ -369,21 +469,21 @@ class FoodSecuritySystem(BaseSystem):
             ),
         ]
         relaxations = [
-            RelaxationInteraction(
+            PartialAdjustmentInteraction(
                 'training',
                 target='rice',
                 state='training',
                 goal=lambda s: s.target.training_target,
                 time=lambda s: s.target.extension_time,
             ),
-            RelaxationInteraction(
+            PartialAdjustmentInteraction(
                 'bio_fraction',
                 target='rice',
                 state='bio_fraction',
                 goal=lambda s: s.target.bio_target,
                 time=lambda s: s.target.transition_time,
             ),
-            RelaxationInteraction(
+            PartialAdjustmentInteraction(
                 'cropping_intensity',
                 target='rice',
                 state='cropping_intensity',
@@ -391,4 +491,4 @@ class FoodSecuritySystem(BaseSystem):
                 time=lambda s: s.target.implementation_time,
             ),
         ]
-        return System(self.label, elements=[sector], interactions=[*transfers, *relaxations])
+        return CompositeSystem(self.label, elements=[sector], interactions=[*transfers, *relaxations])

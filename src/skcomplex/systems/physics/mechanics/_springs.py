@@ -8,7 +8,7 @@ The module holds masses on springs and dampers between walls.
 
 
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..common.particles import (
     DampingInteraction,
     HarmonicForceInteraction,
@@ -125,10 +125,10 @@ class TwoMassSpringDamperSystem(BaseSystem):
         self.omega1 = omega1
         self.omega2 = omega2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rest1, rest2 = self.l1, self.l1 + self.l2
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 MassPointElement('first', x=self.x1, x_d1=0.0, m=self.m1),

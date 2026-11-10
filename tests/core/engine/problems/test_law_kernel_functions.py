@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement, GroupEleme
 from skcomplex.core.components.laws import FluxLaw, JumpLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import reduction, total
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -19,6 +19,7 @@ from skcomplex.core.errors import BackendWarning, ValidationError
 from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 STEPS = 2000
+MATRIX = [[0.9, 0.1], [0.4, 0.6]]
 
 
 class BaseCountElement(Element):
@@ -84,22 +85,22 @@ def test_call_rejects_relative_names_next_to_arguments():
 
 def test_relative_call_reads_its_own_values_under_every_label():
     """Test that one function reads its own states under two labels and in a nested system."""
-    reference = simulate(System(elements=[SymbolicElement('a')]), until=1.0, dt=0.01)
-    expected = reference.values('a.n')[-1]
-    inner = System('inner', elements=[RelativeElement('c')])
-    system = System(elements=[RelativeElement('a'), RelativeElement('b', n=1.0)], systems=[inner])
+    reference = simulate(CompositeSystem(elements=[SymbolicElement('a')]), until=1.0, dt=0.01)
+    expected = reference.get_values('a.n')[-1]
+    inner = CompositeSystem('inner', elements=[RelativeElement('c')])
+    system = CompositeSystem(elements=[RelativeElement('a'), RelativeElement('b', n=1.0)], systems=[inner])
     trajectory = simulate(system, until=1.0, dt=0.01)
     for name in ('a.n', 'b.n', 'inner/c.n'):
-        assert trajectory.values(name)[-1] == pytest.approx(expected, rel=1e-6)
+        assert trajectory.get_values(name)[-1] == pytest.approx(expected, rel=1e-6)
 
 
 def test_random_call_repeats_with_one_seed():
     """Test that a function that draws from the stream it receives repeats its run with one seed."""
 
     def run(seed):
-        system = System(elements=[PolicyElement('a')], time=DiscreteTime())
+        system = CompositeSystem(elements=[PolicyElement('a')], time=DiscreteTime())
         trajectory = simulate(system, until=50, random_state=seed)
-        return trajectory.values('a.n')
+        return trajectory.get_values('a.n')
 
     first, second, other = run(1), run(1), run(2)
     assert np.array_equal(first, second)
@@ -110,9 +111,9 @@ def test_vectorized_call_runs_once_over_the_group():
     """Test that a function declared to run over the whole group gets arrays of all members in one call."""
     BatchElement.shapes.clear()
     group = GroupElement('herd', element=BatchElement, size=1000)
-    trajectory = simulate(System(elements=[group]), until=0.03, dt=0.01)
+    trajectory = simulate(CompositeSystem(elements=[group]), until=0.03, dt=0.01)
     assert set(BatchElement.shapes) == {(1000,)}
-    assert np.asarray(trajectory.values('herd.n'))[-1] == pytest.approx(np.full(1000, np.exp(0.015)), rel=1e-4)
+    assert np.asarray(trajectory.get_values('herd.n'))[-1] == pytest.approx(np.full(1000, np.exp(0.015)), rel=1e-4)
 
 
 class MeanFieldElement(BaseCountElement):
@@ -126,8 +127,8 @@ class MeanFieldElement(BaseCountElement):
 def test_vectorized_call_reads_every_member_in_the_jacobian_pattern():
     """Test that a call over the whole group may read any member, so its Jacobian pattern couples all members."""
     group = GroupElement('herd', element=MeanFieldElement, size=4)
-    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[group])).run().problem_
-    assert problem.jacobian.pattern().toarray().all()
+    problem = PassCompiler(backend=NumpyBackend()).prepare(CompositeSystem(elements=[group])).run().problem_
+    assert problem.jacobian.get_pattern().toarray().all()
 
 
 @pytest.mark.parametrize(
@@ -145,7 +146,9 @@ def test_call_options_on_numba_run_in_python(value):
             return [RateLaw(s.n, value)]
 
     with pytest.warns(BackendWarning, match='RateLaw laws in Python'):
-        problem = PassCompiler(backend=NumbaBackend()).prepare(System(elements=[CallElement('a')])).run().problem_
+        problem = (
+            PassCompiler(backend=NumbaBackend()).prepare(CompositeSystem(elements=[CallElement('a')])).run().problem_
+        )
     assert problem.backends['RateLaw'] == 'python'
 
 
@@ -171,36 +174,39 @@ class ChangeElement(BaseCountElement):
 
 def _final_counts(change, backend, seeds=40):
     """Return the mean final count of a jump process over several seeds."""
-    system = System(elements=[ChangeElement('a', change=change)])
+    system = CompositeSystem(elements=[ChangeElement('a', change=change)])
     return np.mean(
-        [simulate(system, until=20.0, backend=backend, random_state=seed).values('a.n')[-1] for seed in range(seeds)],
+        [
+            simulate(system, until=20.0, backend=backend, random_state=seed).get_values('a.n')[-1]
+            for seed in range(seeds)
+        ],
     )
 
 
 def test_jump_change_function_equals_the_number_on_numpy():
     """Test that a jump whose change is a function gives the run of the number that it returns."""
-    system = System(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
-    reference = System(elements=[ChangeElement('a', change=2.0)])
+    system = CompositeSystem(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
+    reference = CompositeSystem(elements=[ChangeElement('a', change=2.0)])
     runs = [simulate(item, until=20.0, backend=NumpyBackend(), random_state=3) for item in (system, reference)]
-    assert np.array_equal(runs[0].values('a.n'), runs[1].values('a.n'))
+    assert np.array_equal(runs[0].get_values('a.n'), runs[1].get_values('a.n'))
 
 
 def test_jump_change_function_reads_the_state_at_each_firing():
     """Test that each firing applies the change the function returns at the state of that firing."""
     change = CallSpec(lambda t, values: values['n'], relative=True)
-    system = System(elements=[ChangeElement('a', change=change)])
+    system = CompositeSystem(elements=[ChangeElement('a', change=change)])
     trajectory = simulate(system, until=20.0, backend=NumpyBackend(), random_state=0)
-    counts = np.unique(trajectory.values('a.n'))
+    counts = np.unique(trajectory.get_values('a.n'))
     assert set(np.log2(counts)) <= set(range(64))
     assert counts.size > 1
 
 
 def test_jump_change_function_on_numba_runs_in_python():
     """Test that a jump whose change is a function falls back with the warning on the Numba backend."""
-    system = System(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
+    system = CompositeSystem(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
     with pytest.warns(BackendWarning, match='JumpLaw laws in Python'):
         trajectory = simulate(system, until=20.0, backend=NumbaBackend(), random_state=3)
-    assert np.all(np.asarray(trajectory.values('a.n')) % 2 == 1)
+    assert np.all(np.asarray(trajectory.get_values('a.n')) % 2 == 1)
 
 
 class ChainElement(Element):
@@ -225,14 +231,11 @@ class ChainElement(Element):
 
 def _chain(matrix, backend=None):
     """Return the states of a long run of a chain."""
-    system = System(elements=[ChainElement('a', matrix=matrix)], time=DiscreteTime())
+    system = CompositeSystem(elements=[ChainElement('a', matrix=matrix)], time=DiscreteTime())
     return np.asarray(
-        simulate(system, until=STEPS, backend=backend or NumpyBackend(), random_state=7).values('a.x'),
+        simulate(system, until=STEPS, backend=backend or NumpyBackend(), random_state=7).get_values('a.x'),
         dtype=int,
     )
-
-
-MATRIX = [[0.9, 0.1], [0.4, 0.6]]
 
 
 def test_transition_function_matches_the_frequencies_of_the_symbolic_matrix():
@@ -285,10 +288,10 @@ def _waiting_sampler(rng, size, t, n, r):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_renewal_sampler_counts_like_its_constant_waiting_time(backend):
     """Test that a waiting time given as a function renews like the constant it returns."""
-    system = System(elements=[WaitingElement('a', waiting=_waiting_sampler)])
+    system = CompositeSystem(elements=[WaitingElement('a', waiting=_waiting_sampler)])
     solver = RK4Solver(dt=0.01)
     with_backend = simulate(system, until=10.2, solver=solver, backend=backend(), random_state=0)
-    assert with_backend.values('a.n')[-1] == pytest.approx(20.0)
+    assert with_backend.get_values('a.n')[-1] == pytest.approx(20.0)
 
 
 def test_jump_rejects_a_function_in_the_reset_of_a_renewal():
@@ -316,8 +319,8 @@ class ReducedElement(BaseCountElement):
 def _reduced(element, backend):
     """Return the final values of a group that grows by a reduction over it."""
     group = GroupElement('herd', element=element, size=3, values={'n': [1.0, 2.0, 4.0]})
-    trajectory = simulate(System(elements=[group]), until=0.5, dt=0.01, backend=backend)
-    return np.asarray(trajectory.values('herd.n'))[-1]
+    trajectory = simulate(CompositeSystem(elements=[group]), until=0.5, dt=0.01, backend=backend)
+    return np.asarray(trajectory.get_values('herd.n'))[-1]
 
 
 def test_reduction_function_equals_the_symbolic_reduction():
@@ -341,10 +344,10 @@ def test_observable_function_records_its_value_at_every_frame():
     """Test that an observable given as a function gives the expression that it computes at every frame."""
     observables = [ObservableSpec('learned', function=_system_output)]
     for backend in (NumpyBackend(), NumbaBackend()):
-        system = System(elements=[SymbolicElement('a')])
+        system = CompositeSystem(elements=[SymbolicElement('a')])
         trajectory = simulate(system, until=1.0, dt=0.1, observables=observables, backend=backend)
-        expected = 2.0 * np.asarray(trajectory.values('a.n')) + np.asarray(trajectory.times)
-        assert np.asarray(trajectory.values('learned')) == pytest.approx(expected)
+        expected = 2.0 * np.asarray(trajectory.get_values('a.n')) + np.asarray(trajectory.times)
+        assert np.asarray(trajectory.get_values('learned')) == pytest.approx(expected)
 
 
 def _burgers_speed(t, values):
@@ -389,7 +392,9 @@ def _burgers(element):
         values={'u': 1.0 + 0.5 * np.sin(centers)},
         discretization='finite-volume',
     )
-    return np.asarray(simulate(System(elements=[field]), until=0.5, dt=0.5, solver=SSPRKSolver()).values('line.u'))[-1]
+    return np.asarray(
+        simulate(CompositeSystem(elements=[field]), until=0.5, dt=0.5, solver=SSPRKSolver()).get_values('line.u'),
+    )[-1]
 
 
 def test_flux_law_speed_function_equals_the_eigenvalues():

@@ -18,39 +18,29 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import distributed_delay, mean, total
-from skcomplex.core.components.spaces import ContinuousTime, VonNeumannNeighborhood
+from skcomplex.core.components.spaces import BallNeighborhood, ContinuousTime
 from skcomplex.core.components.specs import ScenarioSpec
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.experiments import compare_scenarios
 from skcomplex.core.specs import (
     BaseSpec,
-    BatchMatchingSpec,
-    ClampSpec,
-    ContinuousMatchingSpec,
     DatasetSpec,
     HilbertSpec,
-    IterativeMatchingSpec,
     LayerSpec,
-    MatchSpec,
     MoveSpec,
     ObjectiveSpec,
     ObservableSpec,
     ParameterSpec,
     PartnerSpec,
-    PartnerSwitchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    QueueSpec,
-    RadiusSpec,
-    RandomSearchSpec,
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
     ScheduleSpec,
-    StableMatchingSpec,
     StateSpec,
     SymmetrySpec,
     TopologyRequestSpec,
@@ -217,7 +207,7 @@ class SmoothedElement(Element):
         return [RateLaw(s.n, 2.0 - _perceived(s))]
 
 
-def _harvesting() -> System:
+def _harvesting() -> CompositeSystem:
     """Return the parts of the harvesting system, the factory of the scenario experiments."""
     return HarvestingSystem().prepare().system_
 
@@ -230,6 +220,9 @@ def _phase_vector(member):
 def _modulus(s):
     """Return the modulus of the complex mean field."""
     return abs(s.z)
+
+
+ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order', _modulus)]
 
 
 def _total(s):
@@ -287,12 +280,9 @@ def _smoothed_population(s):
     return distributed_delay(s.n, conserved=False, time=1.0)
 
 
-ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order', _modulus)]
-
-
 def _oscillators():
     """Return oscillators whose order parameter `ORDER` builds from a complex mean."""
-    return System(
+    return CompositeSystem(
         elements=[
             GroupElement(
                 'osc',
@@ -306,12 +296,14 @@ def _oscillators():
 
 def _two_populations():
     """Return two populations, the first growing at rate 1."""
-    return System(elements=[PopulationElement('a', n=2.0, r=1.0), PopulationElement('b', n=6.0)])
+    return CompositeSystem(elements=[PopulationElement('a', n=2.0, r=1.0), PopulationElement('b', n=6.0)])
 
 
 def _decaying_group(*observables, until=0.0):
     """Return the trajectory of a decaying group of 4 members with observables until a time."""
-    system = System(elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})])
+    system = CompositeSystem(
+        elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})],
+    )
     return simulate(system, until=until, dt=0.5, observables=list(observables))
 
 
@@ -467,7 +459,7 @@ def test_schedule_spec_has_nothing_to_check():
 def test_monte_carlo_specs_check_their_kinds():
     """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
     spin = var('spin')
-    assert ObjectiveSpec(-spin, VonNeumannNeighborhood()).expression == -spin
+    assert ObjectiveSpec(-spin, BallNeighborhood(metric='manhattan')).expression == -spin
     assert MoveSpec(spin, 'rotate', width=0.5).width == 0.5
     assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
     assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'
@@ -522,23 +514,23 @@ def test_topology_request_spec_checks_its_kind_end_and_edges(spec, message):
 
 def test_categorical_values_round_trip_as_labels():
     """Test that categorical states take labels as values and return them as labels."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     trajectory = simulate(system, until=1)
-    assert trajectory.values('ann.health').tolist() == ['infected', 'recovered']
+    assert trajectory.get_values('ann.health').tolist() == ['infected', 'recovered']
 
 
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
-        simulate(System(elements=[PersonElement('ann', health='dead')]), until=1)
+        simulate(CompositeSystem(elements=[PersonElement('ann', health='dead')]), until=1)
 
 
 def test_simulate_does_not_check_values_outside_alphabet():
     """Test that a run leaves a state that a law moves outside its alphabet unchecked."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
@@ -548,16 +540,16 @@ def test_simulate_does_not_check_values_outside_alphabet():
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past pi lies in (-pi, pi] after every step."""
-    system = System(elements=[RotorElement('r', theta=6.0, omega=1.0)])
-    values = simulate(system, until=3, dt=0.5).values('r.theta')
+    system = CompositeSystem(elements=[RotorElement('r', theta=6.0, omega=1.0)])
+    values = simulate(system, until=3, dt=0.5).get_values('r.theta')
     assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
 
 
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
-    system = System(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
-    values = simulate(system, until=1, dt=0.1).values('r.theta')
+    system = CompositeSystem(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
+    values = simulate(system, until=1, dt=0.1).get_values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
 
@@ -565,10 +557,10 @@ def test_angle_swings_around_zero_without_jumping():
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(i theta) is recorded at every frame between 0 and 1."""
     trajectory = simulate(_oscillators(), until=10, dt=0.5, observables=ORDER)
-    order = trajectory.values('order')
+    order = trajectory.get_values('order')
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
-    expected = np.abs(np.exp(1j * np.asarray(trajectory.values('osc.theta'))).mean(axis=1))
+    expected = np.abs(np.exp(1j * np.asarray(trajectory.get_values('osc.theta'))).mean(axis=1))
     assert np.allclose(order, expected)
 
 
@@ -576,35 +568,35 @@ def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     observables = [ObservableSpec('total', _total), ObservableSpec('share', _share)]
     trajectory = simulate(_two_populations(), until=1, dt=0.5, observables=observables)
-    assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
-    assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
+    assert np.allclose(trajectory.get_values('total'), trajectory.get_values('a.n') + trajectory.get_values('b.n'))
+    assert np.allclose(trajectory.get_values('share'), trajectory.get_values('a.n') / trajectory.get_values('total'))
 
 
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
-    system = System(systems=[System('market', elements=[PopulationElement('a', n=3.0)])])
+    system = CompositeSystem(systems=[CompositeSystem('market', elements=[PopulationElement('a', n=3.0)])])
     trajectory = simulate(system, until=2, dt=1, observables=[ObservableSpec('market/volume', _volume)])
-    assert trajectory.values('market/volume').tolist() == [6.0, 6.0, 6.0]
+    assert trajectory.get_values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
 def test_agent_reduction_read_by_other_partition():
     """Test that the mean wealth of agents is recorded and read by an ODE in another partition."""
-    system = System(
+    system = CompositeSystem(
         systems=[
-            System('village', elements=[GroupElement('savers', element=SaverElement, size=4)]),
-            System('land', elements=[PopulationElement('soil', n=0.0)]),
+            CompositeSystem('village', elements=[GroupElement('savers', element=SaverElement, size=4)]),
+            CompositeSystem('land', elements=[PopulationElement('soil', n=0.0)]),
         ],
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
     observables = [ObservableSpec('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = simulate(system, until=2, dt=1, observables=observables)
-    assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
-    assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
+    assert trajectory.get_values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
+    assert trajectory.get_values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
 
 
 def test_observable_read_in_one_form_is_lowered():
     """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('herd', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 6.0]}),
             PopulationElement('soil'),
@@ -613,12 +605,12 @@ def test_observable_read_in_one_form_is_lowered():
     )
     observables = [ObservableSpec('mean_n', group='herd', variable='n')]
     trajectory = simulate(system, until=1, dt=1.0, observables=observables)
-    assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
+    assert trajectory.get_values('soil.n')[-1] == pytest.approx(trajectory.get_values('soil.n')[0] + 3.0)
 
 
 def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
-    system = System(elements=[GroupElement('herd', element=PopulationElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('herd', element=PopulationElement, size=3)])
     with pytest.raises(AttributeError, match='herd'):
         simulate(system, until=1, observables=[ObservableSpec('bad', _herd)])
 
@@ -633,7 +625,7 @@ def test_observable_lambda_is_rejected():
 
 def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
-    system = System(elements=[PopulationElement('a')])
+    system = CompositeSystem(elements=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
         simulate(system, until=1, observables=[ObservableSpec('total', lambda s: s.a.n)])
 
@@ -642,14 +634,14 @@ def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     observables = [ObservableSpec('total', _total)]
     restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
-    expected = simulate(_two_populations(), until=1, dt=0.5, observables=observables).values('total')
-    values = simulate(_two_populations(), until=1, dt=0.5, observables=restored).values('total')
+    expected = simulate(_two_populations(), until=1, dt=0.5, observables=observables).get_values('total')
+    values = simulate(_two_populations(), until=1, dt=0.5, observables=restored).get_values('total')
     assert np.allclose(values, expected)
 
 
 def test_observables_read_time():
     """Test that system observables and member expressions of reductions read the time as `s.t`."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             PopulationElement('a', n=2.0),
             GroupElement('herd', element=PopulationElement, size=2, values={'n': [1.0, 3.0]}),
@@ -657,23 +649,27 @@ def test_observables_read_time():
     )
     observables = [ObservableSpec('timed', _timed), ObservableSpec('member_timed', _member_timed, group='herd')]
     trajectory = simulate(system, until=2, dt=1.0, observables=observables)
-    assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
-    assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
+    assert trajectory.get_values('timed').tolist() == [0.0, 2.0, 4.0]
+    assert trajectory.get_values('member_timed').tolist() == [2.0, 3.0, 4.0]
 
 
 def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
     trajectory = _decaying_group(ObservableSpec('energy', _local_field_energy, group='u', reduce='sum'), until=2)
-    x = np.asarray(trajectory.values('u.x'))
-    np.testing.assert_allclose(trajectory.values('energy'), np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
+    x = np.asarray(trajectory.get_values('u.x'))
+    np.testing.assert_allclose(
+        trajectory.get_values('energy'),
+        np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x),
+        rtol=1e-12,
+    )
 
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
     trajectory = _decaying_group(ObservableSpec('spread', _deviation, group='u', reduce='var'), until=2)
     np.testing.assert_allclose(
-        trajectory.values('spread'),
-        np.asarray(trajectory.values('u.x')).var(axis=1),
+        trajectory.get_values('spread'),
+        np.asarray(trajectory.get_values('u.x')).var(axis=1),
         rtol=1e-12,
     )
 
@@ -687,9 +683,9 @@ def test_observable_rejects_reduction_over_another_group():
 def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
     observed = ObservableSpec('perceived', _perceived, element='tank')
-    trajectory = simulate(System(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
-    perceived = trajectory.values('tank.perceived')
-    np.testing.assert_allclose(perceived, trajectory.values('tank.smoothing_delay1_0')[:, 0])
+    trajectory = simulate(CompositeSystem(elements=[SmoothedElement('tank')]), until=4, dt=0.5, observables=[observed])
+    perceived = trajectory.get_values('tank.perceived')
+    np.testing.assert_allclose(perceived, trajectory.get_values('tank.smoothing_delay1_0')[:, 0])
     assert perceived[0] == pytest.approx(1.0)
     assert perceived[-1] > perceived[0]
 
@@ -698,14 +694,14 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
     """Test that observing a delay that no law of the system reads raises an error that names the observable."""
     observed = ObservableSpec('smoothed', _smoothed_population, element='rabbits')
     with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
-        simulate(System(elements=[PopulationElement('rabbits', n=2.0)]), until=1, observables=[observed])
+        simulate(CompositeSystem(elements=[PopulationElement('rabbits', n=2.0)]), until=1, observables=[observed])
 
 
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():
     """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
     result = compare_scenarios(_harvesting, scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    baseline, quota = result.series('land/stock.n')
+    baseline, quota = result.get_series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 50], quota[times <= 50])
     assert quota[-1] > baseline[-1]
@@ -717,7 +713,7 @@ def test_scenario_spec_keeps_the_initial_value_before_its_first_change():
     schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('late', schedule=schedule)]
     result = compare_scenarios(_harvesting, scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    baseline, late = result.series('land/stock.n')
+    baseline, late = result.get_series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 20], late[times <= 20])
     assert not np.array_equal(baseline[times > 21], late[times > 21])
@@ -732,71 +728,24 @@ def test_scenario_spec_is_a_frozen_spec():
         scenario.name = 'quota'
 
 
-def test_match_spec_is_a_frozen_spec():
-    """Test that a match is a frozen spec of a requester, a provider, a quantity, and a price."""
-    match = MatchSpec('requester', 'provider', 2.0, 5.0)
-    assert (match.requester, match.provider, match.quantity * match.value) == ('requester', 'provider', 10.0)
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        match.value = 1.0
-
-
-@pytest.mark.parametrize(
-    ('spec', 'name', 'value'),
-    [
-        (RandomSearchSpec(tries=3), 'tries', 3),
-        (PartnerSwitchSpec(sample=2), 'sample', 2),
-        (QueueSpec(order='limit'), 'order', 'limit'),
-        (IterativeMatchingSpec(iterations=10), 'iterations', 10),
-        (ContinuousMatchingSpec(arrival='sequential'), 'arrival', 'sequential'),
-        (StableMatchingSpec(clearing='requester'), 'clearing', 'requester'),
-        (PartnerSpec(candidates=2.0), 'candidates', 2.0),
-    ],
-)
-def test_matching_rule_specs_hold_their_settings(spec, name, value):
-    """Test that a matching rule is a frozen spec that keeps the setting it was given."""
-    checked = spec
-    assert getattr(checked, name) == value
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        setattr(checked, name, value)
-
-
-def test_batch_matching_spec_has_no_settings():
-    """Test that batch matching is a spec without settings."""
-    assert dataclasses.fields(BatchMatchingSpec()) == ()
-
-
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (RandomSearchSpec(clearing='bid'), 'midpoint'),
-        (QueueSpec(order='bid'), 'order'),
-        (ContinuousMatchingSpec(arrival='bid'), 'arrival'),
-        (StableMatchingSpec(clearing='bid'), 'clearing'),
         (PartnerSpec(candidates=0.0), 'positive'),
         (PartnerSpec(candidates=True), 'positive'),
-        (PartnerSpec(clearing='bid'), 'clearing'),
         (PartnerSpec(choice='score', score=2), 'score'),
     ],
 )
-def test_matching_rule_specs_reject_invalid_settings(spec, message):
-    """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
+def test_partner_spec_rejects_invalid_settings(spec, message):
+    """Test that a distance that is not positive and a bad score raise an error naming them."""
     with pytest.raises(ValidationError, match=message):
         spec._check()
 
 
-@pytest.mark.parametrize(
-    ('spec', 'message'),
-    [
-        (RadiusSpec(1.0, lambda agent, other, system: (0.0,), reduce='max'), 'reduction'),
-        (RadiusSpec(1.0, 'term'), 'callable'),
-        (RadiusSpec(-1.0, lambda agent, other, system: (0.0,)), 'nonnegative'),
-        (ClampSpec(max_angle=-0.1), 'max_angle'),
-    ],
-)
-def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
-    """Test that a radius or a clamp with an invalid setting raises an error naming it."""
-    with pytest.raises(ValidationError, match=message):
-        spec._check()
+def test_partner_spec_holds_no_value():
+    """Test that a selection of partners keeps its candidates and has no clearing value, which only matchings read."""
+    assert PartnerSpec(candidates=2.0).candidates == 2.0
+    assert not hasattr(PartnerSpec(), 'value')
 
 
 @pytest.mark.parametrize(

@@ -13,20 +13,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    BatchMatchingSpec,
-    ContinuousMatchingSpec,
-    MatchSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
+from ..common.policy import PolicyRuleInteraction
+
+PROTOCOLS = ('order_book', 'call_auction')
 
 
 class ZeroIntelligenceBuyerView(AgentView):
@@ -252,7 +247,7 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     return float(np.maximum(demand[:size] - supply[:size], 0).sum())
 
 
-class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
+class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
     """Ledger that closes every trading period.
 
     It measures its surplus and gives every trader a new unit. The realised surplus is the value of the units bought
@@ -283,8 +278,8 @@ class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view scoped to the ledger.
         """
-        buyers = system.agents('buyers', ZeroIntelligenceBuyerView)
-        sellers = system.agents('sellers', ZeroIntelligenceSellerView)
+        buyers = system.get_agents('buyers', ZeroIntelligenceBuyerView)
+        sellers = system.get_agents('sellers', ZeroIntelligenceSellerView)
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])
@@ -296,9 +291,6 @@ class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
             buyer.demand = 1.0
         for seller in sellers:
             seller.supply = 1.0
-
-
-PROTOCOLS = ('order_book', 'call_auction')
 
 
 class DoubleAuctionSystem(BaseSystem):
@@ -376,7 +368,7 @@ class DoubleAuctionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _book_profit(trade: MatchSpec, system: SystemView) -> None:
+    def _record_profit(trade: MatchSpec, system: SystemView) -> None:
         """Add the surplus of a trade to the profits of the buyer and the seller."""
         del system
         buyer, seller = trade.requester, trade.provider
@@ -385,7 +377,7 @@ class DoubleAuctionSystem(BaseSystem):
         buyer.profit += trade.quantity * (buyer.value - trade.value)
         seller.profit += trade.quantity * (trade.value - seller.value)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.protocol not in PROTOCOLS:
             error_msg = f'Unknown protocol {self.protocol!r}. Use one of {PROTOCOLS}.'
@@ -411,10 +403,10 @@ class DoubleAuctionSystem(BaseSystem):
             requesters='buyers',
             providers='sellers',
             rule=ContinuousMatchingSpec() if self.protocol == 'order_book' else BatchMatchingSpec(),
-            limit=('bid', 'ask'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='trade',
-            on_match=self._book_profit,
+            on_match=self._record_profit,
         )
         quotes = [
             MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
@@ -423,7 +415,7 @@ class DoubleAuctionSystem(BaseSystem):
                 ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
             )
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[buyers, sellers],
             interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],

@@ -4,14 +4,51 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Annotated
 
-from ....core.components.elements import CompartmentElement
-from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import BaseSystem, System
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
+from ....core.specs import StateSpec, VisualSpec
+from ...general.elements import NonnegativeElement
+from ...general.reactions import ReactionInteraction
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9
+
+
+class SpeciesElement(NonnegativeElement):
+    """Chemical species with a nonnegative concentration `x`.
+
+    It is a free nanoparticle, a free protein, or a complex of the two. A species has no laws of its own, and the
+    binding and unbinding reactions move its amount.
+
+    Args:
+        label:
+            The label of the species.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial concentration.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.kinetics import SpeciesElement
+        >>> SpeciesElement('albumin', x=600.0).x
+        600.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, x=x)
 
 
 class NanoparticleCoronaSystem(BaseSystem):
@@ -26,8 +63,8 @@ class NanoparticleCoronaSystem(BaseSystem):
     concentrations are the book's, without the binding to a target. Concentrations are in nM, association rates in
     1/(M s), and time is in seconds. Albumin, the most abundant, covers the nanoparticles first, and lipoprotein,
     which binds more tightly, replaces it within hours, which is the Vroman effect. The free nanoparticles are
-    `nanoparticle.n`, the free proteins `albumin.n`, `lipoprotein.n`, and `fibrinogen.n`, and the complexes
-    `albumin_corona.n`, `lipoprotein_corona.n`, and `fibrinogen_corona.n`.
+    `nanoparticle.x`, the free proteins `albumin.x`, `lipoprotein.x`, and `fibrinogen.x`, and the complexes
+    `albumin_corona.x`, `lipoprotein_corona.x`, and `fibrinogen_corona.x`.
 
     Args:
         nanoparticle:
@@ -96,12 +133,12 @@ class NanoparticleCoronaSystem(BaseSystem):
         """
         return 4 * (radius + protein_radius) ** 2 / protein_radius**2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the nanoparticles, the proteins, and the binding and release reactions.
 
         The proteins are free and bound, and every protein binds and is released.
         """
-        elements = [CompartmentElement('nanoparticle', n=self.nanoparticle)]
+        elements = [SpeciesElement('nanoparticle', x=self.nanoparticle)]
         interactions: list[ReactionInteraction] = []
         rows = zip(
             PROTEINS,
@@ -114,20 +151,20 @@ class NanoparticleCoronaSystem(BaseSystem):
         )
         for name, free, bound, protein_radius, alpha, delta in rows:
             complex_ = f'{name}_corona'
-            elements += [CompartmentElement(name, n=free), CompartmentElement(complex_, n=bound)]
+            elements += [SpeciesElement(name, x=free), SpeciesElement(complex_, x=bound)]
             k = self._count_binding_sites(self.radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
             interactions += [
                 ReactionInteraction(
                     f'{name}_binding',
-                    reactants={('nanoparticle', 'n'): 1, (name, 'n'): 1},
-                    products={(complex_, 'n'): 1},
+                    reactants={('nanoparticle', 'x'): 1, (name, 'x'): 1},
+                    products={(complex_, 'x'): 1},
                     k=k,
                 ),
                 ReactionInteraction(
                     f'{name}_release',
-                    reactants={(complex_, 'n'): 1},
-                    products={('nanoparticle', 'n'): 1, (name, 'n'): 1},
+                    reactants={(complex_, 'x'): 1},
+                    products={('nanoparticle', 'x'): 1, (name, 'x'): 1},
                     k=delta,
                 ),
             ]
-        return System(self.label, elements=elements, interactions=interactions)
+        return CompositeSystem(self.label, elements=elements, interactions=interactions)

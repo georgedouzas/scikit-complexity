@@ -13,23 +13,21 @@ import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import both, either, neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ....core.types import AnyArray
 from ._binary_cell import BinaryCellElement
 
 MOORE_OFFSETS = ((0, 1), (1, -1), (1, 0), (1, 1))
-
-
 BIRTH, SURVIVAL = 3, 2
 
 
-def _alive_fraction(alive: AnyArray) -> float:
+def _get_alive_fraction(alive: AnyArray) -> float:
     """Return the fraction of live cells."""
     return float(np.mean(np.asarray(alive, dtype=float)))
 
@@ -80,7 +78,7 @@ class SmallWorldLifeSystem(BaseSystem):
     references = ('Watts and Strogatz 1998', 'Gros 2015')
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive', reduce=_alive_fraction),)
+    observables = (ObservableSpec('density', group='cells', variable='alive', reduce=_get_alive_fraction),)
 
     def __init__(
         self,
@@ -98,7 +96,7 @@ class SmallWorldLifeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _moore_torus(shape: Sequence[int]) -> nx.Graph:
+    def _get_moore_torus(shape: Sequence[int]) -> nx.Graph:
         """Return the graph of the cells of a torus.
 
         Each cell is linked to its eight Moore neighbours, in row-major order.
@@ -113,7 +111,7 @@ class SmallWorldLifeSystem(BaseSystem):
         return graph
 
     @staticmethod
-    def _life(s: SimpleNamespace) -> Expression:
+    def _get_life(s: SimpleNamespace) -> Expression:
         """Return the next state of a cell of the Game of Life.
 
         It is read from the live neighbours of the cell on the network.
@@ -123,7 +121,7 @@ class SmallWorldLifeSystem(BaseSystem):
         alive: Expression = where(born_or_kept, 1, 0)
         return alive
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Conway's Game of Life on a small-world network.
 
         The network is rewired from the Moore lattice of a torus.
@@ -132,15 +130,21 @@ class SmallWorldLifeSystem(BaseSystem):
             error_msg = f'The rewiring probability is {self.p!r}. Give a number in [0, 1].'
             raise ParameterError(error_msg)
         rng = np.random.default_rng(self.random_state)
-        graph = self._moore_torus(self.shape)
+        graph = self._get_moore_torus(self.shape)
         swaps = round(self.p * graph.number_of_edges() / 2)
         if swaps:
             nx.double_edge_swap(graph, nswap=swaps, max_tries=100 * swaps, seed=int(rng.integers(2**31)))
         alive = (rng.random(graph.number_of_nodes()) < self.density).astype(float)
-        cells = LatticeElement('cells', element=BinaryCellElement, space=NetworkSpace(graph), values={'alive': alive})
-        return System(
+        cells = GroupElement(
+            'cells',
+            element=BinaryCellElement,
+            space=NetworkSpace(graph),
+            values={'alive': alive},
+            on='sites',
+        )
+        return CompositeSystem(
             self.label,
             elements=[cells],
-            interactions=[MapInteraction('life', target='cells', state='alive', function=self._life)],
+            interactions=[MapInteraction('life', target='cells', state='alive', function=self._get_life)],
             time=DiscreteTime(),
         )

@@ -15,12 +15,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction
 from ....core.components.spaces import LatticeSpace, MeshSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.fields import DiffusivityInteraction
 
 
 class HeatElement(Element):
@@ -108,7 +108,7 @@ class HeatDiffusionSystem(BaseSystem):
         self.spacing = spacing
         self.boundary = boundary
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return heat diffusing on a plate from a hot square in its middle.
 
         The temperature follows `du/dt = D laplacian(u)`.
@@ -119,7 +119,7 @@ class HeatDiffusionSystem(BaseSystem):
         u[middle] = 1.0
         condition = ('fixed', 0.0) if self.boundary == 'fixed' else self.boundary
         space = LatticeSpace(shape, spacing=self.spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -131,7 +131,7 @@ class HeatDiffusionSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
+                DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
             ],
         )
 
@@ -208,11 +208,11 @@ class HeatLShapeSystem(BaseSystem):
         self.D = D
         self.temperature = temperature
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         grid = skfem.MeshTri.init_lshaped().refined(self.refine)
         mesh = MeshSpace(grid.p, grid.t)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -225,6 +225,6 @@ class HeatLShapeSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
+                DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
             ],
         )

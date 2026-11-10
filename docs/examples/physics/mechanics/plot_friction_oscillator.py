@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer])
 fig, ax = plt.subplots(figsize=(6, 5))
 for label, settings in [('dry', {}), ('viscous', {'mu_s': 0.0, 'mu_k': 0.0, 'c': 0.05})]:
     run = simulate(FrictionOscillatorSystem(**settings))
-    ax.plot(np.ravel(run.values('mass.x')), np.ravel(run.values('mass.v')), label=label)
+    ax.plot(np.ravel(run.get_values('mass.x')), np.ravel(run.get_values('mass.v')), label=label)
 ax.axvspan(-0.06, 0.06, color='grey', alpha=0.3, label='equilibria')
 ax.set_xlabel('x')
 ax.set_ylabel('v')

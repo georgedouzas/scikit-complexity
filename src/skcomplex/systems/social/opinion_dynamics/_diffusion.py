@@ -12,14 +12,20 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MovementInteraction, TransitionInteraction
+from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
+
+MODES = ('infection', 'influence')
+N_LEVELS = 4
+PASSIONATE = 3
+INNOVATORS = 0.025
 
 
 class BelieverView(AgentView):
@@ -158,9 +164,6 @@ class AdopterElement(Element):
         return AdopterView
 
 
-MODES = ('infection', 'influence')
-
-
 class AdoptionInteraction(TransitionInteraction):
     """Synchronous adoption of the threshold system.
 
@@ -227,23 +230,14 @@ class AdoptionInteraction(TransitionInteraction):
 
         Without a circle, the adopters are those in society.
         """
-        circle = [item for item in agent.neighbors(agent.reach) if isinstance(item, AdopterView)]
+        circle = [item for item in agent.get_neighbors(agent.reach) if isinstance(item, AdopterView)]
         adopters = sum(item.adopted for item in circle)
         if self.mode == 'infection':
             return adopters > 0
         if circle:
             return 100 * adopters / len(circle) > agent.threshold
-        society = [item for item in system.agents('target') if isinstance(item, AdopterView)]
+        society = [item for item in system.get_agents('target') if isinstance(item, AdopterView)]
         return 100 * sum(item.adopted for item in society) / len(society) > agent.threshold
-
-
-N_LEVELS = 4
-
-
-PASSIONATE = 3
-
-
-INNOVATORS = 0.025
 
 
 class InfluentialsSystem(BaseSystem):
@@ -312,18 +306,18 @@ class InfluentialsSystem(BaseSystem):
         The influence is on the level the neighbour cares at.
         """
         belief = np.array(agent.belief, dtype=np.float64)
-        for neighbor in (item for item in agent.neighbors() if isinstance(item, BelieverView)):
+        for neighbor in (item for item in agent.get_neighbors() if isinstance(item, BelieverView)):
             weights = np.asarray(neighbor.belief, dtype=np.float64)
             levels = np.flatnonzero(weights == weights.max())
             belief[levels[int(system.rng.integers(len(levels)))]] += agent.learning * neighbor.influence
         return belief
 
     @staticmethod
-    def _care(agent: BelieverView, system: SystemViewProtocol) -> float:
+    def _get_care(agent: BelieverView, system: SystemViewProtocol) -> float:
         """Return the level an agent cares at, the index of its largest weight."""
         return float(np.argmax(agent.belief))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -352,11 +346,11 @@ class InfluentialsSystem(BaseSystem):
             'caring',
             target='people',
             state='caring',
-            function=self._care,
+            function=self._get_care,
             schedule='member',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[learning, caring],
@@ -437,7 +431,7 @@ class ThresholdAdoptionSystem(BaseSystem):
         position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
         return np.mod(position, size)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         drawn = (
@@ -455,7 +449,7 @@ class ThresholdAdoptionSystem(BaseSystem):
             values={'adopted': adopted, 'threshold': drawn, 'reach': self.reach},
             location=rng.uniform(0, self.size, (self.n_agents, 2)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people],
             interactions=[

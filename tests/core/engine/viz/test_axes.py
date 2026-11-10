@@ -9,7 +9,7 @@ import rerun as rr
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import AxisVisual, RerunObserver
@@ -41,7 +41,7 @@ def _film(visual):
     """Return a field on a lattice of 8 by 8 sites with a uniform tensor."""
     values = {'Q': np.tile([0.5, 0.0], (64, 1)), 'p': np.tile([1.0, 0.0], (64, 1)), 'rho': np.arange(64.0)}
     field = FieldElement('film', element=_NematicElement, space=LatticeSpace((8, 8)), values=values, visual=visual)
-    return System(elements=[field])
+    return CompositeSystem(elements=[field])
 
 
 class _Recording:

@@ -16,5 +16,5 @@ def test_active_walkers_bundle_trails():
             dt=1,
             random_state=0,
         )
-        worn.append(int((trajectory.values('land/ground.G')[-1] > 0.5).sum()))
+        worn.append(int((trajectory.get_values('land/ground.G')[-1] > 0.5).sum()))
     assert worn[1] < 0.8 * worn[0]

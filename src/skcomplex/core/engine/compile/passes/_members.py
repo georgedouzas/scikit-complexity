@@ -1,7 +1,4 @@
-"""Lower the member offset reads of laws to neighbour reads.
-
-The reads are of the index table of their group.
-"""
+"""Lower the member offset reads of laws to neighbour reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._members import MemberLowering
 
 
 class MemberShiftPass(BasePass):
-    """Pass that lowers the member offset reads of laws to neighbour reads."""
+    """A pass that lowers the member offset reads of laws to neighbour reads."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -27,7 +24,7 @@ class MemberShiftPass(BasePass):
         """Lower the member offset reads of the corrected laws."""
         compilation = self.compilation_
         compilation.shifted = []
-        for spec, laws in Compilation._required(compilation.corrected, 'corrected'):
+        for spec, laws in Compilation._get_required(compilation.corrected, 'corrected'):
             lowering = MemberLowering(spec).prepare(compilation)
             compilation.shifted.append((spec, lowering.run(laws).lowered_))
             lowering._apply_references()

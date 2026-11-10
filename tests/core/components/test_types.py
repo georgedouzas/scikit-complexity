@@ -1,18 +1,36 @@
 """Test the `types` module of `skcomplex.core.components`."""
 
 import typing
+from collections.abc import Callable
 from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import FeedbackInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
-from skcomplex.core.components.types import AgentViewProtocol, MatchingRule, Process, SystemViewProtocol, Target
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.types import AgentViewProtocol, Process, SystemViewProtocol, Target
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PartnerSpec, RandomSearchSpec
+from skcomplex.core.specs import PartnerSpec
+from skcomplex.systems.general.matching import RandomSearchSpec
+from skcomplex.systems.general.matching.types import MatchingRule
+
+
+class CensusInteraction(Interaction):
+    """Agent rule that runs a function of the system view once per step."""
+
+    law_classes = (RuleLaw,)
+
+    def __init__(self, label: str, *, rule: Callable[[SystemViewProtocol], None]) -> None:
+        super().__init__(label)
+        self.rule = rule
+
+    def _get_laws(self, namespace):
+        """Return the rule."""
+        return [RuleLaw(self.rule)]
 
 
 def test_targets_are_symbolic_expressions_or_vectors():
@@ -28,17 +46,17 @@ def test_processes_may_be_nothing():
 def test_agent_views_have_an_id_a_location_and_a_life():
     """Test that an object with the id, location, and moves of an agent is an agent view, and an id alone is not."""
     names = (
-        'neighbor_cells',
-        'neighbors',
-        'agents_here',
-        'regions_here',
-        'displacement_to',
-        'distance_to',
+        'get_neighbor_cells',
+        'get_neighbors',
+        'get_agents_here',
+        'get_regions_here',
+        'get_displacement_to',
+        'get_distance_to',
         'move_to',
         'remove',
         'create',
-        'referenced',
-        'lags',
+        'get_referenced',
+        'get_lags',
     )
     view = SimpleNamespace(
         id=1,
@@ -67,7 +85,7 @@ def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> Non
 
     def read(system: SystemViewProtocol) -> None:
         """Record what the system view and the view of the first walker offer."""
-        walker = system.agents('walkers')[0]
+        walker = system.get_agents('walkers')[0]
         readings.append(
             (
                 isinstance(system, SystemViewProtocol),
@@ -75,15 +93,15 @@ def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> Non
                 system.round,
                 system.count('walkers'),
                 walker.group_label,
-                walker.displacement_to(walker).tolist(),
+                walker.get_displacement_to(walker).tolist(),
                 dict(system.parameters),
                 dict(system.inputs),
-                system.random_empty_cell() not in {(0, 0), (1, 1)},
+                system.get_random_empty_cell() not in {(0, 0), (1, 1)},
             ),
         )
 
     walkers = GroupElement('walkers', element=Element, size=2, location=[(0, 0), (1, 1)])
-    census = FeedbackInteraction[SystemViewProtocol]('census', rule=read)
-    system = System(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    census = CensusInteraction('census', rule=read)
+    system = CompositeSystem(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
     simulate(system, until=1, random_state=0)
     assert readings == [(True, True, 0, 2, 'walkers', [0.0, 0.0], {}, {}, True)]

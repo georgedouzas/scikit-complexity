@@ -8,12 +8,12 @@ from dataclasses import dataclass
 
 from ._base_spec import BaseSpec
 
-_RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 
 
 @dataclass(frozen=True)
 class MatrixLawSpec(BaseSpec):
-    """Matrix of a Markov law of a component, with the description of the law.
+    """A spec of the matrix of a Markov law of a part, with its description.
 
     Args:
         owner:

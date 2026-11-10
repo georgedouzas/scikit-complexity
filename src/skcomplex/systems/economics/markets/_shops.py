@@ -8,32 +8,205 @@ It also holds the digital market that removes distance.
 
 import math
 from collections.abc import Callable
-from typing import Annotated
+from types import SimpleNamespace
+from typing import Annotated, SupportsFloat, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    LifeCycleInteraction,
-    MapInteraction,
-    MatchingInteraction,
-    SignAdjustmentInteraction,
-)
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.interactions import MapInteraction
+from ....core.components.laws.utils import clip, sign
+from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
+from ....core.errors import ValidationError
 from ....core.specs import (
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
     StateSpec,
     VisualSpec,
 )
+from ...general.agents import BirthDeathInteraction
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
+
+STEPPINGS = ('multiplicative', 'additive')
+
+
+class PriceAdjustmentInteraction(MapInteraction):
+    """Price adjustment of a state of discrete time by the sign of a signal, kept within bounds.
+
+    Economics names it a price adjustment by trial and error, as a shop that raises its price while demand exceeds its
+    supply and lowers it otherwise. With the stepping `'multiplicative'` the next value of the state `x` is
+    `x (1 + step sign(signal))`, and with the stepping `'additive'` it is `x + step sign(signal)`, so the state rises
+    while the signal is positive, falls while it is negative, and stays while it is zero, by trial and error rather
+    than by the size of the signal. The next value is then limited to `[lower, upper]`.
+
+    In the `'symbolic'` form, the signal, the step, and the bounds are numbers or functions of the namespace, where
+    `namespace.target` holds the states and parameters of the target. In the `'agent'` form, the target is an agent
+    group and they are numbers or functions `f(agent, system)` that return numbers. The agents step under the schedules
+    of `MapInteraction`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the element or group whose state steps.
+
+        state:
+            The name of the state of the target.
+
+        signal:
+            The function of the signal whose sign sets the direction of the step.
+
+        step:
+            The size of the step, relative with the stepping `'multiplicative'`, a number or a function.
+
+        stepping:
+            `'multiplicative'` or `'additive'`.
+
+        lower:
+            The lowest next value, a number or a function, or `None` for none.
+
+        upper:
+            The highest next value, a number or a function, or `None` for none.
+
+        form:
+            `'symbolic'` for an update law of the state of the target, or `'agent'` for a rule over an agent group.
+
+        phase:
+            The phase of the step the agent form runs in, or `None` for the default phase.
+
+        schedule:
+            The order of the agents in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`.
+
+    Raises:
+        ValidationError:
+            The stepping, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is
+            not callable, raised by `prepare`.
+
+    Examples:
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.spaces import DiscreteTime
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.markets import PriceAdjustmentInteraction
+        >>> class QuoteElement(Element):
+        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
+        ...         super().__init__(label)
+        ...         self.x = x
+        >>> search = PriceAdjustmentInteraction(
+        ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
+        ... )
+        >>> system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
+        >>> simulate(system, until=3).get_values('quote.x').tolist()
+        [1.0, 1.5, 2.0, 2.0]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: str,
+        state: str,
+        signal: Callable[..., object],
+        step: float | Callable[..., object] = 0.1,
+        stepping: str = 'multiplicative',
+        lower: float | Callable[..., object] | None = None,
+        upper: float | Callable[..., object] | None = None,
+        form: str = 'symbolic',
+        phase: str | None = None,
+        schedule: str = 'synchronous',
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            function=self._get_next,
+            form=form,
+            phase=phase,
+            schedule=schedule,
+        )
+        self.signal = signal
+        self.step = step
+        self.stepping = stepping
+        self.lower = lower
+        self.upper = upper
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Raise an error for an unknown stepping, a symbolic form that is not synchronous, or an uncallable signal.
+
+        Args:
+            context:
+                The space the interaction inherits from its system.
+
+        Raises:
+            ValidationError:
+                The stepping, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal
+                is not callable.
+        """
+        super()._prepare(context)
+        if self.stepping not in STEPPINGS:
+            error_msg = f'The stepping of {self.label!r} is {self.stepping!r}. Use one of {", ".join(STEPPINGS)}.'
+            raise ValidationError(error_msg)
+        if self.form == 'symbolic' and self.schedule != 'synchronous':
+            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
+            raise ValidationError(error_msg)
+        if not callable(self.signal):
+            error_msg = f'The signal of {self.label!r} must be callable, but it is {self.signal!r}.'
+            raise ValidationError(error_msg)
+
+    def _read(self, item: float | Callable[..., object] | None, *arguments: object) -> object:
+        """Return a number, the value of a function at the arguments, or `None`."""
+        return item(*arguments) if callable(item) else item
+
+    def _get_number(
+        self,
+        item: float | Callable[..., object] | None,
+        agent: AgentViewProtocol,
+        system: SystemViewProtocol,
+    ) -> float | None:
+        """Return a number or the value of a function of an agent as a number, or `None`."""
+        found = self._read(item, agent, system)
+        if found is None:
+            return None
+        if not isinstance(found, SupportsFloat):
+            error_msg = f'A function of {self.label!r} returns {found!r} for an agent. Return a number.'
+            raise ValidationError(error_msg)
+        return float(found)
+
+    def _get_agent_next(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the next value of the state of an agent."""
+        direction = float(np.sign(self._get_number(self.signal, agent, system) or 0.0))
+        step = self._get_number(self.step, agent, system) or 0.0
+        current = float(getattr(agent, self.state))
+        value = current + step * direction if self.stepping == 'additive' else current * (1 + step * direction)
+        lower, upper = self._get_number(self.lower, agent, system), self._get_number(self.upper, agent, system)
+        if upper is not None:
+            value = min(upper, value)
+        if lower is not None:
+            value = max(lower, value)
+        return value
+
+    def _get_next(self, *arguments: object) -> object:
+        """Return the next value of the state, of the namespace or of an agent and its system."""
+        if self.form == 'agent':
+            agent, system = arguments
+            return self._get_agent_next(cast(AgentViewProtocol, agent), cast(SystemViewProtocol, system))
+        (namespace,) = arguments
+        value = SR(getattr(self._get_member(cast(SimpleNamespace, namespace), 'target'), self.state))
+        direction = sign(self._read(self.signal, namespace))
+        step = SR(self._read(self.step, namespace))
+        stepped = value + step * direction if self.stepping == 'additive' else value * (1 + step * direction)
+        return clip(stepped, self._read(self.lower, namespace), self._read(self.upper, namespace))
 
 
 class ResidentView(AgentView):
@@ -173,7 +346,7 @@ class ResidentElement(Element):
         """
         if not isinstance(shopper, ResidentView) or not isinstance(shop, StoreView):
             return -math.inf
-        return -(shop.ask + shopper.travel * shopper.distance_to(shop))
+        return -(shop.ask + shopper.travel * shopper.get_distance_to(shop))
 
 
 class StoreElement(Element):
@@ -330,7 +503,7 @@ class StoreElement(Element):
             shop.sales += match.quantity
 
 
-def _largest_share(sales: object) -> float:
+def _get_largest_share(sales: object) -> float:
     """Return the share of the sales of the shop that sells the most."""
     values = np.asarray(sales, dtype=float)
     return float(values.max() / values.sum()) if values.size and values.sum() > 0 else 0.0
@@ -394,7 +567,7 @@ class ShopsSystem(BaseSystem):
     observables = (
         ObservableSpec('open_shops', group='shops', variable='price', reduce='count'),
         ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
-        ObservableSpec('concentration', group='shops', variable='sales', reduce=_largest_share),
+        ObservableSpec('concentration', group='shops', variable='sales', reduce=_get_largest_share),
     )
 
     def __init__(
@@ -422,7 +595,7 @@ class ShopsSystem(BaseSystem):
         self.value = value
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -487,7 +660,7 @@ class ShopsSystem(BaseSystem):
                 )
                 for name, function in StoreElement.get_settlement()
             ),
-            SignAdjustmentInteraction(
+            PriceAdjustmentInteraction(
                 'settlement_price',
                 target='shops',
                 state='price',
@@ -497,7 +670,7 @@ class ShopsSystem(BaseSystem):
                 form='agent',
                 phase='accounts',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'closure',
                 target='shops',
                 death=lambda agent, system: agent.money < 0,
@@ -508,17 +681,17 @@ class ShopsSystem(BaseSystem):
             'shopping',
             requesters='shoppers',
             providers='shops',
-            rule=PartnerSpec(choice='score', score=ResidentElement.get_preference, clearing='provider'),
-            limit=('bid', 'ask'),
+            rule=PartnerMatchingSpec(choice='score', score=ResidentElement.get_preference, value='provider'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             transfers=(('money', -1),),
             phase='market',
             on_match=StoreElement.record_sale,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[shoppers, stores],
             interactions=[*plan, shopping, *settlement],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='chebyshev'),
             time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
         )

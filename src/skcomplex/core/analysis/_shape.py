@@ -1,7 +1,4 @@
-"""Measure the geometry of chains of points.
-
-The measures are radius of gyration, end-to-end distance, and deviation from a reference.
-"""
+"""Measure the geometry of chains of points."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,15 +17,13 @@ from ._base import _check_choice, _read_snapshots
 from .types import Source
 
 SHAPE_KINDS = ('gyration', 'end-to-end', 'rmsd')
-
 FRAME_DIMENSIONS = 3
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 
 
 @dataclass(frozen=True)
 class ChainShapeResult:
-    """Geometry of a chain of points per frame.
+    """A result of `chain_shape`, the geometry of a chain of points per frame.
 
     Args:
         positions:
@@ -52,6 +47,9 @@ def chain_shape(
     """Return the geometry of a chain of points per frame.
 
     The chain is made of the positions of the members of a group in member order.
+
+    It appears in many fields. It measures the size of a polymer, the end-to-end distance of a strand of DNA, and how
+    far a folding protein lies from its native shape.
 
     Args:
         source:
@@ -108,7 +106,7 @@ def chain_shape(
 def _read_positions(source: Trajectory, group: str | None) -> npt.ArrayLike:
     """Return the positions of a lattice state or of a group of a trajectory."""
     if group is not None and source.problem.states.has(group):
-        return source.lattice(group)
+        return source.get_lattice(group)
     positions = _read_snapshots(source, group).positions
     if positions is None:
         error_msg = f'The members of {group or "the first group"} have no positions.'

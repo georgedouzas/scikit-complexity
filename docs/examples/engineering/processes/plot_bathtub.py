@@ -1,9 +1,9 @@
 """
 # Bathtub
 
-A bathtub, one stock of water with an inflow from the faucet and an outflow through the drain. The drain empties the
-tub at five gallons per minute, and after five minutes the faucet opens at the same rate, so the level falls and then
-holds.
+A bathtub holds one stock of water, with an inflow from the faucet and an outflow through the drain. The drain empties
+the tub at five gallons per minute, and after five minutes the faucet opens at the same rate, so the level falls and
+then holds.
 """
 
 # %%
@@ -36,12 +36,12 @@ trajectory = simulate(BathtubSystem(), observers=[observer])
 
 times = np.asarray(trajectory.times)
 fig, (stock, flows) = plt.subplots(1, 2, figsize=(10, 4))
-stock.plot(times, trajectory.values('tub.water'))
+stock.plot(times, trajectory.get_values('tub.water'))
 stock.set_xlabel('minutes')
 stock.set_ylabel('gallons')
 stock.set_title('The water in the tub')
-flows.plot(times, trajectory.values('tub.faucet'), label='faucet')
-flows.plot(times, trajectory.values('tub.drain'), '--', label='drain')
+flows.plot(times, trajectory.get_values('tub.faucet'), label='faucet')
+flows.plot(times, trajectory.get_values('tub.drain'), '--', label='drain')
 flows.set_xlabel('minutes')
 flows.set_ylabel('gallons per minute')
 flows.set_title('The flows')

@@ -19,14 +19,12 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 GRAVITY = 9.81
-
-
 FORCE_LIMIT = 50.0
 
 
@@ -395,17 +393,10 @@ class StateFeedbackInteraction(Interaction):
         return [BoundaryLaw(getattr(s.plant, self.control), clip(feedback, *(self.limits or (None, None))))]
 
 
-def _tilt(s: SimpleNamespace) -> Expression:
+def _get_tilt(s: SimpleNamespace) -> Expression:
     """Return the angle of the pendulum from upright."""
     tilt: Expression = s.cart.theta
     return tilt
-
-
-def _oscillator_energy(s: SimpleNamespace) -> Expression:
-    """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
-    oscillator = s.oscillator
-    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
-    return energy
 
 
 class PidInvertedPendulumSystem(BaseSystem):
@@ -453,7 +444,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     until = 5.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('tilt', _tilt),)
+    observables = (ObservableSpec('tilt', _get_tilt),)
 
     def __init__(
         self,
@@ -476,7 +467,7 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.m = m
         self.l = l
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
         controller = PIDInteraction(
@@ -490,7 +481,14 @@ class PidInvertedPendulumSystem(BaseSystem):
             kd=self.kd,
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return System(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+        return CompositeSystem(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+
+
+def _get_oscillator_energy(s: SimpleNamespace) -> Expression:
+    """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
+    oscillator = s.oscillator
+    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
+    return energy
 
 
 class LqrOscillatorSystem(BaseSystem):
@@ -532,7 +530,7 @@ class LqrOscillatorSystem(BaseSystem):
     until = 10.0
     dt = 0.05
     solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('energy', _oscillator_energy),)
+    observables = (ObservableSpec('energy', _get_oscillator_energy),)
 
     def __init__(
         self,
@@ -551,11 +549,11 @@ class LqrOscillatorSystem(BaseSystem):
         self.q = q
         self.r = r
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
         linear = linearization(
-            System(elements=[oscillator]),
+            CompositeSystem(elements=[oscillator]),
             controls=['oscillator.force'],
             state_weights=self.q * np.eye(2),
             control_weights=[[self.r]],
@@ -573,4 +571,4 @@ class LqrOscillatorSystem(BaseSystem):
             gain=tuple(float(value) for value in gain[0]),
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return System(self.label, elements=[oscillator], interactions=[regulator])
+        return CompositeSystem(self.label, elements=[oscillator], interactions=[regulator])

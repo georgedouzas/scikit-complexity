@@ -1,6 +1,8 @@
 """Lenia: a continuous automaton of ring-kernel convolutions, and its expansion.
 
 The expanded universe adds kernels and channels.
+
+`ORBIUM` holds the cells of Orbium unicaudatus, the gliding soliton of Lenia, from the pattern library of Chan, rounded.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -21,10 +23,37 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, Array
+
+ORBIUM = np.array(
+    [
+        [0, 0, 0, 0, 0, 0, 0, 0.05, 0.02, 0, 0, 0, 0, 0, 0, 0.24, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0.14, 0.21, 0.21, 0.08, 0.07, 0.1, 0.1, 0.07, 0, 0.25, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0.09, 0.27, 0.36, 0.38, 0.34, 0.19, 0.18, 0.17, 0.18, 0.18, 0.11, 0.35, 0, 0, 0],
+        [0, 0, 0, 0, 0.01, 0.07, 0.35, 0.45, 0.47, 0.38, 0.13, 0.08, 0.05, 0.06, 0.12, 0.22, 0.71, 0, 0, 0],
+        [0, 0, 0, 0.04, 0.13, 0.18, 0.34, 0.4, 0.38, 0.28, 0.13, 0, 0, 0, 0, 0.05, 0.4, 0.33, 0, 0],
+        [0, 0, 0.02, 0.14, 0.17, 0.13, 0.11, 0.25, 0.27, 0.26, 0.21, 0, 0, 0, 0, 0, 0.02, 0.86, 0, 0],
+        [0.24, 0, 0.1, 0.17, 0.08, 0, 0, 0.2, 0.31, 0.37, 0.37, 0.24, 0, 0, 0, 0, 0, 0.45, 0.16, 0],
+        [0, 0.12, 0.18, 0.11, 0, 0, 0, 0.27, 0.43, 0.51, 0.54, 0.51, 0, 0, 0, 0, 0, 0, 0.52, 0],
+        [0, 0.59, 0.22, 0.03, 0, 0, 0, 0.19, 0.53, 0.64, 0.68, 0.68, 0.42, 0, 0, 0, 0, 0, 0.43, 0],
+        [0, 0.55, 0.24, 0, 0, 0, 0, 0.03, 0.62, 0.76, 0.84, 0.85, 0.81, 0.11, 0, 0, 0, 0, 0.28, 0.1],
+        [0, 0, 0.6, 0, 0, 0, 0, 0, 0.67, 0.87, 0.96, 0.99, 0.97, 0.56, 0, 0, 0, 0, 0.22, 0.14],
+        [0, 0, 0.84, 0, 0, 0, 0, 0, 0.51, 0.97, 1, 1, 1, 0.91, 0.28, 0, 0, 0.02, 0.22, 0.13],
+        [0, 0, 0.55, 0.07, 0, 0, 0, 0, 0.33, 1, 1, 0.98, 1, 0.97, 0.56, 0.16, 0.05, 0.12, 0.24, 0.09],
+        [0, 0, 0.03, 0.45, 0, 0, 0, 0, 0.18, 0.85, 1, 0.89, 0.86, 0.87, 0.65, 0.33, 0.2, 0.22, 0.23, 0.04],
+        [0, 0, 0, 0.42, 0.11, 0, 0, 0, 0.11, 0.62, 0.88, 0.82, 0.78, 0.74, 0.61, 0.41, 0.29, 0.27, 0.16, 0],
+        [0, 0, 0, 0.08, 0.33, 0.07, 0, 0, 0.12, 0.42, 0.67, 0.72, 0.68, 0.63, 0.53, 0.4, 0.31, 0.22, 0.06, 0],
+        [0, 0, 0, 0, 0.16, 0.26, 0.15, 0.12, 0.17, 0.34, 0.5, 0.56, 0.55, 0.5, 0.43, 0.34, 0.24, 0.12, 0, 0],
+        [0, 0, 0, 0, 0, 0.15, 0.23, 0.24, 0.26, 0.32, 0.39, 0.42, 0.41, 0.36, 0.31, 0.23, 0.13, 0.02, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0.07, 0.17, 0.23, 0.25, 0.27, 0.28, 0.26, 0.23, 0.16, 0.09, 0.02, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0.06, 0.1, 0.13, 0.13, 0.12, 0.08, 0.04, 0, 0, 0, 0, 0],
+    ],
+)
+MIN_AXES = 2
+CHANNELS = ('A', 'B', 'C')
 
 
 class LeniaSiteElement(Element):
@@ -145,14 +174,14 @@ class LeniaUpdateInteraction(Interaction):
         total = sum(kernel[2] for kernel in self.kernels)
         growth: Expression = 0
         for source, radius, weight, peaks, mu, sigma in self.kernels:
-            kernel = self._shell(distance / radius, peaks) / self._norm(radius, peaks)
+            kernel = self._get_shell(distance / radius, peaks) / self._get_norm(radius, peaks)
             potential = convolve(getattr(s.target, source), kernel, math.ceil(radius))
             growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
         value = getattr(s.target, self.channel)
         return [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
 
     @staticmethod
-    def _shell(q: Expression, peaks: Sequence[float]) -> Expression:
+    def _get_shell(q: Expression, peaks: Sequence[float]) -> Expression:
         """Return the rings of a kernel at the distance `q` in units of its radius.
 
         They are zero outside the unit ball.
@@ -165,7 +194,7 @@ class LeniaUpdateInteraction(Interaction):
             shell += where(inside, peak * exp(4 - 1 / where(inside, x * (1 - x), 1)), 0)
         return shell
 
-    def _norm(self, radius: float, peaks: Sequence[float]) -> float:
+    def _get_norm(self, radius: float, peaks: Sequence[float]) -> float:
         """Return the sum of the rings of a kernel over the sites within its radius."""
         steps = np.arange(-math.ceil(radius), math.ceil(radius) + 1)
         grid = np.meshgrid(*[steps] * self.n_dim, indexing='ij')
@@ -181,39 +210,8 @@ class LeniaUpdateInteraction(Interaction):
 
 type Kernel = tuple[int, int, float, float, Sequence[float], float, float]
 
-ORBIUM = np.array(
-    [
-        [0, 0, 0, 0, 0, 0, 0, 0.05, 0.02, 0, 0, 0, 0, 0, 0, 0.24, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0.14, 0.21, 0.21, 0.08, 0.07, 0.1, 0.1, 0.07, 0, 0.25, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0.09, 0.27, 0.36, 0.38, 0.34, 0.19, 0.18, 0.17, 0.18, 0.18, 0.11, 0.35, 0, 0, 0],
-        [0, 0, 0, 0, 0.01, 0.07, 0.35, 0.45, 0.47, 0.38, 0.13, 0.08, 0.05, 0.06, 0.12, 0.22, 0.71, 0, 0, 0],
-        [0, 0, 0, 0.04, 0.13, 0.18, 0.34, 0.4, 0.38, 0.28, 0.13, 0, 0, 0, 0, 0.05, 0.4, 0.33, 0, 0],
-        [0, 0, 0.02, 0.14, 0.17, 0.13, 0.11, 0.25, 0.27, 0.26, 0.21, 0, 0, 0, 0, 0, 0.02, 0.86, 0, 0],
-        [0.24, 0, 0.1, 0.17, 0.08, 0, 0, 0.2, 0.31, 0.37, 0.37, 0.24, 0, 0, 0, 0, 0, 0.45, 0.16, 0],
-        [0, 0.12, 0.18, 0.11, 0, 0, 0, 0.27, 0.43, 0.51, 0.54, 0.51, 0, 0, 0, 0, 0, 0, 0.52, 0],
-        [0, 0.59, 0.22, 0.03, 0, 0, 0, 0.19, 0.53, 0.64, 0.68, 0.68, 0.42, 0, 0, 0, 0, 0, 0.43, 0],
-        [0, 0.55, 0.24, 0, 0, 0, 0, 0.03, 0.62, 0.76, 0.84, 0.85, 0.81, 0.11, 0, 0, 0, 0, 0.28, 0.1],
-        [0, 0, 0.6, 0, 0, 0, 0, 0, 0.67, 0.87, 0.96, 0.99, 0.97, 0.56, 0, 0, 0, 0, 0.22, 0.14],
-        [0, 0, 0.84, 0, 0, 0, 0, 0, 0.51, 0.97, 1, 1, 1, 0.91, 0.28, 0, 0, 0.02, 0.22, 0.13],
-        [0, 0, 0.55, 0.07, 0, 0, 0, 0, 0.33, 1, 1, 0.98, 1, 0.97, 0.56, 0.16, 0.05, 0.12, 0.24, 0.09],
-        [0, 0, 0.03, 0.45, 0, 0, 0, 0, 0.18, 0.85, 1, 0.89, 0.86, 0.87, 0.65, 0.33, 0.2, 0.22, 0.23, 0.04],
-        [0, 0, 0, 0.42, 0.11, 0, 0, 0, 0.11, 0.62, 0.88, 0.82, 0.78, 0.74, 0.61, 0.41, 0.29, 0.27, 0.16, 0],
-        [0, 0, 0, 0.08, 0.33, 0.07, 0, 0, 0.12, 0.42, 0.67, 0.72, 0.68, 0.63, 0.53, 0.4, 0.31, 0.22, 0.06, 0],
-        [0, 0, 0, 0, 0.16, 0.26, 0.15, 0.12, 0.17, 0.34, 0.5, 0.56, 0.55, 0.5, 0.43, 0.34, 0.24, 0.12, 0, 0],
-        [0, 0, 0, 0, 0, 0.15, 0.23, 0.24, 0.26, 0.32, 0.39, 0.42, 0.41, 0.36, 0.31, 0.23, 0.13, 0.02, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0.07, 0.17, 0.23, 0.25, 0.27, 0.28, 0.26, 0.23, 0.16, 0.09, 0.02, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0.06, 0.1, 0.13, 0.13, 0.12, 0.08, 0.04, 0, 0, 0, 0, 0],
-    ],
-)
-"""The cells of Orbium unicaudatus, the gliding soliton of Lenia, from the pattern library of Chan, rounded."""
 
-MIN_AXES = 2
-
-
-CHANNELS = ('A', 'B', 'C')
-
-
-def _mass(values: AnyArray) -> float:
+def _get_mass(values: AnyArray) -> float:
     """Return the total mass of a channel, the sum of the values of its sites."""
     return float(np.sum(np.asarray(values, dtype=float)))
 
@@ -283,7 +281,7 @@ class LeniaSystem(BaseSystem):
     until = 200
     dt = 1
     observables = tuple(
-        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_mass) for channel in CHANNELS
+        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_get_mass) for channel in CHANNELS
     )
 
     def __init__(
@@ -312,7 +310,7 @@ class LeniaSystem(BaseSystem):
         self.kernels = kernels
 
     @staticmethod
-    def _initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
+    def _get_initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
         """Return the initial values of every channel, one array of the shape per channel."""
         if initial is None:
             if len(shape) != MIN_AXES or min(shape) < ORBIUM.shape[0]:
@@ -330,7 +328,7 @@ class LeniaSystem(BaseSystem):
             raise ParameterError(error_msg)
         return values
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Lenia, a continuous automaton of ring-kernel convolutions.
 
         Its convolutions grow solitons. The solitons are gliding and lifelike.
@@ -341,7 +339,7 @@ class LeniaSystem(BaseSystem):
                 f'Lenia needs two or more axes and one to three channels, but got {shape!r} and {self.channels!r}.'
             )
             raise ParameterError(error_msg)
-        values = self._initial_values(shape, self.channels, self.initial)
+        values = self._get_initial_values(shape, self.channels, self.initial)
         rings = (
             ((0, 0, 1.0, 1.0, tuple(self.beta), self.mu, self.sigma),) if self.kernels is None else tuple(self.kernels)
         )
@@ -370,4 +368,4 @@ class LeniaSystem(BaseSystem):
             for index in range(self.channels)
             if any(kernel[1] == index for kernel in rings)
         ]
-        return System(self.label, elements=[world], interactions=updates, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[world], interactions=updates, time=DiscreteTime())

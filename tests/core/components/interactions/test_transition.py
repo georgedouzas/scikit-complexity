@@ -7,11 +7,11 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import NN
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TransitionInteraction
 from skcomplex.core.components.laws.utils import neighbors, where
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -38,16 +38,16 @@ class HolderElement(Element):
 
 def _values(element, interactions, until, *, time=None, state='s', dt=1.0, backend=None):
     """Return the values of a state of the members at every unit of time."""
-    system = System(elements=[element], interactions=interactions, time=time)
+    system = CompositeSystem(elements=[element], interactions=interactions, time=time)
     trajectory = simulate(system, until=until, dt=dt, random_state=0, backend=backend)
-    return trajectory.values(f'members.{state}')
+    return trajectory.get_values(f'members.{state}')
 
 
 def _agent_values(element, interactions, until, state='s'):
     """Return the values of a state of the agents at the last step."""
-    system = System(elements=[element], interactions=interactions, time=DiscreteTime())
+    system = CompositeSystem(elements=[element], interactions=interactions, time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.agents('members', until).values[state]
+    return trajectory.get_agents('members', until).values[state]
 
 
 def _group(initial=1.0, size=MEMBERS):
@@ -57,7 +57,13 @@ def _group(initial=1.0, size=MEMBERS):
 
 def _ring(initial):
     """Return holders on the sites of a ring."""
-    return LatticeElement('members', element=HolderElement, space=LatticeSpace(len(initial)), values={'s': initial})
+    return GroupElement(
+        'members',
+        element=HolderElement,
+        space=LatticeSpace(len(initial)),
+        values={'s': initial},
+        on='sites',
+    )
 
 
 def test_transition_at_a_rate_empties_the_source_exponentially():
@@ -314,7 +320,7 @@ def test_check_rejects_forms_it_cannot_take(arguments, match):
 
 def _empty(agent, system):
     """Return whether no member holds the value 1."""
-    return all(member.s != 1 for member in system.agents('target'))
+    return all(member.s != 1 for member in system.get_agents('target'))
 
 
 @pytest.mark.parametrize(
@@ -339,9 +345,9 @@ def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
         over='cell',
         form='agent',
     )
-    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+    assert trajectory.get_agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
 @pytest.mark.parametrize('source', [(0, 2), lambda value: value != 1])
@@ -359,9 +365,9 @@ def test_agent_transition_over_the_cell_moves_members_of_every_source_value(sour
         over='cell',
         form='agent',
     )
-    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+    assert trajectory.get_agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
 def test_agent_transition_member_schedule_lowers_to_a_member_rule():

@@ -9,13 +9,14 @@ import pysd
 import pytest
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.interactions import RelaxationInteraction, TransferInteraction
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.interactions import RateInteraction, TransferInteraction
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import ObservableSpec, RunSettingsSpec
+from skcomplex.systems.general.dynamics import StockFlowSystem
 
 REFERENCES = {
     'teacup.mdl': 'teacup_mdl.csv',
@@ -111,7 +112,7 @@ def test_run_teacup_runs_like_pysd(fixtures_folder, translate, file_name):
     module = translate(file_name)
     reference = _load_reference(fixtures_folder, file_name)
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('teacup.teacup_temperature'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('teacup.teacup_temperature'), module, reference)
     assert np.max(np.abs(values - reference['Teacup Temperature'].to_numpy())) < TOLERANCE
 
 
@@ -135,7 +136,7 @@ def test_run_default_solver_finds_the_exact_solution(translate):
     module = translate('teacup.mdl')
     trajectory = simulate(_create(module), dt=module.DT)
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
-    assert np.max(np.abs(trajectory.values('teacup.teacup_temperature') - exact)) < 1e-3
+    assert np.max(np.abs(trajectory.get_values('teacup.teacup_temperature') - exact)) < 1e-3
 
 
 def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
@@ -151,11 +152,12 @@ def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
 
 
 def test_run_module_has_one_shape(translate):
-    """Test that a module defines its element class, its system, its observables, and its settings."""
+    """Test that a module of flows only defines a stock-flow system, its observables, and its settings."""
     module = translate('sir.mdl')
     system = module.SirSystem(contact_rate=2.0)
-    assert isinstance(system.prepare().system_.elements[0], module.SirElement)
-    assert system.prepare().system_.elements[0].contact_rate == 2.0
+    assert issubclass(module.SirSystem, StockFlowSystem)
+    assert not any(name.endswith('Element') for name in vars(module))
+    assert system.prepare().system_.elements[0].get_value('contact_rate') == 2.0
     assert system.get_params()['contact_rate'] == 2.0
     assert module.SirSystem().get_params()['contact_rate'] != 2.0
     settings = system.get_run_settings()
@@ -174,7 +176,7 @@ def test_run_auxiliaries_are_observables(fixtures_folder, translate):
         ('sir.infection', 'Infection'),
         ('sir.recovery', 'Recovery'),
     ):
-        values = _at_saved_times(trajectory, trajectory.values(name), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(name), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
 
 
@@ -193,7 +195,7 @@ def test_run_sir_flows_are_named_transfers(translate):
         observables=[total],
         invariants={'sir.people': 1e-6},
     )
-    assert np.max(trajectory.values('sir.infection')) > 0
+    assert np.max(trajectory.get_values('sir.infection')) > 0
 
 
 def test_run_invariant_catches_a_total_that_changes(translate):
@@ -227,21 +229,19 @@ def test_run_flows_with_the_environment_use_source_and_sink(translate):
 
 
 def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
-    """Test that a stock changed by the gap to its target over a time relaxes, and that it runs like PySD."""
+    """Test that a stock changed by the gap to its target over a time relaxes at a rate, and runs like PySD."""
     module = translate('goal_seeking.mdl')
     system = _parts(module)
-    assert [type(item) for item in system.interactions] == [RelaxationInteraction]
+    assert [type(item) for item in system.interactions] == [RateInteraction]
     relaxation = system.interactions[0]
-    assert (relaxation.state, relaxation.goal.__name__, relaxation.time.__name__) == (
-        'stock',
-        '_goal__stock',
-        '_time__stock',
-    )
+    assert (relaxation.state, relaxation.rate.__name__) == ('stock', '_rate__stock')
+    source = SystemDynamicsTranslator(fixtures_folder / 'goal_seeking.mdl').prepare().run().source_
+    assert '(_goal__stock(namespace) - namespace.target.stock) / _time__stock(namespace)' in source
     reference = _load_reference(fixtures_folder, 'goal_seeking.mdl')
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('goal_seeking.stock'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('goal_seeking.stock'), module, reference)
     assert np.max(np.abs(values - reference['Stock'].to_numpy())) < TOLERANCE
-    observed = _at_saved_times(trajectory, trajectory.values('goal_seeking.stock_adjustment'), module, reference)
+    observed = _at_saved_times(trajectory, trajectory.get_values('goal_seeking.stock_adjustment'), module, reference)
     assert np.max(np.abs(observed - (100.0 - values) / 4.0)) < TOLERANCE
 
 
@@ -249,7 +249,7 @@ def test_run_gap_times_a_rate_becomes_relaxation(tmp_path):
     """Test that the gap to a goal times a rate relaxes over the inverse of the rate."""
     text = 'Level = INTEG((Goal + 1 - Level) * Speed, 0) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'RelaxationInteraction(' in source
+    assert 'def _goal__level(' in source
     assert '1 / (s.speed)' in source
 
 
@@ -262,7 +262,9 @@ def test_run_other_remaining_rates_become_rates(tmp_path, equation):
     text = f'Level = INTEG({equation}, 1) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
     assert 'RateInteraction(' in source
-    assert 'RelaxationInteraction(' not in source
+    assert 'def _goal__level(' not in source
+    assert 'class SystemElement(Element)' in source
+    assert 'StockFlowSystem' not in source
 
 
 def test_run_flow_of_several_stocks_stays_in_the_rates(tmp_path):
@@ -280,7 +282,7 @@ def test_run_third_order_delay(fixtures_folder, translate):
     trajectory = _simulate(module)
     label = 'third_order_delay'
     for name, column in (('shipments', 'Shipments'), ('backlog', 'Backlog')):
-        values = _at_saved_times(trajectory, trajectory.values(f'{label}.{name}'), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(f'{label}.{name}'), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
     assert reference['Shipments'].iloc[-1] > 14.0
 
@@ -297,7 +299,7 @@ def test_run_built_in_functions_run_like_pysd(fixtures_folder, translate, file_n
     trajectory = _simulate(module)
     for column in set(reference.columns) - skipped:
         name = f'{label}.{column.lower().replace(" ", "_")}'
-        values = _at_saved_times(trajectory, trajectory.values(name), module, reference)
+        values = _at_saved_times(trajectory, trajectory.get_values(name), module, reference)
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE, column
 
 
@@ -305,9 +307,9 @@ def test_run_maps_min_of_max_to_clip(fixtures_folder):
     """Test that the source writes the built-in functions with the law utilities."""
     source = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').prepare().run().source_
     assert 'clip(s.level, 1.0, 3.0)' in source
-    for name in ('lookup', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'delay1', 'smooth'):
+    for name in ('series', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'distributed_delay'):
         assert f'{name}(' in source
-    assert 'distributed_delay(' in source
+    assert 'conserved=False)' in source
     assert 'delayed(s.level, 2)' in source
     assert 'minimum(' in source
     assert 'maximum(' in source
@@ -336,7 +338,7 @@ def test_run_regional_populations(fixtures_folder, translate):
     assert _parts(module).elements[0].get_params()['size'] == 3
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
-    values = _at_saved_times(trajectory, trajectory.values('regions.population'), module, reference)
+    values = _at_saved_times(trajectory, trajectory.get_values('regions.population'), module, reference)
     for row, region in enumerate(('North', 'Middle', 'South')):
         assert np.max(np.abs(values[:, row] - reference[f'Population[{region}]'].to_numpy())) < TOLERANCE
 
@@ -346,11 +348,11 @@ def test_run_group_records_flows_and_auxiliaries(fixtures_folder, translate):
     module = translate('regions.mdl')
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
-    births = _at_saved_times(trajectory, trajectory.values('regions.births'), module, reference)
+    births = _at_saved_times(trajectory, trajectory.get_values('regions.births'), module, reference)
     assert np.max(np.abs(births[:, 2] - reference['Births[South]'].to_numpy())) < TOLERANCE
-    bonus = _at_saved_times(trajectory, trajectory.values('bonus'), module, reference)
+    bonus = _at_saved_times(trajectory, trajectory.get_values('bonus'), module, reference)
     assert np.max(np.abs(bonus[:, 1] - reference['Bonus[Middle]'].to_numpy())) < TOLERANCE
-    total = _at_saved_times(trajectory, trajectory.values('total_population'), module, reference)
+    total = _at_saved_times(trajectory, trajectory.get_values('total_population'), module, reference)
     assert np.max(np.abs(total - reference['Total Population'].to_numpy())) < TOLERANCE
 
 

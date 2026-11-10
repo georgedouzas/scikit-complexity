@@ -7,7 +7,7 @@ to one color with a few short-lived flips of single spins.
 """
 
 # %%
-# The system is built from its class with 200 spins at `T = 0.5 J`, starting from random spins. One unit
+# The example builds `CurieWeissSystem` with 200 spins at `T = 0.5 J`, starting from random spins. One unit
 # of time is one attempted flip per spin. The observer saves every frame with the default blueprint, whose primary
 # view is the space-time image of the spins.
 
@@ -46,10 +46,10 @@ measured = []
 for temperature in temperatures:
     ordered = CurieWeissSystem(n_spins=1000, temperature=temperature, initial='up')
     run = simulate(ordered, until=40, dt=1.0, random_state=0)
-    measured.append(np.abs(run.values('magnetization')[10:]).mean())
+    measured.append(np.abs(run.get_values('magnetization')[10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('magnetization'))
+series.plot(trajectory.times, trajectory.get_values('magnetization'))
 series.axhline(mean_field_magnetization(0.5), color='black', linestyle='--', label='root of m = tanh(2 m)')
 series.set_xlabel('time')
 series.set_ylabel('magnetization')

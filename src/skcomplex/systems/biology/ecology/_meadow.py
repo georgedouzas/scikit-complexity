@@ -12,13 +12,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MovementInteraction, TransferInteraction
+from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
 
 
 class CowView(AgentView):
@@ -249,7 +250,7 @@ class HerdingInteraction(MovementInteraction):
         return 'cows' if role == 'target' else role
 
     @staticmethod
-    def _cell(agent: AgentViewProtocol) -> tuple[int, ...]:
+    def _get_cell(agent: AgentViewProtocol) -> tuple[int, ...]:
         """Return the cell of an agent as a tuple of integers."""
         location = agent.location
         if not isinstance(location, tuple):
@@ -264,16 +265,18 @@ class HerdingInteraction(MovementInteraction):
 
         It removes the cow that finds none.
         """
-        patches = [cast(PastureView, patch) for patch in system.agents('pasture')]
-        cells = [self._cell(patch) for patch in patches]
+        patches = [cast(PastureView, patch) for patch in system.get_agents('pasture')]
+        cells = [self._get_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         occupied = np.zeros(len(cells), dtype=bool)
-        occupied[[index[self._cell(cow)] for cow in system.agents('cows') if cow.alive and cow.id != agent.id]] = True
-        free = (np.asarray([patch.grass for patch in patches]) >= system.parameter('threshold')) & ~occupied
+        occupied[
+            [index[self._get_cell(cow)] for cow in system.get_agents('cows') if cow.alive and cow.id != agent.id]
+        ] = True
+        free = (np.asarray([patch.grass for patch in patches]) >= system.get_parameter('threshold')) & ~occupied
         if not free.any():
             agent.remove()
             return None
-        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._cell(agent), dtype=float)).T)
+        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._get_cell(agent), dtype=float)).T)
         return cells[int(np.argmin(np.where(free, distances, np.inf)))]
 
 
@@ -346,12 +349,12 @@ class MeadowCapacitySystem(BaseSystem):
         self.threshold = threshold
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of cows that graze a summer of 25 weeks on a meadow."""
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         picks = rng.choice(len(cells), size=self.cows, replace=False)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import VelocityVerletSolver
@@ -146,22 +146,22 @@ def test_rate_runs_into_its_value():
 
 def test_initial_angular_velocity():
     """Test that a state of order 2 starts from its angle and its angular velocity, both recorded by path."""
-    system = System(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)])
+    system = CompositeSystem(elements=[PendulumElement('bob', theta=0.1, theta_d1=0.5)])
     trajectory = simulate(system, until=1, dt=0.1)
-    assert trajectory.values('bob.theta')[0] == pytest.approx(0.1)
-    assert trajectory.values('bob.theta_d1')[0] == pytest.approx(0.5)
-    assert trajectory.values('bob.theta')[1] > 0.1
+    assert trajectory.get_values('bob.theta')[0] == pytest.approx(0.1)
+    assert trajectory.get_values('bob.theta_d1')[0] == pytest.approx(0.5)
+    assert trajectory.get_values('bob.theta')[1] > 0.1
 
 
 def test_first_order_unchanged():
     """Test that a state without an order compiles without companion states."""
-    trajectory = simulate(System(elements=[StockElement('a')]), until=1, dt=0.5)
+    trajectory = simulate(CompositeSystem(elements=[StockElement('a')]), until=1, dt=0.5)
     assert trajectory.problem.states.names == ['a.n']
 
 
 def test_newton_superposition_of_separate_laws():
     """Test that a spring and a damper from separate interactions add up to `m x'' = -k x - c x'`."""
-    system = System(
+    system = CompositeSystem(
         elements=[MassElement('mass')],
         interactions=[SpringInteraction('spring', target='mass'), DamperInteraction('damper', target='mass')],
     )
@@ -170,25 +170,43 @@ def test_newton_superposition_of_separate_laws():
     omega = np.sqrt(8.0 / 2.0 - gamma**2)
     t = trajectory.times
     expected = np.exp(-gamma * t) * (np.cos(omega * t) + gamma / omega * np.sin(omega * t))
-    assert np.allclose(trajectory.values('mass.x'), expected, atol=1e-7)
+    assert np.allclose(trajectory.get_values('mass.x'), expected, atol=1e-7)
 
 
 def test_order_mismatch_is_rejected():
     """Test that a law asserting order 1 on a state of order 2 names the law, the state, and both orders."""
-    system = System(elements=[MassElement('mass')], interactions=[MismatchedInteraction('wrong', target='mass')])
+    system = CompositeSystem(
+        elements=[MassElement('mass')],
+        interactions=[MismatchedInteraction('wrong', target='mass')],
+    )
     with pytest.raises(ValidationError, match=r'mass\.x gives the derivative of order 1, but the state has order 2'):
         simulate(system, until=1)
 
 
+class SecondOrderStockElement(StockElement):
+    """Stock whose decay asserts the second derivative on its state of order 1."""
+
+    def _get_laws(self, s):
+        """Return the mismatched decay."""
+        return [RateLaw(s.n, -s.n, order=2)]
+
+
+def test_order_mismatch_of_a_lone_state_is_rejected():
+    """Test that a law of order 2 on the only state, of order 1, is rejected when no other state has a higher order."""
+    system = CompositeSystem(elements=[SecondOrderStockElement('a')])
+    with pytest.raises(ValidationError, match=r'a\.n gives the derivative of order 2, but the state has order 1'):
+        simulate(system, until=1, dt=0.5)
+
+
 def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
-    system = System(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
+    system = CompositeSystem(elements=[MassElement('mass')], interactions=[SpringInteraction('spring', target='mass')])
     trajectory = simulate(system, until=10, solver=VelocityVerletSolver(dt=0.001), dt=0.1)
-    energy = 0.5 * 2.0 * trajectory.values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.values('mass.x') ** 2
+    energy = 0.5 * 2.0 * trajectory.get_values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.get_values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
 
 
 def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
-        PassCompiler().prepare(System(elements=[LeakyElement('leaky')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[LeakyElement('leaky')])).run()

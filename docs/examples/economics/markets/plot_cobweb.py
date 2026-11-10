@@ -34,10 +34,10 @@ trajectory = simulate(CobwebSystem(price=1.0, a=A, b=B, c=C, d=1.6), observers=[
 
 def prices(d, until=30):
     """Return the prices of a cobweb market with supply slope `d`."""
-    return simulate(CobwebSystem(price=1.0, a=A, b=B, c=C, d=d), until=until).values('market.price')
+    return simulate(CobwebSystem(price=1.0, a=A, b=B, c=C, d=d), until=until).get_values('market.price')
 
 
-price = trajectory.values('market.price')
+price = trajectory.get_values('market.price')
 grid = np.linspace(0.5, 5.0, 2)
 fig, (cobweb, theorem) = plt.subplots(1, 2, figsize=(10, 4))
 cobweb.plot(grid, (A - C - 1.6 * grid) / B, color='C0', label='price map')

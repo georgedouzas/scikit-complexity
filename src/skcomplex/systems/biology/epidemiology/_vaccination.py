@@ -7,28 +7,19 @@ The vaccination rate balances the burden of an epidemic against the cost of vacc
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 MAX_RATE = 0.9
 
 
-def _vaccinated(s: SimpleNamespace) -> Expression:
-    """Return the susceptible people vaccinated per unit time, `u S`."""
-    population = s.population
-    vaccinated: Expression = population.u * population.S
-    return vaccinated
-
-
-def _cost(s: SimpleNamespace) -> Expression:
+def _get_cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the epidemic.
 
     The cost is the infected fraction and the effort of vaccination.
@@ -38,98 +29,14 @@ def _cost(s: SimpleNamespace) -> Expression:
     return cost
 
 
-class VaccinatedPopulationElement(Element):
-    """Susceptible, infected, and recovered fractions of a vaccinated population.
-
-    The population is vaccinated at a bounded rate.
-
-    The fractions follow `S' = -beta S I - u S`, `I' = beta S I - gamma I`, and `R' = gamma I + u S`, where the
-    vaccination rate `u` is a control input between 0 and its largest value. The planner minimises the burden of the
-    infections and the cost of the vaccines, `∫ (a I + b u^2 / 2) dt`, after Lenhart and Workman.
-
-    Args:
-        label:
-            The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        S:
-            The initial susceptible fraction.
-
-        I:
-            The initial infected fraction.
-
-        R:
-            The initial recovered fraction.
-
-        u:
-            The vaccination rate, the control input.
-
-        beta:
-            The transmission rate.
-
-        gamma:
-            The recovery rate.
-
-        a:
-            The weight of the infected fraction in the cost.
-
-        b:
-            The weight of the squared vaccination rate in the cost.
-
-    Examples:
-        >>> from skcomplex.systems.biology.epidemiology import VaccinatedPopulationElement
-        >>> VaccinatedPopulationElement('population', I=0.01).I
-        0.01
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
-        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.S = S
-        self.I = I
-        self.R = R
-        self.u = u
-        self.beta = beta
-        self.gamma = gamma
-        self.a = a
-        self.b = b
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows between the fractions.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        infection, recovery, vaccination = s.beta * s.S * s.I, s.gamma * s.I, s.u * s.S
-        return [
-            RateLaw(s.S, -infection - vaccination),
-            RateLaw(s.I, infection - recovery),
-            RateLaw(s.R, recovery + vaccination),
-        ]
+def _get_vaccinated(s: SimpleNamespace) -> Expression:
+    """Return the susceptible people vaccinated per unit time, `u S`."""
+    population = s.population
+    vaccinated: Expression = population.u * population.S
+    return vaccinated
 
 
-class SIRVaccinationSystem(BaseSystem):
+class SIRVaccinationSystem(DynamicalSystem):
     """An SIR epidemic with the optimal vaccination rate.
 
     The rate minimises the burden of infections and vaccines.
@@ -163,7 +70,7 @@ class SIRVaccinationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
-        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].beta
+        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].get_value('beta')
         0.3
     """
 
@@ -172,10 +79,10 @@ class SIRVaccinationSystem(BaseSystem):
     references = ('Lenhart and Workman 2007',)
     until = 30.0
     dt = 0.2
-    solver = PontryaginSolver(objective=_cost)
+    solver = PontryaginSolver(objective=_get_cost)
     observables = (
-        ObservableSpec('vaccinated', _vaccinated),
-        ObservableSpec('cost', _cost),
+        ObservableSpec('vaccinated', _get_vaccinated),
+        ObservableSpec('cost', _get_cost),
     )
 
     def __init__(
@@ -189,7 +96,7 @@ class SIRVaccinationSystem(BaseSystem):
         b: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.S = S
         self.I = I
         self.beta = beta
@@ -197,16 +104,32 @@ class SIRVaccinationSystem(BaseSystem):
         self.a = a
         self.b = b
 
-    def _build_system(self) -> System:
-        """Return the parts of an SIR epidemic with the vaccination rate."""
-        population = VaccinatedPopulationElement(
-            'population',
-            S=self.S,
-            I=self.I,
-            R=max(1 - self.S - self.I, 0.0),
-            beta=self.beta,
-            gamma=self.gamma,
-            a=self.a,
-            b=self.b,
-        )
-        return System(self.label, elements=[population])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'population'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'S': DeclaredVariableSpec(self.S, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'I': DeclaredVariableSpec(self.I, StateSpec(domain=RealSet.closed_open(0, oo))),
+            'R': DeclaredVariableSpec(max(1 - self.S - self.I, 0.0), StateSpec(domain=RealSet.closed_open(0, oo))),
+            'u': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the flows between the fractions."""
+        return {
+            'S': lambda s: -self._get_infection(s.target) - s.target.u * s.target.S,
+            'I': lambda s: self._get_infection(s.target) - s.target.gamma * s.target.I,
+            'R': lambda s: s.target.gamma * s.target.I + s.target.u * s.target.S,
+        }
+
+    @staticmethod
+    def _get_infection(population: SimpleNamespace) -> Expression:
+        """Return the new infections per unit time, `beta S I`."""
+        return population.beta * population.S * population.I

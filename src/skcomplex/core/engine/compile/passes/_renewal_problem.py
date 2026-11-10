@@ -12,15 +12,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws.utils import draws_in, reductions_in
+from ....components.laws.utils._draws import DRAWS, draws_in
+from ....components.laws.utils._reductions import reductions_in
 from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
-from ....specs._draw_spec import DRAWS
 from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
+from ...problems._renewal_kernel import READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from ...types import ReadKind
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
@@ -30,7 +30,7 @@ from .._renewal_law import RenewalLaw
 
 
 class RenewalProblemPass(BasePass):
-    """Pass that adds the compiled renewal laws and their count symbols to the problem."""
+    """A pass that adds the compiled renewal laws and their counts to the problem."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -43,8 +43,8 @@ class RenewalProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the renewal laws to the problem."""
         compilation = self.compilation_
-        problem = Compilation._required(compilation.problem, 'problem')
-        time = Compilation._required(compilation.layout, 'layout').time
+        problem = Compilation._get_required(compilation.problem, 'problem')
+        time = Compilation._get_required(compilation.layout, 'layout').time
         renewals = compilation.renewals
         if renewals is None:
             error_msg = 'RenewalProblemPass reads the renewal laws, which no pass wrote.'
@@ -82,7 +82,7 @@ class RenewalProblemPass(BasePass):
         )
 
     @staticmethod
-    def _declared(owner: str, found: list[DrawSpec]) -> dict[str, DrawSpec]:
+    def _get_declared(owner: str, found: list[DrawSpec]) -> dict[str, DrawSpec]:
         """Return the draws of a renewal law by name.
 
         It first checks that each name has one declaration.
@@ -104,7 +104,7 @@ class RenewalProblemPass(BasePass):
         return declared
 
     @staticmethod
-    def _lowest_value(owner: str, description: str, waiting: Expression) -> float:
+    def _get_lowest_value(owner: str, description: str, waiting: Expression) -> float:
         """Return the lowest value a waiting time that is a single draw can take.
 
         It is 0 when the value is not known.
@@ -120,7 +120,7 @@ class RenewalProblemPass(BasePass):
             return numbers[0] if numbers[0] is not None else 0.0
         if found.kind != 'draw':
             return 0.0
-        distribution = DrawLowering._distribution_of(owner, description, found)
+        distribution = DrawLowering._get_distribution_of(owner, description, found)
         values = dict(zip(found.keywords, numbers, strict=True))
         shapes = {key: value for key, value in values.items() if key not in {'loc', 'scale'}}
         lowest = (
@@ -134,7 +134,7 @@ class RenewalProblemPass(BasePass):
         return 0.0 if loc is None else loc
 
     @staticmethod
-    def _member_function(
+    def _get_member_function(
         owner: str,
         expressions: Sequence[Expression],
         references: Mapping[Expression, ReferenceSpec],
@@ -152,7 +152,7 @@ class RenewalProblemPass(BasePass):
                 readers.append(slots[item])
                 continue
             reference = references.get(item)
-            if reference is None or reference.source not in _READ_SOURCES:
+            if reference is None or reference.source not in READ_SOURCES:
                 error_msg = (
                     f'A renewal law of {owner} reads {item}, which is not a state or a parameter of its component. '
                     'Renewal laws read the states and parameters of the renewing member.'
@@ -175,7 +175,7 @@ class RenewalProblemPass(BasePass):
         return evaluate, tuple(readers)
 
     @staticmethod
-    def _ordered(found: list[DrawSpec]) -> list[DrawSpec]:
+    def _get_ordered(found: list[DrawSpec]) -> list[DrawSpec]:
         """Return draws ordered so that every draw comes after the draws in its arguments."""
         ordered: list[DrawSpec] = []
         pending = list(found)
@@ -187,7 +187,7 @@ class RenewalProblemPass(BasePass):
         return ordered
 
     @staticmethod
-    def _recorded_states(
+    def _get_recorded_states(
         group: str,
         references: Mapping[Expression, ReferenceSpec],
         rows: int,
@@ -199,7 +199,7 @@ class RenewalProblemPass(BasePass):
         columns: dict[int, tuple[Indices, str]] = {}
         for reference in references.values():
             owned = reference.entry.name.rpartition('.')[0] == group
-            if not reference.is_state or reference.source not in _READ_SOURCES or not owned:
+            if not reference.is_state or reference.source not in READ_SOURCES or not owned:
                 continue
             flat = reference.flat_indices if reference.source is ReadKind.MEMBER else np.asarray([reference.index])
             if flat.size != rows:
@@ -213,7 +213,7 @@ class RenewalProblemPass(BasePass):
         return indices, tuple(name for _, name in ordered)
 
     @staticmethod
-    def _target_places(
+    def _get_target_places(
         owner: str,
         targets: list[Expression],
         references: Mapping[Expression, ReferenceSpec],
@@ -226,7 +226,7 @@ class RenewalProblemPass(BasePass):
         places = []
         for item in targets:
             reference = references.get(item)
-            if reference is None or not reference.is_state or reference.source not in _READ_SOURCES:
+            if reference is None or not reference.is_state or reference.source not in READ_SOURCES:
                 error_msg = (
                     f'A renewal law of {owner} resets {item}, which is not a state of an element or a group member.'
                 )
@@ -242,7 +242,7 @@ class RenewalProblemPass(BasePass):
         return np.asarray(places, dtype=np.intp).reshape(len(places), rows)
 
     @staticmethod
-    def _named_reads(
+    def _get_named_reads(
         group: str,
         references: Mapping[Expression, ReferenceSpec],
         sampler: object,
@@ -256,7 +256,7 @@ class RenewalProblemPass(BasePass):
         return {
             reference.entry.name.rpartition('.')[2]: reference
             for reference in references.values()
-            if reference.source in _READ_SOURCES
+            if reference.source in READ_SOURCES
             and reference.entry.columns == 1
             and reference.entry.name.rpartition('.')[0] == group
         }
@@ -327,16 +327,16 @@ class RenewalProblemPass(BasePass):
                 'parameters of the renewing member.'
             )
             raise ValidationError(error_msg)
-        if RenewalProblemPass._lowest_value(owner, description, waiting) < 0:
+        if RenewalProblemPass._get_lowest_value(owner, description, waiting) < 0:
             error_msg = (
                 f'The {description} of {owner} draws its waiting time from {waiting}, which can be negative. Draw '
                 "waiting times from a distribution with nonnegative support, such as 'expon', 'pareto', or 'lomax'."
             )
             raise ValidationError(error_msg)
-        first = RenewalProblemPass._declared(owner, draws_in(values))
+        first = RenewalProblemPass._get_declared(owner, draws_in(values))
         later = {
             name: item
-            for name, item in RenewalProblemPass._declared(owner, [*first.values(), *draws_in(waiting)]).items()
+            for name, item in RenewalProblemPass._get_declared(owner, [*first.values(), *draws_in(waiting)]).items()
             if name not in first
         }
         slots = {name: symbol(f'_renewal_{name}') for name in [*first, *later]}
@@ -347,7 +347,7 @@ class RenewalProblemPass(BasePass):
             return tuple(
                 (
                     item,
-                    RenewalProblemPass._member_function(
+                    RenewalProblemPass._get_member_function(
                         owner,
                         [SR(arg).subs(calls) for arg in item.arguments],
                         references,
@@ -355,7 +355,7 @@ class RenewalProblemPass(BasePass):
                         time,
                     ),
                 )
-                for item in RenewalProblemPass._ordered(list(found.values()))
+                for item in RenewalProblemPass._get_ordered(list(found.values()))
             )
 
         lowered = [item.subs(calls) for item in values]
@@ -363,13 +363,13 @@ class RenewalProblemPass(BasePass):
             label=label,
             members=rows,
             counts=counts,
-            states=RenewalProblemPass._recorded_states(group, references, rows)[0],
-            names=RenewalProblemPass._recorded_states(group, references, rows)[1],
-            targets=RenewalProblemPass._target_places(owner, targets, references, rows),
-            reset=RenewalProblemPass._member_function(owner, lowered, references, names, time) if lowered else None,
-            waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
+            states=RenewalProblemPass._get_recorded_states(group, references, rows)[0],
+            names=RenewalProblemPass._get_recorded_states(group, references, rows)[1],
+            targets=RenewalProblemPass._get_target_places(owner, targets, references, rows),
+            reset=RenewalProblemPass._get_member_function(owner, lowered, references, names, time) if lowered else None,
+            waiting=RenewalProblemPass._get_member_function(owner, [waiting.subs(calls)], references, names, time),
             before=samplers(first),
             after=samplers(later),
             sampler=sampler,
-            reads=RenewalProblemPass._named_reads(group, references, sampler),
+            reads=RenewalProblemPass._get_named_reads(group, references, sampler),
         ).prepare()

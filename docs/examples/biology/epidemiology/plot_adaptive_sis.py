@@ -7,7 +7,7 @@ stays far below its value on the same network without rewiring.
 """
 
 # %%
-# The system is built from its class on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the Gillespie
+# The example builds `AdaptiveSISSystem` on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the Gillespie
 # solver. The observer saves every frame with the default blueprint, whose primary view is the network drawn by its
 # force layout, with the infected nodes bright, and its edges as they are rewired.
 
@@ -33,11 +33,11 @@ trajectory = simulate(AdaptiveSISSystem(w=1.0), observers=[observer], random_sta
 fig, ax = plt.subplots(figsize=(8, 4))
 for w in (0.0, 1.0, 4.0):
     trajectory = simulate(AdaptiveSISSystem(w=w), random_state=1)
-    snapshot = trajectory.network(-1)
-    infected = np.nan_to_num(trajectory.values('hosts.i')[-1])
+    snapshot = trajectory.get_network(-1)
+    infected = np.nan_to_num(trajectory.get_values('hosts.i')[-1])
     healthy = np.mean((infected[snapshot.sources] == 0) & (infected[snapshot.targets] == 0))
     label = f'w = {w}: S-S edges {healthy:.0%}'
-    ax.plot(trajectory.times, np.nanmean(trajectory.values('hosts.i'), axis=1), label=label)
+    ax.plot(trajectory.times, np.nanmean(trajectory.get_values('hosts.i'), axis=1), label=label)
 ax.set_xlabel('time')
 ax.set_ylabel('prevalence')
 ax.set_title('Rewiring away from infected neighbours suppresses the epidemic')

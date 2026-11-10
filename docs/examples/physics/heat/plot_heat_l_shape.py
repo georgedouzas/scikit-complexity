@@ -39,7 +39,7 @@ trajectory = simulate(system, observers=[observer])
 
 nodes = system.prepare().system_.elements[0].space.prepare().positions_
 exact = HeatLShapeSystem().temperature(nodes[:, 0], nodes[:, 1])
-temperature = trajectory.values('plate.u')
+temperature = trajectory.get_values('plate.u')
 fig, (agreement, decay) = plt.subplots(1, 2, figsize=(10, 4))
 agreement.plot(exact, temperature[-1], '.', markersize=4)
 agreement.plot([exact.min(), exact.max()], [exact.min(), exact.max()], color='black', linewidth=1)

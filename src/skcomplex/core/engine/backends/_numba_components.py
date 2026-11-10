@@ -1,7 +1,4 @@
-"""Find the connected components of the active links between members.
-
-They are found with a union-find forest.
-"""
+"""Find the connected components of the active links between members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

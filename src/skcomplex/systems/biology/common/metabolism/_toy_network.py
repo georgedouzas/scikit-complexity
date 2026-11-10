@@ -1,6 +1,8 @@
 """Toy metabolic network of Raman.
 
 It grows on A alone.
+
+`TOY_REACTIONS` holds the reactions of Table 8.2 of Raman (2021), with the default bounds of its Section 8.6.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -24,8 +26,6 @@ TOY_REACTIONS = {
     'b2': ReactionSpec({'E': -1.0}, lower=-1000.0),
     'vbio': ReactionSpec({'F': -1.0, 'G': -2.0, 'ATP': -10.0}),
 }
-"""The reactions of Table 8.2 of Raman (2021), with the default bounds of its Section 8.6."""
-
 TOY_OBJECTIVE = {'vbio': 1.0}
 
 

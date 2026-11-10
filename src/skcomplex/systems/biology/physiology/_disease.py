@@ -15,11 +15,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -349,7 +349,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.connectivity = connectivity
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the two-layer model of tumour disease and sepsis."""
         rng = np.random.default_rng(self.seed)
         n = self.n_cells
@@ -365,11 +365,12 @@ class TwoLayerSepsisSystem(BaseSystem):
         frequencies = np.full(2 * n, self.omega_immune)
         sick = rng.random(n) < self.pathological
         frequencies[:n] = np.where(sick, self.omega_pathological, self.omega_healthy)
-        cells = LatticeElement(
+        cells = GroupElement(
             'cells',
             element=CellOscillatorElement,
             space=space,
             values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
+            on='sites',
         )
         edges = n * (n - 1)
         parenchymal_links = GroupElement(
@@ -387,7 +388,7 @@ class TwoLayerSepsisSystem(BaseSystem):
             layer='immune',
             values={'kappa': rng.uniform(-1, 1, edges)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells, parenchymal_links, immune_links],
             interactions=[

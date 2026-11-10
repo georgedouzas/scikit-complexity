@@ -14,15 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._car import CarElement
-from ..common._optimal_velocity import OptimalVelocityInteraction
+from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
 class TrafficMomentsElement(Element):
@@ -61,17 +59,17 @@ class TrafficMomentsElement(Element):
                 s.w,
                 -divergence(
                     [
-                        2 * LangevinDrivingInteraction._target_speed(s.rho, s) * s.w
-                        - s.rho * LangevinDrivingInteraction._target_speed(s.rho, s) ** 2,
+                        2 * LangevinDrivingInteraction._get_target_speed(s.rho, s) * s.w
+                        - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s) ** 2,
                     ],
                 )
-                - s.gamma * (s.w - s.rho * LangevinDrivingInteraction._target_speed(s.rho, s))
+                - s.gamma * (s.w - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s))
                 + s.D1 * (laplacian(s.rho * s.w) + s.rho * laplacian(s.w) - s.w * laplacian(s.rho)) / 2,
             ),
         ]
 
 
-class LangevinDrivingInteraction(RelaxationInteraction):
+class LangevinDrivingInteraction(SpeedAdaptationInteraction):
     """Relaxation of the speed of every car of a ring road, with noise.
 
     The speed relaxes towards the speed of the local density. The speed follows
@@ -127,8 +125,8 @@ class LangevinDrivingInteraction(RelaxationInteraction):
 
     def _get_goal(self, namespace: SimpleNamespace) -> object:
         """Return the desired speed of the local density of every car."""
-        return LangevinDrivingInteraction._target_speed(
-            LangevinDrivingInteraction._local_density(namespace.target.x, namespace.road_length),
+        return LangevinDrivingInteraction._get_target_speed(
+            LangevinDrivingInteraction._get_local_density(namespace.target.x, namespace.road_length),
             namespace,
         )
 
@@ -139,18 +137,18 @@ class LangevinDrivingInteraction(RelaxationInteraction):
     def _get_noise(self, namespace: SimpleNamespace) -> object:
         """Return the amplitude `sqrt(2 D1 rho)` of the noise of the local density."""
         return sqrt(
-            2 * namespace.D1 * LangevinDrivingInteraction._local_density(namespace.target.x, namespace.road_length),
+            2 * namespace.D1 * LangevinDrivingInteraction._get_local_density(namespace.target.x, namespace.road_length),
         )
 
     @staticmethod
-    def _target_speed(density: Expression, s: SimpleNamespace) -> Expression:
+    def _get_target_speed(density: Expression, s: SimpleNamespace) -> Expression:
         """Return the desired speed `u(rho) = u0 (1 - rho / rho_max)` at a density."""
         return s.u0 * (1 - density / s.rho_max)
 
     @staticmethod
-    def _local_density(x: Expression, road_length: Expression) -> Expression:
+    def _get_local_density(x: Expression, road_length: Expression) -> Expression:
         """Return the density seen by every car of a ring road, the inverse of its headway."""
-        return 1 / OptimalVelocityInteraction._headway(x, road_length)
+        return 1 / OptimalVelocityInteraction._get_headway(x, road_length)
 
 
 class LangevinTrafficSystem(BaseSystem):
@@ -220,7 +218,7 @@ class LangevinTrafficSystem(BaseSystem):
         self.rho_max = rho_max
         self.D1 = D1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.n_cars / self.length
         positions = np.arange(self.n_cars) * self.length / self.n_cars
@@ -239,7 +237,7 @@ class LangevinTrafficSystem(BaseSystem):
             D1=self.D1,
             road_length=self.length,
         )
-        return System(self.label, elements=[cars], interactions=[driving])
+        return CompositeSystem(self.label, elements=[cars], interactions=[driving])
 
 
 class TrafficDensityEquationSystem(BaseSystem):
@@ -325,7 +323,7 @@ class TrafficDensityEquationSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
@@ -339,4 +337,4 @@ class TrafficDensityEquationSystem(BaseSystem):
         }
         space = LatticeSpace(self.n, spacing=self.length / self.n)
         road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
-        return System(self.label, elements=[road])
+        return CompositeSystem(self.label, elements=[road])

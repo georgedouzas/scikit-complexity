@@ -19,7 +19,7 @@ class _OwnersSpec(BaseSpec):
     lowered: dict[str, set[type]]
     solvers: list[type]
 
-    def under(self, scope: str, *, nested: bool) -> tuple[dict[str, set[type]], dict[str, set[type]]]:
+    def get_under(self, scope: str, *, nested: bool) -> tuple[dict[str, set[type]], dict[str, set[type]]]:
         """Return the declared kinds and lowered classes of the owners of a scope.
 
         With its own components alone, it returns those of the scope's own components.

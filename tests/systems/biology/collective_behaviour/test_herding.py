@@ -11,10 +11,10 @@ def test_shepherd_brings_the_flock_to_the_goal():
     for seed in range(3):
         trajectory = simulate(ShepherdingSystem(seed=seed), random_state=seed, until=200)
         distances = [
-            np.linalg.norm(np.asarray(trajectory.agents('sheep', frame).locations, dtype=float).mean(axis=0) - 5.0)
+            np.linalg.norm(np.asarray(trajectory.get_agents('sheep', frame).locations, dtype=float).mean(axis=0) - 5.0)
             for frame in range(201)
         ]
         assert distances[0] > 60
         assert min(distances) < 5
-        driving = [float(trajectory.agents('shepherds', frame).values['driving'][0]) for frame in range(1, 201)]
+        driving = [float(trajectory.get_agents('shepherds', frame).values['driving'][0]) for frame in range(1, 201)]
         assert np.mean(driving) > 0.5

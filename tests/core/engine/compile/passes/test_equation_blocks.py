@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import ConnectionInteraction, CrossingInteraction
 from skcomplex.core.components.laws import EquationLaw, NoiseLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
@@ -130,7 +130,7 @@ def _connected(*nodes):
 
 def _driven(source):
     """Return a resistor between the pins of a source and a ground."""
-    return System(
+    return CompositeSystem(
         elements=[source, ResistorElement('load', R=4.0), GroundElement('ground')],
         interactions=_connected(
             [('source', 'p'), ('load', 'p')],
@@ -159,15 +159,15 @@ def test_same_resistor_solves_for_the_current_or_the_voltage():
     """Test that a resistor gives the current under a voltage source and the voltage under a current source."""
     voltage = _run(_driven(VoltageSourceElement('source', V=2.0)))
     current = _run(_driven(CurrentSourceElement('source', current=2.0)))
-    assert np.allclose(voltage.values('load.p_i').ravel(), 0.5)
-    assert np.allclose(voltage.values('load.p_v').ravel(), 2.0)
-    assert np.allclose(current.values('load.p_v').ravel(), 8.0)
-    assert np.allclose(current.values('load.p_i').ravel(), 2.0)
+    assert np.allclose(voltage.get_values('load.p_i').ravel(), 0.5)
+    assert np.allclose(voltage.get_values('load.p_v').ravel(), 2.0)
+    assert np.allclose(current.get_values('load.p_v').ravel(), 8.0)
+    assert np.allclose(current.get_values('load.p_i').ravel(), 2.0)
 
 
 def test_divider_records_the_voltage_of_its_middle_node_at_every_frame():
     """Test that the trajectory holds the divided voltage of the middle node at every frame."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             VoltageSourceElement('source', V=12.0),
             ResistorElement('upper', R=1.0),
@@ -182,39 +182,39 @@ def test_divider_records_the_voltage_of_its_middle_node_at_every_frame():
     )
     trajectory = _run(system)
     assert trajectory.times.size == 5
-    assert np.allclose(trajectory.values('lower.p_v').ravel(), 9.0)
-    assert np.allclose(trajectory.values('upper.n_v').ravel(), 9.0)
+    assert np.allclose(trajectory.get_values('lower.p_v').ravel(), 9.0)
+    assert np.allclose(trajectory.get_values('upper.n_v').ravel(), 9.0)
 
 
 def test_port_without_a_connection_has_a_zero_flow():
     """Test that the flow of an unconnected port is zero, which fixes the potential the element gives it."""
-    trajectory = _run(System(elements=[OpenChannelElement('channel')]))
-    assert np.allclose(trajectory.values('channel.a_i').ravel(), 0.0)
-    assert np.allclose(trajectory.values('channel.a_v').ravel(), 1.0)
+    trajectory = _run(CompositeSystem(elements=[OpenChannelElement('channel')]))
+    assert np.allclose(trajectory.get_values('channel.a_i').ravel(), 0.0)
+    assert np.allclose(trajectory.get_values('channel.a_v').ravel(), 1.0)
 
 
 def test_rate_law_reads_the_solution_of_an_algebraic_state():
     """Test that a rate law of an element reads its algebraic state as the solution of the equation of the state."""
-    trajectory = _run(System(elements=[WatcherElement('watch')]), until=1.0, dt=0.5)
-    assert np.allclose(trajectory.values('watch.y').ravel(), [2.0, 2.5, 3.0])
-    assert trajectory.values('watch.x')[-1] == pytest.approx(2.5, rel=1e-4)
+    trajectory = _run(CompositeSystem(elements=[WatcherElement('watch')]), until=1.0, dt=0.5)
+    assert np.allclose(trajectory.get_values('watch.y').ravel(), [2.0, 2.5, 3.0])
+    assert trajectory.get_values('watch.x')[-1] == pytest.approx(2.5, rel=1e-4)
 
 
 def test_rate_law_reads_a_nonlinear_solution_through_a_call():
     """Test that a rate law reads an algebraic state of a nonlinear block, which the run solves at every evaluation."""
-    system = System(elements=[WatcherElement('watch', nonlinear=True)])
+    system = CompositeSystem(elements=[WatcherElement('watch', nonlinear=True)])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.has_callables
     trajectory = _run(system, until=1.0, dt=0.5)
     expected = [brentq(lambda y, t=t: y + np.exp(y) - 1 - t, -5, 5, xtol=1e-14) for t in (0.0, 0.5, 1.0)]
-    assert np.allclose(trajectory.values('watch.y').ravel(), expected, rtol=0, atol=1e-8)
-    assert trajectory.values('watch.x')[-1] > 0.0
+    assert np.allclose(trajectory.get_values('watch.y').ravel(), expected, rtol=0, atol=1e-8)
+    assert trajectory.get_values('watch.x')[-1] > 0.0
 
 
 def test_capacitor_discharges_through_a_nonlinear_block():
     """Test that a capacitor discharging through a resistor and a diode follows the equation written by hand."""
     R, C, Is, Vt = 100.0, 1e-3, 1e-6, 0.025
-    system = System(
+    system = CompositeSystem(
         elements=[
             CapacitorElement('tank', C=C, u=1.0),
             ResistorElement('resistor', R=R),
@@ -233,7 +233,7 @@ def test_capacitor_discharges_through_a_nonlinear_block():
         return brentq(lambda i: Is * (np.exp((u - R * i) / Vt) - 1) - i, 0.0, max(u / R, 1e-12), xtol=1e-14)
 
     solution = solve_ivp(lambda _, u: -current(u[0]) / C, (0.0, 0.2), [1.0], t_eval=trajectory.times, rtol=1e-8)
-    assert np.allclose(trajectory.values('tank.u').ravel(), solution.y[0], rtol=1e-3)
+    assert np.allclose(trajectory.get_values('tank.u').ravel(), solution.y[0], rtol=1e-3)
 
 
 def test_large_linear_block_is_solved_numerically():
@@ -248,7 +248,7 @@ def test_large_linear_block_is_solved_numerically():
     nodes.append(
         [('source', 'n'), ('ground', 'p'), *((f'shunt{index}', 'n') for index in range(sections))],
     )
-    system = System(
+    system = CompositeSystem(
         elements=[VoltageSourceElement('source', V=10.0), GroundElement('ground'), *resistors],
         interactions=_connected(*nodes),
     )
@@ -264,7 +264,7 @@ def test_large_linear_block_is_solved_numerically():
     voltages = np.linalg.solve(matrix, right)
     trajectory = _run(system)
     for index, voltage in enumerate(voltages):
-        assert np.allclose(trajectory.values(f'shunt{index}.p_v').ravel(), voltage)
+        assert np.allclose(trajectory.get_values(f'shunt{index}.p_v').ravel(), voltage)
 
 
 def test_structurally_regular_singular_block_raises_an_error():
@@ -288,7 +288,7 @@ def test_structurally_regular_singular_block_raises_an_error():
             return [EquationLaw(s.x + s.y, 1.0), EquationLaw(2 * s.x + 2 * s.y, 3.0)]
 
     with pytest.raises(ValidationError, match='the system is singular'):
-        PassCompiler().prepare(System(elements=[TwinElement('twin')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[TwinElement('twin')])).run()
 
 
 def test_nonlinear_block_without_a_solution_raises_an_error():
@@ -306,12 +306,12 @@ def test_nonlinear_block_without_a_solution_raises_an_error():
             return [EquationLaw(s.y**2, -1.0)]
 
     with pytest.raises(SolverError, match='have no solution near the last values'):
-        _run(System(elements=[HopelessElement('hopeless')]))
+        _run(CompositeSystem(elements=[HopelessElement('hopeless')]))
 
 
 def test_guard_reads_the_symbolic_solution_of_an_algebraic_state():
     """Test that the guard of an event reads an algebraic state as its solution."""
-    system = System(
+    system = CompositeSystem(
         elements=[WatcherElement('watch')],
         interactions=[CrossingInteraction('stop', target='watch', guard=lambda s: s.target.y - 3.0, terminal=True)],
     )
@@ -321,7 +321,7 @@ def test_guard_reads_the_symbolic_solution_of_an_algebraic_state():
 
 def test_guard_of_a_nonlinear_solution_raises_an_error():
     """Test that a guard that reads an algebraic state of a nonlinear block raises an error."""
-    system = System(
+    system = CompositeSystem(
         elements=[WatcherElement('watch', nonlinear=True)],
         interactions=[CrossingInteraction('stop', target='watch', guard=lambda s: s.target.y - 3.0)],
     )
@@ -332,12 +332,12 @@ def test_guard_of_a_nonlinear_solution_raises_an_error():
 def test_rate_law_on_an_algebraic_state_raises_a_named_error():
     """Test that a law that integrates an algebraic state raises an error that names it and its equations."""
     with pytest.raises(AlgebraicStateError, match=r'integrated\.x.*equations of the system determine'):
-        PassCompiler().prepare(System(elements=[IntegratedElement('integrated')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[IntegratedElement('integrated')])).run()
 
 
 def test_connector_mismatch_names_both_ports_and_their_connectors():
     """Test that connecting an electrical port to a thermal port reports `port-connector`."""
-    system = System(
+    system = CompositeSystem(
         elements=[ResistorElement('load'), ConvectionElement('surface'), GroundElement('ground')],
         interactions=_connected([('load', 'p'), ('surface', 'a')], [('load', 'n'), ('ground', 'p')]),
     )
@@ -350,7 +350,7 @@ def test_connector_mismatch_names_both_ports_and_their_connectors():
 
 def test_connection_of_an_undeclared_port_reports_a_connector_issue():
     """Test that a connection of a port the element does not declare reports `port-connector`."""
-    system = System(
+    system = CompositeSystem(
         elements=[ResistorElement('load'), GroundElement('ground')],
         interactions=_connected([('load', 'missing'), ('ground', 'p')]),
     )
@@ -359,7 +359,7 @@ def test_connection_of_an_undeclared_port_reports_a_connector_issue():
 
 def test_shared_port_tells_to_list_the_node_in_one_connection():
     """Test that a port in two connections reports `port-connections`."""
-    system = System(
+    system = CompositeSystem(
         elements=[ResistorElement('load'), ResistorElement('other'), GroundElement('ground')],
         interactions=_connected(
             [('load', 'p'), ('other', 'p')],
@@ -374,12 +374,12 @@ def test_shared_port_tells_to_list_the_node_in_one_connection():
 
 def test_missing_port_state_names_the_state():
     """Test that a declared port without the state of its flow reports `port-states`, which names it."""
-    assert 'p_i' in _issue(System(elements=[MissingStateElement('broken')]), 'port-states').message
+    assert 'p_i' in _issue(CompositeSystem(elements=[MissingStateElement('broken')]), 'port-states').message
 
 
 def test_parallel_capacitors_report_a_structural_singularity_before_compilation():
     """Test that two capacitors in parallel report `structural-singularity`, which names their voltages."""
-    system = System(
+    system = CompositeSystem(
         elements=[CapacitorElement('first', u=1.0), CapacitorElement('second', u=1.0), GroundElement('ground')],
         interactions=_connected(
             [('first', 'p'), ('second', 'p')],
@@ -404,7 +404,7 @@ def test_algebraic_state_without_an_equation_reports_a_structural_singularity():
             super().__init__(label)
             self.y = y
 
-    assert 'idle.y' in _issue(System(elements=[IdleElement('idle')]), 'structural-singularity').message
+    assert 'idle.y' in _issue(CompositeSystem(elements=[IdleElement('idle')]), 'structural-singularity').message
 
 
 def test_port_under_discrete_time_reports_the_law_time_issue():
@@ -428,7 +428,7 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
             """Return a rule that does nothing."""
             return [RuleLaw(lambda agent, system: None)]
 
-    circuit = System(
+    circuit = CompositeSystem(
         'circuit',
         elements=[CapacitorElement('tank', u=2.0), ResistorElement('load', R=4.0), GroundElement('ground')],
         interactions=_connected(
@@ -436,16 +436,19 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
             [('tank', 'n'), ('load', 'n'), ('ground', 'p')],
         ),
     )
-    agents = System('village', elements=[GroupElement('farmers', element=WaitingElement, size=2)])
-    system = System(systems=[circuit, agents])
+    agents = CompositeSystem('village', elements=[GroupElement('farmers', element=WaitingElement, size=2)])
+    system = CompositeSystem(systems=[circuit, agents])
     trajectory = simulate(system, until=2, dt=1)
     assert trajectory.problem.form == FormKind.COUPLED
-    assert np.allclose(trajectory.values('circuit/load.p_v').ravel(), trajectory.values('circuit/tank.u').ravel())
-    assert trajectory.values('circuit/load.p_i')[-1] == pytest.approx(0.5 * np.exp(-0.5), rel=1e-3)
+    assert np.allclose(
+        trajectory.get_values('circuit/load.p_v').ravel(),
+        trajectory.get_values('circuit/tank.u').ravel(),
+    )
+    assert trajectory.get_values('circuit/load.p_i')[-1] == pytest.approx(0.5 * np.exp(-0.5), rel=1e-3)
 
 
 def test_noise_law_reads_a_symbolic_solution():
     """Test that a noise law reads an algebraic state as its solution."""
-    system = System(elements=[VectorWatcherElement('watch', x=1.0)])
+    system = CompositeSystem(elements=[VectorWatcherElement('watch', x=1.0)])
     trajectory = simulate(system, until=0.5, dt=0.1, random_state=0)
-    assert np.allclose(trajectory.values('watch.x').ravel(), 1.0)
+    assert np.allclose(trajectory.get_values('watch.x').ravel(), 1.0)

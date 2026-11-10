@@ -4,9 +4,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.social.opinion_dynamics import (
     ConfidenceCouplingInteraction,
@@ -29,7 +29,7 @@ def _clusters(opinions, gap):
 def test_hegselmann_krause_freezes_into_clusters_of_the_confidence(confidence, clusters):
     """Test that the opinions settle into about `1 / (2 ε)` clusters that stop moving."""
     system = HegselmannKrauseSystem(300, confidence=confidence).prepare().system_
-    opinions = simulate(system, until=40, random_state=0).values('people.opinion')
+    opinions = simulate(system, until=40, random_state=0).get_values('people.opinion')
     found = np.unique(np.round(opinions[-1], 6))
     assert abs(found.size - clusters) <= 1
     assert np.allclose(opinions[-1], opinions[-2], atol=1e-12)
@@ -59,18 +59,19 @@ def test_deffuant_conserves_mean_opinion():
 def test_confidence_coupling_takes_the_mean_of_the_trusted_neighbours():
     """Test that one step gives every agent the mean opinion of the trusted neighbours, itself included."""
     opinions = np.array([0.1, 0.2, 0.35, 0.9, 0.95])
-    people = LatticeElement(
+    people = GroupElement(
         'people',
         element=ConfidentElement,
         space=NetworkSpace(nx.complete_graph(5)),
         values={'opinion': opinions, 'confidence': 0.2},
+        on='sites',
     )
-    system = System(
+    system = CompositeSystem(
         elements=[people],
         interactions=[ConfidenceCouplingInteraction('compromise', target='people')],
         time=DiscreteTime(),
     )
-    values = simulate(system, until=1).values('people.opinion')[-1]
+    values = simulate(system, until=1).get_values('people.opinion')[-1]
     close = np.abs(opinions[None, :] - opinions[:, None]) < 0.2
     np.testing.assert_allclose(values, (close * opinions).sum(1) / close.sum(1), atol=1e-12)
 

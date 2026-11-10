@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ArgumentsSpec(BaseSpec):
-    """Parameters and states that a lattice law reads besides its neighbourhoods.
+    """A spec of the parameters and states a lattice law reads besides neighbours.
 
     They are given by name.
 
@@ -34,7 +34,7 @@ class ArgumentsSpec(BaseSpec):
     starts: tuple[int, ...] = ()
     sizes: tuple[int, ...] = ()
 
-    def values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
+    def get_values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
         """Return the values of the arguments, per-site values restricted to some sites.
 
         Args:

@@ -11,7 +11,7 @@ def _domain_speed(**coupling):
     """Return the speed of the domains of the nonreciprocal Cahn-Hilliard system over the second half of a run."""
     length = 40.0
     system = NonreciprocalCahnHilliardSystem((64,), length=length, **coupling)
-    phi = simulate(system, until=300).lattice('mixture.phi')
+    phi = simulate(system, until=300).get_lattice('mixture.phi')
     modes = np.fft.rfft(phi, axis=1)
     mode = 1 + np.argmax(np.abs(modes[-1, 1:]))
     phases = np.unwrap(np.angle(modes[75:, mode]))

@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import MapInteraction
 from skcomplex.core.components.laws.utils import mean, normal, sign
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -34,16 +34,16 @@ class ValueElement(Element):
 
 def _values(elements, interactions, until, path='value.x'):
     """Return the values of a state at every step of a discrete-time system."""
-    system = System(elements=elements, interactions=interactions, time=DiscreteTime())
+    system = CompositeSystem(elements=elements, interactions=interactions, time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.values(path)
+    return trajectory.get_values(path)
 
 
 def _agent_values(group, interaction, until):
     """Return the values of the agents of a group at the last step."""
-    system = System(elements=[group], interactions=[interaction], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[interaction], time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0)
-    return trajectory.agents(group.label, until).values['x']
+    return trajectory.get_agents(group.label, until).values['x']
 
 
 def test_logistic_map_settles_on_the_closed_form_two_cycle():
@@ -108,9 +108,9 @@ def _hopfield(schedule, backend, start, patterns, until):
         function=lambda s: sign(_hopfield_field(s)),
         schedule=schedule,
     )
-    system = System(elements=[group], interactions=[network], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[network], time=DiscreteTime())
     trajectory = simulate(system, until=until, random_state=0, backend=backend)
-    return trajectory.values('neurons.x')
+    return trajectory.get_values('neurons.x')
 
 
 class NeuronElement(Element):
@@ -175,7 +175,7 @@ def test_agent_map_updates_agents_by_the_schedule(schedule, expected):
 
     def following(agent, system):
         """Return one plus the sum of the values of the agents."""
-        return 1.0 + sum(member.x for member in system.agents('target'))
+        return 1.0 + sum(member.x for member in system.get_agents('target'))
 
     group = GroupElement('value', element=ValueElement, size=3, values={'x': 1.0})
     agents = MapInteraction('map', target='value', state='x', function=following, schedule=schedule, form='agent')
@@ -197,13 +197,13 @@ def test_agent_map_reads_a_whole_group_bound_to_its_sources():
         'map',
         target='value',
         state='x',
-        function=lambda a, m: sum(other.x for other in m.agents('sources')),
+        function=lambda a, m: sum(other.x for other in m.get_agents('sources')),
         sources=['others'],
         form='agent',
     )
-    system = System(elements=[group, others], interactions=[agents], time=DiscreteTime())
+    system = CompositeSystem(elements=[group, others], interactions=[agents], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('value', 1).values['x'].tolist() == [6.0, 6.0]
+    assert trajectory.get_agents('value', 1).values['x'].tolist() == [6.0, 6.0]
 
 
 class VectorElement(Element):
@@ -235,16 +235,16 @@ def test_agent_map_sets_a_vector_state(mode, expected):
         mode=mode,
         form='agent',
     )
-    system = System(elements=[group], interactions=[doubling], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[doubling], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('vectors', 1).values['w'].tolist() == expected
+    assert trajectory.get_agents('vectors', 1).values['w'].tolist() == expected
 
 
 def test_agent_map_rejects_a_vector_of_another_shape():
     """Test that an agent map whose function returns an array of another shape than its vector state raises."""
     group = GroupElement('vectors', element=VectorElement, size=1, values={'w': [[1.0, 2.0]]})
     stretching = MapInteraction('map', target='vectors', state='w', function=lambda a, m: [1.0, 2.0, 3.0], form='agent')
-    system = System(elements=[group], interactions=[stretching], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[stretching], time=DiscreteTime())
     with pytest.raises(ValidationError, match='shape of the state'):
         simulate(system, until=1, random_state=0)
 

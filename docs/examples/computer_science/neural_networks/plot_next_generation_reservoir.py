@@ -18,7 +18,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -28,6 +28,9 @@ SYSTEM = 'next_generation_reservoir'
 STEP = 0.025
 LYAPUNOV_TIME = 1 / 0.9056
 VARIABLES = ['x', 'y', 'z']
+TRAINED = 402
+HORIZON = 800
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -44,7 +47,7 @@ for name, color in zip(VARIABLES, ((31, 119, 180), (255, 127, 14), (44, 160, 44)
     observer.recording_.send_columns(
         f'reservoir/{name}',
         indexes=[rr.TimeColumn('sim_time', duration=forecast.times)],
-        columns=rr.Scalars.columns(scalars=forecast.values(f'reservoir.{name}')),
+        columns=rr.Scalars.columns(scalars=forecast.get_values(f'reservoir.{name}')),
     )
 observer.recording_.flush()
 
@@ -52,9 +55,9 @@ observer.recording_.flush()
 # %%
 # Forecast against the true flow
 # ------------------------------
-# We train on a window of a long run of the flow and compare the forecast with the rest of the run. The two should agree
-# within 10% of the attractor size for at least one Lyapunov time, then part as chaos amplifies the small error. After
-# that the forecast should stay on the attractor, which the right panel compares with the true flow.
+# The readout trains on a window of a long run of the flow and compare the forecast with the rest of the run. The two
+# should agree within 10% of the attractor size for at least one Lyapunov time, then part as chaos amplifies the small
+# error. After that the forecast should stay on the attractor, which the right panel compares with the true flow.
 
 
 def lorenz_samples(samples):
@@ -64,21 +67,19 @@ def lorenz_samples(samples):
         'y': lambda s: s.target.x * (28.0 - s.target.z) - s.target.y,
         'z': lambda s: s.target.x * s.target.y - 8.0 / 3.0 * s.target.z,
     }
-    flow = System(
+    flow = CompositeSystem(
         elements=[LorenzFlowElement('flow')],
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
     )
     solver = ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6)
     run = simulate(flow, until=5.0 + STEP * (samples - 1), solver=solver, dt=STEP)
-    return np.column_stack([run.values(f'flow.{name}') for name in VARIABLES])[-samples:]
+    return np.column_stack([run.get_values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
-TRAINED = 402
-HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
 trained = NextGenerationReservoirSystem(series=values[: TRAINED + 1])
 run = simulate(trained, until=HORIZON, dt=1)
-predicted = np.column_stack([run.values(f'reservoir.{name}') for name in VARIABLES])[1:]
+predicted = np.column_stack([run.get_values(f'reservoir.{name}') for name in VARIABLES])[1:]
 truth = values[TRAINED + 1 :]
 size = np.ptp(values, axis=0).max()
 errors = np.linalg.norm(predicted - truth, axis=1) / size

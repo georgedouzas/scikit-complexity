@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -166,7 +166,7 @@ class WaveBreakingSystem(BaseSystem):
         self.amplitude = amplitude
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the kinematic wave equation of deep-water wave trains.
 
         The interval is periodic of length 2 pi.
@@ -175,7 +175,7 @@ class WaveBreakingSystem(BaseSystem):
         centers = (np.arange(self.n) + 0.5) * spacing
         values = {'k': self.k0 * (1 + self.amplitude * np.sin(centers)), 'g': self.g}
         space = LatticeSpace(self.n, spacing=spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -258,7 +258,7 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         """
         return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Carleman discrete-velocity Boltzmann equation on a periodic line.
 
         The gas starts from a pulse of right movers.
@@ -268,7 +268,7 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         pulse = np.exp(-((centers - self.length / 2) ** 2))
         values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(self.n, 0.5), 'c': self.c, 'kappa': self.kappa}
         space = LatticeSpace(self.n, spacing=spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

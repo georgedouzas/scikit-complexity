@@ -7,8 +7,8 @@ coordination through marks left in the environment.
 """
 
 # %%
-# The system is built from its class with forty ants on a grid of 40 by 20 cells. The observer saves every third step
-# with the default blueprint, whose primary view is the image of the pheromone.
+# The example builds `PheromoneForagingSystem` with forty ants on a grid of 40 by 20 cells. The observer saves every
+# third step with the default blueprint, whose primary view is the image of the pheromone.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,8 +29,8 @@ trajectory = simulate(PheromoneForagingSystem(n_ants=40), observers=[observer], 
 # band between nest and food rather than spread over the grid.
 
 frames = range(len(trajectory.times))
-carrying = [np.sum(trajectory.agents('colony/ants', frame).values['carrying']) for frame in frames]
-pheromone = trajectory.lattice('ground/pheromone.level')
+carrying = [np.sum(trajectory.get_agents('colony/ants', frame).values['carrying']) for frame in frames]
+pheromone = trajectory.get_lattice('ground/pheromone.level')
 fig, (image, traffic) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(pheromone[-1].T, cmap='magma', origin='lower', aspect='auto')
 image.set_title('Pheromone at the end of the run')

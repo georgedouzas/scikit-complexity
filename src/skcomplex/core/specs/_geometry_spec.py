@@ -26,7 +26,7 @@ TURTLE_SYMBOLS = {
 
 @dataclass(frozen=True)
 class GeometrySpec(BaseSpec):
-    r"""Spec of the geometric interpretation of a word as line segments.
+    r"""A spec of how a word is drawn as line segments, as by a turtle.
 
     The segments lie in two or three dimensions. A cursor walks the word: symbols mean `draw` (forward with a segment),
     `move` (forward without one), `left` and `right` (turn by the angle), `reverse` (turn by 180 degrees), `push` and

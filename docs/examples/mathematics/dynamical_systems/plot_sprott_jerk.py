@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
 trajectory = simulate(SprottJerkSystem(), until=300, observers=[observer])
-points = np.column_stack([trajectory.values(name) for name in ('jerk.x', 'jerk.x_d1', 'jerk.x_d2')])[200:]
+points = np.column_stack([trajectory.get_values(name) for name in ('jerk.x', 'jerk.x_d1', 'jerk.x_d2')])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
 
@@ -50,7 +50,7 @@ observer.recording_.flush()
 # Successive maxima of `x` should lie close to a single curve, the trace of the fold of the band. The largest Lyapunov
 # exponent should be positive, near the 0.036 that Sprott reports, and the exponents should sum to the divergence `-A`.
 
-x = simulate(SprottJerkSystem(), until=3000, dt=0.05).values('jerk.x')[2000:]
+x = simulate(SprottJerkSystem(), until=3000, dt=0.05).get_values('jerk.x')[2000:]
 maxima = x[find_peaks(x)[0]]
 # The symbolic Jacobian of `|x|` divides by `|x|`, so the tangent dynamics start off `x = 0` (see fix-core-defects).
 exponents = lyapunov(SprottJerkSystem(x=0.1), until=3000).exponents

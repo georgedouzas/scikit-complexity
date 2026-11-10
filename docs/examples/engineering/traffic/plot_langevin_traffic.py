@@ -55,7 +55,7 @@ flows, variances = [], []
 for density in densities:
     cars = LangevinTrafficSystem(n_cars=round(density * length), length=length, gamma=gamma, D1=D1)
     run = simulate(cars, until=100, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
-    speeds = run.values('cars.v')
+    speeds = run.get_values('cars.v')
     flows.append(density * speeds[25:].mean())
     variances.append(speeds[25:].var())
 grid = np.linspace(0.0, 1.0, 100)

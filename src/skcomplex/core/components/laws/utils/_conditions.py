@@ -1,7 +1,4 @@
-"""Define the symbolic conditions and remainders that laws use.
-
-Every backend lowers them.
-"""
+"""Define the symbolic conditions and remainders that every backend lowers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,36 +6,37 @@ Every backend lowers them.
 from sage.all__sagemath_symbolics import SR, Expression, floor
 from sage.symbolic.function import BuiltinFunction
 
-from ....specs._draw_spec import draws_in
+from ._draws import draws_in
 
 
-def _is_number(argument: object) -> bool:
-    """Check that an expression, or both sides of a relation, evaluate to numbers.
-
-    So no call stays unevaluated.
-    """
-    value = SR(argument)
-    sides = [value.lhs(), value.rhs()] if value.is_relational() else [value]
-    try:
-        for side in sides:
-            complex(side)
-    except (TypeError, ValueError):
-        return False
-    return True
-
-
-def _is_decided(*arguments: object) -> bool:
-    """Check that arguments hold no symbols, random draws, or unevaluated calls.
-
-    So the condition is decided.
-    """
-    return all(
-        not SR(argument).variables() and not draws_in(argument) and _is_number(argument) for argument in arguments
-    )
-
-
-class _Where(BuiltinFunction):
+class _WhereFunction(BuiltinFunction):
     """Value chosen by a condition, `where(condition, then, otherwise)`."""
+
+    @staticmethod
+    def _is_number(argument: object) -> bool:
+        """Check that an expression, or both sides of a relation, evaluate to numbers.
+
+        So no call stays unevaluated.
+        """
+        value = SR(argument)
+        sides = [value.lhs(), value.rhs()] if value.is_relational() else [value]
+        try:
+            for side in sides:
+                complex(side)
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    @staticmethod
+    def _is_decided(*arguments: object) -> bool:
+        """Check that arguments hold no symbols, random draws, or unevaluated calls.
+
+        So the condition is decided.
+        """
+        return all(
+            not SR(argument).variables() and not draws_in(argument) and _WhereFunction._is_number(argument)
+            for argument in arguments
+        )
 
     def __init__(self) -> None:
         super().__init__('where', nargs=3)
@@ -50,7 +48,7 @@ class _Where(BuiltinFunction):
         """
         if SR(then).is_trivially_equal(SR(otherwise)):
             return SR(then)
-        if _is_decided(condition):
+        if _WhereFunction._is_decided(condition):
             return then if bool(condition) else otherwise
         return None
 
@@ -68,7 +66,7 @@ class _Where(BuiltinFunction):
         return self(condition, SR(then).diff(diff_param), SR(otherwise).diff(diff_param))
 
 
-class _Either(BuiltinFunction):
+class _EitherFunction(BuiltinFunction):
     """Disjunction of conditions, true when any of them is true."""
 
     def __init__(self) -> None:
@@ -76,12 +74,12 @@ class _Either(BuiltinFunction):
 
     def _eval_(self, *conditions: Expression) -> Expression | None:
         """Return 1 or 0 when the conditions are decided, or `None` to stay unevaluated."""
-        if _is_decided(*conditions):
+        if _WhereFunction._is_decided(*conditions):
             return SR(int(any(bool(condition) for condition in conditions)))
         return None
 
 
-class _Both(BuiltinFunction):
+class _BothFunction(BuiltinFunction):
     """Conjunction of conditions, true when all of them are true."""
 
     def __init__(self) -> None:
@@ -89,12 +87,12 @@ class _Both(BuiltinFunction):
 
     def _eval_(self, *conditions: Expression) -> Expression | None:
         """Return 1 or 0 when the conditions are decided, or `None` to stay unevaluated."""
-        if _is_decided(*conditions):
+        if _WhereFunction._is_decided(*conditions):
             return SR(int(all(bool(condition) for condition in conditions)))
         return None
 
 
-class _Mod(BuiltinFunction):
+class _ModFunction(BuiltinFunction):
     """Remainder of a division with the sign of the divisor, `mod(value, divisor)`."""
 
     def __init__(self) -> None:
@@ -105,7 +103,7 @@ class _Mod(BuiltinFunction):
 
         It returns `None` to stay unevaluated.
         """
-        if _is_decided(value, divisor):
+        if _WhereFunction._is_decided(value, divisor):
             return value - divisor * floor(value / divisor)
         return None
 
@@ -117,7 +115,7 @@ class _Mod(BuiltinFunction):
         return SR(value).diff(diff_param) - floor(value / divisor) * SR(divisor).diff(diff_param)
 
 
-where = _Where()
+where = _WhereFunction()
 
 
 where.__doc__ = """Return `then` where a condition holds and `otherwise` elsewhere.
@@ -150,7 +148,7 @@ Examples:
 """
 
 
-either = _Either()
+either = _EitherFunction()
 
 
 either.__doc__ = """Return a condition that holds where any of the conditions holds.
@@ -172,7 +170,7 @@ Examples:
 """
 
 
-both = _Both()
+both = _BothFunction()
 
 
 both.__doc__ = """Return a condition that holds where all the conditions hold.
@@ -194,7 +192,7 @@ Examples:
 """
 
 
-mod = _Mod()
+mod = _ModFunction()
 
 
 mod.__doc__ = """Return the remainder of a division, with the sign of the divisor as Python's `%`.

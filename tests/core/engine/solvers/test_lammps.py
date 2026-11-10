@@ -11,10 +11,11 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
@@ -40,7 +41,7 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 CUTOFF = 2.5
 
 
-class ExponentialInteraction(PairCouplingInteraction):
+class ExponentialInteraction(PairInteraction):
     """Exponential repulsion `eps * exp(-r / sigma)`."""
 
     def __init__(
@@ -72,7 +73,7 @@ class ExponentialInteraction(PairCouplingInteraction):
         return s.eps * exp(-r / s.sigma)
 
 
-class StepwiseInteraction(PairCouplingInteraction):
+class StepwiseInteraction(PairInteraction):
     """Pair energy with a branch, a harmonic repulsion within a contact distance."""
 
     def __init__(
@@ -108,7 +109,7 @@ def _hyperbolic(s, r):
 
 
 def _lattice(n, spacing=1.2, offset=0.6):
-    """Return the positions of a square lattice of `n` points."""
+    """Return the positions of a square lattice of `x` points."""
     side = int(np.ceil(np.sqrt(n)))
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n]
     return grid * spacing + offset
@@ -117,7 +118,7 @@ def _lattice(n, spacing=1.2, offset=0.6):
 def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=n, values={'x': _lattice(n), 'x_d1': velocities})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
@@ -145,13 +146,13 @@ def test_lammps_trajectory_has_native_names_and_shapes():
     native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.2)
     external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.2)
     for name in ('gas.x', 'gas.x_d1'):
-        assert external.values(name).shape == native.values(name).shape
+        assert external.get_values(name).shape == native.get_values(name).shape
 
 
 def test_lammps_rejects_population_system():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
-    system = System(
-        elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+    system = CompositeSystem(
+        elements=[PopulationElement('rabbits', x=40), PopulationElement('foxes', x=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits'),
             PredationInteraction('hunt', predator='foxes', prey='rabbits'),
@@ -166,9 +167,9 @@ def test_lammps_rejects_population_system():
 
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=4, values={'x': _lattice(4)})],
-        interactions=[PairCouplingInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
+        interactions=[PairInteraction('hyperbolic', 'gas', 'gas', cutoff=1.0, potential=_hyperbolic)],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
@@ -177,7 +178,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different values of the divisor is reported as unsupported."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': _lattice(2), 'm': [1.0, 2.0]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, divisor='m')],
         space=ContinuousSpace(n_dim=2),
@@ -188,7 +189,7 @@ def test_lammps_rejects_groups_with_different_masses():
 
 def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -200,14 +201,14 @@ def test_lammps_custom_pair_energy_matches_native_forces():
         interactions=[ExponentialInteraction('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.x_d1')[-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.x_d1')[-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
     assert np.allclose(external, native, rtol=1e-8, atol=1e-8 * np.abs(native).max())
 
 
 def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -219,16 +220,16 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
         interactions=[StepwiseInteraction('contact', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.x_d1')[-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.x_d1')[-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).get_values('gas.x_d1')[-1]
     assert np.abs(native).max() > 0
     assert np.allclose(external, native, rtol=1e-10, atol=1e-10 * np.abs(native).max())
 
 
 def test_lammps_short_run_matches_native():
     """Test that 100 Lennard-Jones atoms agree with the native velocity Verlet run within 1e-6 after 0.1."""
-    native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.1).values('gas.x')
-    external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.1).values('gas.x')
+    native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.1).get_values('gas.x')
+    external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.1).get_values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
 
 
@@ -236,8 +237,8 @@ def test_lammps_periodic_box_matches_native():
     """Test that a periodic Lennard-Jones gas agrees with the native run and stays in the box."""
     size = 12.0
     system = _lennard_jones_gas(space=ContinuousSpace(extent=(size, size), boundary='periodic'))
-    native = _run(system, VelocityVerletSolver(dt=0.002), 0.2).values('gas.x')
-    external = _run(system, LammpsSolver(dt=0.002), 0.2).values('gas.x')
+    native = _run(system, VelocityVerletSolver(dt=0.002), 0.2).get_values('gas.x')
+    external = _run(system, LammpsSolver(dt=0.002), 0.2).get_values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
     assert np.all((external >= 0) & (external < size))
 
@@ -268,15 +269,15 @@ def test_lammps_walls_confine_atoms_on_their_own():
 def test_lammps_forces_match_native(interaction):
     """Test that external forces, constant forces, and drag agree with the native run."""
     system = _lennard_jones_gas(interactions=[interaction])
-    native = _run(system, VelocityVerletSolver(dt=0.005), 0.2).values('gas.x')
-    external = _run(system, LammpsSolver(dt=0.005), 0.2).values('gas.x')
+    native = _run(system, VelocityVerletSolver(dt=0.005), 0.2).get_values('gas.x')
+    external = _run(system, LammpsSolver(dt=0.005), 0.2).get_values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
 
 
 def test_lammps_thermostat_temperature_changes_live():
     """Test that raising the thermostat temperature during a LAMMPS run heats the gas towards it."""
     gas = IdealGasSystem(1000, kT=1.0, size=30.0, random_state=0).prepare().system_
-    system = System(
+    system = CompositeSystem(
         elements=gas.elements,
         interactions=[
             *gas.interactions,
@@ -292,8 +293,8 @@ def test_lammps_thermostat_temperature_changes_live():
         random_state=0,
         schedule={'bath.temperature': lambda t: 1.0 if t < 10 else 3.0},
     )
-    temperature = (trajectory.values('gas.x_d1') ** 2).sum(axis=2).mean(axis=1) / 2
-    changed = int(np.argmax(trajectory.values('bath.temperature') == 3.0))
+    temperature = (trajectory.get_values('gas.x_d1') ** 2).sum(axis=2).mean(axis=1) / 2
+    changed = int(np.argmax(trajectory.get_values('bath.temperature') == 3.0))
     assert temperature[:changed].mean() == pytest.approx(1.0, rel=0.1)
     assert temperature[-10:].mean() == pytest.approx(3.0, rel=0.1)
 
@@ -302,7 +303,7 @@ def test_lammps_thermostat_temperature_changes_live():
 def test_lammps_runs_10000_atoms_in_real_time():
     """Test that 10000 Lennard-Jones atoms keep a real-time clock within 0.2 seconds on LAMMPS."""
     n = 10_000
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'gas',
@@ -344,3 +345,9 @@ def test_lammps_final_run_closes_the_instance():
         solver.run(StepSpec(0.1, state, problem.initial_parameters, 0.2))
     solver = solver.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     assert not solver.released_
+
+
+def test_lammps_solver_get_lepton_expression():
+    """Test `LammpsSolver._get_lepton_expression` on a small case."""
+    x = symbol('x')
+    assert LammpsSolver._get_lepton_expression(4 * (x**-12 - x**-6), x) == '4/r^12 - 4/r^6'

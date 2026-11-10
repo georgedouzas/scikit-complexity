@@ -10,10 +10,11 @@ top: the pulse runs to the right, spreads, and fades.
 """
 
 # %%
-# The system is built from its class on a periodic line of length 10 with 200 finite-volume cells, speed
-# `c = 1`, and a slow collision rate `kappa = 0.2`, so the pulse travels far before it fades. The catalog registers
-# the strong-stability-preserving Runge-Kutta stepper for this system, so it is passed explicitly. The observer saves
-# every frame of 0.015 with the default blueprint, whose primary view is the space-time image of the right movers.
+# The example builds `DiscreteVelocityBoltzmannSystem` on a periodic line of length 10 with 200 finite-volume cells,
+# speed `c = 1`, and a slow collision rate `kappa = 0.2`, so the pulse travels far before it fades. The catalog
+# registers the strong-stability-preserving Runge-Kutta stepper for this system, so it is passed explicitly. The
+# observer saves every frame of 0.015 with the default blueprint, whose primary view is the space-time image of the
+# right movers.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,7 +37,7 @@ simulation = simulate(system, until=3, dt=0.015, observers=[observer])
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
 trajectory = simulate(DiscreteVelocityBoltzmannSystem(), until=10, dt=0.05)
-right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
+right, left = trajectory.get_values('gas.f_plus'), trajectory.get_values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)
 fig, (conserved, relaxing) = plt.subplots(1, 2, figsize=(10, 4))

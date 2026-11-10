@@ -16,9 +16,9 @@ def _cost_over_entropy(exponent: float, costs: np.ndarray) -> float:
 def test_mandelbrot_least_effort_frequencies() -> None:
     """Test that the frequencies follow a power law of the solved exponent, which minimises cost over entropy."""
     trajectory = simulate(MandelbrotLeastEffortSystem().prepare().system_, until=1.0)
-    exponent = float(trajectory.values('language.exponent')[0])
-    costs = trajectory.values('words.cost')[0]
-    probabilities = trajectory.values('words.probability')[0]
+    exponent = float(trajectory.get_values('language.exponent')[0])
+    costs = trajectory.get_values('words.cost')[0]
+    probabilities = trajectory.get_values('words.probability')[0]
     np.testing.assert_allclose(probabilities, (np.arange(1, costs.size + 1) + 1.0) ** -exponent, atol=1e-9)
     ratio = _cost_over_entropy(exponent, costs)
     assert ratio < _cost_over_entropy(exponent - 0.1, costs)

@@ -35,7 +35,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 def clusters(confidence, seed):
     """Return the number of clusters of at least five people at the end of a run."""
     run = simulate(DeffuantSystem(confidence=confidence, random_state=seed), random_state=seed)
-    opinions = np.sort(run.agents('people', len(run.times) - 1).values['opinion'])
+    opinions = np.sort(run.get_agents('people', len(run.times) - 1).values['opinion'])
     groups = np.split(opinions, np.flatnonzero(np.diff(opinions) > 0.01) + 1)
     return sum(len(group) >= 5 for group in groups)
 
@@ -70,8 +70,12 @@ fit = calibrate(
 )
 grid = np.linspace(0.15, 0.35, 21)
 scores = [
-    simulate(DeffuantSystem(100, confidence=bound, steepness=50.0), until=50, random_state=0, replay=recorded)
-    .log_probability
+    simulate(
+        DeffuantSystem(100, confidence=bound, steepness=50.0),
+        until=50,
+        random_state=0,
+        replay=recorded,
+    ).log_probability
     for bound in grid
 ]
 fig, ax = plt.subplots(figsize=(6, 4))

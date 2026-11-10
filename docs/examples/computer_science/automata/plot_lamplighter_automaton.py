@@ -12,10 +12,10 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
@@ -34,10 +34,10 @@ trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_s
 # the group ring element `1 + a + b` is a matrix over GF(2), and its rank decides whether the automaton is invertible
 # there.
 
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
-parity = System(
-    elements=[LatticeElement('cells', element=BinaryCellElement, space=quotient)],
+parity = CompositeSystem(
+    elements=[GroupElement('cells', element=BinaryCellElement, space=quotient, on='sites')],
     interactions=[
         LocalRuleInteraction(
             'parity',

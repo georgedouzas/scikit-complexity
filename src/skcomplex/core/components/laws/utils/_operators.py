@@ -1,29 +1,50 @@
-"""Define the differential operators of fields as Sage symbolic functions.
-
-The compiler lowers them. Sage differentiates with respect to symbols, not along the axes of a lattice or a mesh, so
-each operator is a Sage function made by `function`, kept unevaluated in expressions until the discretization of the
-field turns it into numbers.
-"""
+"""Define the differential operators of fields, such as the gradient."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+import copyreg
+from collections.abc import Callable, Sequence
 
-from sage.all__sagemath_symbolics import SR, Expression, function, oo, vector
+from sage.all__sagemath_symbolics import SR, Expression, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.function import BuiltinFunction
 
 from ....errors import ValidationError
 
-laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
-partial = function('partial', nargs=2)
-collision = function('collision', nargs=1)
-upwind = function('upwind', nargs=3)
-INVERSE_HELMHOLTZ = function('inverse_helmholtz')
-CONVOLVE = function('convolve', nargs=3)
-SHIFTED = function('shifted')
+COLLISION_SPEED = SR.symbol('collision_speed', domain='real')
+COLLISION_COSINE = SR.symbol('collision_cosine', domain='real')
 INVERSION_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 ORDERS = (1, 3)
+
+
+class _OperatorFunction(BuiltinFunction):
+    """Operator kept unevaluated in expressions until the compiler lowers it.
+
+    The name, the number of operands, 0 for any number, and the LaTeX name are those of Sage's `BuiltinFunction`. Sage
+    pickles a `BuiltinFunction` by calling its class with no argument, so every operator class registers with
+    `copyreg` a reduction that rebuilds it from the arguments it was built with, which lets expressions that hold it
+    reach other processes.
+    """
+
+    @staticmethod
+    def _reduce(operator: '_OperatorFunction') -> tuple[type['_OperatorFunction'], tuple[str, int, str | None]]:
+        """Return the class and the arguments that rebuild an operator."""
+        return type(operator), operator._arguments
+
+    def __init__(self, name: str, nargs: int = 0, latex_name: str | None = None) -> None:
+        super().__init__(name, nargs=nargs, latex_name=latex_name)
+        self._arguments = (name, nargs, latex_name)
+        copyreg.pickle(type(self), _OperatorFunction._reduce)
+
+
+laplacian = _OperatorFunction('laplacian', nargs=1, latex_name=r'\nabla^2')
+partial = _OperatorFunction('partial', nargs=2)
+upwind = _OperatorFunction('upwind', nargs=3)
+COLLISION_INTEGRAL = _OperatorFunction('collision_integral', nargs=2)
+INVERSE_HELMHOLTZ = _OperatorFunction('inverse_helmholtz')
+CONVOLVE = _OperatorFunction('convolve', nargs=3)
+SHIFTED = _OperatorFunction('shifted')
 
 
 def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
@@ -99,17 +120,18 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
     return sum((upwind(SR(expression), SR(axis), SR(item)) for axis, item in enumerate(velocity)), SR(0))
 
 
-def inverse_helmholtz(expression: object, screening: object, boundary: object = None) -> Expression:
+def inverse_helmholtz(expression: object, screening: object = 0, boundary: object = None) -> Expression:
     """Return the solution `psi` of a modified-Helmholtz equation.
 
-    The equation is `(laplacian - screening**2) psi = expression`.
+    The equation is `(laplacian - screening**2) psi = expression`. Without screening it is the Poisson equation
+    `laplacian(psi) = expression`, the inverse Laplacian.
 
     Args:
         expression:
             An expression of the states and parameters of a field.
 
         screening:
-            The screening, a non-negative expression of the parameters.
+            The screening, a non-negative expression of the parameters, or 0 for the Poisson equation.
 
         boundary:
             The boundary condition of the solution, `'periodic'`, `'zero-flux'`, or `('fixed', value)`, or `None` for
@@ -129,6 +151,8 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
         >>> from skcomplex.core.components.laws.utils import inverse_helmholtz
         >>> inverse_helmholtz(var('q'), 2)
         inverse_helmholtz(q, 2)
+        >>> inverse_helmholtz(var('q'))
+        inverse_helmholtz(q, 0)
         >>> inverse_helmholtz(var('q'), 2, ('fixed', 0.5))
         inverse_helmholtz(q, 2, 2, 0.5)
     """
@@ -144,26 +168,34 @@ def inverse_helmholtz(expression: object, screening: object, boundary: object = 
     return INVERSE_HELMHOLTZ(SR(expression), SR(screening), code, SR(values[0] if values else 0))
 
 
-def inverse_laplacian(expression: object) -> Expression:
-    """Return the solution of the Poisson equation `laplacian(psi) = expression`.
+def collision_integral(density: object, kernel: Callable[[Expression, Expression], object]) -> Expression:
+    """Return the binary collision integral of a density with a collision kernel.
 
-    It is the unscreened inverse Helmholtz.
+    The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v') f(v'*) - f(v) f(v*)) ds dv*` over the two velocity
+    axes of the phase space of the density, with the relative speed `|g|` and the cosine `cos t` of the deflection
+    angle. The kernel is called once with two real symbols for the speed and the cosine, and the call keeps its
+    expression, so a rate law that reads the integral needs no other argument. The kernel returns an expression of the
+    speed, the cosine, and numbers, written with Sage functions rather than NumPy functions.
 
     Args:
-        expression:
-            An expression of the states and parameters of a field.
+        density:
+            The symbol of a density on a phase space with two interval velocity axes.
+
+        kernel:
+            The function `B(speed, cosine)` of the collision kernel, such as `lambda speed, cosine: 1 / (2 * pi)` for
+            Maxwell molecules.
 
     Returns:
-        solution:
-            The call `inverse_helmholtz(expression, 0)`.
+        integral:
+            The unevaluated call of the integral, which the compiler lowers to the fast spectral method.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import inverse_laplacian
-        >>> inverse_laplacian(var('q'))
-        inverse_helmholtz(q, 0)
+        >>> from sage.all__sagemath_symbolics import pi, var
+        >>> from skcomplex.core.components.laws.utils import collision_integral
+        >>> collision_integral(var('f'), lambda speed, cosine: 1 / (2 * pi))
+        collision_integral(f, 1/2/pi)
     """
-    return INVERSE_HELMHOLTZ(SR(expression), SR(0))
+    return COLLISION_INTEGRAL(SR(density), SR(kernel(COLLISION_SPEED, COLLISION_COSINE)))
 
 
 def displacement(axis: int) -> Expression:

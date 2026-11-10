@@ -20,7 +20,7 @@ SPACE_DIMENSIONS = 3
 
 @dataclass(frozen=True)
 class BaseStructureSpec(BaseSpec):
-    """Base of the structures of a rewriting element at one generation.
+    """An abstract spec of the structure of a rewriting element at one generation.
 
     A structure is a word, a patch of tiles, or a graph. The readers `parts`, `segments`, `polygons`, `geometry`, and
     `raster` describe the structure. Subclasses give the parts, the segments, and the polygons, and the measures follow
@@ -38,7 +38,7 @@ class BaseStructureSpec(BaseSpec):
         """Whether the structure has a geometry, a patch or a word with a word geometry."""
         return False
 
-    def segments(self) -> AnyArray:
+    def get_segments(self) -> AnyArray:
         """Return the line segments of the geometry.
 
         Returns:
@@ -47,7 +47,7 @@ class BaseStructureSpec(BaseSpec):
         """
         return np.zeros((0, 2, 2))
 
-    def polygons(self) -> AnyArray:
+    def get_polygons(self) -> AnyArray:
         """Return the polygons of the geometry.
 
         There is one coordinate array of shape `(t, k, 2)` per vertex count `k`.
@@ -58,7 +58,7 @@ class BaseStructureSpec(BaseSpec):
         """
         return np.zeros(0, dtype=object)
 
-    def geometry(self) -> AnyArray:
+    def get_geometry(self) -> AnyArray:
         """Return the segments and polygons as an array of Shapely geometries.
 
         Returns:
@@ -70,40 +70,40 @@ class BaseStructureSpec(BaseSpec):
     @functools.cached_property
     def _geometry(self) -> AnyArray:
         """Line strings of the segments followed by the polygons, built once."""
-        segments = self.segments()
+        segments = self.get_segments()
         lines = shapely.linestrings(segments[..., :2]) if len(segments) else np.zeros(0, dtype=object)
-        shapes = [shapely.polygons(coordinates) for coordinates in self.polygons()]
+        shapes = [shapely.polygons(coordinates) for coordinates in self.get_polygons()]
         return np.concatenate([lines, *shapes]) if shapes else lines
 
-    def length(self) -> float:
+    def get_length(self) -> float:
         """Return the total length of the segments and the perimeters of the polygons.
 
         Returns:
             length:
                 The total length.
         """
-        segments = np.asarray(self.segments(), dtype=float)
+        segments = np.asarray(self.get_segments(), dtype=float)
         if segments.shape[-1] == SPACE_DIMENSIONS:
             return float(np.linalg.norm(segments[:, 1] - segments[:, 0], axis=-1).sum())
-        return float(shapely.length(self.geometry()).sum())
+        return float(shapely.length(self.get_geometry()).sum())
 
-    def area(self) -> float:
+    def get_area(self) -> float:
         """Return the total area of the polygons.
 
         Returns:
             area:
                 The sum of the areas of the polygons, 0 without polygons.
         """
-        return float(shapely.area(self.geometry()).sum())
+        return float(shapely.area(self.get_geometry()).sum())
 
-    def bounds(self) -> tuple[float, float, float, float]:
+    def get_bounds(self) -> tuple[float, float, float, float]:
         """Return the bounding box of the geometry in the plane.
 
         Returns:
             bounds:
                 `(xmin, ymin, xmax, ymax)`, or zeros without geometry.
         """
-        geometry = self.geometry()
+        geometry = self.get_geometry()
         if not len(geometry):
             return (0.0, 0.0, 0.0, 0.0)
         box = shapely.bounds(geometry)
@@ -114,7 +114,7 @@ class BaseStructureSpec(BaseSpec):
             float(box[:, 3].max()),
         )
 
-    def raster(self, resolution: int, bounds: Sequence[float] | None = None) -> npt.NDArray[np.bool_]:
+    def get_raster(self, resolution: int, bounds: Sequence[float] | None = None) -> npt.NDArray[np.bool_]:
         """Return a square boolean grid of the cells the geometry covers.
 
         The first row of the grid is at the top. Segments mark the cells of points spaced at most half a cell apart
@@ -140,11 +140,11 @@ class BaseStructureSpec(BaseSpec):
         if not isinstance(resolution, int | np.integer) or resolution < 1:
             error_msg = f'resolution = {resolution!r} must be a positive integer.'
             raise ValidationError(error_msg)
-        xmin, ymin, xmax, ymax = self.bounds() if bounds is None else bounds
+        xmin, ymin, xmax, ymax = self.get_bounds() if bounds is None else bounds
         side = max(xmax - xmin, ymax - ymin) or 1.0
         cell = side / resolution
         grid = np.zeros((resolution, resolution), dtype=bool)
-        geometry = self.geometry()
+        geometry = self.get_geometry()
         if not len(geometry):
             return grid
         lines = geometry[shapely.get_type_id(geometry) == shapely.GeometryType.LINESTRING]
@@ -169,7 +169,7 @@ class BaseStructureSpec(BaseSpec):
         grid[rows, columns] = True
 
     @staticmethod
-    def _frozen[S: np.generic](array: npt.ArrayLike, dtype: type[S]) -> npt.NDArray[S]:
+    def _get_frozen[S: np.generic](array: npt.ArrayLike, dtype: type[S]) -> npt.NDArray[S]:
         """Return a read-only copy of an array.
 
         Later generations cannot change a recorded structure through it.

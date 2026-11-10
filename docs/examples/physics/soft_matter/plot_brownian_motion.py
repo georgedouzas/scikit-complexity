@@ -8,7 +8,7 @@ the plane, spreading into a round Gaussian cloud.
 """
 
 # %%
-# The system is built from its class with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
+# The example builds `BrownianMotionSystem` with inertia, mass `m = 1`, friction `gamma = 1`, and thermal energy
 # `kT = 1`, so the momentum relaxation time is 1. The Euler-Maruyama stepper takes steps of 0.005 and the observer
 # saves every frame of 0.05 with the default blueprint, whose primary view shows the particles.
 
@@ -36,7 +36,7 @@ trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], rand
 # follow it across the crossover.
 
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory.values('beads.x')[1:] ** 2, axis=-1), axis=1)
+squared = np.mean(np.sum(trajectory.get_values('beads.x')[1:] ** 2, axis=-1), axis=1)
 exact = 2 * 2 * (times - (1 - np.exp(-times)))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.loglog(times, squared, 'o', markersize=3, label='trajectory, 500 particles')

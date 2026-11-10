@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.components.systems import BaseSystem, CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import simulate
@@ -30,8 +30,23 @@ from skcomplex.systems.physics.active_matter import ActiveGelsSystem
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
+CONFORMANCE_FRAMES = 10
+SLOW = {'ActiveGelsSystem', 'CocoaSystem', 'HigherOrderRandomLotkaVolterraSystem'}
+FIELDS = [
+    'biology',
+    'chemistry',
+    'computer_science',
+    'economics',
+    'engineering',
+    'mathematics',
+    'physics',
+    'social',
+]
+PROBED_COLUMNS = 40
+UNFOLDED: tuple[str, ...] = ()
 
-def _undeclared_laws(system: System) -> list[str]:
+
+def _undeclared_laws(system: CompositeSystem) -> list[str]:
     """Return the laws an interaction of a compiled system returned that its class does not list."""
     found = [
         f'{interaction.label}: {type(law).__name__}'
@@ -54,7 +69,7 @@ def test_simulate_reads_the_run_settings_of_an_instance():
     observables = AxelrodSystem(width=4, height=4).get_run_settings()['observables']
     trajectory = simulate(AxelrodSystem(width=4, height=4), until=1, random_state=0)
     assert observables
-    assert all(len(trajectory.values(spec.label)) == len(trajectory.times) for spec in observables)
+    assert all(len(trajectory.get_values(spec.label)) == len(trajectory.times) for spec in observables)
     assert OrderBookSystem().get_run_settings()['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
@@ -78,7 +93,7 @@ def test_all_systems_lists_system_classes_by_field_and_topics():
     code = """
 import sys
 from skcomplex.systems import all_systems
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 listed = all_systems(field='chemistry/pattern_formation')
 assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
 assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)
@@ -108,34 +123,15 @@ def test_listing_rejects_a_system_class_without_suffix_or_with_computed_field(tm
     module.parent.mkdir(parents=True)
     module.write_text("class Pendulum:\n    field = 'physics/mechanics'\n")
     with pytest.raises(RegistryError, match='Name it with the suffix `System`'):
-        _SystemClasses(tmp_path).classes()
+        _SystemClasses(tmp_path).get_classes()
     module.write_text("class PendulumSystem:\n    field = 'physics/' + 'mechanics'\n")
     with pytest.raises(RegistryError, match="defines the class variable 'field' with a value computed at run time"):
-        _SystemClasses(tmp_path).classes()
-
-
-CONFORMANCE_FRAMES = 10
-SLOW = {'ActiveGelsSystem', 'CocoaSystem', 'HigherOrderRandomLotkaVolterraSystem'}
-
-
-FIELDS = [
-    'biology',
-    'chemistry',
-    'computer_science',
-    'economics',
-    'engineering',
-    'mathematics',
-    'physics',
-    'social',
-]
-
-
-PROBED_COLUMNS = 40
+        _SystemClasses(tmp_path).get_classes()
 
 
 def _probe_pattern(problem, x, p, rng):
     """Check that the central differences of a drift in sampled columns lie inside the derived Jacobian pattern."""
-    pattern = problem.jacobian.pattern()
+    pattern = problem.jacobian.get_pattern()
     if pattern is None:
         return
     pattern = pattern.tocsc()
@@ -178,8 +174,8 @@ def test_all_systems_filters_by_topic():
 
 def test_system_class_matches_components():
     """Test that a system class runs like the same system built from its components."""
-    built = System(
-        elements=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
+    built = CompositeSystem(
+        elements=[PopulationElement('prey', x=40.0), PopulationElement('predators', x=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),
             PredationInteraction('predation', predator='predators', prey='prey', a=0.2, b=0.1),
@@ -216,9 +212,9 @@ def test_system_conforms(system: type[BaseSystem], tmp_path: Path):
     assert _undeclared_laws(built.system_) == []
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
-        assert len(trajectory.values(name)) == len(trajectory.times)
+        assert len(trajectory.get_values(name)) == len(trajectory.times)
     for scope, observable in problem.observables:
-        assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
+        assert len(trajectory.get_values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
             trajectory.times,
         )
     copy = clone(built)
@@ -242,20 +238,21 @@ def test_jacobian_pattern_holds_finite_differences(system: type[BaseSystem]):
 @pytest.mark.slow
 def test_seeded_runs_of_a_stochastic_system_repeat():
     """Test that seeded runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = simulate(IdealGasSystem(), random_state=0).values('gas.x_d1')
-    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).values('gas.x_d1'))
-    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).values('gas.x_d1'))
-    counts = simulate(PoissonProcessSystem(), random_state=0).values('counters.count')
-    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).values('counters.count'))
-    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).values('counters.count'))
-
-
-# Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.
-UNFOLDED: tuple[str, ...] = ()
+    gas = simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1')
+    np.testing.assert_array_equal(gas, simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'))
+    assert not np.array_equal(gas, simulate(IdealGasSystem(random_state=None), random_state=0).get_values('gas.x_d1'))
+    counts = simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count')
+    np.testing.assert_array_equal(counts, simulate(PoissonProcessSystem(), random_state=0).get_values('counters.count'))
+    assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).get_values('counters.count'))
 
 
 def _imported_modules(path: Path, field: Path) -> set[Path]:
     """Return the modules of a field that a module imports relatively, through a package's re-exports too."""
+    return {module for module in _relative_imports(path) if module.is_relative_to(field) and module != path}
+
+
+def _relative_imports(path: Path) -> set[Path]:
+    """Return the modules that a module imports relatively, through a package's re-exports too."""
     found = set()
     for node in ast.parse(path.read_text()).body:
         if not isinstance(node, ast.ImportFrom) or node.level == 0:
@@ -268,7 +265,7 @@ def _imported_modules(path: Path, field: Path) -> set[Path]:
             for item in ast.parse((target / '__init__.py').read_text()).body:
                 if isinstance(item, ast.ImportFrom) and item.level == 1 and names & {a.name for a in item.names}:
                     found.add(target.joinpath(*str(item.module).split('.')).with_suffix('.py'))
-    return {module for module in found if module.is_relative_to(field) and module != path}
+    return found
 
 
 def _defines_field(node: ast.ClassDef) -> bool:
@@ -328,7 +325,11 @@ def _owners(field: Path) -> dict[Path, set[Path]]:
     ],
 )
 def test_no_module_serves_one_system(field):
-    """Test that no module of a field that defines no system serves only one system, which should hold it instead."""
+    """Test that no module of a field that defines no system serves only one system, which should hold it instead.
+
+    The fields of `UNFOLDED` still have component modules that are not folded into their systems, so they are expected
+    to fail. The change that folds a field removes it from there.
+    """
     root = Path(str(files('skcomplex.systems'))) / field
     found = [
         f'{module.relative_to(root)} -> {next(iter(systems)).relative_to(root)}'
@@ -350,3 +351,45 @@ def test_no_system_module_imports_another(field):
         if module.parent == path.parent and _defines_system(module)
     ]
     assert found == []
+
+
+def _general_users(root: Path) -> dict[Path, set[str]]:
+    """Return the fields that reach every module of `systems/general`, directly or through other general modules."""
+    general = root / 'general'
+    modules = [path for path in sorted(general.rglob('_*.py')) if path.name != '__init__.py']
+    importers: dict[Path, set[Path]] = {path: set() for path in modules}
+    for path in sorted(root.rglob('*.py')):
+        for module in _relative_imports(path):
+            if module in importers and module != path:
+                importers[module].add(path)
+    users: dict[Path, set[str]] = {}
+    for module in modules:
+        stack, seen, fields = [module], set(), set()
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            for importer in importers.get(current, set()):
+                if importer.is_relative_to(general):
+                    stack.append(importer)
+                else:
+                    fields.add(importer.relative_to(root).parts[0])
+        users[module] = fields
+    return users
+
+
+def test_every_general_module_serves_two_fields():
+    """Test that every module of `systems/general` has importers in at least two fields."""
+    root = Path(str(files('skcomplex.systems')))
+    found = [
+        f'{module.relative_to(root)}: {sorted(fields)}'
+        for module, fields in _general_users(root).items()
+        if len(fields & set(FIELDS)) < 2
+    ]
+    assert found == []
+
+
+def test_all_systems_lists_no_general_class():
+    """Test that the listing of the systems holds no class of `systems/general`, which holds realizations only."""
+    assert not [name for name, system in all_systems() if system.__module__.startswith('skcomplex.systems.general')]

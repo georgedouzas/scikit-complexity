@@ -18,7 +18,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -140,22 +140,6 @@ class UndecidedFlowsElement(Element):
         self.drive = drive
 
 
-def _logistic_half(argument: float) -> float:
-    """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
-
-    Its values lie in (0, 1/2).
-    """
-    return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
-
-
-def _critical_size(s: SimpleNamespace) -> Expression:
-    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
-
-    It is the critical size of the flows driven by the undecided.
-    """
-    return s.omega * (1 / s.gamma + 1 / s.eta)
-
-
 class ThreeStateOpinionSystem(BaseSystem):
     """The three-state opinion system on a random regular network.
 
@@ -195,6 +179,14 @@ class ThreeStateOpinionSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 50
 
+    @staticmethod
+    def _get_logistic_half(argument: float) -> float:
+        """Return `f(t) = 1 / (2 (1 + exp(-t)))`, the probability of one side.
+
+        Its values lie in (0, 1/2).
+        """
+        return float(0.5 / (1.0 + np.exp(-np.clip(argument, -500.0, 500.0))))
+
     def __init__(
         self,
         n_agents: int = 200,
@@ -213,15 +205,15 @@ class ThreeStateOpinionSystem(BaseSystem):
     @staticmethod
     def _redraw(voter: UndecidedView, system: SystemViewProtocol) -> float:
         """Return the opinion a voter draws from the sum of the opinions of its neighbours."""
-        total = sum(neighbor.opinion for neighbor in voter.neighbors() if isinstance(neighbor, UndecidedView))
-        against = _logistic_half(-voter.sensitivity * total)
-        support = _logistic_half(voter.sensitivity * total)
+        total = sum(neighbor.opinion for neighbor in voter.get_neighbors() if isinstance(neighbor, UndecidedView))
+        against = ThreeStateOpinionSystem._get_logistic_half(-voter.sensitivity * total)
+        support = ThreeStateOpinionSystem._get_logistic_half(voter.sensitivity * total)
         draw = float(system.rng.random())
         if draw < against:
             return -1.0
         return 1.0 if draw < against + support else 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
@@ -239,7 +231,15 @@ class ThreeStateOpinionSystem(BaseSystem):
             schedule='random-sequential',
             form='agent',
         )
-        return System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+
+
+def _get_critical_size(s: SimpleNamespace) -> Expression:
+    """Return the critical size `N_c = omega (1 / gamma + 1 / eta)`.
+
+    It is the critical size of the flows driven by the undecided.
+    """
+    return s.omega * (1 / s.gamma + 1 / s.eta)
 
 
 class UndecidedFlowsSystem(BaseSystem):
@@ -287,7 +287,7 @@ class UndecidedFlowsSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 20.0
     dt = 0.1
-    observables = (ObservableSpec('critical_size', _critical_size, element='population'),)
+    observables = (ObservableSpec('critical_size', _get_critical_size, element='population'),)
 
     def __init__(
         self,
@@ -307,26 +307,26 @@ class UndecidedFlowsSystem(BaseSystem):
         self.driven = driven
 
     @staticmethod
-    def _joining_against(s: SimpleNamespace) -> Expression:
+    def _get_joining_against(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents against, `omega C`."""
         return s.source.omega * s.source.undecided
 
     @staticmethod
-    def _joining_support(s: SimpleNamespace) -> Expression:
+    def _get_joining_support(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents for, `omega C`."""
         return s.source.omega * s.source.undecided
 
     @staticmethod
-    def _doubting_against(s: SimpleNamespace) -> Expression:
+    def _get_doubting_against(s: SimpleNamespace) -> Expression:
         """Return the flow of agents against into the undecided, `gamma A C^drive`."""
         return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
 
     @staticmethod
-    def _doubting_support(s: SimpleNamespace) -> Expression:
+    def _get_doubting_support(s: SimpleNamespace) -> Expression:
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         population = UndecidedFlowsElement(
             'population',
@@ -342,12 +342,12 @@ class UndecidedFlowsSystem(BaseSystem):
             target='population',
             state='undecided',
             into='against',
-            amount=self._joining_against,
+            amount=self._get_joining_against,
             flow='joining_against',
             legs=[
-                ('undecided', 'support', self._joining_support, 'joining_support'),
-                ('against', 'undecided', self._doubting_against, 'doubting_against'),
-                ('support', 'undecided', self._doubting_support, 'doubting_support'),
+                ('undecided', 'support', self._get_joining_support, 'joining_support'),
+                ('against', 'undecided', self._get_doubting_against, 'doubting_against'),
+                ('support', 'undecided', self._get_doubting_support, 'doubting_support'),
             ],
         )
-        return System(self.label, elements=[population], interactions=[flows])
+        return CompositeSystem(self.label, elements=[population], interactions=[flows])

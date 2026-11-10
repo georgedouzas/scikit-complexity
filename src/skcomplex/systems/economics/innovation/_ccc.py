@@ -13,12 +13,12 @@ import numpy as np
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 
 class CombinatorialEntityView(AgentView):
@@ -86,7 +86,7 @@ class CombinatorialEntityElement(Element):
         return []
 
 
-class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
+class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
     """Random sequential update of the CCC model by the sign of the fitness.
 
     Spontaneous flips are added. Every step every entity `i`, in random order, computes its fitness
@@ -144,7 +144,7 @@ class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
         self.p = p
 
     @staticmethod
-    def _sets(triples: tuple[tuple[int, int, int], ...], size: int) -> list[Array]:
+    def _get_sets(triples: tuple[tuple[int, int, int], ...], size: int) -> list[Array]:
         """Return the pairs `(j, k)` of the sets of every entity."""
         array = np.asarray(triples, dtype=int).reshape(-1, 3)
         return [array[array[:, 0] == entity, 1:] for entity in range(size)]
@@ -156,13 +156,13 @@ class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the update.
         """
-        entities = sorted(system.agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
+        entities = sorted(system.get_agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
         size, rng = len(entities), system.rng
         states = np.array([entity.exists for entity in entities])
         before = states.copy()
-        plus, minus = self._sets(self.production, size), self._sets(self.destruction, size)
+        plus, minus = self._get_sets(self.production, size), self._get_sets(self.destruction, size)
         fitness = np.array([entity.fitness for entity in entities])
-        flips = rng.random(size) < system.parameter('p')
+        flips = rng.random(size) < system.get_parameter('p')
         for entity in rng.permutation(size):
             gain = states[plus[entity][:, 0]] @ states[plus[entity][:, 1]]
             loss = states[minus[entity][:, 0]] @ states[minus[entity][:, 1]]
@@ -248,7 +248,7 @@ class CccModelSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
+    def _get_random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
         """Return random sets of tensor entries.
 
         Every entry `(i, j, k)` of the tensor is present with probability `rate / size^2`.
@@ -257,7 +257,7 @@ class CccModelSystem(BaseSystem):
         triples = rng.integers(size, size=(count, 3))
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         entities = GroupElement(
@@ -269,8 +269,8 @@ class CccModelSystem(BaseSystem):
         update = CombinatorialUpdateInteraction(
             'update',
             entities='entities',
-            production=self._random_sets(self.n_entities, self.r_plus, rng),
-            destruction=self._random_sets(self.n_entities, self.r_minus, rng),
+            production=self._get_random_sets(self.n_entities, self.r_plus, rng),
+            destruction=self._get_random_sets(self.n_entities, self.r_minus, rng),
             p=self.p,
         )
-        return System(self.label, elements=[entities], interactions=[update])
+        return CompositeSystem(self.label, elements=[entities], interactions=[update])

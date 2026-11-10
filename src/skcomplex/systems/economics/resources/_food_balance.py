@@ -16,23 +16,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-
-
-def _food_available(s: SimpleNamespace) -> Expression:
-    """Return the rice available, the area cultivated times the yield."""
-    return s.area_cultivated * s.crop_yield
-
-
-def _food_required(s: SimpleNamespace) -> Expression:
-    """Return the rice required, the population times the rice per capita."""
-    return s.population * s.food_per_capita
-
-
-def _food_security(s: SimpleNamespace) -> Expression:
-    """Return the food security level, the rice available over the rice required."""
-    return _food_available(s) / _food_required(s)
 
 
 class RiceBalanceElement(Element):
@@ -109,6 +94,21 @@ class RiceBalanceElement(Element):
         self.food_per_capita = food_per_capita
 
 
+def _get_food_available(s: SimpleNamespace) -> Expression:
+    """Return the rice available, the area cultivated times the yield."""
+    return s.area_cultivated * s.crop_yield
+
+
+def _get_food_required(s: SimpleNamespace) -> Expression:
+    """Return the rice required, the population times the rice per capita."""
+    return s.population * s.food_per_capita
+
+
+def _get_food_security(s: SimpleNamespace) -> Expression:
+    """Return the food security level, the rice available over the rice required."""
+    return _get_food_available(s) / _get_food_required(s)
+
+
 class RiceFoodBalanceSystem(BaseSystem):
     """Bala's food security model.
 
@@ -171,9 +171,9 @@ class RiceFoodBalanceSystem(BaseSystem):
         [
             ObservableSpec(name, expression, element='region')
             for name, expression in (
-                ('food_available', _food_available),
-                ('food_required', _food_required),
-                ('food_security', _food_security),
+                ('food_available', _get_food_available),
+                ('food_required', _get_food_required),
+                ('food_security', _get_food_security),
             )
         ],
     )
@@ -204,7 +204,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         self.food_per_capita = food_per_capita
 
     @staticmethod
-    def _area_increase(s: SimpleNamespace) -> Expression:
+    def _get_area_increase(s: SimpleNamespace) -> Expression:
         """Return the area increase rate.
 
         It is `MAX((total_land_available - area_cultivated) / planning_time, 0)`.
@@ -212,7 +212,7 @@ class RiceFoodBalanceSystem(BaseSystem):
         gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
         return where(gap > 0, gap, 0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         region = RiceBalanceElement(
             'region',
@@ -232,7 +232,7 @@ class RiceFoodBalanceSystem(BaseSystem):
             target='region',
             state=Source('suitable_land'),
             into='area_cultivated',
-            amount=self._area_increase,
+            amount=self._get_area_increase,
             flow='area_increase_rate',
             legs=[
                 (
@@ -255,4 +255,4 @@ class RiceFoodBalanceSystem(BaseSystem):
                 ('population', Sink('deaths'), lambda s: s.source.population / s.source.life_expectancy, 'death_rate'),
             ],
         )
-        return System(self.label, elements=[region], interactions=[land, people])
+        return CompositeSystem(self.label, elements=[region], interactions=[land, people])

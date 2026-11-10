@@ -13,12 +13,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MovementInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
+
+PHASE = 'default'
 
 
 class DwellerView(AgentView):
@@ -162,9 +165,9 @@ class BlockMovesInteraction(MovementInteraction):
         """Return a random empty cell of another block than the agent's, or `None` to stay."""
         if not isinstance(agent, DwellerView) or not isinstance(system, SystemView):
             return None
-        cell = system.random_empty_cell()
+        cell = system.get_random_empty_cell()
         return (
-            None if BlockMovesInteraction._block_of(cell, self.side, self.width // self.side) == agent.block else cell
+            None if BlockMovesInteraction._get_block(cell, self.side, self.width // self.side) == agent.block else cell
         )
 
     def _accept(self, agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
@@ -174,9 +177,9 @@ class BlockMovesInteraction(MovementInteraction):
         """
         if not isinstance(agent, DwellerView):
             return 0.0
-        counts = system.composition('target', 'block')
+        counts = system.get_composition('target', 'block')
         origin, destination = agent.block, float(
-            BlockMovesInteraction._block_of(cell, self.side, self.width // self.side),
+            BlockMovesInteraction._get_block(cell, self.side, self.width // self.side),
         )
         cells = self.side**2
         before = np.array([counts.get(origin, 0), counts.get(destination, 0)]) / cells
@@ -203,16 +206,13 @@ class BlockMovesInteraction(MovementInteraction):
             block:
                 The index of the block.
         """
-        return float(BlockMovesInteraction._block_of(agent.location, self.side, self.width // self.side))
+        return float(BlockMovesInteraction._get_block(agent.location, self.side, self.width // self.side))
 
     @staticmethod
-    def _block_of(location: object, side: int, columns: int) -> int:
+    def _get_block(location: object, side: int, columns: int) -> int:
         """Return the index of the block that holds a cell."""
         column, row = (int(item) for item in np.ravel(np.asarray(location)))
         return (row // side) * columns + column // side
-
-
-PHASE = 'default'
 
 
 class StochasticSchellingSystem(BaseSystem):
@@ -287,14 +287,14 @@ class StochasticSchellingSystem(BaseSystem):
         self.intercept = intercept
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
         cells = rng.permutation(self.width * self.height)[:size]
         locations = [(int(cell % self.width), int(cell // self.width)) for cell in cells]
         blocks = [
-            BlockMovesInteraction._block_of(location, self.side, self.width // self.side) for location in locations
+            BlockMovesInteraction._get_block(location, self.side, self.width // self.side) for location in locations
         ]
         dwellers = GroupElement(
             'dwellers',
@@ -326,7 +326,7 @@ class StochasticSchellingSystem(BaseSystem):
             form='agent',
             phase=PHASE,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[dwellers],
             interactions=[moves, block],

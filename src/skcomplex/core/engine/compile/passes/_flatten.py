@@ -1,7 +1,4 @@
-"""Flatten the system tree into the nodes of its parts.
-
-The parts are its elements, groups, and interactions, and it runs once per compilation.
-"""
+"""Flatten the system tree into the nodes of its parts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,21 +12,20 @@ from ....components.elements import DeclaredElement, Element, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....components.specs import NodeSpec
-from ....components.system import System
+from ....components.systems import CompositeSystem
 from ....errors import LabelError, RoleError, SkcomplexError, ValidationError
 from ....specs import WienerProcessSpec
 from ....types import VariableKind
-from ..._utils import declarations_of
+from ..._utils import declarations_of, probe_laws
 from .._base import BasePass
-from .._laws import _AGENT_LAWS
-from .._probe import probe_laws
+from .._laws import AGENT_LAWS
 
-_LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
+LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 TOPOLOGY_PARTS = ('sites', 'edges', 'hyperedges')
 
 
 class FlattenPass(BasePass):
-    """Pass that flattens the system tree into its nodes."""
+    """A pass that flattens the system tree into its nodes."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -45,7 +41,7 @@ class FlattenPass(BasePass):
         compilation.nodes = self._flatten_system(compilation.system)
 
     @staticmethod
-    def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
+    def _get_same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
         """Check whether two prepared network spaces are alike.
 
         Like network clones, they have the same nodes, edges, and layers.
@@ -62,7 +58,7 @@ class FlattenPass(BasePass):
         )
 
     @staticmethod
-    def _same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
+    def _get_same_process(first: WienerProcessSpec, second: WienerProcessSpec) -> bool:
         """Check whether two Wiener processes of one label match.
 
         They match when they have the same dimension and covariance.
@@ -76,7 +72,7 @@ class FlattenPass(BasePass):
     @staticmethod
     def _check_label(label: object, scope: str) -> None:
         """Raise an error for a label that is not a non-empty word."""
-        if isinstance(label, str) and _LABEL_PATTERN.match(label):
+        if isinstance(label, str) and LABEL_PATTERN.match(label):
             return
         where = scope or 'the root system'
         error_msg = (
@@ -122,7 +118,7 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _prepare_part(part: Element | GroupElement | BaseInteraction, place: BaseSpace | None, scope: str) -> None:
-        """Prepare an element, group, or interaction on its place, which checks its arguments.
+        """Prepare an element, group, or interaction on its place, checking its arguments.
 
         Its error is raised with the path of the part.
         """
@@ -133,7 +129,7 @@ class FlattenPass(BasePass):
             raise type(error)(error_msg) from error
 
     @staticmethod
-    def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
+    def _get_bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
         """Return the Wiener processes that the noise roles of an interaction bind.
 
         Every role is checked first. A noise or optional role bound to `None` binds nothing, so an interaction may leave
@@ -156,17 +152,17 @@ class FlattenPass(BasePass):
         return processes
 
     @staticmethod
-    def _check_processes(system: System, scope: str, labels: set[str]) -> None:
+    def _check_processes(system: CompositeSystem, scope: str, labels: set[str]) -> None:
         """Raise an error for conflicting Wiener processes of one label.
 
         The processes differ, or another child of a system takes the label.
         """
         found: dict[str, WienerProcessSpec] = {}
         for interaction in system.interactions:
-            for process in FlattenPass._bound_processes(interaction, scope):
+            for process in FlattenPass._get_bound_processes(interaction, scope):
                 FlattenPass._check_label(process.label, scope)
                 known = found.setdefault(process.label, process)
-                if not FlattenPass._same_process(known, process):
+                if not FlattenPass._get_same_process(known, process):
                     error_msg = (
                         f'The interactions of {scope or "the root system"} bind two different Wiener processes '
                         f'labelled {process.label!r}. Bind one process to every interaction that shares it, or give '
@@ -182,15 +178,15 @@ class FlattenPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _check_children(system: System, scope: str, places: dict[int, BaseSpace | None]) -> None:
+    def _check_children(system: CompositeSystem, scope: str, places: dict[int, BaseSpace | None]) -> None:
         """Raise an error for a child of the wrong type or a duplicated label.
 
         Every element and interaction is prepared on its place, by the identity of the part, which checks it.
         """
-        children: list[tuple[Element | GroupElement | BaseInteraction | System, type | tuple[type, ...]]] = [
+        children: list[tuple[Element | GroupElement | BaseInteraction | CompositeSystem, type | tuple[type, ...]]] = [
             *((element, (Element, GroupElement)) for element in system.elements),
             *((interaction, BaseInteraction) for interaction in system.interactions),
-            *((child, System) for child in system.systems),
+            *((child, CompositeSystem) for child in system.systems),
         ]
         labels: set[str] = set()
         for child, expected_type in children:
@@ -201,7 +197,7 @@ class FlattenPass(BasePass):
                 error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
                 raise ValidationError(error_msg)
             FlattenPass._check_label(child.label, scope)
-            if not isinstance(child, System):
+            if not isinstance(child, CompositeSystem):
                 FlattenPass._prepare_part(child, places.get(id(child)), scope)
             if isinstance(child, GroupElement):
                 FlattenPass._check_group(child, scope)
@@ -212,7 +208,7 @@ class FlattenPass(BasePass):
         FlattenPass._check_processes(system, scope, labels)
 
     @staticmethod
-    def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
+    def _get_canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
         """Return a prepared space, or the first equal network space seen.
 
         Clones of a network thus share one space. A space is prepared here unless it was prepared before, such as a
@@ -234,14 +230,14 @@ class FlattenPass(BasePass):
             if (
                 isinstance(known, NetworkSpace)
                 and isinstance(space, NetworkSpace)
-                and FlattenPass._same_network(known, space)
+                and FlattenPass._get_same_network(known, space)
             ):
                 return known
         seen.append(space)
         return space
 
     @staticmethod
-    def _sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
+    def _get_sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
         """Return a group prepared with its size.
 
         It is a copy when the size counts the parts of the space it inherits.
@@ -275,10 +271,10 @@ class FlattenPass(BasePass):
             return False
         if not isinstance(space, NetworkSpace):
             return False
-        return not any(isinstance(law, _AGENT_LAWS) for law in probe_laws(component) or [])
+        return not any(isinstance(law, AGENT_LAWS) for law in probe_laws(component) or [])
 
     @staticmethod
-    def _with_capacity(
+    def _copy_with_capacity(
         element: Element | GroupElement,
         space: BaseSpace | None,
     ) -> tuple[Element | GroupElement, int | None]:
@@ -303,18 +299,20 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _flatten(
-        system: System,
+        system: CompositeSystem,
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
     ) -> list[NodeSpec]:
         """Return the nodes of a system tree in tree order."""
-        if not isinstance(system, System):
-            error_msg = f'{system!r} is not an instance of System.'
+        if not isinstance(system, CompositeSystem):
+            error_msg = f'{system!r} is not an instance of CompositeSystem.'
             raise ValidationError(error_msg)
         seen = [] if seen is None else seen
-        space = FlattenPass._canonical(system.space if system.space is not None else space, seen)
-        places = [FlattenPass._canonical(getattr(element, 'space', None) or space, seen) for element in system.elements]
+        space = FlattenPass._get_canonical(system.space if system.space is not None else space, seen)
+        places = [
+            FlattenPass._get_canonical(getattr(element, 'space', None) or space, seen) for element in system.elements
+        ]
         FlattenPass._check_children(
             system,
             scope,
@@ -322,7 +320,7 @@ class FlattenPass(BasePass):
         )
         nodes = []
         for element, place in zip(system.elements, places, strict=True):
-            sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
+            sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
                 node = NodeSpec(path, scope, sized, place, sized.get_declaring_part(), members, active=active)
@@ -346,7 +344,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
+    def _flatten_system(system: CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[NodeSpec]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

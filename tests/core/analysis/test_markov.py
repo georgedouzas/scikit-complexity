@@ -12,12 +12,6 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
-
-def _markov(kind: str, source: object, **settings: object) -> MarkovResult:
-    """Return the Markov analysis of a source for one kind, run."""
-    return markov(source, kind=kind, **settings)
-
-
 THREE_STATES = np.asarray([[0.90, 0.08, 0.02], [0.04 / 0.3, 1 - 0.04 / 0.3 - 0.12, 0.12], [0.05, 0.18, 0.77]])
 FOUR_STATES = np.asarray(
     [[0.90, 0.09, 0.01, 0.0], [0.08, 0.90, 0.02, 0.0], [0.0, 0.02, 0.90, 0.08], [0.01, 0.0, 0.09, 0.90]],
@@ -32,6 +26,11 @@ DOUBLE_WELL = np.asarray(
         [0.0, 0.0, 0.0, 0.0, 0.2, 0.8],
     ],
 )
+
+
+def _markov(kind: str, source: object, **settings: object) -> MarkovResult:
+    """Return the Markov analysis of a source for one kind, run."""
+    return markov(source, kind=kind, **settings)
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:

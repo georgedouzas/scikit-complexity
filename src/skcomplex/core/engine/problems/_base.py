@@ -1,7 +1,4 @@
-"""Define the bases of what a system compiles to.
-
-The bases cover values, problems, kernels, searches, printers, records, and structures.
-"""
+"""Define the bases of what a system compiles to."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from ...specs import RunStateSpec
 
 
 class BaseKernel(BaseConfig[object, RunStateSpec]):
-    """Base of the kernels.
+    """An abstract kernel, a compiled piece of a problem that a solver evaluates.
 
     Kernels are laws lowered to numbers, the parts of a problem that a solver runs at a state. A kernel stores in its
     constructor what the compiler lowered, such as compiled functions and the indices they read. `prepare(problem)`
@@ -52,7 +49,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         """
 
     @staticmethod
-    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+    def _get_state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a kernel runs at, raising an error when none is passed.
 
         Args:
@@ -73,7 +70,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         return inputs
 
     @staticmethod
-    def _generator_of(state: RunStateSpec) -> np.random.Generator:
+    def _get_generator_of(state: RunStateSpec) -> np.random.Generator:
         """Return the random number generator of a state.
 
         An error is raised when the state has none.
@@ -97,7 +94,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
 
 
 class BaseSearch(BaseConfig[None, RunStateSpec]):
-    """Base of the neighbour searches.
+    """An abstract search of the neighbours of members.
 
     A search finds the neighbours a kernel reads at a state. A search stores the entries and the neighbourhood it reads
     in its constructor, and `run(state)` keeps the neighbours at a `RunStateSpec` in `pairs_`: the row starts and the
@@ -117,7 +114,7 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
         """
 
     @staticmethod
-    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+    def _get_state_of(inputs: RunStateSpec | None) -> RunStateSpec:
         """Return the state a search runs at, raising an error when none is passed.
 
         Args:
@@ -139,7 +136,7 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
 
 
 class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """Base of the printers.
+    """An abstract printer, which writes expressions as source of a language.
 
     A printer prints Sage expressions as code of one target. A printer stores its target in its constructor,
     `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps the code of the

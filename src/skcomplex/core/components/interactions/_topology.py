@@ -1,7 +1,4 @@
-"""Define topology changes.
-
-A topology change adds and removes the nodes and edges of a network and rewires its edges.
-"""
+"""Define the interaction that changes the nodes and edges of a network."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,49 +29,41 @@ ACTIONS = (
     'duplicate-node',
 )
 
+
 type Chance = float | Callable[[SimpleNamespace], object]
 
 
 class TopologyInteraction(NeighborInteraction):
-    """Change of the topology of a network.
+    """An interaction that adds, removes, and rewires the nodes and edges of a network.
 
-    Nodes and edges are added or removed, and edges are rewired. The action runs for every node of the group a role
-    binds, `'add-node'`, `'remove-node'`, `'replace-node'`, which removes the node and adds a new one, and `'add-edge'`,
-    or for every edge of its network, `'remove-edge'` and `'rewire'`. Without a target, `'add-node'` runs once per step,
-    adding one node from outside the network to the one network whose groups are variable, as in growing networks. It
-    fires at a `rate`, with a `probability` per step, or with probability one, and only where the `condition` holds. The
-    rate, the probability, and the condition are numbers or functions of the namespace of an edge, whose ends are
-    `namespace.source` and `namespace.target`, and an action of the nodes reads the node as the source. Without a
-    target, the namespace of `'add-node'` holds the values drawn for the node being added as `namespace.source`, which
-    the condition and a probability read and a rate does not. A new node joins `edges` other nodes, a node adding edges
-    joins `edges` other nodes, and a rewiring keeps the end `keep` of its edge. New ends are drawn with probability
-    proportional to `toward(node)`, a function of the namespace of a candidate node that also holds the node the new
-    edge starts from as `node.source`, or uniformly. That node is the new node of `'add-node'`, the adding node of
-    `'add-edge'`, and the kept end of `'rewire'`. Where fewer candidates have a positive weight than the edges to draw,
-    the new ends are drawn uniformly. A new node or edge takes the `values`, each a value or a function of the random
-    number generator that draws it. The groups on the nodes and the edges of the network are variable. With `hyperedge`,
-    a new node instead forms a hyperedge of that size with `hyperedge - 1` existing nodes and joins each of them by an
-    edge: the first two are the ends of an edge drawn uniformly, so a size of three attaches a triangle along an edge,
-    and further members are drawn by `toward`. The new hyperedge is a new member of the variable group on the hyperedges
-    of the network. With `edges=0` or `independent`, every other member is drawn by `toward`, and the new node draws its
-    edges apart. The action `'add-hyperedge'` runs for every node of the group on the nodes, which forms a hyperedge of
-    size `hyperedge` with nodes drawn by `toward` and is its last member, and `'remove-hyperedge'` runs for every
-    hyperedge of the variable group on the hyperedges that the target binds, whose namespace reads the hyperedge member
-    as the source. With `independent`, every candidate becomes a new end on its own with probability `toward`, so a node
-    joins a random number of nodes, and on a directed layer `direction` sends the new edges out of the node, into it, or
-    both ways.
+    The `action` runs for every node of the group the target binds, or for every edge of its network, and fires at a
+    `rate`, with a `probability` per step, or always, where `condition` holds. The groups on the nodes and edges of the
+    network are variable. The actions are:
 
-    `'close-triangle'` joins two neighbours of the node that are not yet joined, or a node without such a pair to
-    `edges` nodes, `'contract-edge'` merges a neighbour drawn by `toward` into the node, which keeps the
-    union of their links, and `'duplicate-node'` adds a copy of the node that inherits each of its links with
-    probability `inherit` and joins it with probability `parent`. A replacement removes the node and adds the new one
-    in one request. With `candidates`, `'add-edge'` adds for every new edge the candidate of the smallest `score`, and
-    without a target it runs once per step between two nodes drawn uniformly. With `one`, the action runs at every step
-    for one member drawn uniformly among those present, firing with its probability there.
+    - `'add-node'`: a new node joins `edges` other nodes. Without a target it adds one node from outside per step, as in
+      a growing network.
+    - `'remove-node'` and `'replace-node'`: the node leaves, or leaves and a new node takes its place in one request.
+    - `'add-edge'`: the node joins `edges` other nodes, or with `candidates` the candidate of the smallest `score`.
+    - `'remove-edge'` and `'rewire'`: the edge leaves, or keeps its end `keep` and moves its other end.
+    - `'add-hyperedge'` and `'remove-hyperedge'`: a node forms a hyperedge of size `hyperedge`, or a hyperedge leaves.
+    - `'close-triangle'`: the node joins two of its neighbours that are not yet joined.
+    - `'contract-edge'`: a neighbour merges into the node, which keeps the union of their links.
+    - `'duplicate-node'`: a copy of the node inherits each of its links with probability `inherit`.
+
+    The rate, the probability, and the condition are numbers or functions of the namespace of an edge, whose ends are
+    `namespace.source` and `namespace.target`, and an action on a node reads the node as the source. New ends are drawn
+    with probability proportional to `toward`, or uniformly. A new node or edge takes `values`.
+
+    Unlike `NeighborInteraction`, which runs on fixed edges, it changes the edges and nodes themselves during a run.
+    Choose it when the network grows, shrinks, or rewires as the system runs, so structure and states change together.
+
+    It appears in many fields. Preferential attachment grows the web and citation networks, people rewire their contacts
+    to avoid infection, genes duplicate in the evolution of protein networks, and friends of friends close triangles in
+    social networks.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'attachment'`.
 
         target:
             The path of the group on the nodes of the network, of the variable group on its hyperedges for
@@ -150,14 +139,16 @@ class TopologyInteraction(NeighborInteraction):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import TopologyInteraction
         >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
         >>> links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
         >>> expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
-        >>> system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
+        >>> system = CompositeSystem(
+        ...     elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5))
+        ... )
         >>> trajectory = simulate(system, until=1, random_state=0)
-        >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
+        >>> len(trajectory.get_network(0).sources), len(trajectory.get_network(1).sources)
         (5, 0)
 
         A network that grows by triangles from one triangle:
@@ -168,11 +159,11 @@ class TopologyInteraction(NeighborInteraction):
         >>> triangles = GroupElement('triangles', element=Element, on='hyperedges', variable=True, capacity=8)
         >>> growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
         >>> space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
         ... )
         >>> trajectory = simulate(system, until=5, random_state=0)
-        >>> trajectory.network(-1).hyperedges.shape
+        >>> trajectory.get_network(-1).hyperedges.shape
         (6, 3)
     """
 
@@ -189,13 +180,13 @@ class TopologyInteraction(NeighborInteraction):
         drawn = self._get_argument('probability') is not None
         return self._get_variant_tags((UpdateLaw,), stochastic=drawn, structure=changing)
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the change draws.
 
         It draws by an action that draws new ends or that runs for one member.
         """
         removal = self._get_argument('action') in ('remove-node', 'remove-edge', 'remove-hyperedge')
-        return super()._draws() or bool(self._get_argument('one')) or not removal
+        return super()._get_draws() or bool(self._get_argument('one')) or not removal
 
     def __init__(
         self,

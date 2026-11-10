@@ -12,7 +12,7 @@ from ..conftest import _agents, _run
 def test_boltzmann_wealth_stays_constant():
     """Test that the total wealth of all traders equals its initial value at every frame."""
     trajectory = simulate(BoltzmannWealthSystem(100).prepare().system_, until=50, random_state=0)
-    totals = {float(trajectory.agents('traders', frame).values['wealth'].sum()) for frame in range(51)}
+    totals = {float(trajectory.get_agents('traders', frame).values['wealth'].sum()) for frame in range(51)}
     assert totals == {100.0}
 
 

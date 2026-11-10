@@ -1,7 +1,4 @@
-"""Derive the invariants of a system with Sage.
-
-They are the Poisson brackets, conserved quantities, symmetries, and Noether charges.
-"""
+"""Derive the invariants of a system with Sage."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ..components.interactions import BaseInteraction, EulerLagrangeInteraction, HamiltonianInteraction
 from ..components.laws.utils import derivative
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import declarations_of
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
@@ -26,7 +23,7 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
 from ..types import DataKind, VariableKind
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._stability import _dynamics_of
+from ._stability import StabilityResult
 from .types import Source
 
 KINDS = ('brackets', 'conservation', 'symmetry')
@@ -35,16 +32,13 @@ SETTINGS = {
     'conservation': {'expressions', 'samples', 'random_state'},
     'symmetry': {'symmetry'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 TOLERANCE = 1e-9
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)
 class InvariantsResult:
-    """Poisson brackets, conserved quantities, or a symmetry of a system.
+    """A result of `invariants`, brackets, conserved quantities, or a symmetry.
 
     A symmetry comes with its Noether charge.
 
@@ -87,7 +81,7 @@ class InvariantsResult:
     """
 
     problem: ProblemSpec
-    system: System
+    system: CompositeSystem
     dynamics: _DynamicsSpec
     namespace: SimpleNamespace
     brackets: dict[tuple[str, str], Expression] | None = None
@@ -126,6 +120,9 @@ def invariants(
       `SymmetrySpec`, and the Noether charge of the symmetry, `sum p dq` for a Hamiltonian and `sum dL/dq' dq` for a
       Lagrangian, with the variation of the velocities `dq' = sum_j d(dq)/dq_j q_j'`.
 
+    It appears in many fields. It finds the conserved energy of a pendulum, the conserved total of an epidemic, and the
+    symmetries of a mechanical system.
+
     Args:
         source:
             The system, or a trajectory of it.
@@ -160,7 +157,7 @@ def invariants(
         >>> from skcomplex.core.analysis import invariants
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import HamiltonianInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import ObservableSpec, StateSpec
         >>> class OscillatorElement(Element):
         ...     def __init__(self, label, q: Annotated[float, StateSpec()] = 1.0, p: Annotated[float, StateSpec()] = 0):
@@ -168,7 +165,7 @@ def invariants(
         ...         self.q = q
         ...         self.p = p
         >>> energy = lambda s: (s.target.p**2 + s.target.q**2) / 2
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[OscillatorElement('mass')],
         ...     interactions=[HamiltonianInteraction('spring', target='mass', hamiltonian=energy)],
         ... )
@@ -196,14 +193,14 @@ def invariants(
     )
     _check_inputs(kind, expressions, symmetry, samples)
     system = _read_system(source)
-    if not isinstance(system, System):
+    if not isinstance(system, CompositeSystem):
         error_msg = (
             f'Invariants are derived from the interactions of a system, not from {type(system).__name__}. Give the '
             'system.'
         )
         raise AnalysisError(error_msg)
-    dynamics = _dynamics_of(system)
-    namespace = ObservableEvaluator._namespace_of(dynamics.problem)
+    dynamics = StabilityResult._get_dynamics_of(system)
+    namespace = ObservableEvaluator._get_namespace_of(dynamics.problem)
     result = InvariantsResult(dynamics.problem, system, dynamics, namespace)
     if kind == 'brackets':
         pairs = _get_pairs(system, namespace, dynamics)
@@ -307,13 +304,13 @@ def _get_interaction_namespace(
     return SimpleNamespace(**vars(own), **roles, t=dynamics.problem.time)
 
 
-def _get_hamiltonians(system: System) -> list[HamiltonianInteraction]:
+def _get_hamiltonians(system: CompositeSystem) -> list[HamiltonianInteraction]:
     """Return the Hamiltonian interactions of the system."""
     return [item for item in system.interactions if isinstance(item, HamiltonianInteraction)]
 
 
 def _get_pairs(
-    system: System,
+    system: CompositeSystem,
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
 ) -> list[tuple[Expression, Expression]]:
@@ -336,7 +333,7 @@ def _get_pairs(
     return pairs
 
 
-def _get_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> Expression:
+def _get_hamiltonian(system: CompositeSystem, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> Expression:
     """Return the Hamiltonian of the system.
 
     It is the sum of those of its Hamiltonian interactions.
@@ -351,7 +348,7 @@ def _get_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _Dyna
 
 
 def _get_lagrangian(
-    system: System,
+    system: CompositeSystem,
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
 ) -> tuple[Expression, dict[Expression, Expression]]:
@@ -404,7 +401,7 @@ def _get_bracket_terms(
     return [term for q, p in pairs for term in (first.diff(q) * second.diff(p), -first.diff(p) * second.diff(q))]
 
 
-def _is_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> bool:
+def _is_hamiltonian(system: CompositeSystem, namespace: SimpleNamespace, dynamics: _DynamicsSpec) -> bool:
     """Check whether the vector field of the system follows Hamilton's equations.
 
     The equations are those of its Hamiltonian.
@@ -421,7 +418,7 @@ def _is_hamiltonian(system: System, namespace: SimpleNamespace, dynamics: _Dynam
 
 
 def _get_rate_terms(
-    system: System,
+    system: CompositeSystem,
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
     expression: Expression,
@@ -492,7 +489,7 @@ def _get_variations(namespace: SimpleNamespace, symmetry: SymmetrySpec) -> dict[
 
 
 def _get_lagrangian_change(
-    system: System,
+    system: CompositeSystem,
     namespace: SimpleNamespace,
     dynamics: _DynamicsSpec,
     variations: dict[Expression, Expression],

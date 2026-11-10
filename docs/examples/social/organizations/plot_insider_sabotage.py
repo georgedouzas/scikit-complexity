@@ -7,7 +7,7 @@ employees drift into a high-risk tail.
 """
 
 # %%
-# The system is built from its class with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
+# The example builds `InsiderSabotageSystem` with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
 # turnover of 15%, and runs for one year, one step per day. The default blueprint shows the employees colored by risk,
 # from 0 (dark) to 5 (bright), with the supervisors.
 
@@ -31,7 +31,7 @@ trajectory = simulate(system, dt=1, observers=[observer], random_state=0)
 # The mean risk of the employees should rise steadily over the year, and the upper tail should rise faster than the
 # mean, so the distribution of risk at the end of the year should be wider and shifted to the right of the first day.
 
-risks = [np.asarray(trajectory.agents('employees', frame).values['risk']) for frame in range(len(trajectory.times))]
+risks = [np.asarray(trajectory.get_agents('employees', frame).values['risk']) for frame in range(len(trajectory.times))]
 fig, (trend, spread) = plt.subplots(1, 2, figsize=(10, 4))
 trend.plot(trajectory.times, [risk.mean() for risk in risks], label='mean')
 trend.plot(trajectory.times, [np.percentile(risk, 90) for risk in risks], label='90th percentile')

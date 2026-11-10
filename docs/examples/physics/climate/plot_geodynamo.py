@@ -6,7 +6,7 @@ an irregular time, as the magnetic field of the Earth has reversed throughout it
 """
 
 # %%
-# The system is built from its class with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
+# The example builds `GeodynamoSystem` with Gissinger's parameters `mu = 0.119`, `nu = 0.1`, and
 # `Gamma = 0.9`. The run covers 600 time units, and the default blueprint shows the quadrupolar field `Q`, the dipolar
 # field `D`, and the velocity `V` in one time series view.
 
@@ -32,7 +32,7 @@ trajectory = simulate(system, until=600, observers=[observer])
 
 run = simulate(GeodynamoSystem(), until=20000)
 settled = run.times > 500
-times, Q, D = run.times[settled], run.values('dynamo.Q')[settled], run.values('dynamo.D')[settled]
+times, Q, D = run.times[settled], run.get_values('dynamo.Q')[settled], run.get_values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5
 polarity = np.sign(D[strong])
 flips = times[strong][1:][polarity[1:] != polarity[:-1]]

@@ -36,7 +36,7 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint,
 trajectory = simulate(CantorSetSystem(), until=8, observers=[observer])
 stack = np.zeros((490, 729, 3), dtype=np.uint8)
 for generation in range(7):
-    for (start, _), (end, _) in trajectory.structure('cantor', generation).segments():
+    for (start, _), (end, _) in trajectory.get_structure('cantor', generation).get_segments():
         stack[70 * generation : 70 * generation + 40, round(729 * start) : round(729 * end)] = [255, 170, 40]
 observer.recording_.log('generations', rr.Image(stack), static=True)
 observer.recording_.flush()
@@ -49,8 +49,8 @@ observer.recording_.flush()
 # `s^-D` with the similarity dimension `D = log 2 / log 3`, about 0.631.
 
 generations = trajectory.times
-lengths = trajectory.values('cantor.length')
-segments = trajectory.structure('cantor', 8).segments()
+lengths = trajectory.get_values('cantor.length')
+segments = trajectory.get_structure('cantor', 8).get_segments()
 sizes = 3.0 ** -np.arange(1, 7)
 counts = np.array([len(np.unique(np.floor(segments[:, 0, 0] / size + 1e-9))) for size in sizes])
 dimension = np.log(2) / np.log(3)

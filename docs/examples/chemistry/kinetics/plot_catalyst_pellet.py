@@ -7,7 +7,7 @@ concentration, the surface settles in the inhibited state.
 """
 
 # %%
-# The system is built from its class with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
+# The example builds `CatalystPelletSystem` with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
 # constant `K = 20`, starting at the bulk concentration `c = 1`. The default blueprint shows the surface concentration
 # in one time series view.
 
@@ -43,8 +43,8 @@ rate.set_title('Three steady states')
 rate.legend()
 for c0 in np.linspace(0.02, 1.0, 21):
     run = simulate(CatalystPelletSystem(c=c0), dt=0.5)
-    runs.plot(run.times, run.values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
-runs.plot(trajectory.times, trajectory.values('pellet.c'), color='black', linewidth=2)
+    runs.plot(run.times, run.get_values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
+runs.plot(trajectory.times, trajectory.get_values('pellet.c'), color='black', linewidth=2)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)
 runs.set_xlabel('time')

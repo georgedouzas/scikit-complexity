@@ -42,8 +42,8 @@ trajectory = simulate(system, dt=2.0, observers=[observer], random_state=0)
 
 def discordant(trajectory, frame):
     """Return the share of the edges of a frame whose ends disagree."""
-    snapshot = trajectory.network(frame)
-    opinions = trajectory.values('voters.opinion')[frame]
+    snapshot = trajectory.get_network(frame)
+    opinions = trajectory.get_values('voters.opinion')[frame]
     return float(np.mean(opinions[snapshot.sources] != opinions[snapshot.targets]))
 
 

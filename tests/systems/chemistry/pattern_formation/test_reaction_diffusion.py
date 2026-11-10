@@ -33,7 +33,7 @@ def _turing_wavelength(a, b, du, dv):
 
 def test_turing_spots_have_predicted_wavelength():
     """Test that the Schnakenberg system forms a stationary pattern with the wavelength of the linear prediction."""
-    values = simulate(SchnakenbergSystem((256,)), until=600, dt=50, solver=RK4Solver(dt=0.01)).values('cells.u')
+    values = simulate(SchnakenbergSystem((256,)), until=600, dt=50, solver=RK4Solver(dt=0.01)).get_values('cells.u')
     wavelengths = [256 / np.argmax(np.abs(np.fft.rfft(row - row.mean()))) for row in values[-5:]]
     changes = np.abs(np.diff(values[-5:], axis=0)).max(axis=1)
     assert len(set(wavelengths)) == 1
@@ -48,8 +48,8 @@ def test_brusselator_and_heat_stay_bounded():
     assert np.all(np.isfinite(values))
     assert values.max() < 20
     trajectory = simulate(HeatDiffusionSystem((32, 32)).prepare().system_, until=50, dt=5)
-    assert trajectory.values('plate.u').sum(axis=1) == pytest.approx(
-        np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum()),
+    assert trajectory.get_values('plate.u').sum(axis=1) == pytest.approx(
+        np.full(len(trajectory.times), trajectory.get_values('plate.u')[0].sum()),
     )
 
 

@@ -18,51 +18,38 @@ import rerun as rr
 from scipy.optimize import minimize_scalar
 from scipy.special import rel_entr
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import Interaction, SamplingInteraction
-from ....core.components.laws import BaseLaw, DriveLaw
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import ArrayUpdateLaw, BaseLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.problems import BaseProblemSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
-from ....core.specs import ObservableSpec, RoleSpec, RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
 from ._structures import read_structure
 
 CHAIN_DIMENSIONS = 3
-
 KINDS = ('profile', 'relative-distance', 'environment-factor')
-
 SIGMA_FRACTION = 3.0
-
 CUTOFF = 9.0
-
 LARGEST_FACTOR = 5.0
-
 FRAME_DIMENSIONS = 3
-
 ENTRY = '1L2Y'
-
 DYNAMICS = ('replay', 'folding')
-
 COORDINATES = 3
-
 EXTENDED_PHI = -120.0
-
 EXTENDED_PSI = 130.0
-
 CLASH_DISTANCE = 3.0
-
 NEAREST_SEPARATED_RESIDUES = 2
-
 COORDINATE_STATE = 'chain.x'
-
 ANGLE_STATE = 'chain.angle'
 
 
@@ -133,7 +120,7 @@ class EnsembleReplayInteraction(Interaction):
         'x'
     """
 
-    law_classes = (DriveLaw,)
+    law_classes = (ArrayUpdateLaw,)
 
     def __init__(
         self,
@@ -154,7 +141,7 @@ class EnsembleReplayInteraction(Interaction):
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
         """Return the drive of the state."""
-        return [DriveLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
+        return [ArrayUpdateLaw(getattr(self._get_member(namespace, 'target'), self.state), self._read_member)]
 
 
 class BackboneVisual(PointsVisual):
@@ -225,7 +212,7 @@ class BackboneVisual(PointsVisual):
 
         They are rebuilt from the angles when the visual holds a structure.
         """
-        values = np.asarray(frame.value(element.states[self.position]), dtype=float)
+        values = np.asarray(frame.get_value(element.states[self.position]), dtype=float)
         if self.geometry_ is None:
             return values.reshape(-1, CHAIN_DIMENSIONS)
         return self.geometry_.run(values.ravel()).read_effective_atoms()
@@ -406,7 +393,7 @@ def _read_positions(source: object, structure: StructureSpec, state: str | None)
         return structure.effective_atoms
     if isinstance(source, Trajectory):
         name = state if state is not None else source.problem.states.names[0]
-        return np.asarray(source.lattice(name), dtype=float)
+        return np.asarray(source.get_lattice(name), dtype=float)
     return np.asarray(source, dtype=float)
 
 
@@ -473,39 +460,6 @@ def read_kyte_doolittle_scale() -> dict[str, float]:
     return {names[letter].upper(): (value - low) / (high - low) for letter, value in letters.items()}
 
 
-@lru_cache(maxsize=4)
-def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
-    """Return a bundled entry and its chain.
-
-    The chain rebuilds from angles.
-    """
-    structure = read_structure(entry)
-    return structure, BackboneGeometry(structure).prepare()
-
-
-def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
-    """Return a value of the fuzzy oil drop of the effective atoms of a chain."""
-    values = fuzzy_oil_drop_measures(positions[None], structure=structure, kind=kind).values
-    if values is None:
-        error_msg = f'The fuzzy oil drop of the kind {kind!r} has no value per frame.'
-        raise AnalysisError(error_msg)
-    return float(values[0])
-
-
-def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Mapping[str, object]) -> float:
-    """Return a value of the fuzzy oil drop of a frame.
-
-    The frame holds the coordinates or the angles.
-    """
-    del t
-    structure, geometry = _read_chain(entry)
-    numbers = np.asarray(values[state], dtype=float).ravel()
-    positions = numbers.reshape(-1, COORDINATES) if state == COORDINATE_STATE else None
-    if positions is None:
-        positions = geometry.run(numbers).read_effective_atoms()
-    return _read_value(structure, kind, positions)
-
-
 class FuzzyOilDropSystem(BaseSystem):
     """The fuzzy oil drop of a protein.
 
@@ -557,6 +511,39 @@ class FuzzyOilDropSystem(BaseSystem):
     references = ('Konieczny et al. 2023', 'Levitt 1976')
     until = 37
 
+    @staticmethod
+    @lru_cache(maxsize=4)
+    def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
+        """Return a bundled entry and its chain.
+
+        The chain rebuilds from angles.
+        """
+        structure = read_structure(entry)
+        return structure, BackboneGeometry(structure).prepare()
+
+    @staticmethod
+    def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
+        """Return a value of the fuzzy oil drop of the effective atoms of a chain."""
+        values = fuzzy_oil_drop_measures(positions[None], structure=structure, kind=kind).values
+        if values is None:
+            error_msg = f'The fuzzy oil drop of the kind {kind!r} has no value per frame.'
+            raise AnalysisError(error_msg)
+        return float(values[0])
+
+    @staticmethod
+    def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Mapping[str, object]) -> float:
+        """Return a value of the fuzzy oil drop of a frame.
+
+        The frame holds the coordinates or the angles.
+        """
+        del t
+        structure, geometry = FuzzyOilDropSystem._read_chain(entry)
+        numbers = np.asarray(values[state], dtype=float).ravel()
+        positions = numbers.reshape(-1, COORDINATES) if state == COORDINATE_STATE else None
+        if positions is None:
+            positions = geometry.run(numbers).read_effective_atoms()
+        return FuzzyOilDropSystem._read_value(structure, kind, positions)
+
     def __init__(
         self,
         entry: str = ENTRY,
@@ -586,8 +573,14 @@ class FuzzyOilDropSystem(BaseSystem):
         state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
         settings = super().get_run_settings()
         settings['observables'] = [
-            ObservableSpec('RD', function=partial(_read_observed_value, 'relative-distance', self.entry, state)),
-            ObservableSpec('K', function=partial(_read_observed_value, 'environment-factor', self.entry, state)),
+            ObservableSpec(
+                'RD',
+                function=partial(FuzzyOilDropSystem._read_observed_value, 'relative-distance', self.entry, state),
+            ),
+            ObservableSpec(
+                'K',
+                function=partial(FuzzyOilDropSystem._read_observed_value, 'environment-factor', self.entry, state),
+            ),
         ]
         return settings
 
@@ -615,11 +608,11 @@ class FuzzyOilDropSystem(BaseSystem):
 
         It adds one for every clash.
         """
-        structure, geometry = _read_chain(entry)
+        structure, geometry = FuzzyOilDropSystem._read_chain(entry)
         positions = geometry.run(row).read_effective_atoms()
-        return _read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
+        return FuzzyOilDropSystem._read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the fuzzy oil drop of a protein."""
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
@@ -628,15 +621,16 @@ class FuzzyOilDropSystem(BaseSystem):
         structure = read_structure(self.entry)
         if self.dynamics == 'replay':
             ensemble = structure.effective_atoms
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[
-                    LatticeElement(
+                    GroupElement(
                         'chain',
                         element=ChainCoordinateElement,
                         space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
                         values={'x': ensemble[0]},
                         visual=VisualSpec(BackboneVisual, {'position': 'x'}),
+                        on='sites',
                     ),
                 ],
                 interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
@@ -644,19 +638,20 @@ class FuzzyOilDropSystem(BaseSystem):
             )
         angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
         angles[angles.size // 2 :] = EXTENDED_PSI
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'chain',
                     element=DihedralAngleElement,
                     space=LatticeSpace((1, angles.size), boundary='fixed'),
                     values={'angle': angles[None]},
                     visual=VisualSpec(BackboneVisual, {'position': 'angle', 'structure': structure}),
+                    on='sites',
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'folding',
                     target='chain',
                     state='angle',

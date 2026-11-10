@@ -8,7 +8,7 @@ zero. The view shows the order parameter at `T = 0.5 Tc` growing from 0.1 along 
 """
 
 # %%
-# The system is built from its class with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
+# The example builds `LandauRelaxationSystem` with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
 # of 0.1 with the default blueprint, whose primary view is the time series of the order parameter.
 
 import matplotlib.pyplot as plt
@@ -36,7 +36,7 @@ def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
     run = simulate(LandauRelaxationSystem(T=temperature), until=until, dt=until / 400)
-    phi = run.values('magnet.phi')
+    phi = run.get_values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)
     late = slice(120, 240)

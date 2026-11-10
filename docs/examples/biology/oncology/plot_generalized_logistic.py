@@ -6,9 +6,9 @@ exponent keeps the growth fast for longer before it stops.
 """
 
 # %%
-# The system is built from its class with the logistic fit of Padmanabhan et al. to breast cancer, `r = 0.305` and `K
-# = 1221`, and the exponent `p = 2`, and run for 40 days from 10 mm³. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the volume.
+# The example builds `GeneralizedLogisticSystem` with the logistic fit of Padmanabhan et al. to breast cancer,
+# `r = 0.305` and `K = 1221`, and the exponent `p = 2`, and run for 40 days from 10 mm³. The observer saves every frame
+# with the default blueprint, whose primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +33,7 @@ r, K, n0 = 0.305, 1221.0, 10.0
 fig, (curves, rates) = plt.subplots(1, 2, figsize=(10, 4))
 for p in (0.5, 1.0, 2.0):
     trajectory = simulate(GeneralizedLogisticSystem(n=n0, p=p))
-    times, volume = trajectory.times, trajectory.values('tumour.n')
+    times, volume = trajectory.times, trajectory.get_values('tumour.x')
     exact = n0 * K / (n0**p + (K**p - n0**p) * np.exp(-r * p * times)) ** (1 / p)
     curves.plot(times, volume, label=f'p = {p}')
     curves.plot(times, exact, '--', color='black', linewidth=0.8)

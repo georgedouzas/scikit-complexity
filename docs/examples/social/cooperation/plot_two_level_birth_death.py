@@ -1,9 +1,10 @@
 """
 # Two-level birth-death process
 
-The finite process behind the two-level replicator equation: groups of twenty defectors and altruistic punishers, where
-individuals reproduce by their payoffs and replace random group members, and groups fight random other groups, the
-winner's copy replacing the loser. Conflicts between groups favour the punishers that individual selection removes.
+A finite process underlies the two-level replicator equation. It holds groups of twenty defectors and altruistic
+punishers, where individuals reproduce by their payoffs and replace random group members, and groups fight random other
+groups, the winner's copy replacing the loser. Conflicts between groups favour the punishers that individual selection
+removes.
 """
 
 # %%
@@ -31,9 +32,9 @@ trajectory = simulate(TwoLevelBirthDeathSystem(), observers=[observer], random_s
 peaceful = simulate(TwoLevelBirthDeathSystem(conflict_rate=0.0), random_state=0)
 fig, (means, final) = plt.subplots(1, 2, figsize=(10, 4))
 for name, run in (('conflicts', trajectory), ('no conflicts', peaceful)):
-    share = [np.mean(run.agents('groups', frame).values['punishers']) / 20 for frame in range(101)]
+    share = [np.mean(run.get_agents('groups', frame).values['punishers']) / 20 for frame in range(101)]
     means.plot(run.times, share, label=name)
-    final.hist(run.agents('groups', 100).values['punishers'], bins=np.arange(22) - 0.5, alpha=0.6, label=name)
+    final.hist(run.get_agents('groups', 100).values['punishers'], bins=np.arange(22) - 0.5, alpha=0.6, label=name)
 means.set_xlabel('time')
 means.set_ylabel('mean fraction of punishers')
 means.set_title('Group conflicts sustain punishers')

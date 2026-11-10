@@ -42,7 +42,7 @@ def test_delay_coupled_bernoulli_maps_synchronize_inside_the_linear_window(kappa
     assert (np.abs(np.roots(coefficients)).max() < 1) == synchronized
     system = AggregateAveragingSynchronizationSystem(kind='bernoulli', r=1.5, kappa=kappa, delay=delay)
     trajectory = simulate(system, until=400)
-    first, second = (np.ravel(trajectory.values(name)) for name in ('first.x', 'second.x'))
+    first, second = (np.ravel(trajectory.get_values(name)) for name in ('first.x', 'second.x'))
     difference = np.abs(first - second)
     assert (np.minimum(difference, 1 - difference)[-50:].max() < 1e-8) == synchronized
     assert first[-50:].std() > 0.1
@@ -54,7 +54,8 @@ def test_rossler_driven_lorenz_synchronizes_generally_above_the_critical_couplin
     for k in (2.0, 8.0):
         trajectory = simulate(RosslerDrivenLorenzSystem(k=k), random_state=0)
         squares = [
-            (np.ravel(trajectory.values(f'response.{name}')) - np.ravel(trajectory.values(f'auxiliary.{name}'))) ** 2
+            (np.ravel(trajectory.get_values(f'response.{name}')) - np.ravel(trajectory.get_values(f'auxiliary.{name}')))
+            ** 2
             for name in 'xyz'
         ]
         errors.append(np.sqrt(sum(squares))[-2000:].mean())

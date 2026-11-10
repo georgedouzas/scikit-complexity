@@ -1,7 +1,7 @@
 """
 # Active polymers
 
-A chain of beads bonded by springs, where every bead swims along its own orientation. The chain wriggles, swells
+A chain of beads is bonded by springs, and every bead swims along its own orientation. The chain wriggles, swells
 beyond the size of a passive chain, and its centre of mass wanders like a slow active particle.
 """
 
@@ -32,7 +32,7 @@ sizes = []
 fig, (shapes, swelling) = plt.subplots(1, 2, figsize=(10, 4))
 for v0 in speeds:
     trajectory = simulate(ActivePolymerSystem(v0=v0), until=200, random_state=1)
-    x, y = np.asarray(trajectory.values('chain.x')), np.asarray(trajectory.values('chain.y'))
+    x, y = np.asarray(trajectory.get_values('chain.x')), np.asarray(trajectory.get_values('chain.y'))
     sizes.append(np.mean(((x[:, -1] - x[:, 0]) ** 2 + (y[:, -1] - y[:, 0]) ** 2)[40:]))
     if v0 in (0.0, 2.0):
         shapes.plot(x[-1] - x[-1].mean(), y[-1] - y[-1].mean(), 'o-', markersize=3, label=f'v0 = {v0}')

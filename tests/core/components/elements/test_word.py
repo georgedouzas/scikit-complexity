@@ -4,7 +4,7 @@ import pytest
 
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RewritingError
 from skcomplex.core.specs import GeometrySpec
@@ -39,5 +39,5 @@ def test_word_is_drawn_as_its_geometry():
 
 def test_word_is_rewritten_in_parallel():
     """Test that a word is rewritten by its productions at every step, its size growing as the Fibonacci numbers."""
-    trajectory = simulate(System(elements=[AlgaeElement('algae', axiom='A')]), until=4)
-    assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
+    trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=4)
+    assert trajectory.get_values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]

@@ -22,13 +22,25 @@ generates.
 - **THEN** the two systems have the same states, parameters, and interactions
 
 ### Requirement: Translated modules have one shape
-A translated module SHALL define one element class whose states are the stocks and whose parameters are the
-constants, a function that returns the system, a function that returns one observable per auxiliary, and the run
-settings as module constants.
+A translated module SHALL hold one system class, a function that returns one observable per auxiliary, and the run
+settings as module constants. For a file whose stocks are not subscripted and change only through flow variables, the
+class SHALL subclass `StockFlowSystem`, imported from `skcomplex.systems.general.dynamics`, and give its stocks and
+flows through its hooks. Any other file SHALL define one element class whose states are the stocks and whose
+parameters are the constants.
 
 #### Scenario: Auxiliaries are observables
 - **WHEN** the SIR system is translated and simulated with the observables of its module
 - **THEN** the trajectory records every auxiliary of the file under its snake-case name
+
+#### Scenario: Flows only become a stock-flow system
+- **WHEN** a file whose every stock changes only through flow variables, such as the SIR system, is translated
+- **THEN** the module defines a subclass of `StockFlowSystem` and no element class, and its run matches PySD within
+  1e-6
+
+#### Scenario: A remaining rate keeps the element shape
+- **WHEN** a file whose stock changes by `(target - stock) / adjustment_time` with no flow variable is translated
+- **THEN** the module defines an element class of the stocks and a `RateInteraction`, and no subclass of
+  `StockFlowSystem`
 
 ### Requirement: Flows become named transfers
 A flow variable that leaves one stock and enters another SHALL become a `TransferInteraction` between the two states
@@ -45,22 +57,32 @@ trajectory reports every flow as `<element>.<flow>`.
 - **THEN** the result holds one reinforcing loop through births and one balancing loop through deaths
 
 ### Requirement: Remaining rates become relaxations or rates
-The part of a stock's net rate that no flow variable holds SHALL become a `RelaxationInteraction` when it has the
-goal-seeking form `(goal - stock) / time`, and a `RateInteraction` otherwise.
+The part of a stock's net rate that no flow variable holds SHALL become a `RateInteraction`. When it has the goal-seeking
+form `(goal - stock) / time`, the module SHALL write the goal and the time as their own functions and the rate as
+`(goal - stock) / time` of them, and otherwise it SHALL write the remaining rate as one function.
 
 #### Scenario: Goal seeking becomes relaxation
 - **WHEN** a system whose stock changes by `(target - stock) / adjustment_time` with no flow variable is translated
-- **THEN** the stock's rate is a `RelaxationInteraction` with that goal and time, and its run matches PySD within 1e-6
+- **THEN** the stock's rate is a `RateInteraction` whose rate is `(target - stock) / adjustment_time`, the module holds
+  the goal and the time as functions, and its run matches PySD within 1e-6
+
+#### Scenario: No relaxation class
+- **WHEN** the module of any translated system is read
+- **THEN** it imports no relaxation interaction, since the core has none
 
 ### Requirement: Built-in functions map to the law utilities
-Lookups SHALL become `lookup` tables, conditionals `where`, the input signals `step`, `ramp`, `pulse`, and
-`pulse_train`, delays and smoothing `delay1`, `delay3`, `smooth`, `distributed_delay`, or `delayed`, `MIN` and `MAX`
-`minimum` and `maximum`, and the random functions draws. A start time other than zero SHALL shift `Time` in every
-expression.
+Lookups SHALL become `series` of their input through their points, conditionals `where`, the input signals `step`,
+`ramp`, `pulse`, and `pulse_train`, delays and smoothing `distributed_delay` of their order, with `conserved=False` for
+smoothing, or `delayed`, `MIN` and `MAX` `minimum` and `maximum`, and the random functions draws. A start time other
+than zero SHALL shift `Time` in every expression.
 
 #### Scenario: Third-order delay
 - **WHEN** a system with `DELAY3` of a step input is translated and run
 - **THEN** its output is within 1e-6 of PySD's run of the same file
+
+#### Scenario: Smoothing
+- **WHEN** a system with `SMOOTH` of a step input is translated
+- **THEN** the written module calls `distributed_delay` with `conserved=False`, and its run is within 1e-6 of PySD's
 
 ### Requirement: Subscripts become groups
 A system whose stocks are all subscripted over one range SHALL become a group with one member per subscript, in the

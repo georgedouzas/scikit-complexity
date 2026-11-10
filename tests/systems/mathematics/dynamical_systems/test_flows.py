@@ -22,20 +22,20 @@ from ..conftest import _run
 
 def test_jerk_is_bounded():
     """Test that Sprott's jerk equation stays on its bounded attractor."""
-    x = simulate(SprottJerkSystem(), random_state=0).values('jerk.x')
+    x = simulate(SprottJerkSystem(), random_state=0).get_values('jerk.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
 
 
 def test_finite_time_blow_up_follows_the_hyperbola():
     """Test that `x' = x²` follows `x0 / (1 - x0 t)` towards its singularity at `t = 1 / x0`."""
-    assert _run(FiniteTimeBlowUpSystem(1.0), 0.9, dt=0.05).values('growth.x')[-1] == pytest.approx(10.0, rel=1e-4)
+    assert _run(FiniteTimeBlowUpSystem(1.0), 0.9, dt=0.05).get_values('growth.x')[-1] == pytest.approx(10.0, rel=1e-4)
 
 
 def test_lorenz_attractor_is_bounded_and_visits_both_lobes():
     """Test that the Lorenz system stays bounded for 50 time units and visits both lobes of its attractor."""
     trajectory = simulate(LorenzSystem(), random_state=0)
-    x, z = trajectory.values('lorenz.x'), trajectory.values('lorenz.z')
+    x, z = trajectory.get_values('lorenz.x'), trajectory.get_values('lorenz.z')
     assert np.abs(x).max() < 30
     assert z.max() < 60
     late = x[len(x) // 5 :]
@@ -45,9 +45,9 @@ def test_lorenz_attractor_is_bounded_and_visits_both_lobes():
 
 def test_nose_hoover_periodic_orbit_closes_and_balances_the_thermostat():
     """Test that the periodic orbit of Datseris and Parlitz returns to its start and every orbit keeps `<y²> = 1`."""
-    periodic = _run(NoseHooverSystem(0.0, 1.549934227822898, 0.0), 100, dt=0.05).values('oscillator.y')
+    periodic = _run(NoseHooverSystem(0.0, 1.549934227822898, 0.0), 100, dt=0.05).get_values('oscillator.y')
     assert np.abs(periodic).max() == pytest.approx(1.549934227822898, rel=1e-4)
-    chaotic = _run(NoseHooverSystem(), 1000, dt=0.05).values('oscillator.y')
+    chaotic = _run(NoseHooverSystem(), 1000, dt=0.05).get_values('oscillator.y')
     assert np.mean(chaotic**2) == pytest.approx(1.0, abs=0.05)
 
 
@@ -56,7 +56,7 @@ def test_sprott_mixed_flow_conserves_volume_on_the_torus_and_contracts_on_the_at
     rates = []
     for x in (1.0, 2.0):
         trajectory = _run(SprottMixedFlowSystem(x), 1000, dt=0.05)
-        rates.append(np.mean(2 * (trajectory.values('flow.y') + trajectory.values('flow.z'))[2000:]))
+        rates.append(np.mean(2 * (trajectory.get_values('flow.y') + trajectory.get_values('flow.z'))[2000:]))
     assert abs(rates[0]) < 0.01
     assert rates[1] < -0.1
 
@@ -80,8 +80,8 @@ def test_hyperchaotic_rossler_has_two_positive_exponents():
 
 def test_ikeda_rest_point_loses_stability_at_a_quarter_turn_of_delay():
     """Test that `x' = a sin x(t - tau)` settles at π for `a tau < π / 2` and oscillates about it beyond."""
-    settled = _run(IkedaSystem(2.0, a=0.5, tau=2.0), 200, dt=0.1).values('ikeda.x')
+    settled = _run(IkedaSystem(2.0, a=0.5, tau=2.0), 200, dt=0.1).get_values('ikeda.x')
     assert settled[-1] == pytest.approx(np.pi, abs=1e-6)
-    oscillating = _run(IkedaSystem(2.0, a=1.0, tau=2.0), 200, dt=0.1).values('ikeda.x')[-300:]
+    oscillating = _run(IkedaSystem(2.0, a=1.0, tau=2.0), 200, dt=0.1).get_values('ikeda.x')[-300:]
     assert oscillating.min() < np.pi - 1
     assert oscillating.max() > np.pi + 1

@@ -13,7 +13,7 @@ def _final_size(closed: bool, seed: int) -> float:
         until=200,
         random_state=seed,
     )
-    return float((trajectory.agents('people', 200).values['health'] == 2).mean())
+    return float((trajectory.get_agents('people', 200).values['health'] == 2).mean())
 
 
 def test_workplaces_spread_the_disease_between_households():
@@ -27,7 +27,7 @@ def test_workplaces_spread_the_disease_between_households():
 def test_people_alternate_between_home_and_work():
     """Test that people are at home in even half days and at the workplace in odd ones."""
     trajectory = simulate(EpisimsCitySystem(50), random_state=0, until=4)
-    agents = trajectory.agents('people', 3)
+    agents = trajectory.get_agents('people', 3)
     np.testing.assert_array_equal(np.asarray(agents.locations).ravel(), agents.values['work'])
-    agents = trajectory.agents('people', 4)
+    agents = trajectory.get_agents('people', 4)
     np.testing.assert_array_equal(np.asarray(agents.locations).ravel(), agents.values['home'])

@@ -52,7 +52,7 @@ step that produces frame `k`.
 
 #### Scenario: No agent-specific system class
 - **WHEN** a user builds an agent system
-- **THEN** they use `System` with `DiscreteTime`, and no `MesaSystem` or `AgentType` exists in the core
+- **THEN** they use `CompositeSystem` with `DiscreteTime`, and no `MesaSystem` or `AgentType` exists in the core
 
 ### Requirement: Agents are the members that run or receive rules
 The agents SHALL be the members of variable groups and of the elements and groups whose own laws include rules. In a

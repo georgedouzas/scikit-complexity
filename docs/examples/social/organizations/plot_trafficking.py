@@ -7,7 +7,7 @@ those of ordinary houses.
 """
 
 # %%
-# The system is built from its class on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
+# The example builds `TraffickingSystem` on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
 # victims, and 30 free women, and runs for one year, one step per day. The default blueprint shows the premises and the
 # women, with brothels and victims bright and houses and free women dark: the bright points are the few brothel cells
 # where all the victims are held.
@@ -35,7 +35,7 @@ quarters = [90, 180, 270, 360]
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for index, day in enumerate(quarters):
     frame = int(np.argmin(np.abs(trajectory.times - day)))
-    premises = trajectory.agents('premises', frame).values
+    premises = trajectory.get_agents('premises', frame).values
     brothel = np.asarray(premises['brothel']) > 0
     bills = np.asarray(premises['last_bills'])
     jitter = np.random.default_rng(index).uniform(-0.15, 0.15, len(bills))

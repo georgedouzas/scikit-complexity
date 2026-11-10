@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class WienerBlockSpec(BaseSpec):
-    """Correlated Wiener processes of one `WienerProcessSpec`.
+    """A spec of the correlated Wiener processes of one process spec.
 
     They are a contiguous block of the processes of a problem.
 

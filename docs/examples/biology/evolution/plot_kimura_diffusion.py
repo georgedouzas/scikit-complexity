@@ -6,9 +6,9 @@ lost or fixed. The share of replicates in which the allele fixes is Kimura's fix
 """
 
 # %%
-# The system is built from its class with 200 replicates starting at the frequency 0.1 with the scaled selection `N s
-# = 2`, and integrated by Euler-Maruyama steps of 0.001. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the frequencies.
+# The example builds `KimuraDiffusionSystem` with 200 replicates starting at the frequency 0.1 with the scaled selection
+# `N s = 2`, and integrates it by Euler-Maruyama steps of 0.001. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the frequencies.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,10 +34,10 @@ starts = np.linspace(0.1, 0.9, 5)
 fixed = []
 for start in starts:
     run = simulate(KimuraDiffusionSystem(x=start, replicates=500), until=10, dt=1.0, solver=solver, random_state=1)
-    fixed.append((run.values('alleles.x')[-1] > 0.999).mean())
+    fixed.append((run.get_values('alleles.x')[-1] > 0.999).mean())
 grid = np.linspace(0, 1, 100)
 fig, (paths, probability) = plt.subplots(1, 2, figsize=(11, 4.5))
-paths.plot(trajectory.times, trajectory.values('alleles.x')[:, :30], lw=0.6)
+paths.plot(trajectory.times, trajectory.get_values('alleles.x')[:, :30], lw=0.6)
 paths.set_xlabel('time (N generations)')
 paths.set_ylabel('allele frequency')
 paths.set_title('Drift to loss or fixation')

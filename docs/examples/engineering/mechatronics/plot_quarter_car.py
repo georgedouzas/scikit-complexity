@@ -27,8 +27,8 @@ trajectory = simulate(system, until=3.0, observers=[observer])
 # half the step, and both oscillate until the damper has taken out the energy.
 
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(trajectory.times, trajectory.values('car.y1'), label='body')
-ax.plot(trajectory.times, trajectory.values('car.y2'), label='wheel')
+ax.plot(trajectory.times, trajectory.get_values('car.y1'), label='body')
+ax.plot(trajectory.times, trajectory.get_values('car.y2'), label='wheel')
 ax.axhline(0.05, color='black', linestyle='--', label='road')
 ax.set_xlabel('time')
 ax.set_ylabel('displacement')

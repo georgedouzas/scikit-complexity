@@ -47,7 +47,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(FractionalRelaxationSystem(order=0.6), observers=[observer])
 runs = {order: simulate(FractionalRelaxationSystem(order=order)) for order in ORDERS}
-strips = [np.column_stack([10 * run.times, -100 * run.values('relaxation.x')]) for run in runs.values()]
+strips = [np.column_stack([10 * run.times, -100 * run.get_values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()
 
@@ -67,7 +67,7 @@ for (order, run), color in zip(runs.items(), COLORS, strict=True):
     exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]
     ax.loglog(
         times,
-        run.values('relaxation.x')[1:],
+        run.get_values('relaxation.x')[1:],
         'o',
         markersize=2,
         color=np.array(color) / 255,

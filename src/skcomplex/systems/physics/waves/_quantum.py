@@ -20,10 +20,12 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+FORMULATIONS = ('fields', 'operators')
 
 
 class SiteElement(Element):
@@ -31,7 +33,7 @@ class SiteElement(Element):
 
     Its basis state `k` is the particle at site `k`.
 
-    Its laws read the operators of `site_space`: `laplacian`, `adjacency`, and `potential`.
+    Its laws read the operators `laplacian`, `adjacency`, and `potential` of its Hilbert space.
 
     Args:
         label:
@@ -41,16 +43,15 @@ class SiteElement(Element):
             The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
         hilbert:
-            The Hilbert space, `site_space(space, potential)`.
+            The Hilbert space of the sites, whose basis state `k` is site `k`.
 
         visual:
             How the particle is drawn.
 
     Examples:
-        >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.systems.physics.waves._quantum import SiteElement, site_space
-        >>> SiteElement('particle', hilbert=site_space(LatticeSpace(16))).hilbert.dimension
-        16
+        >>> from skcomplex.systems.physics.waves._quantum import SiteElement
+        >>> SiteElement('particle', 3).psi
+        3
     """
 
     def __init__(
@@ -230,85 +231,6 @@ class PositionDephasingInteraction(Interaction):
         return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
 
 
-FORMULATIONS = ('fields', 'operators')
-
-
-def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
-    """Return the Laplacian of a prepared lattice.
-
-    The Laplacian is spectral when the lattice is periodic and of finite differences otherwise.
-    """
-    size = int(lattice.size_)
-    laplacian = np.zeros((size, size))
-    for axis, (length, spacing) in enumerate(zip(lattice.shape_, lattice.spacings_, strict=True)):
-        if lattice.periodic_:
-            waves = 2 * np.pi * np.fft.fftfreq(length, d=spacing)
-            line = np.fft.ifft(-(waves[:, None] ** 2) * np.fft.fft(np.eye(length), axis=0), axis=0).real
-        else:
-            line = (np.eye(length, k=-1) - 2 * np.eye(length) + np.eye(length, k=1)) / spacing**2
-        term: npt.NDArray[np.floating] = np.ones((1, 1))
-        for index, item in enumerate(lattice.shape_):
-            term = np.kron(term, line if index == axis else np.eye(item))
-        laplacian += term
-    return laplacian
-
-
-def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, projectors: bool = False) -> HilbertSpec:
-    """Return the Hilbert space of a particle on the sites of a lattice or a network.
-
-    Its basis state `k` is site `k`.
-
-    Its operators are the Laplacian, `laplacian`, the adjacency of the neighbouring sites, `adjacency`, with a
-    potential the operator `potential` with the potential of every site on its diagonal, and with projectors the
-    projector `site_<k>` on every site `k`. The Laplacian of a lattice is spectral when the lattice is periodic and
-    of finite differences otherwise, with the spacing of the lattice, and the Laplacian of a network is its graph
-    Laplacian.
-
-    Args:
-        space:
-            The lattice or the network.
-
-        potential:
-            The potential of every site, or `None` for no potential.
-
-        projectors:
-            Whether the space holds the projector on every site.
-
-    Returns:
-        space:
-            The Hilbert space, of the dimension of the number of sites.
-
-    Raises:
-        ValidationError:
-            The space is neither a lattice nor a network.
-
-    Examples:
-        >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.systems.physics.waves._quantum import site_space
-        >>> float(site_space(LatticeSpace(16, boundary='fixed')).operators['laplacian'][0].trace())
-        -32.0
-    """
-    if not isinstance(space, LatticeSpace | NetworkSpace):
-        error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
-        raise ValidationError(error_msg)
-    prepared = space.prepare()
-    size = int(prepared.size_)
-    adjacency = np.zeros((size, size))
-    for first, second in prepared._neighbor_pairs():
-        adjacency[first, second] = adjacency[second, first] = 1.0
-    laplacian = (
-        _lattice_laplacian(prepared)
-        if isinstance(prepared, LatticeSpace)
-        else adjacency - np.diag(adjacency.sum(axis=1))
-    )
-    operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency, True)}
-    if potential is not None:
-        operators['potential'] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)
-    for site in range(size if projectors else 0):
-        operators[f'site_{site}'] = (sp.csr_array(([1.0], ([site], [site])), shape=(size, size)), True)
-    return HilbertSpec(size, operators, display=None)
-
-
 class SchrodingerSystem(BaseSystem):
     """A Gaussian wave packet that follows the Schrödinger equation.
 
@@ -370,6 +292,62 @@ class SchrodingerSystem(BaseSystem):
     dt = 0.1
     solver = ETDRK4Solver(dt=0.01)
 
+    @staticmethod
+    def _get_lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
+        """Return the Laplacian of a prepared lattice.
+
+        The Laplacian is spectral when the lattice is periodic and of finite differences otherwise.
+        """
+        size = int(lattice.size_)
+        laplacian = np.zeros((size, size))
+        for axis, (length, spacing) in enumerate(zip(lattice.shape_, lattice.spacings_, strict=True)):
+            if lattice.periodic_:
+                waves = 2 * np.pi * np.fft.fftfreq(length, d=spacing)
+                line = np.fft.ifft(-(waves[:, None] ** 2) * np.fft.fft(np.eye(length), axis=0), axis=0).real
+            else:
+                line = (np.eye(length, k=-1) - 2 * np.eye(length) + np.eye(length, k=1)) / spacing**2
+            term: npt.NDArray[np.floating] = np.ones((1, 1))
+            for index, item in enumerate(lattice.shape_):
+                term = np.kron(term, line if index == axis else np.eye(item))
+            laplacian += term
+        return laplacian
+
+    @staticmethod
+    def _get_site_space(
+        space: BaseSpace,
+        potential: npt.ArrayLike | None = None,
+        *,
+        projectors: bool = False,
+    ) -> HilbertSpec:
+        """Return the Hilbert space of a particle on the sites of a lattice or a network.
+
+        Its basis state `k` is site `k`, and its dimension is the number of sites. Its operators are the Laplacian,
+        `laplacian`, the adjacency of the neighbouring sites, `adjacency`, with a potential of every site the operator
+        `potential` with the potential on its diagonal, and with projectors the projector `site_<k>` on every site `k`.
+        The Laplacian of a lattice is spectral when the lattice is periodic and of finite differences otherwise, with
+        the spacing of the lattice, and the Laplacian of a network is its graph Laplacian. Another space raises a
+        `ValidationError`.
+        """
+        if not isinstance(space, LatticeSpace | NetworkSpace):
+            error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
+            raise ValidationError(error_msg)
+        prepared = space.prepare()
+        size = int(prepared.size_)
+        adjacency = np.zeros((size, size))
+        for first, second in prepared._get_neighbor_pairs():
+            adjacency[first, second] = adjacency[second, first] = 1.0
+        laplacian = (
+            SchrodingerSystem._get_lattice_laplacian(prepared)
+            if isinstance(prepared, LatticeSpace)
+            else adjacency - np.diag(adjacency.sum(axis=1))
+        )
+        operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency, True)}
+        if potential is not None:
+            operators['potential'] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)
+        for site in range(size if projectors else 0):
+            operators[f'site_{site}'] = (sp.csr_array(([1.0], ([site], [site])), shape=(size, size)), True)
+        return HilbertSpec(size, operators, display=None)
+
     def __init__(
         self,
         n_sites: int = 256,
@@ -407,7 +385,7 @@ class SchrodingerSystem(BaseSystem):
             settings['solver'] = None
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Gaussian wave packet that follows the Schrödinger equation.
 
         The packet is written as its real and imaginary parts.
@@ -433,10 +411,14 @@ class SchrodingerSystem(BaseSystem):
                 interactions.append(
                     PositionDephasingInteraction('dephasing', target='packet', gamma=self.gamma, n_sites=self.n_sites),
                 )
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[
-                    SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=self.gamma > 0)),
+                    SiteElement(
+                        'packet',
+                        amplitudes,
+                        hilbert=self._get_site_space(space, potential, projectors=self.gamma > 0),
+                    ),
                 ],
                 interactions=interactions,
             )
@@ -447,4 +429,4 @@ class SchrodingerSystem(BaseSystem):
             values={'u': psi.real, 'w': psi.imag, 'D': self.D, 'V': potential},
             discretization='spectral',
         )
-        return System(self.label, elements=[packet])
+        return CompositeSystem(self.label, elements=[packet])

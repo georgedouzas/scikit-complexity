@@ -10,7 +10,7 @@ def _stationary_density(energy):
     """Return the late mean activity of the directed percolation field at a fixed energy."""
     system = DirectedPercolationLangevinSystem((16, 16), energy=energy)
     trajectory = simulate(system, until=40, random_state=0)
-    return float(np.asarray(trajectory.values('neurons.rho'))[-10:].mean())
+    return float(np.asarray(trajectory.get_values('neurons.rho'))[-10:].mean())
 
 
 def test_directed_percolation_langevin_has_an_absorbing_threshold():

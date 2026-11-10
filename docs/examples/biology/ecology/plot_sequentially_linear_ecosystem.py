@@ -7,8 +7,8 @@ which changes the network and starts a new linear stretch. Bursts of extinctions
 """
 
 # %%
-# The system is built from its class with 60 species that read 4 species each. The observer saves every step with the
-# default blueprint, whose primary view is the network of influences colored by the abundances.
+# The example builds `SequentiallyLinearEcosystemSystem` with 60 species that read 4 species each. The observer saves
+# every step with the default blueprint, whose primary view is the network of influences colored by the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,8 +28,8 @@ trajectory = simulate(SequentiallyLinearEcosystemSystem(), observers=[observer],
 # The species of age 0 count the extinctions of the previous step. Their cumulative number should rise in steps,
 # steep early and flatter later, while the abundances stay normalised and dominated by a few species.
 
-extinctions = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
-abundances = np.sort(np.nan_to_num(trajectory.values('species.x')[-1]))[::-1]
+extinctions = np.nansum(trajectory.get_values('species.age')[1:] == 0, axis=1)
+abundances = np.sort(np.nan_to_num(trajectory.get_values('species.x')[-1]))[::-1]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.step(trajectory.times[1:], np.cumsum(extinctions))
 left.set_xlabel('step')

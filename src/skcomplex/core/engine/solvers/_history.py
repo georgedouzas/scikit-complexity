@@ -1,7 +1,4 @@
-"""Past states of a run and the declared history before the start.
-
-Past states are interpolants over time segments.
-"""
+"""Past states of a run and the declared history before the start."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +13,11 @@ from ...types import Array, Indices
 from ..problems import ProblemSpec
 from ..types import Interpolant
 
-_RESTART = 1e-12
+RESTART = 1e-12
 
 
 class History:
-    """Past states of a run and the declared history before the start.
+    """A record of the past states of a run, and the declared history before it.
 
     Past states are interpolants over time segments.
 
@@ -45,7 +42,7 @@ class History:
         self.initial = state.copy()
         self.declared: dict[int, tuple[Callable[[float], object], int] | float] = {}
         for name, value in problem.history.items():
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             for offset in range(entry.size):
                 if callable(value):
                     self.declared[entry.start + offset] = (value, offset)
@@ -87,7 +84,7 @@ class History:
             first, _, interpolant = self.segments[-1]
             self.segments[-1] = (first, time, interpolant)
 
-    def _declared(self, index: int, time: float) -> float:
+    def _get_declared(self, index: int, time: float) -> float:
         """Return a component of the declared history at a time before the start."""
         value = self.declared[index]
         if isinstance(value, tuple):
@@ -96,7 +93,7 @@ class History:
             return float(values[offset % values.size])
         return float(value)
 
-    def value(self, time: float, indices: Indices) -> Array:
+    def get_value(self, time: float, indices: Indices) -> Array:
         """Return state components at a past time.
 
         They come from the run or from the declared history before the start.
@@ -119,7 +116,7 @@ class History:
         if time <= self.start:
             return np.asarray(
                 [
-                    self._declared(index, time) if index in self.declared else self.initial[index]
+                    self._get_declared(index, time) if index in self.declared else self.initial[index]
                     for index in map(int, indices)
                 ],
                 dtype=float,
@@ -139,7 +136,7 @@ class History:
         return np.asarray(interpolant(min(time, last)), dtype=float)[indices]
 
     @staticmethod
-    def _with_delays(problem: ProblemSpec, history: 'History | None', t: float, x: Array, p: Array) -> Array:
+    def _copy_with_delays(problem: ProblemSpec, history: 'History | None', t: float, x: Array, p: Array) -> Array:
         """Return the parameter vector with every delayed state read from the history.
 
         Args:
@@ -166,7 +163,7 @@ class History:
             return p
         filled = p.copy()
         for delay in problem.delays:
-            filled[delay.parameters] = history.value(t - max(delay.tau(t, x, p), 0.0), delay.states)
+            filled[delay.parameters] = history.get_value(t - max(delay.tau(t, x, p), 0.0), delay.states)
         return filled
 
     @staticmethod

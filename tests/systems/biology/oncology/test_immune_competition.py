@@ -10,6 +10,6 @@ from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
 def test_immune_response_above_threshold_clears_the_tumour(activation, decays):
     """Test that the tumour density decays above the immune activation threshold and grows below it."""
     trajectory = simulate(ImmuneCompetitionSystem(activation=activation), until=20, dt=5.0, random_state=0)
-    density = trajectory.values('tumour_density')
+    density = trajectory.get_values('tumour_density')
     assert bool(density[-1] < density[0]) is decays
     assert bool(density[-1] > density[0]) is not decays

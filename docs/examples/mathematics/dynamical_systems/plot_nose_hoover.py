@@ -43,7 +43,7 @@ trajectory = simulate(NoseHooverSystem(), observers=[observer])
 orbits = {}
 for name, y in STARTS.items():
     trajectory = simulate(NoseHooverSystem(y=y))
-    orbits[name] = np.column_stack([trajectory.values(f'oscillator.{state}') for state in 'xyz'])
+    orbits[name] = np.column_stack([trajectory.get_values(f'oscillator.{state}') for state in 'xyz'])
     observer.recording_.log(
         f'orbits/{name}',
         rr.LineStrips3D([orbits[name]], radii=0.01, colors=COLORS[name]),
@@ -61,7 +61,7 @@ observer.recording_.flush()
 fig, axis = plt.subplots(figsize=(6, 5))
 for name, y in STARTS.items():
     trajectory = simulate(NoseHooverSystem(y=y), until=2000, dt=0.02)
-    x, y_values, z = (trajectory.values(f'oscillator.{state}') for state in 'xyz')
+    x, y_values, z = (trajectory.get_values(f'oscillator.{state}') for state in 'xyz')
     crossing = np.flatnonzero((x[:-1] < 0) & (x[1:] >= 0))
     mean_square = np.mean(y_values**2)
     axis.plot(y_values[crossing], z[crossing], '.', markersize=2, label=f'{name}, <y²> = {mean_square:.3f}')

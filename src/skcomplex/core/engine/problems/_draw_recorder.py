@@ -19,7 +19,7 @@ KEYWORDS = {'uniform': ('low', 'high'), 'normal': ('mean', 'deviation'), 'bernou
 
 
 class DrawRecorder(BaseConfig[None, int]):
-    """Recorder of the named draws and jump firings of a run, which also replays them.
+    """A recorder of the named draws and jumps of a run, which also replays them.
 
     A run that records keeps every value it draws by name and step, with the arguments of its distribution, and every
     firing of a jump law with its time. A run that replays a log takes every named draw and every firing from it
@@ -79,7 +79,7 @@ class DrawRecorder(BaseConfig[None, int]):
         """Whether the recorder replays a log."""
         return self.replay is not None
 
-    def _forced(self, label: str, size: int) -> Array:
+    def _get_forced(self, label: str, size: int) -> Array:
         """Return the recorded values of the next draw of a name.
 
         Args:
@@ -120,19 +120,19 @@ class DrawRecorder(BaseConfig[None, int]):
         return np.asarray(record.values[start : start + size], dtype=float)
 
     @staticmethod
-    def _keywords(draw: DrawSpec) -> tuple[str, ...]:
+    def _get_keywords(draw: DrawSpec) -> tuple[str, ...]:
         """Return the keywords of the arguments of a draw."""
         if draw.kind == 'categorical':
             return ('weights',)
         return KEYWORDS.get(draw.kind, draw.keywords)
 
     @staticmethod
-    def _named(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int) -> dict[str, Array]:
+    def _get_named(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int) -> dict[str, Array]:
         """Return the arguments of a draw by keyword, one value or row per drawn value."""
         columns = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
         if draw.kind == 'categorical':
             return {'weights': np.stack(columns, axis=-1)}
-        return dict(zip(DrawRecorder._keywords(draw), columns, strict=True))
+        return dict(zip(DrawRecorder._get_keywords(draw), columns, strict=True))
 
     @staticmethod
     def _log_probability(draw: DrawSpec, named: dict[str, Array], values: Array) -> float:
@@ -184,8 +184,8 @@ class DrawRecorder(BaseConfig[None, int]):
         """
         size = int(np.size(values))
         if self.replaying:
-            values = self._forced(label, size)
-        named = self._named(draw, arguments, size)
+            values = self._get_forced(label, size)
+        named = self._get_named(draw, arguments, size)
         self.log_probability_ += self._log_probability(draw, named, np.asarray(values, dtype=float))
         self._kinds[label] = draw
         self._steps[label].append(np.full(size, self.step_))
@@ -193,7 +193,7 @@ class DrawRecorder(BaseConfig[None, int]):
         self._arguments[label].append(named)
         return np.asarray(values, dtype=float)
 
-    def firings(self, t: float, until: float) -> list[tuple[float, int]]:
+    def get_firings(self, t: float, until: float) -> list[tuple[float, int]]:
         """Return the recorded firings after a time and up to another, in order.
 
         Args:
@@ -249,7 +249,7 @@ class DrawRecorder(BaseConfig[None, int]):
         """Log of the draws and firings so far."""
         draws = {}
         for label, draw in self._kinds.items():
-            keywords = self._keywords(draw)
+            keywords = self._get_keywords(draw)
             arguments = {
                 keyword: np.concatenate([item[keyword] for item in self._arguments[label]]) for keyword in keywords
             }

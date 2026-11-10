@@ -15,15 +15,17 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ._random_pairs import RandomPairsInteraction
+
+PAIR = 2
 
 
 class ConfidentElement(Element):
@@ -146,20 +148,21 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import networkx as nx
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import LatticeElement
+        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> people = LatticeElement(
+        >>> people = GroupElement(
         ...     'people',
         ...     element=ConfidentElement,
         ...     space=NetworkSpace(nx.complete_graph(3)),
         ...     values={'opinion': [0.1, 0.2, 0.9], 'confidence': 0.2},
+        ...     on='sites',
         ... )
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        >>> system = System(elements=[people], interactions=[coupling], time=DiscreteTime())
-        >>> opinions = simulate(system, until=1).values('people.opinion')
+        >>> system = CompositeSystem(elements=[people], interactions=[coupling], time=DiscreteTime())
+        >>> opinions = simulate(system, until=1).get_values('people.opinion')
         >>> np.round(opinions[-1], 6).tolist()
         [0.15, 0.15, 0.9]
     """
@@ -249,9 +252,6 @@ class EncountersInteraction(RandomPairsInteraction):
             second.opinion -= first.convergence * difference
 
 
-PAIR = 2
-
-
 class DeffuantSystem(BaseSystem):
     """The Deffuant bounded confidence system.
 
@@ -305,7 +305,7 @@ class DeffuantSystem(BaseSystem):
         self.steepness = steepness
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         opinions = np.random.default_rng(self.random_state).random(self.n_agents)
         visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
@@ -317,7 +317,7 @@ class DeffuantSystem(BaseSystem):
             visual=visual,
         )
         encounters = EncountersInteraction('meetings', target='people', steepness=self.steepness)
-        return System(self.label, elements=[people], interactions=[encounters])
+        return CompositeSystem(self.label, elements=[people], interactions=[encounters])
 
 
 class HegselmannKrauseSystem(BaseSystem):
@@ -349,7 +349,7 @@ class HegselmannKrauseSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import HegselmannKrauseSystem
         >>> trajectory = simulate(HegselmannKrauseSystem(50, confidence=0.3), until=20, random_state=0)
-        >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
+        >>> len(np.unique(np.round(trajectory.get_values('people.opinion')[-1], 6))) <= 3
         True
     """
 
@@ -373,15 +373,16 @@ class HegselmannKrauseSystem(BaseSystem):
         self.graph = graph
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
         opinions = np.random.default_rng(self.random_state).random(space.size_)
-        people = LatticeElement(
+        people = GroupElement(
             'people',
             element=ConfidentElement,
             space=space,
             values={'opinion': opinions, 'confidence': self.confidence},
+            on='sites',
         )
         coupling = ConfidenceCouplingInteraction('compromise', target='people')
-        return System(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())

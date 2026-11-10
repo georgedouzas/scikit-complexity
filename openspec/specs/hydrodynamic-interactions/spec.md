@@ -8,7 +8,8 @@ angular velocities by a mobility tensor, with Brownian displacements consistent 
 
 ### Requirement: Mobility tensors map forces and torques to velocities
 
-The core SHALL provide an interaction over a group of members with a vector position, and optionally a unit vector
+The physics library SHALL provide `StokesianMobilityInteraction` in `skcomplex.systems.physics.common.particles`, an
+interaction over a group of members with a vector position, and optionally a unit vector
 orientation, that sets the velocity and angular velocity of every member to the product of a grand mobility tensor with
 the forces and torques on all members. The forces and torques SHALL be functions of the namespace of a member. The
 tensor SHALL be the Oseen tensor, the Rotne-Prager-Yamakawa tensor, or the free-draining tensor that couples no pair, of spheres of one radius in a fluid of one
@@ -32,6 +33,12 @@ velocity about the normal.
 
 - **WHEN** a torque acts on one member
 - **THEN** the other members move at the velocity `T x r / (8 pi eta r^3)` and rotate as the rotlet flow turns them
+
+#### Scenario: Not in the core
+
+- **WHEN** a user lists `skcomplex.core.components.interactions`
+- **THEN** it holds no mobility interaction, and the squirmers and the coupled traps import
+  `StokesianMobilityInteraction` from `skcomplex.systems.physics.common.particles`
 
 ### Requirement: Active slip couples through the mobility
 

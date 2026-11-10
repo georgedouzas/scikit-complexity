@@ -22,7 +22,7 @@ phase space, curved spacetime), `laws` (rate, noise, jump, update, equation, sam
 - **THEN** its tags hold the law kind `jump` and the randomness `stochastic`
 
 ### Requirement: Systems derive their tags
-A `System` SHALL derive its tags from its parts and SHALL NOT declare them: time and space SHALL agree across its parts,
+A `CompositeSystem` SHALL derive its tags from its parts and SHALL NOT declare them: time and space SHALL agree across its parts,
 law kinds and domains SHALL be the union of its parts', and randomness SHALL be stochastic when any part is. Parts
 whose time or space disagree SHALL make `get_tags()` raise an error that names the parts and the tag.
 

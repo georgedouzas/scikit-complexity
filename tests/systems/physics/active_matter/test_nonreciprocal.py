@@ -14,7 +14,7 @@ def _species_headings(coupling):
         backend=NumbaBackend(),
         random_state=0,
     )
-    return trajectory.values('heading_a'), trajectory.values('heading_b')
+    return trajectory.get_values('heading_a'), trajectory.get_values('heading_b')
 
 
 def test_nonreciprocal_vicsek_chases_and_rotates():

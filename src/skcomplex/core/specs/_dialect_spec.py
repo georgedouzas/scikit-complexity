@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from ..errors import BackendError, ValidationError
 from ._base_spec import BaseSpec
 
-_PYTHON_RELATIONS = {
+PYTHON_RELATIONS = {
     'lt': '({0} < {1})',
     'le': '({0} <= {1})',
     'gt': '({0} > {1})',
@@ -21,7 +21,7 @@ _PYTHON_RELATIONS = {
 
 @dataclass(frozen=True)
 class DialectSpec(BaseSpec):
-    """Syntax of a target language for printed expressions.
+    """A spec of the syntax of a target language for printed expressions.
 
     Templates take their arguments as `{0}`, `{1}`, and so on, receive every argument that is not an atom in
     parentheses, and must give an atom, a name, a call, or a parenthesized expression.
@@ -58,7 +58,7 @@ class DialectSpec(BaseSpec):
     complex_numbers: bool = False
     folds: frozenset[str] = field(default_factory=lambda: frozenset({'min', 'max', 'either', 'both'}))
 
-    def unknown(self, name: str) -> Exception:
+    def get_unknown(self, name: str) -> Exception:
         """Return the error of an expression the language cannot express.
 
         Args:
@@ -73,7 +73,7 @@ class DialectSpec(BaseSpec):
         return self.error(error_msg)
 
 
-_NUMPY_DIALECT = DialectSpec(
+NUMPY_DIALECT = DialectSpec(
     'NumPy',
     {
         'exp': 'np.exp({0})',
@@ -108,12 +108,10 @@ _NUMPY_DIALECT = DialectSpec(
         'mod': 'np.mod({0}, {1})',
         'stop_gradient': '({0})',
     },
-    _PYTHON_RELATIONS,
+    PYTHON_RELATIONS,
     complex_numbers=True,
 )
-
-
-_SCALAR_DIALECT = DialectSpec(
+SCALAR_DIALECT = DialectSpec(
     'Numba',
     {
         'exp': 'math.exp({0})',
@@ -148,11 +146,9 @@ _SCALAR_DIALECT = DialectSpec(
         'mod': '({0} % {1})',
         'stop_gradient': '({0})',
     },
-    _PYTHON_RELATIONS,
+    PYTHON_RELATIONS,
 )
-
-
-_LEPTON_DIALECT = DialectSpec(
+LEPTON_DIALECT = DialectSpec(
     'Lepton',
     {
         'exp': 'exp({0})',
@@ -192,20 +188,16 @@ _LEPTON_DIALECT = DialectSpec(
     error=BackendError,
     exact_rationals=True,
 )
-
-
-_JAX_DIALECT = DialectSpec(
+JAX_DIALECT = DialectSpec(
     'JAX',
     {
-        **{name: template.replace('np.', 'jnp.') for name, template in _NUMPY_DIALECT.functions.items()},
+        **{name: template.replace('np.', 'jnp.') for name, template in NUMPY_DIALECT.functions.items()},
         'erf': 'jsp.erf({0})',
         'erfc': 'jsp.erfc({0})',
         'gamma': 'jsp.gamma({0})',
         'stop_gradient': 'jax.lax.stop_gradient({0})',
     },
-    _PYTHON_RELATIONS,
+    PYTHON_RELATIONS,
     error=BackendError,
 )
-
-
-DIALECTS = {'numpy': _NUMPY_DIALECT, 'scalar': _SCALAR_DIALECT, 'lepton': _LEPTON_DIALECT, 'jax': _JAX_DIALECT}
+DIALECTS = {'numpy': NUMPY_DIALECT, 'scalar': SCALAR_DIALECT, 'lepton': LEPTON_DIALECT, 'jax': JAX_DIALECT}

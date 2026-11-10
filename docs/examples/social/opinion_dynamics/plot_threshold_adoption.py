@@ -51,7 +51,7 @@ degrees = N_AGENTS * np.pi * reaches**2 / SIZE**2
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(
     trajectory.times,
-    [trajectory.agents('people', frame).values['adopted'].mean() for frame in range(STEPS + 1)],
+    [trajectory.get_agents('people', frame).values['adopted'].mean() for frame in range(STEPS + 1)],
 )
 series.set_xlabel('step')
 series.set_ylabel('share of adopters')
@@ -67,7 +67,7 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
                         until=STEPS,
                         random_state=seed,
                     )
-                    .agents('people', STEPS)
+                    .get_agents('people', STEPS)
                     .values['adopted']
                     .mean()
                     for seed in range(3)

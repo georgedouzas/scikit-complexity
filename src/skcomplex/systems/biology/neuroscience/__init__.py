@@ -12,6 +12,7 @@ from ._conductances import (
     HodgkinHuxleySystem,
 )
 from ._excitable import ExcitableElement, KinouchiCopelliSystem
+from ._leaky_integration import LeakyIntegrationInteraction
 from ._networks import (
     DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
@@ -51,11 +52,10 @@ from ._populations import (
     WilsonCowanSystem,
     WinnersTakeAllSystem,
 )
-from ._synapses import AdaptrodeElement, AdaptrodeSystem
+from ._synapses import AdaptrodeSystem
 
 __all__: list[str] = [
     'AdaptiveDelayNetworkSystem',
-    'AdaptrodeElement',
     'AdaptrodeSystem',
     'AmariNeuralFieldSystem',
     'AssociativeSiteElement',
@@ -78,6 +78,7 @@ __all__: list[str] = [
     'IzhikevichSystem',
     'KinouchiCopelliSystem',
     'LeakyIntegrateAndFireElement',
+    'LeakyIntegrationInteraction',
     'LegionSystem',
     'MutualInhibitionInteraction',
     'NeuralFieldSiteElement',

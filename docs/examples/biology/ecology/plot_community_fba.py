@@ -7,7 +7,7 @@ other secretes, 2-oxoglutarate one way and glutamate the other, and both grow.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The programs of the members merge through
+# The example builds `CommunityFBASystem`, which needs the extra `metabolism`. The programs of the members merge through
 # the medium, whose law holds the growth weighted by the abundances. The primary view is the bar chart of the fluxes
 # of the first member.
 
@@ -34,14 +34,14 @@ trajectory = simulate(system, observers=[observer], until=0.0)
 
 alone = [
     float(
-        simulate(CommunityFBASystem(knockouts=(name,), abundances=(1.0,))).values('medium.objective_0')[0],
+        simulate(CommunityFBASystem(knockouts=(name,), abundances=(1.0,))).get_values('medium.objective_0')[0],
     )
     for name in ('ICDHyr', 'NH4t')
 ]
-together = [float(trajectory.values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
-community = float(trajectory.values('medium.objective_0')[0])
+together = [float(trajectory.get_values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
+community = float(trajectory.get_values('medium.objective_0')[0])
 balanced = simulate(CommunityFBASystem(common_rate=True))
-balanced_rate = float(balanced.values('medium.objective_0')[0])
+balanced_rate = float(balanced.get_values('medium.objective_0')[0])
 steadycom = community_growth(system, medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0})
 tradeoff = community_growth(CommunityFBASystem(knockouts=('', '')).prepare().system_, kind='tradeoff', fraction=1.0)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))

@@ -7,7 +7,7 @@ two parallel routes, so the optimum fixes the growth and leaves the split betwee
 """
 
 # %%
-# The system is built from its class. The system holds one program under static time, so the run has one frame, and
+# The example builds `FluxBalanceSystem`. The system holds one program under static time, so the run has one frame, and
 # the primary view is the bar chart of the fluxes.
 
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer], until=0.0)
 
 ranges = flux_variability(system).ranges
 parsimonious = simulate(FluxBalanceSystem(parsimonious=True))
-fluxes = [float(parsimonious.values(f'cell.v_{name}')[0]) for name in ranges.index]
+fluxes = [float(parsimonious.get_values(f'cell.v_{name}')[0]) for name in ranges.index]
 fig, ax = plt.subplots(figsize=(9, 4))
 positions = np.arange(len(ranges))
 ax.bar(positions, ranges['maximum'] - ranges['minimum'], bottom=ranges['minimum'], width=0.5, label='flux variability')
@@ -42,7 +42,7 @@ ax.plot(positions, fluxes, 'o', color='tab:orange', label='parsimonious flux')
 ax.set_xticks(positions, ranges.index)
 ax.set_ylabel('flux (mmol/gDW/h)')
 ax.legend(loc='upper left')
-growth = float(trajectory.values('cell.v_vbio')[0])
+growth = float(trajectory.get_values('cell.v_vbio')[0])
 ax.set_title(f'Growth {growth:.0f}: the routes v1, v2, and v3 range over 0 to 600, and the other fluxes are fixed')
 fig.tight_layout()
 plt.show()
@@ -56,7 +56,10 @@ plt.show()
 
 oxygen = np.linspace(0.0, 25.0, 11)
 result = sweep(
-    FluxBalanceSystem, {'oxygen': oxygen.tolist(), 'network': ['ecoli']}, until=0.0, outputs=['cell.objective_0'],
+    FluxBalanceSystem,
+    {'oxygen': oxygen.tolist(), 'network': ['ecoli']},
+    until=0.0,
+    outputs=['cell.objective_0'],
 )
 rows = result.rows
 growth_rates = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]

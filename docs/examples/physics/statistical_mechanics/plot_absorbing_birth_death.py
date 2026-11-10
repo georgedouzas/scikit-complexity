@@ -7,7 +7,7 @@ fluctuation that takes a time growing like `exp(V phi(0))`. The time series show
 """
 
 # %%
-# The system is built from its class with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
+# The example builds `AbsorbingBirthDeathSystem` with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
 # The observer saves every frame of the run with the default blueprint, whose primary view is the time series of the
 # number of particles. The Numba backend runs the jumps in a compiled loop.
 
@@ -29,8 +29,9 @@ trajectory = simulate(system, dt=0.5, observers=[observer], random_state=0, back
 # Large deviations of the density and the absorbing transition
 # -------------------------------------------------------------
 # In the metastable active state the density `rho = n / V` has the distribution `exp(-V phi(rho))` of Bertin's
-# equation (3.44), `phi(rho) = -(rho - rho_0)(1 + ln kappa) + ((nu + lambda rho) ln(nu + lambda rho) - kappa ln
-# kappa) / lambda`. The histogram of a long run should match it. Across the transition the time-averaged density of
+# equation (3.44),
+# `phi(rho) = -(rho - rho_0)(1 + ln kappa) + ((nu + lambda rho) ln(nu + lambda rho) - kappa ln kappa) / lambda`.
+# The histogram of a long run should match it. Across the transition the time-averaged density of
 # runs started at `rho = 1` should follow the mean-field density `max(0, (kappa - nu) / lambda)`, with zero below
 # `kappa = nu` where every run is absorbed.
 
@@ -49,12 +50,12 @@ long = simulate(
     random_state=1,
     backend=NumbaBackend(),
 )
-density = long.values('particles.n')[100:] / 100
+density = long.get_values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
     run = simulate(AbsorbingBirthDeathSystem(kappa=kappa), until=200, dt=0.5, random_state=0, backend=NumbaBackend())
-    means.append((run.values('particles.n')[100:] / 100).mean())
+    means.append((run.get_values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)
 weights = np.exp(-100 * large_deviation(grid, 2.0))
 fig, (distribution, transition) = plt.subplots(1, 2, figsize=(10, 4))

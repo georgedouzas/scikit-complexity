@@ -18,11 +18,18 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SpaceError
 from ....core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+
+MONTH = 30
+QUARTER = 90
+DAILY = 'default'
+MONTHLY = 'trafficking'
+BILLING = 'billing'
+QUARTERLY = 'quarter'
 
 
 class PremisesView(AgentView):
@@ -223,12 +230,12 @@ class DailyMovementsInteraction(Interaction):
         """
         return [RuleLaw(self.move_free, phase=self.phase), RuleLaw(self.move_victims, phase=self.victims_phase)]
 
-    def _city(self, location: object, width: int) -> int:
+    def _get_city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
-        return DailyMovementsInteraction._cell(location)[0] * self.n_cities // width
+        return DailyMovementsInteraction._get_cell(location)[0] * self.n_cities // width
 
     @staticmethod
-    def _shape(system: SystemView) -> tuple[int, int]:
+    def _get_shape(system: SystemView) -> tuple[int, int]:
         """Return the width and the height of the grid of the system."""
         dimensions = system.dimensions
         if dimensions is None:
@@ -239,7 +246,7 @@ class DailyMovementsInteraction(Interaction):
 
     def _travel(self, woman: TravellerView, cell: tuple[int, int], width: int) -> None:
         """Move a woman to a cell and count a trip when the city changes."""
-        if self._city(cell, width) != self._city(woman.location, width):
+        if self._get_city(cell, width) != self._get_city(woman.location, width):
             woman.trips += 1
         woman.move_to(cell)
 
@@ -250,10 +257,10 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        free = [woman for woman in system.agents('women', TravellerView) if not woman.victim]
+        free = [woman for woman in system.get_agents('women', TravellerView) if not woman.victim]
         if not free:
             return
-        width, height = self._shape(system)
+        width, height = self._get_shape(system)
         city = int(system.rng.integers(self.n_cities))
         start, stop = city * width // self.n_cities, (city + 1) * width // self.n_cities
         cell = (int(system.rng.integers(start, stop)), int(system.rng.integers(height)))
@@ -266,44 +273,28 @@ class DailyMovementsInteraction(Interaction):
             system:
                 The system.
         """
-        women = system.agents('women', TravellerView)
+        women = system.get_agents('women', TravellerView)
         brothels = [
-            DailyMovementsInteraction._cell(place.location)
-            for place in system.agents('premises', PremisesView)
+            DailyMovementsInteraction._get_cell(place.location)
+            for place in system.get_agents('premises', PremisesView)
             if place.brothel
         ]
-        width = self._shape(system)[0]
+        width = self._get_shape(system)[0]
         for brothel in brothels:
             victims = [
-                woman for woman in women if woman.victim and DailyMovementsInteraction._cell(woman.location) == brothel
+                woman
+                for woman in women
+                if woman.victim and DailyMovementsInteraction._get_cell(woman.location) == brothel
             ]
             moved = system.rng.permutation(len(victims))[: int(system.rng.integers(len(victims) + 1))]
             for index in moved:
                 self._travel(victims[index], brothels[int(system.rng.integers(len(brothels)))], width)
 
     @staticmethod
-    def _cell(location: object) -> tuple[int, int]:
+    def _get_cell(location: object) -> tuple[int, int]:
         """Return a grid location as a tuple of integers."""
         column, row = (int(item) for item in np.ravel(np.asarray(location)))
         return column, row
-
-
-MONTH = 30
-
-
-QUARTER = 90
-
-
-DAILY = 'default'
-
-
-MONTHLY = 'trafficking'
-
-
-BILLING = 'billing'
-
-
-QUARTERLY = 'quarter'
 
 
 class TraffickingSystem(BaseSystem):
@@ -376,12 +367,12 @@ class TraffickingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _heat(place: PremisesView, system: SystemViewProtocol) -> float:
+    def _get_heat(place: PremisesView, system: SystemViewProtocol) -> float:
         """Return the growth of the bills of a premises in a day.
 
         It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
         """
-        people = system.occupancy('sources').get(place.location_key, 0)
+        people = system.get_occupancy('sources').get(place.location_key, 0)
         return float(1 / (1 + np.exp(place.efficiency - people)))
 
     @staticmethod
@@ -399,7 +390,7 @@ class TraffickingSystem(BaseSystem):
         """Return the bills at the start of a quarter."""
         return 0.0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         n_places = self.n_houses + self.n_brothels
@@ -445,7 +436,7 @@ class TraffickingSystem(BaseSystem):
                 'bills',
                 target='premises',
                 state='bills',
-                function=self._heat,
+                function=self._get_heat,
                 sources=['women'],
                 mode='increment',
                 form='agent',
@@ -474,7 +465,7 @@ class TraffickingSystem(BaseSystem):
             PhaseSpec(BILLING, activation='sequential'),
             PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[premises, women],
             interactions=[day, *bills],

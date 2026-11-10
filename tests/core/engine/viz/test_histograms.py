@@ -9,7 +9,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import uniform
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import AgentsVisual, HistogramVisual, RerunObserver
@@ -188,7 +188,7 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
 
     walker = WalkerElement
     visual = VisualSpec('histograms', {'color_by': 'x', 'histogram_first': True})
-    system = System(elements=[GroupElement('walkers', element=walker, size=50, visual=visual)])
+    system = CompositeSystem(elements=[GroupElement('walkers', element=walker, size=50, visual=visual)])
     views = [type(view).__name__ for view in _views(default_blueprint(PassCompiler().prepare(system).run().problem_))]
     assert views[:2] == ['BarChartView', 'TimeSeriesView']
     logged = []

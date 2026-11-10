@@ -59,7 +59,7 @@ from ._towards import TowardsPass
 from ._unpack_matches import UnpackMatchesPass
 from ._unpack_renewals import UnpackRenewalsPass
 
-_PASSES: tuple[type[BasePass], ...] = (
+PASSES: tuple[type[BasePass], ...] = (
     FlattenPass,
     CensusPass,
     PlanPass,
@@ -115,4 +115,3 @@ _PASSES: tuple[type[BasePass], ...] = (
     TopologyProblemPass,
     LinearProgramsPass,
 )
-"""Passes of the general compiler, in the order it keeps where their fields leave them unordered."""

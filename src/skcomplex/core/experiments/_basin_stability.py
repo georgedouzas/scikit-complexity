@@ -1,7 +1,4 @@
-"""Estimate the basin stability of the attractors of a system.
-
-It is estimated over random initial states.
-"""
+"""Estimate the share of random initial states that end in each final behaviour."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,15 +14,19 @@ from ..components.specs import ScenarioSpec
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import ValidationError
+from ..types import DomainKind
 from ._designs import _get_rows
 from ._replicate import _run_replicated
 from ._runs import _check_count, _check_source, _compile, _run_experiment
+from ._utils import build_system
 from .types import Row, Source
+
+INTEGER_KINDS = (DomainKind.INTEGER, DomainKind.BOOLEAN)
 
 
 @dataclass(frozen=True)
 class BasinStabilityResult:
-    """Fractions of random initial states that end in each attractor.
+    """A result of `basin_stability`, the share of initial states per attractor.
 
     Args:
         rows:
@@ -59,11 +60,16 @@ def basin_stability(
     executor: str | Executor = 'serial',
     vectorized: bool = False,
 ) -> BasinStabilityResult:
-    """Return the fractions of random initial states that end in each attractor.
+    """Return the share of random initial states that end in each final behaviour.
 
-    The initial states are drawn uniformly within bounds. Every initial state is run to `until` and its trajectory is
-    labelled by the classifier. With `vectorized`, all initial states run as the members of one simulation of the
-    replicated system, and the classifier receives every member as a trajectory of the original system.
+    An attractor is the state or the cycle that a run settles into. The function draws initial states uniformly within
+    `bounds`, runs each one to `until`, and asks `classifier` which attractor the run ended in. The shares measure how
+    stable each attractor is against large disturbances. With `vectorized`, all initial states run as the members of one
+    simulation of the replicated system, and the classifier receives every member as a trajectory of the original
+    system.
+
+    It appears in many fields. It measures how often a power grid stays in step after a fault, how often a population
+    survives rather than dies out, and how often a genetic switch ends on rather than off.
 
     Args:
         system:
@@ -109,7 +115,7 @@ def basin_stability(
         >>> from skcomplex.core.experiments import basin_stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = basin_stability(
-        ...     LogisticGrowthSystem(), {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
+        ...     LogisticGrowthSystem(), {'population.x': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
         ... )
         >>> result.fractions
         {'capacity': 1.0}
@@ -119,7 +125,9 @@ def basin_stability(
         error_msg = 'Basin stability needs the bounds of at least one initial state.'
         raise ValidationError(error_msg)
     _check_count('n', n)
-    rows = _get_rows(bounds, 'random', n, random_state)
+    states = _compile(build_system(system, {})).states
+    integers = [path for path in bounds if states.has(path) and states.get_entry(path).kind in INTEGER_KINDS]
+    rows = _get_rows(bounds, 'random', n, random_state, integers)
     if vectorized:
         values = {path: np.asarray([row[path] for row in rows], dtype=float) for path in bounds}
         trajectory, composite = _run_replicated(system, values, until, dt, random_state)
@@ -127,7 +135,7 @@ def basin_stability(
         if not isinstance(problem, ProblemSpec):
             error_msg = f'A vectorised basin reads the members of a general problem, not of a {type(problem).__name__}.'
             raise ValidationError(error_msg)
-        labels = [classifier(trajectory.member(index, problem)) for index in range(n)]
+        labels = [classifier(trajectory.get_member(index, problem)) for index in range(n)]
     else:
 
         def attractor(trajectory: Trajectory) -> object:

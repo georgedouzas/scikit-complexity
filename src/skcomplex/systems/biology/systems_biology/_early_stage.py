@@ -13,28 +13,23 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 from ....core.base import BaseConfig
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import SamplingInteraction
+from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
 from ._structures import BUNDLED, read_structure
 
 LONG_DIAGONAL = np.radians(83.0)
-
 SHORT_DIAGONAL = np.radians(58.0)
-
 GRID_POINTS = 3600
-
 TURN = 2 * np.pi
-
 PAIR_DIMENSIONS = 2
-
 AMINO_ACIDS = (
     'ALA',
     'ARG',
@@ -57,9 +52,7 @@ AMINO_ACIDS = (
     'TYR',
     'VAL',
 )
-
 ENTRY = '5PTI'
-
 CELLS = 72
 
 
@@ -352,7 +345,7 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         """Return the sum of the local energies of the cells of the residues of a chain."""
         return float(energies[amino.astype(int), row.astype(int)].sum())
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
         if self.temperature <= 0:
@@ -361,19 +354,20 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         names = [residue for _, _, residue in read_structure(self.entry).residues]
         amino = np.array([AMINO_ACIDS.index(name) for name in names], dtype=float)
         energies = -np.log(read_cell_probabilities(self.cells))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'residues',
                     element=PathCellElement,
                     space=LatticeSpace((1, len(names)), boundary='fixed'),
                     values={'amino': amino[None]},
                     visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
+                    on='sites',
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'sampling',
                     target='residues',
                     state='cell',

@@ -1,7 +1,4 @@
-"""Fit linear surrogates to series by dynamic mode decomposition.
-
-The fit is on the variables or on a dictionary of observables.
-"""
+"""Fit linear surrogates to series by dynamic mode decomposition."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,12 +12,12 @@ from sklearn.base import TransformerMixin, clone
 
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import ContinuousTime
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, SamplesSpec
 from ..types import Array, ComplexArray, DataKind
-from ._base import _import, _read_samples
+from ._base import _read_samples
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -30,16 +27,16 @@ from ._sparse_identification import (
     _surrogate_system,
     _symbols_of,
 )
+from ._utils import load_module
 from .types import Runs
 
 SMALL_EXPONENT = 1e-12
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
 class ModeDecompositionResult:
-    """Linear system fitted to series by dynamic mode decomposition.
+    """A result of `mode_decomposition`, a linear system fitted to series.
 
     Args:
         samples:
@@ -98,7 +95,7 @@ class ModeDecompositionResult:
     """
 
     samples: SamplesSpec
-    system: System
+    system: CompositeSystem
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -142,6 +139,9 @@ def mode_decomposition(
     `M` gives the same one-sample map under an input held over the sample. Every input is a bounded adaptive parameter
     of the surrogate element, bounded by its range in the samples, and the forecast holds the inputs at their last
     values.
+
+    It appears in many fields. It finds the coherent patterns of a fluid flow, of brain activity, and of traffic in a
+    city.
 
     Args:
         source:
@@ -311,7 +311,7 @@ def _fit_operators(
             The matrices `A` and `B`, the modes, and the eigenvalues of `A`.
     """
     svd_rank = -1 if rank is None else rank
-    pydmd = _import('pydmd')
+    pydmd = load_module('pydmd')
     if not len(controls):
         fitted = pydmd.DMD(svd_rank=svd_rank, exact=True).fit(before, after)
         modes = np.asarray(fitted.modes, dtype=complex)

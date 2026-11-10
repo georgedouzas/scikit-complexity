@@ -7,7 +7,7 @@ Belousov-Zhabotinsky reaction.
 """
 
 # %%
-# The system is built from its class on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
+# The example builds `HodgepodgeSystem` on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
 # and the default infection rate `g = 34`, from random levels, and runs for 600 steps. The default blueprint shows the
 # levels on the grid.
 
@@ -31,7 +31,7 @@ trajectory = simulate(HodgepodgeSystem(random_state=0), until=600, observers=[ob
 # the level of each cell should repeat with one period. The autocorrelation of the level of a cell, averaged over all
 # cells, should then peak at that period and its multiples.
 
-fields = trajectory.lattice('cells.level')[300:]
+fields = trajectory.get_lattice('cells.level')[300:]
 levels = fields.reshape(len(fields), -1)
 cells = levels[:, ::7]
 correlations = correlation(cells, max_lag=60).correlation.mean(axis=0)

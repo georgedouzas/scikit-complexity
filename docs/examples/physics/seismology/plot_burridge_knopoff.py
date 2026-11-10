@@ -7,7 +7,7 @@ sizes separated by long quiet loading.
 """
 
 # %%
-# The system is built from its class with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
+# The example builds `BurridgeKnopoffSystem` with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
 # and runs for 2000 time units, about twenty loading cycles, with the system's registered fixed-step
 # `RK4Solver(dt=0.05)`, since the adaptive integrators stall where blocks stick and slip. The blueprint puts the history
 # of the block speeds first, where blocks caught slipping light up against the stuck ones.
@@ -35,10 +35,10 @@ trajectory = simulate(system, until=2000, dt=10.0, observers=[observer])
 # --------------
 # Between earthquakes a block creeps at about the plate speed, `0.01 * 10 = 0.1` over one frame, while a slip moves it
 # much farther, so a displacement above 0.3 marks a slip. The total slip of all blocks over a frame then measures
-# the size of the earthquakes in it: most frames should be quiet, and the others should spread over a wide range of
-# sizes.
+# the size of the earthquakes in it: most frames should be quiet, and the others should spread from small sizes to
+# large ones.
 
-x = trajectory.values('fault.x')
+x = trajectory.get_values('fault.x')
 steps = np.diff(x, axis=0)
 slips = np.where(steps > 0.3, steps, 0.0)
 sizes = slips.sum(axis=1)

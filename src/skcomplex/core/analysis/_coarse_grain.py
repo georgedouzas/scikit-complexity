@@ -1,7 +1,4 @@
-"""Coarse-grain agents into fields, or members into densities.
-
-Agents become fields on a grid, or the members of a group a density over the values of a state.
-"""
+"""Coarse-grain agents into fields, or members into densities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class CoarseGrainResult:
-    """Agents coarse-grained into a field, or members into a density.
+    """A result of `coarse_grain`, agents as a field or members as a density.
 
     The field lies on a grid, and the density is over the values of a state.
 
@@ -65,6 +62,9 @@ def coarse_grain(
     its value of a state, and the field is the fraction of members at every value, which sums to 1. An array holds the
     values of one snapshot, one per member, or one row per frame, and a trajectory gives the values of the state `state`
     at every frame. The densities are the initial values of a distribution site group with one member per value.
+
+    It appears in many fields. It turns animals into a density of a herd, traders into a distribution of wealth, and
+    particles into a density field of a fluid.
 
     Args:
         source:
@@ -171,7 +171,7 @@ def _read_state(source: Source, state: str | None) -> Array:
         if state is None:
             error_msg = 'coarse_grain reads a trajectory with `over` at the state it names. Set `state`.'
             raise AnalysisError(error_msg)
-        read = np.asarray(source.values(state), dtype=float)
+        read = np.asarray(source.get_values(state), dtype=float)
         positions = read.reshape(read.shape[0], -1)
     else:
         positions = np.asarray(source, dtype=float)

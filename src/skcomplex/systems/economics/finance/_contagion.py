@@ -14,10 +14,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+UNDISTRESSED = 0
+DISTRESSED = 1
+INACTIVE = 2
 
 
 class InterbankView(AgentView):
@@ -29,9 +33,6 @@ class InterbankView(AgentView):
     h: float
     status: float
     value: float
-
-
-UNDISTRESSED = 0
 
 
 class InterbankElement(Element):
@@ -97,12 +98,6 @@ class InterbankElement(Element):
         return []
 
 
-DISTRESSED = 1
-
-
-INACTIVE = 2
-
-
 class DebtRankCascadeInteraction(Interaction):
     """Synchronous spread of distress over the distressed banks `j`.
 
@@ -158,7 +153,7 @@ class DebtRankCascadeInteraction(Interaction):
             system:
                 The system.
         """
-        banks = sorted(system.agents('banks', InterbankView), key=lambda bank: bank.id)
+        banks = sorted(system.get_agents('banks', InterbankView), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED
@@ -169,7 +164,7 @@ class DebtRankCascadeInteraction(Interaction):
             bank.h, bank.status = float(level), float(code)
 
 
-def _value_at_risk(agent: InterbankView) -> float:
+def _get_value_at_risk(agent: InterbankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
 
@@ -217,7 +212,7 @@ class DebtrankSystem(BaseSystem):
     topics = ('systemic risk', 'network', 'contagion', 'agents')
     references = ('Thurner et al. 2018', 'Battiston et al. 2012')
     until = 10
-    observables = (ObservableSpec('value_at_risk', _value_at_risk, group='banks', reduce='sum'),)
+    observables = (ObservableSpec('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
 
     def __init__(
         self,
@@ -241,7 +236,7 @@ class DebtrankSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
+    def _get_random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
         """Return random interbank liabilities and capitals of a given density of links."""
         links = rng.random((n_banks, n_banks)) < density
         np.fill_diagonal(links, val=False)
@@ -250,20 +245,20 @@ class DebtrankSystem(BaseSystem):
         return liabilities, capital
 
     @staticmethod
-    def _impact(liabilities: Array, capital: Array) -> Array:
+    def _get_impact(liabilities: Array, capital: Array) -> Array:
         """Return the impact matrix `W_ij = min(1, M_ij / C_j)` of a default of `i` on `j`."""
         return np.minimum(1.0, np.asarray(liabilities, dtype=float) / np.asarray(capital, dtype=float)[None, :])
 
     @staticmethod
-    def _economic_values(liabilities: Array) -> Array:
+    def _get_economic_values(liabilities: Array) -> Array:
         """Return the economic value of every bank, its share of all interbank lending."""
         lent = np.asarray(liabilities, dtype=float).sum(axis=0)
         return lent / lent.sum()
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.liabilities is None or self.capital is None:
-            matrix, capitals = self._random_exposures(
+            matrix, capitals = self._get_random_exposures(
                 self.n_banks,
                 self.density,
                 np.random.default_rng(self.random_state),
@@ -278,12 +273,16 @@ class DebtrankSystem(BaseSystem):
             'banks',
             element=InterbankElement,
             size=size,
-            values={'h': h, 'status': status, 'value': self._economic_values(matrix)},
+            values={'h': h, 'status': status, 'value': self._get_economic_values(matrix)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[banks],
             interactions=[
-                DebtRankCascadeInteraction('cascade', banks='banks', impact=self._impact(matrix, capitals).tolist()),
+                DebtRankCascadeInteraction(
+                    'cascade',
+                    banks='banks',
+                    impact=self._get_impact(matrix, capitals).tolist(),
+                ),
             ],
         )

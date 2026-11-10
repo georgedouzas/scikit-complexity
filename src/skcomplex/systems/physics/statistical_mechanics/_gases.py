@@ -11,7 +11,7 @@ import numpy as np
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.specs import VisualSpec
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
@@ -77,7 +77,7 @@ class IdealGasSystem(BaseSystem):
         self.mass = mass
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an ideal gas of non-interacting molecules in a reflecting box."""
         rng = np.random.default_rng(self.random_state)
         velocities = rng.normal(0.0, np.sqrt(self.kT / self.mass), size=(self.n_molecules, self.n_dim))
@@ -94,7 +94,7 @@ class IdealGasSystem(BaseSystem):
             },
             visual=visual,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[molecules],
             space=ContinuousSpace(extent=[self.size] * self.n_dim, boundary='reflecting'),
@@ -158,7 +158,7 @@ class LennardJonesFluidSystem(BaseSystem):
         self.cutoff = cutoff
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Lennard-Jones particles in a periodic square box.
 
         A thermostat optionally holds the particles at a temperature.
@@ -178,7 +178,7 @@ class LennardJonesFluidSystem(BaseSystem):
             interactions.append(
                 LangevinThermostatInteraction('thermostat', target='fluid', temperature=self.temperature),
             )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

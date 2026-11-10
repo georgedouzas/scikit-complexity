@@ -7,7 +7,7 @@ rule, and the economy saves a falling share of its output as it grows richer.
 """
 
 # %%
-# The system is built from its class with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
+# The example builds `OptimalConsumptionSystem` with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
 # rate 0.03, and the initial capital 1. Its tuned collocation solver solves the problem over 40 years.
 # The default blueprint shows capital and consumption in one time series view.
 
@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 # consumption, computed from the solution, should match the marginal product of capital net of depreciation and the
 # discount rate. It falls to 0 as capital approaches the golden rule `k* = (alpha / (delta + rho))^(1 / (1 - alpha))`.
 
-times, capital, consumption = trajectory.times, trajectory.values('economy.k'), trajectory.values('economy.c')
+times, capital, consumption = trajectory.times, trajectory.get_values('economy.k'), trajectory.get_values('economy.c')
 growth = np.gradient(np.log(consumption), times)
 euler = 0.3 * capital ** (0.3 - 1) - 0.05 - 0.03
 golden = (0.3 / 0.08) ** (1 / 0.7)

@@ -1,7 +1,4 @@
-"""Fit laws to samples.
-
-The laws are power-law tails, stable laws, extreme-value laws, and named laws.
-"""
+"""Fit laws to samples."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,17 +34,14 @@ SETTINGS = {
     'extreme-value': {'block'},
     **{law: {'fixed', 'simulations', 'random_state'} for law in NAMED_LAWS},
 }
-"""Settings every law reads, besides `law`, `variables`, and `group`."""
-
 MIN_TAIL = 10
 MIN_BLOCKS = 10
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
 class FitLawResult:
-    """Law fitted to the values of a source, pooled into one sample.
+    """A result of `fit_law`, a law fitted to a pooled sample.
 
     Args:
         values:
@@ -156,6 +150,8 @@ def fit_law(
       `block` samples.
     - `'exponential'`, `'normal'`, `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'`: the named law
       with its free parameters fitted, tested with a Monte Carlo Kolmogorov-Smirnov test that accounts for the fit.
+
+    It appears in many fields. It tests whether the sizes of earthquakes, of cities, or of firms follow a power law.
 
     Args:
         source:

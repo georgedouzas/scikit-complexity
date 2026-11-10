@@ -8,7 +8,7 @@ drives them out of the light.
 """
 
 # %%
-# The system is built from its class with 20 robots that start at the centre of a well of radius 2, the
+# The example builds `LightSeekingRobotsSystem` with 20 robots that start at the centre of a well of radius 2, the
 # light of width 1, and the sensory delay 5, and runs for 100 time units. The robots' positions are vector states, so
 # the blueprint shows their distances along `x` on the range of the well, without a legend.
 
@@ -55,7 +55,7 @@ intensities, distances = [], {}
 for delay in delays:
     run = simulate(LightSeekingRobotsSystem(n_robots=40, delay=delay), until=150, solver=solver, random_state=1)
     trajectory = run
-    r = np.hypot(trajectory.values('robots.x'), trajectory.values('robots.y'))[trajectory.times > 50]
+    r = np.hypot(trajectory.get_values('robots.x'), trajectory.get_values('robots.y'))[trajectory.times > 50]
     intensities.append(np.exp(-(r**2)).mean())
     distances[delay] = r.ravel()
 fig, (light, radii) = plt.subplots(1, 2, figsize=(10, 4))

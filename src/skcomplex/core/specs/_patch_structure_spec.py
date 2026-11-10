@@ -15,7 +15,7 @@ from ._prototile_spec import PrototileSpec
 
 @dataclass(frozen=True)
 class PatchStructureSpec(BaseStructureSpec):
-    """Patch of tiles at one generation.
+    """A spec of a patch of tiles at one generation.
 
     Each tile is a prototile under a homogeneous affine matrix.
 
@@ -38,7 +38,7 @@ class PatchStructureSpec(BaseStructureSpec):
         >>> from skcomplex.core.specs import PrototileSpec
         >>> interval = PrototileSpec('interval', [(0, 0), (1, 0)])
         >>> patch = PatchStructureSpec((interval,), np.array([0]), np.eye(3)[None], 0)
-        >>> patch.length()
+        >>> patch.get_length()
         1.0
     """
 
@@ -74,7 +74,7 @@ class PatchStructureSpec(BaseStructureSpec):
         codes = [index for index, prototile in enumerate(self.prototiles) if prototile.name == name]
         return int(np.count_nonzero(np.isin(self.codes, codes)))
 
-    def vertices(self, code: int) -> AnyArray:
+    def get_vertices(self, code: int) -> AnyArray:
         """Return the vertices of the tiles of one prototile.
 
         Args:
@@ -90,24 +90,24 @@ class PatchStructureSpec(BaseStructureSpec):
         matrices = self.matrices[self.codes == code]
         return np.einsum('tij,kj->tki', matrices, homogeneous)[..., :2]
 
-    def segments(self) -> AnyArray:
+    def get_segments(self) -> AnyArray:
         """Return the tiles of segment prototiles as segments.
 
         Returns:
             segments:
                 The array of shape `(k, 2, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if item.is_segment]
+        parts = [self.get_vertices(code) for code, item in enumerate(self.prototiles) if item.is_segment]
         return np.concatenate(parts) if parts else np.zeros((0, 2, 2))
 
-    def polygons(self) -> AnyArray:
+    def get_polygons(self) -> AnyArray:
         """Return the tiles of polygon prototiles, one coordinate array per prototile.
 
         Returns:
             polygons:
                 An object array of arrays of shape `(t, k, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not item.is_segment]
+        parts = [self.get_vertices(code) for code, item in enumerate(self.prototiles) if not item.is_segment]
         result = np.empty(len(parts), dtype=object)
         result[:] = parts
         return result

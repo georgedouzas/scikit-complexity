@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MovementInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
 
 
 class ResidentView(AgentView):
@@ -127,11 +127,11 @@ class RelocationInteraction(MovementInteraction):
             return None
         if self.choices is not None:
             return self._get_sorted_destination(agent, system)
-        neighbors = [item for item in agent.neighbors() if isinstance(item, ResidentView)]
+        neighbors = [item for item in agent.get_neighbors() if isinstance(item, ResidentView)]
         if not neighbors:
             return None
         similar = sum(neighbor.kind == agent.kind for neighbor in neighbors) / len(neighbors)
-        return system.random_empty_cell() if similar < agent.threshold else None
+        return system.get_random_empty_cell() if similar < agent.threshold else None
 
     def _get_sorted_destination(self, resident: ResidentView, system: SystemView) -> object:
         """Return the empty cell with the highest share of similar neighbours.
@@ -141,14 +141,14 @@ class RelocationInteraction(MovementInteraction):
         storage = system.storage
         if storage.get('time') != system.time:
             storage['time'] = system.time
-            storage['kinds'] = {item.location_key: item.kind for item in system.agents(self.target, ResidentView)}
+            storage['kinds'] = {item.location_key: item.kind for item in system.get_agents(self.target, ResidentView)}
         kinds = storage['kinds']
         if not isinstance(kinds, dict):
             return None
         width, height = system.dimensions or (0, 0)
         best, best_share = None, -1.0
         for _ in range(int(self.choices or 0)):
-            cell = system.random_empty_cell()
+            cell = system.get_random_empty_cell()
             column, row = (int(item) for item in np.asarray(cell).ravel())
             around = [
                 kinds[column + dx, row + dy]
@@ -239,7 +239,7 @@ class SchellingSystem(BaseSystem):
         self.moving = moving
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
@@ -250,7 +250,7 @@ class SchellingSystem(BaseSystem):
             size=size,
             values={'kind': kinds, 'threshold': self.threshold},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[residents],
             interactions=[

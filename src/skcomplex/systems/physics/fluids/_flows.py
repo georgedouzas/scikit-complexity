@@ -16,19 +16,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import (
-    AdvectionInteraction,
-    ConservationInteraction,
-    DiffusionInteraction,
-    Interaction,
-    RateInteraction,
-)
-from ....core.components.laws.utils import gradient, inverse_laplacian, laplacian
+from ....core.components.interactions import ConservationInteraction, Interaction, RateInteraction
+from ....core.components.laws.utils import gradient, inverse_helmholtz, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class BoussinesqElement(Element):
@@ -288,7 +283,7 @@ class KuramotoSivashinskySystem(BaseSystem):
         self.modes = modes
         self.length = length
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`.
 
         The equation is spatiotemporally chaotic.
@@ -310,7 +305,7 @@ class KuramotoSivashinskySystem(BaseSystem):
             state='u',
             rate=lambda s: -laplacian(s.target.u) - laplacian(laplacian(s.target.u)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -330,7 +325,7 @@ def _velocity(omega: Expression) -> tuple[Expression, Expression]:
 
     The velocity comes from its streamfunction `psi` with `laplacian(psi) = -omega`.
     """
-    slopes = gradient(inverse_laplacian(-omega), 2)
+    slopes = gradient(inverse_helmholtz(-omega), 2)
     return slopes[1], -slopes[0]
 
 
@@ -347,12 +342,12 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
         riemann=None,
     )
     if not buoyant:
-        viscosity = DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
+        viscosity = DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
         forcing = RateInteraction('forcing', target='flow', state='omega', rate=lambda s: s.target.f)
         return [advection, viscosity, forcing]
     return [
         advection,
-        DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
+        DiffusivityInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
         RateInteraction(
             'buoyancy',
             target='flow',
@@ -367,7 +362,7 @@ def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
             source=lambda s: _velocity(s.target.omega)[1],
             riemann=None,
         ),
-        DiffusionInteraction('conduction', target='flow', state='theta', coefficient=1.0),
+        DiffusivityInteraction('conduction', target='flow', state='theta', coefficient=1.0),
     ]
 
 
@@ -382,7 +377,7 @@ def incompressible_flow(
     vorticity: npt.ArrayLike | None = None,
     temperature: npt.ArrayLike | None = None,
     label: str = 'system',
-) -> System:
+) -> CompositeSystem:
     """Return incompressible two-dimensional flow in vorticity-streamfunction form.
 
     The flow is on a periodic spectral lattice.
@@ -451,7 +446,7 @@ def incompressible_flow(
         discretization='spectral',
         symmetry=symmetry,
     )
-    return System(label, elements=[field], interactions=_get_flow_interactions(buoyancy is not None))
+    return CompositeSystem(label, elements=[field], interactions=_get_flow_interactions(buoyancy is not None))
 
 
 class DecayingTurbulenceSystem(BaseSystem):
@@ -523,7 +518,7 @@ class DecayingTurbulenceSystem(BaseSystem):
         values = np.fft.irfftn(spectrum, s=shape, axes=range(len(shape)))
         return values / np.abs(values).max()
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         vorticity = 5 * self._smooth_noise(shape, self.modes, self.random_state)
@@ -585,7 +580,7 @@ class RayleighBenardSystem(BaseSystem):
         self.shape = shape
         self.amplitude = amplitude
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Rayleigh-Bénard convection between free-slip walls.
 
         The convection starts from a small perturbation of the critical mode.
@@ -652,13 +647,13 @@ class BurgersSystem(BaseSystem):
         self.mean = mean
         self.amplitude = amplitude
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         values = {'u': self.mean + self.amplitude * np.sin(centers)}
         space = LatticeSpace(self.n, spacing=spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(
@@ -732,7 +727,7 @@ class ShallowWaterSystem(BaseSystem):
         self.downstream = downstream
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the shallow-water dam break.
 
         Still water at two depths was separated at the middle by a removed dam.
@@ -756,4 +751,4 @@ class ShallowWaterSystem(BaseSystem):
             state='q',
             flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
         )
-        return System(self.label, elements=[field], interactions=[mass, momentum])
+        return CompositeSystem(self.label, elements=[field], interactions=[mass, momentum])

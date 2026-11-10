@@ -59,8 +59,8 @@ waits, utilisations = [], []
 for demand in demands:
     system = RidesharingSystem(demand=demand, random_state=0)
     run = simulate(system, until=STEPS, random_state=0)
-    waits.append(np.nanmean(run.values('mean_wait')[STEPS // 2 :]))
-    utilisations.append(run.values('utilisation')[STEPS // 2 :].mean())
+    waits.append(np.nanmean(run.get_values('mean_wait')[STEPS // 2 :]))
+    utilisations.append(run.get_values('utilisation')[STEPS // 2 :].mean())
 fig, (wait, busy) = plt.subplots(1, 2, figsize=(11, 4))
 wait.plot(demands, waits, marker='o')
 wait.set_xlabel('new riders per step')

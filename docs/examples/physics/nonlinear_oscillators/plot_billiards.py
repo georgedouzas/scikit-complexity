@@ -38,8 +38,8 @@ paths = [
 ]
 times = np.asarray(paths[0].times)
 distance = np.hypot(
-    np.ravel(paths[0].values('particle.x')) - np.ravel(paths[1].values('particle.x')),
-    np.ravel(paths[0].values('particle.y')) - np.ravel(paths[1].values('particle.y')),
+    np.ravel(paths[0].get_values('particle.x')) - np.ravel(paths[1].get_values('particle.x')),
+    np.ravel(paths[0].get_values('particle.y')) - np.ravel(paths[1].get_values('particle.y')),
 )
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(times, distance)

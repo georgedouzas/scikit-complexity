@@ -58,14 +58,14 @@ class DosingInteraction(RateInteraction):
             The state is not a name, the dose is neither a function nor a number, or the schedule is not positive.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> dosing = DosingInteraction('dosing', target='patient', state='n', dose=2.0, period=10.0, count=3)
-        >>> system = System(elements=[CompartmentElement('patient', n=0.0)], interactions=[dosing])
+        >>> dosing = DosingInteraction('dosing', target='patient', state='x', dose=2.0, period=10.0, count=3)
+        >>> system = CompositeSystem(elements=[CompartmentElement('patient', x=0.0)], interactions=[dosing])
         >>> trajectory = simulate(system, until=40.0, dt=0.5)
-        >>> round(float(trajectory.values('patient.n')[-1]), 3)
+        >>> round(float(trajectory.get_values('patient.x')[-1]), 3)
         6.0
     """
 

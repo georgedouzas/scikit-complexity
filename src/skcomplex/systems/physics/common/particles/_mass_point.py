@@ -9,8 +9,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import PointElement
 from .....core.specs import ParameterSpec, VisualSpec
+from ....general.elements import PointElement
 
 
 class MassPointElement(PointElement):

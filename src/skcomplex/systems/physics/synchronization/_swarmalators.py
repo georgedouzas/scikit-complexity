@@ -15,9 +15,9 @@ from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.interactions import PairInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -63,7 +63,7 @@ class SwarmalatorElement(SitedOscillatorElement):
         super().__init__(label, visual=visual, theta=theta, omega=omega, x=x)
 
 
-class SwarmalatorCouplingInteraction(PairCouplingInteraction):
+class SwarmalatorCouplingInteraction(PairInteraction):
     """Coupling of two swarmalators.
 
     The coupling acts through their separation `r` and their phase difference `dtheta`.
@@ -218,7 +218,7 @@ class SwarmalatorsSystem(BaseSystem):
         self.B = B
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         units = GroupElement(
@@ -242,4 +242,4 @@ class SwarmalatorsSystem(BaseSystem):
             K=self.K,
             n_units=self.n_units,
         )
-        return System(self.label, elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))

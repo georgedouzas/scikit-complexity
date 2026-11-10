@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sage.all__sagemath_gap import SymmetricGroup
 
-from skcomplex.core.components.spaces import StateTranslationNeighborhood
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import SelfIndexedShiftSystem
@@ -30,20 +29,25 @@ trajectory = simulate(SelfIndexedShiftSystem(radius=4, random_state=0), observer
 # On the ball, a cell whose product leaves the ball loses its element and keeps losing it, so the fraction of cells
 # without an element should only grow, the price of the truncation. On a finite group, the symmetric group of degree
 # 4 with every product a site, translating a configuration by an element `h` should translate its image by `h`, the
-# equivariance `τ(h x) = h τ(x)` that holds on every group.
+# equivariance `τ(h x) = h τ(x)` that holds on every group. The table of products `g h` is filled site by site, since
+# every site `h` is an earlier site times one generator or its inverse.
 
-values = trajectory.values('cells.value')
+values = trajectory.get_values('cells.value')
 lost = (values == -1).mean(axis=1)
 finite = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, random_state=1)
 space = finite.prepare().system_.elements[0].space.prepare()
-products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+products = np.zeros((space.size_, space.size_), dtype=int)
+products[:, 0] = np.arange(space.size_)
+for site in range(1, space.size_):
+    parent, letter = np.argwhere(space.generator_table_[:site] == site)[0]
+    products[:, site] = space.generator_table_[products[:, parent], letter]
 start = finite.prepare().system_.elements[0].values['value']
-image = simulate(finite, until=1).values('cells.value')[-1]
+image = simulate(finite, until=1).get_values('cells.value')[-1]
 gaps = []
 for element in range(space.size_):
     inverse = int(np.flatnonzero(products[element] == 0)[0])
     moved = SelfIndexedShiftSystem(group=SymmetricGroup(4), radius=None, initial=start[products[inverse]])
-    moved_image = simulate(moved, until=1).values('cells.value')[-1]
+    moved_image = simulate(moved, until=1).get_values('cells.value')[-1]
     gaps.append(int((moved_image != image[products[inverse]]).sum()))
 fig, (truncation, equivariance) = plt.subplots(1, 2, figsize=(10, 4))
 truncation.plot(trajectory.times, lost, 'o-')

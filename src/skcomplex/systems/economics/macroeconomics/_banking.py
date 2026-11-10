@@ -15,12 +15,15 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction, TransferInteraction
+from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ..common.policy import PolicyRuleInteraction
+
+TOLERANCE = 1e-9
 
 
 class DepositorView(AgentView):
@@ -147,9 +150,6 @@ class ReserveBankView(AgentView):
     loans: float
 
 
-TOLERANCE = 1e-9
-
-
 class ReserveBankElement(Element):
     """Bank that lends its excess reserves to one of its customers.
 
@@ -236,14 +236,14 @@ class ReserveBankElement(Element):
             system:
                 The system.
         """
-        excess = agent.reserves - system.parameter('reserve_ratio') * agent.deposits
-        customers = system.agents(self.customers, DepositorView)
-        own = [customer for customer in customers if customer.referenced('bank') is agent]
+        excess = agent.reserves - system.get_parameter('reserve_ratio') * agent.deposits
+        customers = system.get_agents(self.customers, DepositorView)
+        own = [customer for customer in customers if customer.get_referenced('bank') is agent]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(system.rng.integers(len(own)))]
         payee = customers[int(system.rng.integers(len(customers)))]
-        bank = payee.referenced('bank')
+        bank = payee.get_referenced('bank')
         if not isinstance(bank, ReserveBankView):
             return
         borrower.loan += excess
@@ -254,7 +254,7 @@ class ReserveBankElement(Element):
         bank.reserves += excess
 
 
-class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
+class PolicySwitchInteraction(PolicyRuleInteraction[SystemView]):
     """Policy switch of a central bank.
 
     It moves the reserve ratio of the banks from `ratio` to `new_ratio`. The ratio switches at the time `change_at`.
@@ -311,8 +311,8 @@ class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the regulator.
         """
-        before = system.time < system.parameter('change_at')
-        ratio = system.parameter('ratio') if before else system.parameter('new_ratio')
+        before = system.time < system.get_parameter('change_at')
+        ratio = system.get_parameter('ratio') if before else system.get_parameter('new_ratio')
         name = f'{self.banks}.reserve_ratio'
         if system.parameters[name] != ratio:
             system.set_parameter(name, ratio)
@@ -403,7 +403,7 @@ class FractionalReserveBankingSystem(BaseSystem):
         self.repayment = repayment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         owners = rng.integers(self.banks, size=self.customers)
@@ -456,7 +456,7 @@ class FractionalReserveBankingSystem(BaseSystem):
             new_ratio=self.ratio if self.new_ratio is None else self.new_ratio,
             change_at=self.change_at,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[depositors, lenders],
             interactions=[regulator, payments, repayments],

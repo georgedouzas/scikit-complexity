@@ -17,7 +17,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
@@ -156,7 +156,7 @@ class SupplyChainDiffusionSystem(BaseSystem):
         del system
         if firm.adopted:
             return 1.0
-        buyers = [item for item in firm.neighbors() if isinstance(item, SupplierView)]
+        buyers = [item for item in firm.get_neighbors() if isinstance(item, SupplierView)]
         return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
 
     @staticmethod
@@ -173,7 +173,7 @@ class SupplyChainDiffusionSystem(BaseSystem):
                 graph.add_edge(factory, client, weight=float(rng.integers(1, 11)))
         return graph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         network = self._supply_network(self.buyers, self.factories, rng) if self.graph is None else self.graph
@@ -193,4 +193,4 @@ class SupplyChainDiffusionSystem(BaseSystem):
             },
         )
         adoption = MapInteraction('adoption', target='firms', state='adopted', function=self._adopt, form='agent')
-        return System(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))
+        return CompositeSystem(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))

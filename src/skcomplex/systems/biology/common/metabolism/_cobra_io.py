@@ -107,7 +107,7 @@ def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from
         if reaction.objective_coefficient != 0
     }
     name = ''.join(part.capitalize() for part in str(system.id or 'network').split('_'))
-    return metabolic_network_type(MetabolicNetworkElement._identifier(name), reactions, objective)(label)
+    return metabolic_network_type(MetabolicNetworkElement._get_identifier(name), reactions, objective)(label)
 
 
 def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -> object:
@@ -148,7 +148,7 @@ def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -
             metabolites.setdefault(name, cobra.Metabolite(name, compartment=compartment))
     reactions = []
     for name, spec in element.reactions.items():
-        identifier = element._identifier(name)
+        identifier = element._get_identifier(name)
         reaction = cobra.Reaction(name)
         reaction.bounds = (element.get_number(f'lower_{identifier}'), element.get_number(f'upper_{identifier}'))
         reaction.add_metabolites({metabolites[item]: float(value) for item, value in spec.coefficients.items()})
@@ -158,8 +158,8 @@ def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -
     system.solver = SOLVER
     weights = element.default_objective if element.objective is None else element.objective
     system.objective = {system.reactions.get_by_id(name): float(value) for name, value in weights.items()}
-    for gene in element.genes_of():
-        if element.get_number(element.gene_name(gene)) < 1:
+    for gene in element.get_genes_of():
+        if element.get_number(element.get_gene_name(gene)) < 1:
             system.genes.get_by_id(gene).knock_out()
     return system
 

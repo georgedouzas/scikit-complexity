@@ -38,8 +38,8 @@ scenarios = {
 fig, (unemployment, bankruptcies) = plt.subplots(1, 2, figsize=(10, 4))
 for name, settings in scenarios.items():
     trajectory = simulate(Mark0System(**settings))
-    unemployment.plot(trajectory.times, trajectory.values('economy.unemployment'), label=name)
-    bankruptcies.plot(trajectory.times, trajectory.values('economy.bankruptcies'), label=name)
+    unemployment.plot(trajectory.times, trajectory.get_values('economy.unemployment'), label=name)
+    bankruptcies.plot(trajectory.times, trajectory.get_values('economy.bankruptcies'), label=name)
 for axis, label in ((unemployment, 'unemployment rate'), (bankruptcies, 'bankruptcies per month')):
     axis.axvspan(100, 109, color='grey', alpha=0.2)
     axis.set_xlabel('month')

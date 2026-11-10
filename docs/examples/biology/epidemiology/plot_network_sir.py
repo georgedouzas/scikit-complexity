@@ -7,7 +7,7 @@ and the outbreak in the whole network rises, peaks, and burns out.
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 20 cities with 20 travellers each. The
+# The example builds `NetworkSIRSystem` on its default Barabási-Albert network of 20 cities with 20 travellers each. The
 # recorded run stops at day 25, near the peak of the outbreak, so that the default blueprint's view of the network
 # shows the cities in the middle of the epidemic. The analysis runs the outbreak to its end.
 
@@ -36,7 +36,9 @@ trajectory = simulate(
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
 trajectory = simulate(NetworkSIRSystem(residents=20, random_state=0), dt=1, random_state=0)
-health = np.array([trajectory.agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))])
+health = np.array(
+    [trajectory.get_agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))],
+)
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label in [(0, 'susceptible'), (2, 'infected'), (3, 'recovered')]:
     ax.plot(trajectory.times, np.sum(health == value, axis=1), label=label)

@@ -1,7 +1,4 @@
-"""Place series and fields on the complexity-entropy plane.
-
-The plane is that of their ordinal patterns.
-"""
+"""Place series and fields on the complexity-entropy plane."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +21,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class ComplexityResult:
-    """Place of series or field frames on Rosso's complexity-entropy plane.
+    """A result of `complexity`, places on the complexity and entropy plane.
 
     It covers every series of a source, or every frame of a field.
 
@@ -71,6 +68,9 @@ def complexity(
     the ordinal patterns, and the complexity is that entropy times the Jensen-Shannon divergence of the patterns from
     uniform ones, computed with `ordpy`. Noise has entropy near 1 and complexity near 0, regular series both near 0, and
     chaos lies in between with high complexity.
+
+    It appears in many fields. It tells chaos from noise in heart beats, in climate records, and in the prices of a
+    market.
 
     Args:
         source:

@@ -6,7 +6,7 @@ The module covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, an
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -14,149 +14,65 @@ from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, ta
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import HamiltonianInteraction, ImpulseInteraction, RateInteraction
+from ....core.components.interactions import CrossingInteraction, HamiltonianInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import derivative
-from ....core.components.system import BaseSystem, System
+from ....core.components.laws.utils import derivative, periodic_guard
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.oscillators import StuartLandauElement
 
-
-class AdlerPhaseElement(Element):
-    """Phase difference of a forced oscillator, the Adler equation.
-
-    The phase difference follows `phi' = detuning + epsilon sin(phi)`.
-
-    The phase locks at a fixed point when `|detuning| <= epsilon`, and slips with the period
-    `2 pi / sqrt(detuning^2 - epsilon^2)` otherwise.
-
-    Args:
-        label:
-            The label of the phase difference.
-
-        visual:
-            How the phase difference is drawn, or `None` for `default_visual_`.
-
-        phi:
-            The initial phase difference.
-
-        detuning:
-            The detuning of the natural frequency from the forcing.
-
-        epsilon:
-            The strength of the forcing.
-
-    Attributes:
-        default_visual_:
-            The visual of the phase difference when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerPhaseElement
-        >>> AdlerPhaseElement('difference').detuning
-        0.5
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[float, StateSpec()] = 0.0,
-        detuning: Annotated[float, ParameterSpec()] = 0.5,
-        epsilon: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.detuning = detuning
-        self.epsilon = epsilon
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the phase difference.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of `phi`.
-        """
-        return [RateLaw(namespace.phi, namespace.detuning + namespace.epsilon * sin(namespace.phi))]
+SPRINGS = ('tangent', 'linear')
 
 
-class DuffingElement(Element):
-    """Displacement and parameters of the forced Duffing oscillator.
+class KickInteraction(CrossingInteraction):
+    """Periodic kicks that set states of an oscillator to new values.
 
-    A `RateInteraction` sets its acceleration.
-
-    The acceleration is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
-
-    For `alpha < 0 < beta` the potential has two wells, and a strong enough forcing drives the oscillator chaotically
-    between them.
+    Physics names them kicks, instantaneous changes of momentum at `start + j * period` for `j` from 0. A kick at the
+    initial time of a run does not fire. The new values are functions of the namespace, which holds
+    `namespace.target`, the states and parameters of the target, and the time `namespace.t`.
 
     Args:
         label:
-            The label of the oscillator.
+            The label of the interaction, unique among the parts of its system.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
+        target:
+            The path of the oscillator whose states the kicks set.
 
-        x:
-            The initial displacement.
+        reset:
+            A mapping from the name of a state of the target to the function `f(namespace)` of its new value.
 
-        x_d1:
-            The initial velocity.
+        period:
+            The period of the kicks.
 
-        delta:
-            The damping.
-
-        alpha:
-            The linear stiffness.
-
-        beta:
-            The cubic stiffness.
-
-        gamma:
-            The amplitude of the forcing.
-
-        omega:
-            The frequency of the forcing.
-
-    Attributes:
-        default_visual_:
-            The visual of the oscillator when it sets none.
+        start:
+            The time of the first kick.
 
     Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingElement
-        >>> DuffingElement('duffing').alpha
-        -1.0
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import KickInteraction
+        >>> KickInteraction('kick', target='oscillator', reset={'x_d1': lambda s: -s.target.x_d1}, period=2.0).start
+        0.0
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-        delta: Annotated[float, ParameterSpec()] = 0.3,
-        alpha: Annotated[float, ParameterSpec()] = -1.0,
-        beta: Annotated[float, ParameterSpec()] = 1.0,
-        gamma: Annotated[float, ParameterSpec()] = 0.5,
-        omega: Annotated[float, ParameterSpec()] = 1.2,
+        target: str,
+        reset: Mapping[str, Callable[[SimpleNamespace], object]],
+        period: float = 1.0,
+        start: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.delta = delta
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-        self.omega = omega
+        super().__init__(label, target=target, guard=self._get_guard, reset=reset)
+        self.period = period
+        self.start = start
+
+    def _get_guard(self, namespace: SimpleNamespace) -> Expression:
+        """Return the guard that crosses zero at every kick."""
+        return periodic_guard(namespace.t, self.period, self.start)
 
 
 class HenonHeilesElement(Element):
@@ -321,82 +237,6 @@ class QuadrupoleElement(Element):
         self.B = B
 
 
-class TodaElement(Element):
-    """Displacement and parameters of the forced Toda oscillator.
-
-    Its exponential spring is stiff on one side only.
-
-    The acceleration is `x'' = -d x' - (e^x - 1) + a sin(omega t)`. The restoring force `e^x - 1` grows exponentially
-    for `x > 0` and saturates at `-1` for `x < 0`, so the oscillator is passive and asymmetric, and its resonance curve
-    bends towards low frequencies.
-
-    Args:
-        label:
-            The label of the oscillator.
-
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial displacement.
-
-        x_d1:
-            The initial velocity.
-
-        d:
-            The damping.
-
-        a:
-            The amplitude of the forcing.
-
-        omega:
-            The frequency of the forcing.
-
-    Attributes:
-        default_visual_:
-            The visual of the oscillator when it sets none.
-
-    Examples:
-        >>> from skcomplex.systems.physics.nonlinear_oscillators import TodaElement
-        >>> TodaElement('toda').d
-        0.1
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a: Annotated[float, ParameterSpec()] = 0.88,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.d = d
-        self.a = a
-        self.omega = omega
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the oscillator.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the second derivative of `x`.
-        """
-        s = namespace
-        return [RateLaw(s.x, -s.d * derivative(s.x, 1) - (exp(s.x) - 1) + s.a * sin(s.omega * s.t))]
-
-
 class VanDerPolElement(Element):
     """Van der Pol oscillator `x'' = mu (1 - x^2) x' - x + A cos(omega t)`.
 
@@ -433,12 +273,12 @@ class VanDerPolElement(Element):
             The visual of the oscillator when it sets none.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)])
+        >>> system = CompositeSystem(elements=[VanDerPolElement('oscillator', x=0.1)])
         >>> trajectory = simulate(system, until=50.0, dt=0.1)
-        >>> round(float(abs(trajectory.values('oscillator.x')[-300:]).max()), 1)
+        >>> round(float(abs(trajectory.get_values('oscillator.x')[-300:]).max()), 1)
         2.0
     """
 
@@ -478,30 +318,7 @@ class VanDerPolElement(Element):
         return [RateLaw(x, damping - x + namespace.A * cos(namespace.omega * namespace.t))]
 
 
-def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
-    """Return the Hénon-Heiles energy of a star.
-
-    The energy is `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`.
-    """
-    kinetic = (star.px**2 + star.py**2) / 2
-    return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
-
-
-SPRINGS = ('tangent', 'linear')
-
-
-def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
-    """Return the quadrupole energy of a nucleus.
-
-    The energy is `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`.
-    """
-    q2 = nucleus.q1**2 + nucleus.q2**2
-    kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
-    cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
-    return kinetic + q2 / 2 + cubic + q2**2 / 8
-
-
-class DuffingSystem(BaseSystem):
+class DuffingSystem(DynamicalSystem):
     """The forced Duffing oscillator, chaotic here.
 
     The oscillator is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
@@ -535,7 +352,7 @@ class DuffingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
-        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].gamma
+        >>> DuffingSystem(gamma=0.3).prepare().system_.elements[0].get_value('gamma')
         0.3
     """
 
@@ -557,7 +374,7 @@ class DuffingSystem(BaseSystem):
         omega: float = 1.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.v = v
         self.delta = delta
@@ -566,35 +383,31 @@ class DuffingSystem(BaseSystem):
         self.gamma = gamma
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'duffing'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
+            'delta': DeclaredVariableSpec(self.delta, ParameterSpec()),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec()),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec()),
+            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
         """Return the parts of the system, built from its model parameters."""
-        acceleration = RateInteraction(
-            'acceleration',
-            target='duffing',
-            state='x',
-            rate=lambda s: (
+        return {
+            'x': lambda s: (
                 -s.target.delta * derivative(s.target.x, 1)
                 - s.target.alpha * s.target.x
                 - s.target.beta * s.target.x**3
                 + s.target.gamma * cos(s.target.omega * s.t)
             ),
-        )
-        return System(
-            self.label,
-            elements=[
-                DuffingElement(
-                    'duffing',
-                    x=self.x,
-                    x_d1=self.v,
-                    delta=self.delta,
-                    alpha=self.alpha,
-                    beta=self.beta,
-                    gamma=self.gamma,
-                    omega=self.omega,
-                ),
-            ],
-            interactions=[acceleration],
-        )
+        }
 
 
 class VanDerPolSystem(BaseSystem):
@@ -642,12 +455,21 @@ class VanDerPolSystem(BaseSystem):
         self.v = v
         self.mu = mu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Van der Pol oscillator `x'' = μ (1 - x²) x' - x`.
 
         The oscillator settles on a limit cycle for `μ > 0`.
         """
-        return System(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+        return CompositeSystem(self.label, elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu)])
+
+
+def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
+    """Return the Hénon-Heiles energy of a star.
+
+    The energy is `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`.
+    """
+    kinetic = (star.px**2 + star.py**2) / 2
+    return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
 
 
 class HenonHeilesSystem(BaseSystem):
@@ -709,9 +531,9 @@ class HenonHeilesSystem(BaseSystem):
         """Return the Hénon-Heiles Hamiltonian of the target."""
         return _get_henon_heiles_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[HenonHeilesElement('star', x=self.x, y=self.y, px=self.px, py=self.py)],
             interactions=[
@@ -783,9 +605,9 @@ class StuartLandauSystem(BaseSystem):
         self.omega = omega
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StuartLandauElement('oscillator', x=self.x, y=self.y, mu=self.mu, omega=self.omega, beta=self.beta),
@@ -850,18 +672,18 @@ class ForcedVanDerPolSystem(BaseSystem):
         self.A = A
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Van der Pol oscillator driven by a periodic force.
 
         The oscillator follows `x'' = μ (1 - x²) x' - x + A cos(ω t)`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[VanDerPolElement('oscillator', x=self.x, x_d1=self.v, mu=self.mu, A=self.A, omega=self.omega)],
         )
 
 
-class AdlerEquationSystem(BaseSystem):
+class AdlerEquationSystem(DynamicalSystem):
     """The Adler equation `Δφ' = Δω + ε sin Δφ`.
 
     The equation is that of the phase difference of an oscillator and its drive.
@@ -884,7 +706,7 @@ class AdlerEquationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerEquationSystem
-        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].detuning
+        >>> AdlerEquationSystem(detuning=2.0).prepare().system_.elements[0].get_value('detuning')
         2.0
     """
 
@@ -902,20 +724,44 @@ class AdlerEquationSystem(BaseSystem):
         epsilon: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.phi = phi
         self.detuning = detuning
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
-        """Return the Adler equation `Δφ' = Δω + ε sin Δφ`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'difference'
 
-        The equation is that of the phase difference of an oscillator and its drive.
-        """
-        return System(
-            self.label,
-            elements=[AdlerPhaseElement('difference', phi=self.phi, detuning=self.detuning, epsilon=self.epsilon)],
-        )
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'phi': self.phi,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'detuning': self.detuning,
+            'epsilon': self.epsilon,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rate of the phase difference."""
+        return {
+            'phi': lambda s: s.target.detuning + s.target.epsilon * sin(s.target.phi),
+        }
+
+
+def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
+    """Return the quadrupole energy of a nucleus.
+
+    The energy is `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`.
+    """
+    q2 = nucleus.q1**2 + nucleus.q2**2
+    kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
+    cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
+    return kinetic + q2 / 2 + cubic + q2**2 / 8
 
 
 class NuclearQuadrupoleSystem(BaseSystem):
@@ -985,12 +831,12 @@ class NuclearQuadrupoleSystem(BaseSystem):
         """Return the quadrupole Hamiltonian of the target."""
         return _get_quadrupole_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the quadrupole vibrations of a nuclear surface.
 
         The vibrations are a Hamiltonian system of two degrees of freedom.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[QuadrupoleElement('nucleus', q1=self.q1, q2=self.q2, p1=self.p1, p2=self.p2, B=self.B)],
             interactions=[
@@ -1005,7 +851,7 @@ class NuclearQuadrupoleSystem(BaseSystem):
         )
 
 
-class ForcedTodaSystem(BaseSystem):
+class ForcedTodaSystem(DynamicalSystem):
     """The forced Toda oscillator `x'' + d x' + e^x - 1 = a sin(omega t)`.
 
     It is a passive asymmetric oscillator.
@@ -1037,7 +883,7 @@ class ForcedTodaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.nonlinear_oscillators import ForcedTodaSystem
-        >>> ForcedTodaSystem(a=1.2).prepare().system_.elements[0].a
+        >>> ForcedTodaSystem(a=1.2).prepare().system_.elements[0].get_value('a')
         1.2
     """
 
@@ -1057,19 +903,33 @@ class ForcedTodaSystem(BaseSystem):
         omega: float = 1.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.v = v
         self.d = d
         self.a = a
         self.omega = omega
 
-    def _build_system(self) -> System:
-        """Return the parts of the system, built from its model parameters."""
-        return System(
-            self.label,
-            elements=[TodaElement('toda', x=self.x, x_d1=self.v, d=self.d, a=self.a, omega=self.omega)],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'toda'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec(order=2, initial=(self.v,))),
+            'd': DeclaredVariableSpec(self.d, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec()),
+            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the acceleration of the oscillator."""
+        return {
+            'x': lambda s: (
+                -s.target.d * derivative(s.target.x, 1) - (exp(s.target.x) - 1) + s.target.a * sin(s.target.omega * s.t)
+            ),
+        }
 
 
 class ImpulsiveOscillatorSystem(BaseSystem):
@@ -1152,7 +1012,7 @@ class ImpulsiveOscillatorSystem(BaseSystem):
         self.spring = spring
         self.omega0 = omega0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an oscillator kicked by a periodic train of impulses of alternating sign."""
         if self.spring not in SPRINGS:
             error_msg = f'Unknown spring {self.spring!r}. Use one of {", ".join(SPRINGS)}.'
@@ -1175,24 +1035,24 @@ class ImpulsiveOscillatorSystem(BaseSystem):
                 'spring',
                 target='oscillator',
                 state='x',
-                rate=lambda s: -s.target.omega0**2 * s.target.x,
+                rate=lambda s: -(s.target.omega0**2) * s.target.x,
             )
         jump = 2 / (1 - self.gamma**2)
         pull = {'x_d1': lambda s: s.target.x_d1 - jump * s.target.H}
         push = {'x_d1': lambda s: s.target.x_d1 + jump * s.target.H}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ImpulsiveOscillatorElement('oscillator', x=self.x, x_d1=self.v, H=self.H, omega0=self.omega0)],
             interactions=[
                 restoring,
-                ImpulseInteraction(
+                KickInteraction(
                     'pull',
                     target='oscillator',
                     reset=pull,
                     period=4 * self.a,
                     start=(1 - self.gamma) * self.a,
                 ),
-                ImpulseInteraction(
+                KickInteraction(
                     'push',
                     target='oscillator',
                     reset=push,

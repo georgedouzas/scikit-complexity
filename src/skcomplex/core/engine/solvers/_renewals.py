@@ -1,7 +1,4 @@
-"""Keep the next renewal times of every member and fire renewals.
-
-Renewals fire alone or between the steps of other solvers.
-"""
+"""Keep the next renewal times of every member and fire renewals."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,7 @@ from ._event_locator import EventLocator
 
 
 class RenewalClock:
-    """Next renewal time of every member of every renewal law.
+    """A clock of the next renewal time of every member of every renewal law.
 
     It holds the renewals that fire as time passes. Members of one component renew in time order across its renewal
     laws. Every firing pass draws for all the members it renews at once, so the stream of random values depends only on
@@ -66,7 +63,7 @@ class RenewalClock:
         for law in self.problem.renewals:
             self.following.append(law.run(RunStateSpec(t, x, p, self.rng)).values_)
 
-    def earliest(self) -> float:
+    def get_earliest(self) -> float:
         """Return the earliest pending renewal time of any member.
 
         Returns:
@@ -118,7 +115,7 @@ class RenewalClock:
             state, fired = self._fire_pass(limits, state, p)
         return state
 
-    def _member_stops(self, end: float, size: int) -> Array:
+    def _get_member_stops(self, end: float, size: int) -> Array:
         """Return the time every state component advances to.
 
         It is the next renewal of its member, or the end.
@@ -157,12 +154,12 @@ class RenewalClock:
         clock = np.full(x.size, t)
         state = x
         while True:
-            stops = self._member_stops(end, x.size)
+            stops = self._get_member_stops(end, x.size)
             lengths = stops - clock
             if np.any(lengths > 0):
                 state = step(float(np.min(clock)), state, p, lengths)
             clock = stops
-            if self.earliest() > end:
+            if self.get_earliest() > end:
                 return state
             limits = [
                 clock[law.states[:, 0]] if law.states.size else np.full(law.members, end)
@@ -196,7 +193,7 @@ class RenewalClock:
                 The state at `end`.
         """
         time, state = t, x
-        while (renewal := self.earliest()) <= end:
+        while (renewal := self.get_earliest()) <= end:
             if renewal > time:
                 state = step(time, state, p, np.full(x.size, renewal - time))
                 time = renewal

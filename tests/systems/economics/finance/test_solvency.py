@@ -13,10 +13,10 @@ def test_default_cascade_spreads_along_a_chain_of_exposures():
     """Test a chain by hand: each default costs the next creditor its claim, and a recovery rate stops the cascade."""
     chain = [[0.0, 5.0, 0.0], [0.0, 0.0, 5.0], [0.0, 0.0, 0.0]]
     full = _run(DefaultCascadeSystem(chain, [1.0, 4.0, 4.0], threshold=0.5), 5)
-    assert full.values('cascade.defaults')[-1] == 3
+    assert full.get_values('cascade.defaults')[-1] == 3
     assert _agents(full, 'banks', 5)['equity'][1:] == pytest.approx([-1.0, -1.0])
     partial = _run(DefaultCascadeSystem(chain, [1.0, 4.0, 4.0], threshold=0.5, recovery=0.5), 5)
-    assert partial.values('cascade.defaults')[-1] == 1
+    assert partial.get_values('cascade.defaults')[-1] == 1
     assert _agents(partial, 'banks', 5)['equity'][1] == pytest.approx(1.5)
 
 
@@ -25,7 +25,7 @@ def test_default_cascade_has_the_contagion_window_of_gai_and_kapadia():
 
     def extent(degree):
         shares = [
-            _run(DefaultCascadeSystem(degree=degree, random_state=seed, shocked=(seed,)), 30).values(
+            _run(DefaultCascadeSystem(degree=degree, random_state=seed, shocked=(seed,)), 30).get_values(
                 'cascade.defaults',
             )[-1]
             for seed in range(6)
@@ -54,5 +54,5 @@ def test_eisenberg_noe_clearing_reaches_the_greatest_clearing_vector():
     )
     payments = _agents(trajectory, 'banks', 60)['payment']
     assert payments == pytest.approx(solution.x, abs=1e-6)
-    assert np.all(np.diff(trajectory.values('clearing.shortfall')[1:]) >= -1e-9)
-    assert trajectory.values('clearing.defaults')[-1] > 0
+    assert np.all(np.diff(trajectory.get_values('clearing.shortfall')[1:]) >= -1e-9)
+    assert trajectory.get_values('clearing.defaults')[-1] > 0

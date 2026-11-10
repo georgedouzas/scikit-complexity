@@ -9,7 +9,7 @@ step with the earliest at the top, a chaotic pattern of ridges that split, merge
 """
 
 # %%
-# The system is built from its class with 128 Fourier modes, started from Kassam and Trefethen's
+# The example builds `KuramotoSivashinskySystem` with 128 Fourier modes, started from Kassam and Trefethen's
 # `cos(x / 16) (1 + sin(x / 16))`. The catalog registers the fourth-order exponential time differencing stepper for
 # this stiff equation, so it is passed explicitly with steps of 0.25. The observer saves every frame of 0.5 with the
 # default blueprint, whose primary view is the space-time image of the field.
@@ -36,7 +36,7 @@ trajectory = simulate(system, until=149.5, dt=0.5, observers=[observer])
 # decay.
 
 run = simulate(KuramotoSivashinskySystem(), until=1000)
-field = run.values('line.u')[200:]
+field = run.get_values('line.u')[200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])
 power = np.mean(np.abs(np.fft.rfft(field, axis=1)) ** 2, axis=0)

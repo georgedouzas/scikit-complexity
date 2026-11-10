@@ -30,11 +30,6 @@ from mkdocs_gallery import glr_path_static
 
 from skcomplex.core.base import BaseConfig
 
-# mkdocs-gallery 0.10.4, its latest release, still reads docstrings through `ast.Str` and `.s`, which Python 3.12
-# deprecates, so every parsed example logs two warnings. Silence only those, only from mkdocs-gallery.
-for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
-    warnings.filterwarnings('ignore', message=message, category=DeprecationWarning, module=r'mkdocs_gallery\.')
-
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
 SYSTEMS_NAVIGATION = 'systems/SUMMARY.md'
@@ -44,6 +39,12 @@ SHOW_EXPRESSION = '_show_expression'
 PYTHON_BLOCK = re.compile(r'^```python(?P<continuation> continuation)?\n(?P<code>.*?)^```$', re.MULTILINE | re.DOTALL)
 RUNNING_TIME = '**Total running time of the script:**'
 EMPTY_SUBSECTION = re.compile(r'^## [^\n]*\n\s*<div class="mkd-glr-clear"></div>\s*<!-- \S+ -->\n*', re.MULTILINE)
+
+
+# mkdocs-gallery 0.10.4, its latest release, still reads docstrings through `ast.Str` and `.s`, which Python 3.12
+# deprecates, so every parsed example logs two warnings. Silence only those, only from mkdocs-gallery.
+for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
+    warnings.filterwarnings('ignore', message=message, category=DeprecationWarning, module=r'mkdocs_gallery\.')
 
 
 def _without_empty_sections(nav: list[object]) -> list[object]:

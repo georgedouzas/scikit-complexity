@@ -14,12 +14,15 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ObservableSpec(BaseSpec):
-    """Spec of a named value of a system that a run computes at every frame.
+    """A spec of a named value of a system that a run computes at every frame.
 
     The run computes it from the states and parameters of the system. An observable is an expression of the namespace of
-    the system, of one element when `element` is given, or a reduction over the members of a group of an expression or a
-    variable of each member. A run records it in its trajectory under `<system path>/<label>`, or `<element>.<label>`
-    for an element, and laws of other partitions read it through a role bound to its path.
+    the system, or of one element when `element` is given, or a reduction over the members of a group. A run records it
+    in its trajectory under `<system path>/<label>`, or `<element>.<label>` for an element, and laws of other partitions
+    read it through a role bound to its path.
+
+    It appears in many fields, such as the total population of an epidemic, the energy of a mechanical system, the
+    magnetization of a lattice of spins, and the mean wealth of an economy.
 
     Args:
         label:

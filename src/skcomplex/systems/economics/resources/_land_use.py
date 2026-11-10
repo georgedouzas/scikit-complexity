@@ -16,7 +16,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec
 
@@ -175,7 +175,7 @@ class VonThunenSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import VonThunenSystem
         >>> trajectory = simulate(VonThunenSystem(), until=1.0)
-        >>> sorted(set(trajectory.values('plain.crop')[0].ravel().tolist()))
+        >>> sorted(set(trajectory.get_values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """
 
@@ -200,7 +200,7 @@ class VonThunenSystem(BaseSystem):
         self.costs = costs
         self.rates = rates
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         centre = (self.size - 1) / 2
         rows, columns = np.indices((self.size, self.size))
@@ -219,4 +219,4 @@ class VonThunenSystem(BaseSystem):
             costs=self.costs,
             rates=self.rates,
         )
-        return System(self.label, elements=[plain], interactions=[bid], time=StaticTime())
+        return CompositeSystem(self.label, elements=[plain], interactions=[bid], time=StaticTime())

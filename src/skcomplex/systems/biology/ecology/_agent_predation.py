@@ -11,18 +11,14 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    LifeCycleInteraction,
-    MapInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 
 class PredatorView(AgentView):
@@ -213,7 +209,7 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         It is zero when other prey share its cell.
         """
         del system
-        if not isinstance(prey, PreyView) or prey.agents_here(prey.group):
+        if not isinstance(prey, PreyView) or prey.get_agents_here(prey.group):
             return 0.0
         return float(prey.birth)
 
@@ -238,21 +234,21 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         del predator, system
         return 0.0
 
-    def _get_prey(self, group: str) -> list[MovementInteraction | LifeCycleInteraction]:
+    def _get_prey(self, group: str) -> list[MovementInteraction | BirthDeathInteraction]:
         """Return the member interactions of a prey.
 
         A prey walks, then gives birth when alone in the new cell.
         """
         return [
             MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-            LifeCycleInteraction(f'{group}_birth', target=group, birth=self._get_birth, schedule='member'),
+            BirthDeathInteraction(f'{group}_birth', target=group, birth=self._get_birth, schedule='member'),
         ]
 
     def _get_predators(
         self,
         group: str,
         prey: str,
-    ) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction | MapInteraction]:
+    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction | MapInteraction]:
         """Return the member interactions of a predator.
 
         A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
@@ -273,8 +269,8 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
                 partners=1,
                 remove='source',
             ),
-            LifeCycleInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
-            LifeCycleInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
+            BirthDeathInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
+            BirthDeathInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
             MapInteraction(
                 f'{group}_digestion',
                 target=group,
@@ -285,12 +281,12 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prey and predators that walk on a grid."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
         locations = [tuple(int(item) for item in cell) for cell in cells]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

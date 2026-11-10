@@ -41,7 +41,7 @@ trajectory = simulate(SprottMixedFlowSystem(), observers=[observer])
 runs = {}
 for name, (x, color) in STARTS.items():
     runs[name] = simulate(SprottMixedFlowSystem(x=x), until=1000)
-    points = np.column_stack([runs[name].values(f'flow.{state}') for state in 'xyz'])[:4000]
+    points = np.column_stack([runs[name].get_values(f'flow.{state}') for state in 'xyz'])[:4000]
     observer.recording_.log(f'orbits/{name}', rr.LineStrips3D([points], radii=0.005, colors=color), static=True)
 observer.recording_.flush()
 
@@ -53,7 +53,7 @@ observer.recording_.flush()
 
 fig, axis = plt.subplots(figsize=(7, 4))
 for name, trajectory in runs.items():
-    rate = 2 * (trajectory.values('flow.y') + trajectory.values('flow.z'))
+    rate = 2 * (trajectory.get_values('flow.y') + trajectory.get_values('flow.z'))
     running = np.cumsum(rate) / np.arange(1, rate.size + 1)
     axis.plot(trajectory.times, running, label=f'{name}, mean {rate.mean():.3f}')
 axis.axhline(0, color='black', linestyle=':')

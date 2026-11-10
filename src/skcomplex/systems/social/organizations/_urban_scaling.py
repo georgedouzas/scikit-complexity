@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import EquationLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
 
@@ -158,7 +158,7 @@ class GravityUrbanScalingSystem(BaseSystem):
         self.gamma = gamma
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         radius = np.sqrt(self.population**self.alpha / np.pi)
         rng = np.random.default_rng(self.random_state)
@@ -173,4 +173,4 @@ class GravityUrbanScalingSystem(BaseSystem):
         )
         contact = GravityContactInteraction('contact', target='residents', reach=2.0 * radius, gamma=self.gamma)
         space = ContinuousSpace(extent=[2.0 * radius, 2.0 * radius])
-        return System(self.label, elements=[residents], interactions=[contact], space=space, time=StaticTime())
+        return CompositeSystem(self.label, elements=[residents], interactions=[contact], space=space, time=StaticTime())

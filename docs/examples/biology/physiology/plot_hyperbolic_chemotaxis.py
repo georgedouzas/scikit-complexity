@@ -7,9 +7,9 @@ are and draws them together.
 """
 
 # %%
-# The system is built from its class with the test of Bellomo et al. (2017, section 6.6.2), and integrated with the
-# implicit BDF method, since the turning rates are large. The observer saves every frame with the default blueprint,
-# whose primary view is the image of the cell density.
+# The example builds `HyperbolicChemotaxisSystem` with the test of Bellomo et al. (2017, section 6.6.2), and integrated
+# with the implicit BDF method, since the turning rates are large. The observer saves every frame with the default
+# blueprint, whose primary view is the image of the cell density.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ trajectory = simulate(HyperbolicChemotaxisSystem(), solver=solver, observers=[ob
 # The total cell mass should stay at `2 n0 = 0.5` while the peak density falls, and the chemical should grow where the
 # cells are.
 
-cells, chemical = trajectory.lattice('tissue.n'), trajectory.lattice('tissue.c')
+cells, chemical = trajectory.get_lattice('tissue.n'), trajectory.get_lattice('tissue.c')
 area = (0.8 / 40) ** 2
 fig, (start, end, mass) = plt.subplots(1, 3, figsize=(14, 4.2))
 extent = (-0.4, 0.4, -0.4, 0.4)

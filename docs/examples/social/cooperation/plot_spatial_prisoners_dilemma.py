@@ -39,13 +39,13 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 def cooperators(temptation, rounds=ROUNDS):
     """Return the share of cooperators after every round."""
     run = simulate(SpatialPrisonersDilemmaSystem(temptation=temptation, random_state=0), until=rounds, random_state=0)
-    return run.values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
+    return run.get_values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
 
 
 temptations = np.linspace(1.05, 2.45, 15)
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
 for index, temptation in enumerate((1.6, 1.85, 2.1)):
-    shares = trajectory.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
+    shares = trajectory.get_values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
     shares = shares if temptation == 1.85 else cooperators(temptation)
     series.plot(shares, color=f'C{index}', label=f'b = {temptation}')
 series.axhline(12 * np.log(2) - 8, color='grey', linestyle=':', label='12 ln 2 - 8')

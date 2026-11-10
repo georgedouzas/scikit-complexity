@@ -15,15 +15,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import SpinSamplingInteraction
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+NEAREST = BallNeighborhood(metric='manhattan')
 
 
 class BondSpinElement(Element):
@@ -162,9 +163,6 @@ class MattisSpinElement(BondSpinElement):
         self.pattern = pattern
 
 
-NEAREST = VonNeumannNeighborhood()
-
-
 class BondSamplingInteraction(SpinSamplingInteraction):
     """Metropolis sweeps of Ising spins with quenched couplings to their neighbours.
 
@@ -183,47 +181,18 @@ class BondSamplingInteraction(SpinSamplingInteraction):
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import BondSamplingInteraction
         >>> BondSamplingInteraction('sampling', target='spins').neighborhood
-        VonNeumannNeighborhood()
+        BallNeighborhood(metric='manhattan')
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='spin', energy=self._energy, neighborhood=NEAREST)
+        super().__init__(label, target=target, state='spin', energy=self._get_energy, neighborhood=NEAREST)
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
         s = namespace.target
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
         neighbours = neighbors(s.spin, NEAREST, reduce='each')
         return -s.spin * (sum(coupling * other for coupling, other in zip(couplings, neighbours, strict=True)) + s.h)
-
-
-def _square(size: int | Sequence[int]) -> tuple[int, int]:
-    """Return the shape of a square lattice of a side, or a given shape of two sides."""
-    if isinstance(size, Sequence):
-        rows, columns = (int(item) for item in size)
-        return rows, columns
-    return int(size), int(size)
-
-
-def _bond_states(
-    right: npt.NDArray[np.floating],
-    down: npt.NDArray[np.floating],
-) -> dict[str, npt.NDArray[np.floating]]:
-    """Return the couplings of every site to its up, left, right, and down neighbours.
-
-    The couplings come from the bonds right and down.
-    """
-    return {
-        'J_up': np.roll(down, 1, axis=0),
-        'J_left': np.roll(right, 1, axis=1),
-        'J_right': right,
-        'J_down': down,
-    }
-
-
-def _overlap(member: SimpleNamespace) -> Expression:
-    """Return the overlap of a spin with its quenched pattern."""
-    return member.spin * member.pattern
 
 
 class EdwardsAndersonSystem(BaseSystem):
@@ -276,6 +245,30 @@ class EdwardsAndersonSystem(BaseSystem):
     dt = 5
     observables = (ObservableSpec('magnetization', group='spins', variable='spin'),)
 
+    @staticmethod
+    def _get_square(size: int | Sequence[int]) -> tuple[int, int]:
+        """Return the shape of a square lattice of a side, or a given shape of two sides."""
+        if isinstance(size, Sequence):
+            rows, columns = (int(item) for item in size)
+            return rows, columns
+        return int(size), int(size)
+
+    @staticmethod
+    def _get_bond_states(
+        right: npt.NDArray[np.floating],
+        down: npt.NDArray[np.floating],
+    ) -> dict[str, npt.NDArray[np.floating]]:
+        """Return the couplings of every site to its up, left, right, and down neighbours.
+
+        The couplings come from the bonds right and down.
+        """
+        return {
+            'J_up': np.roll(down, 1, axis=0),
+            'J_left': np.roll(right, 1, axis=1),
+            'J_right': right,
+            'J_down': down,
+        }
+
     def __init__(
         self,
         size: int | Sequence[int] = 48,
@@ -295,12 +288,12 @@ class EdwardsAndersonSystem(BaseSystem):
         self.disorder = disorder
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Edwards-Anderson spin glass on a periodic square lattice.
 
         The bonds are quenched and random.
         """
-        shape = _square(self.size)
+        shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         if self.disorder == 'bimodal':
             right, down = self.J * rng.choice([-1.0, 1.0], size=(2, *shape))
@@ -310,14 +303,29 @@ class EdwardsAndersonSystem(BaseSystem):
             error_msg = f"The disorder is 'bimodal' or 'gaussian', not {self.disorder!r}."
             raise ValidationError(error_msg)
         spins = rng.choice([-1.0, 1.0], size=shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=BondSpinElement,
             space=LatticeSpace(shape),
-            values={'spin': spins, 'h': self.h, 'temperature': self.temperature, **_bond_states(right, down)},
+            values={
+                'spin': spins,
+                'h': self.h,
+                'temperature': self.temperature,
+                **EdwardsAndersonSystem._get_bond_states(right, down),
+            },
             visual=SPIN_IMAGE,
+            on='sites',
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return CompositeSystem(
+            self.label,
+            elements=[group],
+            interactions=[BondSamplingInteraction('sampling', target='spins')],
+        )
+
+
+def _get_overlap(member: SimpleNamespace) -> Expression:
+    """Return the overlap of a spin with its quenched pattern."""
+    return member.spin * member.pattern
 
 
 class MattisSpinGlassSystem(BaseSystem):
@@ -365,7 +373,7 @@ class MattisSpinGlassSystem(BaseSystem):
     dt = 2
     observables = (
         ObservableSpec('magnetization', group='spins', variable='spin'),
-        ObservableSpec('overlap', _overlap, group='spins'),
+        ObservableSpec('overlap', _get_overlap, group='spins'),
     )
 
     def __init__(
@@ -385,15 +393,15 @@ class MattisSpinGlassSystem(BaseSystem):
         self.h = h
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = EdwardsAndersonSystem._get_square(self.size)
         rng = np.random.default_rng(self.random_state)
         pattern = rng.choice([-1.0, 1.0], size=shape)
         right = self.J * pattern * np.roll(pattern, -1, axis=1)
         down = self.J * pattern * np.roll(pattern, -1, axis=0)
         spins = rng.choice([-1.0, 1.0], size=shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=MattisSpinElement,
             space=LatticeSpace(shape),
@@ -402,8 +410,13 @@ class MattisSpinGlassSystem(BaseSystem):
                 'pattern': pattern,
                 'h': self.h,
                 'temperature': self.temperature,
-                **_bond_states(right, down),
+                **EdwardsAndersonSystem._get_bond_states(right, down),
             },
             visual=VisualSpec('image', {'states': ()}),
+            on='sites',
         )
-        return System(self.label, elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
+        return CompositeSystem(
+            self.label,
+            elements=[group],
+            interactions=[BondSamplingInteraction('sampling', target='spins')],
+        )

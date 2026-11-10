@@ -1,7 +1,4 @@
-"""Define state translation neighbourhoods.
-
-They read a group space at the product of a site and its own value.
-"""
+"""Define the neighbourhood that reads a group space at a site times its own value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,23 +9,26 @@ from ._base import BaseNeighborhood
 
 
 class StateTranslationNeighborhood(BaseNeighborhood):
-    """Memory set translated by the value of a cell.
+    """A neighbourhood that moves with the value each cell of a group space holds.
 
-    The cell at `g` reads the cells at `g x(g) s` for every word `s`. The alphabet is the group of a group space, and a
-    cell holds a group element as the number of its site. A local rule over the neighbourhood reads, at every site `g`,
-    the cells at the products `g x(g) s`, where `x(g)` is the value of the first state the rule reads. The sites read
-    move with the configuration, so on an infinite group the map has no finite memory set, as for `x(g · x(g))` of
-    Ceccherini-Silberstein and Coornaert (2023, Example 1.8.2), which is continuous and equivariant but no cellular
-    automaton. A run truncates it to a ball or a finite quotient: on a finite group every product is a site, and on a
-    ball a product outside it, or reached through a site outside it, reads the fill value of the space, as does a value
-    that names no site.
+    The cell at `g` reads the cells at `g x(g) s` for every word `s`, where `x(g)` is the group element that the first
+    read state holds at `g`, as the number of its site. The sites read move with the configuration, so on an infinite
+    group the map has no finite memory set, as for `x(g x(g))` of Ceccherini-Silberstein and Coornaert (2023, Example
+    1.8.2), which is continuous and equivariant but no cellular automaton. A run truncates it to a ball or a finite
+    quotient, and a product outside the ball reads the fill value of the space.
+
+    Unlike `MemoryNeighborhood`, whose memory set is fixed, it shifts the memory set by the value of the cell. Choose it
+    when studying maps on groups that are not cellular automata.
+
+    It appears in mathematics, in symbolic dynamics on groups, as the example of Ceccherini-Silberstein and Coornaert
+    shows.
 
     Args:
         elements:
             The words `s` of the memory set after the translation, `'1'` for the translated site alone.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Attributes:
         elements_:

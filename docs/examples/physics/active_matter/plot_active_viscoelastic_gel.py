@@ -7,7 +7,7 @@ peaks. The gel has no inertia, so its velocity solves a force balance at every s
 """
 
 # %%
-# The system is built from its class on a periodic line of length 10 in 128 sites, around the density 1,
+# The example builds `ActiveViscoelasticGelSystem` on a periodic line of length 10 in 128 sites, around the density 1,
 # with `c Ta'(c) = 1` above `gamma D = 0.1`. The catalog entry solves the force balance with `inverse_helmholtz` and
 # streams the velocity as an observable, and the default blueprint shows the history of the density.
 
@@ -29,9 +29,9 @@ trajectory = simulate(ActiveViscoelasticGelSystem(), observers=[observer], rando
 # The largest density should rise far above 1 while the total stays fixed, and the cells should flow toward the peak.
 # Applying `gamma - eta d_xx` to the streamed velocity should return the gradient of the stress to rounding.
 
-density = trajectory.lattice('gel.c')
-displacement = trajectory.lattice('gel.u')
-velocity = np.asarray(trajectory.values('v'))
+density = trajectory.get_lattice('gel.c')
+displacement = trajectory.get_lattice('gel.u')
+velocity = np.asarray(trajectory.get_values('v'))
 spacing = 10 / 128
 centers = (np.arange(128) + 0.5) * spacing
 

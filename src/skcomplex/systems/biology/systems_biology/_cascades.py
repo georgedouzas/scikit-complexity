@@ -13,11 +13,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ReactionInteraction
 from ....core.components.laws.utils import pulse
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.kinetics import SpeciesElement
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
@@ -164,7 +164,7 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
         self.start = start
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the adenylate cyclase cascade."""
         if len(self.alpha) != len(STAGES) or len(self.beta) != len(STAGES):
             error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
@@ -203,7 +203,7 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
                 propensity=lambda s: s.target.k_gtp * s.target.g,
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[g_protein, *stages],
             interactions=[*switching, *activations, *inactivations],

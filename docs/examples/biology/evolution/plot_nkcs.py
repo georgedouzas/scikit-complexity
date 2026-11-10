@@ -7,7 +7,7 @@ forever, rugged ones freeze it once every species sits on a peak at the same tim
 """
 
 # %%
-# The system is built from its class with ten species coupled to two partners each. The observer saves every frame
+# The example builds `NKCSSystem` with ten species coupled to two partners each. The observer saves every frame
 # with the default blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ trajectory = simulate(NKCSSystem(), observers=[observer], random_state=0)
 fig, ax = plt.subplots(figsize=(8, 4.5))
 for k in (0, 2, 8):
     run = simulate(NKCSSystem(k=k), random_state=0)
-    moves = [run.agents('species', frame).values['moves'].sum() for frame in range(201)]
+    moves = [run.get_agents('species', frame).values['moves'].sum() for frame in range(201)]
     ax.plot(np.convolve(moves, np.ones(10) / 10, mode='same'), label=f'k = {k}')
 ax.set_xlabel('step')
 ax.set_ylabel('accepted mutations per step')

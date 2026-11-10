@@ -7,7 +7,7 @@ an outbreak to a few households.
 """
 
 # %%
-# The system is built from its class with a thousand people, and the observer saves every half day with the default
+# The example builds `EpisimsCitySystem` with a thousand people, and the observer saves every half day with the default
 # blueprint, whose primary view is the network of locations with the people on it.
 
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ trajectory = simulate(EpisimsCitySystem(), observers=[observer], random_state=0)
 
 
 def compartments(trajectory):
-    health = np.array([trajectory.agents('people', frame).values['health'] for frame in range(201)])
+    health = np.array([trajectory.get_agents('people', frame).values['health'] for frame in range(201)])
     return [(health == state).mean(axis=1) for state in (0, 1, 2)]
 
 

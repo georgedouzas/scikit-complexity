@@ -8,9 +8,10 @@ phase space, let them encounter and collide over their class axes, and read thei
 
 ### Requirement: Phase spaces are products of position and class axes
 `PhaseSpace` SHALL be the product of a position lattice and one or more class axes, each a uniform grid over an
-interval with zero-flux edges or a periodic grid. It SHALL be a lattice space, so a `FieldElement` of `DensityElement`
-on it holds one value per point of the product, and its laws are written for one point. The compile report SHALL hold
-a phase space larger than its size limit, with the size it would take.
+interval with zero-flux edges or a periodic grid. It SHALL be a lattice space, so a `FieldElement` of
+`NonnegativeElement`, or of a realization of it, on it holds one value `x` per point of the product, and its laws are
+written for one point. The compile report SHALL hold a phase space larger than its size limit, with the size it would
+take.
 
 #### Scenario: Size of a phase space
 - **WHEN** a user creates a field over a periodic position lattice of 64 sites and a class axis of 128 points on
@@ -32,9 +33,11 @@ not on a phase space, or of an axis the space does not hold.
 - **THEN** the density moment equals 1 at every position within the quadrature error of the grid
 
 ### Requirement: Advection streams and accelerates phase-space fields
-`AdvectionInteraction` SHALL carry a phase-space field along the position axes at a drift that reads the class
-coordinates, and along the class axes at a drift that depends on position, class, time, or other fields, in the
-field's discretization. Transport SHALL conserve the total on periodic axes and on axes whose edges carry no inflow.
+`ConservationInteraction` with the flux of a drift times the field SHALL carry a phase-space field along the position
+axes at a drift that reads the class coordinates, and along the class axes at a drift that depends on position, class,
+time, or other fields, in the field's discretization. Transport SHALL conserve the total on periodic axes and on axes
+whose edges carry no inflow. Physics SHALL name this flux in its `AdvectionInteraction` of
+`skcomplex.systems.physics.common.fields`.
 
 #### Scenario: Free streaming is exact
 - **WHEN** a field without collisions streams on a periodic position lattice for time `t`
@@ -44,6 +47,11 @@ field's discretization. Transport SHALL conserve the total on periodic axes and 
 #### Scenario: Zero drift leaves classes unchanged
 - **WHEN** a spatially uniform field is advected along its class axis by a drift of zero
 - **THEN** the field does not change
+
+#### Scenario: Same trajectory as the physics realization
+- **WHEN** a field streams once by `ConservationInteraction` with the flux `a f` and once by the physics
+  `AdvectionInteraction` with the drift `a`
+- **THEN** both trajectories are equal
 
 ### Requirement: Moments over class axes are fields over position
 `moment` with `axes` SHALL reduce a phase-space field over the named class axes into a field over position, by a
@@ -67,8 +75,8 @@ SHALL conserve the density at every position in the conservative outcome.
 
 ### Requirement: Relaxation towards the maximum-entropy equilibrium conserves moments
 `maximum_entropy` SHALL return the density on the class axes with the largest entropy whose discrete moments up to its
-order equal those of the expression at every position, so a `RelaxationInteraction` towards it conserves those
-moments to round-off.
+order equal those of the expression at every position, so a `RateInteraction` with the rate `(equilibrium - f) / time`
+towards it conserves those moments to round-off.
 
 #### Scenario: Conservation under BGK
 - **WHEN** a spatially uniform field starting from two separated Maxwellians relaxes towards its maximum-entropy
@@ -157,3 +165,18 @@ simplex as a `law-space` issue.
 #### Scenario: Integral of a uniform density
 - **WHEN** a density of two on the 2-simplex is reduced over both class axes
 - **THEN** the result is one within 1e-12
+
+### Requirement: Collision integrals carry their kernel
+The collision integral SHALL be written as a call of the density and of its kernel `B(speed, cosine)`, so a rate law
+that reads it needs no other argument. The kernel SHALL be a function that returns an expression of the relative speed,
+the cosine of the deflection angle, and numbers, and a kernel that reads a state or a parameter SHALL raise a
+`ValidationError` at compile time.
+
+#### Scenario: Maxwell molecules
+- **WHEN** a rate law of a density on two interval velocity axes reads `collision_integral(f, kernel)` with the constant
+  kernel `1 / (2 pi)`
+- **THEN** the run gives the fast spectral integral that the cross-section of a rate law gave before, within 1e-12
+
+#### Scenario: Kernel that reads a parameter
+- **WHEN** the kernel of a collision integral returns an expression of a parameter
+- **THEN** compiling raises a `ValidationError` that names the law and the parameter

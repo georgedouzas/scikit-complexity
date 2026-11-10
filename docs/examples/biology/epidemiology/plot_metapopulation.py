@@ -6,9 +6,9 @@ connections, are reached first, and the less connected cities peak later, one wa
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 30 cities, with the infection starting
-# in the first. The observer saves every day with the default blueprint, whose primary view is the time series of the
-# subpopulations.
+# The example builds `MetapopulationSystem` on its default Barabási-Albert network of 30 cities, with the infection
+# starting in the first. The observer saves every day with the default blueprint, whose primary view is the time series
+# of the subpopulations.
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -30,7 +30,7 @@ trajectory = simulate(MetapopulationSystem(graph=graph), observers=[observer])
 # The infection hops one edge at a time, so the day each city reaches its epidemic peak should grow with its distance
 # on the network from the first city.
 
-infected = trajectory.values('cities.I')
+infected = trajectory.get_values('cities.I')
 peaks = trajectory.times[np.argmax(infected, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in range(graph.number_of_nodes())])

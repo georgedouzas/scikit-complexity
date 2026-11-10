@@ -6,7 +6,7 @@ capacity of 1964 mm³.
 """
 
 # %%
-# The system is built from its class and run for 100 days from a volume of 10 mm³, the breast cancer fit of
+# The example builds `GompertzSystem` and runs it for 100 days from a volume of 10 mm³, the breast cancer fit of
 # Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series
 # of the volume.
 
@@ -28,7 +28,7 @@ trajectory = simulate(GompertzSystem(n=10.0), observers=[observer])
 # The Gompertz law `dn/dt = r n log(K / n)` has the solution `n(t) = K exp(log(n0 / K) exp(-r t))`. The simulated
 # volume should lie on it, and `log(log(K / n))` should fall on a straight line of slope `-r`.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.get_values('tumour.x')
 r, K = 0.0719, 1964.0
 exact = K * np.exp(np.log(10.0 / K) * np.exp(-r * times))
 fig, (curve, line) = plt.subplots(1, 2, figsize=(10, 4))

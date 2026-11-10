@@ -1,7 +1,4 @@
-"""Translate Vensim and XMILE files into the source of system modules.
-
-They are translated through the abstract system of PySD.
-"""
+"""Translate Vensim and XMILE files into the source of system modules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from pysd.translators.xmile.xmile_file import XmileFile
 
 from ...base import BaseConfig
 from ...components.elements import Element
-from ...components.system import BaseSystem
+from ...components.systems import BaseSystem
 from ...errors import ValidationError
 from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter
@@ -42,17 +39,24 @@ RESERVED_NAMES = frozenset(
 
 
 class SystemDynamicsTranslator(BaseConfig[None, None]):
-    """Translator of a Vensim or XMILE file into the source of a system module.
+    """A translator of a Vensim or XMILE file into the source of a system module.
 
-    The module is a system module of the library. The module holds one element class, whose states are the stocks and
-    whose parameters are the constants of the file, one private function per auxiliary and lookup, the constants
-    `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class on `BaseSystem`, named after the element in CamelCase
-    with the suffix `System`. The system class takes the constants as keyword arguments, with the values of the file as
-    defaults, builds its element and its interactions in `_build_system`, and holds as tuned run settings `until`, the
-    length of the run, `dt`, the saving interval of the file, and `observables`, one per auxiliary and per goal-seeking
-    stock. A flow variable of two stocks becomes a `TransferInteraction` between them, a flow variable of one stock a
-    `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a stock a `RelaxationInteraction`
-    or a `RateInteraction`. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
+    The module is a system module of the library, with one private function per auxiliary and lookup, the constants
+    `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class named after the element in CamelCase with the suffix
+    `System`. The system class takes the constants as keyword arguments, with the values of the file as defaults, and
+    holds as tuned run settings `until`, the length of the run, `dt`, the saving interval of the file, and
+    `observables`, one per auxiliary and per goal-seeking stock.
+
+    A file whose stocks are not subscripted and change only through flow variables becomes a subclass of
+    `StockFlowSystem`, imported in the source from `skcomplex.systems.general.dynamics`, which returns the initial
+    stocks from `_get_stocks`, the constants from `_get_parameters`, and the flows from `_get_flows`. A flow variable of
+    two stocks flows from one to the other, and a flow variable of one stock with the environment.
+
+    Any other file becomes one element class, whose states are the stocks and whose parameters are the constants of
+    the file, and a system class on `BaseSystem` that builds the `CompositeSystem` of its element and its interactions
+    in `_build_system`. A flow variable becomes a `TransferInteraction`, with `Source()` or `Sink()` for the
+    environment, and what remains of the rate of a stock a `RateInteraction`, with the rate `(goal - stock) / time` for
+    a goal-seeking stock. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
     member per subscript.
 
     Args:
@@ -95,10 +99,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         ...     translator = SystemDynamicsTranslator(path).prepare().run()
         >>> translator.settings_.until
         4.0
+        >>> 'class GrowthSystem(StockFlowSystem):' in translator.source_
+        True
         >>> 'class GrowthElement(Element):' in translator.source_
-        True
-        >>> 'class GrowthSystem(BaseSystem):' in translator.source_
-        True
+        False
     """
 
     def __init__(self, path: str | Path, *, name: str | None = None) -> None:

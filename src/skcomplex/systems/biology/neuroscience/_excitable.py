@@ -14,20 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
 
 EXCITED = 1
-
-
-def _excited_fraction(phases: AnyArray) -> float:
-    """Return the fraction of elements that are excited."""
-    return float(np.mean(np.asarray(phases) == EXCITED))
 
 
 class ExcitableElement(Element):
@@ -75,6 +70,11 @@ class ExcitableElement(Element):
         self.phase = phase
         self.p = p
         self.stimulus = stimulus
+
+
+def _get_excited_fraction(phases: AnyArray) -> float:
+    """Return the fraction of elements that are excited."""
+    return float(np.mean(np.asarray(phases) == EXCITED))
 
 
 class KinouchiCopelliSystem(BaseSystem):
@@ -126,7 +126,7 @@ class KinouchiCopelliSystem(BaseSystem):
     references = ('Kinouchi and Copelli 2006', 'Larremore et al. 2011')
     until = 1000
     dt = 1
-    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_excited_fraction),)
+    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_get_excited_fraction),)
 
     def __init__(
         self,
@@ -175,7 +175,7 @@ class KinouchiCopelliSystem(BaseSystem):
             for phase in range(EXCITED, n_states)
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Kinouchi-Copelli network of excitable elements."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -187,11 +187,12 @@ class KinouchiCopelliSystem(BaseSystem):
             if self.excited is None
             else (rng.random(size) < self.excited).astype(float)
         )
-        neurons = LatticeElement(
+        neurons = GroupElement(
             'neurons',
             element=ExcitableElement,
             space=NetworkSpace(graph),
             values={'phase': phase, 'p': self.sigma / degree, 'stimulus': self.stimulus},
+            on='sites',
         )
         excitation = TransitionInteraction(
             'excitation',
@@ -201,7 +202,7 @@ class KinouchiCopelliSystem(BaseSystem):
             destination=EXCITED,
             probability=self._get_excitation,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[neurons],
             interactions=[excitation, *self._get_cycle(self.n_states)],

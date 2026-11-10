@@ -8,7 +8,7 @@ against the traffic.
 """
 
 # %%
-# The system is built from its class on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
+# The example builds `GktTrafficSystem` on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
 # with a perturbation of 2, with the calibrated parameters of Treiber, Hennecke, and Helbing. Lengths are in kilometres
 # and times in hours, and SSPRK integrates it for one hour. The default blueprint puts the history of the density first,
 # where the jams are the bright bands that lean against the traffic.
@@ -35,7 +35,7 @@ trajectory = simulate(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=
 # freeways, and this system should give about 20, from the jump between the jam and its outflow. The density should stay
 # conserved.
 
-rho = trajectory.lattice('road.rho')
+rho = trajectory.get_lattice('road.rho')
 minutes = trajectory.times * 60
 shifts = []
 for earlier, later in zip(rho[30:-10], rho[40:], strict=True):

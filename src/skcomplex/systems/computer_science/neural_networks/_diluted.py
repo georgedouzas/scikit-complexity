@@ -16,15 +16,10 @@ from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction
 from ....core.components.laws.utils import total
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-
-
-def _overlap(member: SimpleNamespace) -> Expression:
-    """Return the agreement of a neuron with the first stored pattern."""
-    return member.pattern * member.spin
+from ...general.agents import ChoiceInteraction
 
 
 class DilutedNeuronElement(Element):
@@ -72,6 +67,11 @@ class DilutedNeuronElement(Element):
         self.beta = beta
 
 
+def _get_overlap(member: SimpleNamespace) -> Expression:
+    """Return the agreement of a neuron with the first stored pattern."""
+    return member.pattern * member.spin
+
+
 class DilutedHopfieldSystem(BaseSystem):
     """The asymmetric diluted Hopfield network.
 
@@ -115,7 +115,7 @@ class DilutedHopfieldSystem(BaseSystem):
     references = ('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021')
     until = 20
     dt = 1
-    observables = (ObservableSpec('overlap', _overlap, group='neurons'),)
+    observables = (ObservableSpec('overlap', _get_overlap, group='neurons'),)
 
     def __init__(
         self,
@@ -137,7 +137,7 @@ class DilutedHopfieldSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generator) -> scipy.sparse.csr_array:
+    def _get_couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generator) -> scipy.sparse.csr_array:
         """Return the couplings `J_ij = C_ij Σ_μ ξ_i ξ_j` on a random digraph.
 
         The digraph has the mean in-degree `connectivity`.
@@ -150,14 +150,14 @@ class DilutedHopfieldSystem(BaseSystem):
         return scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size))
 
     @staticmethod
-    def _alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
+    def _get_alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
         """Return the utility `β s h` of a value `s` of a neuron in its local field.
 
         The local field is `h = Σ_j J_ij s_j`.
         """
         return s.target.beta * option * total(s.target.spin, weights=couplings)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the asymmetric diluted Hopfield network.
 
         It recalls a stored pattern below its memory capacity.
@@ -181,6 +181,9 @@ class DilutedHopfieldSystem(BaseSystem):
             target='neurons',
             state='spin',
             options=(-1.0, 1.0),
-            utility=functools.partial(self._alignment, couplings=self._couplings(patterns, self.connectivity, rng)),
+            utility=functools.partial(
+                self._get_alignment,
+                couplings=self._get_couplings(patterns, self.connectivity, rng),
+            ),
         )
-        return System(self.label, elements=[neurons], interactions=[glauber])
+        return CompositeSystem(self.label, elements=[neurons], interactions=[glauber])

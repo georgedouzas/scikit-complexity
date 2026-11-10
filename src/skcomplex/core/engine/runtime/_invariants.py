@@ -13,7 +13,7 @@ from ._base import BaseObserver
 
 
 class InvariantObserver(BaseObserver):
-    """Observer that checks that every named observable stays near its first value.
+    """An observer that checks that every named observable stays near its first value.
 
     At every frame each observable must stay within its tolerance of its first value. A simulation attaches one when it
     is given invariants.
@@ -29,13 +29,13 @@ class InvariantObserver(BaseObserver):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import InvariantObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = System(
-        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
+        >>> system = CompositeSystem(
+        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
         ... )
-        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
+        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')
         >>> monitor = InvariantObserver({'total': 1e-9})
         >>> _ = simulate(system, until=3, dt=1, observables=[total], observers=[monitor])
         >>> monitor.initial_

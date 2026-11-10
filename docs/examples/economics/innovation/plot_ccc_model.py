@@ -28,8 +28,8 @@ trajectory = simulate(CccModelSystem(), observers=[observer])
 # The states of the entities over time should show horizontal stripes of quasi-equilibria broken by bursts of change,
 # as in Fig. 5.14 of Thurner et al., and the changes per step should be zero most of the time with rare large values.
 
-states = np.array([trajectory.agents('entities', frame).values['exists'] for frame in range(len(trajectory.times))])
-changes = trajectory.values('update.changes')[1:]
+states = np.array([trajectory.get_agents('entities', frame).values['exists'] for frame in range(len(trajectory.times))])
+changes = trajectory.get_values('update.changes')[1:]
 fig, (raster, sizes) = plt.subplots(1, 2, figsize=(10, 4))
 raster.imshow(states.T, aspect='auto', cmap='gray', interpolation='nearest')
 raster.set_xlabel('step')

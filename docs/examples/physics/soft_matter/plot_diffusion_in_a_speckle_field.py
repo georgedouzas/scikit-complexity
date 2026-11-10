@@ -8,7 +8,7 @@ gathered in clumps at the hotspots of the field.
 """
 
 # %%
-# The system is built from its class with 50 hotspots in a square of side 100 and the field strength
+# The example builds `DiffusionInASpeckleFieldSystem` with 50 hotspots in a square of side 100 and the field strength
 # 30. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.25. The blueprint shows
 # the particles over the square of the hotspots, drawn larger than the system's visual does, so they read in the
 # gallery thumbnail.
@@ -60,7 +60,7 @@ for strength in (0.0, 30.0, 100.0):
         dt=0.25,
         random_state=1,
     )
-    positions = run.values('beads.x')[40:]
+    positions = run.get_values('beads.x')[40:]
     times = run.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     ax.loglog(times, squared, label=f'strength {strength:.0f}')

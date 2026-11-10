@@ -1,20 +1,23 @@
 """Test what the built-in visuals log for points, agents, and one-dimensional lattices."""
 
+from typing import Annotated
+
 import numpy as np
+import numpy.typing as npt
 import pytest
 import rerun as rr
 from shapely import Polygon
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import BaseObserver, simulate
 from skcomplex.core.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AgentSnapshotSpec
+from skcomplex.core.specs import AgentSnapshotSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import DelayedSIRSSystem
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
@@ -24,6 +27,26 @@ from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
 from skcomplex.systems.physics.statistical_mechanics import XYSpinElement
 from skcomplex.systems.physics.waves import SpringChainSystem
 from skcomplex.systems.social.organizations import ObesitySystem
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 class RestingElement(Element):
@@ -123,8 +146,8 @@ def test_image_visual_logs_one_row_as_rgb_image():
 
 def test_points_visual_radius_scales_with_extent():
     """Test that points without a given radius take a share of the extent of the positions."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -142,8 +165,8 @@ def test_points_visual_radius_scales_with_extent():
 
 def test_points_visual_logs_trail_of_small_groups():
     """Test that a small group logs one line strip per point with its recent positions."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [0.0, 1.0]]})],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=2, values={'x_d1': [[1.0, 0.0], [0.0, 1.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frames = _frames(system, steps=4)
@@ -157,14 +180,14 @@ def test_points_visual_logs_trail_of_small_groups():
     assert type(trails[-1]).__name__ == 'LineStrips2D'
     strips = trails[-1].strips.as_arrow_array().to_pylist()
     assert [len(strip) for strip in strips] == [3, 3]
-    assert np.allclose(strips[0][-1], frames[-1].value(problem.elements[0].states['x'])[0])
+    assert np.allclose(strips[0][-1], frames[-1].get_value(problem.elements[0].states['x'])[0])
 
 
 @pytest.mark.parametrize(('count', 'trail'), [(11, 256), (2, 0)])
 def test_points_visual_leaves_out_trail(count, trail):
     """Test that large groups and a trail of 0 positions log no trail."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=count)],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=count)],
         space=ContinuousSpace(n_dim=3),
     )
     problem, frame = _first_frame(system)
@@ -192,8 +215,8 @@ def test_agents_visual_radius_scales_with_continuous_space(log_agents):
 
 def test_points_visual_trail_width_follows_extent():
     """Test that the trail is a quarter as wide as the extent share, even when a tiny radius is given."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -209,9 +232,15 @@ def test_points_visual_trail_width_follows_extent():
 def test_image_visual_colors_angles_cyclically():
     """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
     space = LatticeSpace((2, 2))
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('spins', element=XYSpinElement, space=space, values={'theta': [[-3.1, 3.1], [0.0, 1.5]]}),
+            GroupElement(
+                'spins',
+                element=XYSpinElement,
+                space=space,
+                values={'theta': [[-3.1, 3.1], [0.0, 1.5]]},
+                on='sites',
+            ),
         ],
     )
     problem, frame = _first_frame(system)
@@ -255,8 +284,8 @@ def test_scalars_visual_colors_elements_apart():
 
 def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=1, values={'x': [[1.0, 2.0]]})],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=1, values={'x': [[1.0, 2.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -282,8 +311,8 @@ def test_agents_visual_widens_color_range_of_equal_start(log_agents):
 
 def test_points_visual_keeps_given_color_range():
     """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
-    system = System(
-        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [3.0, 0.0]]})],
+    system = CompositeSystem(
+        elements=[GroupElement('bodies', element=BallElement, size=2, values={'x_d1': [[1.0, 0.0], [3.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -351,7 +380,7 @@ def test_agents_visual_draws_boids_in_three_dimensions(log_agents):
 def test_agents_visual_has_a_three_dimensional_view():
     """Test that the view of agents in a three-dimensional space is a 3D spatial view with their path as origin."""
     flock = GroupElement('flock', element=RestingElement, size=2)
-    system = System(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+    system = CompositeSystem(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
     problem = PassCompiler().prepare(system).run().problem_
     view = AgentsVisual(path='flock').prepare(problem).views_[0]
     assert type(view).__name__ == 'Spatial3DView'
@@ -381,9 +410,9 @@ def test_agents_visual_draws_regions_once_under_the_agents(log_agents):
 def test_colors_start_bright_enough_to_see_on_black():
     """Test that the lowest color of the point scale is not the near-black purple of viridis."""
     problem, frame = _first_frame(
-        System(
+        CompositeSystem(
             elements=[
-                GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[0.0, 0.0], [1.0, 0.0]]}),
+                GroupElement('bodies', element=BallElement, size=2, values={'x_d1': [[0.0, 0.0], [1.0, 0.0]]}),
             ],
             space=ContinuousSpace(n_dim=2),
         ),
@@ -407,12 +436,12 @@ def test_image_visual_logs_position_velocity_image_and_density_of_two_stream():
     visual = ImageVisual(moments=(0,), history=0, path='gas', recording=logs).prepare(problem)
     for frame in frames:
         visual.run(frame)
-    images = logs.of('gas/f')
+    images = logs.of('gas/x')
     assert [_format(image) for image in images] == [(16, 8)] * len(frames)
-    densities = logs.of('gas/f/moment_0')
+    densities = logs.of('gas/x/moment_0')
     assert [type(item).__name__ for item in densities] == ['BarChart'] * len(frames)
     assert len(densities[-1].values.as_arrow_array().to_pylist()[0]['buffer']) == 8
-    assert [str(view.origin) for view in visual.views_] == ['gas/f/moment_0', 'gas/f']
+    assert [str(view.origin) for view in visual.views_] == ['gas/x/moment_0', 'gas/x']
 
 
 def test_image_visual_logs_a_plane_of_a_phase_space():
@@ -422,8 +451,8 @@ def test_image_visual_logs_a_plane_of_a_phase_space():
     logs = Logs()
     visual = ImageVisual(slices={'vy': 2}, moments=(0,), path='gas', recording=logs).prepare(problem)
     visual.run(frame)
-    assert [_format(image) for image in logs.of('gas/f')] == [(8, 4)]
-    assert len(logs.of('gas/f/moment_0')) == 1
+    assert [_format(image) for image in logs.of('gas/x')] == [(8, 4)]
+    assert len(logs.of('gas/x/moment_0')) == 1
 
 
 def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
@@ -441,8 +470,8 @@ def test_points_visual_joins_the_points_by_one_strip(dimension):
     """Test that `strip` logs one line strip through the points in member order, with their mean color."""
     positions = np.arange(4.0 * dimension).reshape(4, dimension)
     state = 'x' if dimension == 3 else 'x_d1'
-    group = GroupElement('chain', element=PointElement, size=4, values={state: positions})
-    system = System(elements=[group], space=ContinuousSpace(n_dim=dimension))
+    group = GroupElement('chain', element=BallElement, size=4, values={state: positions})
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(n_dim=dimension))
     problem, frame = _first_frame(system)
     logs = Logs()
     (
@@ -458,8 +487,8 @@ def test_points_visual_joins_the_points_by_one_strip(dimension):
 
 def test_points_visual_logs_no_strip_by_default():
     """Test that points log no strip without the setting."""
-    group = GroupElement('chain', element=PointElement, size=4, values={'x': np.zeros((4, 3))})
-    problem, frame = _first_frame(System(elements=[group], space=ContinuousSpace(n_dim=3)))
+    group = GroupElement('chain', element=BallElement, size=4, values={'x': np.zeros((4, 3))})
+    problem, frame = _first_frame(CompositeSystem(elements=[group], space=ContinuousSpace(n_dim=3)))
     logs = Logs()
     PointsVisual(position='x', states=(), trail=0, path='chain', recording=logs).prepare(problem).run(frame)
     assert logs.of('chain/strip') == []

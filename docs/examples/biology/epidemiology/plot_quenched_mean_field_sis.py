@@ -7,9 +7,9 @@ almost surely infected and the poorly connected nodes rarely are.
 """
 
 # %%
-# The system is built from its class on its default Barabási-Albert network of 300 nodes, with a spreading rate twice
-# the threshold. The observer saves every frame with the default blueprint, whose primary view is the network colored
-# by the infection probability of every node.
+# The example builds `QuenchedMeanFieldSISSystem` on its default Barabási-Albert network of 300 nodes, with a spreading
+# rate twice the threshold. The observer saves every frame with the default blueprint, whose primary view is the network
+# colored by the infection probability of every node.
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -32,10 +32,10 @@ trajectory = simulate(QuenchedMeanFieldSISSystem(lam=2 * threshold), dt=0.5, obs
 # At the endemic state `p_i = lam s_i / (1 + lam s_i)` with `s_i = sum_j A_ij p_j`, so the probability rises with the
 # degree. Every node should fall on that relation, and a run below the threshold should die out.
 
-final = trajectory.values('nodes.p')[-1]
+final = trajectory.get_values('nodes.p')[-1]
 adjacency = nx.to_numpy_array(graph)
 pressure = 2 * threshold * adjacency @ final
-below = simulate(QuenchedMeanFieldSISSystem(lam=0.5 * threshold), dt=0.5).values('nodes.p')[-1]
+below = simulate(QuenchedMeanFieldSISSystem(lam=0.5 * threshold), dt=0.5).get_values('nodes.p')[-1]
 degrees = adjacency.sum(axis=1)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(degrees, final, 'o', alpha=0.6, label='simulated')

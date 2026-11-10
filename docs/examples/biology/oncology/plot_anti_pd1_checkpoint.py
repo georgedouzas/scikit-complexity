@@ -1,14 +1,14 @@
 """
 # Anti-PD-1 checkpoint inhibition
 
-At the book's low anti-PD-1 infusion, PD-1-PD-L1 binding keeps the T cells low, and the tumour falls at first and then
-grows back toward its capacity.
+At the low anti-PD-1 infusion of the book of Padmanabhan, Meskin, and Al Moustafa (2021), PD-1-PD-L1 binding keeps the T
+cells low, and the tumour falls at first and then grows back toward its capacity.
 """
 
 # %%
-# The system is built from its class with the book's continuous infusion of `10^-10` g/cm³ per day and runs for 150
-# days. The observer saves every frame with the default blueprint, whose primary view is the time series of the T
-# cells, the tumour, and the drug.
+# The example builds `AntiPD1CheckpointSystem` with the book's continuous infusion of `10^-10` g/cm³ per day and runs
+# for 150 days. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# T cells, the tumour, and the drug.
 
 import matplotlib.pyplot as plt
 
@@ -34,8 +34,8 @@ runs = {dose: simulate(AntiPD1CheckpointSystem(u_ap=dose), dt=1.0, solver=solver
 runs[1e-10] = trajectory
 fig, (tumour, t_cells) = plt.subplots(1, 2, figsize=(10, 4))
 for dose, run in sorted(runs.items()):
-    tumour.plot(run.times, run.values('site.A'), label=f'u = {dose:g}')
-    t_cells.semilogy(run.times, run.values('site.E'), label=f'u = {dose:g}')
+    tumour.plot(run.times, run.get_values('site.A'), label=f'u = {dose:g}')
+    t_cells.semilogy(run.times, run.get_values('site.E'), label=f'u = {dose:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour (g/cm³)')
 tumour.set_title('More drug, smaller tumour')

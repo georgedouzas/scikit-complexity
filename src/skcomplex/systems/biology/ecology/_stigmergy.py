@@ -14,32 +14,22 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    LifeCycleInteraction,
-    MapInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.stigmergy import EvaporationInteraction
 
 PLANTS = 'plants'
-
 PREY = 'prey'
-
 MARKS = 'ground/marks'
-
 PREDATORS = 'predators'
-
 EMOTIONS = ('prey_happiness', 'prey_fear', 'predator_happiness', 'predator_anger')
-
 PREY_TRAITS: dict[str, float] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
-
 PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
 
@@ -482,26 +472,26 @@ class StigmergicPredatorPreySystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _kind(agent: AgentViewProtocol) -> str:
+    def _get_kind(agent: AgentViewProtocol) -> str:
         """Return the label of an agent's group, without the path of its system."""
         return agent.group.rpartition('/')[2]
 
     @staticmethod
-    def _occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
+    def _get_occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
         """Return the agents around an agent by their cell."""
-        return {other.location: other for other in agent.neighbors()}
+        return {other.location: other for other in agent.get_neighbors()}
 
-    def _empty_cells(self, agent: AgentViewProtocol) -> list[object]:
+    def _get_empty_cells(self, agent: AgentViewProtocol) -> list[object]:
         """Return the neighbouring cells of an agent that no agent occupies."""
-        occupied = self._occupants(agent)
-        return [cell for cell in agent.neighbor_cells() if cell not in occupied]
+        occupied = self._get_occupants(agent)
+        return [cell for cell in agent.get_neighbor_cells() if cell not in occupied]
 
     def _get_empty_cell(self, agent: AgentViewProtocol | None, system: SystemViewProtocol) -> object:
         """Return a random empty neighbouring cell of a parent, or `None`.
 
         It is `None` when there is none.
         """
-        cells = [] if agent is None else self._empty_cells(agent)
+        cells = [] if agent is None else self._get_empty_cells(agent)
         return cells[int(system.rng.integers(len(cells)))] if cells else None
 
     @staticmethod
@@ -516,7 +506,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _spreads(self, plant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a mature plant has an empty neighbouring cell to spread into."""
         del system
-        return isinstance(plant, PlantView) and plant.age >= plant.maturity and bool(self._empty_cells(plant))
+        return isinstance(plant, PlantView) and plant.age >= plant.maturity and bool(self._get_empty_cells(plant))
 
     @staticmethod
     def _starves(animal: AgentViewProtocol, system: SystemViewProtocol) -> bool:
@@ -530,7 +520,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _get_fear(self, prey: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the number of predators around a prey, its experience of fear."""
         del system
-        return float(sum(self._kind(other) == PREDATORS for other in self._occupants(prey).values()))
+        return float(sum(self._get_kind(other) == PREDATORS for other in self._get_occupants(prey).values()))
 
     @staticmethod
     def _get_anger(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -551,11 +541,11 @@ class StigmergicPredatorPreySystem(BaseSystem):
         It depends on its food and the marks it reads.
         """
         food, happiness_mark, distress_mark = marks
-        meal = 1.0 if occupant is not None and self._kind(occupant) == food else 0.0
+        meal = 1.0 if occupant is not None and self._get_kind(occupant) == food else 0.0
         if not animal.emotions:
             return meal
-        happiness = system.field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
-        distress = system.field(f'{MARKS}.{distress_mark}', cell) - animal.distress
+        happiness = system.get_field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
+        distress = system.get_field(f'{MARKS}.{distress_mark}', cell) - animal.distress
         return meal + happiness - distress
 
     def _get_preferred(
@@ -570,11 +560,11 @@ class StigmergicPredatorPreySystem(BaseSystem):
         """
         if not isinstance(animal, ForagerView):
             return None
-        occupants = self._occupants(animal)
+        occupants = self._get_occupants(animal)
         options = [
             (cell, occupants.get(cell))
-            for cell in animal.neighbor_cells()
-            if cell not in occupants or self._kind(occupants[cell]) == marks[0]
+            for cell in animal.get_neighbor_cells()
+            if cell not in occupants or self._get_kind(occupants[cell]) == marks[0]
         ]
         if not options:
             return None
@@ -594,7 +584,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     @staticmethod
     def _get_marked(animal: ForagerView, system: SystemViewProtocol, mark: str) -> float:
         """Return the mean of a mark over the cells around an animal."""
-        return float(np.mean([system.field(f'{MARKS}.{mark}', cell) for cell in animal.neighbor_cells()]))
+        return float(np.mean([system.get_field(f'{MARKS}.{mark}', cell) for cell in animal.get_neighbor_cells()]))
 
     def _get_happiness(self, animal: AgentViewProtocol, system: SystemViewProtocol, mark: str) -> float:
         """Return the next happiness of an animal.
@@ -650,7 +640,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         The animal needs an empty neighbouring cell, and happiness raises the probability.
         """
         del system
-        if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not self._empty_cells(animal):
+        if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not self._get_empty_cells(animal):
             return 0.0
         return float(animal.reproduction * (1 + animal.emotions * (animal.happiness - animal.distress)))
 
@@ -669,14 +659,14 @@ class StigmergicPredatorPreySystem(BaseSystem):
             schedule='member',
         )
 
-    def _get_plants(self, system: str, label: str) -> list[MapInteraction | LifeCycleInteraction]:
+    def _get_plants(self, system: str, label: str) -> list[MapInteraction | BirthDeathInteraction]:
         """Return the member interactions of a plant.
 
         A plant ages and spreads into an empty neighbouring cell at maturity.
         """
         return [
             self._get_growth(system, label, 'age'),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 f'{label}_spreading',
                 target=f'{system}/{label}',
                 birth=self._spreads,
@@ -692,7 +682,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         label: str,
         element: type['ForagerElement'],
         sense: Callable[[AgentViewProtocol, SystemViewProtocol], float],
-    ) -> list[MapInteraction | LifeCycleInteraction | MovementInteraction | TransferInteraction]:
+    ) -> list[MapInteraction | BirthDeathInteraction | MovementInteraction | TransferInteraction]:
         """Return the member interactions of an animal.
 
         An animal ages, starves, senses, moves and eats, feels, marks, and breeds.
@@ -702,7 +692,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return [
             self._get_growth(system, label, 'age'),
             self._get_growth(system, label, 'hunger'),
-            LifeCycleInteraction(f'{label}_starvation', target=group, death=self._starves, schedule='member'),
+            BirthDeathInteraction(f'{label}_starvation', target=group, death=self._starves, schedule='member'),
             MapInteraction(
                 f'{label}_experience',
                 target=group,
@@ -759,7 +749,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 f'{label}_breeding',
                 target=group,
                 birth=self._get_breeding,
@@ -771,7 +761,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         ]
 
     @staticmethod
-    def _random_cells(
+    def _get_random_cells(
         rng: np.random.Generator,
         width: int,
         height: int,
@@ -783,17 +773,17 @@ class StigmergicPredatorPreySystem(BaseSystem):
         bounds = np.cumsum([0, *counts])
         return [cells[start:end] for start, end in itertools.pairwise(bounds)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of plants, prey, and predators on a grid."""
         rng = np.random.default_rng(self.random_state)
-        plant_cells, prey_cells, predator_cells = self._random_cells(
+        plant_cells, prey_cells, predator_cells = self._get_random_cells(
             rng,
             self.width,
             self.height,
             [self.plants, self.prey, self.predators],
         )
         flag = float(self.emotions)
-        life = System(
+        life = CompositeSystem(
             'life',
             elements=[
                 GroupElement(
@@ -833,9 +823,9 @@ class StigmergicPredatorPreySystem(BaseSystem):
             EvaporationInteraction(f'evaporation_{mark}', target='marks', state=mark, evaporation='decay')
             for mark in EMOTIONS
         ]
-        return System(
+        return CompositeSystem(
             self.label,
-            systems=[life, System('ground', elements=[marks], interactions=evaporations)],
+            systems=[life, CompositeSystem('ground', elements=[marks], interactions=evaporations)],
             interactions=[
                 *self._get_plants('life', PLANTS),
                 *self._get_animals('life', PREY, StigmergicPreyElement, self._get_fear),

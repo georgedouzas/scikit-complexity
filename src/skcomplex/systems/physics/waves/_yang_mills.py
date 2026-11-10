@@ -17,7 +17,7 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
@@ -25,6 +25,11 @@ from ....core.types import Array, Indices
 from ..common.fields import WilsonSamplingInteraction
 
 COLOR = MatrixGroupSpec('SU', 3)
+ISOSPIN = MatrixGroupSpec('SU', 2)
+KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
+MATRIX_KINDS = ('wilson', 'polyakov')
+CHARGE_DIMENSIONS = 2
+LOOP_AXES = 2
 
 
 class ColorLinkElement(Element):
@@ -63,9 +68,6 @@ class ColorLinkElement(Element):
         self.U = U
 
 
-ISOSPIN = MatrixGroupSpec('SU', 2)
-
-
 class IsospinLinkElement(Element):
     """Link of a lattice with an SU(2) matrix `U`.
 
@@ -102,10 +104,7 @@ class IsospinLinkElement(Element):
         self.U = U
 
 
-KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
-MATRIX_KINDS = ('wilson', 'polyakov')
-CHARGE_DIMENSIONS = 2
-LOOP_AXES = 2
+LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
 
 
 @dataclass(frozen=True)
@@ -211,7 +210,7 @@ def gauge_observables(
         raise AnalysisError(error_msg)
     space.prepare()
     if isinstance(source, Trajectory):
-        values = np.asarray(source.values(str(variables)), dtype=float)
+        values = np.asarray(source.get_values(str(variables)), dtype=float)
     else:
         values = np.asarray(source, dtype=float)
         frame = 1 if group is None else 2
@@ -289,7 +288,8 @@ def _get_traces(values: Array, group: MatrixGroupSpec, edges: Indices, signs: Ar
     """
     return np.stack(
         [
-            np.trace(group.holonomy_of(group.matrices_of(frame), edges, signs), axis1=-2, axis2=-1) / group.degree
+            np.trace(group.get_holonomy_of(group.get_matrices_of(frame), edges, signs), axis1=-2, axis2=-1)
+            / group.degree
             for frame in values
         ],
     )
@@ -335,27 +335,6 @@ def _polyakov(space: CellComplexSpace, values: Array) -> Array:
     flat[:, space.edges_[None][0][links]] = values[:, links]
     grid = flat.reshape(values.shape[0], *place.shape_)
     return np.cos(grid.sum(axis=last + 1)).mean(axis=tuple(range(1, place.n_dim_)))
-
-
-LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
-
-
-def _mean_plaquette(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean of `Re tr U_p / N` over the plaquettes."""
-    del t
-    matrices = group.matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
-    plaquettes = group.holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
-    return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
-
-
-def _polyakov_loop(space: CellComplexSpace, group: MatrixGroupSpec, t: float, values: Mapping[str, object]) -> float:
-    """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
-
-    The loops wind along the last axis.
-    """
-    del t
-    links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
-    return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
 
 
 class LatticeYangMillsSystem(BaseSystem):
@@ -421,6 +400,34 @@ class LatticeYangMillsSystem(BaseSystem):
     until = 100
     dt = 1
 
+    @staticmethod
+    def _get_mean_plaquette(
+        space: CellComplexSpace,
+        group: MatrixGroupSpec,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the mean of `Re tr U_p / N` over the plaquettes."""
+        del t
+        matrices = group.get_matrices_of(np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size)))
+        plaquettes = group.get_holonomy_of(matrices, space.boundaries_, space.boundary_signs_)
+        return float(np.trace(plaquettes, axis1=-2, axis2=-1).real.mean() / group.degree)
+
+    @staticmethod
+    def _get_polyakov_loop(
+        space: CellComplexSpace,
+        group: MatrixGroupSpec,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the modulus of the mean of `tr P / N` over the loops along the last axis.
+
+        The loops wind along the last axis.
+        """
+        del t
+        links = np.reshape(np.asarray(values['links.U'], dtype=float), (-1, group.size))
+        return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
+
     def __init__(
         self,
         size: int = 6,
@@ -447,14 +454,17 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _yang_mills_observables(system: System) -> list[ObservableSpec]:
+    def _get_yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the mean plaquette and the Polyakov loop of the links."""
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
         group = next(group for element, group in LINKS.values() if links.element is element)
         return [
-            ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space, group)),
-            ObservableSpec('polyakov_loop', function=partial(_polyakov_loop, space, group)),
+            ObservableSpec(
+                'mean_plaquette',
+                function=partial(LatticeYangMillsSystem._get_mean_plaquette, space, group),
+            ),
+            ObservableSpec('polyakov_loop', function=partial(LatticeYangMillsSystem._get_polyakov_loop, space, group)),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -463,10 +473,10 @@ class LatticeYangMillsSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
+        settings['observables'] = tuple(self._get_yang_mills_observables(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return SU(2) or SU(3) matrices on the links of a periodic lattice.
 
         The matrices are sampled by the Wilson action.
@@ -479,11 +489,11 @@ class LatticeYangMillsSystem(BaseSystem):
         space = CellComplexSpace(LatticeSpace(shape)).prepare()
         count = space.incidences_[0].shape[0]
         if self.links is None:
-            matrices = group.uniform_of(np.random.default_rng(self.seed), count)
+            matrices = group.get_uniform_of(np.random.default_rng(self.seed), count)
         else:
             matrices = np.asarray(self.links, dtype=complex)
         if matrices.shape != (count, self.colors, self.colors) or not np.allclose(
-            group.projection_of(matrices),
+            group.get_projection_of(matrices),
             matrices,
         ):
             error_msg = (
@@ -496,7 +506,7 @@ class LatticeYangMillsSystem(BaseSystem):
             element=element,
             space=space,
             on='edges',
-            values={'U': group.components_of(matrices)},
+            values={'U': group.get_components_of(matrices)},
         )
         sampling = WilsonSamplingInteraction(
             'wilson',
@@ -507,4 +517,4 @@ class LatticeYangMillsSystem(BaseSystem):
             group=group,
             hits=self.hits,
         )
-        return System(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())

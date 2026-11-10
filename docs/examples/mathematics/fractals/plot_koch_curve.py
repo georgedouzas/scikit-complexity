@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(KochCurveSystem(), until=5, observers=[observer])
-segments = trajectory.structure('koch', 5).segments()
+segments = trajectory.get_structure('koch', 5).get_segments()
 observer.recording_.log(
     'curve',
     rr.LineStrips2D(segments * [1, -1], radii=0.004, colors=[120, 200, 255]),
@@ -49,8 +49,8 @@ observer.recording_.flush()
 # dimension `D = log 4 / log 3`, about 1.262, over boxes larger than its segments.
 
 generations = trajectory.times
-lengths = trajectory.values('koch.length')
-grid = trajectory.structure('koch', 5).raster(2048)
+lengths = trajectory.get_values('koch.length')
+grid = trajectory.get_structure('koch', 5).get_raster(2048)
 sizes = np.array([16, 32, 64, 128, 256])
 counts = np.array([grid.reshape(2048 // size, size, 2048 // size, size).any(axis=(1, 3)).sum() for size in sizes])
 dimension = np.log(4) / np.log(3)

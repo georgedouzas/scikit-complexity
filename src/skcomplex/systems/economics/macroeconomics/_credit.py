@@ -15,20 +15,12 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PartnerSwitchSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerSwitchSpec
 
 
 class FirmView(AgentView):
@@ -338,8 +330,8 @@ class LenderElement(Element):
         cached = system.storage.get('borrowers')
         if not (isinstance(cached, tuple) and cached[0] == step):
             borrowers: dict[int, list[FirmView]] = {}
-            for firm in system.agents('sources', FirmView):
-                bank = firm.referenced('partner') if firm.loan > 0 else None
+            for firm in system.get_agents('sources', FirmView):
+                bank = firm.get_referenced('partner') if firm.loan > 0 else None
                 if bank is not None:
                     borrowers.setdefault(bank.id, []).append(firm)
             cached = (step, borrowers)
@@ -405,13 +397,13 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
         rule:
             The spec of the algorithm that matches firms with banks, such as `PartnerSwitchSpec()`.
 
-        limit:
+        reserve:
             The state with the rate of both sides, or a pair of the firms' and the banks' states.
 
         quantity:
             The state with the loan of both sides, or a pair of the firms' and the banks' states.
 
-        allowance:
+        cap:
             The state of a firm with what it can spend.
 
         transfers:
@@ -448,20 +440,20 @@ class CreditMarketInteraction(MatchingInteraction[SystemView]):
                 The system view of the market.
         """
         super()._report_matches(matches, unmatched, system)
-        cheapest = min((bank.ask for bank in system.agents('providers', LenderView) if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in system.agents('requesters', FirmView) if firm.loan > 0]
+        cheapest = min((bank.ask for bank in system.get_agents('providers', LenderView) if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in system.get_agents('requesters', FirmView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         system.report('spread', spread)
 
 
-def _herfindahl(values: object) -> float:
+def _get_herfindahl(values: object) -> float:
     """Return the Herfindahl index of the banks' shares of the loans."""
     lent = np.asarray(values, dtype=float)
     total = lent.sum()
     return float(np.sum((lent / total) ** 2)) if total > 0 else float('nan')
 
 
-def _largest_share(values: object) -> float:
+def _get_largest_share(values: object) -> float:
     """Return the share of the loans of the largest lender."""
     lent = np.asarray(values, dtype=float)
     total = lent.sum()
@@ -533,8 +525,8 @@ class CreditNetworksSystem(BaseSystem):
     references = ('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010')
     until = 100
     observables = (
-        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        ObservableSpec('herfindahl', group='banks', variable='lent', reduce=_get_herfindahl),
+        ObservableSpec('largest_share', group='banks', variable='lent', reduce=_get_largest_share),
         ObservableSpec('bank_equity', group='banks', variable='equity', reduce='sum'),
         ObservableSpec('firm_worth', group='firms', variable='net_worth', reduce='sum'),
         ObservableSpec('returns', group='firms', variable='gross_return', reduce='sum'),
@@ -586,7 +578,7 @@ class CreditNetworksSystem(BaseSystem):
         firm.rate = trade.value
         bank.lent += trade.quantity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         lenders = GroupElement(
@@ -616,7 +608,7 @@ class CreditNetworksSystem(BaseSystem):
             requesters='firms',
             providers='banks',
             rule=PartnerSwitchSpec(sample=self.sample, intensity=self.intensity),
-            limit=('bid', 'ask'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='credit',
             on_match=self._lend,
@@ -667,7 +659,7 @@ class CreditNetworksSystem(BaseSystem):
                 for name, function in FirmElement.get_default()
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[borrowers, lenders],
             interactions=[*plan, market, *settlement],

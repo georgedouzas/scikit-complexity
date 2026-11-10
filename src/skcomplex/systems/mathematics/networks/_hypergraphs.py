@@ -15,14 +15,14 @@ import xgi
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._vertex import VertexElement
+from ..common.networks import VertexElement
 
 
 class SimplexElement(Element):
@@ -224,7 +224,7 @@ class HypergraphRandomWalkSystem(BaseSystem):
         self.source = source
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the size-biased random walk on a hypergraph.
 
         The walk `p_j' = sum_i p_i T_ij - p_j` starts from one node.
@@ -239,14 +239,19 @@ class HypergraphRandomWalkSystem(BaseSystem):
             weights[list(hyperedge)] += (len(hyperedge) - 1) ** 2
         probabilities = np.zeros(prepared.size_)
         probabilities[self.source] = 1.0
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=WalkerDensityElement,
             space=space,
             values={'p': probabilities, 'D': np.maximum(weights, 1.0)},
             visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
-        return System(self.label, elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])
+        return CompositeSystem(
+            self.label,
+            elements=[nodes],
+            interactions=[SizeBiasedMoveInteraction('moves', target='nodes')],
+        )
 
 
 class GrowingSimplicialComplexSystem(BaseSystem):
@@ -270,7 +275,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem
-        >>> simulate(GrowingSimplicialComplexSystem(13), until=10, random_state=0).network(-1).hyperedges.shape
+        >>> simulate(GrowingSimplicialComplexSystem(13), until=10, random_state=0).get_network(-1).hyperedges.shape
         (11, 3)
     """
 
@@ -299,7 +304,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
             MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a simplicial complex that grows by gluing one triangle per step.
 
         Every triangle is glued along an edge drawn uniformly.
@@ -322,7 +327,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
         )
         growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
         ageing = SimplexAgeingInteraction('triangle_ageing', nodes='nodes', triangles='triangles')
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[nodes, links, triangles],
             interactions=[growth, ageing, *self._get_bookkeeping()],

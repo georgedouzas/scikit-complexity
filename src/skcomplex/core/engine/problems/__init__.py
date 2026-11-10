@@ -1,8 +1,7 @@
-"""Define what a system compiles to.
+"""Define what a system compiles to: a problem, its kernels, and run frames.
 
-A system compiles to the problem, its kernels, and the frames the runtime hands to observers. The problems of the
-library's forms and their kernels are private. The bases, the problem of the shared pass core, and the frames of a run
-stay public for the observers and the analyses that read them, and for a system package that brings a form of its own.
+The bases, the problem of the shared compiler, and the frames stay public for observers, analyses, and system packages
+that bring a form of their own. The problems of the forms of the library are private.
 """
 
 from ._base import BaseKernel, BasePrinter, BaseSearch

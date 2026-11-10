@@ -15,12 +15,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import DensityElement, GroupElement
-from ....core.components.interactions import EncounterInteraction
+from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ...general.kinetics import EncounterInteraction
+from ..common.kinetics import ActivityDensityElement
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
 
@@ -102,7 +103,7 @@ def mean_opinion(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expre
         mean:
             The normalized first moment.
     """
-    return moment(s.f, 1, opinions, normalized=True)
+    return moment(s.x, 1, opinions, normalized=True)
 
 
 def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expression:
@@ -121,7 +122,7 @@ def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> E
         variance:
             The central second moment.
     """
-    return moment(s.f, 2, opinions, central=True)
+    return moment(s.x, 2, opinions, central=True)
 
 
 class OpinionEncountersInteraction(EncounterInteraction):
@@ -186,11 +187,6 @@ class OpinionEncountersInteraction(EncounterInteraction):
     def _get_kernel(self, s: SimpleNamespace) -> object:
         """Return the table of the persuasion and repulsion of the opinion levels."""
         return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
-
-
-def _levels_of(system: System) -> int:
-    """Return the number of opinion levels of a system, the size of its distribution."""
-    return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
 
 
 def opinion_observables(levels: int) -> list[ObservableSpec]:
@@ -261,6 +257,11 @@ class KineticOpinionSystem(BaseSystem):
     until = 60
     dt = 0.5
 
+    @staticmethod
+    def _get_levels_of(system: CompositeSystem) -> int:
+        """Return the number of opinion levels of a system, the size of its distribution."""
+        return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
+
     def __init__(
         self,
         levels: int = 7,
@@ -278,18 +279,18 @@ class KineticOpinionSystem(BaseSystem):
         self.repulsion = repulsion
         self.eta = eta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         initial = 1.0 + 0.1 * opinion_grid(self.levels)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     'opinions',
-                    element=DensityElement,
+                    element=ActivityDensityElement,
                     size=self.levels,
                     on='sites',
-                    values={'f': initial / initial.sum()},
+                    values={'x': initial / initial.sum()},
                 ),
             ],
             interactions=[
@@ -314,6 +315,6 @@ class KineticOpinionSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        system = self._pass_parameters()
-        settings['observables'] = opinion_observables(_levels_of(system))
+        system = self._get_pass_parameters()
+        settings['observables'] = opinion_observables(KineticOpinionSystem._get_levels_of(system))
         return settings

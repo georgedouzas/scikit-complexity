@@ -1,6 +1,7 @@
 """Finance: asset prices, growth processes, wealth, systemic risk, and arbitrage."""
 
-from ..common import AssetElement, BalanceSheetElement, GeometricBrownianMotionInteraction
+from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
+from ..common.banking import BalanceSheetElement
 from ._arbitrage import ArbitrageDensityElement, ArbitrageTradersSystem
 from ._assets import GeometricBrownianMotionSystem
 from ._contagion import DebtRankCascadeInteraction, DebtrankSystem, InterbankElement
@@ -28,7 +29,7 @@ from ._solvency import (
     EisenbergNoeClearingSystem,
     PaymentClearingInteraction,
 )
-from ._switching_exchange import KirmanExchangeRateSystem, SwitchingExchangeElement
+from ._switching_exchange import KirmanExchangeRateSystem
 from ._wealth import BouchaudMezardWealthSystem, NetworkSaverElement
 
 __all__: list[str] = [
@@ -67,6 +68,5 @@ __all__: list[str] = [
     'PaymentClearingInteraction',
     'ReflectingFloorInteraction',
     'StockTraderElement',
-    'SwitchingExchangeElement',
     'TraderCurrentInteraction',
 ]

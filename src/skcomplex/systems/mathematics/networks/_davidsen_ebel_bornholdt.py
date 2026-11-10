@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
@@ -89,7 +89,7 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import DavidsenEbelBornholdtSystem
         >>> trajectory = simulate(DavidsenEbelBornholdtSystem(50), until=20, random_state=0)
-        >>> len(trajectory.network(-1).nodes)
+        >>> len(trajectory.get_network(-1).nodes)
         50
     """
 
@@ -114,13 +114,13 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system(
+    def _build_network(
         label: str,
         capacity: int,
         space: NetworkSpace,
         links: int,
         changes: list[TopologyInteraction],
-    ) -> System:
+    ) -> CompositeSystem:
         """Return the network of variable groups on its nodes and links.
 
         The network has its changes and the map of the degrees.
@@ -128,9 +128,15 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         nodes = GroupElement('nodes', element=ClosingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
+        return CompositeSystem(
+            label,
+            elements=[nodes, edges],
+            interactions=[*changes, degree],
+            space=space,
+            time=DiscreteTime(),
+        )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Davidsen-Ebel-Bornholdt network.
 
         Its triadic closure and node turnover give high clustering.
@@ -146,4 +152,4 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
             probability=self.turnover,
         )
         capacity = graph.number_of_edges() + int(2 * self.n_nodes * (1 + 1 / self.turnover))
-        return self._system(self.label, self.n_nodes, NetworkSpace(graph), capacity, [closure, replacement])
+        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [closure, replacement])

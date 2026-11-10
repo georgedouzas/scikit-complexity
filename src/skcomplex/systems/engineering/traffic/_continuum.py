@@ -14,12 +14,15 @@ from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tan
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, RateInteraction, RelaxationInteraction
+from ....core.components.interactions import ConservationInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import SSPRKSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.traffic import SpeedAdaptationInteraction
+
+KERNER_KONHAUSER_OFFSET = 3.72e-6
 
 
 class GasKineticTrafficElement(Element):
@@ -185,27 +188,6 @@ class PayneElement(Element):
         self.tau = tau
 
 
-KERNER_KONHAUSER_OFFSET = 3.72e-6
-
-
-def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
-    """Return the variance prefactor of a road at the density `rho`.
-
-    It is `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)`.
-    """
-    prefactor: Expression = road.A0 + road.dA * (tanh((rho - road.rho_c) / road.d_rho) + 1)
-    return prefactor
-
-
-def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
-    """Return a uniform density on a ring with a smooth bump around the middle.
-
-    The bump has the relative height `bump`.
-    """
-    centers = (np.arange(n) + 0.5) / n
-    return density * (1 + bump * np.exp(-(((centers - 0.5) / 0.05) ** 2)))
-
-
 class LighthillWhithamRichardsSystem(BaseSystem):
     """The Lighthill-Whitham-Richards system.
 
@@ -269,7 +251,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         road = s.target
         return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
         values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
@@ -284,7 +266,7 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         )
         flux = self._get_lighthill_whitham_richards_flux
         density = ConservationInteraction('density', target='road', state='rho', flux=flux, riemann='godunov')
-        return System(self.label, elements=[road], interactions=[density])
+        return CompositeSystem(self.label, elements=[road], interactions=[density])
 
 
 class PayneSystem(BaseSystem):
@@ -331,6 +313,15 @@ class PayneSystem(BaseSystem):
     dt = 0.05
     solver = SSPRKSolver()
 
+    @staticmethod
+    def _get_density_bump(n: int, density: float, bump: float) -> np.ndarray:
+        """Return a uniform density on a ring with a smooth bump around the middle.
+
+        The bump has the relative height `bump`.
+        """
+        centers = (np.arange(n) + 0.5) / n
+        return density * (1 + bump * np.exp(-(((centers - 0.5) / 0.05) ** 2)))
+
     def __init__(
         self,
         n: int = 200,
@@ -350,10 +341,10 @@ class PayneSystem(BaseSystem):
         self.rho_max = rho_max
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
-        rho = _density_bump(self.n, density, self.bump)
+        rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
             'rho': rho,
             'q': rho * self.vmax * (1 - rho / self.rho_max),
@@ -376,14 +367,14 @@ class PayneSystem(BaseSystem):
             flux=lambda s: s.target.q**2 / s.target.rho
             + s.target.vmax * s.target.rho / (2 * s.target.tau * s.target.rho_max),
         )
-        relaxation = RelaxationInteraction(
+        relaxation = SpeedAdaptationInteraction(
             'relaxation',
             target='road',
             state='q',
             goal=lambda s: s.target.rho * s.target.vmax * (1 - s.target.rho / s.target.rho_max),
             time=lambda s: s.target.tau,
         )
-        return System(self.label, elements=[road], interactions=[density, flow, relaxation])
+        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation])
 
 
 class KernerKonhauserSystem(BaseSystem):
@@ -473,17 +464,17 @@ class KernerKonhauserSystem(BaseSystem):
         return road.V0 * (1 / (1 + exp((road.rho / road.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
     @staticmethod
-    def _kerner_konhauser_speed(rho: np.ndarray, V0: float, rho_max: float) -> np.ndarray:
+    def _compute_kerner_konhauser_speed(rho: np.ndarray, V0: float, rho_max: float) -> np.ndarray:
         """Return the equilibrium speed of the Kerner-Konhäuser system."""
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         density = self.density
-        rho = _density_bump(self.n, density, self.bump)
+        rho = PayneSystem._get_density_bump(self.n, density, self.bump)
         values = {
             'rho': rho,
-            'q': rho * self._kerner_konhauser_speed(rho, self.V0, self.rho_max),
+            'q': rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
             'V0': self.V0,
             'rho_max': self.rho_max,
             'tau': self.tau,
@@ -505,7 +496,7 @@ class KernerKonhauserSystem(BaseSystem):
             state='q',
             flux=lambda s: s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho,
         )
-        relaxation = RelaxationInteraction(
+        relaxation = SpeedAdaptationInteraction(
             'relaxation',
             target='road',
             state='q',
@@ -518,7 +509,7 @@ class KernerKonhauserSystem(BaseSystem):
             state='q',
             rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
         )
-        return System(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
+        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
 
 
 class GktTrafficSystem(BaseSystem):
@@ -585,6 +576,15 @@ class GktTrafficSystem(BaseSystem):
     dt = 1 / 60
     solver = SSPRKSolver(cfl=0.4)
 
+    @staticmethod
+    def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
+        """Return the variance prefactor of a road at the density `rho`.
+
+        It is `A0 + dA (tanh((rho - rho_c) / d_rho) + 1)`.
+        """
+        prefactor: Expression = road.A0 + road.dA * (tanh((rho - road.rho_c) / road.d_rho) + 1)
+        return prefactor
+
     def __init__(
         self,
         n: int = 200,
@@ -617,7 +617,7 @@ class GktTrafficSystem(BaseSystem):
         It is `Q**2 / rho` plus the traffic pressure `rho A(rho) V**2`.
         """
         road = s.target
-        flux: Expression = (1 + _get_variance_prefactor(road, road.rho)) * road.Q**2 / road.rho
+        flux: Expression = (1 + GktTrafficSystem._get_variance_prefactor(road, road.rho)) * road.Q**2 / road.rho
         return flux
 
     @staticmethod
@@ -633,22 +633,22 @@ class GktTrafficSystem(BaseSystem):
         ahead = [road.gamma * (1 / road.rho_max + road.T * speed)]
         density_ahead = shifted(road.rho, ahead)
         speed_ahead = shifted(road.Q / road.rho, ahead)
-        variances = _get_variance_prefactor(road, road.rho) * speed**2 + _get_variance_prefactor(
+        variances = GktTrafficSystem._get_variance_prefactor(
             road,
-            density_ahead,
-        ) * (speed_ahead**2)
+            road.rho,
+        ) * speed**2 + GktTrafficSystem._get_variance_prefactor(road, density_ahead) * (speed_ahead**2)
         difference = (speed - speed_ahead) / sqrt(variances)
         boltzmann = 2 * (
             difference * exp(-(difference**2) / 2) / sqrt(2 * pi)
             + (1 + difference**2) * (1 + erf(difference / sqrt(2))) / 2
         )
         gap = density_ahead * road.T / (1 - density_ahead / road.rho_max)
-        braking = variances / (2 * _get_variance_prefactor(road, road.rho_max)) * gap**2 * boltzmann
+        braking = variances / (2 * GktTrafficSystem._get_variance_prefactor(road, road.rho_max)) * gap**2 * boltzmann
         relaxation: Expression = road.rho * (road.V0 * (1 - braking) - speed) / road.tau
         return relaxation
 
     @staticmethod
-    def _gkt_equilibrium_speed(rho: np.ndarray, road: GasKineticTrafficElement) -> np.ndarray:
+    def _get_gkt_equilibrium_speed(rho: np.ndarray, road: GasKineticTrafficElement) -> np.ndarray:
         """Return the equilibrium speed of homogeneous GKT traffic.
 
         It is `Vt**2 / (2 V0) (sqrt(1 + 4 V0**2 / Vt**2) - 1)`.
@@ -659,7 +659,7 @@ class GktTrafficSystem(BaseSystem):
         squared = prefactors[1] / prefactors[0] * ((1 / rho - 1 / road.rho_max) / road.T) ** 2
         return np.asarray(squared / (2 * road.V0) * (np.sqrt(1 + 4 * road.V0**2 / squared) - 1))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         centers = (np.arange(self.n) + 0.5) * self.length / self.n
         start, width, wake = 0.3 * self.length, 0.20125, 0.805
@@ -679,7 +679,7 @@ class GktTrafficSystem(BaseSystem):
             'road',
             element=GasKineticTrafficElement,
             space=LatticeSpace(self.n, spacing=self.length / self.n),
-            values={'rho': rho, 'Q': rho * self._gkt_equilibrium_speed(rho, cell), **values},
+            values={'rho': rho, 'Q': rho * self._get_gkt_equilibrium_speed(rho, cell), **values},
             discretization='finite-volume',
         )
         vehicles = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.Q)
@@ -690,4 +690,4 @@ class GktTrafficSystem(BaseSystem):
             flux=self._get_gkt_momentum_flux,
             source=self._get_gkt_relaxation,
         )
-        return System(self.label, elements=[road], interactions=[vehicles, momentum])
+        return CompositeSystem(self.label, elements=[road], interactions=[vehicles, momentum])

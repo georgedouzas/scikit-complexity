@@ -1,7 +1,4 @@
-"""Build the kernel spec of every component of a system.
-
-The spec holds the namespace and the rows its laws are lowered with.
-"""
+"""Build the kernel spec of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ from ....components.interactions import (
     PairInteraction,
     TopologyInteraction,
 )
-from ....components.laws.utils import MAX_NEIGHBOR_HYPEREDGE_SIZE
+from ....components.laws.utils._reductions import MAX_NEIGHBOR_HYPEREDGE_SIZE
 from ....components.spaces import (
     BaseSpace,
     CayleySpace,
@@ -41,13 +38,13 @@ from ....types import Indices, VariableKind
 from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
 from ...problems import ProblemSpec
 from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._observed_spec import ObservedSpec
 from ...problems._pair_search import PairSearch
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE, SetSymbolSpec
+from ...problems._set_symbol_spec import EDGE_NAMES, MEMBER_REFERENCE, SetSymbolSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
@@ -63,7 +60,7 @@ SECOND_PARTS = ('edges', 'hyperedges')
 
 
 class SpecsPass(BasePass):
-    """Pass that builds the kernel specs of every component.
+    """A pass that builds the kernel specs of every component.
 
     There is one spec per element set entry of an interaction.
     """
@@ -79,21 +76,21 @@ class SpecsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Build the kernel specs of the declared components."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         blocks = list(declarations.blocks.values())
         elements = {block.node.path: block for block in blocks if not block.node.interaction}
         elements.update(declarations.processes)
-        nodes = Compilation._required(compilation.nodes, 'nodes')
-        live = ObservableEvaluator._lowerable_observables(compilation.system, nodes)
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
+        live = ObservableEvaluator._get_lowerable_observables(compilation.system, nodes)
         observer = Observer(declarations, live).prepare()
         compilation.specs = []
         for block in blocks:
-            specs, declarations = self._specs_of(block, elements, declarations, observer)
+            specs, declarations = self._get_specs_of(block, elements, declarations, observer)
             compilation.specs += [(spec, block) for spec in specs]
         compilation.layout = declarations
 
     @staticmethod
-    def _namespace(
+    def _get_namespace(
         block: BlockSpec,
         source: ReadKind,
         alias: str = '',
@@ -121,10 +118,10 @@ class SpecsPass(BasePass):
             mapping[item]: ReferenceSpec(reference.entry, reference.is_state, reference.column, source)
             for item, reference in block.references.items()
         }
-        return SpecsPass._renamed_namespace(block, mapping), references
+        return SpecsPass._get_renamed_namespace(block, mapping), references
 
     @staticmethod
-    def _member_namespace(block: BlockSpec, index: int) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
+    def _get_member_namespace(block: BlockSpec, index: int) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of one member of a group and its symbol references.
 
         The member is read like a single element.
@@ -150,10 +147,10 @@ class SpecsPass(BasePass):
             )
             for item, reference in block.references.items()
         }
-        return SpecsPass._renamed_namespace(block, mapping), references
+        return SpecsPass._get_renamed_namespace(block, mapping), references
 
     @staticmethod
-    def _renamed_namespace(block: BlockSpec, mapping: dict[Expression, Expression]) -> SimpleNamespace:
+    def _get_renamed_namespace(block: BlockSpec, mapping: dict[Expression, Expression]) -> SimpleNamespace:
         """Return the namespace of the variables of a block in renamed symbols.
 
         Per-entry parameters are tuples.
@@ -161,20 +158,20 @@ class SpecsPass(BasePass):
         symbols: dict[str, object] = {}
         for name, value in block.symbols.items():
             if not isinstance(value, FreeModuleElement):
-                symbols[name] = SpecsPass._renamed(value, mapping)
+                symbols[name] = SpecsPass._get_renamed(value, mapping)
             elif name in block.per:
-                symbols[name] = tuple(SpecsPass._renamed(item, mapping) for item in value)
+                symbols[name] = tuple(SpecsPass._get_renamed(item, mapping) for item in value)
             elif name in block.entries and (tensor := block.entries[name].tensor) is not None:
-                symbols[name] = tensor.matrix_of(SpecsPass._renamed(item, mapping) for item in value)
+                symbols[name] = tensor.get_matrix_of(SpecsPass._get_renamed(item, mapping) for item in value)
             else:
-                symbols[name] = vector(SpecsPass._renamed(item, mapping) for item in value)
+                symbols[name] = vector(SpecsPass._get_renamed(item, mapping) for item in value)
         ports = getattr(block.node.component_type, 'ports', None)
         if ports:
             symbols['ports'] = ports
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
+    def _get_renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
         """Return the renamed symbol of a variable, or a renamed complex value.
 
         A complex value has its real and imaginary symbols renamed. A symbol without a variable, such as the handle of a
@@ -183,7 +180,7 @@ class SpecsPass(BasePass):
         return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
 
     @staticmethod
-    def _group_space(block: BlockSpec) -> BaseSpace | None:
+    def _get_group_space(block: BlockSpec) -> BaseSpace | None:
         """Return the space of a group, its own or the enclosing one.
 
         The groups of one network share it.
@@ -191,7 +188,7 @@ class SpecsPass(BasePass):
         return block.node.space
 
     @staticmethod
-    def _space_period(node: NodeSpec) -> float | None:
+    def _get_space_period(node: NodeSpec) -> float | None:
         """Return the side of the periodic box of a pair interaction, or `None`.
 
         The pair interaction measures minimum image distances in the box.
@@ -213,13 +210,13 @@ class SpecsPass(BasePass):
         label = ', '.join(member.node.path for member in members)
         symbols = {}
         for variable, value in members[index].symbols.items():
-            for column, item in enumerate(ProblemSpec._real_components_of(value)):
+            for column, item in enumerate(ProblemSpec._get_real_components_of(value)):
                 references = tuple(
-                    member.references[ProblemSpec._real_components_of(member.symbols[variable])[column]]
+                    member.references[ProblemSpec._get_real_components_of(member.symbols[variable])[column]]
                     for member in members
                 )
                 symbols[item] = SetSymbolSpec(
-                    ProblemSpec._real_components_of(members[0].symbols[variable])[column],
+                    ProblemSpec._get_real_components_of(members[0].symbols[variable])[column],
                     references,
                     label,
                 )
@@ -248,7 +245,7 @@ class SpecsPass(BasePass):
         return SpecsPass._resolve_path(node, role, getattr(node.component, role), elements)
 
     @staticmethod
-    def _end_names(node: NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
+    def _get_end_names(node: NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
         """Return the names the laws of an interaction give edge ends or pair members.
 
         Each end, such as `'source'`, `'target'`, `'edge'`, `'first'`, or `'second'`, takes the name the interaction's
@@ -296,7 +293,7 @@ class SpecsPass(BasePass):
 
         An example reference is `sites[3]`, and the result is `None` for a path.
         """
-        match = _MEMBER_REFERENCE.match(reference)
+        match = MEMBER_REFERENCE.match(reference)
         if match is None or f'{node.scope}{reference}' in elements:
             return None
         block = SpecsPass._resolve_path(node, role, match['path'], elements)
@@ -353,7 +350,7 @@ class SpecsPass(BasePass):
         return [SpecsPass._resolve_entry(node, role, label, elements) for label in labels]
 
     @staticmethod
-    def _entry_namespace(
+    def _get_entry_namespace(
         block: BlockSpec,
         index: int | None,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
@@ -365,11 +362,11 @@ class SpecsPass(BasePass):
         if index is None and block.node.members is not None:
             return SimpleNamespace(), {}
         if index is None:
-            return SpecsPass._namespace(block, ReadKind.SINGLE)
-        return SpecsPass._member_namespace(block, index)
+            return SpecsPass._get_namespace(block, ReadKind.SINGLE)
+        return SpecsPass._get_member_namespace(block, index)
 
     @staticmethod
-    def _source_namespace(
+    def _get_source_namespace(
         block: BlockSpec,
         index: int | None,
         bound: Mapping[str, BlockSpec],
@@ -382,17 +379,17 @@ class SpecsPass(BasePass):
         read member by member by the exterior calculus of the target.
         """
         if index is None and block.node.members is not None and isinstance(block.node.space, CellComplexSpace):
-            return SpecsPass._namespace(block, ReadKind.MEMBER)
+            return SpecsPass._get_namespace(block, ReadKind.MEMBER)
         place = block.node.component
         targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]
         if index is not None or not isinstance(place, FieldElement) or not targets:
-            return SpecsPass._entry_namespace(block, index)
+            return SpecsPass._get_entry_namespace(block, index)
         space, target = place.space, targets[0].space
         if isinstance(space, PhaseSpace) and not isinstance(target, PhaseSpace):
-            return SpecsPass._namespace(block, ReadKind.MEMBER, alias='__across')
+            return SpecsPass._get_namespace(block, ReadKind.MEMBER, alias='__across')
         if isinstance(target, PhaseSpace) and not isinstance(space, PhaseSpace):
             return SpecsPass._broadcast_namespace(block, target)
-        return SpecsPass._entry_namespace(block, index)
+        return SpecsPass._get_entry_namespace(block, index)
 
     @staticmethod
     def _broadcast_namespace(
@@ -427,11 +424,11 @@ class SpecsPass(BasePass):
             raise ValidationError(error_msg)
         table = np.repeat(np.arange(block.rows), target.size_ // target.position_size_)
         read = NeighborReadSpec(table, None, None, None, 0)
-        namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
+        namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
-    def _entry_path(block: BlockSpec, index: int | None) -> str:
+    def _get_entry_path(block: BlockSpec, index: int | None) -> str:
         """Return the path of an entry of a variadic role.
 
         It comes with the member index of a member reference.
@@ -439,7 +436,7 @@ class SpecsPass(BasePass):
         return block.node.path if index is None else f'{block.node.path}[{index}]'
 
     @staticmethod
-    def _with_other(
+    def _copy_with_other(
         block: BlockSpec,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
@@ -450,13 +447,13 @@ class SpecsPass(BasePass):
         keeps it, and its laws reduce over neighbours without it.
         """
         if block.node.members is None or 'other' in vars(namespace):
-            return SpecsPass._with_hyperedges(block, namespace, references)
-        other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__other')
+            return SpecsPass._copy_with_hyperedges(block, namespace, references)
+        other, other_references = SpecsPass._get_namespace(block, ReadKind.OTHER, alias='__other')
         references.update(other_references)
-        return SpecsPass._with_hyperedges(block, SimpleNamespace(**vars(namespace), other=other), references)
+        return SpecsPass._copy_with_hyperedges(block, SimpleNamespace(**vars(namespace), other=other), references)
 
     @staticmethod
-    def _with_source(
+    def _copy_with_source(
         block: BlockSpec,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
@@ -468,12 +465,12 @@ class SpecsPass(BasePass):
         """
         if 'source' in vars(namespace):
             return namespace
-        source, source_references = SpecsPass._namespace(block, ReadKind.SOURCE, alias='__source')
+        source, source_references = SpecsPass._get_namespace(block, ReadKind.SOURCE, alias='__source')
         references.update(source_references)
         return SimpleNamespace(**vars(namespace), source=source)
 
     @staticmethod
-    def _with_hyperedges(
+    def _copy_with_hyperedges(
         block: BlockSpec,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
@@ -487,7 +484,7 @@ class SpecsPass(BasePass):
         read. In a continuous space the hyperedges are sets of current neighbours, of at most the largest size a
         reduction over them takes. A group that declares a variable named like a slot keeps it.
         """
-        space = SpecsPass._group_space(block)
+        space = SpecsPass._get_group_space(block)
         if block.node.members is None or {'others', 'members'} & set(vars(namespace)):
             return namespace
         if isinstance(space, ContinuousSpace):
@@ -498,15 +495,20 @@ class SpecsPass(BasePass):
             return namespace
         others = []
         for position in range(size - 1):
-            other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias=f'__others{position}')
+            other, other_references = SpecsPass._get_namespace(block, ReadKind.OTHER, alias=f'__others{position}')
             references.update(other_references)
             others.append(other)
-        members, member_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__members')
+        members, member_references = SpecsPass._get_namespace(block, ReadKind.OTHER, alias='__members')
         references.update(member_references)
         return SimpleNamespace(**vars(namespace), others=tuple(others), members=members)
 
     @staticmethod
-    def _changing_search(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None, changing: BlockSpec) -> EdgeSearch:
+    def _get_changing_search(
+        node: NodeSpec,
+        nodes: BlockSpec,
+        edges: BlockSpec | None,
+        changing: BlockSpec,
+    ) -> EdgeSearch:
         """Return the edge rows of a layer whose edges change.
 
         It first checks that the bound edge group is its group.
@@ -527,7 +529,7 @@ class SpecsPass(BasePass):
         return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).prepare()
 
     @staticmethod
-    def _edge_layer(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
+    def _get_edge_layer(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
         """Return the layer an interaction over neighbours runs on.
 
         It is checked against the layer of its edge group.
@@ -535,7 +537,7 @@ class SpecsPass(BasePass):
         declared = getattr(node.component, 'layer', None)
         if edges is None:
             return declared
-        space, edge_space = SpecsPass._group_space(nodes), SpecsPass._group_space(edges)
+        space, edge_space = SpecsPass._get_group_space(nodes), SpecsPass._get_group_space(edges)
         if edge_space is not space:
             error_msg = (
                 f'Interaction {node.path} binds the edge group {edges.node.path}, which lives on another space than '
@@ -552,7 +554,7 @@ class SpecsPass(BasePass):
         return layer
 
     @staticmethod
-    def _edge_roles(
+    def _get_edge_roles(
         node: NodeSpec,
         elements: dict[str, BlockSpec],
     ) -> tuple[BlockSpec, BlockSpec | None, BlockSpec | None]:
@@ -583,7 +585,7 @@ class SpecsPass(BasePass):
         return nodes[0], next(iter(edges), None), next(iter(nodes[1:]), None)
 
     @staticmethod
-    def _edge_search(
+    def _get_edge_search(
         node: NodeSpec,
         nodes: BlockSpec,
         edges: BlockSpec | None,
@@ -593,8 +595,8 @@ class SpecsPass(BasePass):
 
         It first checks the sizes of its groups.
         """
-        space = SpecsPass._group_space(nodes)
-        layer = SpecsPass._edge_layer(node, nodes, edges)
+        space = SpecsPass._get_group_space(nodes)
+        layer = SpecsPass._get_edge_layer(node, nodes, edges)
         changing = next(
             (
                 block
@@ -607,7 +609,7 @@ class SpecsPass(BasePass):
             None,
         )
         if changing is not None:
-            return SpecsPass._changing_search(node, nodes, edges, changing)
+            return SpecsPass._get_changing_search(node, nodes, edges, changing)
         if isinstance(space, NetworkSpace):
             if layer not in space.edges_:
                 known = ', '.join(repr(label) for label in space.edges_)
@@ -619,7 +621,7 @@ class SpecsPass(BasePass):
             size = space.size_
         elif isinstance(space, LatticeSpace | CayleySpace) and edges is None and layer is None:
             size = int(space.size_ or 0)
-            pairs = np.array(space.prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
+            pairs = np.array(space.prepare()._get_neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
             sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         else:
             error_msg = (
@@ -642,7 +644,7 @@ class SpecsPass(BasePass):
         return EdgeSearch(sources, targets).prepare()
 
     @staticmethod
-    def _degrees(nodes: BlockSpec, search: EdgeSearch) -> np.ndarray | None:
+    def _get_degrees(nodes: BlockSpec, search: EdgeSearch) -> np.ndarray | None:
         """Return the number of fixed edges of a layer at every node, or `None`.
 
         On a directed graph, they are counted both ways. A layer whose edges change has no fixed degrees.
@@ -653,7 +655,7 @@ class SpecsPass(BasePass):
         return (np.bincount(search.sources, minlength=size) + np.bincount(search.targets, minlength=size)).astype(float)
 
     @staticmethod
-    def _with_degree(
+    def _copy_with_degree(
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
         name: str,
@@ -699,19 +701,19 @@ class SpecsPass(BasePass):
                 under `'target'`, none for a layer whose edges change. The degree of a node is the number of edges of
                 the layer at it, both ways on a directed graph.
         """
-        degrees = SpecsPass._degrees(nodes, search)
+        degrees = SpecsPass._get_degrees(nodes, search)
         if degrees is None:
             return declarations, {}
         entry = EntrySpec(f'{node.path}._degree', declarations.ends[False], (nodes.rows,), RR, nodes.rows)
-        declarations = LayoutPass._with_entry(declarations, entry, degrees, is_state=False)
+        declarations = LayoutPass._copy_with_entry(declarations, entry, degrees, is_state=False)
         references = {
             end: ReferenceSpec(entry, False, 0, source)
-            for end, source in zip(_EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), strict=True)
+            for end, source in zip(EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), strict=True)
         }
         return declarations, references
 
     @staticmethod
-    def _end_spec(edge: KernelSpec, nodes: BlockSpec) -> KernelSpec:
+    def _get_end_spec(edge: KernelSpec, nodes: BlockSpec) -> KernelSpec:
         """Return the spec of the laws of a neighbour interaction that read one edge end.
 
         The interaction is an interaction over neighbours. The spec reads the laws in the namespace of an edge, and
@@ -737,7 +739,7 @@ class SpecsPass(BasePass):
         for item, reference in edge.references.items():
             if reference.source not in {ReadKind.FIRST, ReadKind.SECOND}:
                 continue
-            member, other = SpecsPass._end_symbols(item)
+            member, other = SpecsPass._get_end_symbols(item)
             references[member] = replace(reference, source=ReadKind.MEMBER)
             references[other] = replace(reference, source=ReadKind.OTHER)
         return KernelSpec(
@@ -753,7 +755,7 @@ class SpecsPass(BasePass):
         )
 
     @staticmethod
-    def _end_symbols(item: Expression) -> tuple[Expression, Expression]:
+    def _get_end_symbols(item: Expression) -> tuple[Expression, Expression]:
         """Return the member and other member symbols an edge end symbol stands for.
 
         Args:
@@ -763,18 +765,12 @@ class SpecsPass(BasePass):
         Returns:
             symbols:
                 The symbol of the member, and the symbol of the other member.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.engine.compile.passes._specs import SpecsPass
-            >>> SpecsPass._end_symbols(var('x_cells__source'))
-            (x_cells, x_cells__other)
         """
         name = str(item).removesuffix(END_SUFFIXES[0]).removesuffix(END_SUFFIXES[1])
         return symbol(name, domain_of(item)), symbol(f'{name}__other', domain_of(item))
 
     @staticmethod
-    def _ends_spec(
+    def _get_ends_spec(
         block: BlockSpec,
         nodes: BlockSpec,
         parameters: SimpleNamespace,
@@ -819,7 +815,7 @@ class SpecsPass(BasePass):
         """
         namespaces = {}
         ends = (nodes if others is None else others, nodes)
-        names = SpecsPass._end_names(block.node, _EDGE_NAMES[:2])
+        names = SpecsPass._get_end_names(block.node, EDGE_NAMES[:2])
         for end, group, source, suffix in zip(
             names,
             ends,
@@ -827,19 +823,19 @@ class SpecsPass(BasePass):
             END_SUFFIXES,
             strict=True,
         ):
-            namespaces[end], end_references = SpecsPass._namespace(group, source, alias=suffix)
+            namespaces[end], end_references = SpecsPass._get_namespace(group, source, alias=suffix)
             references.update(end_references)
             if place is not None and isinstance(place.space, LatticeSpace) and 'degree' not in vars(namespaces[end]):
                 degree = SR(2 * place.space.prepare().n_dim_)
                 namespaces[end] = SimpleNamespace(**vars(namespaces[end]), degree=degree)
-            namespaces[end] = SpecsPass._with_hyperedges(group, namespaces[end], references)
+            namespaces[end] = SpecsPass._copy_with_hyperedges(group, namespaces[end], references)
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
         paths: dict[str, str | tuple[str, ...]] = {names[0]: ends[0].node.path, names[1]: nodes.node.path}
         edge = KernelSpec(block.node.path, namespace, references, 0, roles=paths, place=place)
-        return SpecsPass._end_spec(edge, nodes)
+        return SpecsPass._get_end_spec(edge, nodes)
 
     @staticmethod
-    def _edge_specs(
+    def _get_edge_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
         declarations: DeclarationsSpec,
@@ -868,9 +864,9 @@ class SpecsPass(BasePass):
                 The interaction declares a parameter named like an end or the member of an edge.
         """
         node = block.node
-        nodes, edges, others = SpecsPass._edge_roles(node, elements)
-        parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
-        names = SpecsPass._end_names(node, _EDGE_NAMES)
+        nodes, edges, others = SpecsPass._get_edge_roles(node, elements)
+        parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
+        names = SpecsPass._get_end_names(node, EDGE_NAMES)
         clashes = sorted(set(vars(parameters)) & {*names, 't'})
         if clashes:
             error_msg = (
@@ -890,10 +886,10 @@ class SpecsPass(BasePass):
             or spread
             or (
                 edges is None
-                and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
+                and not isinstance(SpecsPass._get_group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
             )
         ):
-            spec = SpecsPass._ends_spec(
+            spec = SpecsPass._get_ends_spec(
                 block,
                 nodes,
                 parameters,
@@ -903,21 +899,21 @@ class SpecsPass(BasePass):
                 place=place,
             )
             return [spec], declarations
-        search = SpecsPass._edge_search(node, nodes, edges, elements)
+        search = SpecsPass._get_edge_search(node, nodes, edges, elements)
         declarations, degrees = SpecsPass._declare_degrees(node, nodes, search, declarations)
         namespaces: dict[str, SimpleNamespace] = {}
         base = re.sub(r'[^0-9A-Za-z]', '_', node.path)
-        ends = zip(_EDGE_NAMES[:2], names[:2], (ReadKind.FIRST, ReadKind.SECOND), END_SUFFIXES, strict=True)
+        ends = zip(EDGE_NAMES[:2], names[:2], (ReadKind.FIRST, ReadKind.SECOND), END_SUFFIXES, strict=True)
         for end, name, source, suffix in ends:
-            namespace, end_references = SpecsPass._namespace(nodes, source, alias=suffix)
+            namespace, end_references = SpecsPass._get_namespace(nodes, source, alias=suffix)
             references.update(end_references)
             if end in degrees:
-                namespace = SpecsPass._with_degree(namespace, references, f'degree_{base}{suffix}', degrees[end])
-            namespaces[name] = SpecsPass._with_hyperedges(nodes, namespace, references)
+                namespace = SpecsPass._copy_with_degree(namespace, references, f'degree_{base}{suffix}', degrees[end])
+            namespaces[name] = SpecsPass._copy_with_hyperedges(nodes, namespace, references)
         paths: dict[str, str | tuple[str, ...]] = {names[0]: nodes.node.path, names[1]: nodes.node.path}
         groups: dict[str, int] = {}
         if edges is not None:
-            edge, edge_references = SpecsPass._namespace(edges, ReadKind.MEMBER)
+            edge, edge_references = SpecsPass._get_namespace(edges, ReadKind.MEMBER)
             references.update(edge_references)
             namespaces[names[2]] = edge
             paths[names[2]] = edges.node.path
@@ -925,7 +921,7 @@ class SpecsPass(BasePass):
         elif search.source is not None:
             changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', RR)
-            references[activity] = ReferenceSpec(changing.entries[_ACTIVE], False, 0, ReadKind.MEMBER)
+            references[activity] = ReferenceSpec(changing.entries[ACTIVE], False, 0, ReadKind.MEMBER)
             paths[names[2]] = changing.node.path
         namespace = SimpleNamespace(t=declarations.time, **vars(parameters), **namespaces)
         group = edges.node.path if edges is not None else None
@@ -940,10 +936,10 @@ class SpecsPass(BasePass):
             groups=groups,
             place=place if search.source is None else None,
         )
-        return [spec, SpecsPass._end_spec(spec, nodes)], declarations
+        return [spec, SpecsPass._get_end_spec(spec, nodes)], declarations
 
     @staticmethod
-    def _hyperedge_roles(node: NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
+    def _get_hyperedge_roles(node: NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
         """Return the node group of a hyperedge interaction and the second role's group.
 
         The second role may bind no group.
@@ -970,7 +966,7 @@ class SpecsPass(BasePass):
         return blocks[0], next(iter(blocks[1:]), None)
 
     @staticmethod
-    def _gathered(
+    def _get_gathered(
         block: BlockSpec,
         alias: str,
         table: Indices | None,
@@ -984,14 +980,14 @@ class SpecsPass(BasePass):
         the members of a growing hypergraph reads its members from that entry, and a table of positions in an order
         drawn at every step reads the members at those positions of the order.
         """
-        namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias=alias)
+        namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
         read = NeighborReadSpec(table, None, None, None, 0, entry, order)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
-    def _hyperedge_spec(
+    def _get_hyperedge_spec(
         block: BlockSpec,
         roles: tuple[BlockSpec, BlockSpec | None],
         tables: tuple[str, Tables],
@@ -1010,29 +1006,29 @@ class SpecsPass(BasePass):
         nodes, second = roles
         mode, (focal, others, hyperedges, edges) = tables
         entry = None if growing is None else growing.entries[MEMBERS]
-        parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
+        parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
         namespaces: dict[str, object] = {}
-        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal, entry, order)
+        namespaces['member'], gathered = SpecsPass._get_gathered(nodes, '__member', focal, entry, order)
         references.update(gathered)
         read = [
-            SpecsPass._gathered(nodes, f'__other{position}', table, entry, order)
+            SpecsPass._get_gathered(nodes, f'__other{position}', table, entry, order)
             for position, table in enumerate(others)
         ]
         namespaces['others'] = tuple(namespace for namespace, _ in read)
         for _, gathered in read:
             references.update(gathered)
-        namespaces['members'], _ = SpecsPass._gathered(nodes, '__members', None)
+        namespaces['members'], _ = SpecsPass._get_gathered(nodes, '__members', None)
         paths: dict[str, str | tuple[str, ...]] = {'member': nodes.node.path}
         if second is not None:
             part = 'edge' if getattr(second.node.component, 'on', None) == 'edges' else 'hyperedge'
             table = edges if part == 'edge' else hyperedges
-            namespaces[part], gathered = SpecsPass._gathered(second, f'__{part}', table)
+            namespaces[part], gathered = SpecsPass._get_gathered(second, f'__{part}', table)
             references.update(gathered)
             paths[part] = second.node.path
         if growing is not None:
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", block.node.path)}_{mode}_hyperedges', RR)
             read_activity = NeighborReadSpec(hyperedges, None, None, None, 0)
-            references[activity] = ReferenceSpec(growing.entries[_ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
+            references[activity] = ReferenceSpec(growing.entries[ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
         return KernelSpec(
             block.node.path,
             SimpleNamespace(t=time, **vars(parameters), **namespaces),
@@ -1043,7 +1039,7 @@ class SpecsPass(BasePass):
         )
 
     @staticmethod
-    def _hyperedge_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+    def _get_hyperedge_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
         """Return the specs of a hyperedge interaction.
 
         They are the specs of the laws of the focal member and of the hyperedge per size.
@@ -1067,7 +1063,7 @@ class SpecsPass(BasePass):
                 The interaction declares a parameter named like a slot of a hyperedge.
         """
         node = block.node
-        roles = SpecsPass._hyperedge_roles(node, elements)
+        roles = SpecsPass._get_hyperedge_roles(node, elements)
         SpecsPass._check_slot_names(block)
         growing = next(
             (
@@ -1081,12 +1077,12 @@ class SpecsPass(BasePass):
         )
         if growing is None:
             return [
-                SpecsPass._hyperedge_spec(block, roles, tables, time)
-                for tables in HyperedgeTables._tables_of(node, *roles)
+                SpecsPass._get_hyperedge_spec(block, roles, tables, time)
+                for tables in HyperedgeTables._get_tables_of(node, *roles)
             ]
         return [
-            SpecsPass._hyperedge_spec(block, roles, tables, time, growing=growing)
-            for tables in HyperedgeTables._growing_tables_of(node, *roles, growing)
+            SpecsPass._get_hyperedge_spec(block, roles, tables, time, growing=growing)
+            for tables in HyperedgeTables._get_growing_tables_of(node, *roles, growing)
         ]
 
     @staticmethod
@@ -1101,7 +1097,7 @@ class SpecsPass(BasePass):
             LabelError:
                 The interaction declares a parameter named like a slot of a hyperedge.
         """
-        parameters, _ = SpecsPass._namespace(block, ReadKind.SINGLE)
+        parameters, _ = SpecsPass._get_namespace(block, ReadKind.SINGLE)
         clashes = sorted(set(vars(parameters)) & set(HYPEREDGE_NAMES))
         if clashes:
             error_msg = (
@@ -1111,7 +1107,7 @@ class SpecsPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _grouping_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+    def _get_grouping_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
         """Return the specs of a symbolic grouping, one per size of its groups.
 
         Their rows are the members of a group. Pairs and partitions read the members at positions of an order drawn at
@@ -1140,23 +1136,23 @@ class SpecsPass(BasePass):
         assert isinstance(component, GroupingInteraction)
         nodes = SpecsPass._resolve_role(node, component._get_role('target'), elements)
         SpecsPass._check_slot_names(block)
-        groups = HyperedgeTables._groups_of(node, nodes)
+        groups = HyperedgeTables._get_groups_of(node, nodes)
         order = None if component.groups == 'neighborhood' else np.arange(nodes.rows, dtype=np.intp)
         counts = np.bincount(np.concatenate([members.ravel() for members in groups]), minlength=nodes.rows)
         specs = []
         for members in groups:
             ids = np.arange(members.shape[0], dtype=np.intp)
-            focal, others, hyperedges, _ = HyperedgeTables._tables(members, ids, MEMBER_LAWS)
+            focal, others, hyperedges, _ = HyperedgeTables._get_tables(members, ids, MEMBER_LAWS)
             tables = (MEMBER_LAWS, (focal, others, hyperedges, None))
-            spec = SpecsPass._hyperedge_spec(block, (nodes, None), tables, time, order=order)
+            spec = SpecsPass._get_hyperedge_spec(block, (nodes, None), tables, time, order=order)
             specs.append(replace(spec, reduce=component.reduce, counts=counts[focal]))
         return specs
 
     @staticmethod
-    def _member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
+    def _get_member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
         """Return the kernel spec of the intrinsic laws of an element or group."""
-        namespace, references = SpecsPass._namespace(block, ReadKind.MEMBER)
-        namespace = SpecsPass._with_other(block, namespace, references)
+        namespace, references = SpecsPass._get_namespace(block, ReadKind.MEMBER)
+        namespace = SpecsPass._copy_with_other(block, namespace, references)
         group = block.node.path if block.node.members is not None else None
         return KernelSpec(
             block.node.path,
@@ -1167,14 +1163,14 @@ class SpecsPass(BasePass):
         )
 
     @staticmethod
-    def _pair_spec(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> KernelSpec:
+    def _get_pair_spec(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> KernelSpec:
         """Return the kernel spec of a pair interaction.
 
         It is evaluated once per pair within its cutoff.
         """
         node = block.node
         interaction = node.as_interaction
-        names = SpecsPass._end_names(node, ('first', 'second'))
+        names = SpecsPass._get_end_names(node, ('first', 'second'))
         first, second = (SpecsPass._resolve_role(node, name, elements) for name in names)
         position = getattr(interaction, 'position', 'x')
         for bound in (first, second):
@@ -1182,13 +1178,13 @@ class SpecsPass(BasePass):
             if entry is None or not entry.member_shape:
                 error_msg = f'Pair interaction {node.path} needs the vector state {position!r} in {bound.node.path}.'
                 raise ValidationError(error_msg)
-        parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
-        first_namespace, first_references = SpecsPass._namespace(first, ReadKind.FIRST)
-        second_namespace, second_references = SpecsPass._namespace(second, ReadKind.SECOND, alias='_pair')
+        parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
+        first_namespace, first_references = SpecsPass._get_namespace(first, ReadKind.FIRST)
+        second_namespace, second_references = SpecsPass._get_namespace(second, ReadKind.SECOND, alias='_pair')
         references.update(first_references)
         references.update(second_references)
         period = getattr(interaction, 'period', None)
-        period = period if period is not None else SpecsPass._space_period(node)
+        period = period if period is not None else SpecsPass._get_space_period(node)
         pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period).prepare()
         namespace = SimpleNamespace(
             t=time,
@@ -1199,7 +1195,7 @@ class SpecsPass(BasePass):
         return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
     @staticmethod
-    def _growth_specs(specs: list[KernelSpec], declarations: DeclarationsSpec) -> list[KernelSpec]:
+    def _get_growth_specs(specs: list[KernelSpec], declarations: DeclarationsSpec) -> list[KernelSpec]:
         """Return the specs of an addition of one node per step.
 
         Their namespace holds the node being added.
@@ -1213,12 +1209,12 @@ class SpecsPass(BasePass):
         grown = []
         for spec in specs:
             references = dict(spec.references)
-            namespace = SpecsPass._with_source(nodes, spec.namespace, references)
+            namespace = SpecsPass._copy_with_source(nodes, spec.namespace, references)
             grown.append(replace(spec, namespace=namespace, references=references))
         return grown
 
     @staticmethod
-    def _interaction_specs(
+    def _get_interaction_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
         time: Expression,
@@ -1275,35 +1271,35 @@ class SpecsPass(BasePass):
         paths.update({role: tuple(member.node.path for member in members) for role, members in sets.items()})
         paths.update({role: f'{node.scope}{labels[role]}' for role in observed})
         paths.update(
-            {role: tuple(SpecsPass._entry_path(*entry) for entry in entries) for role, entries in variadic.items()},
+            {role: tuple(SpecsPass._get_entry_path(*entry) for entry in entries) for role, entries in variadic.items()},
         )
-        paths.update({role: SpecsPass._entry_path(*member) for role, member in single_members.items()})
+        paths.update({role: SpecsPass._get_entry_path(*member) for role, member in single_members.items()})
         specs = []
         for index in range(next(iter(sizes), 1)):
-            parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
+            parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
             namespaces: dict[str, SimpleNamespace | tuple[SimpleNamespace, ...]] = {}
             set_symbols: dict[Expression, SetSymbolSpec] = {}
             for role, members in sets.items():
-                namespaces[role], role_references = SpecsPass._namespace(members[index], ReadKind.SINGLE)
+                namespaces[role], role_references = SpecsPass._get_namespace(members[index], ReadKind.SINGLE)
                 references.update(role_references)
                 set_symbols.update(SpecsPass._set_symbols(members, index))
             for role, value in observed.items():
                 namespaces[role] = value.namespace
                 references.update(value.references)
             for role, entries in variadic.items():
-                read = [SpecsPass._source_namespace(*entry, bound) for entry in entries]
+                read = [SpecsPass._get_source_namespace(*entry, bound) for entry in entries]
                 namespaces[role] = tuple(namespace for namespace, _ in read)
                 for _, entry_references in read:
                     references.update(entry_references)
             for role, (member_block, position) in single_members.items():
-                namespaces[role], role_references = SpecsPass._member_namespace(member_block, position)
+                namespaces[role], role_references = SpecsPass._get_member_namespace(member_block, position)
                 references.update(role_references)
             for role, item in bound.items():
-                role_namespace, role_references = SpecsPass._namespace(
+                role_namespace, role_references = SpecsPass._get_namespace(
                     item,
                     ReadKind.MEMBER if item.node.members is not None else ReadKind.SINGLE,
                 )
-                namespaces[role] = SpecsPass._with_other(item, role_namespace, role_references)
+                namespaces[role] = SpecsPass._copy_with_other(item, role_namespace, role_references)
                 references.update(role_references)
             specs.append(
                 KernelSpec(
@@ -1353,12 +1349,12 @@ class SpecsPass(BasePass):
         interaction's `_get_role` returns.
         """
         node = block.node
-        source_name, target_name = SpecsPass._end_names(node, _EDGE_NAMES[:2])
+        source_name, target_name = SpecsPass._get_end_names(node, EDGE_NAMES[:2])
         first, second = bound[0], next(iter(bound[1:]), None)
         sources = getattr(node.component, second or first)
         separate = second is None or SpecsPass._binds_separate(block, [second], elements)
         specs = []
-        for spec in SpecsPass._interaction_specs(block, elements, time, observer):
+        for spec in SpecsPass._get_interaction_specs(block, elements, time, observer):
             namespace = dict(vars(spec.namespace))
             namespace[target_name] = namespace.pop(first)
             if second is not None:
@@ -1369,13 +1365,14 @@ class SpecsPass(BasePass):
                 if second is None:
                     others = [label for index, label in enumerate(others) if index != spec.set_index]
                 namespace[source_name] = tuple(
-                    SpecsPass._other_namespace(node, second or first, label, elements, references) for label in others
+                    SpecsPass._get_other_namespace(node, second or first, label, elements, references)
+                    for label in others
                 )
             specs.append(replace(spec, namespace=SimpleNamespace(**namespace), references=references))
         return specs
 
     @staticmethod
-    def _other_namespace(
+    def _get_other_namespace(
         node: NodeSpec,
         role: str,
         label: str,
@@ -1386,7 +1383,7 @@ class SpecsPass(BasePass):
 
         The reductions of the interaction over neighbours read it.
         """
-        other, other_references = SpecsPass._namespace(
+        other, other_references = SpecsPass._get_namespace(
             SpecsPass._resolve_path(node, role, label, elements),
             ReadKind.SINGLE,
         )
@@ -1394,7 +1391,7 @@ class SpecsPass(BasePass):
         return other
 
     @staticmethod
-    def _specs_of(
+    def _get_specs_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
         declarations: DeclarationsSpec,
@@ -1423,21 +1420,21 @@ class SpecsPass(BasePass):
         """
         time = declarations.time
         if not block.node.interaction:
-            return [SpecsPass._member_spec(block, time)], declarations
+            return [SpecsPass._get_member_spec(block, time)], declarations
         component = block.node.component
         bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
         if isinstance(component, NeighborInteraction) and SpecsPass._binds_separate(block, bound, elements):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
         if isinstance(component, NeighborInteraction) and bound:
-            return SpecsPass._edge_specs(block, elements, declarations)
+            return SpecsPass._get_edge_specs(block, elements, declarations)
         grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
         if (isinstance(component, HyperedgeInteraction) and bound) or (
             isinstance(component, GroupingInteraction) and grouped and component.groups != 'state'
         ):
-            gathered = SpecsPass._grouping_specs if grouped else SpecsPass._hyperedge_specs
+            gathered = SpecsPass._get_grouping_specs if grouped else SpecsPass._get_hyperedge_specs
             return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
-            return [SpecsPass._pair_spec(block, elements, time)], declarations
-        specs = SpecsPass._interaction_specs(block, elements, time, observer)
+            return [SpecsPass._get_pair_spec(block, elements, time)], declarations
+        specs = SpecsPass._get_interaction_specs(block, elements, time, observer)
         grows = isinstance(component, TopologyInteraction) and component.action == 'add-node' and not bound
-        return (SpecsPass._growth_specs(specs, declarations) if grows else specs), declarations
+        return (SpecsPass._get_growth_specs(specs, declarations) if grows else specs), declarations

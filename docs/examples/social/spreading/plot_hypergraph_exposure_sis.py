@@ -35,7 +35,7 @@ trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 def prevalence(share):
     """Return the share of infected participants after every step of a run."""
     run = simulate(HypergraphExposureSisSystem(share=share, seed=0), random_state=0)
-    infected = run.values('participants.infected')
+    infected = run.get_values('participants.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)
 
 

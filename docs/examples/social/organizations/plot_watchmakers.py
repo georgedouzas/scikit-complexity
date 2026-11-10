@@ -29,8 +29,8 @@ trajectory = simulate(WatchmakersSystem(), until=20000, observers=[observer], ra
 # average, so Hora should finish a watch every 1173 actions, while Tempus needs 2.3 million and finishes none.
 
 times = np.asarray(trajectory.times)
-watches = np.array([trajectory.agents('watchmakers', frame).values['watches'] for frame in range(len(times))])
-progress = np.array([trajectory.agents('watchmakers', frame).values['progress'] for frame in range(len(times))])
+watches = np.array([trajectory.get_agents('watchmakers', frame).values['watches'] for frame in range(len(times))])
+progress = np.array([trajectory.get_agents('watchmakers', frame).values['progress'] for frame in range(len(times))])
 fig, (finished, work) = plt.subplots(1, 2, figsize=(10, 4))
 finished.plot(times, watches[:, 0], label='Hora')
 finished.plot(times, watches[:, 1], label='Tempus')

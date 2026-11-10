@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import lag, total, where
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -133,26 +133,26 @@ def test_update_runs_into_its_value_and_targets_a_topology_request():
 
 def test_adaptive_parameter_changes_only_when_the_policy_fires():
     """Test that the adaptive rate changes only at steps where prices exceed the target, and starts from its value."""
-    system = System(
+    system = CompositeSystem(
         elements=[EconomyElement('economy', rate=0.03)],
         interactions=[PolicyInteraction('bank', target='economy')],
     )
     trajectory = simulate(system, until=4)
-    rates, prices = trajectory.values('economy.rate'), trajectory.values('economy.price')
+    rates, prices = trajectory.get_values('economy.rate'), trajectory.get_values('economy.price')
     assert rates[0] == pytest.approx(0.03)
     np.testing.assert_array_equal(np.diff(rates) > 0, prices[:-1] > 1.05)
 
 
 def test_fibonacci_recurrence():
     """Test that `x_{t+1} = x_t + x_{t-1}` from 1 and 1 gives the Fibonacci sequence."""
-    trajectory = simulate(System(elements=[FibonacciElement('f')]), until=8)
-    assert trajectory.values('f.x').tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
-    assert trajectory.values('f.x_lag1').tolist()[:3] == [1, 1, 2]
+    trajectory = simulate(CompositeSystem(elements=[FibonacciElement('f')]), until=8)
+    assert trajectory.get_values('f.x').tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
+    assert trajectory.get_values('f.x_lag1').tolist()[:3] == [1, 1, 2]
 
 
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's system with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
-    income = simulate(System(elements=[IncomeElement('economy')]), until=40).values('economy.Y')
+    income = simulate(CompositeSystem(elements=[IncomeElement('economy')]), until=40).get_values('economy.Y')
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)
     assert np.abs(deviation[-10:]).max() > 10 * np.abs(deviation[:10]).max()
@@ -160,7 +160,7 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
 
 def test_adaptive_parameters_compile_with_their_bounds():
     """Test that compiling keeps the bounded adaptive parameters, the controls, and leaves the form an ODE."""
-    problem = PassCompiler().prepare(System(elements=[PumpElement('pump')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[PumpElement('pump')])).run().problem_
     assert problem.form.name == 'ODE'
     assert set(problem.adaptive_parameters) == {'pump.u'}
     assert problem.adaptive_parameters['pump.u'].bounds == (0.0, 1.0)
@@ -196,8 +196,8 @@ class LawsInteraction(Interaction):
 def _counters(laws, initial, until=1):
     """Return the values of the members of a group under the laws of one interaction."""
     group = GroupElement('counters', element=CounterElement, size=len(initial), values={'x': initial})
-    system = System(elements=[group], interactions=[LawsInteraction('laws', target='counters', laws=laws)])
-    return simulate(system, until=until).values('counters.x')
+    system = CompositeSystem(elements=[group], interactions=[LawsInteraction('laws', target='counters', laws=laws)])
+    return simulate(system, until=until).get_values('counters.x')
 
 
 def _increments(s):

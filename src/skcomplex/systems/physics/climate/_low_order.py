@@ -13,87 +13,10 @@ from sage.all__sagemath_symbolics import SR, vector
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class GeodynamoElement(Element):
-    """Dynamo of Gissinger's geodynamo.
-
-    The dynamo holds its quadrupolar and dipolar fields and the velocity of the flow.
-
-    The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`,
-    `dD/dt = -nu D + V Q`, and `dV/dt = Gamma - V + Q D`.
-
-    Args:
-        label:
-            The label of the dynamo.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        Q:
-            The initial quadrupolar field.
-
-        D:
-            The initial dipolar field.
-
-        V:
-            The initial velocity.
-
-        mu:
-            The growth rate of the quadrupole.
-
-        nu:
-            The damping rate of the dipole.
-
-        Gamma:
-            The forcing of the flow.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import GeodynamoElement
-        >>> GeodynamoElement('dynamo').Gamma
-        0.9
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        Q: Annotated[float, StateSpec()] = 0.1,
-        D: Annotated[float, StateSpec()] = 0.1,
-        V: Annotated[float, StateSpec()] = 0.1,
-        mu: Annotated[float, ParameterSpec()] = 0.119,
-        nu: Annotated[float, ParameterSpec()] = 0.1,
-        Gamma: Annotated[float, ParameterSpec()] = 0.9,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.Q = Q
-        self.D = D
-        self.V = V
-        self.mu = mu
-        self.nu = nu
-        self.Gamma = Gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and damping of both fields and the forcing of the flow.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the quadrupolar field, the dipolar field, and the velocity.
-        """
-        return [
-            RateLaw(s.Q, s.mu * s.Q - s.V * s.D),
-            RateLaw(s.D, -s.nu * s.D + s.V * s.Q),
-            RateLaw(s.V, s.Gamma - s.V + s.Q * s.D),
-        ]
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class Lorenz84Element(Element):
@@ -304,9 +227,9 @@ class Lorenz84System(BaseSystem):
         self.F = F
         self.G = G
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 Lorenz84Element('atmosphere', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, F=self.F, G=self.G),
@@ -360,18 +283,18 @@ class Lorenz96System(BaseSystem):
         self.F = F
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         values = np.full(self.n_sites, float(self.F))
         values[0] += self.perturbation
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[Lorenz96Element('ring', x=values, F=self.F)],
             space=ContinuousSpace(n_dim=self.n_sites),
         )
 
 
-class GeodynamoSystem(BaseSystem):
+class GeodynamoSystem(DynamicalSystem):
     """Gissinger's geodynamo, whose dipole field reverses at irregular times.
 
     The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`, `dD/dt = -nu D +
@@ -402,7 +325,7 @@ class GeodynamoSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import GeodynamoSystem
-        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].mu
+        >>> GeodynamoSystem(mu=0.12).prepare().system_.elements[0].get_value('mu')
         0.12
     """
 
@@ -423,7 +346,7 @@ class GeodynamoSystem(BaseSystem):
         Gamma: float = 0.9,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.Q = Q
         self.D = D
         self.V = V
@@ -431,11 +354,30 @@ class GeodynamoSystem(BaseSystem):
         self.nu = nu
         self.Gamma = Gamma
 
-    def _build_system(self) -> System:
-        """Return Gissinger's geodynamo, whose dipole field reverses at irregular times."""
-        return System(
-            self.label,
-            elements=[
-                GeodynamoElement('dynamo', Q=self.Q, D=self.D, V=self.V, mu=self.mu, nu=self.nu, Gamma=self.Gamma),
-            ],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'dynamo'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'Q': self.Q,
+            'D': self.D,
+            'V': self.V,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'mu': self.mu,
+            'nu': self.nu,
+            'Gamma': self.Gamma,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the growth and damping of both fields and the forcing of the flow."""
+        return {
+            'Q': lambda s: s.target.mu * s.target.Q - s.target.V * s.target.D,
+            'D': lambda s: -s.target.nu * s.target.D + s.target.V * s.target.Q,
+            'V': lambda s: s.target.Gamma - s.target.V + s.target.Q * s.target.D,
+        }

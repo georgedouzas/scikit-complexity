@@ -9,10 +9,10 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction
 
 
 class IndividualView(AgentView):
@@ -112,12 +112,12 @@ class GaltonWatsonSystem(BaseSystem):
         self.n_individuals = n_individuals
         self.m = m
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Galton-Watson branching process with Poisson offspring.
 
         Every step is one generation.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -129,7 +129,7 @@ class GaltonWatsonSystem(BaseSystem):
                 ),
             ],
             interactions=[
-                LifeCycleInteraction(
+                BirthDeathInteraction(
                     'reproduction',
                     target='population',
                     birth=1.0,

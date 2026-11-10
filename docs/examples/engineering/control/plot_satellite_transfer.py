@@ -7,7 +7,7 @@ once the target energy is reached.
 """
 
 # %%
-# The system is built from its class at the periapsis of the orbit with energy -0.7 and angular momentum
+# The example builds `SatelliteTransferSystem` at the periapsis of the orbit with energy -0.7 and angular momentum
 # 0.7, with the thrust 0.1 and the target energy -0.2, and is integrated with RK4 for 20 time units. The blueprint shows
 # the distance from the planet and the effective energy in one time series view.
 
@@ -47,8 +47,8 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.005), observers=[observer])
 # switches off. In the plane, the satellite should leave the inner ellipse and settle on the outer one, both with the
 # angular momentum 0.7.
 
-s, theta = trajectory.values('satellite.s'), trajectory.values('satellite.theta')
-energy = trajectory.values('energy')
+s, theta = trajectory.get_values('satellite.s'), trajectory.get_values('satellite.theta')
+energy = trajectory.get_values('energy')
 fig, (orbit, rise) = plt.subplots(1, 2, figsize=(10, 4.5))
 orbit.plot(s * np.cos(theta), s * np.sin(theta), label='satellite')
 orbit.plot(0.0, 0.0, 'o', color='black', label='planet')

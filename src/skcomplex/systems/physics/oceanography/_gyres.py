@@ -14,12 +14,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import AdvectionInteraction, DiffusionInteraction, RateInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class QuasiGeostrophicSiteElement(Element):
@@ -78,7 +79,7 @@ class QuasiGeostrophicSiteElement(Element):
         self.curl = curl
 
 
-def _streamfunction(s: SimpleNamespace) -> Expression:
+def _get_streamfunction(s: SimpleNamespace) -> Expression:
     """Return the streamfunction of a site.
 
     It is the inversion of its relative potential vorticity with walls at rest.
@@ -87,7 +88,7 @@ def _streamfunction(s: SimpleNamespace) -> Expression:
     return streamfunction
 
 
-def _sites(values: np.ndarray) -> np.ndarray:
+def _get_sites(values: np.ndarray) -> np.ndarray:
     """Return the values of every site, the observed field itself."""
     return np.array(values)
 
@@ -145,7 +146,7 @@ class DoubleGyreSystem(BaseSystem):
     until = 400.0
     dt = 0.4
     solver = RK4Solver(dt=0.4)
-    observables = (ObservableSpec('psi', _streamfunction, group='basin', reduce=_sites),)
+    observables = (ObservableSpec('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
 
     def __init__(
         self,
@@ -167,30 +168,30 @@ class DoubleGyreSystem(BaseSystem):
         self.tau0 = tau0
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> list[Expression]:
+    def _get_velocity(s: SimpleNamespace) -> list[Expression]:
         """Return the geostrophic velocity of a site, `(-psi_y, psi_x)`."""
-        streamfunction = _streamfunction(s.target)
+        streamfunction = _get_streamfunction(s.target)
         return [-partial(streamfunction, 1), partial(streamfunction, 0)]
 
     @staticmethod
-    def _beta_drift(s: SimpleNamespace) -> Expression:
+    def _get_beta_drift(s: SimpleNamespace) -> Expression:
         """Return the advection of the planetary vorticity, `-beta psi_x`."""
-        drift: Expression = -s.target.beta * partial(_streamfunction(s.target), 0)
+        drift: Expression = -s.target.beta * partial(_get_streamfunction(s.target), 0)
         return drift
 
     @staticmethod
-    def _wind(s: SimpleNamespace) -> Expression:
+    def _get_wind(s: SimpleNamespace) -> Expression:
         """Return the input of vorticity by the curl of the wind stress."""
         curl: Expression = s.target.curl
         return curl
 
     @staticmethod
-    def _viscosity(s: SimpleNamespace) -> Expression:
+    def _get_viscosity(s: SimpleNamespace) -> Expression:
         """Return the viscosity of a site."""
         viscosity: Expression = s.target.nu
         return viscosity
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the quasi-geostrophic double gyre.
 
         It is the wind-driven circulation of a closed ocean basin.
@@ -216,11 +217,11 @@ class DoubleGyreSystem(BaseSystem):
             'transport',
             target='basin',
             state='zeta',
-            drift=self._velocity,
-            source=self._beta_drift,
+            drift=self._get_velocity,
+            source=self._get_beta_drift,
             limiter=None,
             riemann=None,
         )
-        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._wind)
-        viscosity = DiffusionInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
-        return System(self.label, elements=[basin], interactions=[transport, wind, viscosity])
+        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._get_wind)
+        viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._get_viscosity)
+        return CompositeSystem(self.label, elements=[basin], interactions=[transport, wind, viscosity])

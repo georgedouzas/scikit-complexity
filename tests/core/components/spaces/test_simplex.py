@@ -4,21 +4,38 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, moment
 from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec
+from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
 
 SIZE = 12
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def _simplex(size: int = SIZE) -> SimplexSpace:
@@ -36,7 +53,7 @@ def replicator_drift(_: SimpleNamespace) -> list[object]:
 
 def total(s: SimpleNamespace) -> object:
     """Return the integral of the density over the simplex."""
-    return moment(s.f, 0, axes=('x', 'y'))
+    return moment(s.x, 0, axes=('x', 'y'))
 
 
 def test_simplex_space_cuts_cells_along_the_slanted_face() -> None:
@@ -81,10 +98,10 @@ def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
     """Integrate a uniform density of two over the 2-simplex to one."""
     space = _simplex()
     start = 2.0 * (space.volumes_ > 0)
-    groups = FieldElement('groups', element=DensityElement, space=space, values={'f': start})
+    groups = FieldElement('groups', element=AmountElement, space=space, values={'x': start})
     observables = [ObservableSpec('total', total, group='groups')]
-    trajectory = simulate(System(elements=[groups]), until=0.1, dt=0.1, observables=observables)
-    values = np.asarray(trajectory.values('total'), dtype=float)
+    trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
+    values = np.asarray(trajectory.get_values('total'), dtype=float)
     assert np.abs(values - 1.0).max() < 1e-12
 
 
@@ -95,14 +112,20 @@ def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> N
     start = 2.0 * (space.volumes_ > 0)
     groups = FieldElement(
         'groups',
-        element=DensityElement,
+        element=AmountElement,
         space=space,
-        values={'f': start},
+        values={'x': start},
         discretization='finite-volume',
     )
-    flow = AdvectionInteraction('flow', target='groups', state='f', drift=replicator_drift, limiter=None)
-    trajectory = simulate(System(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
-    final = trajectory.values('groups.f')[-1].reshape(space.shape_)
+    flow = ConservationInteraction(
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in replicator_drift(s)],
+        limiter=None,
+    )
+    trajectory = simulate(CompositeSystem(elements=[groups], interactions=[flow]), until=2.0, dt=0.5, solver=solver)
+    final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)
     weights = space.volumes_ / SIZE**2
     assert abs((final * weights).sum() - 1.0) < 1e-10
     assert np.all(final[space.volumes_ == 0] == 0.0)

@@ -1,6 +1,8 @@
 """Carbon-13 metabolic flux analysis of the TCA example.
 
 The example is the one of Antoniewicz et al. (2007).
+
+`TCA_REACTIONS` holds the net reactions of the TCA example, with `v6` the fumarase whose exchange the labelling reads.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -20,7 +22,7 @@ from scipy.stats import chi2
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.problems import ProblemSpec
 from ....core.engine.runtime import simulate
 from ....core.errors import AnalysisError, ValidationError
@@ -29,43 +31,22 @@ from ....core.types import Array
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 
 SUM_TOLERANCE = 1e-9
-
-type _Unit = tuple[str, tuple[int, ...]]
-
 KINDS = ('simulation', 'estimation')
-
 INTERVALS = ('linear', 'profile')
-
-CONFIDENCE = 0.95
-
 INTERVAL_THRESHOLD = 3.841458820694124
-
 NORMAL_QUANTILE = 1.959963984540054
-
 PENALTY = 1e3
-
 FIT_TOLERANCE = 1e-13
-
 MAXIMUM_EVALUATIONS = 400
-
 PROFILE_ITERATIONS = 12
-
 PROFILE_TOLERANCE = 1e-9
-
 PROFILE_RELATIVE_STEP = 0.1
-
 PROFILE_WEIGHT = 1e4
-
 BOUND_TOLERANCE = 1e-6
-
 PROFILE_WIDTH = 1e-3
-
 VERTEX_DRAWS = 3
-
 BOUND = 300.0
-
 DEVIATION = 0.002
-
 TCA_REACTIONS = {
     'v1': ReactionSpec({'OAC': -1.0, 'Cit': 1.0}, upper=BOUND),
     'v2': ReactionSpec({'Cit': -1.0, 'AKG': 1.0}, upper=BOUND),
@@ -76,8 +57,6 @@ TCA_REACTIONS = {
     'v8': ReactionSpec({'OAC': 1.0}, upper=BOUND),
     'v9': ReactionSpec({'Glu': -1.0}, upper=BOUND),
 }
-"""The net reactions of the TCA example, with `v6` the fumarase whose exchange the labelling reads."""
-
 TCA_TRUE_FLUXES: dict[str, float | tuple[float, float]] = {
     'v1': 100.0,
     'v2': 100.0,
@@ -88,12 +67,11 @@ TCA_TRUE_FLUXES: dict[str, float | tuple[float, float]] = {
     'v8': 50.0,
     'v9': 50.0,
 }
-
-TCA_NET_FLUXES = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
-
 TCA_SYMMETRIC = ('Suc', 'Fum')
-
 TCA_OBJECTIVE: Mapping[str, float] = {}
+
+
+type _Unit = tuple[str, tuple[int, ...]]
 
 
 class TcaNetworkElement(MetabolicNetworkElement):
@@ -292,9 +270,7 @@ class TracerSpec(BaseSpec):
 
 
 ASPARTATE = TracerSpec('Asp', {'0000': 1.0})
-
 PUBLISHED_TRACERS = (TracerSpec('AcCoA', {'00': 0.5, '01': 0.25, '11': 0.25}), ASPARTATE)
-
 PARALLEL_TRACERS = {
     'one': (TracerSpec('AcCoA', {'00': 0.5, '10': 0.5}), ASPARTATE),
     'two': (TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}), ASPARTATE),
@@ -561,7 +537,7 @@ def labelling(
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
         >>> from skcomplex.systems.biology.systems_biology import (
         ...     AtomMapSpec,
@@ -571,7 +547,7 @@ def labelling(
         ... )
         >>> reactions = {'in': ReactionSpec({'B': 1.0}), 'out': ReactionSpec({'B': -1.0})}
         >>> network = metabolic_network_type('ChainElement', reactions)('net')
-        >>> system = System(elements=[network], time=StaticTime())
+        >>> system = CompositeSystem(elements=[network], time=StaticTime())
         >>> result = labelling(
         ...     system,
         ...     atoms=[AtomMapSpec('in', [('A', 'ab')], [('B', 'ba')])],
@@ -585,9 +561,9 @@ def labelling(
     _check_choice('kind', kind, KINDS)
     _check_choice('intervals', intervals, INTERVALS)
     atom_counts = _atom_counts(atoms)
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         source = source.prepare().system_
-    if not isinstance(source, System):
+    if not isinstance(source, CompositeSystem):
         error_msg = f'labelling reads a system, not a {type(source).__name__}.'
         raise AnalysisError(error_msg)
     units = _collect_units(
@@ -647,7 +623,7 @@ def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
     return {metabolite: count for metabolite, (count, _) in counts.items()}
 
 
-def _network_of(system: System) -> MetabolicNetworkElement:
+def _network_of(system: CompositeSystem) -> MetabolicNetworkElement:
     """Return the metabolic network of a system."""
     for element in system.elements:
         if isinstance(element, MetabolicNetworkElement):
@@ -658,7 +634,7 @@ def _network_of(system: System) -> MetabolicNetworkElement:
 
 def _bounds_of(network: MetabolicNetworkElement, reaction: str) -> tuple[float, float]:
     """Return the bounds of a reaction, from the parameters of the network."""
-    identifier = network._identifier(reaction)
+    identifier = network._get_identifier(reaction)
     return network.get_number(f'lower_{identifier}'), network.get_number(f'upper_{identifier}')
 
 
@@ -916,8 +892,8 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
     reactions = fit.units.reactions
     fixed = {name: value for name, (value, deviation) in fit.measured_fluxes.items() if deviation == 0}
     identifiers = {
-        **{f'lower_{network._identifier(name)}': value for name, value in fixed.items()},
-        **{f'upper_{network._identifier(name)}': value for name, value in fixed.items()},
+        **{f'lower_{network._get_identifier(name)}': value for name, value in fixed.items()},
+        **{f'upper_{network._get_identifier(name)}': value for name, value in fixed.items()},
     }
     vertices = []
     for _ in range(VERTEX_DRAWS):
@@ -928,7 +904,7 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
             reactions=network.reactions,
             default_objective=network.default_objective,
         ).set_params(**identifiers)
-        problem = simulate(System(elements=[element], time=StaticTime()), until=0).problem
+        problem = simulate(CompositeSystem(elements=[element], time=StaticTime()), until=0).problem
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)
@@ -936,7 +912,9 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
         solved = problem.programs[0].run(state).values_
         vertices.append(
             [
-                float(np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.flux_name(name)}'))[0]))
+                float(
+                    np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.get_flux_name(name)}'))[0]),
+                )
                 for name in reactions
             ],
         )
@@ -1217,9 +1195,9 @@ class Carbon13MFASystem(BaseSystem):
         super().__init__(label)
         self.network = network
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a metabolic network that `labelling` fits to labelling data."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[TcaNetworkElement('tca') if self.network is None else self.network],
             time=StaticTime(),

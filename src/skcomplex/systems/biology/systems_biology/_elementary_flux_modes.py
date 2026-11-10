@@ -9,7 +9,7 @@ The network is Raman's toy network by default.
 from collections.abc import Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..common.metabolism import ToyNetworkElement
 
 
@@ -49,10 +49,10 @@ class ElementaryFluxModesSystem(BaseSystem):
         super().__init__(label)
         self.knockouts = knockouts
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the toy network of Raman.
 
         Its steady-state cone is what `elementary_modes` enumerates.
         """
         closed = {f'{bound}_{name}': 0.0 for name in self.knockouts for bound in ('lower', 'upper')}
-        return System(self.label, elements=[ToyNetworkElement('cell').set_params(**closed)], time=StaticTime())
+        return CompositeSystem(self.label, elements=[ToyNetworkElement('cell').set_params(**closed)], time=StaticTime())

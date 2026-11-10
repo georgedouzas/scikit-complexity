@@ -1,7 +1,4 @@
-"""Write the syntax structures of PySD's abstract system as source of expressions.
-
-The source is that of the expressions of a system module.
-"""
+"""Write the syntax structures of PySD's abstract system as source of expressions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,8 +26,6 @@ from ._system_parts_spec import _SystemPartsSpec
 
 TIME = '(t + START)'
 ZERO_DIVISOR = 1e-6
-ORDER_ONE = 1
-NAMED_ORDERS = (ORDER_ONE, 3)
 INTERPOLATED = 'interpolate'
 SAGE_MODULE = 'sage.all__sagemath_symbolics'
 UTILITIES_MODULE = 'skcomplex.core.components.laws.utils'
@@ -263,18 +258,18 @@ class _ExpressionWriter:
         return self._add_problem('INITIAL of a value not known before a run') if value is None else repr(value)
 
     def write_points(self, ast: LookupsStructure) -> str:
-        """Return the source of the points of a table."""
-        points = ', '.join(
-            f'({self.format_number(x)}, {self.format_number(y)})' for x, y in zip(ast.x, ast.y, strict=True)
-        )
-        return f'({points})'
+        """Return the source of the points and the values of a table, as two tuples."""
+        points = ', '.join(self.format_number(x) for x in ast.x)
+        values = ', '.join(self.format_number(y) for y in ast.y)
+        trailing = ',' if len(ast.x) == 1 else ''
+        return f'({points}{trailing}), ({values}{trailing})'
 
     def _write_inline_lookup(self, ast: InlineLookupsStructure) -> str:
         """Return the source of a table written inside its variable."""
         if ast.lookups.type != INTERPOLATED:
             return self._add_problem(f'a lookup of the type {ast.lookups.type}')
-        lookup = self.add_import(UTILITIES_MODULE, 'lookup')
-        return f'{lookup}({self._write(ast.argument)}, {self.write_points(ast.lookups)})'
+        series = self.add_import(UTILITIES_MODULE, 'series')
+        return f'{series}({self._write(ast.argument)}, {self.write_points(ast.lookups)})'
 
     def _has_equal_values(self, first: object, second: object) -> bool:
         """Check that two expressions are one expression, or have the same initial value.
@@ -294,8 +289,6 @@ class _ExpressionWriter:
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a delay whose initial value differs from its input')
         arguments = f'{self._write(ast.input)}, {self._write(ast.delay_time)}'
-        if ast.order in NAMED_ORDERS:
-            return f'{self.add_import(UTILITIES_MODULE, f"delay{ast.order}")}({arguments})'
         order = self.evaluate(ast.order, 0)
         if order is None:
             return self._add_problem('a delay of an order not known before a run')
@@ -309,8 +302,6 @@ class _ExpressionWriter:
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a smoothing whose initial value differs from its input')
         arguments = f'{self._write(ast.input)}, {self._write(ast.smooth_time)}'
-        if ast.order == ORDER_ONE:
-            return f'{self.add_import(UTILITIES_MODULE, "smooth")}({arguments})'
         order = self.evaluate(ast.order, 0)
         if order is None:
             return self._add_problem('a smoothing of an order not known before a run')

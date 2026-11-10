@@ -21,7 +21,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
         dt=0.1,
         observables=BouchaudMezardWealthSystem().get_run_settings()['observables'],
     )
-    final = trajectory.values('agents.W')[-1]
+    final = trajectory.get_values('agents.W')[-1]
     assert final.sum() == pytest.approx(20.0)
     assert np.allclose(final - 1.0, (wealth - 1.0) * np.exp(-20 / 19), atol=2e-3)
     noisy = _run(
@@ -29,7 +29,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
         1.0,
         dt=0.1,
         observables=BouchaudMezardWealthSystem().get_run_settings()['observables'],
-    ).values('agents.W')
+    ).get_values('agents.W')
     assert np.all(noisy > 0)
 
 

@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
 from skcomplex.systems.biology.collective_behaviour import (
@@ -28,7 +28,7 @@ def _accuracy(informed):
             random_state=seed,
         )
         for frame in range(100, 151):
-            snapshot = trajectory.agents('shoal', frame)
+            snapshot = trajectory.get_agents('shoal', frame)
             heading = np.arctan2(np.mean(snapshot.values['vy']), np.mean(snapshot.values['vx']))
             cosines.append(np.cos(heading))
     return float(np.mean(cosines))
@@ -46,12 +46,12 @@ def test_swimming_interaction_turns_by_deviation_and_swims():
     """Test that a fish turns its heading by its deviation and swims `speed` along the new heading."""
     values = {'vx': 1.0, 'vy': 0.0, 'deviation': 0.5, 'speed': 2.0}
     shoal = GroupElement('shoal', element=ShoalMemberElement, size=1, values=values, location=[(99.0, 1.0)])
-    system = System(
+    system = CompositeSystem(
         elements=[shoal],
         interactions=[SwimmingInteraction('swimming', target='shoal')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
     )
-    snapshot = simulate(system, random_state=0, until=1).agents('shoal', 1)
+    snapshot = simulate(system, random_state=0, until=1).get_agents('shoal', 1)
     heading = [math.cos(0.5), math.sin(0.5)]
     np.testing.assert_allclose([snapshot.values['vx'][0], snapshot.values['vy'][0]], heading)
     np.testing.assert_allclose(snapshot.locations[0], np.mod([99.0 + 2 * heading[0], 1.0 + 2 * heading[1]], 100.0))
@@ -66,13 +66,13 @@ def _headings(locations):
         values={'vx': 1.0, 'vy': 0.0, 'max_turn': 0.4},
         location=locations,
     )
-    system = System(
+    system = CompositeSystem(
         elements=[shoal],
         interactions=[SchoolingInteraction('schooling', target='shoal', phase='turn')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous')])),
     )
-    snapshot = simulate(system, random_state=0, until=1).agents('shoal', 1)
+    snapshot = simulate(system, random_state=0, until=1).get_agents('shoal', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

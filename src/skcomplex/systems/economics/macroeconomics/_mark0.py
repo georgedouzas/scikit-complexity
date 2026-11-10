@@ -14,14 +14,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
+
+CREDIT_POLICIES = ('none', 'naive', 'adaptive')
 
 
 class Mark0FirmView(AgentView):
@@ -123,10 +125,7 @@ class Mark0FirmElement(Element):
         return []
 
 
-CREDIT_POLICIES = ('none', 'naive', 'adaptive')
-
-
-class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
+class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
     """Representative household and bank of the Mark-0 economy.
 
     They run the firms through one month every step. Every step the firms adjust their workforce, prices, and wages by
@@ -300,20 +299,20 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
             error_msg = f'The credit policy of {self.label!r} is {self.credit!r}. Use one of {CREDIT_POLICIES}.'
             raise ValidationError(error_msg)
 
-    def _threshold(self, system: SystemView, month: int, fragility: float) -> float:
+    def _get_threshold(self, system: SystemView, month: int, fragility: float) -> float:
         """Return the bankruptcy threshold of the month under the credit policy."""
-        start, length = system.parameter('shock_time'), system.parameter('shock_length')
-        theta = system.parameter('theta')
+        start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
+        theta = system.get_parameter('theta')
         if self.credit == 'none' or length == 0 or month < start:
             return theta
         if month < start + length:
             return np.inf
         if self.credit == 'adaptive':
-            return max(system.parameter('offset') * fragility, theta)
+            return max(system.get_parameter('offset') * fragility, theta)
         return theta
 
     @staticmethod
-    def _stored(system: SystemView, name: str, default: float) -> float:
+    def _get_stored(system: SystemView, name: str, default: float) -> float:
         """Return a number the economy stored in an earlier step.
 
         Before it is stored, it is the default.
@@ -322,7 +321,7 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         return float(value) if isinstance(value, int | float | np.number) else default
 
     @staticmethod
-    def _weighted(values: Array, weights: Array) -> float:
+    def _get_weighted(values: Array, weights: Array) -> float:
         """Return the mean of values weighted by nonnegative weights.
 
         It is the plain mean when they sum to zero.
@@ -335,17 +334,17 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
 
         The adjustment follows last month's demand and profit.
         """
-        rng, gamma = system.rng, system.parameter('gamma')
+        rng, gamma = system.rng, system.get_parameter('gamma')
         active = state['active'] > 0
         workforce, demand, price, wage, profit = (state[name] for name in ('n', 'd', 'p', 'w', 'profit'))
         production = zeta * workforce
-        mean_price = self._weighted(price[active], production[active])
-        mean_wage = self._weighted(wage[active], production[active])
-        attraction = np.where(active, np.exp(system.parameter('beta') * (wage / mean_wage - 1)), 0.0)
+        mean_price = self._get_weighted(price[active], production[active])
+        mean_wage = self._get_weighted(wage[active], production[active])
+        attraction = np.where(active, np.exp(system.get_parameter('beta') * (wage / mean_wage - 1)), 0.0)
         available = unemployment * len(workforce) * attraction / attraction.sum()
         under, over = active & (production < demand), active & (production > demand)
-        eta_minus = system.parameter('eta_minus')
-        eta_plus = min(1.0, system.parameter('ratio') * eta_minus)
+        eta_minus = system.get_parameter('eta_minus')
+        eta_plus = min(1.0, system.get_parameter('ratio') * eta_minus)
         hired = np.minimum(eta_plus * (demand - production), zeta * available) / zeta
         workforce = np.where(
             under,
@@ -376,20 +375,24 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the economy.
         """
-        firms = sorted(system.agents('firms', Mark0FirmView), key=lambda firm: firm.id)
+        firms = sorted(system.get_agents('firms', Mark0FirmView), key=lambda firm: firm.id)
         names = ('workforce', 'demand', 'price', 'wage', 'cash', 'profit', 'active')
         keys = ('n', 'd', 'p', 'w', 'e', 'profit', 'active')
         state = {key: np.array([getattr(firm, name) for firm in firms]) for key, name in zip(keys, names, strict=True)}
         store = system.storage
-        month = int(self._stored(system, 'month', 0.0))
-        savings, inflation_ema = self._stored(system, 'savings', 0.0), self._stored(system, 'inflation_ema', 0.0)
-        rho_l, rho_d = self._stored(system, 'rho_l', 0.0), self._stored(system, 'rho_d', 0.0)
-        start, length = system.parameter('shock_time'), system.parameter('shock_length')
+        month = int(self._get_stored(system, 'month', 0.0))
+        savings, inflation_ema = self._get_stored(system, 'savings', 0.0), self._get_stored(
+            system,
+            'inflation_ema',
+            0.0,
+        )
+        rho_l, rho_d = self._get_stored(system, 'rho_l', 0.0), self._get_stored(system, 'rho_d', 0.0)
+        start, length = system.get_parameter('shock_time'), system.get_parameter('shock_length')
         shocked = start <= month < start + length
-        zeta = system.parameter('zeta') * (1 - system.parameter('dzeta') * shocked)
-        c = system.parameter('c0') * (1 - system.parameter('dc') * shocked)
+        zeta = system.get_parameter('zeta') * (1 - system.get_parameter('dzeta') * shocked)
+        c = system.get_parameter('c0') * (1 - system.get_parameter('dc') * shocked)
         if length > 0 and month == start + length:
-            savings *= system.parameter('kappa')
+            savings *= system.get_parameter('kappa')
         size = len(firms)
         if month > 0:
             state['sales'] = np.asarray(store['sales'])
@@ -400,38 +403,38 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         bill = state['w'] * state['n']
         wages = float(bill.sum())
         state['e'] = state['e'] - bill
-        mean_price = self._weighted(state['p'][active], production[active])
-        mean_wage = self._weighted(state['w'][active], production[active])
+        mean_price = self._get_weighted(state['p'][active], production[active])
+        mean_wage = self._get_weighted(state['w'][active], production[active])
         budget = c * (savings + wages + rho_d * savings)
-        weights = np.where(active, np.exp(-system.parameter('beta') * state['p'] / mean_price), 0.0)
+        weights = np.where(active, np.exp(-system.get_parameter('beta') * state['p'] / mean_price), 0.0)
         state['d'] = budget * weights / (state['p'] * weights.sum())
         sales = state['p'] * np.minimum(production, state['d'])
         interest = rho_d * np.maximum(state['e'], 0.0) + rho_l * np.minimum(state['e'], 0.0)
         state['e'] = state['e'] + sales + interest
         state['profit'] = sales - bill + interest
         savings += wages + rho_d * savings - float(sales.sum())
-        dividends = np.where((state['profit'] > 0) & (state['e'] > 0), system.parameter('delta') * state['e'], 0.0)
+        dividends = np.where((state['profit'] > 0) & (state['e'] > 0), system.get_parameter('delta') * state['e'], 0.0)
         state['e'] -= dividends
         savings += float(dividends.sum())
         fragility_of = np.divide(-state['e'], bill, out=np.zeros(size), where=bill > 0)
-        fragility = self._weighted(fragility_of[active], production[active])
-        threshold = self._threshold(system, month, fragility)
+        fragility = self._get_weighted(fragility_of[active], production[active])
+        threshold = self._get_threshold(system, month, fragility)
         defaulted = active & (fragility_of >= threshold)
         losses = float(-state['e'][defaulted].sum())
         for key in ('n', 'd', 'e', 'profit', 'active'):
             state[key] = np.where(defaulted, 0.0, state[key])
         unemployment = 1 - state['n'].sum() / size
-        revived = (state['active'] == 0) & ~defaulted & (system.rng.random(size) < system.parameter('phi'))
+        revived = (state['active'] == 0) & ~defaulted & (system.rng.random(size) < system.get_parameter('phi'))
         start_size = unemployment * system.rng.random(size)
         state['n'] = np.where(revived, start_size, state['n'])
         state['p'] = np.where(revived, mean_price, state['p'])
         state['w'] = np.where(revived, mean_wage, state['w'])
         state['active'] = np.where(revived, 1.0, state['active'])
-        previous = self._stored(system, 'price', mean_price)
+        previous = self._get_stored(system, 'price', mean_price)
         inflation = (mean_price - previous) / previous
-        inflation_ema = system.parameter('omega') * inflation + (1 - system.parameter('omega')) * inflation_ema
+        inflation_ema = system.get_parameter('omega') * inflation + (1 - system.get_parameter('omega')) * inflation_ema
         debts, deposits = float(-np.minimum(state['e'], 0.0).sum()), float(np.maximum(state['e'], 0.0).sum())
-        f = system.parameter('f')
+        f = system.get_parameter('f')
         rho_l = f * losses / debts if debts > 0 else 0.0
         rho_d = -(1 - f) * losses / (savings + deposits) if savings + deposits > 0 else 0.0
         store.update(
@@ -583,7 +586,7 @@ class Mark0System(BaseSystem):
         self.credit = credit
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         firms = GroupElement(
@@ -614,4 +617,4 @@ class Mark0System(BaseSystem):
             kappa=self.kappa,
             credit=self.credit,
         )
-        return System(self.label, elements=[firms], interactions=[economy])
+        return CompositeSystem(self.label, elements=[firms], interactions=[economy])

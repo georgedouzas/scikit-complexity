@@ -6,8 +6,8 @@ departure, and spend about half of the time empty and rarely grow beyond a few c
 """
 
 # %%
-# The system is built from its class with three queues of arrival rate 0.5 and service rate 1, so of load
-# `rho = 0.5`, and simulated for 60 time units with the Gillespie algorithm. The observer saves every frame with the
+# The example builds `BirthDeathQueueSystem` with three queues of arrival rate 0.5 and service rate 1, so of load
+# `rho = 0.5`, and simulates it for 60 time units with the Gillespie algorithm. The observer saves every frame with the
 # default blueprint, whose primary view holds the three queue lengths.
 
 import matplotlib.pyplot as plt
@@ -43,7 +43,7 @@ for rho in loads:
         random_state=1,
         backend=NumbaBackend(),
     )
-    lengths = run.values('queues.n')[200:]
+    lengths = run.get_values('queues.n')[200:]
     counts = np.bincount(lengths.astype(int).ravel(), minlength=12)[:12]
     occupations[rho] = np.where(counts >= 100, counts / lengths.size, np.nan)
     means.append(lengths.mean())

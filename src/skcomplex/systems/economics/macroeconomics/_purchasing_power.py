@@ -16,21 +16,13 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.components.elements import DeclaredElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 SECTORS = 3
-
-
 A_MATRIX = ((-1.0, 0.3, 0.2), (0.2, -0.8, 0.3), (0.1, 0.4, -0.6))
-
-
 B_MATRIX = ((1.0, 0.2, 0.1), (0.1, 1.0, 0.2), (0.2, 0.1, 1.0))
-
-
 C_MATRIX = ((1.0, 0.3, 0.0), (0.0, 1.0, 0.3), (0.2, 0.0, 1.0))
-
-
 D_MATRIX = ((1.0, 0.2, 0.0), (0.0, 1.0, 0.2), (0.1, 0.0, 1.0))
 
 
@@ -113,7 +105,7 @@ class PurchasingPowerElement(DeclaredElement):
         return {**declared, **(self.variables or {})}
 
     @staticmethod
-    def _policies(s: SimpleNamespace) -> list[Expression]:
+    def _get_policies(s: SimpleNamespace) -> list[Expression]:
         """Return the policies of the sectors, steps of their sizes at their times."""
         return [step(s.t, getattr(s, f'policy_time{i}'), getattr(s, f'policy{i}')) for i in range(1, SECTORS + 1)]
 
@@ -128,7 +120,7 @@ class PurchasingPowerElement(DeclaredElement):
             outputs:
                 One index per sector.
         """
-        x, C, D = self._policies(s), np.asarray(self.C), np.asarray(self.D)
+        x, C, D = self._get_policies(s), np.asarray(self.C), np.asarray(self.D)
         if not self.feedback:
             z = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)]
             return [sum(C[i, k] * z[k] + D[i, k] * x[k] for k in range(SECTORS)) for i in range(SECTORS)]
@@ -151,7 +143,7 @@ class PurchasingPowerElement(DeclaredElement):
                 One input per sector.
         """
         if not self.feedback:
-            return self._policies(s)
+            return self._get_policies(s)
         C, inverse = np.asarray(self.C), np.linalg.inv(np.asarray(self.D, dtype=float))
         z, y = [getattr(s, f'z{i}') for i in range(1, SECTORS + 1)], self.get_outputs(s)
         gaps = [y[i] - sum(C[i, k] * z[k] for k in range(SECTORS)) for i in range(SECTORS)]
@@ -174,35 +166,13 @@ class PurchasingPowerElement(DeclaredElement):
             RateLaw(z[i], sum(A[i, k] * z[k] + B[i, k] * u[k] for k in range(SECTORS))) for i in range(SECTORS)
         ]
         if self.feedback:
-            x = self._policies(s)
+            x = self._get_policies(s)
             for i in range(SECTORS):
                 w = [getattr(s, f'w{i + 1}{k + 1}') for k in range(SECTORS)]
                 laws += [
                     RateLaw(w[j], sum(A[j, k] * w[k] for k in range(SECTORS)) + B[j, i] * x[i]) for j in range(SECTORS)
                 ]
         return laws
-
-
-def _sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: str, index: int) -> Expression:
-    """Return the index or the input of one sector of the economy."""
-    values: list[Expression] = getattr(economy, method)(s)
-    return values[index]
-
-
-def _observables(system: System) -> list[ObservableSpec]:
-    """Return the index and the input of every sector."""
-    economy = system.elements[0]
-    if not isinstance(economy, PurchasingPowerElement):
-        return []
-    return [
-        ObservableSpec(
-            f'{name}{i + 1}',
-            partial(_sector_value, economy=economy, method=method, index=i),
-            element='economy',
-        )
-        for name, method in (('y', 'get_outputs'), ('u', 'get_inputs'))
-        for i in range(SECTORS)
-    ]
 
 
 class CategorizedPurchasingPowerSystem(BaseSystem):
@@ -259,6 +229,28 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
     until = 15.0
     dt = 0.05
 
+    @staticmethod
+    def _get_sector_value(s: SimpleNamespace, economy: PurchasingPowerElement, method: str, index: int) -> Expression:
+        """Return the index or the input of one sector of the economy."""
+        values: list[Expression] = getattr(economy, method)(s)
+        return values[index]
+
+    @staticmethod
+    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the index and the input of every sector."""
+        economy = system.elements[0]
+        if not isinstance(economy, PurchasingPowerElement):
+            return []
+        return [
+            ObservableSpec(
+                f'{name}{i + 1}',
+                partial(CategorizedPurchasingPowerSystem._get_sector_value, economy=economy, method=method, index=i),
+                element='economy',
+            )
+            for name, method in (('y', 'get_outputs'), ('u', 'get_inputs'))
+            for i in range(SECTORS)
+        ]
+
     def __init__(
         self,
         policy: Sequence[float] = (0.0, 0.0, 1.0),
@@ -280,7 +272,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         self.C = C
         self.D = D
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         variables = {
             name: DeclaredVariableSpec(float(value), ParameterSpec())
@@ -296,7 +288,7 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
             D=self.D,
             feedback=self.feedback,
         )
-        return System(self.label, elements=[economy])
+        return CompositeSystem(self.label, elements=[economy])
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
@@ -304,5 +296,5 @@ class CategorizedPurchasingPowerSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _observables(self._pass_parameters())
+        settings['observables'] = CategorizedPurchasingPowerSystem._get_observables(self._get_pass_parameters())
         return settings

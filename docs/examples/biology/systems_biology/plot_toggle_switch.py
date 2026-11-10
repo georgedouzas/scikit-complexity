@@ -6,8 +6,8 @@ stays on, and the cell remembers that choice.
 """
 
 # %%
-# The system is built from its class and started with the first protein ahead. The observer saves every frame with the
-# default blueprint, whose primary view is the time series of the mRNA and protein counts.
+# The example builds `ToggleSwitchSystem` and starts it with the first protein ahead. The observer saves every frame
+# with the default blueprint, whose primary view is the time series of the mRNA and protein counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,8 +32,18 @@ fig, ax = plt.subplots(figsize=(6, 5))
 for first in grid:
     for second in grid:
         trajectory = simulate(ToggleSwitchSystem(proteins=(first, second)))
-        winner = 'tab:blue' if trajectory.values('gene_0.p')[-1] > trajectory.values('gene_1.p')[-1] else 'tab:orange'
-        ax.plot(trajectory.values('gene_0.p'), trajectory.values('gene_1.p'), color=winner, linewidth=0.6, alpha=0.7)
+        winner = (
+            'tab:blue'
+            if trajectory.get_values('gene_0.p')[-1] > trajectory.get_values('gene_1.p')[-1]
+            else 'tab:orange'
+        )
+        ax.plot(
+            trajectory.get_values('gene_0.p'),
+            trajectory.get_values('gene_1.p'),
+            color=winner,
+            linewidth=0.6,
+            alpha=0.7,
+        )
 ax.plot([0, 120], [0, 120], ':', color='black', label='equal start')
 ax.set_xlabel('protein 0')
 ax.set_ylabel('protein 1')

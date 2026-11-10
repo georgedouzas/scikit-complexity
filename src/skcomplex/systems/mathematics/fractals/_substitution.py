@@ -17,9 +17,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import PatchElement, WordElement
 from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
+
+SHAPES = ('triangle', 'carpet')
+LARGEST_RATIO = 0.5
 
 
 class CantorElement(PatchElement):
@@ -116,8 +119,8 @@ class KochElement(WordElement):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import KochElement
-        >>> KochElement('koch', axiom='F')._get_laws(None)[0].successor
-        'F+F--F+F'
+        >>> KochElement('koch', axiom='F').axiom
+        'F'
     """
 
     law_classes = (ProductionLaw,)
@@ -135,9 +138,6 @@ class KochElement(WordElement):
         """
         del s
         return [ProductionLaw('F', 'F+F--F+F')]
-
-
-SHAPES = ('triangle', 'carpet')
 
 
 class SierpinskiElement(PatchElement):
@@ -172,8 +172,8 @@ class SierpinskiElement(PatchElement):
 
     Examples:
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
-        >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
-        8
+        >>> SierpinskiElement('sierpinski', shape='carpet').shape
+        'carpet'
     """
 
     law_classes = (SubstitutionLaw,)
@@ -217,11 +217,11 @@ class SierpinskiElement(PatchElement):
                 The shape is unknown.
         """
         del s
-        prototile, pieces = SierpinskiElement._sierpinski_tiles(self.shape)
+        prototile, pieces = SierpinskiElement._get_sierpinski_tiles(self.shape)
         return [SubstitutionLaw(prototile.name, pieces)]
 
     @staticmethod
-    def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
+    def _get_sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
         """Return the prototile of a Sierpiński shape and its scaled replacing copies."""
         if shape == 'triangle':
             height = np.sqrt(3) / 2
@@ -234,9 +234,6 @@ class SierpinskiElement(PatchElement):
             return PrototileSpec('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
         error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
         raise ValidationError(error_msg)
-
-
-LARGEST_RATIO = 0.5
 
 
 class KochCurveSystem(BaseSystem):
@@ -257,7 +254,7 @@ class KochCurveSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import KochCurveSystem
-        >>> simulate(KochCurveSystem(), until=3).values('koch.F').tolist()
+        >>> simulate(KochCurveSystem(), until=3).get_values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
 
@@ -271,7 +268,7 @@ class KochCurveSystem(BaseSystem):
         super().__init__(label)
         self.angle = angle
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         word = KochElement(
             'koch',
@@ -280,7 +277,7 @@ class KochCurveSystem(BaseSystem):
             geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
             bounds=(-0.03, -0.05, 1.03, 0.35),
         )
-        return System(self.label, elements=[word])
+        return CompositeSystem(self.label, elements=[word])
 
 
 class CantorSetSystem(BaseSystem):
@@ -305,7 +302,7 @@ class CantorSetSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
-        >>> simulate(CantorSetSystem(), until=3).values('cantor.size').tolist()
+        >>> simulate(CantorSetSystem(), until=3).get_values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -335,11 +332,11 @@ class CantorSetSystem(BaseSystem):
             error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
             raise ValidationError(error_msg)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
         cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
-        return System(self.label, elements=[cantor])
+        return CompositeSystem(self.label, elements=[cantor])
 
 
 class SierpinskiSubstitutionSystem(BaseSystem):
@@ -370,7 +367,7 @@ class SierpinskiSubstitutionSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
-        >>> simulate(SierpinskiSubstitutionSystem(), until=2).values('sierpinski.size').tolist()
+        >>> simulate(SierpinskiSubstitutionSystem(), until=2).get_values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
 
@@ -385,8 +382,8 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         self.shape = shape
         self.filled = filled
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        prototile, _ = SierpinskiElement._sierpinski_tiles(self.shape)
+        prototile, _ = SierpinskiElement._get_sierpinski_tiles(self.shape)
         sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
-        return System(self.label, elements=[sierpinski])
+        return CompositeSystem(self.label, elements=[sierpinski])

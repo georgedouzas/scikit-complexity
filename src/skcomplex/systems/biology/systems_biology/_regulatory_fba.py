@@ -14,7 +14,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.specs import RoleSpec
 from ..common.metabolism import (
@@ -167,17 +167,17 @@ class RegulatoryFBASystem(BaseSystem):
         self.acetate_vmax = acetate_vmax
         self.km = km
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a batch culture with Boolean catabolite repression.
 
         The culture grows on glucose and acetate.
         """
         cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
         cell.parsimonious, cell.infeasible = True, 'zero'
-        identifier = cell._identifier(ACETATE_EXCHANGE)
+        identifier = cell._get_identifier(ACETATE_EXCHANGE)
         cell.set_params(
             **{f'lower_{identifier}': -float(self.acetate_vmax)},
-            **{cell.gene_name(gene): 0.0 for gene in ACETATE_GENES},
+            **{cell.get_gene_name(gene): 0.0 for gene in ACETATE_GENES},
         )
         nodes = [BooleanNodeElement(f'node_{position}', x=1) for position in range(self.lag + 1)]
         chain = [
@@ -188,11 +188,11 @@ class RegulatoryFBASystem(BaseSystem):
             )
             for position in range(1, self.lag + 1)
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('control', elements=[cell, *nodes], time=DiscreteTime()),
-                System(
+                CompositeSystem('control', elements=[cell, *nodes], time=DiscreteTime()),
+                CompositeSystem(
                     'culture',
                     elements=[
                         BiomassElement('biomass', x=self.biomass),

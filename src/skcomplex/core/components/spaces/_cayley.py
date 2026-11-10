@@ -1,7 +1,4 @@
-"""Define Cayley spaces.
-
-They are the Cayley graphs of finitely generated groups on balls or on whole finite groups.
-"""
+"""Define the space of the Cayley graph of a finitely generated group."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,20 +28,23 @@ TOKEN = re.compile(r'^([A-Za-z_]\w*)(?:\^(-?\d+))?$')
 
 
 class CayleySpace(BaseSpace):
-    """Cayley graph of a finitely generated group, whose sites hold cells.
+    """A space whose sites are the elements of a group, joined by its generators.
 
-    The graph is on a ball of words or a whole finite group. The group is a native Sage or GAP group: a Sage
-    `PermutationGroup` or `MatrixGroup`, or a GAP group from `libgap`, such as the free group `libgap.FreeGroup(['a',
-    'b'])`, a finitely presented group `free / relators`, an automaton group `libgap.AutomatonGroup('t = (1, t)(1, 2)')`
-    of the AutomGrp package, or the finite quotient of one, such as `libgap.PermGroupOnLevel(group, 3)`. Finitely
-    presented groups are solved by Knuth-Bendix completion with KBMAG.
+    A Cayley graph has one node per element of a group and an edge from `g` to `g s` for every generator `s`. The sites
+    are the elements in a ball of words of length up to `ball`, numbered by word length and then by order of discovery,
+    so a ball is a prefix of every larger ball. Without a ball the group must be finite, and the sites are all its
+    elements. The group is a Sage `PermutationGroup` or `MatrixGroup`, or a GAP group from `libgap`, such as a free
+    group, a finitely presented group, which KBMAG solves by Knuth-Bendix completion, or an automaton group.
 
-    Sites are the distinct elements of a ball of a radius in the generators and their inverses, numbered by word length
-    and then by order of discovery, so a ball is a prefix of every larger ball. Without a ball the group must be finite,
-    and the sites are all its elements. A cell at the site `g` reads the site `g s` for every element `s` of a memory
-    set, and a neighbour outside a ball, or reached through a site outside it, reads the value `fill`. A memory set
-    translated by the values of the cells, `StateTranslationNeighborhood`, reads the site `g x(g) s` of the group
-    element `x(g)` that a cell holds as the number of its site, under the same convention.
+    A cell at the site `g` reads the site `g s` for every element `s` of a memory set, and a neighbour outside the ball
+    reads the value `fill`. A `StateTranslationNeighborhood` reads the site `g x(g) s`, where `x(g)` is the group
+    element that the cell holds as the number of its site.
+
+    Unlike `LatticeSpace`, which is the Cayley graph of the integers `Z^d`, it takes any finitely generated group, such
+    as a free group whose graph is a tree. Choose it when cells live on the elements of a group.
+
+    It appears in mathematics and computer science, in cellular automata on groups and in symbolic dynamics, as in the
+    book of Ceccherini-Silberstein and Coornaert.
 
     Args:
         group:
@@ -60,7 +60,7 @@ class CayleySpace(BaseSpace):
             The largest number of sites.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         generators_:
@@ -358,14 +358,14 @@ class CayleySpace(BaseSpace):
         """Return the options lattices offer that a Cayley graph does not: image visuals."""
         return frozenset({'image'})
 
-    def _default_neighborhood(self) -> MemoryNeighborhood:
+    def _get_default_neighborhood(self) -> MemoryNeighborhood:
         """Return the memory set of the generators and their inverses.
 
         It leaves out the site itself.
         """
         return MemoryNeighborhood(tuple(word for name in self.generators_ for word in (name, f'{name}^-1')))
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site `g s` of every site `g` and element `s` of a memory set.
 
         A site outside the space gets `size_`.
@@ -385,7 +385,7 @@ class CayleySpace(BaseSpace):
             table[:, position] = np.where(sites >= 0, sites, size)
         return table
 
-    def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the site of `g h s` for every site `g`, site `h`, and word `s`.
 
         A site outside the space gets `size_`. The product walks the shortest word of `h` and then the word `s` from
@@ -417,14 +417,14 @@ class CayleySpace(BaseSpace):
                 f'{MAX_PRODUCTS} entries. Ask for a smaller ball or a finite quotient.'
             )
             raise SpaceTooLargeError(error_msg)
-        products = self._index_table(MemoryNeighborhood(tuple(self.words_)))
+        products = self._get_index_table(MemoryNeighborhood(tuple(self.words_)))
         table = np.empty((size, size, len(words)), dtype=np.intp)
         for layer, word in enumerate(words):
-            right = np.append(self._index_table(MemoryNeighborhood((word,)))[:, 0], size)
+            right = np.append(self._get_index_table(MemoryNeighborhood((word,)))[:, 0], size)
             table[:, :, layer] = right[products]
         return table
 
-    def _ball(self, radius: int) -> MemoryNeighborhood:
+    def _get_ball(self, radius: int) -> MemoryNeighborhood:
         """Return the memory set of the shortest words of the sites within a radius.
 
         The identity comes first.
@@ -432,7 +432,7 @@ class CayleySpace(BaseSpace):
         sizes = self.ball_sizes_
         return MemoryNeighborhood(tuple(self.words_[: sizes[min(radius, len(sizes) - 1)]]))
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites joined by an edge of the Cayley graph.
 
         Each pair comes once.

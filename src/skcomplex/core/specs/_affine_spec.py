@@ -18,7 +18,7 @@ PLANE_DIMENSION = 2
 
 @dataclass(frozen=True)
 class AffineSpec(BaseSpec):
-    """Spec of an affine map of the plane.
+    """A spec of an affine map of the plane, a linear map followed by a shift.
 
     The map is a reflection across the x axis, a rotation, a scale, and a translation. The scale, the rotation, and the
     translation can be expressions of the parameters of the element whose laws hold the substitution, which are
@@ -70,7 +70,7 @@ class AffineSpec(BaseSpec):
             )
             raise RewritingError(error_msg)
 
-    def matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
+    def get_matrix_at(self, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
         """Return the homogeneous matrix of the map at values of its parameters.
 
         The values are those of the parameters its expressions read. The map reflects across the x axis, rotates,
@@ -86,7 +86,7 @@ class AffineSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import AffineSpec
-            >>> AffineSpec(scale=0.5, translation=(1, 0)).matrix_at({}).tolist()
+            >>> AffineSpec(scale=0.5, translation=(1, 0)).get_matrix_at({}).tolist()
             [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
         """
         if self.matrix is not None:

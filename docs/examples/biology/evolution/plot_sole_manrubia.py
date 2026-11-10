@@ -7,8 +7,8 @@ avalanches. New species fill the empty niches, so the number of species stays co
 """
 
 # %%
-# The system is built from its class with 100 species of 5 dependencies each. The observer saves every step with the
-# default blueprint, whose primary view is the network of the species, colored by their age, so recent replacements
+# The example builds `SoleManrubiaSystem` with 100 species of 5 dependencies each. The observer saves every step with
+# the default blueprint, whose primary view is the network of the species, colored by their age, so recent replacements
 # are dark.
 
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ trajectory = simulate(SoleManrubiaSystem(), observers=[observer], random_state=1
 # collapse of the random initial ecosystem, quiet steps should alternate with avalanches of several species, with a
 # broad distribution of sizes.
 
-sizes = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
+sizes = np.nansum(trajectory.get_values('species.age')[1:] == 0, axis=1)
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.bar(trajectory.times[1:], sizes, width=1.0)
 left.set_xlabel('step')

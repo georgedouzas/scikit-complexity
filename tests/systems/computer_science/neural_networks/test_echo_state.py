@@ -9,9 +9,9 @@ from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkS
 def test_echo_state_network_forgets_its_initial_state():
     """Test that two runs of the reservoir from different initial states converge, the echo state property."""
     system = EchoStateNetworkSystem(100, spectral_radius=0.9)
-    first = simulate(system, until=200).values('units.r')
+    first = simulate(system, until=200).get_values('units.r')
     other = np.random.default_rng(1).uniform(-1.0, 1.0, 100)
-    second = simulate(system, until=200, initial_state={'units.r': other}).values('units.r')
+    second = simulate(system, until=200, initial_state={'units.r': other}).get_values('units.r')
     distance = np.linalg.norm(first - second, axis=1)
     assert distance[-1] < 1e-6 * distance[0]
     assert np.all(np.diff(distance[::20]) < 0)

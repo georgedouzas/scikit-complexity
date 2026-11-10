@@ -50,7 +50,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
     system_system = OscillatorDeathSystem(n_oscillators=100, K=3.0, width=width)
     run = simulate(system_system, dt=0.1)
-    times, amplitude = np.asarray(run.times), np.asarray(run.values('amplitude'))
+    times, amplitude = np.asarray(run.times), np.asarray(run.get_values('amplitude'))
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]
     if width > 1:
         anchor = np.searchsorted(times, 8.0)

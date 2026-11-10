@@ -1,7 +1,4 @@
-"""Define the power series spec.
-
-It is the ring of formal power series over a field truncated at an order.
-"""
+"""Define the spec of a ring of truncated formal power series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PowerSeriesSpec(BaseSpec):
-    """Ring `K[[t]]` of formal power series over a field, truncated at an order.
+    """A spec of the ring of formal power series over a field, truncated.
 
     It is the domain of a state of a cell. A state of the ring holds every series `sum_i a_i t^i` by its coefficients
     `a_0, ..., a_{order - 1}`, so it has `order` components, and local rules read the coefficients of every neighbour on
@@ -52,9 +49,9 @@ class PowerSeriesSpec(BaseSpec):
         >>> series = PowerSeriesSpec(4)
         >>> series.multiply(np.array([1, 1, 0, 0]), np.array([1, -1, 0, 0])).tolist()
         [1.0, 0.0, -1.0, 0.0]
-        >>> series.series_of([1, 2, 0, 0])
+        >>> series.get_series_of([1, 2, 0, 0])
         1 + 2*t + O(t^4)
-        >>> series.coefficients_of(series.ring.gen() ** 2).tolist()
+        >>> series.get_coefficients_of(series.ring.gen() ** 2).tolist()
         [0.0, 0.0, 1.0, 0.0]
     """
 
@@ -147,7 +144,7 @@ class PowerSeriesSpec(BaseSpec):
             product[..., power:] += first_values[..., power, None] * second_values[..., : self.order - power]
         return self.reduce(product)
 
-    def series_of(self, coefficients: npt.ArrayLike) -> PowerSeries:
+    def get_series_of(self, coefficients: npt.ArrayLike) -> PowerSeries:
         """Return the series of the ring with some coefficients.
 
         Args:
@@ -162,7 +159,7 @@ class PowerSeriesSpec(BaseSpec):
         values = [field(int(item)) if self.characteristic else field(item) for item in np.ravel(coefficients)]
         return self.ring(values, prec=self.order)
 
-    def coefficients_of(self, series: object) -> Array:
+    def get_coefficients_of(self, series: object) -> Array:
         """Return the coefficients of a series of the ring up to the order.
 
         The series can also be anything the ring converts.

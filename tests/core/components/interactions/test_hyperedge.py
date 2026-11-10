@@ -8,12 +8,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, total
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -111,8 +111,8 @@ class RecordInteraction(HyperedgeInteraction):
 def _drift(interaction, backend, values):
     """Return the drift of the nodes of the network of the hyperedges coupled by an interaction."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space, values={'x': values})],
+    system = CompositeSystem(
+        elements=[GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites')],
         interactions=[interaction],
     )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
@@ -163,8 +163,8 @@ def test_hyperedge_law_of_one_size_reads_the_other_members_in_order(backend):
 def test_hyperedge_interaction_of_a_missing_size_is_reported():
     """Test that a size no hyperedge of the network has gives a binding issue naming both sizes."""
     space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)])
-    system = System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space)],
+    system = CompositeSystem(
+        elements=[GroupElement('nodes', element=NodeElement, space=space, on='sites')],
         interactions=[PullInteraction('pull', nodes='nodes', size=4)],
     )
     issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
@@ -179,16 +179,16 @@ def test_hyperedge_group_takes_an_update_once_per_hyperedge():
     """Test that an update of a group on hyperedges runs once per hyperedge of the size, leaving the others."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
     values = np.arange(6, dtype=float)
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space, values={'x': values}),
+            GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites'),
             GroupElement('groups', element=LinkElement, space=space, on='hyperedges', values={'a': -1.0}),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='groups', size=3)],
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, dt=1)
-    activities = trajectory.values('groups.a')[-1]
+    activities = trajectory.get_values('groups.a')[-1]
     expected = [values[list(item)].max() + values[list(item)].mean() if len(item) == 3 else -1.0 for item in HYPEREDGES]
     assert np.allclose(activities, expected, atol=1e-12)
 
@@ -198,24 +198,24 @@ def test_edge_group_takes_the_update_of_the_regulating_member():
     graph = nx.path_graph(4)
     space = NetworkSpace(graph, hyperedges=[(0, 1, 3), (2, 3, 0)])
     values = np.array([0.0, 1.0, 2.0, 3.0])
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space, values={'x': values}),
+            GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges', values={'a': -1.0}),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
         time=DiscreteTime(),
     )
     trajectory = simulate(system, until=1, dt=1)
-    assert trajectory.values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
+    assert trajectory.get_values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
 
 
 def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
     """Test that an edge role whose hyperedge has its first two members unjoined gives a binding issue."""
     space = NetworkSpace(nx.path_graph(4), hyperedges=[(0, 2, 1)])
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=NodeElement, space=space),
+            GroupElement('nodes', element=NodeElement, space=space, on='sites'),
             GroupElement('links', element=LinkElement, space=space, on='edges'),
         ],
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
@@ -233,7 +233,7 @@ def _growing(interaction):
     nodes = GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=8)
     triangles = GroupElement('triangles', element=LinkElement, on='hyperedges', variable=True, capacity=4)
     space = NetworkSpace(nx.complete_graph(4), hyperedges=[[0, 1, 2]])
-    return System(elements=[nodes, triangles], interactions=[interaction], space=space)
+    return CompositeSystem(elements=[nodes, triangles], interactions=[interaction], space=space)
 
 
 @BACKENDS

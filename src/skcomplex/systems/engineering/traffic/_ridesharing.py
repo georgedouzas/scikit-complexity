@@ -14,24 +14,18 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.errors import ArgumentError
-from ....core.specs import (
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StableMatchingSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.errors import ValidationError
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction
+from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
+
+IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
 class CabView(AgentView):
@@ -60,9 +54,6 @@ class RiderView(AgentView):
     waited: float
     seats: float
     money: float
-
-
-IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
 
 class CabElement(Element):
@@ -168,10 +159,10 @@ class CabElement(Element):
 
     def _pick_up(self, agent: CabView, system: SystemView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in system.agents('riders', RiderView) if item.id == int(agent.rider))
+        rider = next(item for item in system.get_agents('riders', RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
-        blocks = CabElement._blocks(CabElement._cell(agent.location), destination)
-        fare = system.parameter('base_fare') + system.parameter('block_fare') * blocks
+        blocks = CabElement._get_blocks(CabElement._get_cell(agent.location), destination)
+        fare = system.get_parameter('base_fare') + system.get_parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
         new_target_x_value, new_target_y_value = destination
@@ -191,12 +182,12 @@ class CabElement(Element):
         """
         if agent.task == IDLE:
             return
-        x, y = CabElement._cell(agent.location)
+        x, y = CabElement._get_cell(agent.location)
         target = (int(agent.target_x), int(agent.target_y))
         if (x, y) != target:
             step = (int(np.sign(target[0] - x)), 0) if x != target[0] else (0, int(np.sign(target[1] - y)))
             agent.move_to((x + step[0], y + step[1]))
-        if CabElement._cell(agent.location) != target:
+        if CabElement._get_cell(agent.location) != target:
             return
         if agent.task == PICKING_UP:
             self._pick_up(agent, system)
@@ -205,13 +196,13 @@ class CabElement(Element):
             agent.seats = 1.0
 
     @staticmethod
-    def _cell(location: object) -> tuple[int, int]:
+    def _get_cell(location: object) -> tuple[int, int]:
         """Return the integer coordinates of a cell."""
         x, y = np.atleast_1d(np.asarray(location, dtype=float))[:2]
         return int(x), int(y)
 
     @staticmethod
-    def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
+    def _get_blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
         """Return the number of blocks between two cells of the grid.
 
         It is the Manhattan distance.
@@ -280,7 +271,7 @@ class RiderElement(Element):
         return RiderView
 
 
-class ArrivalInteraction(LifeCycleInteraction):
+class ArrivalInteraction(BirthDeathInteraction):
     """Arrival of new riders at random cells with random destinations.
 
     It is a life cycle of arrivals only. Every step a Poisson number of riders, with mean `demand`, appear at random
@@ -344,7 +335,7 @@ class ArrivalInteraction(LifeCycleInteraction):
             demand:
                 The demand.
         """
-        return system.parameter('demand')
+        return system.get_parameter('demand')
 
     def place(self, agent: RiderView | None, system: SystemView) -> tuple[int, int]:
         """Return a random cell of the grid for a new rider.
@@ -381,7 +372,7 @@ class ArrivalInteraction(LifeCycleInteraction):
         return {'destination_x': float(to_x), 'destination_y': float(to_y)}
 
 
-def _busy(agent: CabView) -> float:
+def _get_busy(agent: CabView) -> float:
     """Return one for a cab on a trip and zero for an idle cab."""
     return float(agent.task != IDLE)
 
@@ -436,7 +427,7 @@ class RidesharingSystem(BaseSystem):
     observables = (
         ObservableSpec('queue', group='riders', variable='waited', reduce='count'),
         ObservableSpec('mean_wait', group='riders', variable='waited', reduce='mean'),
-        ObservableSpec('utilisation', _busy, group='cabs', reduce='mean'),
+        ObservableSpec('utilisation', _get_busy, group='cabs', reduce='mean'),
     )
 
     def __init__(
@@ -461,22 +452,22 @@ class RidesharingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _nearness(rider: object, cab: object) -> float:
+    def _get_nearness(rider: object, cab: object) -> float:
         """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
-            raise ArgumentError(error_msg)
-        return -float(CabElement._blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
+            raise ValidationError(error_msg)
+        return -float(CabElement._get_blocks(CabElement._get_cell(rider.location), CabElement._get_cell(cab.location)))
 
     @staticmethod
-    def _patience(cab: object, rider: object) -> float:
+    def _get_patience(cab: object, rider: object) -> float:
         """Return the preference of a cab for a rider.
 
         It is higher for a rider who waited longer.
         """
         if not isinstance(rider, RiderView):
             error_msg = f'A cab ranks riders, but got {rider!r}.'
-            raise ArgumentError(error_msg)
+            raise ValidationError(error_msg)
         return rider.waited
 
     @staticmethod
@@ -486,8 +477,8 @@ class RidesharingSystem(BaseSystem):
         rider, cab = ride.requester, ride.provider
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
-            raise ArgumentError(error_msg)
-        new_target_x_value, new_target_y_value = CabElement._cell(rider.location)
+            raise ValidationError(error_msg)
+        new_target_x_value, new_target_y_value = CabElement._get_cell(rider.location)
         cab.target_x = new_target_x_value
         cab.target_y = new_target_y_value
         new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
@@ -496,7 +487,7 @@ class RidesharingSystem(BaseSystem):
         cab.rider = float(rider.id)
         cab.task = PICKING_UP
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers((self.width, self.height), size=(self.n_cabs + 1, 2))
@@ -518,7 +509,7 @@ class RidesharingSystem(BaseSystem):
             values={'base_fare': self.base_fare, 'block_fare': self.block_fare},
             location=[(int(x), int(y)) for x, y in cells[1:]],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[riders, cabs],
             interactions=[
@@ -542,13 +533,16 @@ class RidesharingSystem(BaseSystem):
                     'dispatch',
                     requesters='riders',
                     providers='cabs',
-                    rule=StableMatchingSpec(requester_preference=self._nearness, provider_preference=self._patience),
+                    rule=StableMatchingSpec(
+                        requester_preference=self._get_nearness,
+                        provider_preference=self._get_patience,
+                    ),
                     quantity='seats',
                     phase='dispatch',
                     on_match=self._dispatch,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann'),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec([PhaseSpec('arrival'), PhaseSpec('dispatch'), PhaseSpec('drive')]),
             ),

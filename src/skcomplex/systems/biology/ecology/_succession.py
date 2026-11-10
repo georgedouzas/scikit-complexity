@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -121,14 +121,14 @@ class PioneerGrowthInteraction(RateInteraction):
         s = namespace
         volume, mature = s.target.volume, s.target.mature
         suppression = clip(
-            1 - PioneerGrowthInteraction._crowding(s.intermediate, s.climax, s.w_intermediate, s.w_climax),
+            1 - PioneerGrowthInteraction._get_crowding(s.intermediate, s.climax, s.w_intermediate, s.w_climax),
             low=0,
         )
         rate: Expression = (volume * (volume / mature - 2) + suppression * mature) / s.half_time
         return rate
 
     @staticmethod
-    def _crowding(
+    def _get_crowding(
         first: SimpleNamespace,
         second: SimpleNamespace,
         weight_first: Expression,
@@ -212,7 +212,7 @@ class SuccessionalGrowthInteraction(RateInteraction):
                 The rate of the volume of the target.
         """
         s = namespace
-        crowding = PioneerGrowthInteraction._crowding(s.first, s.second, s.w_first, s.w_second)
+        crowding = PioneerGrowthInteraction._get_crowding(s.first, s.second, s.w_first, s.w_second)
         rate: Expression = s.seedlings + s.g * s.target.volume * (1 - crowding)
         return rate
 
@@ -280,12 +280,12 @@ class MangroveSuccessionSystem(BaseSystem):
         self.g_sundari = g_sundari
         self.seedlings = seedlings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the regrowth of a mangrove forest after a clear cut.
 
         The forest is of the Sundarbans.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 StandElement('keora', volume=self.keora, mature=196.11),

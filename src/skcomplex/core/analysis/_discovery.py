@@ -1,7 +1,4 @@
-"""List the analyses that apply to a trajectory, a system, or an array.
-
-They are found by the tags each analysis needs.
-"""
+"""List the analyses that apply to a trajectory, a system, or an array."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from functools import partial
 import networkx as nx
 import numpy as np
 
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import DataKind
@@ -132,12 +129,11 @@ ANALYSES = (
     surrogate_test,
     symbolic,
 )
-"""Every analysis of the library, whose module declares the tags it needs."""
 
 
 @dataclass(frozen=True)
 class ApplicableAnalysesResult:
-    """Analyses that apply to a source, listed under the kind of data they read.
+    """A result of `applicable_analyses`, the analyses by kind of data.
 
     Args:
         kinds:
@@ -166,6 +162,8 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
     left out. A one-dimensional array is one series, and an array of more dimensions is one field and a set of series,
     one per column.
 
+    It appears in every study that starts from a run or a data set and asks which measures fit it.
+
     Args:
         source:
             The trajectory, the system, the graph, or the array.
@@ -187,7 +185,7 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
     """
     source = _composite(source)
     kinds = [str(kind) for kind in _get_data_kinds(source)]
-    if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshotSpec):
+    if isinstance(source, Trajectory | CompositeSystem | nx.Graph | NetworkSnapshotSpec):
         readings = {kind: DataKind(kind).reading for kind in kinds}
     else:
         readings = {kind: _get_array_reading(DataKind(kind), np.ndim(source)) for kind in kinds}
@@ -203,7 +201,7 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
         else:
             bound = [(bind_analysis(function), _get_analysis_tags(function))]
         for analysis, needed in bound:
-            if needed.data in analyses and (tags is None or not needed.missing(tags)):
+            if needed.data in analyses and (tags is None or not needed.get_missing(tags)):
                 analyses[needed.data].append(analysis)
     return ApplicableAnalysesResult(kinds, readings, analyses)
 

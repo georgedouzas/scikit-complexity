@@ -27,13 +27,13 @@ trajectory = simulate(system, until=1.0, observers=[observer])
 # Entropy against temperature
 # ---------------------------
 # The energies are quenched, so a disorder average sweeps the `random_state` of the factory as an axis of the design. A
-# finite system keeps some entropy below `T_g`, and deviates from the line just above it.
+# finite system keeps some entropy below `T_g`, and deviates from the line slightly above it.
 
 temperatures = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.5, 2.0])
 seeds = list(range(5))
 bounds = {'n_spins': [16], 'temperature': temperatures.tolist(), 'random_state': seeds}
 result = sweep(RandomEnergySystem(), bounds, until=1.0, outputs=['ensemble.entropy'])
-entropies = result.series('ensemble.entropy')[:, 0]
+entropies = result.get_series('ensemble.entropy')[:, 0]
 grid = np.linspace(1 / (2 * np.sqrt(np.log(2))), 2.1, 100)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, entropies.reshape(len(temperatures), len(seeds)).mean(axis=1), 'o', label='N = 16, 5 draws')

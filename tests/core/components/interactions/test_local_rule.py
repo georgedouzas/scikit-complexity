@@ -5,10 +5,10 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
@@ -36,8 +36,14 @@ def _run(rule, until, values=None):
     """Return the trajectory of a local rule on a ring of cells with one live cell in the middle."""
     initial = np.zeros(SIZE)
     initial[SIZE // 2] = 1.0
-    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(SIZE), values=values or {'c': initial})
-    system = System(elements=[cells], interactions=[rule], time=DiscreteTime())
+    cells = GroupElement(
+        'cells',
+        element=CellElement,
+        space=LatticeSpace(SIZE),
+        values=values or {'c': initial},
+        on='sites',
+    )
+    system = CompositeSystem(elements=[cells], interactions=[rule], time=DiscreteTime())
     return simulate(system, until=until, random_state=0)
 
 
@@ -49,9 +55,9 @@ def test_totalistic_rule_of_the_neighbours_draws_rule_90():
         target='cells',
         state='c',
         rule=parity,
-        neighborhood=VonNeumannNeighborhood(n_dim=1),
+        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
     )
-    values = _run(rule, 2).values('cells.c')
+    values = _run(rule, 2).get_values('cells.c')
     assert values[1].tolist() == [0, 0, 0, 1, 0, 1, 0, 0, 0]
     assert values[2].tolist() == [0, 0, 1, 0, 0, 0, 1, 0, 0]
 
@@ -59,15 +65,15 @@ def test_totalistic_rule_of_the_neighbours_draws_rule_90():
 def test_table_rule_reads_the_ordered_neighbourhood():
     """Test that a table of the ordered neighbourhood moves a live cell one site to the right."""
     shift = TableSpec({(0, 1, 0): 1, (1, 0, 0): 0}, default=0)
-    around = VonNeumannNeighborhood(n_dim=1, center=True)
+    around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
     rule = LocalRuleInteraction('shift', target='cells', state='c', rule=shift, neighborhood=around)
-    values = _run(rule, 1).values('cells.c')
+    values = _run(rule, 1).get_values('cells.c')
     assert int(np.argmax(values[1])) == int(np.argmax(values[0])) + 1
 
 
 def test_function_rule_sets_two_states_together():
     """Test that a function rule sets two states, the shifted value and a mark of the cells that changed."""
-    around = VonNeumannNeighborhood(n_dim=1, center=True)
+    around = BallNeighborhood(metric='manhattan', n_dim=1, center='first')
 
     def shift(*values):
         c, _, right, m = values[:4]
@@ -75,8 +81,8 @@ def test_function_rule_sets_two_states_together():
 
     rule = LocalRuleInteraction('shift', target='cells', state=('c', 'm'), rule=shift, neighborhood=around)
     trajectory = _run(rule, 1)
-    assert int(np.argmax(trajectory.values('cells.c')[1])) == SIZE // 2 - 1
-    assert trajectory.values('cells.m')[1].sum() == 2.0
+    assert int(np.argmax(trajectory.get_values('cells.c')[1])) == SIZE // 2 - 1
+    assert trajectory.get_values('cells.m')[1].sum() == 2.0
 
 
 @pytest.mark.parametrize(
@@ -85,6 +91,10 @@ def test_function_rule_sets_two_states_together():
 )
 def test_check_rejects_states_and_neighbourhoods_it_cannot_read(arguments, match):
     """Test that a state that is not a name or a neighbourhood that is not one raise errors."""
-    defaults = {'state': 'c', 'rule': TotalisticSpec({1: 1}), 'neighborhood': VonNeumannNeighborhood(n_dim=1)}
+    defaults = {
+        'state': 'c',
+        'rule': TotalisticSpec({1: 1}),
+        'neighborhood': BallNeighborhood(metric='manhattan', n_dim=1),
+    }
     with pytest.raises(ValidationError, match=match):
         LocalRuleInteraction('rule', target='cells', **(defaults | arguments)).prepare()

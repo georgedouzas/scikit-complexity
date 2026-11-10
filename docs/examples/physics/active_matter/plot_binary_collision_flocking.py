@@ -62,9 +62,9 @@ polarizations = []
 for sigma in noises:
     system_system = BinaryCollisionFlockingSystem(sigma=float(sigma), random_state=1)
     run = simulate(system_system, until=150, random_state=1)
-    polarizations.append(np.mean(run.values('polarization')[75:]))
+    polarizations.append(np.mean(run.get_values('polarization')[75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('polarization'))
+series.plot(trajectory.times, trajectory.get_values('polarization'))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

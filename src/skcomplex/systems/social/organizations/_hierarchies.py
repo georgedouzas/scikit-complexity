@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -123,11 +123,11 @@ class ContenderElement(Element):
                 The system.
         """
         agent.strength *= 1 - agent.relaxation
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         cell = cells[int(system.rng.integers(len(cells)))]
         occupants = [
             other
-            for other in agent.neighbors()
+            for other in agent.get_neighbors()
             if isinstance(other, ContenderView)
             and tuple(np.ravel(np.asarray(other.location))) == tuple(np.ravel(np.asarray(cell)))
         ]
@@ -194,7 +194,7 @@ class BonabeauHierarchiesSystem(BaseSystem):
         self.relaxation = relaxation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         size = int(self.width * self.height * self.density)
         cells = np.random.default_rng(self.random_state).permutation(self.width * self.height)[:size]
@@ -205,7 +205,7 @@ class BonabeauHierarchiesSystem(BaseSystem):
             values={'eta': self.eta, 'relaxation': self.relaxation},
             location=[(int(cell % self.width), int(cell // self.width)) for cell in cells],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[contenders],
             space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),

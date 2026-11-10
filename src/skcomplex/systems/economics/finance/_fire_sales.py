@@ -14,14 +14,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common.banking import BalanceSheetElement
+from ..common.banking._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetView
+from ..common.policy import PolicyRuleInteraction
 
 SELLING_RULES = ('threshold', 'leverage')
 
@@ -91,7 +92,7 @@ class MarketAssetElement(Element):
         return []
 
 
-class FireSaleInteraction(FeedbackInteraction[SystemView]):
+class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
     """Banks that sell common assets on losses, and the market impact.
 
     The market impact lowers the prices of what they sell. Every step the banks value their holdings at the current
@@ -190,8 +191,8 @@ class FireSaleInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the fire sales.
         """
-        banks = sorted(system.agents('banks', BalanceSheetView), key=lambda bank: bank.id)
-        assets = sorted(system.agents('assets', MarketAssetView), key=lambda asset: asset.id)
+        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        assets = sorted(system.get_agents('assets', MarketAssetView), key=lambda asset: asset.id)
         initial = np.asarray(self.holdings, dtype=float)
         holdings = np.asarray(system.storage.get('holdings', initial))
         prices = np.array([asset.price for asset in assets])
@@ -203,7 +204,7 @@ class FireSaleInteraction(FeedbackInteraction[SystemView]):
         equity = values - np.asarray(self.liabilities, dtype=float)
         failed = equity <= 0
         if self.selling == 'leverage':
-            excess = values - system.parameter('leverage') * equity
+            excess = values - system.get_parameter('leverage') * equity
             excess = np.where(excess > 1e-9 * values, excess, 0.0)
             risky = holdings @ prices
             share = np.divide(excess, risky, out=np.zeros_like(excess), where=risky > 0)
@@ -218,7 +219,7 @@ class FireSaleInteraction(FeedbackInteraction[SystemView]):
             1.0,
             liquidated + np.divide(sold.sum(axis=0), totals, out=np.zeros_like(totals), where=totals > 0),
         )
-        prices = base * np.exp(-system.parameter('alpha') * liquidated)
+        prices = base * np.exp(-system.get_parameter('alpha') * liquidated)
         status = np.where(failed, DEFAULTED, status)
         equity = holdings @ prices + cash - np.asarray(self.liabilities, dtype=float)
         system.storage.update(holdings=holdings, base=base)
@@ -315,7 +316,7 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         self.selling = selling
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         holdings = np.zeros((self.n_banks, self.n_assets))
@@ -338,4 +339,4 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
             leverage=self.leverage,
             selling=self.selling,
         )
-        return System(self.label, elements=[banks, assets], interactions=[sales])
+        return CompositeSystem(self.label, elements=[banks, assets], interactions=[sales])

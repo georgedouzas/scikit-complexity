@@ -6,9 +6,9 @@ billion cells within weeks.
 """
 
 # %%
-# The system is built from its class with the book's parameters, a thousand effector and tumour cells, and no siRNA,
-# and runs for 200 days. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the cells, the cytokines, and the siRNA.
+# The example builds `SirnaTGFBetaSystem` with the parameters of the book of Padmanabhan, Meskin, and Al Moustafa
+# (2021), a thousand effector and tumour cells, and no siRNA, and runs for 200 days. The observer saves every frame with
+# the default blueprint, whose primary view is the time series of the cells, the cytokines, and the siRNA.
 
 import matplotlib.pyplot as plt
 
@@ -40,8 +40,8 @@ arms = {
 fig, (tumour, cytokine) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = simulate(arm, dt=1.0, solver=solver, until=200)
-    tumour.semilogy(trajectory.times, trajectory.values('site.A').clip(1.0), label=name)
-    cytokine.semilogy(trajectory.times, trajectory.values('site.C2').clip(1e-3), label=name)
+    tumour.semilogy(trajectory.times, trajectory.get_values('site.A').clip(1.0), label=name)
+    cytokine.semilogy(trajectory.times, trajectory.get_values('site.C2').clip(1e-3), label=name)
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells')
 tumour.set_title('TGF-beta lets the tumour escape')

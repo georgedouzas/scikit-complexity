@@ -6,8 +6,8 @@ regrows quickly, since a smaller Gompertzian tumour grows faster.
 """
 
 # %%
-# The system is built from its class: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day dose every
-# three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose primary
+# The example builds `NortonSimonSystem`: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day dose
+# every three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose primary
 # view is the time series of the volume.
 
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ trajectory = simulate(NortonSimonSystem(), observers=[observer])
 # Between doses the per capita growth rate is `r log(K / n)`, which is larger the smaller the tumour. The rate measured
 # from the simulation should lie on this line, and the doses should show as dips below it.
 
-times, volume = trajectory.times, trajectory.values('tumour.n')
+times, volume = trajectory.times, trajectory.get_values('tumour.x')
 r, K = 0.0719, 1964.0
 rate = np.gradient(np.log(volume), times)
 fig, (curve, kinetics) = plt.subplots(1, 2, figsize=(10, 4))

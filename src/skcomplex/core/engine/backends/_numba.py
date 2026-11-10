@@ -1,7 +1,4 @@
-"""Generate, compile, and cache Numba kernels and stepper loops.
-
-They are generated from the kernels of a problem.
-"""
+"""Generate, compile, and cache Numba kernels and stepper loops."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,18 +17,15 @@ import numpy as np
 from numba.core.dispatcher import Dispatcher
 
 from ...components.laws import (
+    ArrayUpdateLaw,
     BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
     DissipatorLaw,
-    DriveLaw,
-    EmissionLaw,
-    EncounterLaw,
     EquationLaw,
     ExtremalLaw,
     FluxLaw,
-    FractionalNoiseLaw,
     GeneratorLaw,
     JumpLaw,
     LocalRuleLaw,
@@ -74,7 +68,7 @@ from ._base import BaseBackend
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
 
-_FORM_KINDS: dict[FormKind, list[type]] = {
+FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.ODE: [RateLaw],
     FormKind.FRACTIONAL: [RateLaw],
     FormKind.SDE: [RateLaw, NoiseLaw],
@@ -82,9 +76,9 @@ _FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.DISCRETE: [UpdateLaw],
     FormKind.STATIC: [RateLaw, UpdateLaw],
 }
-_EVENT_FORMS = (FormKind.JUMP, FormKind.DISCRETE)
+EVENT_FORMS = (FormKind.JUMP, FormKind.DISCRETE)
 RATE_FORMS = (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE, FormKind.STATIC)
-_HEADER = """import math
+HEADER = """import math
 
 import numpy as np
 from numba import njit, prange
@@ -104,10 +98,13 @@ from skcomplex.core.engine.problems._steps import step_count
 
 
 class NumbaBackend(BaseBackend):
-    """Backend that generates fused Numba kernels and compiled stepper loops.
+    """A backend that compiles fused kernels and stepper loops with Numba.
 
     They are cached on disk. Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and
     the problem then has no compiled stepper loops.
+
+    Choose it for large lattices, networks, and agent groups, where compiled loops run much faster than NumPy. It
+    appears in many fields, such as long runs of spin lattices, sandpiles, and epidemics on large networks.
 
     Args:
         cache_dir:
@@ -120,10 +117,10 @@ class NumbaBackend(BaseBackend):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = System(
-        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'n': [1.0, 2.0]})],
+        >>> system = CompositeSystem(
+        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [1.0, 2.0]})],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
         >>> problem = simulate(system, until=0, backend=NumbaBackend()).problem
@@ -144,13 +141,10 @@ class NumbaBackend(BaseBackend):
                 BoundaryLaw,
                 CrossingLaw,
                 DissipatorLaw,
-                DriveLaw,
-                EmissionLaw,
-                EncounterLaw,
+                ArrayUpdateLaw,
                 EquationLaw,
                 ExtremalLaw,
                 FluxLaw,
-                FractionalNoiseLaw,
                 GeneratorLaw,
                 JumpLaw,
                 LocalRuleLaw,
@@ -204,7 +198,7 @@ class NumbaBackend(BaseBackend):
         }
         reductions = inputs.reductions or ReductionScheduleSpec()
         reduced = bool(reductions.steps)
-        fused = self._reductions_compile(reductions)
+        fused = self._get_reductions_compile(reductions)
         compiled: dict[type, bool] = {
             kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
@@ -220,7 +214,7 @@ class NumbaBackend(BaseBackend):
             UpdateLaw: ('update', 'assign'),
             BoundaryLaw: ('boundary', 'assign'),
         }
-        needed = list(_FORM_KINDS[form])
+        needed = list(FORM_KINDS[form])
         if kernels.get(BoundaryLaw):
             needed = [*needed, BoundaryLaw]
         parts = [
@@ -228,7 +222,7 @@ class NumbaBackend(BaseBackend):
             for kind in needed
             if compiled[kind]
         ]
-        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS)
+        printer = NumbaPrinter(parallel=self.parallel and form not in EVENT_FORMS)
         lines = printer.prepare(reductions if reduced and fused else None).run(parts).code_
         accelerated_loop = {
             FormKind.ODE: 'rk4',
@@ -247,11 +241,11 @@ class NumbaBackend(BaseBackend):
             if has_loop
             else []
         )
-        text = '\n'.join([_HEADER, *lines, *loops]) + '\n'
+        text = '\n'.join([HEADER, *lines, *loops]) + '\n'
         module = self._load(text, printer.functions_, self.cache_dir)
-        layout = printer.layout(self._layout_entries(used, reductions))
+        layout = printer.get_layout(self._get_layout_entries(used, reductions))
         orders = [(int(layout[2 * printer.slots_[name]]), order) for name, order in printer.orders_.items()]
-        lowering = self._lowering(
+        lowering = self._get_lowering(
             form,
             needed,
             used=used,
@@ -263,11 +257,11 @@ class NumbaBackend(BaseBackend):
             reductions=reductions,
         )
         if has_loop:
-            accelerated = self._accelerated(accelerated_loop, module, layout, lowering, draws)
+            accelerated = self._get_accelerated(accelerated_loop, module, layout, lowering, draws)
             lowering = replace(lowering, accelerated=accelerated)
         self.functions_ = replace(lowering, backends=backends)
 
-    def _lowering(
+    def _get_lowering(
         self,
         form: FormKind,
         needed: list[type],
@@ -298,11 +292,11 @@ class NumbaBackend(BaseBackend):
             return call
 
         numpy: dict[type, Callable[[], VectorFunction]] = {
-            RateLaw: lambda: BaseBackend._adding_function(used[RateLaw], size),
-            NoiseLaw: lambda: BaseBackend._concatenating_function(used[NoiseLaw]),
-            JumpLaw: lambda: BaseBackend._concatenating_function(used[JumpLaw]),
-            UpdateLaw: lambda: BaseBackend._assigning_function(used[UpdateLaw]),
-            BoundaryLaw: lambda: BaseBackend._assigning_function(used[BoundaryLaw]),
+            RateLaw: lambda: BaseBackend._get_adding_function(used[RateLaw], size),
+            NoiseLaw: lambda: BaseBackend._get_concatenating_function(used[NoiseLaw]),
+            JumpLaw: lambda: BaseBackend._get_concatenating_function(used[JumpLaw]),
+            UpdateLaw: lambda: BaseBackend._get_assigning_function(used[UpdateLaw]),
+            BoundaryLaw: lambda: BaseBackend._get_assigning_function(used[BoundaryLaw]),
         }
         names: dict[type, str] = {
             RateLaw: 'drift',
@@ -326,10 +320,10 @@ class NumbaBackend(BaseBackend):
         lowering = LoweredFunctionsSpec(
             drift=functions[RateLaw] if form in RATE_FORMS else None,
             diffusion=(
-                functions.get(NoiseLaw, BaseBackend._concatenating_function([])) if form == FormKind.SDE else None
+                functions.get(NoiseLaw, BaseBackend._get_concatenating_function([])) if form == FormKind.SDE else None
             ),
             propensities=(
-                functions.get(JumpLaw, BaseBackend._concatenating_function([])) if form == FormKind.JUMP else None
+                functions.get(JumpLaw, BaseBackend._get_concatenating_function([])) if form == FormKind.JUMP else None
             ),
             jumps=LawKernel._jump_channels(used[JumpLaw], changes) if form == FormKind.JUMP else (),
             update=functions[UpdateLaw] if form in (FormKind.DISCRETE, FormKind.STATIC) else None,
@@ -346,7 +340,7 @@ class NumbaBackend(BaseBackend):
             )
         return lowering
 
-    def _accelerated(
+    def _get_accelerated(
         self,
         loop: str,
         module: ModuleType,
@@ -383,12 +377,12 @@ class NumbaBackend(BaseBackend):
                 ),
             )
         if loop == 'euler_maruyama':
-            noise = self._noise_arrays(lowering)
+            noise = self._get_noise_arrays(lowering)
             return AcceleratedSpec(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
-            targets, increments = self._channel_arrays(lowering)
+            targets, increments = self._get_channel_arrays(lowering)
             return AcceleratedSpec(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
@@ -415,7 +409,7 @@ class NumbaBackend(BaseBackend):
         return found
 
     @staticmethod
-    def _layout_entries(
+    def _get_layout_entries(
         used: Mapping[type, list[LawKernel]],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, EntrySpec]:
@@ -475,7 +469,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _reductions_compile(reductions: ReductionScheduleSpec) -> bool:
+    def _get_reductions_compile(reductions: ReductionScheduleSpec) -> bool:
         """Check whether every reduction compiles with Numba.
 
         Every reduction must print in Numba's dialect, and no reduction may run shortest paths in NetworkX.
@@ -495,7 +489,7 @@ class NumbaBackend(BaseBackend):
         return True
 
     @staticmethod
-    def _noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[object, ...]:
+    def _get_noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[object, ...]:
         """Return the arrays of the noise of a lowering.
 
         They are the rows, columns, process count, and flattened covariance blocks.
@@ -515,7 +509,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _channel_arrays(lowering: LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
+    def _get_channel_arrays(lowering: LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
         """Return the state targets and increments of every jump channel.
 
         They are padded with -1 targets.
@@ -532,7 +526,7 @@ class NumbaBackend(BaseBackend):
         return targets, increments
 
     @staticmethod
-    def _unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
+    def _get_unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
         """Return the first reduction that does not print in the scalar dialect.
 
         It returns `None` when every one prints.
@@ -585,7 +579,7 @@ class NumbaBackend(BaseBackend):
         kinds = [kind for kind, items in used.items() if items]
         fallen = [kind.__name__ for kind in kinds if not compiled[kind]]
         if fallen:
-            unprinted = NumbaBackend._unprinted_reduction(reductions)
+            unprinted = NumbaBackend._get_unprinted_reduction(reductions)
             reason = (
                 f'{unprinted} does not print in its dialect'
                 if unprinted is not None
@@ -596,7 +590,7 @@ class NumbaBackend(BaseBackend):
         return {kind.__name__: name if compiled[kind] else 'python' for kind in kinds}
 
     @staticmethod
-    def _helpers_fingerprint() -> str:
+    def _get_helpers_fingerprint() -> str:
         """Return a digest of the compiled helpers and of the Numba version.
 
         The helpers are those that generated kernels import. Numba caches a kernel with the compiled helpers it calls,
@@ -635,4 +629,4 @@ class NumbaBackend(BaseBackend):
         return SourceLoader('skcomplex_kernels', functions).prepare(cache_dir).run(source).module_
 
 
-HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()
+HELPERS_FINGERPRINT = NumbaBackend._get_helpers_fingerprint()

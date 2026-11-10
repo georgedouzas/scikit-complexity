@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ConnectorSpec(BaseSpec):
-    """Spec of the variables a port of an element carries.
+    """A spec of the variables that a port of an element carries.
 
     They are a potential that connected ports share and a flow that sums.
 

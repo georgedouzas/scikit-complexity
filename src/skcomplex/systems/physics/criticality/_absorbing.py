@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -224,7 +224,7 @@ class DirectedPercolationLangevinSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
@@ -239,7 +239,7 @@ class DirectedPercolationLangevinSystem(BaseSystem):
             'f': self.f,
             'g': self.g,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('neurons', element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
         )

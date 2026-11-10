@@ -29,7 +29,7 @@ def test_tilted_periodic_potential_current(f):
     """Test that the mean velocity matches the exact steady current of the tilted periodic potential."""
     system = TiltedPeriodicPotentialSystem(500, f=f, U0=0.5, L=1.0, kT=0.5)
     trajectory = simulate(system, until=30, dt=1.0, solver=EulerMaruyamaSolver(dt=0.005), random_state=0)
-    positions = trajectory.values('particles.x')[..., 0]
+    positions = trajectory.get_values('particles.x')[..., 0]
     velocities = (positions[-1] - positions[5]) / 25
     error = velocities.std() / math.sqrt(velocities.size)
     exact = _washboard_velocity(f, U0=0.5, L=1.0, kT=0.5, gamma=1.0)
@@ -42,7 +42,7 @@ def test_flashing_ratchet_current():
     for asymmetry in (0.1, 0.5):
         system = FlashingRatchetSystem(300, asymmetry=asymmetry, rate=1.0, duration=40.0, random_state=1)
         trajectory = simulate(system, until=40, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=0)
-        velocities = trajectory.values('particles.x')[-1, :, 0] / 40
+        velocities = trajectory.get_values('particles.x')[-1, :, 0] / 40
         currents.append((velocities.mean(), velocities.std() / math.sqrt(velocities.size)))
     (asymmetric, asymmetric_error), (symmetric, symmetric_error) = currents
     assert np.sign(asymmetric) == np.sign(0.5 - 0.1)

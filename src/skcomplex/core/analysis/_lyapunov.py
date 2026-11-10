@@ -1,7 +1,4 @@
-"""Measure chaos with Lyapunov exponents.
-
-They are the spectrum of a system from its tangent dynamics, or the largest of data.
-"""
+"""Measure chaos with Lyapunov exponents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
@@ -24,7 +21,7 @@ from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind, VectorFunction
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
-from ._stability import _dynamics_of
+from ._stability import StabilityResult
 from .types import Source
 
 KINDS = ('spectrum', 'largest')
@@ -32,10 +29,7 @@ SETTINGS = {
     'spectrum': {'n_exponents', 'until', 'dt', 'transient', 'parameters'},
     'largest': {'variables', 'dt', 'dimension', 'delay', 'min_separation', 'trajectory_length', 'skip'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 FUNCTIONS: dict[str, VectorFunction] = {}
-
 TAGS = AnalysisTags(DataKind.SYSTEM, randomness='deterministic')
 KIND_TAGS = {
     'largest': AnalysisTags(DataKind.SERIES, randomness='deterministic'),
@@ -99,7 +93,7 @@ def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n:
 
 @dataclass(frozen=True)
 class LyapunovResult:
-    """Lyapunov exponents of a system, or the largest exponent of every series.
+    """A result of `lyapunov`, the Lyapunov exponents of a system or of series.
 
     The series are those recorded.
 
@@ -171,6 +165,9 @@ def lyapunov(
       its delay embedding.
 
     A positive largest exponent indicates chaos.
+
+    It appears in many fields. It measures how fast nearby runs diverge in the weather, in a double pendulum, and in the
+    orbits of asteroids.
 
     Args:
         source:
@@ -278,8 +275,8 @@ def lyapunov(
         )
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
-    if isinstance(source, System | BaseProblemSpec | Trajectory):
-        dynamics = _dynamics_of(_read_system(source), parameters)
+    if isinstance(source, CompositeSystem | BaseProblemSpec | Trajectory):
+        dynamics = StabilityResult._get_dynamics_of(_read_system(source), parameters)
         problem = dynamics.problem
         exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)
     else:

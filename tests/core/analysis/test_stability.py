@@ -8,11 +8,11 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import stability
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import DiffusionInteraction, Interaction, ReactionInteraction
+from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import total
+from skcomplex.core.components.laws.utils import laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -34,16 +34,17 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
     cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
     reactions = [
-        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
-        ReactionInteraction('conversion', target='cells', reactants={'u': 1}, products={'v': 1}, modifiers={'b': 1}),
+        RateInteraction('feed', target='cells', state='u', rate=lambda s: s.target.a),
+        RateInteraction('loss', target='cells', state='u', rate=lambda s: -s.target.b * s.target.u),
+        RateInteraction('gain', target='cells', state='v', rate=lambda s: s.target.b * s.target.u),
         CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
-        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+        RateInteraction('decay', target='cells', state='u', rate=lambda s: -s.target.u),
     ]
     diffusions = [
-        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=lambda s: s.target.Du),
-        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=lambda s: s.target.Dv),
+        RateInteraction('u_diffusion', target='cells', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
+        RateInteraction('v_diffusion', target='cells', state='v', rate=lambda s: s.target.Dv * laplacian(s.target.v)),
     ]
-    return System(elements=[cells], interactions=[*reactions, *diffusions])
+    return CompositeSystem(elements=[cells], interactions=[*reactions, *diffusions])
 
 
 def test_lotka_volterra_centre():
@@ -51,13 +52,13 @@ def test_lotka_volterra_centre():
     system = LotkaVolterraSystem().prepare().system_
     analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
-    index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.n'] != 0)
+    index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.x'] != 0)
     interior = analysis.fixed_points[index]
-    assert bool(interior['prey.n'] == d / b)
-    assert bool(interior['predators.n'] == r / a)
+    assert bool(interior['prey.x'] == d / b)
+    assert bool(interior['predators.x'] == r / a)
     assert analysis.classifications[index] == 'centre'
     assert abs(analysis.eigenvalues[index].real).max() < 1e-9
-    assert _stability(system, points=[{'prey.n': 0, 'predators.n': 0}]).classifications == ['saddle']
+    assert _stability(system, points=[{'prey.x': 0, 'predators.x': 0}]).classifications == ['saddle']
 
 
 def test_logistic_map_fixed_point_is_stable():
@@ -87,7 +88,7 @@ def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
     analysis = _stability(LotkaVolterraSystem().prepare().system_)
     assert analysis.jacobian.dimensions() == (2, 2)
-    assert set(analysis.nullclines) == {'prey.n', 'predators.n'}
+    assert set(analysis.nullclines) == {'prey.x', 'predators.x'}
 
 
 def test_jump_process_has_no_vector_field():
@@ -138,7 +139,7 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
                 ),
             ]
 
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('population', element=StrategyElement, size=size, values={'x': [1 / size] * size})],
         interactions=[ReplicationInteraction('replication', population='population')],
     )
@@ -174,15 +175,15 @@ def test_group_above_limit():
             """Return the laws of the member element."""
             return [RateLaw(s.x, total(s.x) - s.x)]
 
-    system = System(elements=[GroupElement('group', element=MemberElement, size=1000)])
+    system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         _stability(system)
 
 
 def test_points_are_the_given_points():
     """Test that given points replace the fixed points found by solving."""
-    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.n': 0, 'predators.n': 0}])
-    assert analysis.fixed_points == [{'prey.n': 0, 'predators.n': 0}]
+    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.x': 0, 'predators.x': 0}])
+    assert analysis.fixed_points == [{'prey.x': 0, 'predators.x': 0}]
     assert len(analysis.eigenvalues) == 1
 
 
@@ -211,7 +212,7 @@ def test_dispersion_relation_rejects_an_interaction_on_another_part():
     """Test that an interaction binding a part other than the field has no place in the dispersion relation."""
     system = _brusselator(1.9)
     system.interactions.append(
-        DiffusionInteraction('elsewhere', target='other', state='u', coefficient=lambda s: s.target.Du),
+        RateInteraction('elsewhere', target='other', state='u', rate=lambda s: s.target.Du * laplacian(s.target.u)),
     )
     with pytest.raises(AnalysisError, match='other than the field'):
         _stability(system, kind='dispersion')

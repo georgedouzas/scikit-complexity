@@ -8,7 +8,7 @@ before it arrives and speeds up before it leaves, so the robots avoid each other
 """
 
 # %%
-# The system is built from its class with the values of Argun et al.: 50 robots in a periodic square of
+# The example builds `LightEmittingRobotsSystem` with the values of Argun et al.: 50 robots in a periodic square of
 # side 10, the intensity `I0 = 5`, the width `r0 = 1`, the speeds 1 in the dark and 0.1 in strong light, the time scale
 # `tau = 2` of rotational diffusion, and a delay of 10 s. Every step lasts 0.5 s. The default blueprint shows the
 # robots in the arena, colored by the light they measure.
@@ -35,7 +35,7 @@ trajectory = simulate(LightEmittingRobotsSystem(), observers=[observer])
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, delay in zip(axes, (10.0, 0.0, -10.0), strict=True):
     trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600)
-    snapshot = trajectory.agents('robots', 600)
+    snapshot = trajectory.get_agents('robots', 600)
     positions = np.asarray(snapshot.locations)
     ax.scatter(positions[:, 0], positions[:, 1], c=snapshot.values['light'], vmin=0, vmax=10)
     ax.set_xlim(0, 10)

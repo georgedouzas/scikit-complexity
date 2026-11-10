@@ -15,7 +15,7 @@ from ._recorded_spec import _RecordedSpec
 
 @dataclass(frozen=True)
 class TransferNetworkSpec(BaseSpec):
-    """Quantities, flows, and recorded values of a compiled system.
+    """A spec of the quantities, flows, and recorded values of a compiled system.
 
     Args:
         quantities:

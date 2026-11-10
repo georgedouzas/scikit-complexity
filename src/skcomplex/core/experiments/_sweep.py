@@ -1,7 +1,4 @@
-"""Run a system over values of its parameters and initial states.
-
-The values are those of its model parameters, initial states, and parameters of its parts.
-"""
+"""Run a system over values of its parameters and initial states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +37,7 @@ def sweep(
 
     It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
     the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
-    part, such as `population.n` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
+    part, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
 
     - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
     - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.
@@ -48,6 +45,9 @@ def sweep(
     - `'sobol'`: `n` points of a scrambled Sobol sequence, best with `n` a power of 2.
 
     A sequence of rows, each a mapping from name to value, runs as it is.
+
+    It appears in many fields. It maps the phase transition of a magnet over temperature, the final size of an epidemic
+    over its rate of infection, and the clusters of an opinion model over its confidence bound.
 
     Args:
         system:
@@ -112,7 +112,7 @@ def sweep(
     Examples:
         >>> from skcomplex.core.experiments import sweep
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-        >>> result = sweep(LogisticGrowthSystem(), {'r': [0.5, 1.0]}, until=5, outputs=['population.n'])
+        >>> result = sweep(LogisticGrowthSystem(), {'r': [0.5, 1.0]}, until=5, outputs=['population.x'])
         >>> len(result.rows)
         2
     """

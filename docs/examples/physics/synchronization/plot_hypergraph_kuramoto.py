@@ -39,7 +39,7 @@ for label, phases in (('from incoherent phases', None), ('from synchronized phas
     for coupling in couplings:
         system_system = HypergraphKuramotoSystem(n_oscillators=40, K2=coupling, phases=phases, seed=0)
         run = simulate(system_system, dt=0.5)
-        order.append(np.mean(np.asarray(run.values('order'))[-20:]))
+        order.append(np.mean(np.asarray(run.get_values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=label)
 branch = couplings[couplings >= 4.0]
 ax.plot(branch, np.sqrt((1 + np.sqrt(1 - 4.0 / branch)) / 2), '--', color='black', label='Ott-Antonsen branch')

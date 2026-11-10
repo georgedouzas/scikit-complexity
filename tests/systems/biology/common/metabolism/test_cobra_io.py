@@ -5,7 +5,7 @@ import multiprocessing
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
@@ -31,13 +31,13 @@ sys.meta_path.insert(0, Blocker())
 
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return System(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
 
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
     trajectory = simulate(system, until=0.0)
-    return float(trajectory.values('cell.objective_0')[0])
+    return float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_bundled_core_system_grows_with_and_without_oxygen():
@@ -62,7 +62,7 @@ def test_round_trip_keeps_the_network(tmp_path, suffix):
         )
         for metabolite, value in spec.coefficients.items():
             assert other.coefficients[metabolite] == pytest.approx(value)
-    optimum = _objective(System(elements=[copy], time=StaticTime()))
+    optimum = _objective(CompositeSystem(elements=[copy], time=StaticTime()))
     assert optimum == pytest.approx(AEROBIC, abs=1e-6)
 
 
@@ -93,7 +93,7 @@ def test_default_install_stays_importable():
         "names = {name for field in ('biology/systems_biology', 'biology/ecology') for name, _ in all_systems(field)}\n"
         "assert {'DynamicFBASystem', 'CometsSystem', 'CommunityFBASystem'} <= names\n"
         "trajectory = simulate(FluxBalanceSystem(), until=0.0)\n"
-        "assert abs(float(trajectory.values('cell.v_vbio')[0]) - 50) < 1e-9\n"
+        "assert abs(float(trajectory.get_values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"
         'from skcomplex.core.errors import MissingExtraError\n'
         'try:\n'

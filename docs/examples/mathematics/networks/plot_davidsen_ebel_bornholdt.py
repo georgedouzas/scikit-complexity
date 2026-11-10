@@ -1,9 +1,9 @@
 """
 # Davidsen-Ebel-Bornholdt network
 
-A network of fixed size where a random node introduces two of its friends to each other, closing a triangle, while
-nodes leave at random and newcomers arrive with one friend. Closing triangles keeps the clustering high, and since a
-node is the friend of many others in proportion to its degree, it gains links by preferential attachment.
+In a network of fixed size, a random node introduces two of its friends to each other, closing a triangle, while nodes
+leave at random and newcomers arrive with one friend. Closing triangles keeps the clustering high, and since a node is
+the friend of many others in proportion to its degree, it gains links by preferential attachment.
 """
 
 # %%
@@ -29,7 +29,7 @@ def graphs(turnover, until=10000):
     run = simulate(DavidsenEbelBornholdtSystem(turnover=turnover), until=until, random_state=0)
     found = []
     for frame in range(until // 5, until + 1, 200):
-        network = run.network(frame)
+        network = run.get_network(frame)
         graph = nx.Graph(list(zip(network.sources.tolist(), network.targets.tolist(), strict=True)))
         graph.add_nodes_from(network.nodes.tolist())
         found.append(graph)

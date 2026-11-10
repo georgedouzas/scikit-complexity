@@ -25,7 +25,7 @@ trajectory = simulate(GameOfLifeSystem(shape=(100, 100), density=0.3, random_sta
 # The density of live cells should fall quickly from its initial 0.3 and level off near a few percent, once the
 # board holds only still lifes, oscillators, and gliders.
 
-alive = trajectory.lattice('cells.alive')
+alive = trajectory.get_lattice('cells.alive')
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(trajectory.times, alive.mean(axis=(1, 2)))
 ax.set_xlabel('generation')

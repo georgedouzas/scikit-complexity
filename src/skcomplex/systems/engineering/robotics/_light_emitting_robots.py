@@ -18,7 +18,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -176,12 +176,12 @@ class SensoryDelayInteraction(Interaction):
 
         The speeds follow the delayed or predicted light.
         """
-        robots = system.agents('target', LightEmittingRobotView)
+        robots = system.get_agents('target', LightEmittingRobotView)
         positions = np.array([np.asarray(robot.location, dtype=float) for robot in robots])
-        light = self._light(positions)
+        light = self._get_light(positions)
         history = cast('list[Array]', system.storage.setdefault('light', []))
         history.append(light)
-        sensed = self._sensed(history)
+        sensed = self._get_sensed(history)
         speeds = self.V_inf + (self.V0 - self.V_inf) * np.exp(-sensed)
         spread = math.sqrt(2 * self.step / self.tau)
         for robot, position, measured, speed in zip(robots, positions, light, speeds, strict=True):
@@ -191,7 +191,7 @@ class SensoryDelayInteraction(Interaction):
             robot.light = float(measured)
             robot.speed = float(speed)
 
-    def _light(self, positions: Array) -> Array:
+    def _get_light(self, positions: Array) -> Array:
         """Return the total light every robot measures from the others.
 
         The light is taken at the shortest distances on the torus.
@@ -203,7 +203,7 @@ class SensoryDelayInteraction(Interaction):
         light: Array = glow.sum(axis=1)
         return light
 
-    def _sensed(self, history: list[Array]) -> Array:
+    def _get_sensed(self, history: list[Array]) -> Array:
         """Return the light the robots react to.
 
         It is measured a delay ago, or predicted ahead for a negative delay.
@@ -304,7 +304,7 @@ class LightEmittingRobotsSystem(BaseSystem):
         self.step = step
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.side, (self.n_robots, 2))
@@ -327,7 +327,7 @@ class LightEmittingRobotsSystem(BaseSystem):
             step=self.step,
             side=self.side,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[robots],
             interactions=[motion],

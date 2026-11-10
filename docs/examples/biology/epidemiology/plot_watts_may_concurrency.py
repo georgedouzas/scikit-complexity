@@ -7,8 +7,8 @@ partners, so the same partner and infection rates spread the epidemic faster.
 """
 
 # %%
-# The system is built from its class with partnerships of mean duration 3, and the observer saves every other frame
-# with the default blueprint, whose primary view is the time series of the compartments.
+# The example builds `WattsMayConcurrencySystem` with partnerships of mean duration 3, and the observer saves every
+# other frame with the default blueprint, whose primary view is the time series of the compartments.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ trajectory = simulate(WattsMayConcurrencySystem(tau=3.0), observers=[observer])
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for tau in (0.25, 1.0, 3.0):
     run = simulate(WattsMayConcurrencySystem(tau=tau))
-    ax.plot(run.times, run.values('population.I'), label=f'tau = {tau}')
+    ax.plot(run.times, run.get_values('population.I'), label=f'tau = {tau}')
 ax.set_xlabel('time (years)')
 ax.set_ylabel('infectious fraction I')
 ax.set_title('The epidemic grows faster with longer partnerships')

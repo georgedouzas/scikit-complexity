@@ -6,8 +6,9 @@ of period 7, in which the cyclins E, A, and B rise and fall in turn.
 """
 
 # %%
-# The system is built from its class and started from the quiescent state, Rb, p27, and Cdh1 on, with CycD switched
-# on. The observer saves every step with the default blueprint, whose primary view is the time series of the proteins.
+# The example builds `MammalianCellCycleSystem` and starts it from the quiescent state, Rb, p27, and Cdh1 on, with CycD
+# switched on. The observer saves every step with the default blueprint, whose primary view is the time series of the
+# proteins.
 
 import matplotlib.pyplot as plt
 
@@ -37,7 +38,7 @@ for ax, trajectory, title in zip(
     ('CycD on: a cycle of period 7', 'CycD off: quiescence'),
     strict=False,
 ):
-    raster = [trajectory.values(f'{name}.x') for name in PROTEINS]
+    raster = [trajectory.get_values(f'{name}.x') for name in PROTEINS]
     ax.imshow(raster, aspect='auto', cmap='Greys', interpolation='nearest')
     ax.set_yticks(range(len(PROTEINS)), PROTEINS)
     ax.set_xlabel('step')

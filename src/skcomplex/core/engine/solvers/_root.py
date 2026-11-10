@@ -1,7 +1,4 @@
-"""Solve the equations of a static system once.
-
-They are solved by the compiled solution or numerically from the initial state.
-"""
+"""Solve the equations of a static system once."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ from ._solver import Solver
 
 
 class RootSolver(Solver):
-    """Solver of the equations of a static system.
+    """A solver of the equations of a static system.
 
     It solves them once for the one frame of the run. The compiled solution gives the states when Sage finds a unique
     explicit one. Otherwise `scipy.optimize.root` solves the residuals of the equations with their exact Jacobian, from
@@ -49,7 +46,7 @@ class RootSolver(Solver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import EquationLaw
         >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class FixedPointElement(Element):
@@ -59,9 +56,9 @@ class RootSolver(Solver):
         ...
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
-        >>> system = System(elements=[FixedPointElement('a')], time=StaticTime())
+        >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
         >>> trajectory = simulate(system, until=1.0)
-        >>> round(float(trajectory.values('a.x')[0]), 7)
+        >>> round(float(trajectory.get_values('a.x')[0]), 7)
         0.7390851
     """
 
@@ -92,13 +89,13 @@ class RootSolver(Solver):
         """Return the form the solver solves."""
         return FormKind.STATIC
 
-    def _residuals(self, unknowns: Array, x: Array, p: Array) -> Array:
+    def _get_residuals(self, unknowns: Array, x: Array, p: Array) -> Array:
         """Return the residuals of the equations at values of their unknowns."""
         state = x.copy()
         state[self.problem_.unknowns] = unknowns
-        return np.asarray(self._drift()(0.0, state, p), dtype=float)[self.problem_.unknowns]
+        return np.asarray(self._get_drift()(0.0, state, p), dtype=float)[self.problem_.unknowns]
 
-    def _kernel(self) -> JacobianKernel:
+    def _get_kernel(self) -> JacobianKernel:
         """Return the kernel of the exact Jacobian of the residuals.
 
         An error is raised for a problem without one.
@@ -109,15 +106,15 @@ class RootSolver(Solver):
             raise SolverError(error_msg)
         return kernel
 
-    def _jacobian(self, unknowns: Array, x: Array, p: Array) -> Array:
+    def _get_jacobian(self, unknowns: Array, x: Array, p: Array) -> Array:
         """Return the exact Jacobian of the residuals in their unknowns."""
         indices = self.problem_.unknowns
         state = x.copy()
         state[indices] = unknowns
-        matrix = self._kernel().run(RunStateSpec(0.0, state, p)).values_
+        matrix = self._get_kernel().run(RunStateSpec(0.0, state, p)).values_
         return np.asarray(matrix.toarray(), dtype=float)[np.ix_(indices, indices)]
 
-    def _solved(self, x: Array, p: Array) -> Array:
+    def _get_solved(self, x: Array, p: Array) -> Array:
         """Return the state vector that solves the equations.
 
         It starts from an initial state and parameters.
@@ -126,16 +123,16 @@ class RootSolver(Solver):
         indices = problem.unknowns
         if not indices.size:
             return np.asarray(problem.update(0.0, x, p), dtype=float) if problem.update is not None else x
-        self._kernel().prepare(problem)
+        self._get_kernel().prepare(problem)
         result = root(
-            self._residuals,
+            self._get_residuals,
             x[indices],
             args=(x, p),
-            jac=self._jacobian,
+            jac=self._get_jacobian,
             method=self.method,
             tol=self.tolerance,
         )
-        residual = float(np.max(np.abs(self._residuals(result.x, x, p))))
+        residual = float(np.max(np.abs(self._get_residuals(result.x, x, p))))
         if not result.success or not residual <= self.tolerance:
             equations = ', '.join(f'{name}: {value} == 0' for name, value in problem.equations.items() if value != 0)
             error_msg = (
@@ -160,7 +157,7 @@ class RootSolver(Solver):
                 The problem has another form, or its numerical solve does not converge.
         """
         super()._prepare(context)
-        self.initial_state_ = self._solved(self.problem_.initial_state, self.problem_.initial_parameters)
+        self.initial_state_ = self._get_solved(self.problem_.initial_state, self.problem_.initial_parameters)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Return the state unchanged.

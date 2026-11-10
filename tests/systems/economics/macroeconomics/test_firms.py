@@ -20,4 +20,4 @@ def test_toy_firm_investment_keeps_its_accounting_identities():
         assert np.allclose(firms['Y'], 0.1 * firms['K'])
         assert np.all(firms['A'] >= 0)
         assert np.all(firms['B'] >= 0)
-        assert trajectory.values('production')[frame] == pytest.approx(firms['Y'].sum())
+        assert trajectory.get_values('production')[frame] == pytest.approx(firms['Y'].sum())

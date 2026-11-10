@@ -1,7 +1,7 @@
 """
 # Saddle-node normal form
 
-Just past the saddle-node bifurcation, `mu` slightly below 0, the two equilibria have vanished, yet the state still
+Shortly past the saddle-node bifurcation, `mu` slightly below 0, the two equilibria have vanished, yet the state still
 lingers for a long time near `x = 0`, where they collided: the ghost of the saddle-node, a bottleneck whose passage
 time diverges as `π / √|mu|`.
 """
@@ -35,12 +35,12 @@ for distance in distances:
     width = np.sqrt(distance)
     until = 2 * np.arctan(1 / width) / width + 0.5
     trajectory = simulate(SaddleNodeFormSystem(x=1.0, mu=-distance), until=until, dt=0.01)
-    passages.append(trajectory.times[np.argmax(trajectory.values('form.x') < -1)])
+    passages.append(trajectory.times[np.argmax(trajectory.get_values('form.x') < -1)])
 fig, (series, passage) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(trajectory.times, trajectory.values('form.x'), label='mu = -0.004')
+series.plot(trajectory.times, trajectory.get_values('form.x'), label='mu = -0.004')
 for mu in (0.01, 0.1):
     settled = simulate(SaddleNodeFormSystem(x=1.0, mu=mu), until=48, dt=0.1)
-    series.plot(settled.times, settled.values('form.x'), label=f'mu = {mu}')
+    series.plot(settled.times, settled.get_values('form.x'), label=f'mu = {mu}')
 series.set_ylim(-2, 1.05)
 series.set_xlabel('time')
 series.set_ylabel('x')

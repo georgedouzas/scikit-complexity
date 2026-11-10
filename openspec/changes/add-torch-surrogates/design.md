@@ -8,14 +8,15 @@ gives `force_matching` in `core/analysis/_force_matching.py`, with `kind='linear
 mappings in `coarse_grain`. Its learned systems run a fitted Python map through a `RateLaw` or `UpdateLaw` with a
 vectorised `CallSpec`, as `reservoir` does with `_ReservoirStep` in `core/analysis/_reservoirs.py`.
 
-Pair potentials are symbolic today: `PairCouplingInteraction` and `GradientInteraction` take Sage expressions, and
-`LammpsSolver` in `core/engine/solvers/_lammps.py` translates them to LAMMPS styles. Interactions it cannot translate
-that only change velocities already run through `fix external`, evaluated by the framework. The installed LAMMPS wheel
-holds ML-IAP but not the PYTHON package, so `pair_style mliap unified` and `pair_style mace` are not available, while
-`fix external` with a callback is. The field systems `GrayScottSystem` (`chemistry/pattern_formation`),
-`KuramotoSivashinskySystem` (`physics/fluids`), `HeatDiffusionSystem` (`physics/heat`), and `AllenCahnSystem`
-(`physics/pattern_formation`) run on lattices with the spectral and stiff steppers. `lyapunov(kind='largest')` and
-`scaling(kind='correlation-dimension')` measure series. `chain_shape` measures chains.
+Pair potentials are symbolic today: `PairInteraction` with a potential, into which `move-recipes-to-systems` merges the
+former `PairCouplingInteraction`, and `GradientInteraction` take Sage expressions, and `LammpsSolver` in
+`core/engine/solvers/_lammps.py` translates them to LAMMPS styles. Interactions it cannot translate that only change
+velocities already run through `fix external`, evaluated by the framework. The installed LAMMPS wheel holds ML-IAP but
+not the PYTHON package, so `pair_style mliap unified` and `pair_style mace` are not available, while `fix external` with
+a callback is. The field systems `GrayScottSystem` (`chemistry/pattern_formation`), `KuramotoSivashinskySystem`
+(`physics/fluids`), `HeatDiffusionSystem` (`physics/heat`), and `AllenCahnSystem` (`physics/pattern_formation`) run on
+lattices with the spectral and stiff steppers. `lyapunov(kind='largest')` and `scaling(kind='correlation-dimension')`
+measure series. `chain_shape` measures chains.
 
 The general-mechanisms spec forbids field terms in core names, so a core class may say potential and kind but not
 force, energy, atom, or species.
@@ -172,8 +173,9 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
 - **Coarse-grained fits.** `force_matching(kind='equivariant')` builds a small MACE model (`mace.modules.MACE`, two
   interaction layers, few channels, cutoff from the argument) with one kind per bead type and trains it on the mapped
   forces with a force-only loss in a plain torch loop, beside the repulsive prior `(σ / r)^12` of change 7's network
-  kind. The result system uses `EquivariantPotentialInteraction` for the network and a `PairCouplingInteraction` for
-  the prior. Alternative: mace-torch's training script, rejected because it reads files and a command line.
+  kind. The result system uses `EquivariantPotentialInteraction` for the network and a `PairInteraction` with a
+  potential for the prior. Alternative: mace-torch's training script, rejected because it reads files and a command
+  line.
 
 ### Physics-informed solver
 

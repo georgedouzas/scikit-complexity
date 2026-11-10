@@ -13,18 +13,17 @@ from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    ChoiceInteraction,
-    EvolutionInteraction,
-    Interaction,
-    ReinforcementInteraction,
-)
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import IntArray
+from ...general.agents import ChoiceInteraction, EvolutionInteraction
+from ..common.learning import PayoffLearningInteraction
+
+MAX_SEED = 2**31
 
 
 @dataclass(frozen=True)
@@ -159,7 +158,7 @@ class MinorityGameInteraction(Interaction):
     assigns to the last `m` winning sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule
     `'best'` chooses before. The side with fewer agents wins, and every agent on it gains one point and every other
     loses one. The game reports the attendance `A = sum_i a_i` and the code of the history the strategies read, so a
-    cumulative `ReinforcementInteraction` gives every strategy one virtual point when it would have played the winning
+    cumulative `PayoffLearningInteraction` gives every strategy one virtual point when it would have played the winning
     side, by the payoff `payoff`. The volatility `sigma^2 / N` of the attendance has a minimum below the value of random
     play near `alpha = 2^m / N ~ 0.34`.
 
@@ -212,15 +211,15 @@ class MinorityGameInteraction(Interaction):
         """
         return [RuleLaw(self.play, phase=self.phase)]
 
-    def _table(self, code: float, system: SystemView) -> IntArray:
+    def _get_table(self, code: float, system: SystemView) -> IntArray:
         """Return the table of a strategy, cached for the run in the state of the game."""
-        state = self._state(system)
+        state = self._get_state(system)
         if code not in state.tables:
             state = replace(state, tables={**state.tables, code: strategy_table(code, self.memory)})
             system.storage['game'] = state
         return state.tables[code]
 
-    def _state(self, system: SystemView) -> _GameStateSpec:
+    def _get_state(self, system: SystemView) -> _GameStateSpec:
         """Return the state of the game in the storage of the system.
 
         The first round starts a random history.
@@ -238,21 +237,21 @@ class MinorityGameInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.agents('players', MinorityPlayerView)
-        history = self._state(system).history
+        agents = system.get_agents('players', MinorityPlayerView)
+        history = self._get_state(system).history
         for agent in agents:
             code = agent.second if agent.strategy else agent.first
-            agent.action = float(2 * int(self._table(code, system)[history]) - 1)
+            agent.action = float(2 * int(self._get_table(code, system)[history]) - 1)
         attendance = sum(agent.action for agent in agents)
         winner = -1 if attendance > 0 else 1
         for agent in agents:
             agent.wealth += agent.action * winner
-        state = self._state(system)
+        state = self._get_state(system)
         system.storage['game'] = replace(state, history=(2 * history + (winner > 0)) % 2**self.memory)
         system.report('attendance', attendance)
         system.report('history', float(history))
 
-    def payoff(self, agent: MinorityPlayerView, system: SystemView, option: int) -> float:
+    def get_payoff(self, agent: MinorityPlayerView, system: SystemView, option: int) -> float:
         """Return the virtual payoff of a strategy of an agent in the last round.
 
         It is `+1` if it played the winning side.
@@ -271,13 +270,10 @@ class MinorityGameInteraction(Interaction):
             payoff:
                 `+1` when the strategy would have played the winning side, or `-1`.
         """
-        history = int(system.history(f'{self.label}.history')[-1])
-        winner = -1 if system.history(f'{self.label}.attendance')[-1] > 0 else 1
+        history = int(system.get_history(f'{self.label}.history')[-1])
+        winner = -1 if system.get_history(f'{self.label}.attendance')[-1] > 0 else 1
         code = agent.second if option else agent.first
         return float((2 * int(strategy_table(code, self.memory)[history]) - 1) * winner)
-
-
-MAX_SEED = 2**31
 
 
 class MinorityGameSystem(BaseSystem):
@@ -344,7 +340,7 @@ class MinorityGameSystem(BaseSystem):
         self.fraction = fraction
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.n_agents % 2 == 0:
             error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
@@ -367,11 +363,11 @@ class MinorityGameSystem(BaseSystem):
             phase='choose',
         )
         game = MinorityGameInteraction('game', players='players', memory=self.memory, phase='play')
-        scoring = ReinforcementInteraction(
+        scoring = PayoffLearningInteraction(
             'scoring',
             target='players',
             scores=('first_score', 'second_score'),
-            payoff=game.payoff,
+            payoff=game.get_payoff,
             rule='cumulative',
             form='agent',
             phase='score',
@@ -390,7 +386,7 @@ class MinorityGameSystem(BaseSystem):
             reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
             phase='score',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[choice, game, scoring, *([evolution] if self.evolutionary else [])],

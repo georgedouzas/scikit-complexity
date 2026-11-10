@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import draw, uniform
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -143,7 +143,7 @@ class TrapSystem(BaseSystem):
         self.tau0 = tau0
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Bouchaud trap system.
 
         Walkers escape from traps of exponentially distributed depths.
@@ -160,4 +160,4 @@ class TrapSystem(BaseSystem):
                 'tau0': self.tau0,
             },
         )
-        return System(self.label, elements=[walkers], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[walkers], space=ContinuousSpace(n_dim=2))

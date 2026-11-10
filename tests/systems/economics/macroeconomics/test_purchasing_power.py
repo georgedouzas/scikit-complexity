@@ -12,7 +12,7 @@ from ..conftest import _run
 def _indices(feedback):
     """Return the indices of the sectors after a step policy on the luxury sector."""
     trajectory = _run(CategorizedPurchasingPowerSystem(feedback=feedback), 30.0, 0.05)
-    return [trajectory.values(f'economy.y{i}') for i in (1, 2, 3)]
+    return [trajectory.get_values(f'economy.y{i}') for i in (1, 2, 3)]
 
 
 def test_categorized_purchasing_power_feedback_keeps_policies_in_their_sector():

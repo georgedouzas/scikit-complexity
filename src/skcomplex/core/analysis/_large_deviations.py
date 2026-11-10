@@ -1,7 +1,4 @@
-"""Measure large deviations.
-
-The methods are generating functions, rate functions, cloning, and exponential reweighting.
-"""
+"""Measure large deviations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, special
 
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..engine.runtime._simulations import Simulation
@@ -34,10 +31,7 @@ SETTINGS = {
     'histogram': {'bins', 'value_range'},
     'reweight': {'log_weights'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'block': AnalysisTags(DataKind.SERIES),
@@ -48,7 +42,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class LargeDeviationsResult:
-    """Large deviations of a time-additive observable.
+    """A result of `large_deviations`, the large deviations of an observable.
 
     They are its generating function and rate function.
 
@@ -96,7 +90,7 @@ class LargeDeviationsResult:
 
     rates: Array | None = None
     increments: Array | None = None
-    system: System | ProblemSpec | None = None
+    system: CompositeSystem | ProblemSpec | None = None
     samples: dict[int, Array] | None = None
     observations: Array | None = None
     tilts: Array | None = None
@@ -149,6 +143,9 @@ def large_deviations(
 
     With `values`, the generating function kinds also give the rate function, its Legendre transform
     `I(a) = max_k (k a - lambda(k))` over the tilts.
+
+    It appears in many fields. It estimates the odds of rare events, such as a run of losses of an insurer, a rare
+    current through a channel, or a long drought.
 
     Args:
         source:
@@ -275,7 +272,7 @@ def large_deviations(
     grid = np.atleast_1d(np.asarray(tilts, dtype=float))
     rates: Array | None = None
     increments: Array | None = None
-    system: System | ProblemSpec | None = None
+    system: CompositeSystem | ProblemSpec | None = None
     effective_population: Array | None = None
     if kind == 'tilted':
         rates = np.asarray(source, dtype=float)
@@ -286,7 +283,7 @@ def large_deviations(
         increments = _read_series(source, variables).values[:, 0].astype(float)
         scgf = _block_scgf(increments, grid, block, dt)
     else:
-        if not isinstance(source, System | ProblemSpec):
+        if not isinstance(source, CompositeSystem | ProblemSpec):
             error_msg = f'large_deviations of kind cloning reads a system or its problem, not {type(source).__name__}.'
             raise AnalysisError(error_msg)
         estimates = [
@@ -333,7 +330,7 @@ def _block_scgf(array: Array, tilts: Array, block: int, dt: float) -> Array:
 
 
 def _clone(
-    system: System | ProblemSpec,
+    system: CompositeSystem | ProblemSpec,
     tilt: float,
     *,
     observable: str | Callable[[Trajectory], float] | None,
@@ -411,7 +408,7 @@ def _increment(observable: str | Callable[[Trajectory], float], trajectory: Traj
     """Return the increment of a time-additive observable over one segment of a clone."""
     if callable(observable):
         return float(observable(trajectory))
-    values = np.asarray(trajectory.values(observable), dtype=float)
+    values = np.asarray(trajectory.get_values(observable), dtype=float)
     return float(np.sum(values[-1] - values[0]))
 
 

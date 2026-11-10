@@ -8,7 +8,7 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 """
 
 # %%
-# The system is built from its class on a periodic square of 64 sites with unit spacing, from noise of
+# The example builds `CahnHilliardSystem` on a periodic square of 64 sites with unit spacing, from noise of
 # amplitude 0.05 around the critical composition 0. The catalog defaults integrate it with exponential time
 # differencing, and the default blueprint shows the order parameter as an image, one frame every 10 time units.
 
@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # the bulk, the Lifshitz-Slyozov law, makes it grow as `t^(1/3)`, so it should follow a line of slope 1/3 on log-log
 # axes. The mean of the order parameter is conserved by the dynamics and should stay at its initial value.
 
-phi = trajectory.lattice('mixture.phi')
+phi = trajectory.get_lattice('mixture.phi')
 times = trajectory.times
 sizes = []
 for field in phi[1:]:

@@ -23,7 +23,7 @@ SYSTEM = 'lattice_gauge_fields'
 system = LatticeGaugeFieldsSystem(size=16)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
 trajectory = simulate(system, until=400, observers=[observer], random_state=0)
-series = trajectory.values('mean_plaquette')
+series = trajectory.get_values('mean_plaquette')
 
 # %%
 # The plaquette against the exact result

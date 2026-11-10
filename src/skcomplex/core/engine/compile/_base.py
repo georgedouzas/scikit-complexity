@@ -1,7 +1,4 @@
-"""Define the bases of compilation.
-
-They are the compiler of a system, the passes of a compilation, and the lowerings of laws.
-"""
+"""Define the bases of compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...base import BaseConfig
 from ...components.laws import BaseLaw
-from ...components.system import System
+from ...components.systems import CompositeSystem
 from ...errors import (
     LabelError,
     ParameterError,
@@ -31,13 +28,13 @@ from ...errors import (
 from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
 from ...types import FormKind
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
-from ..backends._base import _AUTO_MEMBERS
+from ..backends._base import AUTO_MEMBERS
 from ..problems import BaseProblemSpec
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._compilation import Compilation
 
-_FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
+FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     RoleElementError: (
@@ -55,8 +52,8 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 }
 
 
-class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
-    """Compiler of a system into a problem of one mathematical form.
+class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
+    """An abstract compiler of a system into a problem of one mathematical form.
 
     `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
     and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
@@ -90,7 +87,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             the default solver of the problem's form.
     """
 
-    system_: System
+    system_: CompositeSystem
     report_: ValidationReportSpec
     problem_: BaseProblemSpec
     solver_: object
@@ -105,7 +102,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         self.solver = solver
         self.observables = observables
 
-    def _prepare(self, context: System | None) -> None:
+    def _prepare(self, context: CompositeSystem | None) -> None:
         """Attach the observables to a system and set the issues it finds.
 
         It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
@@ -126,21 +123,21 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
-        if not isinstance(context, System):
+        if not isinstance(context, CompositeSystem):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
         try:
-            self.system_ = self._with_observables(system, self.observables)
+            self.system_ = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
             self.system_ = system
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
-        self.report_ = ValidationReportSpec(tuple(self._issues(self.system_)))
+        self.report_ = ValidationReportSpec(tuple(self._get_issues(self.system_)))
 
-    def _issues(self, system: System) -> list[IssueSpec]:
+    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -206,7 +203,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
         problem = self._compile(dict(inputs or {}))
-        observables = tuple(self._observables_of(problem.system)) if problem.system is not None else ()
+        observables = tuple(self._get_observables_of(problem.system)) if problem.system is not None else ()
         self.problem_ = dataclasses.replace(problem, observables=observables)
         self.solver_ = self.solver if self.solver is not None else self._get_solver(self.problem_)
 
@@ -236,7 +233,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         return support
 
     @staticmethod
-    def _form_of(solver: type) -> FormKind:
+    def _get_form_of(solver: type) -> FormKind:
         """Return the form a solver class solves.
 
         Args:
@@ -275,18 +272,13 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         Returns:
             backend:
                 The backend passed, or a new backend, which checks its settings when it is prepared.
-
-        Examples:
-            >>> from skcomplex.core.engine.compile import BaseCompiler
-            >>> type(BaseCompiler._resolve_backend(None, 10)).__name__
-            'NumpyBackend'
         """
         if backend is not None:
             return backend
-        return NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()
+        return NumbaBackend() if members >= AUTO_MEMBERS else NumpyBackend()
 
     @staticmethod
-    def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
+    def _get_element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
         """Return the value of an expression of an element's namespace and the time.
 
         The value is read from the system of the element.
@@ -294,14 +286,14 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
 
     @staticmethod
-    def _of_root(observable: ObservableSpec) -> ObservableSpec:
+    def _get_of_root(observable: ObservableSpec) -> ObservableSpec:
         """Return an observable of an element as an observable of the root system.
 
         The observable of the root system is labelled `<element>.<label>`.
         """
         if observable.element is None or not callable(observable.expression):
             return observable
-        expression = functools.partial(BaseCompiler._element_value, observable.element, observable.expression)
+        expression = functools.partial(BaseCompiler._get_element_value, observable.element, observable.expression)
         return dataclasses.replace(
             observable,
             label=f'{observable.element}.{observable.label}',
@@ -310,7 +302,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         )
 
     @staticmethod
-    def _observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+    def _get_observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
         """Yield every observable of a system tree.
 
         Each comes with the path of the system that declares it.
@@ -329,32 +321,36 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         for observable in getattr(system, 'observables', ()):
             yield scope, observable
         for child in system.systems:
-            yield from BaseCompiler._observables_of(child, f'{scope}/{child.label}' if scope else child.label)
+            yield from BaseCompiler._get_observables_of(child, f'{scope}/{child.label}' if scope else child.label)
 
     @staticmethod
-    def _system_paths(system: System, scope: str = '') -> Iterator[str]:
+    def _get_system_paths(system: CompositeSystem, scope: str = '') -> Iterator[str]:
         """Yield the path of every nested system."""
         for child in system.systems:
             path = f'{scope}/{child.label}' if scope else child.label
             yield path
-            yield from BaseCompiler._system_paths(child, path)
+            yield from BaseCompiler._get_system_paths(child, path)
 
     @staticmethod
-    def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
+    def _get_attached(
+        system: CompositeSystem,
+        by_scope: dict[str, list[ObservableSpec]],
+        scope: str,
+    ) -> CompositeSystem:
         """Return a copy of a system that holds the observables of its scope.
 
         The copy has its nested systems attached.
         """
         copied = copy.copy(system)
         copied.systems = [
-            BaseCompiler._attached(child, by_scope, f'{scope}/{child.label}' if scope else child.label)
+            BaseCompiler._get_attached(child, by_scope, f'{scope}/{child.label}' if scope else child.label)
             for child in system.systems
         ]
         copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
         return copied
 
     @staticmethod
-    def _with_observables(system: System, observables: Sequence[ObservableSpec]) -> System:
+    def _copy_with_observables(system: CompositeSystem, observables: Sequence[ObservableSpec]) -> CompositeSystem:
         """Return a copy of a system tree with observables in the systems they name.
 
         Every observable is declared in the system its label names.
@@ -377,12 +373,12 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         by_scope: dict[str, list[ObservableSpec]] = {}
         for observable in observables:
             observable._check()
-            checked = BaseCompiler._of_root(observable)
+            checked = BaseCompiler._get_of_root(observable)
             scope, _, label = checked.label.rpartition('/')
             by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
         if not by_scope:
             return system
-        paths = {''} | set(BaseCompiler._system_paths(system))
+        paths = {''} | set(BaseCompiler._get_system_paths(system))
         unknown = sorted(set(by_scope) - paths)
         if unknown:
             error_msg = (
@@ -390,10 +386,10 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
                 'observable by its path from the root, such as `village/mean_wealth`.'
             )
             raise ValidationError(error_msg)
-        return BaseCompiler._attached(system, by_scope, '')
+        return BaseCompiler._get_attached(system, by_scope, '')
 
     @staticmethod
-    def _issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
+    def _get_issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
         """Return the issue of an error.
 
         The issue holds the code and fix of the error class, or the ones given.
@@ -415,12 +411,12 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             issue:
                 The issue.
         """
-        code, fix = _FIXES.get(type(error), (code, fix))
+        code, fix = FIXES.get(type(error), (code, fix))
         return IssueSpec(code, path, str(error), fix, error=type(error))
 
 
 class BasePass(BaseConfig[Compilation, None]):
-    """Step of a compilation that reads fields of the compilation and writes others.
+    """An abstract pass, a step of a compilation that reads fields and writes others.
 
     A pass declares the fields it reads and writes through the hooks `_get_reads` and `_get_writes`, which order the
     passes of a compilation. `prepare(compilation)` takes the compilation the pass serves, and `run()` calls the hook
@@ -480,7 +476,7 @@ class BasePass(BaseConfig[Compilation, None]):
         raise NotImplementedError
 
     @staticmethod
-    def _replaced[L: BaseLaw](law: L, **changes: object) -> L:
+    def _get_replaced[L: BaseLaw](law: L, **changes: object) -> L:
         """Return a new law of the class of a law, with some of its arguments changed.
 
         Args:
@@ -493,19 +489,11 @@ class BasePass(BaseConfig[Compilation, None]):
         Returns:
             law:
                 The new law, which the compiler reads without checking it again.
-
-        Examples:
-            >>> from sage.all__sagemath_symbolics import var
-            >>> from skcomplex.core.components.laws import RateLaw
-            >>> from skcomplex.core.engine.compile import BasePass
-            >>> x = var('x')
-            >>> BasePass._replaced(RateLaw(x, -x), value=-2 * x).value
-            -2*x
         """
         return type(law)(**{**law.get_params(deep=False), **changes})
 
     @staticmethod
-    def _calls_of(expression: Expression, name: str) -> list[Expression]:
+    def _get_calls_of(expression: Expression, name: str) -> list[Expression]:
         """Return the calls of a symbolic function by name inside an expression.
 
         Args:
@@ -531,7 +519,7 @@ class BasePass(BaseConfig[Compilation, None]):
 
 
 class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
-    """Lowering of one family of laws.
+    """An abstract lowering of one family of laws.
 
     One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
     lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets
@@ -581,7 +569,7 @@ class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
         """
         self.added_.setdefault(id(spec), (spec, {}))[1][item] = reference
 
-    def _reference_of(self, item: object, spec: KernelSpec) -> ReferenceSpec | None:
+    def _get_reference_of(self, item: object, spec: KernelSpec) -> ReferenceSpec | None:
         """Return the reference of a symbol of a spec, or `None`.
 
         The references the lowering added are included.

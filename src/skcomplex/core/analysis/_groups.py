@@ -1,7 +1,4 @@
-"""Expand small groups into one equation per member.
-
-Every reduction is written as an explicit sum.
-"""
+"""Expand small groups into one equation per member."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -90,16 +87,16 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
             error_msg = 'The expansion of groups runs on the names of the groups of an owner and a member. Pass them.'
             raise ValidationError(error_msg)
         entry_names, member = inputs
-        mapping = self._member_map(entry_names, member)
+        mapping = self._get_member_map(entry_names, member)
         mapping.update(
             {
-                reduction.symbol: self._value(reduction, member if reduction.weights is not None else None)
+                reduction.symbol: self._get_value(reduction, member if reduction.weights is not None else None)
                 for reduction in self.problem_.reductions
             },
         )
         self.expansion_ = mapping
 
-    def _member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
+    def _get_member_symbol(self, entry: EntrySpec, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""
         key = (entry.name, column, member)
         if key not in self.symbols_:
@@ -111,7 +108,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
                 )
         return self.symbols_[key]
 
-    def _member_map(self, entry_names: set[str], member: int) -> dict[Expression, Expression]:
+    def _get_member_map(self, entry_names: set[str], member: int) -> dict[Expression, Expression]:
         """Return the substitution of the generic symbols of groups by those of a member."""
         mapping = {}
         for layout in (self.problem_.states, self.problem_.parameters):
@@ -121,7 +118,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
                 if entry.name not in entry_names:
                     continue
                 for column, item in enumerate(components_of(self.problem_.symbols[entry.name])):
-                    mapping[item] = self._member_symbol(entry, column, member)
+                    mapping[item] = self._get_member_symbol(entry, column, member)
         return mapping
 
     def _read_symbol(self, reduction: ReductionKernel, item: Expression, member: int) -> Expression:
@@ -129,14 +126,14 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         read = reduction.reads[item]
         nested = next((other for other in self.problem_.reductions if other.symbol == item), None)
         if nested is not None:
-            return self._value(nested, member if nested.weights is not None else None)
+            return self._get_value(nested, member if nested.weights is not None else None)
         if not read.per_member:
             return item
         if read.entry is None:
             return self.by_index_[(read.is_state, int(np.asarray(read.index)[member]))]
-        return self._member_symbol(read.entry, read.column, member)
+        return self._get_member_symbol(read.entry, read.column, member)
 
-    def _value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
+    def _get_value(self, reduction: ReductionKernel, reader: int | None) -> Expression:
         """Return a reduction as an explicit expression of the member symbols.
 
         It is for one reader with weights.
@@ -150,11 +147,11 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
             terms.append(SR(reduction.argument).subs(mapping))
             condition = SR(reduction.condition).subs(mapping) if reduction.condition is not None else None
             selected.append(condition)
-        row = self._weights_row(reduction, reader) if reduction.weights is not None else None
+        row = self._get_weights_row(reduction, reader) if reduction.weights is not None else None
         self.shared_[key] = self._reduce(reduction, terms, selected, row)
         return self.shared_[key]
 
-    def _weights_row(self, reduction: ReductionKernel, reader: int | None) -> npt.NDArray[np.float64]:
+    def _get_weights_row(self, reduction: ReductionKernel, reader: int | None) -> npt.NDArray[np.float64]:
         """Return the weights of the members of a reduction for one reader.
 
         They come from a matrix or a shaped parameter.
@@ -167,7 +164,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         return np.asarray(source[weights.index], dtype=np.float64).reshape(weights.entry.shape)[position]
 
     @staticmethod
-    def _chosen(term: Expression, condition: Expression | None, otherwise: object) -> Expression:
+    def _get_chosen(term: Expression, condition: Expression | None, otherwise: object) -> Expression:
         """Return a member's term where its condition holds and another value elsewhere."""
         return term if condition is None else where(condition, term, otherwise)
 
@@ -182,13 +179,13 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
 
         It comes from the terms and conditions of its members, with their weights.
         """
-        counted = sum((_Expansion._chosen(SR(1), condition, 0) for condition in selected), SR(0))
+        counted = sum((_Expansion._get_chosen(SR(1), condition, 0) for condition in selected), SR(0))
         if reduction.kind == 'count':
             return counted
         if row is not None:
             weighted = sum(
                 (
-                    SR(float(weight)) * _Expansion._chosen(term, condition, 0)
+                    SR(float(weight)) * _Expansion._get_chosen(term, condition, 0)
                     for weight, term, condition in zip(row, terms, selected, strict=True)
                     if weight
                 ),
@@ -196,7 +193,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
             )
             return weighted / counted if reduction.kind == 'mean' else weighted
         summed = sum(
-            (_Expansion._chosen(term, condition, 0) for term, condition in zip(terms, selected, strict=True)),
+            (_Expansion._get_chosen(term, condition, 0) for term, condition in zip(terms, selected, strict=True)),
             SR(0),
         )
         if reduction.kind == 'sum':
@@ -205,12 +202,15 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
             return summed / counted
         if reduction.kind == 'var':
             squares = sum(
-                (_Expansion._chosen(term**2, condition, 0) for term, condition in zip(terms, selected, strict=True)),
+                (
+                    _Expansion._get_chosen(term**2, condition, 0)
+                    for term, condition in zip(terms, selected, strict=True)
+                ),
                 SR(0),
             )
             return squares / counted - (summed / counted) ** 2
         extreme = max_symbolic if reduction.kind == 'max' else min_symbolic
         bound = SR(-1e300) if reduction.kind == 'max' else SR(1e300)
         return extreme(
-            *(_Expansion._chosen(term, condition, bound) for term, condition in zip(terms, selected, strict=True)),
+            *(_Expansion._get_chosen(term, condition, bound) for term, condition in zip(terms, selected, strict=True)),
         )

@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
@@ -17,7 +17,7 @@ from ..conftest import _final
 
 def test_chaos_game_draws_the_sierpinski_triangle():
     """Test that the box-counting dimension of the final points is `log 3 / log 2` within 0.05."""
-    points = _final(ChaosGameSystem(n_points=100000), 30).values('points.p')[-1]
+    points = _final(ChaosGameSystem(n_points=100000), 30).get_values('points.p')[-1]
     cells = np.clip((points * 128).astype(int), 0, 127)
     grid = np.zeros((128, 128), dtype=bool)
     grid[cells[:, 1], cells[:, 0]] = True
@@ -31,7 +31,7 @@ def test_chaos_game_agrees_across_backends():
         (simulate(ChaosGameSystem(n_points=20).prepare().system_, until=1000, dt=1, random_state=0, backend=backend))
         for backend in (NumpyBackend(), NumbaBackend())
     ]
-    assert np.allclose(runs[0].values('points.p'), runs[1].values('points.p'), atol=1e-12)
+    assert np.allclose(runs[0].get_values('points.p'), runs[1].get_values('points.p'), atol=1e-12)
 
 
 def test_chaos_game_rejects_unknown_presets():
@@ -44,9 +44,9 @@ def test_random_affine_map_with_one_map_applies_it():
     """Test that a single contraction toward the origin halves every position at every step."""
     points = GroupElement('points', element=ChaosPointElement, size=3, values={'p': np.ones((3, 2))})
     game = RandomAffineMapInteraction('game', target='points', maps=[(0.5, 0.0, 0.0, 0.5, 0.0, 0.0)], weights=[1.0])
-    system = System(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
+    system = CompositeSystem(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
     trajectory = simulate(system, until=2, dt=1, random_state=0)
-    np.testing.assert_allclose(trajectory.values('points.p')[-1], 0.25)
+    np.testing.assert_allclose(trajectory.get_values('points.p')[-1], 0.25)
 
 
 def test_random_affine_map_rejects_unmatched_weights():

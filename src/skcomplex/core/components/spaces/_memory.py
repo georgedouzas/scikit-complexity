@@ -1,7 +1,4 @@
-"""Define memory neighbourhoods.
-
-They are the ordered memory sets of cellular automata on group spaces.
-"""
+"""Define the neighbourhood of the memory set of a cellular automaton on a group."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,18 +9,23 @@ from ._base import BaseNeighborhood
 
 
 class MemoryNeighborhood(BaseNeighborhood):
-    """Ordered memory set of a cellular automaton on a group space.
+    """A neighbourhood of the group elements whose values a cellular automaton reads.
 
-    It holds the group elements whose values a rule reads. A cell at the element `g` reads the cell at `g s` for every
-    element `s` of the memory set, in its order, so the neighbourhood keeps its orientation. Elements are words in the
+    The memory set is a list of elements of a group. A cell at the element `g` reads the cell at `g s` for every element
+    `s` of the memory set, in its order, so the neighbourhood keeps its orientation. Elements are words in the
     generators, such as `'a'`, `'a^-1'`, or `'a*b'`, and `'1'` is the identity, the cell itself.
+
+    Unlike `LatticeNeighborhood`, whose offsets are integer vectors, it takes words of a group. Choose it when cells
+    live on a `CayleySpace`.
+
+    It appears in mathematics and computer science, in cellular automata on free groups and on groups of automata.
 
     Args:
         elements:
             The words of the memory set.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Attributes:
         elements_:

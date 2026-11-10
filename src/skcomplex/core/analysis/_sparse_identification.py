@@ -1,7 +1,4 @@
-"""Fit sparse symbolic surrogates to series by SINDy.
-
-SINDy is the sparse identification of nonlinear dynamics.
-"""
+"""Fit sparse symbolic surrogates to series by SINDy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,17 +17,17 @@ from sage.all__sagemath_symbolics import Expression
 from ..components.elements import DeclaredElement
 from ..components.laws import BaseLaw, RateLaw
 from ..components.spaces import BaseTime, ContinuousTime
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.runtime import simulate
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
 from ..types import Array, DataKind
-from ._base import _import, _read_samples
+from ._base import _read_samples
+from ._utils import load_module
 from .types import Runs
 
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'variables', 'group', 'define'})
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -58,7 +55,7 @@ class _SurrogateElement(DeclaredElement):
 
 @dataclass(frozen=True)
 class SparseIdentificationResult:
-    """Sparse symbolic system fitted to series by SINDy.
+    """A result of `sparse_identification`, a sparse symbolic system.
 
     SINDy is the sparse identification of nonlinear dynamics.
 
@@ -99,7 +96,7 @@ class SparseIdentificationResult:
     """
 
     samples: SamplesSpec
-    system: System
+    system: CompositeSystem
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -130,6 +127,9 @@ def sparse_identification(
     selects the terms by sequentially thresholded least squares. The fitted system holds one rate law per variable under
     continuous time and starts at the first sample of the first run, and the forecast simulates it from the last sample
     of the last run.
+
+    It appears in many fields. It finds the equations of a fluid flow, of a chemical reaction, and of a predator and
+    prey cycle from their series.
 
     Args:
         source:
@@ -181,7 +181,7 @@ def sparse_identification(
     samples = _read_samples(source, variables, dt)
     states = _state_names(samples.labels)
     training, held = _split_samples(samples.series, validation)
-    sindy = _import('pysindy')
+    sindy = load_module('pysindy')
     fitted = sindy.SINDy(
         optimizer=sindy.STLSQ(threshold=threshold, alpha=alpha),
         feature_library=sindy.PolynomialLibrary(degree=degree),
@@ -211,7 +211,15 @@ def sparse_identification(
     )
 
 
-def _forecast(system: System, label: str, states: list[str], last_state: Array, *, dt: float, horizon: int) -> Array:
+def _forecast(
+    system: CompositeSystem,
+    label: str,
+    states: list[str],
+    last_state: Array,
+    *,
+    dt: float,
+    horizon: int,
+) -> Array:
     """Return the variables of the fitted system simulated from the last sample.
 
     There is one row per sample.
@@ -223,7 +231,7 @@ def _forecast(system: System, label: str, states: list[str], last_state: Array, 
         dt=dt,
         initial_state=dict(zip(names, map(float, last_state), strict=True)),
     )
-    values = np.column_stack([np.asarray(trajectory.values(name), dtype=np.float64) for name in names])
+    values = np.column_stack([np.asarray(trajectory.get_values(name), dtype=np.float64) for name in names])
     return values[1 : horizon + 1].reshape(horizon, len(names))
 
 
@@ -388,7 +396,7 @@ def _surrogate_system(
     time: BaseTime,
     *,
     inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
-) -> System:
+) -> CompositeSystem:
     """Return a system of one surrogate element.
 
     It has the given states, laws, time, and control inputs.
@@ -416,7 +424,7 @@ def _surrogate_system(
     variables = {name: DeclaredVariableSpec(value, StateSpec()) for name, value in initial.items()}
     for name, (value, bounds) in (inputs or {}).items():
         variables[name] = DeclaredVariableSpec(value, ParameterSpec(adaptive=True, bounds=bounds))
-    return System(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
+    return CompositeSystem(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
 
 
 def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:

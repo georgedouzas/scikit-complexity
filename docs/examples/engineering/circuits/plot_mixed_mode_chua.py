@@ -6,7 +6,7 @@ spike, over and over: a mixed-mode oscillation.
 """
 
 # %%
-# The system is built from its class with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
+# The example builds `MixedModeChuaSystem` with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
 # method for the stiff fast variable, and runs for 200 time units. The default blueprint shows `x`, `y`, and `z` in one
 # time series view.
 
@@ -32,7 +32,7 @@ trajectory = simulate(system, solver=ScipyODESolver(method='Radau'), observers=[
 fig, axes = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
 for ax, c in zip(axes, [0.0, 0.00053, 0.00105], strict=True):
     run = simulate(MixedModeChuaSystem(c=c), dt=0.25, solver=ScipyODESolver(method='Radau'))
-    ax.plot(run.times, run.values('circuit.x'), linewidth=0.8)
+    ax.plot(run.times, run.get_values('circuit.x'), linewidth=0.8)
     ax.set_ylabel('x')
     ax.set_title(f'c = {c}', fontsize=10)
 axes[-1].set_xlabel('time')

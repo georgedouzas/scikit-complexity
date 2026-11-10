@@ -50,12 +50,12 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # measured from the hires and the searching workers after the transient, and the wages accepted fall below the
 # initial reservation wage of 1 as long searches wear it down.
 
-times, unemployment = trajectory.times, trajectory.values('unemployment')
-hires, searching = trajectory.values('labour.volume'), trajectory.values('searching')
+times, unemployment = trajectory.times, trajectory.get_values('unemployment')
+hires, searching = trajectory.get_values('labour.volume'), trajectory.get_values('searching')
 window = slice(50, None)
 finding = np.nansum(hires[window]) / np.nansum(searching[window])
 balance = SEPARATION / (SEPARATION + finding)
-workers = trajectory.agents('workers', len(times) - 1)
+workers = trajectory.get_agents('workers', len(times) - 1)
 wages = workers.values['wage'][workers.values['employer'] >= 0]
 fig, (series, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(times, unemployment, label='simulation')

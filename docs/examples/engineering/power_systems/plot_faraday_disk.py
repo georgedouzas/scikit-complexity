@@ -7,7 +7,7 @@ value: the battery discharges slowly through the disk.
 """
 
 # %%
-# The system is built from its class with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
+# The example builds `FaradayDiskSystem` with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
 # rest, and runs for 50 time units. The default blueprint shows the current, the polarization voltage of the battery,
 # and the angular speed in one time series view.
 
@@ -33,12 +33,12 @@ trajectory = simulate(system, observers=[observer])
 # the current oscillate instead, which the sweep stops short of.
 
 torques = np.linspace(3.0, 9.0, 13)
-speeds = [simulate(FaradayDiskSystem(M=torque)).values('charger.omega')[-1] for torque in torques]
+speeds = [simulate(FaradayDiskSystem(M=torque)).get_values('charger.omega')[-1] for torque in torques]
 fig, (settling, speed) = plt.subplots(1, 2, figsize=(10, 4))
-settling.plot(trajectory.values('charger.omega'), trajectory.values('charger.I'))
+settling.plot(trajectory.get_values('charger.omega'), trajectory.get_values('charger.I'))
 settling.plot(
-    trajectory.values('charger.omega')[-1],
-    trajectory.values('charger.I')[-1],
+    trajectory.get_values('charger.omega')[-1],
+    trajectory.get_values('charger.I')[-1],
     'o',
     color='black',
     label='steady state',

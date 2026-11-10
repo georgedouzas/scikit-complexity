@@ -14,22 +14,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, MapInteraction, MovementInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
-    ClampSpec,
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RadiusSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
 )
 from ....core.types import Array
+from ...general.agents import MovementInteraction
+from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
 class ShoalMemberView(AgentView):
@@ -145,7 +145,7 @@ class ShoalMemberElement(Element):
         return ShoalMemberView
 
 
-class SchoolingInteraction(CouplingInteraction):
+class SchoolingInteraction(ZoneCouplingInteraction):
     """Couzin's turn of every fish toward a desired direction, by at most `max_turn`.
 
     Zones around the fish set the desired direction.
@@ -177,7 +177,6 @@ class SchoolingInteraction(CouplingInteraction):
             label,
             target=target,
             write=('vx', 'vy'),
-            form='agent',
             combine=self._get_desired,
             radii=(
                 RadiusSpec('alpha', self._get_repulsion, priority=1),
@@ -189,7 +188,7 @@ class SchoolingInteraction(CouplingInteraction):
         )
 
     @staticmethod
-    def _unit(vector: Array) -> Array:
+    def _get_unit(vector: Array) -> Array:
         """Return a vector scaled to unit length, or the vector itself when it is zero."""
         norm = float(np.hypot(*vector))
         return vector / norm if norm > 0 else vector
@@ -201,7 +200,7 @@ class SchoolingInteraction(CouplingInteraction):
         """
         size = agent.size
         offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
-        return self._unit((offset + size / 2) % size - size / 2)
+        return self._get_unit((offset + size / 2) % size - size / 2)
 
     def _get_repulsion(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
         """Return the direction away from a close neighbour."""
@@ -232,10 +231,10 @@ class SchoolingInteraction(CouplingInteraction):
         if reduction is None:
             return heading
         if priority == 1:
-            desired = self._unit(reduction)
+            desired = self._get_unit(reduction)
         else:
             goal = np.array([math.cos(fish.preferred), math.sin(fish.preferred)])
-            desired = self._unit(self._unit(heading + reduction) + fish.omega * goal)
+            desired = self._get_unit(self._get_unit(heading + reduction) + fish.omega * goal)
         return desired if float(np.hypot(*desired)) > 0 else heading
 
 
@@ -368,7 +367,7 @@ class CouzinLeadershipSystem(BaseSystem):
         """
         return float(system.rng.normal(0.0, agent.noise))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Couzin shoal."""
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
@@ -390,7 +389,7 @@ class CouzinLeadershipSystem(BaseSystem):
             },
             location=[tuple(point) for point in locations],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[shoal],
             interactions=[

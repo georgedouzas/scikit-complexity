@@ -1,7 +1,4 @@
-"""Define the spec of a class axis.
-
-A class axis is a uniform grid over an interval or a periodic range.
-"""
+"""Define the spec of a class axis, a range cut into equal cells."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class AxisSpec(BaseSpec):
-    """Spec of a class axis of a phase space.
+    """A spec of a class axis of a phase space, a range cut into equal cells.
 
     A class axis is a uniform grid of cells over a range of values.
 

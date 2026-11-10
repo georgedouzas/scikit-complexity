@@ -20,7 +20,7 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.runtime import simulate
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
@@ -164,7 +164,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         self.step = step
 
     @staticmethod
-    def _lorenz_series(
+    def _get_lorenz_series(
         samples: int,
         step: float,
         sigma: float = 10.0,
@@ -180,7 +180,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
             'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
         }
-        system = System(
+        system = CompositeSystem(
             elements=[LorenzFlowElement('flow')],
             interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
             time=ContinuousTime(),
@@ -188,12 +188,12 @@ class NextGenerationReservoirSystem(BaseSystem):
         solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
         trajectory = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
         values: Array = np.column_stack(
-            [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
+            [np.asarray(trajectory.get_values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
         )
         return values[-samples:]
 
     @staticmethod
-    def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
+    def _get_reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
         """Return the element of scalar states with lags.
 
         It is built from the values of every state and of its lags.
@@ -250,7 +250,7 @@ class NextGenerationReservoirSystem(BaseSystem):
 
         Without a series, it is fitted to samples of the Lorenz flow.
         """
-        values = NextGenerationReservoirSystem._lorenz_series(samples, step) if series is None else series
+        values = NextGenerationReservoirSystem._get_lorenz_series(samples, step) if series is None else series
         return reservoir(
             values,
             variables=list(variables),
@@ -263,7 +263,7 @@ class NextGenerationReservoirSystem(BaseSystem):
             dt=step,
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a next-generation reservoir computer.
 
         Its variables follow the ridge readout of their monomials.
@@ -286,7 +286,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         delay = (len(fitted.states) - len(names)) // len(names)
         memory = fitted.samples.series[-1][-delay:][::-1]
         initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
-        element = self._reservoir_element(initial)
+        element = self._get_reservoir_element(initial)
         weights = np.asarray(readout.readout.Wout, dtype=float)
         bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
         maps = [
@@ -299,7 +299,7 @@ class NextGenerationReservoirSystem(BaseSystem):
                     self._increment,
                     names=names,
                     delay=delay,
-                    powers=readout.monomials(),
+                    powers=readout.get_monomials(),
                     weights=weights[:, index],
                     bias=float(bias[index]),
                     mean=readout.mean,
@@ -309,4 +309,4 @@ class NextGenerationReservoirSystem(BaseSystem):
             )
             for index, name in enumerate(names)
         ]
-        return System(self.label, elements=[element], interactions=maps, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[element], interactions=maps, time=DiscreteTime())

@@ -29,7 +29,7 @@ trajectory = simulate(MorseSubshiftSystem(), until=12, observers=[observer])
 # factors: the number of distinct words of length `m` in the Thue-Morse sequence stays below `10 m / 3`, far below the
 # `2^m` of the full shift, so the entropy `log p(m) / m` falls to 0.
 
-word = ''.join(str(code) for code in trajectory.structure('morse', 12).codes)
+word = ''.join(str(code) for code in trajectory.get_structure('morse', 12).codes)
 parities = ''.join(str(bin(k).count('1') % 2) for k in range(len(word)))
 lengths = np.arange(1, 40)
 factors = np.array([len({word[start : start + m] for start in range(len(word) - m + 1)}) for m in lengths])

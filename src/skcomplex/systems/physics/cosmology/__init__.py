@@ -6,6 +6,7 @@ The package covers the expansion of a homogeneous universe and the gravitational
 from ._expansion import FriedmannExpansionSystem, ScaleFactorElement
 from ._metric_cosmologies import (
     DustShellElement,
+    EinsteinFieldEquationsInteraction,
     FLRWCosmologySystem,
     HomogeneousUniverseElement,
     LemaitreTolmanBondiSpace,
@@ -15,6 +16,7 @@ from ._metric_cosmologies import (
 
 __all__: list[str] = [
     'DustShellElement',
+    'EinsteinFieldEquationsInteraction',
     'FLRWCosmologySystem',
     'FriedmannExpansionSystem',
     'HomogeneousUniverseElement',

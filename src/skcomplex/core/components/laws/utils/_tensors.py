@@ -1,7 +1,4 @@
-"""Define the tensor operations of fields.
-
-They are compositions of the field operators with Sage matrices.
-"""
+"""Define the tensor operations of fields, built from the field operators."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,10 +16,9 @@ from ._operators import (
     CONVOLVE,
     INVERSE_HELMHOLTZ,
     SHIFTED,
-    advection,
     divergence,
     gradient,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     partial,
     upwind,
@@ -57,14 +53,6 @@ def _derivative(expression: object, axis: int) -> Expression:
     """Return the derivative of an entry of a matrix along an axis, 0 for a number."""
     item = SR(expression)
     return SR(0) if item.is_numeric() else partial(item, SR(axis))
-
-
-def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
-    """Return the advection of an entry of a matrix.
-
-    It is 0 for a number, whose derivatives are 0.
-    """
-    return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
 
 
 def _distribute_call(call: Expression, operands: list[Expression]) -> Expression:
@@ -106,7 +94,8 @@ def distribute_operators(expression: object) -> Expression:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import distribute_operators, laplacian
+        >>> from skcomplex.core.components.laws.utils import laplacian
+        >>> from skcomplex.core.components.laws.utils._tensors import distribute_operators
         >>> a = var('a')
         >>> distribute_operators(laplacian(-a) + laplacian(a))
         0
@@ -230,7 +219,7 @@ def antisymmetric_part(tensor: Matrix) -> Matrix:
 def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleElement:
     """Return the divergence-free part of a vector of field expressions.
 
-    It is `v - grad(inverse_laplacian(div(v)))`.
+    It is `v - grad(inverse_helmholtz(div(v)))`.
 
     Args:
         field:
@@ -251,5 +240,5 @@ def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleE
         3
     """
     components = _check_vector('leray_projection', field)
-    potential = inverse_laplacian(divergence(components))
+    potential = inverse_helmholtz(divergence(components))
     return components - gradient(potential, len(components))

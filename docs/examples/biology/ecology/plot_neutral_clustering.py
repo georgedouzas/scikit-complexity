@@ -6,9 +6,9 @@ frame: from a uniform start, dense patches grow next to empty stretches, althoug
 """
 
 # %%
-# The system is built from its class with 10 organisms per patch, division and death at the rate 1, and hops to each
-# neighbour at the rate 0.5. The observer saves every second frame with the default blueprint, whose primary view is
-# the space-time image of the numbers of organisms, the oldest frame at the top.
+# The example builds `NeutralClusteringSystem` with 10 organisms per patch, division and death at the rate 1, and hops
+# to each neighbour at the rate 0.5. The observer saves every second frame with the default blueprint, whose primary
+# view is the space-time image of the numbers of organisms, the oldest frame at the top.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,10 +62,10 @@ isolated = simulate(
     dt=0.25,
     backend=NumbaBackend(),
     random_state=0,
-).values('variance')
+).get_values('variance')
 
 fig, (growth, profile) = plt.subplots(1, 2, figsize=(10, 4))
-growth.plot(times, trajectory.values('variance'), label='simulated, beta = 0.5')
+growth.plot(times, trajectory.get_values('variance'), label='simulated, beta = 0.5')
 growth.plot(times, expected_variance(times), color='black', label='moment equations, beta = 0.5')
 growth.plot(times, isolated, label='simulated, beta = 0')
 growth.plot(times, 2 * ALPHA * N * times, color='black', linestyle='--', label='2 alpha n t')
@@ -73,7 +73,7 @@ growth.set_xlabel('time')
 growth.set_ylabel('variance over the patches')
 growth.set_title('Hops slow the growth of the fluctuations')
 growth.legend()
-profile.bar(np.arange(SITES), trajectory.values('patches.n')[-1], width=1.0)
+profile.bar(np.arange(SITES), trajectory.get_values('patches.x')[-1], width=1.0)
 profile.axhline(N, color='black', linestyle='--', label='mean')
 profile.set_xlabel('patch')
 profile.set_ylabel('organisms')

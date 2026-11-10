@@ -1,7 +1,4 @@
-"""Define cascade laws.
-
-A cascade is a slow drive followed by fast updates until a lattice is stable.
-"""
+"""Define the law that drives a lattice and relaxes it until it is stable."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,12 +12,20 @@ from ._base import BaseLaw
 
 
 class CascadeLaw(BaseLaw):
-    """Cascade of a lattice.
+    """A law that drives a lattice once per step and relaxes it until it is stable.
 
-    Drive laws run once per step, then the laws that relax it run until it is stable. Every cascade that changes the
-    lattice is recorded as an event with its size, the number of site updates, its duration, the number of iterations,
-    and its area, the number of distinct sites updated. A site update is a site that changes in an iteration, or a site
-    that `activity` marks as active before it, such as a toppling site.
+    The drive laws run once per step. Then the relax laws run again and again until `stable` holds, which is one
+    cascade, or avalanche. Each cascade that changes the lattice is recorded as an event with its size, the number of
+    site updates, its duration, the number of iterations, and its area, the number of distinct sites updated. A site
+    update is a site that changes in an iteration, or a site that `activity` marks as active before it, such as a
+    toppling site.
+
+    Unlike `UpdateLaw`, which runs once per step, it runs its relax laws until the lattice settles, so one step holds a
+    whole avalanche. Choose it when a slow drive and fast relaxation are separated in time, as in self-organized
+    criticality.
+
+    It appears in many fields. Grains topple in the sandpile model of Bak, Tang, and Wiesenfeld, slips spread along a
+    fault in the earthquake model of Olami, Feder, and Christensen, and trees burn in a forest fire model.
 
     Args:
         drive:
@@ -46,9 +51,10 @@ class CascadeLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import CascadeLaw, LocalRuleLaw
-        >>> from skcomplex.core.components.spaces import VonNeumannNeighborhood
+        >>> from skcomplex.core.components.spaces import BallNeighborhood
         >>> height = var('height')
-        >>> topple = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z - 4 * (z >= 4))
+        >>> cross = BallNeighborhood(metric='manhattan', center='first')
+        >>> topple = LocalRuleLaw(height, cross, lambda z, *n: z - 4 * (z >= 4))
         >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
         (height,)
     """

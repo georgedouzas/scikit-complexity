@@ -1,7 +1,4 @@
-"""Define substitution laws.
-
-A substitution law replaces the tiles of patches by placed pieces.
-"""
+"""Define the law that replaces every tile of a prototile by placed pieces."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,10 +15,17 @@ PIECE_SIZE = 2
 
 
 class SubstitutionLaw(BaseLaw):
-    """Substitution that replaces every tile of a prototile by placed pieces.
+    """A law that replaces every tile of a prototile by smaller placed pieces.
 
-    The pieces are placed relative to the tile. A patch element returns its substitutions from `_get_laws`, and every
-    generation applies all of them at once.
+    A prototile is a shape of tile. At every generation each tile of that shape is replaced by `pieces`, placed relative
+    to the tile. A patch element returns its substitutions from `_get_laws`, and every generation applies all of them at
+    once.
+
+    Unlike `ProductionLaw`, which rewrites symbols of a word, it rewrites tiles of the plane. Choose it when a tiling
+    grows by inflation and subdivision.
+
+    It appears in mathematics and materials science. The Penrose tiling grows by substitution, and quasicrystals have
+    the order of such tilings.
 
     Args:
         prototile:

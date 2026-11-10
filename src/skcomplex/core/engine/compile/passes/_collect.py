@@ -11,7 +11,7 @@ from ._census import CensusPass
 
 
 class CollectPass(BasePass):
-    """Pass that collects the declared laws of every kernel spec.
+    """A pass that collects the declared laws of every kernel spec.
 
     No laws are set apart yet.
     """
@@ -27,9 +27,9 @@ class CollectPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Collect the laws of every kernel spec."""
         compilation = self.compilation_
-        specs = Compilation._required(compilation.specs, 'specs')
+        specs = Compilation._get_required(compilation.specs, 'specs')
         declared = [
-            (spec, CensusPass._declared_laws(spec, CensusPass._component_of(block.node)), block)
+            (spec, CensusPass._get_declared_laws(spec, CensusPass._get_component_of(block.node)), block)
             for spec, block in specs
         ]
         compilation.collected = [

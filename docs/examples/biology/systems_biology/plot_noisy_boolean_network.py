@@ -7,8 +7,8 @@ continuous phase transition that mean-field theory places at 1/6.
 """
 
 # %%
-# The system is built from its class with two hundred nodes at the noise 0.1, and the observer saves every step with
-# the default blueprint, whose primary view is the time series of the states.
+# The example builds `NoisyBooleanNetworkSystem` with two hundred nodes at the noise 0.1, and the observer saves every
+# step with the default blueprint, whose primary view is the time series of the states.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,7 @@ noises = np.linspace(0.0, 0.3, 13)
 order = []
 for eta in noises:
     run = simulate(NoisyBooleanNetworkSystem(eta=eta), random_state=0, until=150)
-    order.append(np.abs(run.values('nodes.sigma').mean(axis=1)[50:]).mean())
+    order.append(np.abs(run.get_values('nodes.sigma').mean(axis=1)[50:]).mean())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(noises, order, 'o-')
 ax.axvline(1 / 6, color='black', linestyle='--', label='eta_c = 1/6')

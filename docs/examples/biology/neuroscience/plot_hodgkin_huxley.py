@@ -6,9 +6,9 @@ open and the potential shoots up to about +40 mV, then the potassium channels op
 """
 
 # %%
-# The system is built from its class with a current of 10 µA/cm², above the threshold of periodic firing, and run for
-# 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the potential and the gates.
+# The example builds `HodgkinHuxleySystem` with a current of 10 µA/cm², above the threshold of periodic firing, and runs
+# it for 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of the potential and the gates.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,13 +31,13 @@ trajectory = simulate(HodgkinHuxleySystem(I=10.0), observers=[observer])
 
 spikes = np.array([event.time for event in trajectory.events if event.label == 'spike'])
 fig, (potential, gates) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-potential.plot(trajectory.times, trajectory.values('neuron.v'))
+potential.plot(trajectory.times, trajectory.get_values('neuron.v'))
 potential.plot(spikes, np.full_like(spikes, 50.0), 'v', color='black', label='spike events')
 potential.set_ylabel('potential (mV)')
 potential.set_title(f'{spikes.size} spikes, mean interval {np.diff(spikes).mean():.1f} ms')
 potential.legend()
 for gate in ['m', 'h', 'n']:
-    gates.plot(trajectory.times, trajectory.values(f'neuron.{gate}'), label=gate)
+    gates.plot(trajectory.times, trajectory.get_values(f'neuron.{gate}'), label=gate)
 gates.set_xlabel('time (ms)')
 gates.set_ylabel('gate opening')
 gates.set_title('Sodium (m, h) and potassium (n) gates')

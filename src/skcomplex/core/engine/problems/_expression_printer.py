@@ -1,7 +1,4 @@
-"""Print Sage expressions as code of a target language.
-
-Common subexpressions are computed once.
-"""
+"""Print Sage expressions as code of a target language."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._printed_spec import PrintedSpec
 from ._source_loader import SourceLoader
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
-_CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
+CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
 RELATIONS = {
     operator.lt: 'lt',
     operator.le: 'le',
@@ -34,11 +31,8 @@ RELATIONS = {
     operator.eq: 'eq',
     operator.ne: 'ne',
 }
-
-_CONDITION = 'np.where('
-_QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
-
-
+CONDITION = 'np.where('
+QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 IMPORTS = {
     'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
     'jax': 'import jax\nimport jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
@@ -46,7 +40,7 @@ IMPORTS = {
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
-    """Printer of Sage expressions as code of a target.
+    """A printer of Sage expressions as code of a target language.
 
     The targets are NumPy, scalar Python for Numba, and LAMMPS Lepton. `prepare(symbols)` takes the symbols the code
     reads, in order, and `run(expressions)` keeps in `code_` the assignments of the repeated compound subexpressions,
@@ -160,17 +154,17 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         expressions = [SR(expression) for expression in inputs]
         self.bound_: dict[PrintedKey, str] = {}
         self.canonical_: dict[PrintedKey, str] = {}
-        counts = self._subexpressions(expressions)
+        counts = self._get_subexpressions(expressions)
         assignments: list[tuple[str, str]] = []
 
         def bind(item: Expression) -> None:
             """Bind the repeated subexpressions of an expression, innermost first."""
             if item.operator() is None:
                 return
-            key = self._key(item)
+            key = self._get_key(item)
             if key in self.bound_:
                 return
-            for operand in self._operands(item):
+            for operand in self._get_operands(item):
                 bind(operand)
             if counts[key] > 1:
                 name = f'{self.prefix}{len(assignments)}'
@@ -180,10 +174,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         for expression in expressions if self.shared else ():
             bind(expression)
         codes = [self._print(expression).code for expression in expressions]
-        self.code_ = self._function(assignments, codes) if self.compiled else (assignments, codes)
+        self.code_ = self._get_function(assignments, codes) if self.compiled else (assignments, codes)
 
     @staticmethod
-    def _function_of(
+    def _get_function_of(
         printed: tuple[list[tuple[str, str]], list[str]] | Callable[..., list[npt.ArrayLike]],
     ) -> Callable[..., list[npt.ArrayLike]]:
         """Return the NumPy function a compiled printer kept in `code_`.
@@ -206,7 +200,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return printed
 
     @staticmethod
-    def _values_of(computed: object) -> list[npt.ArrayLike]:
+    def _get_values_of(computed: object) -> list[npt.ArrayLike]:
         """Return the values of the expressions that a compiled printer computed.
 
         Args:
@@ -226,15 +220,15 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             raise TypeError(error_msg)
         return computed
 
-    def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[npt.ArrayLike]]:
+    def _get_function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[npt.ArrayLike]]:
         """Return the NumPy or JAX function `f(t, *symbols)` of the printed assignments.
 
         The function runs the printed assignments and returns the codes.
         """
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
-        conditions = any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes)
+        conditions = any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes)
         if self.dialect == 'numpy' and conditions:
-            body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
+            body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         loader = SourceLoader('skcomplex_functions').prepare()
@@ -246,27 +240,27 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         """Return code, in parentheses when it binds less tightly than a precedence."""
         return printed.code if printed.precedence >= precedence else f'({printed.code})'
 
-    def _number(self, value: Number) -> PrintedSpec:
+    def _get_number(self, value: Number) -> PrintedSpec:
         """Return the code of a number."""
         if isinstance(value, Integer | int):
             return PrintedSpec(str(int(value)), ATOM if value >= 0 else NEGATION)
         if isinstance(value, Rational) and self.dialect_.exact_rationals:
             code = f'{abs(int(value.numerator()))}/{int(value.denominator())}'
             return PrintedSpec(f'-{code}', NEGATION) if value < 0 else PrintedSpec(code, PRODUCT)
-        number = None if isinstance(value, complex) else self._real(value)
+        number = None if isinstance(value, complex) else self._get_real(value)
         if number is None:
             if not self.dialect_.complex_numbers:
                 name = f'complex number {value}'
-                raise self.dialect_.unknown(name)
+                raise self.dialect_.get_unknown(name)
             return PrintedSpec(repr(complex(value)), ATOM)
         return PrintedSpec(repr(number), ATOM if number >= 0 else NEGATION)
 
-    def _template(self, name: str, arguments: Sequence[Expression]) -> PrintedSpec:
+    def _get_template(self, name: str, arguments: Sequence[Expression]) -> PrintedSpec:
         """Return the code of a function or relation from its template."""
         templates = {**self.dialect_.functions, **self.dialect_.relations}
         if name not in templates:
-            raise self.dialect_.unknown(name)
-        call = _CALL.fullmatch(templates[name]) is not None
+            raise self.dialect_.get_unknown(name)
+        call = CALL.fullmatch(templates[name]) is not None
         codes = [
             self._print(argument).code if call else self._wrap(self._print(argument), ATOM) for argument in arguments
         ]
@@ -277,7 +271,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             return PrintedSpec(code, ATOM)
         return PrintedSpec(templates[name].format(*codes), ATOM)
 
-    def _product(self, item: Expression) -> PrintedSpec:
+    def _get_product(self, item: Expression) -> PrintedSpec:
         """Return the code of a product.
 
         Factors of negative powers go in its denominator.
@@ -285,14 +279,14 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         coefficient: Number = 1
         numerator: list[str] = []
         denominator: list[str] = []
-        for factor in self._operands(item) if self._is_product(item) else [item]:
+        for factor in self._get_operands(item) if self._is_product(item) else [item]:
             if factor.is_numeric():
-                coefficient *= self._numeric(factor)
+                coefficient *= self._get_numeric(factor)
                 continue
             exponent = factor.operands()[1] if factor.operator() is operator.pow else None
-            if exponent is not None and exponent.is_numeric() and self._is_negative(self._numeric(exponent)):
+            if exponent is not None and exponent.is_numeric() and self._is_negative(self._get_numeric(exponent)):
                 base = factor.operands()[0]
-                denominator.append(self._wrap(self._power(base, -exponent), PRODUCT + 1))
+                denominator.append(self._wrap(self._get_power(base, -exponent), PRODUCT + 1))
                 continue
             numerator.append(self._wrap(self._print(factor), PRODUCT))
         negative = self._is_negative(coefficient)
@@ -302,7 +296,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 numerator.insert(0, str(int(coefficient.numerator())))
             denominator.insert(0, str(int(coefficient.denominator())))
         elif coefficient != 1:
-            numerator.insert(0, self._number(coefficient).code)
+            numerator.insert(0, self._get_number(coefficient).code)
         code = '*'.join(numerator) or '1'
         if denominator:
             divisor = denominator[0] if len(denominator) == 1 else f'({"*".join(denominator)})'
@@ -311,23 +305,23 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             return PrintedSpec(f'-{code}', NEGATION)
         return PrintedSpec(code, PRODUCT)
 
-    def _power(self, base: Expression, exponent: Expression) -> PrintedSpec:
+    def _get_power(self, base: Expression, exponent: Expression) -> PrintedSpec:
         """Return the code of a power, with square roots for exponents of a half."""
-        if exponent.is_numeric() and self._numeric(exponent) == Rational((1, 2)):
-            return self._template('sqrt', [base])
-        if exponent.is_numeric() and self._numeric(exponent) == Rational((-1, 2)):
-            return PrintedSpec(f'1/{self._template("sqrt", [base]).code}', PRODUCT)
-        if exponent.is_numeric() and self._numeric(exponent) == 1:
+        if exponent.is_numeric() and self._get_numeric(exponent) == Rational((1, 2)):
+            return self._get_template('sqrt', [base])
+        if exponent.is_numeric() and self._get_numeric(exponent) == Rational((-1, 2)):
+            return PrintedSpec(f'1/{self._get_template("sqrt", [base]).code}', PRODUCT)
+        if exponent.is_numeric() and self._get_numeric(exponent) == 1:
             return self._print(base)
         code = f'{self._wrap(self._print(base), ATOM)}{self.dialect_.power}{self._wrap(self._print(exponent), ATOM)}'
         return PrintedSpec(code, POWER)
 
-    def _total(self, item: Expression) -> PrintedSpec:
+    def _get_total(self, item: Expression) -> PrintedSpec:
         """Return the code of a sum.
 
         Its terms come in canonical order, with the negated ones last.
         """
-        terms = [self._print(term) for term in self._operands(item)]
+        terms = [self._print(term) for term in self._get_operands(item)]
         terms.sort(key=lambda term: term.precedence == NEGATION and term.code.startswith('-'))
         code = self._wrap(terms[0], SUM)
         for term in terms[1:]:
@@ -337,14 +331,14 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 code += f' + {self._wrap(term, SUM + 1)}'
         return PrintedSpec(code, SUM)
 
-    def _leaf(self, item: Expression) -> PrintedSpec:
+    def _get_leaf(self, item: Expression) -> PrintedSpec:
         """Return the code of a bound subexpression, a symbol, a number, or a constant."""
-        name = self.bound_.get(self._key(item)) if self.bound_ else None
+        name = self.bound_.get(self._get_key(item)) if self.bound_ else None
         if name is not None:
             return PrintedSpec(name, ATOM)
         if item.is_symbol():
             return PrintedSpec(self.names_(item), ATOM)
-        return self._number(self._numeric(item) if item.is_numeric() else float(item))
+        return self._get_number(self._get_numeric(item) if item.is_numeric() else float(item))
 
     def _print(self, item: Expression) -> PrintedSpec:
         """Return the code of an expression and how tightly it binds."""
@@ -352,22 +346,22 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             item.is_symbol()
             or item.is_numeric()
             or item.is_constant()
-            or (self.bound_ and self._key(item) in self.bound_)
+            or (self.bound_ and self._get_key(item) in self.bound_)
         ):
-            return self._leaf(item)
+            return self._get_leaf(item)
         function = item.operator()
         if self._is_sum(item):
-            return self._total(item)
+            return self._get_total(item)
         if self._is_product(item):
-            return self._product(item)
+            return self._get_product(item)
         if function is operator.pow:
-            return self._product(item) if self._is_reciprocal(item) else self._power(*item.operands())
+            return self._get_product(item) if self._is_reciprocal(item) else self._get_power(*item.operands())
         if function in RELATIONS:
-            return self._template(RELATIONS[function], item.operands())
+            return self._get_template(RELATIONS[function], item.operands())
         name = function.name() if hasattr(function, 'name') else str(function)
-        return self._template(name, item.operands())
+        return self._get_template(name, item.operands())
 
-    def _canonical(self, item: Expression) -> str:
+    def _get_canonical(self, item: Expression) -> str:
         """Return the canonical form of an expression.
 
         It is the printed form of the expression with the operands of sums and products sorted. Sage prints the operands
@@ -376,24 +370,24 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         """
         if item.operator() is None:
             return str(item)
-        key = self._key(item)
+        key = self._get_key(item)
         if key not in self.canonical_:
             function = item.operator()
             name = function.name() if hasattr(function, 'name') else getattr(function, '__name__', str(function))
-            operands = [self._canonical(operand) for operand in item.operands()]
+            operands = [self._get_canonical(operand) for operand in item.operands()]
             if self._is_sum(item) or self._is_product(item):
                 operands.sort()
             self.canonical_[key] = f'{name}({", ".join(operands)})'
         return self.canonical_[key]
 
-    def _operands(self, item: Expression) -> list[Expression]:
+    def _get_operands(self, item: Expression) -> list[Expression]:
         """Return the operands of an expression.
 
         Those of a sum or a product come in canonical order, with numbers last.
         """
         operands = list(item.operands())
         if self._is_sum(item) or self._is_product(item):
-            operands.sort(key=lambda operand: (bool(operand.is_numeric()), self._canonical(operand)))
+            operands.sort(key=lambda operand: (bool(operand.is_numeric()), self._get_canonical(operand)))
         return operands
 
     @staticmethod
@@ -412,11 +406,11 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
         Complex numbers are thus never negated.
         """
-        number = None if isinstance(value, complex) else ExpressionPrinter._real(value)
+        number = None if isinstance(value, complex) else ExpressionPrinter._get_real(value)
         return number is not None and number < 0
 
     @staticmethod
-    def _real(value: RingElement | float) -> float | None:
+    def _get_real(value: RingElement | float) -> float | None:
         """Return the float of a real number, or `None` for a complex Sage number."""
         try:
             return float(value)
@@ -424,7 +418,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             return None
 
     @staticmethod
-    def _numeric(item: Expression) -> Number:
+    def _get_numeric(item: Expression) -> Number:
         """Return the Python or Sage number of a numeric expression."""
         return item.pyobject()
 
@@ -440,7 +434,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return bool(exponent.is_numeric() and exponent.pyobject() < 0)
 
     @staticmethod
-    def _key(item: Expression) -> PrintedKey:
+    def _get_key(item: Expression) -> PrintedKey:
         """Return the key of an expression in tables.
 
         The key equals the keys of structurally identical expressions. Sage's `==` builds a relation whose truth Maxima
@@ -450,7 +444,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return hash(item), str(item)
 
     @staticmethod
-    def _subexpressions(expressions: Sequence[Expression]) -> Counter[PrintedKey]:
+    def _get_subexpressions(expressions: Sequence[Expression]) -> Counter[PrintedKey]:
         """Return how often every compound subexpression occurs in expressions."""
         counts: Counter[PrintedKey] = Counter()
         stack = list(expressions)
@@ -461,7 +455,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             if ExpressionPrinter._is_reciprocal(item):
                 stack.append(item.operands()[0])
                 continue
-            key = ExpressionPrinter._key(item)
+            key = ExpressionPrinter._get_key(item)
             counts[key] += 1
             if counts[key] == 1:
                 stack.extend(item.operands())

@@ -7,7 +7,7 @@ node, after domains have formed from random spins.
 """
 
 # %%
-# The system is built from its class on the honeycomb graph that NetworkX generates, whose nodes carry
+# The example builds `GraphIsingSystem` on the honeycomb graph that NetworkX generates, whose nodes carry
 # their positions in the plane, at `T = 1.2 J`, below the critical temperature `2 / ln(2 + sqrt 3) = 1.52 J` of the
 # honeycomb lattice. One unit of time is one sweep of Metropolis updates over the classes of a proper coloring of the
 # graph. The observer saves every frame with the default blueprint, whose primary view is the graph of the spins.
@@ -39,7 +39,7 @@ simulation = simulate(system, until=60, observers=[observer], random_state=0)
 
 def magnetization(trajectory):
     """Return the mean absolute magnetization of the recorded frames."""
-    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())
+    return float(np.abs(trajectory.get_values('spins.spin').mean(axis=1)).mean())
 
 
 graph = nx.random_regular_graph(4, 1000, seed=0)
@@ -54,7 +54,7 @@ result = sweep(
     outputs=[magnetization],
     random_state=0,
 )
-rows = sorted(result.summary(), key=lambda row: row['temperature'])
+rows = sorted(result.get_summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot([row['temperature'] for row in rows], [row['magnetization.mean'] for row in rows], 'o-', label='simulation')
 ax.axvline(2 / np.log(2), color='black', linestyle='--', label='Bethe T_c = 2 / ln 2')

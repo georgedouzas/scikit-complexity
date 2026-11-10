@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import MissingExtraError
@@ -28,13 +28,13 @@ AEROBIC = 0.8739215
 
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return System(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
 
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
     trajectory = simulate(system, until=0.0)
-    return float(trajectory.values('cell.objective_0')[0])
+    return float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_cobra_variability_fixes_growth_at_the_optimum():
@@ -129,7 +129,10 @@ def test_flux_variability_reports_ranges_without_the_extra():
         'one': ReactionSpec({'A': -1.0}),
         'two': ReactionSpec({'A': -1.0}),
     }
-    system = System(elements=[metabolic_network_type('Parallel', reactions, {'in': 1.0})('net')], time=StaticTime())
+    system = CompositeSystem(
+        elements=[metabolic_network_type('Parallel', reactions, {'in': 1.0})('net')],
+        time=StaticTime(),
+    )
     ranges = flux_variability(system).ranges
     assert ranges.loc['one'].tolist() == [0.0, 4.0]
     assert ranges.loc['in'].tolist() == [4.0, 4.0]
@@ -169,7 +172,7 @@ def test_flux_variability_keeps_an_objective_of_several_reactions():
         'two': ReactionSpec({'A': -1.0}),
     }
     element_type = metabolic_network_type('TwoGoalsElement', reactions, {'one': 1.0, 'two': 1.0})
-    system = System(elements=[element_type('net')], time=StaticTime())
+    system = CompositeSystem(elements=[element_type('net')], time=StaticTime())
     analysis = flux_variability(system)
     assert analysis.optimum == pytest.approx(4.0)
     assert analysis.ranges.loc['in'].tolist() == pytest.approx([4.0, 4.0])

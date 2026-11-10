@@ -24,7 +24,7 @@ def _fit(internal: float) -> ScalingResult:
         observables=observables,
         random_state=0,
     )
-    meetings = result.series('total_meetings')[:, -1]
+    meetings = result.get_series('total_meetings')[:, -1]
     samples = dict(zip(SIZES, meetings.reshape(len(SIZES), len(SEEDS)), strict=True))
     return scaling(samples, kind='allometric', resamples=300)
 
@@ -45,7 +45,7 @@ def test_urban_scaling_interactions_city_stops_growing_at_its_population():
     """Test that a run past the size of the city leaves its residents and links unchanged."""
     system = UrbanScalingInteractionsSystem(30, internal=0.01).prepare().system_
     trajectory = simulate(system, until=40, random_state=0)
-    grown, later = trajectory.network(27), trajectory.network(-1)
+    grown, later = trajectory.get_network(27), trajectory.get_network(-1)
     assert grown.nodes.size == later.nodes.size == 30
     assert grown.sources.size == later.sources.size
 
@@ -54,8 +54,8 @@ def test_urban_scaling_interactions_meetings_stay_within_the_neighbours():
     """Test that no resident meets more residents than it had neighbours."""
     system = UrbanScalingInteractionsSystem(30).prepare().system_
     trajectory = simulate(system, until=30, random_state=0)
-    meetings = np.asarray(trajectory.values('residents.meetings')[-1])
-    degree = np.asarray(trajectory.values('residents.degree')[-2])
+    meetings = np.asarray(trajectory.get_values('residents.meetings')[-1])
+    degree = np.asarray(trajectory.get_values('residents.degree')[-2])
     assert (meetings <= degree).all()
     assert meetings.sum() > 0
 

@@ -6,9 +6,9 @@ density of every degree class settles at an endemic level that rises with the de
 """
 
 # %%
-# The system is built from its class with degrees from 3 to 30 distributed as `k^-2.5` and a spreading rate above the
-# threshold. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# densities of the degree classes.
+# The example builds `HeterogeneousMeanFieldSISSystem` with degrees from 3 to 30 distributed as `k^-2.5` and a spreading
+# rate above the threshold. The observer saves every frame with the default blueprint, whose primary view is the time
+# series of the densities of the degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,7 @@ trajectory = simulate(HeterogeneousMeanFieldSISSystem(lam=0.2), observers=[obser
 degrees = np.arange(3, 31)
 weights = degrees**-2.5 / np.sum(degrees**-2.5)
 threshold = np.sum(weights * degrees) / np.sum(weights * degrees**2)
-final = trajectory.values('network.rho')[-1]
+final = trajectory.get_values('network.rho')[-1]
 theta = np.sum(weights * degrees * final) / np.sum(weights * degrees)
 lam = 0.2
 fig, ax = plt.subplots(figsize=(7, 4))

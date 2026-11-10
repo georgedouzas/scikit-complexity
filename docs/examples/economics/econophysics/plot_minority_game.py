@@ -54,14 +54,14 @@ def volatility(memory, **options):
         until=ROUNDS,
         random_state=0,
     )
-    attendance = run.values('game.attendance')
+    attendance = run.get_values('game.attendance')
     return attendance[TRANSIENT:].var() / N
 
 
 memories = np.arange(1, 8)
 alphas = 2.0**memories / N
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('game.attendance'), lw=0.8)
+series.plot(trajectory.times, trajectory.get_values('game.attendance'), lw=0.8)
 series.set_xlabel('round')
 series.set_ylabel('attendance A')
 series.set_title('Attendance for m = 4')

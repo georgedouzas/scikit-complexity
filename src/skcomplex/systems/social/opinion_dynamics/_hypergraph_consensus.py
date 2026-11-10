@@ -16,13 +16,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+TRIANGLE = 3
 
 
 class OpinionElement(Element):
@@ -85,9 +87,6 @@ class ScheduleElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.phase = phase
-
-
-TRIANGLE = 3
 
 
 class ThreeBodyConsensusInteraction(HyperedgeInteraction):
@@ -222,19 +221,20 @@ class HypergraphConsensusSystem(BaseSystem):
         self.period = period
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         triads = [
             triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
         ]
         space = NetworkSpace(nx.complete_graph(self.n_nodes), hyperedges=triads)
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=OpinionElement,
             space=space,
             values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
             visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
+            on='sites',
         )
         schedules = GroupElement(
             'triangles',
@@ -250,4 +250,4 @@ class HypergraphConsensusSystem(BaseSystem):
             reinforcement=self.reinforcement,
             period=self.period,
         )
-        return System(self.label, elements=[nodes, schedules], interactions=[consensus])
+        return CompositeSystem(self.label, elements=[nodes, schedules], interactions=[consensus])

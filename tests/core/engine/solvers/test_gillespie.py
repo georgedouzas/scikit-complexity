@@ -1,24 +1,41 @@
 """Test the `GillespieSolver` class."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import CompartmentElement
-from skcomplex.core.components.system import System
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import GillespieSolver
-from skcomplex.core.specs import StepSpec
+from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction, SIRSystem
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
-    system = System(
-        elements=[CompartmentElement('I', n=50), CompartmentElement('R')],
+    system = CompositeSystem(
+        elements=[AmountElement('I', x=50), AmountElement('R')],
         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
     problem = PassCompiler().prepare(system).run().problem_
@@ -32,8 +49,8 @@ def test_gillespie_conserves_individuals():
 
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
-    return System(
-        elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+    return CompositeSystem(
+        elements=[AmountElement('S', x=990), AmountElement('I', x=10), AmountElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -76,9 +93,9 @@ def test_gillespie_records_firings_that_rebuild_the_states():
     for frame, now in enumerate(trajectory.times):
         fired = draws.firing_laws[draws.firing_times <= now]
         infections, recoveries = np.sum(fired == infection), np.sum(fired != infection)
-        assert trajectory.values('S.n')[frame] == 990 - infections
-        assert trajectory.values('I.n')[frame] == 10 + infections - recoveries
-        assert trajectory.values('R.n')[frame] == recoveries
+        assert trajectory.get_values('S.x')[frame] == 990 - infections
+        assert trajectory.get_values('I.x')[frame] == 10 + infections - recoveries
+        assert trajectory.get_values('R.x')[frame] == recoveries
 
 
 def test_gillespie_replay_gives_the_path_log_likelihood_at_other_rates():

@@ -3,15 +3,15 @@
 
 The propulsion of each particle is an Ornstein-Uhlenbeck process, a random velocity that keeps its direction and size
 for the persistence time `tau` before it changes. The particles therefore move in smooth, persistent excursions over
-short times and diffuse with the coefficient `D` over long times, a simple system of active colloids and cells. The
+short times and diffuse with the coefficient `D` over long times, a minimal model of active colloids and cells. The
 view shows 200 particles spread over a periodic square.
 """
 
 # %%
-# The system is built from its class with persistence time `tau = 1`, active diffusion `D = 1`, and no
-# thermal diffusion, in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves
-# every frame of 0.1. The blueprint shows the square with the particles drawn larger than the system's visual does, so
-# they read in the gallery thumbnail.
+# The example builds `ActiveOrnsteinUhlenbeckParticlesSystem` with persistence time `tau = 1`, active diffusion `D = 1`,
+# and no thermal diffusion, in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the observer
+# saves every frame of 0.1. The blueprint shows the square with the particles drawn larger than the system's visual
+# does, so they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -54,7 +54,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for tau, color in ((1.0, 'tab:blue'), (10.0, 'tab:orange')):
     system_t = ActiveOrnsteinUhlenbeckParticlesSystem(n_particles=500, tau=tau, size=1e5, random_state=1)
     run = simulate(system_t, until=40, solver=solver, dt=0.1, random_state=1)
-    positions = run.values('swimmers.x')
+    positions = run.get_values('swimmers.x')
     times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * (times - tau * (1 - np.exp(-times / tau)))

@@ -6,7 +6,7 @@ at once or sets off a global cascade that sweeps almost the whole network, and w
 """
 
 # %%
-# The system is built from its class with the default random network, the threshold 0.18 for every node,
+# The example builds `WattsCascadesSystem` with the default random network, the threshold 0.18 for every node,
 # and one random seed, and runs for 30 steps. The default blueprint draws the network, where the adopters are yellow.
 
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ for threshold in thresholds:
     finals = []
     for seed in range(30):
         run = simulate(WattsCascadesSystem(threshold=float(threshold), random_state=seed), dt=1)
-        finals.append(run.agents('nodes', len(run.times) - 1).values['active'].mean())
+        finals.append(run.get_agents('nodes', len(run.times) - 1).values['active'].mean())
     shares.extend(finals)
     probabilities.append(np.mean(np.array(finals) > 0.5))
 fig, (window, outcomes) = plt.subplots(1, 2, figsize=(10, 4))

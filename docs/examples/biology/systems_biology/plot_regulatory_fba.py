@@ -7,8 +7,8 @@ to release the genes, the lag of a diauxic shift.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`. The Boolean nodes and the program run in a
-# discrete partition beside the differential equations of the culture. The primary view is the series of the biomass,
+# The example builds `RegulatoryFBASystem`, which needs the extra `metabolism`. The Boolean nodes and the program run in
+# a discrete partition beside the differential equations of the culture. The primary view is the series of the biomass,
 # the glucose, and the acetate.
 
 import matplotlib.pyplot as plt
@@ -35,10 +35,10 @@ trajectory = simulate(RegulatoryFBASystem(), solver=solver, dt=FRAME, observers=
 # the biomass stands still.
 
 times = trajectory.times
-biomass = trajectory.values('culture/biomass.x')
-glucose = trajectory.values('culture/glucose.c')
-acetate = trajectory.values('culture/acetate.c')
-uptake = -trajectory.values('control/cell.v_EX_ac_e')
+biomass = trajectory.get_values('culture/biomass.x')
+glucose = trajectory.get_values('culture/glucose.c')
+acetate = trajectory.get_values('culture/acetate.c')
+uptake = -trajectory.get_values('control/cell.v_EX_ac_e')
 depleted = times[np.argmax(glucose <= 1e-3)]
 released = times[np.argmax(uptake > 1e-6)]
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)

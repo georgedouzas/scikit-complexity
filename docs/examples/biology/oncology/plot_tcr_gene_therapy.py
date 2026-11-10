@@ -6,9 +6,9 @@ twelve thousand cells, far below the carrying capacity of a billion.
 """
 
 # %%
-# The system is built from its class with the book's parameters and a thousand effector and tumour cells, and runs for
-# 1500 days. The observer saves every second frame with the default blueprint, whose primary view is the time series
-# of the two populations.
+# The example builds `TCRGeneTherapySystem` with the parameters of the book of Padmanabhan, Meskin, and Al Moustafa
+# (2021) and a thousand effector and tumour cells, and runs for 1500 days. The observer saves every second frame with
+# the default blueprint, whose primary view is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
@@ -18,6 +18,7 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import TCRGeneTherapySystem
 
 SYSTEM = 'tcr_gene_therapy'
+
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 trajectory = simulate(TCRGeneTherapySystem(), observers=[observer])
@@ -34,17 +35,17 @@ def rates(y):
     return [1 + 0.05 * A - 0.03 * E + 0.1245 * E / (E + 1e-3), 0.18 * A * (1 - 1e-9 * A) - E * A / (A + 1e5)]
 
 
-E, A = trajectory.values('site.E'), trajectory.values('site.A')
-E_star, A_star = fsolve(rates, [E[-1], A[-1]])
+effectors, tumour = trajectory.get_values('site.E'), trajectory.get_values('site.A')
+E_star, A_star = fsolve(rates, [effectors[-1], tumour[-1]])
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, A, label='tumour cells')
-series.plot(trajectory.times, E, label='effector cells')
+series.plot(trajectory.times, tumour, label='tumour cells')
+series.plot(trajectory.times, effectors, label='effector cells')
 series.axhline(A_star, color='grey', linestyle=':', label='dormant tumour')
 series.set_xlabel('time (days)')
 series.set_ylabel('cells')
 series.set_title('Damped tumour-immune cycles')
 series.legend()
-plane.plot(A, E, label='simulated')
+plane.plot(tumour, effectors, label='simulated')
 plane.plot(A_star, E_star, 'o', color='black', label='equilibrium')
 plane.set_xlabel('tumour cells')
 plane.set_ylabel('effector cells')

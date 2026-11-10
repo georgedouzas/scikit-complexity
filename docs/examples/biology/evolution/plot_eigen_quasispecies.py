@@ -7,9 +7,9 @@ Above it the master sequence is lost, the error catastrophe.
 """
 
 # %%
-# The system is built from its class with the mutation rate `u = 0.3` below the selective disadvantage `sigma = 0.5`,
-# starting from the master sequence alone. The blueprint shows the shares of the master sequence and of the first five
-# classes of mutants in one time series view.
+# The example builds `EigenQuasispeciesSystem` with the mutation rate `u = 0.3` below the selective disadvantage
+# `sigma = 0.5`, starting from the master sequence alone. The blueprint shows the shares of the master sequence and of
+# the first five classes of mutants in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -46,7 +46,7 @@ trajectory = simulate(EigenQuasispeciesSystem(u=0.3, sigma=0.5), observers=[obse
 # error threshold `u = sigma`.
 
 rates = np.linspace(0.0, 0.7, 15)
-shares = [simulate(EigenQuasispeciesSystem(u=rate, sigma=0.5), until=200).values('master.x')[-1] for rate in rates]
+shares = [simulate(EigenQuasispeciesSystem(u=rate, sigma=0.5), until=200).get_values('master.x')[-1] for rate in rates]
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, shares, 'o', label='simulated')
 ax.plot(rates, np.clip(1 - rates / 0.5, 0, None), '--', color='black', label='1 - u / sigma')

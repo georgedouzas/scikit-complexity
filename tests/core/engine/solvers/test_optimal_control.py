@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import CollocationSolver, PontryaginSolver
 from skcomplex.core.errors import SolverError, ValidationError
@@ -50,14 +50,14 @@ def test_optimal_control_rejects_an_unknown_sense(linear_quadratic, quadratic_co
 def test_optimal_control_needs_bounded_controls(quadratic_cost):
     """Test that a system without a bounded adaptive parameter has nothing to control."""
     with pytest.raises(SolverError, match='no bounded adaptive parameter'):
-        simulate(System(elements=[FreeElement('plant')]), until=1.0, solver=PontryaginSolver(quadratic_cost))
+        simulate(CompositeSystem(elements=[FreeElement('plant')]), until=1.0, solver=PontryaginSolver(quadratic_cost))
 
 
 def test_optimal_control_maximises_the_negated_cost(linear_quadratic, quadratic_cost, riccati_control):
     """Test that maximising the negated cost gives the control that minimises the cost."""
     solver = PontryaginSolver(lambda s: -quadratic_cost(s), sense='max')
     trajectory = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.05)
-    np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
+    np.testing.assert_allclose(trajectory.get_values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
 
 
 def test_optimal_control_stops_at_the_horizon(linear_quadratic, quadratic_cost):
@@ -79,5 +79,5 @@ def test_optimal_control_needs_a_finite_horizon(linear_quadratic, quadratic_cost
 def test_default_solver_follows_the_laws(linear_quadratic):
     """Test that the default solver keeps the controls of a system at their initial values."""
     trajectory = simulate(linear_quadratic, until=1.0, dt=0.5)
-    np.testing.assert_allclose(trajectory.values('plant.u'), 0.0)
-    np.testing.assert_allclose(trajectory.values('plant.x'), 1.0)
+    np.testing.assert_allclose(trajectory.get_values('plant.u'), 0.0)
+    np.testing.assert_allclose(trajectory.get_values('plant.x'), 1.0)

@@ -7,9 +7,9 @@ two diffuse together. The view shows the two spheres of radius 1 um, 3 um apart,
 """
 
 # %%
-# The system is built from its class with traps of stiffness 0.2 pN/um that stay on for 0.3 s and off for
-# 0.1 s, and spheres of radius 1 um in water at room temperature. Every step of 5 ms is an Ermak-McCammon step of
-# Brownian dynamics, whose random displacements have the covariance `2 kT M dt` of the Rotne-Prager-Yamakawa mobility
+# The example builds `HydrodynamicallyCoupledTrapsSystem` with traps of stiffness 0.2 pN/um that stay on for 0.3 s and
+# off for 0.1 s, and spheres of radius 1 um in water at room temperature. Every step of 5 ms is an Ermak-McCammon step
+# of Brownian dynamics, whose random displacements have the covariance `2 kT M dt` of the Rotne-Prager-Yamakawa mobility
 # `M`, so the system runs in discrete time and its frames count steps. The observer saves every tenth step with the
 # default blueprint.
 
@@ -33,7 +33,7 @@ simulation = simulate(HydrodynamicallyCoupledTrapsSystem(), until=2000, observer
 # spheres wander away, and when they switch on again the traps pull them back within `gamma / k = 0.09 s`.
 
 times = simulation.times * DT
-positions = simulation.values('spheres.x')
+positions = simulation.get_values('spheres.x')
 fig, ax = plt.subplots(figsize=(7, 3.5))
 for start in np.arange(ON, times[-1], ON + OFF):
     ax.axvspan(start, start + OFF, color='0.9')
@@ -63,7 +63,7 @@ def free_correlations(separation, tensor, seed):
     system = HydrodynamicallyCoupledTrapsSystem(separation=separation, tensor=tensor)
     trajectory = simulate(system, until=10000, random_state=seed)
     free = (trajectory.times[:-1] * DT) % (ON + OFF) >= ON - 1e-9
-    steps = np.diff(trajectory.values('spheres.x'), axis=0)[free]
+    steps = np.diff(trajectory.get_values('spheres.x'), axis=0)[free]
     return [np.corrcoef(steps[:, 0, axis], steps[:, 1, axis])[0, 1] for axis in (0, 1)]
 
 

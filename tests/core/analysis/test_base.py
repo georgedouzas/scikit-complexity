@@ -25,7 +25,7 @@ from skcomplex.core.analysis._base import (
 from skcomplex.core.analysis._discovery import ANALYSES
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, TagError
 from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
@@ -83,9 +83,9 @@ class BirthDeathElement(Element):
 def test_analysis_reads_a_trajectory():
     """Test that the series of a trajectory are read by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
-    series = _read_series(trajectory, ['prey.n'])
-    assert series.labels == ['prey.n']
-    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.values('prey.n').mean()])
+    series = _read_series(trajectory, ['prey.x'])
+    assert series.labels == ['prey.x']
+    assert series.values.mean(axis=0).tolist() == pytest.approx([trajectory.get_values('prey.x').mean()])
 
 
 def test_analysis_reads_arrays_as_columns():
@@ -110,22 +110,22 @@ def test_missing_data_kind_names_the_kinds():
 def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
     trajectory = simulate(LotkaVolterraSystem(), until=5.0, random_state=0)
-    series = _read_series(trajectory, ['prey.n', 'predators.n'])
+    series = _read_series(trajectory, ['prey.x', 'predators.x'])
     assert series.values.shape == (len(trajectory.times), 2)
-    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.n'))
-    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.n'))
+    np.testing.assert_array_equal(series.values[:, 0], trajectory.get_values('prey.x'))
+    np.testing.assert_array_equal(series.values[:, 1], trajectory.get_values('predators.x'))
     np.testing.assert_array_equal(series.times, trajectory.times)
 
 
 def test_series_labels_of_every_scalar_series():
     """Test that the series of a trajectory default to its scalar series, labelled by name."""
     trajectory = simulate(LotkaVolterraSystem(), until=1.0, random_state=0)
-    assert _read_series(trajectory).labels == ['prey.n', 'predators.n']
+    assert _read_series(trajectory).labels == ['prey.x', 'predators.x']
 
 
 def test_jump_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
-    system = System(elements=[BirthDeathElement('cells')])
+    system = CompositeSystem(elements=[BirthDeathElement('cells')])
     trajectory = simulate(system, until=20, dt=0.01, random_state=0)
     path = _read_path(trajectory)
     assert path.label == 'cells.n'
@@ -148,7 +148,7 @@ def test_fields_of_a_lattice():
     trajectory = simulate(IsingSystem(size=64), until=99, random_state=0)
     frames = _read_fields(trajectory, 'spins.spin')
     assert frames.shape == (100, 64, 64)
-    np.testing.assert_array_equal(frames, trajectory.lattice('spins.spin'))
+    np.testing.assert_array_equal(frames, trajectory.get_lattice('spins.spin'))
 
 
 def test_snapshots_unwrap_agent_positions():
@@ -212,7 +212,7 @@ def test_series_of_group_states(system, state):
     """Test that the scalar states of a group without positions are series, one column per member."""
     trajectory = simulate(system(), until=1.0, random_state=0)
     series = _read_series(trajectory)
-    np.testing.assert_array_equal(series.values, trajectory.values(state))
+    np.testing.assert_array_equal(series.values, trajectory.get_values(state))
     assert series.labels[0] == f'{state}[0]'
 
 
@@ -223,7 +223,7 @@ def test_series_leave_out_particles_and_jump_paths():
     for trajectory in (particles, paths):
         with pytest.raises(AnalysisError, match='no scalar series'):
             _read_series(trajectory)
-    single = simulate(System(elements=[BirthDeathElement('a')]), until=1.0)
+    single = simulate(CompositeSystem(elements=[BirthDeathElement('a')]), until=1.0)
     assert _read_series(single).labels == ['a.n']
 
 
@@ -234,7 +234,7 @@ def test_series_leave_out_variable_groups(system):
     with pytest.raises(AnalysisError, match='no scalar series'):
         _read_series(trajectory)
     series = _read_series(trajectory, ['species.x'])
-    np.testing.assert_array_equal(series.values, trajectory.values('species.x'))
+    np.testing.assert_array_equal(series.values, trajectory.get_values('species.x'))
 
 
 def test_sites_are_read_as_series_and_not_as_particles():
@@ -249,7 +249,7 @@ def test_snapshots_of_phases():
     """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
     trajectory = simulate(SwarmalatorsSystem(), until=0.5, random_state=0)
     snapshots = _read_snapshots(trajectory)
-    np.testing.assert_array_equal(snapshots.phases, trajectory.values('units.theta'))
+    np.testing.assert_array_equal(snapshots.phases, trajectory.get_values('units.theta'))
     assert snapshots.directions is None
     assert 'theta' not in snapshots.states
 
@@ -265,10 +265,10 @@ def test_networks_of_a_network_space():
 def test_networks_of_a_changing_network_snapshot():
     """Test that a snapshot of a network whose topology changes is read as its graph."""
     trajectory = simulate(CoevolvingVoterSystem(), until=2.0, random_state=0)
-    snapshot = trajectory.network(-1)
+    snapshot = trajectory.get_network(-1)
     graph = _read_networks(snapshot)[0]
     assert sorted(graph.nodes()) == snapshot.nodes.tolist()
-    assert graph.number_of_edges() == snapshot.graph().number_of_edges()
+    assert graph.number_of_edges() == snapshot.get_graph().number_of_edges()
 
 
 def test_surface_holds_analysis_functions_and_results():
@@ -302,7 +302,7 @@ def test_binding_rejects_unknown_settings_and_objects():
 def test_a_system_class_is_read_as_the_composite_of_its_parts():
     """Test that a system class that builds its parts is read as its prepared composite, other sources as they are."""
     composite = _composite(BrusselatorSystem((8,)))
-    assert isinstance(composite, System)
+    assert isinstance(composite, CompositeSystem)
     values = np.zeros(3)
     assert _composite(values) is values
 

@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import MatchLaw, RuleLaw
 from skcomplex.core.components.laws.utils import matches
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PartnerSpec, StateSpec, VisualSpec
@@ -57,7 +57,7 @@ def test_match_changes_no_state():
 
 def test_random_matching_pairs_every_member_at_most_once():
     """Test that 50 buyers and 30 sellers form 30 pairs every step, with no member in two pairs."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement('buyers', element=TraderElement, size=50, variable=True),
             GroupElement('sellers', element=TraderElement, size=30, variable=True),
@@ -65,8 +65,8 @@ def test_random_matching_pairs_every_member_at_most_once():
         interactions=[ExchangeInteraction('market')],
     )
     trajectory = simulate(system, until=1, random_state=0)
-    sellers = np.asarray(trajectory.agents('sellers', 1).values['paired'])
-    buyers = np.asarray(trajectory.agents('buyers', 1).values['paired'])
+    sellers = np.asarray(trajectory.get_agents('sellers', 1).values['paired'])
+    buyers = np.asarray(trajectory.get_agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30
     assert buyers.sum() == 30
     assert buyers.max() == 1
@@ -91,13 +91,27 @@ class PairedInteraction(Interaction):
 def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
     """Test that a match law lowers a partner spec, whose score sends every member to the one with the most pairs."""
     traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
-    system = System(elements=[traders], interactions=[PairedInteraction('market')])
+    system = CompositeSystem(elements=[traders], interactions=[PairedInteraction('market')])
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
-    assert trajectory.agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
+    assert trajectory.get_agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
+    assert trajectory.get_agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
 
 
 def test_check_validates_a_partner_spec():
     """Test that the check of a match law checks its partner spec."""
     with pytest.raises(ValidationError, match='Unknown choice'):
         MatchLaw('traders', pairing=PartnerSpec(choice='best')).prepare()
+
+
+def test_random_pairing_within_one_group_avoids_self_pairs():
+    """Test that random pairing within one group never pairs a member with itself."""
+    members = list(range(9))
+    pairs = MatchLaw('group', capacity=2)._get_random_pairs(members, members, np.random.default_rng(0))
+    assert all(first != second for first, second in pairs)
+    assert len({frozenset(pair) for pair in pairs}) == len(pairs)
+
+
+def test_random_pairing_of_two_groups_gives_every_member_its_capacity():
+    """Test that random pairing of two groups pairs every member of the smaller group at most once per capacity."""
+    pairs = MatchLaw('group', 'other')._get_random_pairs(list(range(5)), list('abc'), np.random.default_rng(0))
+    assert len(pairs) == 3

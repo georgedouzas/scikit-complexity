@@ -35,8 +35,8 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 trajectory = simulate(system, until=200.0, observers=[observer])
 time = [rr.TimeColumn('sim_time', duration=trajectory.times)]
 for name, values, color in (
-    ('output', trajectory.values('plant/state.y'), (31, 119, 180)),
-    ('reference', trajectory.values('reference'), (214, 39, 40)),
+    ('output', trajectory.get_values('plant/state.y'), (31, 119, 180)),
+    ('reference', trajectory.get_values('reference'), (214, 39, 40)),
 ):
     observer.recording_.log(f'tracking/{name}', rr.SeriesLines(colors=[color], names=name), static=True)
     observer.recording_.send_columns(f'tracking/{name}', indexes=time, columns=rr.Scalars.columns(scalars=values))
@@ -58,7 +58,7 @@ def tracked(plant, *, controlled):
         KoopmanModelPredictiveControlSystem(plant=plant, controlled=controlled, n_runs=20, duration=200),
         until=until,
     )
-    output, reference = found.values('plant/state.y'), found.values('reference')
+    output, reference = found.get_values('plant/state.y'), found.get_values('reference')
     return found.times, output, reference, np.mean((output - reference) ** 2)
 
 

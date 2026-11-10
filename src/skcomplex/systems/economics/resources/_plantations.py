@@ -15,132 +15,31 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
-from ....core.components.laws.utils import clip, lookup
-from ....core.components.system import BaseSystem, System
+from ....core.components.laws.utils import clip, series
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 PROFITABILITY_EFFECT = (
-    (0.0, 0.02),
-    (0.1, 0.738),
-    (0.2, 1.16),
-    (0.3, 1.5),
-    (0.4, 1.76),
-    (0.5, 2.0),
-    (0.6, 2.14),
-    (0.7, 2.21),
-    (0.8, 2.24),
-    (0.9, 2.24),
-    (1.0, 2.27),
+    (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+    (0.02, 0.738, 1.16, 1.5, 1.76, 2.0, 2.14, 2.21, 2.24, 2.24, 2.27),
 )
 YIELD_EFFECT = (
-    (0.0, 0.645),
-    (1.0, 0.555),
-    (2.0, 0.47),
-    (3.0, 0.41),
-    (4.0, 0.37),
-    (5.0, 0.32),
-    (6.0, 0.29),
-    (7.0, 0.26),
-    (8.0, 0.23),
-    (9.0, 0.215),
-    (10.0, 0.21),
+    (0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0),
+    (0.645, 0.555, 0.47, 0.41, 0.37, 0.32, 0.29, 0.26, 0.23, 0.215, 0.21),
 )
 PROFIT_EFFECT = (
-    (0.0, 1.11),
-    (10.0, 1.09),
-    (20.0, 1.08),
-    (30.0, 1.07),
-    (40.0, 1.06),
-    (50.0, 1.05),
-    (60.0, 1.04),
-    (70.0, 1.03),
-    (100.0, 1.02),
+    (0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 100.0),
+    (1.11, 1.09, 1.08, 1.07, 1.06, 1.05, 1.04, 1.03, 1.02),
 )
 ECOLOGICAL_EFFECT = (
-    (0.0, 1.0),
-    (8.33, 0.87),
-    (16.7, 0.725),
-    (25.0, 0.535),
-    (33.3, 0.41),
-    (41.7, 0.335),
-    (50.0, 0.24),
-    (58.3, 0.2),
-    (66.7, 0.11),
-    (75.0, 0.075),
-    (83.3, 0.045),
-    (91.7, 0.02),
-    (100.0, 0.005),
+    (0.0, 8.33, 16.7, 25.0, 33.3, 41.7, 50.0, 58.3, 66.7, 75.0, 83.3, 91.7, 100.0),
+    (1.0, 0.87, 0.725, 0.535, 0.41, 0.335, 0.24, 0.2, 0.11, 0.075, 0.045, 0.02, 0.005),
 )
 INTENSIFICATION_EFFECT = (
-    (0.0, 1.04),
-    (8.33, 1.18),
-    (16.7, 1.24),
-    (25.0, 1.29),
-    (33.3, 1.34),
-    (41.7, 1.37),
-    (50.0, 1.41),
-    (58.3, 1.45),
-    (66.7, 1.46),
-    (75.0, 1.48),
-    (100.0, 1.48),
+    (0.0, 8.33, 16.7, 25.0, 33.3, 41.7, 50.0, 58.3, 66.7, 75.0, 100.0),
+    (1.04, 1.18, 1.24, 1.29, 1.34, 1.37, 1.41, 1.45, 1.46, 1.48, 1.48),
 )
 FULL_INDEX = 100.0
-
-
-def _cocoa_yield(s: SimpleNamespace) -> Expression:
-    """Return the yield of cocoa per area.
-
-    The insects and the removal of shade change it.
-    """
-    return s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT)
-
-
-def _profit_per_area(s: SimpleNamespace) -> Expression:
-    """Return the profit per area of cocoa land."""
-    return s.price * _cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
-
-
-def _profitability(s: SimpleNamespace) -> Expression:
-    """Return the profitability of cocoa land, the positive profit over the revenue."""
-    return clip(_profit_per_area(s), 0) / (s.price * _cocoa_yield(s))
-
-
-def _planting(s: SimpleNamespace) -> Expression:
-    """Return the planting of forest towards the desired area.
-
-    The desired area grows with the profitability.
-    """
-    land = s.source
-    desired = land.area * lookup(_profitability(land), PROFITABILITY_EFFECT)
-    return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
-
-
-def _abandonment(s: SimpleNamespace) -> Expression:
-    """Return the abandonment of plantations whose yield and profit fall."""
-    land = s.source
-    effects = lookup(_cocoa_yield(land), YIELD_EFFECT) * lookup(_profit_per_area(land), PROFIT_EFFECT)
-    return land.area * effects / land.abandon_time
-
-
-def _conversion(land: SimpleNamespace) -> Expression:
-    """Return the share of the abandoned land converted to oil palm.
-
-    It grows as cocoa pays less than palm.
-    """
-    return clip(land.palm_margin - _profitability(land), 0) / land.palm_margin
-
-
-def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the thinning of shade and the growth and control of the insects."""
-    unprotected = 1 - s.subsidy
-    return [
-        RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
-        RateLaw(
-            s.insects,
-            s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
-            - s.insect_control * s.subsidy * s.insects,
-        ),
-    ]
 
 
 class PlantationElement(Element):
@@ -218,6 +117,19 @@ class PlantationElement(Element):
 
     law_classes = (RateLaw,)
 
+    @staticmethod
+    def _get_cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the thinning of shade and the growth and control of the insects."""
+        unprotected = 1 - s.subsidy
+        return [
+            RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
+            RateLaw(
+                s.insects,
+                s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
+                - s.insect_control * s.subsidy * s.insects,
+            ),
+        ]
+
     def __init__(
         self,
         label: str,
@@ -271,7 +183,25 @@ class PlantationElement(Element):
             laws:
                 The laws of the element.
         """
-        return _cocoa_laws(s)
+        return PlantationElement._get_cocoa_laws(s)
+
+
+def _get_cocoa_yield(s: SimpleNamespace) -> Expression:
+    """Return the yield of cocoa per area.
+
+    The insects and the removal of shade change it.
+    """
+    return s.yield_normal * series(s.insects, *ECOLOGICAL_EFFECT) * series(s.shade_removal, *INTENSIFICATION_EFFECT)
+
+
+def _get_profit_per_area(s: SimpleNamespace) -> Expression:
+    """Return the profit per area of cocoa land."""
+    return s.price * _get_cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
+
+
+def _get_profitability(s: SimpleNamespace) -> Expression:
+    """Return the profitability of cocoa land, the positive profit over the revenue."""
+    return clip(_get_profit_per_area(s), 0) / (s.price * _get_cocoa_yield(s))
 
 
 class CocoaSystem(BaseSystem):
@@ -324,10 +254,35 @@ class CocoaSystem(BaseSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('cocoa_yield', _cocoa_yield, element='cocoa'),
-        ObservableSpec('profit_per_area', _profit_per_area, element='cocoa'),
-        ObservableSpec('profitability', _profitability, element='cocoa'),
+        ObservableSpec('cocoa_yield', _get_cocoa_yield, element='cocoa'),
+        ObservableSpec('profit_per_area', _get_profit_per_area, element='cocoa'),
+        ObservableSpec('profitability', _get_profitability, element='cocoa'),
     )
+
+    @staticmethod
+    def _get_planting(s: SimpleNamespace) -> Expression:
+        """Return the planting of forest towards the desired area.
+
+        The desired area grows with the profitability.
+        """
+        land = s.source
+        desired = land.area * series(_get_profitability(land), *PROFITABILITY_EFFECT)
+        return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
+
+    @staticmethod
+    def _get_abandonment(s: SimpleNamespace) -> Expression:
+        """Return the abandonment of plantations whose yield and profit fall."""
+        land = s.source
+        effects = series(_get_cocoa_yield(land), *YIELD_EFFECT) * series(_get_profit_per_area(land), *PROFIT_EFFECT)
+        return land.area * effects / land.abandon_time
+
+    @staticmethod
+    def _get_conversion(land: SimpleNamespace) -> Expression:
+        """Return the share of the abandoned land converted to oil palm.
+
+        It grows as cocoa pays less than palm.
+        """
+        return clip(land.palm_margin - _get_profitability(land), 0) / land.palm_margin
 
     def __init__(
         self,
@@ -358,26 +313,28 @@ class CocoaSystem(BaseSystem):
             target='cocoa',
             state='forest',
             into='area',
-            amount=_planting,
+            amount=CocoaSystem._get_planting,
             flow='planting',
             legs=[
-                ('area', 'abandoned', _abandonment, 'abandonment'),
+                ('area', 'abandoned', CocoaSystem._get_abandonment, 'abandonment'),
                 (
                     'abandoned',
                     'forest',
-                    lambda s: (1 - _conversion(s.source)) * s.source.abandoned / s.source.conversion_time,
+                    lambda s: (1 - CocoaSystem._get_conversion(s.source))
+                    * s.source.abandoned
+                    / s.source.conversion_time,
                     'fallow',
                 ),
                 (
                     'abandoned',
                     Sink('oil_palm'),
-                    lambda s: _conversion(s.source) * s.source.abandoned / s.source.conversion_time,
+                    lambda s: CocoaSystem._get_conversion(s.source) * s.source.abandoned / s.source.conversion_time,
                     'conversion',
                 ),
             ],
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         plantation = PlantationElement(
             'cocoa',
@@ -387,4 +344,4 @@ class CocoaSystem(BaseSystem):
             insect_growth=self.insect_growth,
             subsidy=self.subsidy,
         )
-        return System(self.label, elements=[plantation], interactions=[self._land_use()])
+        return CompositeSystem(self.label, elements=[plantation], interactions=[self._land_use()])

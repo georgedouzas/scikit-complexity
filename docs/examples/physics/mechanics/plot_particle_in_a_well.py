@@ -35,8 +35,8 @@ fig, ax = plt.subplots(figsize=(6, 4))
 ax.contour(grid_x, grid_v, energy, levels=[8 * np.exp(-2)], colors='black', linestyles='--')
 for speed in [0.2, 0.5, 0.8, 0.9]:
     run = simulate(ParticleInAWellSystem(x=1.0, v=speed, k=2.0), until=25, dt=0.02)
-    position = np.ravel(run.values('particle.x'))
-    velocity = np.ravel(run.values('particle.x_d1'))
+    position = np.ravel(run.get_values('particle.x'))
+    velocity = np.ravel(run.get_values('particle.x_d1'))
     inside = position < 6
     ax.plot(position[inside], velocity[inside], label=f'v0 = {speed}')
 ax.set_xlim(-1.0, 6.0)

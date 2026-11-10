@@ -14,8 +14,8 @@ import numpy as np
 
 from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BoxNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
@@ -35,9 +35,9 @@ trajectory = simulate(system, observers=[observer])
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
-values = trajectory.values('cells.value')
+values = trajectory.get_values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = System(
+laplacian = CompositeSystem(
     elements=system.prepare().system_.elements,
     interactions=[
         LocalRuleInteraction(
@@ -45,7 +45,7 @@ laplacian = System(
             target='cells',
             state='value',
             rule=LinearRuleSpec((1, -2, 1), 'GF(3)'),
-            neighborhood=BoxNeighborhood(),
+            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
         ),
     ],
 )

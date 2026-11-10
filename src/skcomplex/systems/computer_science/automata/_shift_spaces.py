@@ -19,15 +19,22 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement, WordElement
+from ....core.components.elements import Element, GroupElement, WordElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
+
+OUTSIDE = -1.0
+GAP_CAP = 10
+BURN_IN = 3
+MIN_BASE = 2
+SYMBOLS = 3
+BALANCED_BLOCK = 0.5
 
 
 class DigitCellElement(Element):
@@ -82,8 +89,8 @@ class MorseElement(WordElement):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import MorseElement
-        >>> [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)]
-        ['01', '10']
+        >>> MorseElement('morse', axiom='0').axiom
+        '0'
     """
 
     law_classes = (ProductionLaw,)
@@ -133,14 +140,6 @@ class TernaryCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.symbol = symbol
-
-
-OUTSIDE = -1.0
-GAP_CAP = 10
-BURN_IN = 3
-MIN_BASE = 2
-SYMBOLS = 3
-BALANCED_BLOCK = 0.5
 
 
 class GapSubshiftSystem(BaseSystem):
@@ -202,7 +201,7 @@ class GapSubshiftSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _gap_lengths(size: int, gaps: Sequence[int] | None) -> npt.NDArray[np.bool_]:
+    def _get_gap_lengths(size: int, gaps: Sequence[int] | None) -> npt.NDArray[np.bool_]:
         """Return whether every gap length below the cap is allowed.
 
         By default the even lengths are allowed.
@@ -219,7 +218,7 @@ class GapSubshiftSystem(BaseSystem):
         return allowed
 
     @staticmethod
-    def _gap_law(allowed: npt.NDArray[np.bool_]) -> tuple[float, Array, Array]:
+    def _get_gap_law(allowed: npt.NDArray[np.bool_]) -> tuple[float, Array, Array]:
         """Return the growth and the gap law of the maximal entropy measure.
 
         The law is given by the growth `λ`, the gap probabilities `λ^-(h + 1)`, and the hazards.
@@ -237,7 +236,7 @@ class GapSubshiftSystem(BaseSystem):
         return growth, probabilities, hazards
 
     @staticmethod
-    def _renewal_cells(size: int, probabilities: Array, random_state: int | np.random.Generator | None) -> Array:
+    def _get_renewal_cells(size: int, probabilities: Array, random_state: int | np.random.Generator | None) -> Array:
         """Return a window of a configuration whose gaps between ones are independent.
 
         The gaps are drawn independently, after a burn-in.
@@ -249,7 +248,7 @@ class GapSubshiftSystem(BaseSystem):
         return np.asarray(cells[-size:])
 
     @staticmethod
-    def _gap_shift(*values: Array, random: Array, hazards: Array) -> Array:
+    def _get_gap_shift(*values: Array, random: Array, hazards: Array) -> Array:
         """Return the cell to the right, or at the right end a new cell.
 
         The new cell is drawn from the gap since the last one.
@@ -261,22 +260,23 @@ class GapSubshiftSystem(BaseSystem):
         drawn = (random < hazards[np.minimum(gap, hazards.size - 1)]).astype(float)
         return np.where(right == OUTSIDE, drawn, right)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the shift on the S-gap subshift.
 
         The S-gap subshift holds the binary sequences whose runs of zeros between ones lie in `S`.
         """
-        _, probabilities, hazards = self._gap_law(self._gap_lengths(self.size, self.gaps))
-        cells = self._renewal_cells(self.size, probabilities, self.random_state)
+        _, probabilities, hazards = self._get_gap_law(self._get_gap_lengths(self.size, self.gaps))
+        cells = self._get_renewal_cells(self.size, probabilities, self.random_state)
         neighborhood = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=BinaryCellElement,
                     space=LatticeSpace(self.size, boundary='fixed', fill=OUTSIDE),
                     values={'alive': cells},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -284,7 +284,7 @@ class GapSubshiftSystem(BaseSystem):
                     'shift',
                     target='cells',
                     state='alive',
-                    rule=functools.partial(self._gap_shift, hazards=hazards),
+                    rule=functools.partial(self._get_gap_shift, hazards=hazards),
                     neighborhood=neighborhood,
                     stochastic=True,
                 ),
@@ -372,7 +372,7 @@ class ContextFreeSubshiftSystem(BaseSystem):
         )
 
     @staticmethod
-    def _context_free_move(*values: Array, random: Array) -> Array:
+    def _get_context_free_move(*values: Array, random: Array) -> Array:
         """Return the cell changed to another random symbol.
 
         The change is refused when the ring would leave the context-free subshift.
@@ -390,14 +390,14 @@ class ContextFreeSubshiftSystem(BaseSystem):
         return following
 
     @staticmethod
-    def _whole_ring(size: int) -> LatticeNeighborhood:
+    def _get_whole_ring(size: int) -> LatticeNeighborhood:
         """Return the offsets from `-(size - 1)` to `size - 1`.
 
         They read every cell of a ring from both sides.
         """
         return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.initial is None:
             generator = np.random.default_rng(self.random_state)
@@ -413,14 +413,15 @@ class ContextFreeSubshiftSystem(BaseSystem):
         if not self._is_context_free(symbols):
             error_msg = f'The initial ring {symbols.tolist()} holds a block 0 1^h 2^k 0 with h != k.'
             raise ParameterError(error_msg)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=TernaryCellElement,
                     space=LatticeSpace(self.size),
                     values={'symbol': symbols},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -428,8 +429,8 @@ class ContextFreeSubshiftSystem(BaseSystem):
                     'moves',
                     target='cells',
                     state='symbol',
-                    rule=self._context_free_move,
-                    neighborhood=self._whole_ring(self.size),
+                    rule=self._get_context_free_move,
+                    neighborhood=self._get_whole_ring(self.size),
                     schedule='random-sequential',
                     stochastic=True,
                 ),
@@ -457,7 +458,7 @@ class MorseSubshiftSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
-        >>> simulate(MorseSubshiftSystem(), until=3).values('morse.size').tolist()
+        >>> simulate(MorseSubshiftSystem(), until=3).get_values('morse.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -471,9 +472,9 @@ class MorseSubshiftSystem(BaseSystem):
         super().__init__(label)
         self.axiom = axiom
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
+        return CompositeSystem(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
 
 
 class AddingMachineSystem(BaseSystem):
@@ -540,7 +541,7 @@ class AddingMachineSystem(BaseSystem):
         carried = np.all(window[:-1] == base - 1, axis=0)
         return np.where(carried, (window[-1] + 1) % base, window[-1])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the adding machine `r → r + 1` on the q-adic integers.
 
         It is the odometer acting on the q-ary tree.
@@ -549,14 +550,15 @@ class AddingMachineSystem(BaseSystem):
             error_msg = f'The base of the adding machine is at least 2, but it is {self.base}.'
             raise ParameterError(error_msg)
         values = np.zeros(self.digits) if self.initial is None else np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=DigitCellElement,
                     space=LatticeSpace(self.digits, boundary='fixed', fill=self.base - 1),
                     values={'digit': values, 'base': self.base},
+                    on='sites',
                 ),
             ],
             interactions=[

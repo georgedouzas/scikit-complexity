@@ -1,7 +1,4 @@
-"""Measure clusters and percolation.
-
-The clusters are those of grids, graphs, and points, with the largest cluster and spanning.
-"""
+"""Measure clusters and percolation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,20 +22,18 @@ from ._base import _check_choice, _check_settings, _get_missing_error, _read_fie
 from .types import Source
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
-# Settings every kind reads, besides `kind` and `variables`.
 SETTINGS = {
     'labels': {'periodic', 'diagonal', 'axis', 'radius'},
     'sizes': {'periodic', 'diagonal', 'radius'},
     'percolation': {'diagonal', 'axis', 'radius'},
     'spanning': {'diagonal', 'axis', 'radius'},
 }
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)
 class ClustersResult:
-    """Clusters of a grid, a graph, or points.
+    """A result of `clusters`, the clusters of a grid, a graph, or points.
 
     They are the occupied cells of a grid, the components of a graph, or the contacts of points.
 
@@ -116,6 +111,9 @@ def clusters(
     - `'percolation'`: the cluster sizes, the strength of the largest cluster, the mean cluster size, and spanning.
     - `'spanning'`: the share of the grids of an ensemble, stacked on the first axis or the frames of a trajectory,
       with a cluster joining the opposite edges of `axis`.
+
+    It appears in many fields. It finds the percolating cluster of a porous rock, the burnt patches of a forest fire,
+    and the groups of an opinion model.
 
     Args:
         source:
@@ -248,12 +246,12 @@ def _read_points(
         return (points if kind == 'spanning' else points[None]), None
     system = source.problem.system
     space = None if system is None else system.space
-    names = [name for name in source.problem.states.names if source.problem.states.entry(name).columns > 1]
+    names = [name for name in source.problem.states.names if source.problem.states.get_entry(name).columns > 1]
     name = variables[0] if variables else (names[0] if names else None)
     if name is None:
         raise _get_missing_error(source, 'vector state of positions')
     faces = np.asarray(space.extent, dtype=float) if isinstance(space, ContinuousSpace) and space.extent else None
-    return np.asarray(source.values(name), dtype=float)[-1:], faces
+    return np.asarray(source.get_values(name), dtype=float)[-1:], faces
 
 
 def _contacts(points: npt.NDArray[np.float64], radius: float) -> IntArray:

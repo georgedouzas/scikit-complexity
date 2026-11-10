@@ -43,7 +43,9 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 trajectory = simulate(HopfFormSystem(x=0.1), observers=[observer])
 outside = simulate(HopfFormSystem(x=1.0))
-strips = [np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')]) for run in (trajectory, outside)]
+strips = [
+    np.column_stack([100 * run.get_values('form.x'), -100 * run.get_values('form.y')]) for run in (trajectory, outside)
+]
 observer.recording_.log(
     'phase_plane',
     rr.LineStrips2D(strips, radii=0.8, colors=[[255, 170, 40], [90, 170, 255]]),

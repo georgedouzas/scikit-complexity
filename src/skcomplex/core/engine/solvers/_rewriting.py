@@ -17,7 +17,7 @@ from ._base import BaseSolver
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
-    """Solver of rewriting systems.
+    """A solver of rewriting systems, one generation per unit of time.
 
     It rewrites every structure in parallel once per generation. The structures live next to the state vector, whose
     components are their symbol, prototile, or label counts and sizes. Stochastic productions draw from the simulation's
@@ -25,7 +25,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
 
     Examples:
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.components.laws import ProductionLaw
         >>> from skcomplex.core.engine.solvers import RewritingSolver
@@ -33,9 +33,9 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
+        >>> system = CompositeSystem(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> trajectory = simulate(system, until=5, solver=RewritingSolver())
-        >>> trajectory.values('algae.size').tolist()
+        >>> trajectory.get_values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
@@ -80,15 +80,15 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         }
         self._collect()
 
-    def _state(self) -> Array:
+    def _get_state(self) -> Array:
         """Return the state vector of the counts and sizes of the current structures."""
         counts: list[float] = []
         for item in self.systems_:
             structure = self.structures_[item.path]
             if isinstance(item, WordKernel) and isinstance(structure, WordStructureSpec):
-                counts += item.counts(structure)
+                counts += item.get_counts(structure)
             if isinstance(item, PatchKernel) and isinstance(structure, PatchStructureSpec):
-                counts += item.counts(structure)
+                counts += item.get_counts(structure)
         return np.asarray(counts, dtype=float)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -114,7 +114,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         for generation in range(round(until - t)):
             state = RunStateSpec(t + generation, x, p, self.rng_)
             self.structures_ = {item.path: item.run(state).values_ for item in self.systems_}
-        return self._state()
+        return self._get_state()
 
     def _collect(self) -> None:
         """Set the snapshot of the current structures and their measures.
@@ -124,7 +124,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:
-                reporters[f'{path}.length'] = structure.length()
-                reporters[f'{path}.area'] = structure.area()
+                reporters[f'{path}.length'] = structure.get_length()
+                reporters[f'{path}.area'] = structure.get_area()
         self.events_ = []
         self.snapshot_ = StructureStateSpec(dict(self.structures_), reporters)

@@ -25,7 +25,7 @@ SYSTEM = 'ageing_random_walk'
 
 def states(trajectory, name):
     """Return a state of the walkers, one row per step."""
-    return np.array([trajectory.agents('walkers', frame).values[name] for frame in range(len(trajectory.times))])
+    return np.array([trajectory.get_agents('walkers', frame).values[name] for frame in range(len(trajectory.times))])
 
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())

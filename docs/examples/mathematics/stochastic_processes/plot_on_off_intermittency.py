@@ -6,8 +6,8 @@ by short bursts in which it rises to values of order one and falls back.
 """
 
 # %%
-# The system is built from its class with two independent realizations at the bifurcation point
-# `epsilon = 0`, with noise intensity `D = 1/2`, and simulated for 600 time units in the Stratonovich convention. The
+# The example builds `OnOffIntermittencySystem` with two independent realizations at the bifurcation point
+# `epsilon = 0`, with noise intensity `D = 1/2`, and simulates it for 600 time units in the Stratonovich convention. The
 # observer saves every frame with the default blueprint, whose primary view holds the two variables.
 
 import matplotlib.pyplot as plt
@@ -47,7 +47,7 @@ ensemble = simulate(
     solver=EulerMaruyamaSolver(dt=0.02),
     random_state=1,
 )
-values = ensemble.values('variables.x')
+values = ensemble.get_values('variables.x')
 step = float(np.median(np.diff(ensemble.times)))
 durations = step * np.concatenate(
     [events(-values[:, index], threshold=-0.05).durations[1:-1] for index in range(values.shape[1])],
@@ -64,7 +64,7 @@ laminar.set_xlabel('duration of a laminar phase')
 laminar.set_ylabel('probability density')
 laminar.set_title('Laminar phases have power-law durations')
 laminar.legend()
-logarithm.plot(trajectory.times, np.log(trajectory.values('variables.x')[:, 0]))
+logarithm.plot(trajectory.times, np.log(trajectory.get_values('variables.x')[:, 0]))
 logarithm.axhline(0.0, color='grey', linestyle='--')
 logarithm.set_xlabel('time')
 logarithm.set_ylabel('ln x')

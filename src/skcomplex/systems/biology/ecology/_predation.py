@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import (
@@ -86,7 +86,7 @@ class ParasitismInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        hosts, parasitoids = s.host.n, s.parasitoid.n
+        hosts, parasitoids = s.host.x, s.parasitoid.x
         escape = exp(-s.a * parasitoids)
         return [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
 
@@ -173,9 +173,9 @@ class PredatorPreyEventsInteraction(Interaction):
         propensity.
         """
         change: Interaction = (
-            JumpInteraction(self.label, target='member', changes={'n': step}, rate=lambda _: propensity)
+            JumpInteraction(self.label, target='member', changes={'x': step}, rate=lambda _: propensity)
             if self.stochastic
-            else RateInteraction(self.label, target='member', state='n', rate=lambda _: step * propensity)
+            else RateInteraction(self.label, target='member', state='x', rate=lambda _: step * propensity)
         )
         return change.prepare().run(SimpleNamespace(target=member)).laws_
 
@@ -191,7 +191,7 @@ class PredatorPreyEventsInteraction(Interaction):
                 The laws of the component.
         """
         prey, predators = s.prey, s.predators
-        x, y = prey.n, predators.n
+        x, y = prey.x, predators.x
         kills = s.a * x * y / (1 + s.a * s.h * x)
         return [
             *self._get_change(prey, 1, s.r * x),
@@ -276,7 +276,7 @@ class RosenzweigMacArthurInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        x, y = s.prey.n, s.predators.n
+        x, y = s.prey.x, s.predators.x
         crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
         feeding = x * y / (1 + s.eta * x)
         return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
@@ -323,7 +323,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import RosenzweigMacarthurSystem
-        >>> round(RosenzweigMacarthurSystem().prepare().system_.elements[0].n, 6)
+        >>> round(RosenzweigMacarthurSystem().prepare().system_.elements[0].x, 6)
         5.0
     """
 
@@ -355,7 +355,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.phi_end = phi_end
         self.rate = rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of fast prey and slow predators.
 
         Their carrying capacity shrinks at a rate.
@@ -368,9 +368,9 @@ class RosenzweigMacarthurSystem(BaseSystem):
         phi_end = 1 - self.eta if phi_end is None else phi_end
         prey = 1 / (1 - self.eta) if prey is None else prey
         predators = (1 - phi * prey) * (1 + self.eta * prey) if predators is None else predators
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+            elements=[PopulationElement('prey', x=prey), PopulationElement('predators', x=predators)],
             interactions=[
                 RosenzweigMacArthurInteraction(
                     'predation',
@@ -442,11 +442,11 @@ class NicholsonBaileySystem(BaseSystem):
         self.a = a
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of hosts and parasitoids in discrete generations."""
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('hosts', n=self.hosts), PopulationElement('parasitoids', n=self.parasitoids)],
+            elements=[PopulationElement('hosts', x=self.hosts), PopulationElement('parasitoids', x=self.parasitoids)],
             interactions=[
                 ParasitismInteraction(
                     'parasitism',
@@ -533,14 +533,14 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         self.prey_harvest = prey_harvest
         self.predator_harvest = predator_harvest
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Lotka-Volterra predation with harvesting.
 
         Both species are harvested with a constant effort.
         """
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
                 ExponentialGrowthInteraction('growth', target='prey', r=self.r),
                 PredationInteraction('predation', predator='predators', prey='prey', a=self.a, b=self.b),
@@ -628,11 +628,11 @@ class StochasticPredatorPreySystem(BaseSystem):
         self.m = m
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of prey and predators born and killed one at a time."""
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
                 PredatorPreyEventsInteraction(
                     'events',

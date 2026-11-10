@@ -9,7 +9,7 @@ number, one row per saved step with the earliest at the top, with the smooth mod
 """
 
 # %%
-# The system is built from its class with 200 finite-volume cells and the wave number
+# The example builds `WaveBreakingSystem` with 200 finite-volume cells and the wave number
 # `k0 (1 + 0.5 sin x)`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, so it
 # is passed explicitly. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # space-time image of the wave number.
@@ -35,7 +35,7 @@ trajectory = simulate(system, until=25, dt=0.1, observers=[observer])
 # volumes conserve the total number of waves, the integral of `k`, which should stay at its initial value.
 
 times = trajectory.times
-numbers = trajectory.values('train.k')
+numbers = trajectory.get_values('train.k')
 spacing = 2 * np.pi / numbers.shape[1]
 slope = np.abs(np.diff(numbers, axis=1, append=numbers[:, :1])).max(axis=1) / spacing
 grid = np.linspace(0, 2 * np.pi, 2000)

@@ -15,7 +15,7 @@ from ..problems import BaseProblemSpec
 
 
 class Trajectory:
-    """Recorded states and parameters of a simulation over time.
+    """A record of the states and parameters of a simulation over time.
 
     Args:
         problem:
@@ -54,17 +54,17 @@ class Trajectory:
             The total log-probability of the draws and firings of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> trajectory = simulate(system, until=1, dt=0.5)
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
-        >>> trajectory.values('a.n').round(3).tolist()
+        >>> trajectory.get_values('a.x').round(3).tolist()
         [1.0, 1.649, 2.718]
     """
 
@@ -95,19 +95,19 @@ class Trajectory:
         self.draws = draws
         self.log_probability = log_probability
 
-    def _present(self, name: str, values: AnyArray) -> AnyArray:
+    def _get_present(self, name: str, values: AnyArray) -> AnyArray:
         """Return the values of a variable with NaN where a group holds no member.
 
         The NaN fill the rows of a variable group that hold no member at a frame.
         """
         topology = self.problem.topology
-        if topology is None or topology.presence(name, self.parameters[0]) is None:
+        if topology is None or topology.get_presence(name, self.parameters[0]) is None:
             return values
-        present = np.array([topology.presence(name, row) for row in self.parameters])
+        present = np.array([topology.get_presence(name, row) for row in self.parameters])
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def values(self, name: str) -> AnyArray:
+    def get_values(self, name: str) -> AnyArray:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -124,12 +124,12 @@ class Trajectory:
                 The name is neither a state nor a parameter.
         """
         if self.problem.states.has(name):
-            entry = self.problem.states.entry(name)
-            return self._present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
+            entry = self.problem.states.get_entry(name)
+            return self._get_present(name, entry.read(np.asarray(self.problem.states.read(self.states, name))))
         if self.problem.parameters.has(name):
-            entry = self.problem.parameters.entry(name)
+            entry = self.problem.parameters.get_entry(name)
             values = entry.read(np.asarray(self.problem.parameters.read(self.parameters, name)))
-            return self._present(name, values)
+            return self._get_present(name, values)
         if self.reporters and name in self.reporters[0]:
             found = [frame[name] for frame in self.reporters]
             if all(isinstance(item, numbers.Real) for item in found):
@@ -143,7 +143,7 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
-    def member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
+    def get_member(self, index: int, problem: BaseProblemSpec) -> 'Trajectory':
         """Return the trajectory of one member of a replicated system.
 
         It is a trajectory of the original system.
@@ -160,15 +160,18 @@ class Trajectory:
                 The times, states, and parameters of the member, laid out as the original problem lays them out.
 
         Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.experiments._replicate import _replicate
-            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+            Three logistic maps run as one group, and the second member is the map that starts at 0.2.
+
+            >>> from skcomplex.core.components.elements import GroupElement
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapElement, LogisticMapSystem
             >>> system = LogisticMapSystem().prepare().system_
-            >>> ensemble = _replicate(system, 3, {'map.x': [0.1, 0.2, 0.3]})
+            >>> group = GroupElement('map', element=LogisticMapElement, size=3, values={'x': [0.1, 0.2, 0.3]})
+            >>> ensemble = CompositeSystem(elements=[group], interactions=system.interactions)
             >>> trajectory = simulate(ensemble, until=2, dt=1)
-            >>> float(trajectory.member(1, simulate(system, until=0).problem).values('map.x')[0])
-            0.2
+            >>> trajectory.get_member(1, simulate(system, until=0).problem).get_values('map.x').round(3).tolist()
+            [0.2, 0.592, 0.894]
         """
         frames = len(self.times)
         states = np.zeros((frames, problem.states.size))
@@ -178,7 +181,7 @@ class Trajectory:
             (problem.parameters, self.problem.parameters, parameters, self.parameters),
         ):
             for entry in layout.entries:
-                origin = source.entry(entry.name)
+                origin = source.get_entry(entry.name)
                 if origin.size == entry.size:
                     target[:, entry.start : entry.start + entry.size] = np.asarray(values)[
                         :,
@@ -203,7 +206,7 @@ class Trajectory:
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
 
-    def agent_locations(self, group: str) -> list[AnyArray]:
+    def get_agent_locations(self, group: str) -> list[AnyArray]:
         """Return the locations of the agents of a group.
 
         There is one array per frame with one row per agent alive.
@@ -220,16 +223,16 @@ class Trajectory:
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
             >>> trajectory = simulate(BoidsSystem().prepare().system_, until=2, random_state=0)
-            >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
+            >>> [locations.shape[1] for locations in trajectory.get_agent_locations('flock')]
             [2, 2, 2]
         """
-        frames = [self.agents(group, frame) for frame in range(len(self.times))]
+        frames = [self.get_agents(group, frame) for frame in range(len(self.times))]
         return [
             np.asarray(snapshot.locations) if snapshot.locations is not None else np.zeros((0, 0))
             for snapshot in frames
         ]
 
-    def lattice(self, name: str) -> AnyArray:
+    def get_lattice(self, name: str) -> AnyArray:
         """Return the values of a lattice state over time in lattice shape.
 
         Args:
@@ -245,13 +248,13 @@ class Trajectory:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name)
+        shape = self.problem.get_lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
+        return self.get_values(name).reshape(len(self.times), *shape, *self.problem.states.get_entry(name).member_shape)
 
-    def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
+    def get_agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame.
 
         They come with their ids, states, and locations.
@@ -277,7 +280,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return groups[group]
 
-    def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
+    def get_network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
         """Return the nodes and edges of a changing network at a frame.
 
         The network is one whose topology changes.
@@ -306,7 +309,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return topology.read_network(self.parameters[frame], nodes, layer)
 
-    def structure(self, path: str, frame: int) -> object:
+    def get_structure(self, path: str, frame: int) -> object:
         """Return the word or patch of a rewritten element at a frame.
 
         Args:
@@ -328,7 +331,7 @@ class Trajectory:
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
             >>> trajectory = simulate(CantorSetSystem(), until=4, random_state=0)
-            >>> trajectory.structure('cantor', 2).parts
+            >>> trajectory.get_structure('cantor', 2).parts
             4
         """
         structures = self.structures[frame] if self.structures else {}

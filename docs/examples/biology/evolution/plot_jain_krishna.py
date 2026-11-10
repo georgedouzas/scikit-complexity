@@ -7,7 +7,7 @@ catalysts forms by chance it wins the selection, and the autocatalytic set grows
 """
 
 # %%
-# The system is built from its class with 40 species, links of probability 0.02, and a graph update every 10 steps,
+# The example builds `JainKrishnaSystem` with 40 species, links of probability 0.02, and a graph update every 10 steps,
 # saved every fifth step in 299 frames. The observer uses the default blueprint, whose primary view is the catalytic
 # network colored by the population of every species.
 
@@ -31,10 +31,10 @@ trajectory = simulate(JainKrishnaSystem(), observers=[observer], random_state=1,
 # should jump to 1 when the populated species rise from a few to nearly all, and the number of links should grow
 # afterwards.
 
-populated = np.nansum(trajectory.values('species.x') > 1e-3, axis=1)
+populated = np.nansum(trajectory.get_values('species.x') > 1e-3, axis=1)
 eigenvalues, links = [], []
 for frame in range(len(trajectory.times)):
-    snapshot = trajectory.network(frame)
+    snapshot = trajectory.get_network(frame)
     graph = nx.DiGraph()
     graph.add_nodes_from(snapshot.nodes.tolist())
     graph.add_edges_from(zip(snapshot.sources.tolist(), snapshot.targets.tolist(), strict=True))

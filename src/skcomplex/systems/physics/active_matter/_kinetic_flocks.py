@@ -14,13 +14,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, sin
 
-from ....core.components.elements import DensityElement, FieldElement
-from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
+from ....core.components.elements import FieldElement
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import LatticeSpace, PhaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec, RoleSpec
+from ...general.kinetics import EncounterInteraction
+from ..common.fields import AdvectionInteraction, PhaseSpaceDensityElement
 
 ANTIPODAL = 1e-9
 
@@ -72,23 +73,30 @@ class AngularAlignmentInteraction(EncounterInteraction):
         angles: int = 32,
         frequency: float = 1.0,
         noise: float = 0.5,
-        state: str = 'f',
+        state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._kernel, state=state)
+        super().__init__(
+            label,
+            candidate=candidate,
+            field=field,
+            rate=self._get_rate,
+            kernel=self._get_kernel,
+            state=state,
+        )
         self.angles = angles
         self.frequency = frequency
         self.noise = noise
 
-    def _centres(self) -> npt.NDArray[np.float64]:
+    def _get_centres(self) -> npt.NDArray[np.float64]:
         """Return the angle of every cell."""
         return 2 * np.pi * (np.arange(self.angles) + 0.5) / self.angles
 
-    def _rate(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_rate(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the rate of every pair of angles times the cell width of the partner."""
-        centres = self._centres()
+        centres = self._get_centres()
         return 8 * np.pi / self.angles * self.frequency * np.abs(np.sin(np.subtract.outer(centres, centres) / 2))
 
-    def _noise_weights(
+    def _get_noise_weights(
         self,
         centres: npt.NDArray[np.float64],
         means: npt.NDArray[np.float64],
@@ -97,19 +105,23 @@ class AngularAlignmentInteraction(EncounterInteraction):
         gaps = np.angle(np.exp(1j * (centres[None, None, :] - means[:, :, None])))
         return np.exp(-(gaps**2) / (2 * self.noise**2))
 
-    def _kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the probability of every outcome angle of every pair of angles.
 
         The outcome angles spread around the mean angle of the pair.
         """
-        centres = self._centres()
+        centres = self._get_centres()
         cosines, sines = np.cos(centres), np.sin(centres)
         along, across = np.add.outer(cosines, cosines), np.add.outer(sines, sines)
         means = np.arctan2(across, along)
         opposite = np.hypot(along, across) < ANTIPODAL
         means = np.where(opposite, centres[:, None] + np.pi / 2, means)
-        weights = self._noise_weights(centres, means)
-        weights = np.where(opposite[:, :, None], (weights + self._noise_weights(centres, means + np.pi)) / 2, weights)
+        weights = self._get_noise_weights(centres, means)
+        weights = np.where(
+            opposite[:, :, None],
+            (weights + self._get_noise_weights(centres, means + np.pi)) / 2,
+            weights,
+        )
         return weights / weights.sum(axis=2, keepdims=True)
 
 
@@ -150,18 +162,18 @@ class AngularDiffusionInteraction(EncounterInteraction):
         angles: int = 32,
         tumbling: float = 1.0,
         noise: float = 0.5,
-        state: str = 'f',
+        state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._kernel, state=state)
+        super().__init__(label, candidate=candidate, rate=self._get_rate, kernel=self._get_kernel, state=state)
         self.angles = angles
         self.tumbling = tumbling
         self.noise = noise
 
-    def _rate(self, _: SimpleNamespace) -> float:
+    def _get_rate(self, _: SimpleNamespace) -> float:
         """Return the rate of the events."""
         return self.tumbling
 
-    def _kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_kernel(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the probability of every angle after an event at every angle."""
         centres = 2 * np.pi * (np.arange(self.angles) + 0.5) / self.angles
         gaps = np.angle(np.exp(1j * np.subtract.outer(centres, centres)))
@@ -177,7 +189,7 @@ class BertinDrozGregoireSystem(BaseSystem):
     Particles stream along their orientation, tumble at a rate by a wrapped normal noise, and align in binary collisions
     at their mean angle with the same noise. A homogeneous disordered state is unstable above the density `pi tumbling
     (1 - exp(-noise^2 / 2)) / (8 interaction_range speed (exp(-noise^2 / 2) - 2 / 3))`. The system has the density
-    `flock.f`.
+    `flock.x`.
 
     Args:
         positions:
@@ -243,7 +255,7 @@ class BertinDrozGregoireSystem(BaseSystem):
         self.noise = noise
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the kinetic theory of flocking.
 
         Its polar order grows above a transition density.
@@ -255,20 +267,20 @@ class BertinDrozGregoireSystem(BaseSystem):
         values = np.broadcast_to(profile, space.shape_).copy()
         flock = FieldElement(
             'flock',
-            element=DensityElement,
+            element=PhaseSpaceDensityElement,
             space=space,
-            values={'f': values},
+            values={'x': values},
             discretization='finite-volume',
         )
 
         def drift(_: SimpleNamespace) -> list[Expression]:
             return [self.speed * cos(coordinate('theta')), self.speed * sin(coordinate('theta')), 0]
 
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=[
-                AdvectionInteraction('stream', target='flock', state='f', drift=drift),
+                AdvectionInteraction('stream', target='flock', state='x', drift=drift),
                 AngularDiffusionInteraction(
                     'tumble',
                     candidate='flock',

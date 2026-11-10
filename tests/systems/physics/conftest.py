@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.engine.solvers import BaseSolver, ScipyODESolver
 from skcomplex.core.specs import ObservableSpec
@@ -43,7 +43,7 @@ def _run(
 
 def _series(trajectory: Trajectory, *names: str) -> list[npt.NDArray[np.float64]]:
     """Return the series of several variables as arrays."""
-    return [np.asarray(trajectory.values(name), dtype=float) for name in names]
+    return [np.asarray(trajectory.get_values(name), dtype=float) for name in names]
 
 
 def _upward_crossings(times: npt.NDArray[np.float64], values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

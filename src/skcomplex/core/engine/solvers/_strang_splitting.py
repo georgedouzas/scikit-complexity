@@ -1,7 +1,4 @@
-"""Alternate transport and collision steps of a field.
-
-The scheme has second-order accuracy in the time step.
-"""
+"""Alternate transport and collision steps of a field."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +9,7 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import EncounterLaw, FluxLaw, RateLaw
+from ...components.laws import BilinearLaw, FluxLaw, RateLaw
 from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
@@ -24,11 +21,14 @@ from ._solver import Solver
 
 
 class StrangSplittingSolver(Solver):
-    """Strang splitting of half transport steps around a full collision step.
+    """A solver that splits half transport steps around a full collision step.
 
     A half transport step, a full collision step, and a half transport step follow each other. The transport solver
     advances the flux differences of the finite-volume fields and the collision solver the source rates, which the
     problem keeps apart.
+
+    Choose it for kinetic equations with collisions. It appears in models of rarefied gases and of particles in a
+    plasma.
 
     Args:
         transport:
@@ -55,26 +55,34 @@ class StrangSplittingSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import DensityElement, FieldElement
-        >>> from skcomplex.core.components.interactions import AdvectionInteraction, RelaxationInteraction
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
+        >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
         >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
         >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
         >>> from skcomplex.core.specs import AxisSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
-        ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
+        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
         ... )
-        >>> stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
-        >>> relax = RelaxationInteraction(
-        ...     'r', target='gas', state='f', goal=lambda s: maximum_entropy(s.target.f, axes=('v',)), time=0.5
+        >>> stream = ConservationInteraction(
+        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
         ... )
-        >>> system = System(elements=[gas], interactions=[stream, relax])
+        >>> def relaxation(s):
+        ...     return (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
+        >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
+        >>> system = CompositeSystem(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = simulate(system, until=0.2, solver=solver).values('gas.f')[-1]
+        >>> final = simulate(system, until=0.2, solver=solver).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """
@@ -85,7 +93,7 @@ class StrangSplittingSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw, EncounterLaw},
+            laws={FluxLaw, RateLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -117,7 +125,7 @@ class StrangSplittingSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _flux_differences(self, t: float, x: Array, p: Array) -> Array:
+    def _get_flux_differences(self, t: float, x: Array, p: Array) -> Array:
         """Return the rates of the flux differences of the finite-volume fields.
 
         They are zero for the other states.
@@ -127,13 +135,13 @@ class StrangSplittingSolver(Solver):
             rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
         return rates
 
-    def _inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
+    def _get_inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
         """Return an inner solver prepared on a part of the problem.
 
         An error is raised for a law it does not advance.
         """
         inner = RK4Solver(dt=dt) if solver is None else clone(solver)
-        if inner._get_support().missing('laws', {law}):
+        if inner._get_support().get_missing('laws', {law}):
             error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
             raise SolverError(error_msg)
         return inner.prepare(problem)
@@ -157,10 +165,10 @@ class StrangSplittingSolver(Solver):
             error_msg = 'StrangSplittingSolver splits flux differences from source rates, but the problem has no flux.'
             raise SolverError(error_msg)
         plain = replace(problem, accelerated=None, jacobian=None, sources=None)
-        transport = replace(plain, drift=self._flux_differences)
+        transport = replace(plain, drift=self._get_flux_differences)
         collision = replace(plain, drift=problem.sources, volumes=(), linear=())
-        self.transport_ = self._inner(self.transport, FluxLaw, self.dt / 2, transport)
-        self.collision_ = self._inner(self.collision, RateLaw, self.dt, collision)
+        self.transport_ = self._get_inner(self.transport, FluxLaw, self.dt / 2, transport)
+        self.collision_ = self._get_inner(self.collision, RateLaw, self.dt, collision)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance from time `t` to time `until` in equal split steps no longer than `dt`.

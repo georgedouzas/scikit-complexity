@@ -6,7 +6,7 @@ excitatory pulses, they kick each other over threshold and the whole network fir
 """
 
 # %%
-# The system is built from its class with excitabilities centred below threshold, `eta = -0.2`, and the coupling
+# The example builds `ThetaNeuronsSystem` with excitabilities centred below threshold, `eta = -0.2`, and the coupling
 # `kappa = 1.5`. The recorded run keeps four neurons for ten time units, so that their phases read in the time series
 # view of the default blueprint. The analysis below uses fifty.
 
@@ -32,7 +32,7 @@ trajectory = simulate(ThetaNeuronsSystem(n_neurons=4, kappa=1.5, random_state=0)
 
 def spikes_of(trajectory):
     """Return the step and the neuron of every crossing of π."""
-    wrapped = np.mod(trajectory.values('neurons.theta'), 2 * np.pi)
+    wrapped = np.mod(trajectory.get_values('neurons.theta'), 2 * np.pi)
     steps, neurons = np.nonzero((wrapped[:-1] < np.pi) & (wrapped[1:] >= np.pi))
     return trajectory.times[steps + 1], neurons
 

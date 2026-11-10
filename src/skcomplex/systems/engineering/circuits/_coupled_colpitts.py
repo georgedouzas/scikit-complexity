@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -235,7 +235,7 @@ class CoupledColpittsSystem(BaseSystem):
         self.d = d
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
         oscillators = [
@@ -257,4 +257,4 @@ class CoupledColpittsSystem(BaseSystem):
             ColpittsCouplingInteraction(f'coupling_{target}', source=source, target=target, k=self.k)
             for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
         ]
-        return System(self.label, elements=oscillators, interactions=couplings)
+        return CompositeSystem(self.label, elements=oscillators, interactions=couplings)

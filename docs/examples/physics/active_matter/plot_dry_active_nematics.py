@@ -7,7 +7,7 @@ image shows the density at the end of the run.
 """
 
 # %%
-# The system is built from its class on a periodic square of 64 sites, above the critical density, where the
+# The example builds `DryActiveNematicsSystem` on a periodic square of 64 sites, above the critical density, where the
 # isotropic state loses stability. The catalog defaults integrate it with RK4 on the Numba backend.
 
 import matplotlib.pyplot as plt
@@ -31,8 +31,8 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # The scalar order should rise from the small initial noise to a nonzero value, and the total density should stay at its
 # initial value to rounding, since the current is a divergence.
 
-tensors = alignment(trajectory.lattice('nematic.Q'), kind='principal-axis')
-density = trajectory.lattice('nematic.rho')
+tensors = alignment(trajectory.get_lattice('nematic.Q'), kind='principal-axis')
+density = trajectory.get_lattice('nematic.rho')
 
 fig, (order, total) = plt.subplots(1, 2, figsize=(10, 4))
 order.plot(trajectory.times, tensors.order.mean(axis=(1, 2)))

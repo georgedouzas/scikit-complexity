@@ -11,11 +11,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.elements import CompartmentElement, Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, simulate
 from skcomplex.core.engine.runtime._simulations import Simulation
@@ -41,10 +41,39 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
 
+STORED_GEOMETRIC_BROWNIAN_MOTION = [
+    100.0,
+    106.84701129798354,
+    108.17826266273447,
+    105.65734164064845,
+    110.49449907498547,
+    109.94445714673115,
+    110.82007444147138,
+    114.5517667447161,
+    111.32038165744878,
+    109.67041359152822,
+    108.34081429617326,
+]
+HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
 
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
-    return System(
+    return CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=n)],
         interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
@@ -71,16 +100,16 @@ class FrameCounterObserver(BaseObserver):
 
 def _growth(r=1.0):
     """Return a system of exponential growth."""
-    return System(
-        elements=[PopulationElement('a', n=1)],
+    return CompositeSystem(
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=r)],
     )
 
 
 def _epidemic():
     """Return a stochastic SIR system."""
-    return System(
-        elements=[CompartmentElement('S', n=95), CompartmentElement('I', n=5), CompartmentElement('R')],
+    return CompositeSystem(
+        elements=[AmountElement('S', x=95), AmountElement('I', x=5), AmountElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
@@ -90,8 +119,8 @@ def _epidemic():
 
 def _logistic():
     """Return a logistic population."""
-    return System(
-        elements=[PopulationElement('rabbits', n=10)],
+    return CompositeSystem(
+        elements=[PopulationElement('rabbits', x=10)],
         interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
     )
 
@@ -141,26 +170,11 @@ class HeaterElement(Element):
         return [RateLaw(s.T, s.power - s.T)]
 
 
-STORED_GEOMETRIC_BROWNIAN_MOTION = [
-    100.0,
-    106.84701129798354,
-    108.17826266273447,
-    105.65734164064845,
-    110.49449907498547,
-    109.94445714673115,
-    110.82007444147138,
-    114.5517667447161,
-    111.32038165744878,
-    109.67041359152822,
-    108.34081429617326,
-]
-
-
 def test_simulation_updates_one_per_entry_weight_live():
     """Test that a live update of one component of a per-entry parameter changes that entry only."""
     schedule = {'sum.weights[1]': lambda t: 1.0 if t < 1 else 10.0}
     trajectory = simulate(_summed(['a', 'b', 'c']), until=2, dt=1, schedule=schedule)
-    assert trajectory.values('target.x').tolist() == [0.0, 7.0, 25.0]
+    assert trajectory.get_values('target.x').tolist() == [0.0, 7.0, 25.0]
 
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
@@ -172,11 +186,11 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
         observers=[ConservationObserver()],
     )
     money = (
-        trajectory.values('households.deposits')
-        + trajectory.values('firms.deposits')
-        + trajectory.values('bank.deposits')
+        trajectory.get_values('households.deposits')
+        + trajectory.get_values('firms.deposits')
+        + trajectory.get_values('bank.deposits')
     )
-    created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
+    created = trajectory.get_values('circuit.lending') - trajectory.get_values('circuit.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
         matrix = loops(trajectory, kind='flow-matrix', frame=frame).matrix
@@ -186,17 +200,17 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
 def test_trajectory_returns_group_arrays():
     """Test that a group state over 100 frames has the shape `(100, 500, 2)`."""
     trajectory = simulate(_pushed_gas(), until=0.99, dt=0.01)
-    assert trajectory.values('gas.x').shape == (100, 500, 2)
-    assert trajectory.values('gas.m').shape == (100, 500)
+    assert trajectory.get_values('gas.x').shape == (100, 500, 2)
+    assert trajectory.get_values('gas.m').shape == (100, 500)
 
 
 def test_group_parameter_changes_by_schedule():
     """Test that a scheduled mass of every member applies to the frames after the change."""
     schedule = {'gas.m': lambda t: 1.0 if t < 0.2 - 1e-9 else 2.0}
     trajectory = simulate(_pushed_gas(), until=0.4, dt=0.01, schedule=schedule)
-    changed = int(np.argmax(np.all(trajectory.values('gas.m') == 2.0, axis=1)))
+    changed = int(np.argmax(np.all(trajectory.get_values('gas.m') == 2.0, axis=1)))
     assert changed > 0
-    accelerations = np.diff(trajectory.values('gas.x_d1')[:, :, 0], axis=0) / 0.01
+    accelerations = np.diff(trajectory.get_values('gas.x_d1')[:, :, 0], axis=0) / 0.01
     assert np.allclose(accelerations[changed:], 0.5)
     assert np.allclose(accelerations[: changed - 1], 1.0)
 
@@ -204,7 +218,7 @@ def test_group_parameter_changes_by_schedule():
 def test_group_parameter_takes_per_member_values():
     """Test that a scheduled group parameter accepts one value per member."""
     trajectory = simulate(_pushed_gas(3), until=0.1, dt=0.1, schedule={'gas.m': lambda t: [1.0, 2.0, 4.0]})
-    assert trajectory.values('gas.m')[-1].tolist() == [1.0, 2.0, 4.0]
+    assert trajectory.get_values('gas.m')[-1].tolist() == [1.0, 2.0, 4.0]
 
 
 def test_group_parameter_with_wrong_shape_raises_error():
@@ -216,7 +230,7 @@ def test_group_parameter_with_wrong_shape_raises_error():
 def test_reflecting_box_keeps_members_inside_ode_run():
     """Test that no member crosses a wall of a reflecting box in an ODE system."""
     trajectory = simulate(IdealGasSystem(500, kT=4.0, random_state=1).prepare().system_, until=2, dt=0.01)
-    positions = trajectory.values('gas.x')
+    positions = trajectory.get_values('gas.x')
     assert np.all((positions >= 0) & (positions <= 1))
 
 
@@ -243,14 +257,14 @@ def test_simulation_hands_frames_to_observers():
 
 def test_simulation_discrete_frames_are_integer_times():
     """Test that discrete maps produce frames at integer times."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     trajectory = simulate(system, until=10)
     assert trajectory.times.tolist() == list(map(float, range(11)))
 
 
 def test_simulation_discrete_noninteger_dt_raises_error():
     """Test that a discrete map needs an integer dt."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     with pytest.raises(ValidationError, match='positive integer'):
         Simulation(system, dt=0.5).prepare().run(until=1)
 
@@ -278,7 +292,7 @@ def test_simulation_schedule_unknown_parameter_raises_error():
 
 def test_simulation_schedule_invalid_value_raises_error():
     """Test that scheduled values are checked against their domain, with the parameter and the time named."""
-    system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = CompositeSystem(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     schedule = {'c.b': lambda t: 1.0 if t < 3 else -1.0}
     message = r'At t = 3\.0, the schedule sets c\.b = -1\.0, which is not a value .* in the domain \(0, \+oo\)'
     with pytest.raises(ValidationError, match=message):
@@ -307,8 +321,8 @@ def test_simulation_without_recording_has_no_trajectory():
 def test_trajectory_unknown_name_raises_error():
     """Test that a trajectory names the available variables."""
     trajectory = simulate(_growth(), until=0.1)
-    with pytest.raises(KeyError, match=r'a\.n, g\.r'):
-        trajectory.values('b.n')
+    with pytest.raises(KeyError, match=r'a\.x, g\.r'):
+        trajectory.get_values('b.x')
 
 
 def test_simulation_same_random_state_is_reproducible():
@@ -320,9 +334,9 @@ def test_simulation_same_random_state_is_reproducible():
 
 def test_simulation_agent_parameters_follow_the_schedule():
     """Test that a scheduled agent group parameter is read by the rules of the run."""
-    system = System(elements=[GroupElement('savers', element=SaverElement, size=3)])
+    system = CompositeSystem(elements=[GroupElement('savers', element=SaverElement, size=3)])
     trajectory = simulate(system, until=2, schedule={'savers.rate': lambda t: 5.0})
-    assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
+    assert trajectory.get_agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
 
 
 def test_simulation_extend_runs_in_two_parts():
@@ -330,10 +344,10 @@ def test_simulation_extend_runs_in_two_parts():
     schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
     simulation = Simulation(_logistic(), dt=1.0, schedule=schedule).prepare().run(until=5)
     trajectory = simulation.extend(until=10).trajectory_
-    reference = simulate(_logistic(), until=5, dt=1.0).values('rabbits.n')
+    reference = simulate(_logistic(), until=5, dt=1.0).get_values('rabbits.x')
     assert trajectory.times.tolist() == [float(time) for time in range(11)]
-    assert trajectory.values('rabbits.n')[:6] == pytest.approx(reference)
-    assert np.all(trajectory.values('rabbits.n')[5:] == trajectory.values('rabbits.n')[5])
+    assert trajectory.get_values('rabbits.x')[:6] == pytest.approx(reference)
+    assert np.all(trajectory.get_values('rabbits.x')[5:] == trajectory.get_values('rabbits.x')[5])
 
 
 def test_simulation_extend_backwards_raises_error():
@@ -371,30 +385,30 @@ def test_trajectory_lists_its_names():
 def test_trajectory_gives_agent_locations_over_frames():
     """Test that the locations of a group of agents come as one array per frame."""
     trajectory = simulate(BoidsSystem().prepare().system_, until=3, random_state=0)
-    locations = trajectory.agent_locations('flock')
+    locations = trajectory.get_agent_locations('flock')
     assert len(locations) == len(trajectory.times)
-    np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory.times) - 1).locations)
+    np.testing.assert_allclose(locations[-1], trajectory.get_agents('flock', len(trajectory.times) - 1).locations)
 
 
 def test_initial_state_replaces_the_values_of_components():
     """Test that a simulation starts from given initial values by state name and rejects unknown names."""
-    system = System(
-        elements=[PopulationElement('rabbits', n=10)],
+    system = CompositeSystem(
+        elements=[PopulationElement('rabbits', x=10)],
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
-    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'rabbits.n': 20.0})
-    assert trajectory.values('rabbits.n')[0] == pytest.approx(20.0)
-    with pytest.raises(ValidationError, match=r'foxes\.n'):
-        Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).prepare().run(until=1.0)
+    trajectory = simulate(system, until=1.0, dt=1.0, initial_state={'rabbits.x': 20.0})
+    assert trajectory.get_values('rabbits.x')[0] == pytest.approx(20.0)
+    with pytest.raises(ValidationError, match=r'foxes\.x'):
+        Simulation(system, dt=1.0, initial_state={'foxes.x': 1.0}).prepare().run(until=1.0)
 
 
 def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-    trajectory = simulate(System(elements=[HeaterElement('heater')]), until=3.0, dt=0.5, schedule=schedule)
-    np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
-    assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
-    assert trajectory.values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
+    trajectory = simulate(CompositeSystem(elements=[HeaterElement('heater')]), until=3.0, dt=0.5, schedule=schedule)
+    np.testing.assert_array_equal(trajectory.get_values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
+    assert trajectory.get_values('heater.T')[2] == pytest.approx(0.0)
+    assert trajectory.get_values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
 
 
 def test_correlated_noise_repeats_with_same_seed():
@@ -407,7 +421,7 @@ def test_correlated_noise_repeats_with_same_seed():
 def test_perfect_correlation_keeps_states_equal():
     """Test that processes of correlation 1 keep two states with unit noise equal at every frame."""
     trajectory = simulate(_correlated([[1.0, 1.0], [1.0, 1.0]]), until=2, random_state=0, dt=0.1)
-    np.testing.assert_allclose(trajectory.values('a.n'), trajectory.values('b.n'), atol=1e-12)
+    np.testing.assert_allclose(trajectory.get_values('a.n'), trajectory.get_values('b.n'), atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -421,7 +435,7 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
         dt=0.05,
     )
     trajectory = simulation
-    np.testing.assert_array_equal(trajectory.values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
+    np.testing.assert_array_equal(trajectory.get_values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
 
 
 class _ReleaseCountingSolver(RK4Solver):
@@ -447,7 +461,7 @@ def test_simulation_releases_the_solver_at_the_last_frame():
 def test_simulation_prepare_compiles_and_chooses_the_solver_without_running():
     """Test that preparing a simulation takes no input, compiles the system, and runs nothing."""
     simulation = Simulation(_growth()).prepare()
-    assert simulation.problem_.states.names == ['a.n']
+    assert simulation.problem_.states.names == ['a.x']
     assert simulation.stepper_ is not None
     assert not hasattr(simulation, 'time_')
     with pytest.raises(SimulationError, match='not run'):
@@ -476,7 +490,7 @@ def test_trajectory_values_shaped_parameter_has_its_shape():
     """Test that a matrix parameter is read from a trajectory with its shape after a change as a whole."""
     weights = np.arange(8.0).reshape(4, 2)
     schedule = {'input.W': lambda t: weights if t < 0.2 else 2 * weights}
-    values = simulate(_weighted(weights, [1.0, 2.0]), until=0.3, dt=0.1, schedule=schedule).values('input.W')
+    values = simulate(_weighted(weights, [1.0, 2.0]), until=0.3, dt=0.1, schedule=schedule).get_values('input.W')
     assert values.shape[1:] == (4, 2)
     np.testing.assert_array_equal(values[-1], 2 * weights)
 
@@ -487,11 +501,8 @@ def test_trajectory_values_adaptive_shaped_parameter_of_an_interaction(backend):
     weights = np.arange(8.0).reshape(4, 2)
     system = _weighted(weights, [1.0, 2.0], interaction=AdaptiveInputInteraction)
     trajectory = simulate(system, until=1.0, dt=0.1, backend=backend())
-    assert trajectory.values('input.W').shape == (11, 4, 2)
-    np.testing.assert_allclose(trajectory.values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)
-
-
-HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+    assert trajectory.get_values('input.W').shape == (11, 4, 2)
+    np.testing.assert_allclose(trajectory.get_values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)
 
 
 class PersonElement(Element):
@@ -529,13 +540,13 @@ class ProgressionInteraction(Interaction):
 
 def test_checked_mode_catches_values_outside_alphabet():
     """Test that checked mode names the state when a law leaves the alphabet."""
-    system = System(
+    system = CompositeSystem(
         elements=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health took the values 3\.0 at t = 1\.0, outside its domain'):
         simulate(system, until=1, checked=True)
-    assert simulate(system, until=1).values('ann.health').shape == (2,)
+    assert simulate(system, until=1).get_values('ann.health').shape == (2,)
 
 
 @pytest.mark.benchmark
@@ -584,8 +595,8 @@ class ChainElement(Element):
 
 def test_simulation_without_a_solver_runs_the_default_solver():
     """Test that a simulation without a solver runs the default solver of the system's form."""
-    system = System(
-        elements=[PopulationElement('a', n=1)],
+    system = CompositeSystem(
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     simulation = Simulation(system).prepare().run(until=0.1)
@@ -594,8 +605,8 @@ def test_simulation_without_a_solver_runs_the_default_solver():
 
 def test_simulation_runs_the_solver_instance_passed():
     """Test that a simulation runs the solver instance it is given."""
-    system = System(
-        elements=[PopulationElement('a', n=1)],
+    system = CompositeSystem(
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     solver = ScipyODESolver(method='RK45')

@@ -6,8 +6,9 @@ size, so its curve bends ever more steeply upwards.
 """
 
 # %%
-# The system is built from its class with a growth rate of 0.2 and run for 20 time units, about six doubling times.
-# The observer saves every frame with the default blueprint, whose primary view is the time series of the population.
+# The example builds `ExponentialGrowthSystem` with a growth rate of 0.2 and runs it for 20 time units, about six
+# doubling times. The observer saves every frame with the default blueprint, whose primary view is the time series of
+# the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,7 +28,7 @@ trajectory = simulate(ExponentialGrowthSystem(n=10.0, r=0.2), observers=[observe
 # The law `dn/dt = r n` has the solution `n(t) = n0 exp(r t)`, so `log n` grows linearly with slope `r` and the
 # population doubles every `log 2 / r`. The simulated population should lie on the straight line.
 
-times, population = trajectory.times, trajectory.values('population.n')
+times, population = trajectory.times, trajectory.get_values('population.x')
 r, n0 = 0.2, 10.0
 slope = np.polyfit(times, np.log(population), 1)[0]
 fig, ax = plt.subplots(figsize=(7, 4))

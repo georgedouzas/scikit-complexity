@@ -1,4 +1,4 @@
-"""Define the compiled element spec."""
+"""Define the spec of an element of a compiled problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +16,7 @@ from ..elements import Element, GroupElement
 
 @dataclass(frozen=True)
 class CompiledElementSpec(BaseSpec):
-    """Element or group of a compiled problem with the dotted names of its variables.
+    """A spec of an element or group of a compiled problem, with its variable names.
 
     Args:
         path:

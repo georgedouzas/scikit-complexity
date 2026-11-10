@@ -29,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 # the fraction of edges whose two cells agree should rise from one half, the value of the random start.
 
 space = system.prepare().system_.elements[0].space
-alive = trajectory.values('cells.alive')
+alive = trajectory.get_values('cells.alive')
 edges = np.asarray([(first, second) for first, second, _ in space.edges_])
 agreement = (alive[:, edges[:, 0]] == alive[:, edges[:, 1]]).mean(axis=1)
 changed = (np.diff(alive, axis=0) != 0).mean(axis=1)

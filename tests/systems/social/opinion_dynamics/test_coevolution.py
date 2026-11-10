@@ -10,8 +10,8 @@ from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem, Heg
 
 def _discordant(trajectory, frame):
     """Return the share of the edges of a frame whose ends hold different opinions."""
-    snapshot = trajectory.network(frame)
-    opinions = trajectory.values('voters.opinion')[frame]
+    snapshot = trajectory.get_network(frame)
+    opinions = trajectory.get_values('voters.opinion')[frame]
     return float(np.mean(opinions[snapshot.sources] != opinions[snapshot.targets]))
 
 
@@ -23,8 +23,8 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
     )
     assert _discordant(slow, 2) > 0.15
     assert _discordant(fast, 2) < 0.02
-    graph = fast.network(-1).graph()
-    opinions = fast.values('voters.opinion')[-1]
+    graph = fast.get_network(-1).get_graph()
+    opinions = fast.get_values('voters.opinion')[-1]
     assert nx.number_connected_components(graph) >= 2
     assert 0 < opinions.mean() < 1
     for component in nx.connected_components(graph):
@@ -34,7 +34,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
 def test_coevolving_voter_keeps_the_number_of_edges():
     """Test that rewiring moves edges without creating or destroying them."""
     trajectory = simulate(CoevolvingVoterSystem(100, rewiring=0.5).prepare().system_, until=50, dt=10, random_state=1)
-    sizes = {trajectory.network(frame).sources.size for frame in range(len(trajectory.times))}
+    sizes = {trajectory.get_network(frame).sources.size for frame in range(len(trajectory.times))}
     assert len(sizes) == 1
 
 
@@ -44,8 +44,8 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     free = simulate(JoinAClubSystem(200, beta=0.0).prepare().system_, until=150, dt=10, random_state=0)
     assert _discordant(strong, -1) < 0.02
     assert _discordant(free, -1) > 0.25
-    members = strong.values('voters.opinion')[-1]
-    graph = strong.network(-1).graph()
+    members = strong.get_values('voters.opinion')[-1]
+    graph = strong.get_network(-1).get_graph()
     assert nx.number_connected_components(graph) >= 2
     assert 0 < members.mean() < 1
 

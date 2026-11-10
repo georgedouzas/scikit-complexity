@@ -1,7 +1,4 @@
-"""Compute one default analysis per kind of data of a trajectory.
-
-Each comes with curves, labels, and values ready to plot.
-"""
+"""Compute one default analysis per kind of data of a trajectory."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,13 +23,12 @@ from .types import Source
 
 SERIES_COLUMNS = 3
 PLANE = 2
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)
 class SignaturesResult:
-    """Default analysis of every kind of data of a trajectory.
+    """A result of `signatures`, one default analysis per kind of data.
 
     It comes with its curves, axis labels, title, and values.
 
@@ -85,6 +81,8 @@ def signatures(source: Source) -> SignaturesResult:
     of jumps per frame. A field gives the structure factor of its last frame with the peak wavelength or the correlation
     length. Agents give their polar and milling orders over time, or their nearest-neighbour distances against the
     Poisson law. A network gives its degree distribution.
+
+    It appears in every study that starts from a run and wants one overview per kind of data.
 
     Args:
         source:

@@ -6,9 +6,9 @@ the start, the share of hawks settles at `V / C`, the mixed equilibrium of the g
 """
 
 # %%
-# The system is built from its class with the value `V = 2` and the cost `C = 3` of a fight, and started with 5%
-# hawks. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the shares of hawks and doves.
+# The example builds `ReplicatorDynamicsSystem` with the value `V = 2` and the cost `C = 3` of a fight, and starts it
+# with 5% hawks. The observer saves every second frame with the default blueprint, whose primary view is the time series
+# of the shares of hawks and doves.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ trajectory = simulate(ReplicatorDynamicsSystem(x=[0.05, 0.95], V=2.0, C=3.0), ob
 fig, ax = plt.subplots(figsize=(7, 4))
 for start in [0.05, 0.3, 0.6, 0.95]:
     trajectory = simulate(ReplicatorDynamicsSystem(x=[start, 1 - start]))
-    ax.plot(trajectory.times, trajectory.values('population.x')[:, 0], label=f'{start:.0%} hawks at the start')
+    ax.plot(trajectory.times, trajectory.get_values('population.x')[:, 0], label=f'{start:.0%} hawks at the start')
 ax.axhline(2 / 3, color='black', linestyle='--', label='V / C')
 ax.set_xlabel('time')
 ax.set_ylabel('share of hawks')

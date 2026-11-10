@@ -9,7 +9,7 @@ shows the density of a 64 x 64 periodic lattice.
 """
 
 # %%
-# The system is built from its class with mean density `rho0 = 1` above the critical density
+# The example builds `TonerTuSystem` with mean density `rho0 = 1` above the critical density
 # `rho_c = 0.5`. The Euler-Maruyama stepper takes steps of 0.02 and the observer saves every frame of 0.25 with the
 # default blueprint, whose primary view is the image of the density.
 
@@ -40,7 +40,7 @@ speeds = []
 for density in densities:
     system_d = TonerTuSystem(shape=(16, 16), rho0=density, random_state=1)
     run = simulate(system_d, until=60, solver=solver, dt=1.0, random_state=1)
-    velocity = np.stack([run.values('flock.vx')[-10:], run.values('flock.vy')[-10:]], axis=-1)
+    velocity = np.stack([run.get_values('flock.vx')[-10:], run.get_values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())
 grid = np.linspace(0.2, 2.0, 300)
 fig, ax = plt.subplots(figsize=(7, 4))

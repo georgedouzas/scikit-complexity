@@ -12,7 +12,7 @@ from ._read_spec import ReadSpec
 
 @dataclass(frozen=True)
 class PairReadSpec(BaseSpec):
-    """How a neighbourhood reduction reads one symbol for every member-neighbour pair.
+    """A spec of how a reduction over neighbours reads a symbol for each pair.
 
     Args:
         read:

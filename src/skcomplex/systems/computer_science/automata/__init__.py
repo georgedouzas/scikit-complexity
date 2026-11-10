@@ -24,6 +24,7 @@ from ._free_group_automata import (
     PairCellElement,
     SurjectiveLinearAutomatonSystem,
 )
+from ._generator_neighborhood import GeneratorNeighborhood
 from ._group_automata import (
     BaumslagSolitarAutomatonSystem,
     FreeGroupAutomatonSystem,
@@ -74,6 +75,7 @@ __all__: list[str] = [
     'FreeGroupAutomatonSystem',
     'GameOfLifeSystem',
     'GapSubshiftSystem',
+    'GeneratorNeighborhood',
     'GoldenCellElement',
     'GrigorchukAutomatonSystem',
     'GroupCellElement',

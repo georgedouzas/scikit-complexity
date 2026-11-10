@@ -16,13 +16,13 @@ def test_labour_market_flow_balance():
         observables=LabourMarketSystem().get_run_settings()['observables'],
     )
     window = slice(50, None)
-    finding = np.nansum(trajectory.values('labour.volume')[window]) / np.nansum(
-        trajectory.values('searching')[window],
+    finding = np.nansum(trajectory.get_values('labour.volume')[window]) / np.nansum(
+        trajectory.get_values('searching')[window],
     )
-    unemployment = trajectory.values('unemployment')[window].mean()
+    unemployment = trajectory.get_values('unemployment')[window].mean()
     assert 0.05 < finding < 0.95
     assert abs(unemployment - separation / (separation + finding)) < 0.03
-    workers = trajectory.agents('workers', 150)
+    workers = trajectory.get_agents('workers', 150)
     hired = workers.values['hired'] >= 0
     assert hired.sum() > 50
     np.testing.assert_array_equal(workers.values['hired'][hired], workers.values['offer'][hired])

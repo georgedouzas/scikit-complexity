@@ -1,7 +1,4 @@
-"""Pass that declares the hidden state that counts the renewals of renewal laws.
-
-It runs once delays are lowered, for every renewal law.
-"""
+"""Pass that declares the hidden state that counts the renewals of renewal laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +22,7 @@ from ._layout import LayoutPass
 
 
 class DeclareRenewalsPass(BasePass):
-    """Pass that declares the hidden state that counts the renewals of renewal laws.
+    """A pass that declares the hidden state that counts the renewals of renewal laws.
 
     It runs once delays are lowered, for every renewal law.
     """
@@ -41,10 +38,10 @@ class DeclareRenewalsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Declare the counts of the renewal laws."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         renewals: list[BoundRenewalSpec] = []
-        for spec, laws in Compilation._required(compilation.delayed, 'delayed'):
-            declarations, declared = self._declared_renewals(spec, laws, declarations)
+        for spec, laws in Compilation._get_required(compilation.delayed, 'delayed'):
+            declarations, declared = self._get_declared_renewals(spec, laws, declarations)
             renewals += declared
         compilation.layout, compilation.renewals = declarations, renewals
 
@@ -60,12 +57,12 @@ class DeclareRenewalsPass(BasePass):
         The state counts the renewals of every member of a renewal law. Returns the declarations and the renewal law
         with its hidden state.
         """
-        group = CensusPass._renewal_group(spec, law)
+        group = CensusPass._get_renewal_group(spec, law)
         rows = spec.rows
         sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
         shape, members = ((rows,), rows) if rows > 1 else ((), None)
         entry = EntrySpec(f'{group}.{sanitized}~renewals', declarations.ends[True], shape, NN, members)
-        declarations = LayoutPass._with_entry(declarations, entry, np.zeros(rows), is_state=True)
+        declarations = LayoutPass._copy_with_entry(declarations, entry, np.zeros(rows), is_state=True)
         return declarations, BoundRenewalSpec(
             spec,
             law,
@@ -76,7 +73,7 @@ class DeclareRenewalsPass(BasePass):
         )
 
     @staticmethod
-    def _declared_renewals(
+    def _get_declared_renewals(
         spec: KernelSpec,
         laws: list[BaseLaw],
         declarations: DeclarationsSpec,

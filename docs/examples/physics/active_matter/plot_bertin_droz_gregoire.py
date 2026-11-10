@@ -9,7 +9,7 @@ density, which grows exponentially and saturates.
 """
 
 # %%
-# The system is built from its class on a single position with 32 orientations, since the initial state of
+# The example builds `BertinDrozGregoireSystem` on a single position with 32 orientations, since the initial state of
 # the system is homogeneous and streaming therefore leaves it so. With the noise 0.5, the interaction range 0.5, and the
 # unit speed and tumbling rate of the defaults, the transition density is close to 0.43. The observable `polar_order` is
 # computed from the density at every frame of 1 up to `t = 60`, and the default blueprint shows the observables first.
@@ -33,7 +33,7 @@ THETA = 2 * np.pi * (np.arange(ANGLES) + 0.5) / ANGLES
 
 def polar_order(_, values):
     """Return the modulus of the mean of the unit vectors of the orientations."""
-    density = np.ravel(values['flock.f'])
+    density = np.ravel(values['flock.x'])
     return np.abs(density @ np.exp(1j * THETA)) / density.sum()
 
 
@@ -58,14 +58,14 @@ rates = []
 for ratio in ratios:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION)
     run = simulate(gas, until=10, solver=solver, dt=10.0, observables=observables)
-    order = run.values('polar_order')
+    order = run.get_values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
     run = simulate(gas, until=150, solver=solver, dt=150.0, observables=observables)
-    orders.append(run.values('polar_order')[-1])
+    orders.append(run.get_values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi
 

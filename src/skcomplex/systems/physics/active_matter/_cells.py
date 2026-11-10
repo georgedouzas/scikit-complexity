@@ -21,7 +21,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -110,25 +110,7 @@ class MotileCellElement(Element):
         self.F_adh = F_adh
 
 
-def _velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
-    """Return the velocity `v0 n + mu F` of a cell.
-
-    The force `F` is the sum of the forces of the neighbours within a reach.
-    """
-    cell = s.target
-    dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
-    distance = sqrt(dx**2 + dy**2)
-    stretch = distance - cell.R_eq
-    strength = where(
-        stretch < 0,
-        cell.F_rep * stretch / cell.R_eq,
-        cell.F_adh * stretch / (cell.R_0 - cell.R_eq),
-    )
-    force = neighbors(vector([strength * dx / distance, strength * dy / distance]), over=RadiusNeighborhood(reach))
-    return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
-
-
-def _heading(member: SimpleNamespace) -> Expression:
+def _get_heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading.
 
     The vector lies in the complex plane.
@@ -136,7 +118,7 @@ def _heading(member: SimpleNamespace) -> Expression:
     return exp(I * member.theta)
 
 
-def _polarization(s: SimpleNamespace) -> Expression:
+def _get_polarization(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean heading."""
     return abs(s.mean_heading)
 
@@ -203,9 +185,27 @@ class SzaboCellsSystem(BaseSystem):
     solver = EulerMaruyamaSolver(dt=0.01)
     backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _heading, group='cells'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_heading', _get_heading, group='cells'),
+        ObservableSpec('polarization', _get_polarization),
     )
+
+    @staticmethod
+    def _get_velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
+        """Return the velocity `v0 n + mu F` of a cell.
+
+        The force `F` is the sum of the forces of the neighbours within a reach.
+        """
+        cell = s.target
+        dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
+        distance = sqrt(dx**2 + dy**2)
+        stretch = distance - cell.R_eq
+        strength = where(
+            stretch < 0,
+            cell.F_rep * stretch / cell.R_eq,
+            cell.F_adh * stretch / (cell.R_0 - cell.R_eq),
+        )
+        force = neighbors(vector([strength * dx / distance, strength * dy / distance]), over=RadiusNeighborhood(reach))
+        return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
 
     def __init__(
         self,
@@ -237,23 +237,23 @@ class SzaboCellsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _turning(s: SimpleNamespace, *, reach: float) -> Expression:
+    def _get_turning(s: SimpleNamespace, *, reach: float) -> Expression:
         """Return the rate that turns a heading towards the velocity.
 
         The rate is `arcsin((n x v / |v|)_z) / tau`.
         """
         cell = s.target
-        velocity = _velocity(s, reach=reach)
+        velocity = SzaboCellsSystem._get_velocity(s, reach=reach)
         speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
         cross = (cos(cell.theta) * velocity[1] - sin(cell.theta) * velocity[0]) / speed
         return arcsin(clip(cross, -1, 1)) / cell.tau
 
     @staticmethod
-    def _angular_noise(s: SimpleNamespace) -> Expression:
+    def _get_angular_noise(s: SimpleNamespace) -> Expression:
         """Return the amplitude `eta / sqrt(12)` of the angular noise."""
         return s.target.eta / sqrt(12)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cells of Szabó (2006) in a periodic box.
 
         The cells move together above a critical density.
@@ -278,15 +278,20 @@ class SzaboCellsSystem(BaseSystem):
             },
             visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
         )
-        motion = RateInteraction('motion', target='cells', state='x', rate=functools.partial(_velocity, reach=self.R_0))
+        motion = RateInteraction(
+            'motion',
+            target='cells',
+            state='x',
+            rate=functools.partial(SzaboCellsSystem._get_velocity, reach=self.R_0),
+        )
         turning = RateInteraction(
             'turning',
             target='cells',
             state='theta',
-            rate=functools.partial(self._turning, reach=self.R_0),
-            noise=self._angular_noise,
+            rate=functools.partial(self._get_turning, reach=self.R_0),
+            noise=self._get_angular_noise,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells],
             interactions=[motion, turning],

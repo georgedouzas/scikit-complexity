@@ -1,4 +1,4 @@
-"""Define the node spec."""
+"""Define the spec of a part with its place in the tree of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +16,7 @@ from ..spaces import BaseSpace
 
 @dataclass(frozen=True)
 class NodeSpec(BaseSpec):
-    """Element or interaction with its place in the system tree.
+    """A spec of an element or interaction with its place in the tree of a system.
 
     Args:
         path:

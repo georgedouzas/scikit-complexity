@@ -23,6 +23,7 @@ from ._screenshots import finished_observers, thumbnail_of
 from ._settings import Budget, CaptureSettings
 
 EMBED_CLASS = 'skcomplex-rerun'
+PREPARE = RerunObserver._prepare
 
 
 @dataclass
@@ -36,8 +37,7 @@ class _Redirect:
     target: Path | None = None
 
 
-_REDIRECT = _Redirect()
-_PREPARE = RerunObserver._prepare
+REDIRECT = _Redirect()
 
 
 def _prepare(observer: RerunObserver, problem: BaseProblemSpec) -> None:
@@ -45,12 +45,12 @@ def _prepare(observer: RerunObserver, problem: BaseProblemSpec) -> None:
 
     This applies to an example that runs in its folder.
     """
-    path, target = observer.save_path, _REDIRECT.target
-    in_example = Path.cwd().resolve() == _REDIRECT.source
+    path, target = observer.save_path, REDIRECT.target
+    in_example = Path.cwd().resolve() == REDIRECT.source
     if target is not None and path is not None and not Path(path).is_absolute() and in_example:
         observer.save_path = target / path
         observer.save_path.parent.mkdir(parents=True, exist_ok=True)
-    _PREPARE(observer, problem)
+    PREPARE(observer, problem)
 
 
 def images_markdown(paths: list[Path], script: GalleryScript) -> str:
@@ -148,7 +148,7 @@ class RerunScraper:
         if self._folder is not None:
             shutil.rmtree(self._folder, ignore_errors=True)
         self._folder = Path(tempfile.mkdtemp(prefix=f'{Path(file).stem}-'))
-        _REDIRECT.source, _REDIRECT.target = Path(file).resolve().parent, self._folder
+        REDIRECT.source, REDIRECT.target = Path(file).resolve().parent, self._folder
         RerunObserver._prepare = _prepare
         self._start, self._captured = time.perf_counter(), 0.0
 

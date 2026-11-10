@@ -33,10 +33,10 @@ trajectory = simulate(CellCycleInvasionSystem(), observers=[observer], random_st
 
 columns = np.arange(24 * 12) % 24
 inside = (columns >= 9) & (columns < 15)
-occupied = sum(np.asarray(trajectory.values(f'cells.{phase}')) for phase in PHASES)
+occupied = sum(np.asarray(trajectory.get_values(f'cells.{phase}')) for phase in PHASES)
 fig, (phases, scratch) = plt.subplots(1, 2, figsize=(10, 4))
 for phase, colour in zip(PHASES, ('tab:red', 'gold', 'tab:green'), strict=True):
-    phases.plot(trajectory.times, trajectory.values(f'{phase}_cells'), color=colour, label=phase)
+    phases.plot(trajectory.times, trajectory.get_values(f'{phase}_cells'), color=colour, label=phase)
 phases.set_xlabel('time (hours)')
 phases.set_ylabel('cells')
 phases.set_title('Cells per phase')
@@ -58,7 +58,7 @@ plt.show()
 truth = simulate(CellCycleInvasionSystem(12, 6, Rr=0.1), until=48, random_state=1)
 times = np.arange(0.0, 49.0, 12.0)
 data = {
-    f'{phase}_cells': (times, np.interp(times, truth.times, truth.values(f'{phase}_cells'))) for phase in PHASES
+    f'{phase}_cells': (times, np.interp(times, truth.times, truth.get_values(f'{phase}_cells'))) for phase in PHASES
 }
 
 

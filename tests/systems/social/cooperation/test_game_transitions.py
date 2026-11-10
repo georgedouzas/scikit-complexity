@@ -27,8 +27,8 @@ def test_mutual_cooperation_keeps_the_valuable_game():
         GameTransitionsSystem(update='pairwise', selection=1.0, first_benefit=6.0, second_benefit=2.0),
         50,
     )
-    assert trajectory.values('evolution.game_one')[-1] == 1.0
-    assert trajectory.values('evolution.game_one')[1] < 1.0
+    assert trajectory.get_values('evolution.game_one')[-1] == 1.0
+    assert trajectory.get_values('evolution.game_one')[1] < 1.0
 
 
 def test_game_transitions_rejects_an_unknown_update():

@@ -6,8 +6,8 @@ time, and it follows the noise smoothly with a smaller amplitude.
 """
 
 # %%
-# The system is built from its class with one particle, unit friction and noise intensity, and a noise
-# correlation time `tau = 1`, and simulated for 60 relaxation times. The observer saves every frame with the default
+# The example builds `ColoredNoiseLangevinSystem` with one particle, unit friction and noise intensity, and a noise
+# correlation time `tau = 1`, and simulates it for 60 relaxation times. The observer saves every frame with the default
 # blueprint, whose primary view holds the velocity `v` and the noise `xi` of the particle.
 
 import matplotlib.pyplot as plt
@@ -49,9 +49,9 @@ for tau in taus:
         solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
         random_state=0,
     )
-    variances.append(np.mean(run.values('particles.v')[20:] ** 2))
+    variances.append(np.mean(run.get_values('particles.v')[20:] ** 2))
     if tau == 1.0:
-        noise = run.values('particles.xi')
+        noise = run.get_values('particles.xi')
 
 lags = np.arange(11) * 0.5
 correlation = np.array([np.mean(noise[: len(noise) - lag] * noise[lag:]) for lag in range(11)]) / np.mean(noise**2)

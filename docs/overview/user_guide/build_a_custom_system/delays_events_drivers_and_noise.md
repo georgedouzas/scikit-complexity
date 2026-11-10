@@ -1,12 +1,14 @@
 # Delays, events, drivers, and noise
 
-Make laws read the past, change states at discrete events, follow inputs that switch in time, and take noise in the
-convention of your field.
+This page makes laws read the past, change states at discrete events, follow inputs that switch in time, and take
+noise in the convention of your field. Each section writes the laws in the `_get_laws` method of an
+[`Element`](../core_components/elements.md#element) of its own.
 
 ## Delays
 
-Read a state as it was some time ago, as in a feedback that acts with a lag. `delayed(x, tau)` from
-`skcomplex.core.components.laws.utils` is the state `x` at `t - tau`.
+Here a law reads a state as it was some time ago, as in a feedback that acts with a lag. `delayed(x, tau)` from
+`skcomplex.core.components.laws.utils` is the state `x` at `t - tau`. The Mackey and Glass model of blood cell
+production feeds back the cell count of 17 days before through a [`RateLaw`](../core_components/laws.md#ratelaw).
 
 ```python
 from typing import Annotated
@@ -16,7 +18,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import delayed
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -48,9 +50,12 @@ class MackeyGlassElement(Element):
         return [RateLaw(s.x, s.beta * past / (1 + past**s.n) - s.gamma * s.x)]
 
 
-cells = System(elements=[MackeyGlassElement('cells')])
-round(float(simulate(cells, until=300, dt=0.5).values('cells.x')[-1]), 3)
+cells = CompositeSystem(elements=[MackeyGlassElement('cells')])
+round(float(simulate(cells, until=300, dt=0.5).get_values('cells.x')[-1]), 3)
 ```
+
+The count is 1.004 at the day 300. With this delay the model is chaotic, so the value depends on the history before the
+start.
 
 - The delay is a constant or depends on the state.
 - The solvers keep a history of dense output and step no further than the smallest delay, by the method of steps.
@@ -59,8 +64,9 @@ round(float(simulate(cells, until=300, dt=0.5).values('cells.x')[-1]), 3)
 
 ## Events
 
-Change states at the moment a condition is met, such as a ball that bounces off the floor.
-`CrossingLaw(guard, reset, direction, terminal, label='')` fires when the guard crosses zero.
+Here a law changes states at the moment a condition is met, such as a ball that bounces off the floor. A
+[`CrossingLaw`](../core_components/laws.md#crossinglaw), `CrossingLaw(guard, reset, direction, terminal, label='')`, fires when the
+guard crosses zero. The ball falls from the height 1 and keeps 0.8 of its speed at each impact.
 
 ```python
 from typing import Annotated
@@ -68,7 +74,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -92,9 +98,12 @@ class BallElement(Element):
         return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
 
-trajectory = simulate(System(elements=[BallElement('ball')]), until=3, dt=0.01)
+trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=3, dt=0.01)
 [round(event.time, 6) for event in trajectory.events]
 ```
+
+The first impact comes at 0.451524, the time `sqrt(2 / 9.81)` of a fall from the height 1. The later impacts come at
+1.173961, 1.751912, 2.214272, 2.58416, and 2.880071, closer together as the bounces shrink.
 
 - The guard fires upward for `direction=1`, downward for `-1`, and either way for `0`.
 - The solver locates the crossing on its interpolant to the precision of the root finder. It applies the reset to every
@@ -106,8 +115,9 @@ trajectory = simulate(System(elements=[BallElement('ball')]), until=3, dt=0.01)
 
 ## Drivers
 
-Feed a system an input that switches or bends in time, such as a step, a ramp, or measured data. `step`, `ramp`,
-`pulse`, `pulse_train`, and `series` from `skcomplex.core.components.laws.utils` are inputs of the time `s.t`.
+Here a system follows an input that switches or bends in time, such as a step, a ramp, or measured data. `step`,
+`ramp`, `pulse`, `pulse_train`, and `series` from `skcomplex.core.components.laws.utils` are inputs of the time `s.t`.
+A first-order filter receives a unit step at the time 5.
 
 ```python
 from typing import Annotated
@@ -115,7 +125,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import step
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
@@ -136,9 +146,11 @@ class FilterElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-filtered = simulate(System(elements=[FilterElement('filter')]), until=10, dt=0.5)
-round(float(filtered.values('filter.y')[-1]), 4)
+filtered = simulate(CompositeSystem(elements=[FilterElement('filter')]), until=10, dt=0.5)
+round(float(filtered.get_values('filter.y')[-1]), 4)
 ```
+
+The output is 0.9933 at the time 10, which is `1 - exp(-5)`, the response five time units after the step.
 
 `series` interpolates data with `'linear'` or `'previous'` interpolation. The compiler finds the times where the inputs
 jump or bend, including the periodic edges of pulse trains. The solvers stop at every one and evaluate the inputs on the
@@ -146,15 +158,17 @@ correct side of it, so a step response is exact to the solver tolerance.
 
 ## Noise conventions
 
-Read noise in the convention of your field, Itô, Stratonovich, or anti-Itô.
-`NoiseLaw(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read.
+Here a noise law is read in the convention of your field. A convention fixes where in a step the amplitude of the
+noise is evaluated: at the start for Itô, at the midpoint for Stratonovich, and at the end for anti-Itô. A
+[`NoiseLaw`](../core_components/laws.md#noiselaw) with `convention='stratonovich'` or `'anti-ito'` declares how it is read. The
+example grows an asset at the rate 0.5 with a noise of amplitude `0.8 x`.
 
 ```python
 from typing import Annotated
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MilsteinSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -178,12 +192,13 @@ class GrowthElement(Element):
         return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')]
 
 
-growth = System(elements=[GrowthElement('asset')])
+growth = CompositeSystem(elements=[GrowthElement('asset')])
 round(float(simulate(growth, until=1, solver=MilsteinSolver(dt=0.01), random_state=0).states[-1][0]), 3)
 ```
 
-The compiler adds the drift correction `α g ∂g/∂x`, with `α = 1/2` for Stratonovich and `1` for anti-Itô. So every SDE
-solver integrates the equivalent Itô equation.
+The asset is worth 4.235 after one time unit on this draw. The compiler adds the drift correction `α g ∂g/∂x`, with
+`α = 1/2` for Stratonovich and `1` for anti-Itô. So every SDE [solver](../glossary.md#solver) integrates the equivalent
+Itô equation.
 
 - `EulerMaruyamaSolver` has strong order 1/2.
 - `MilsteinSolver`, in Platen's derivative-free form, has strong order 1 for diagonal noise.
@@ -191,8 +206,9 @@ solver integrates the equivalent Itô equation.
 
 ## Shared and correlated noise
 
-Drive several states with one source of noise, or with sources that move together, such as the prices of two related
-assets. `NoiseLaw(..., process=...)` names the Wiener process a law draws.
+Here several states share one source of noise, or sources that move together, such as the prices of two related
+assets. `NoiseLaw(..., process=...)` names the Wiener process a law draws. The interaction below binds two processes
+with the correlation 0.8 through a role of its own.
 
 ```python
 from typing import Annotated
@@ -202,7 +218,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
@@ -233,13 +249,13 @@ class CorrelatedNoiseInteraction(Interaction):
 
 
 processes = WienerProcessSpec('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
-market = System(
+market = CompositeSystem(
     elements=[StockElement('a'), StockElement('b')],
     interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
 )
 solver = EulerMaruyamaSolver(dt=1.0)
 trajectory = simulate(market, until=2000, solver=solver, dt=1.0, random_state=0)
-round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1)
+round(float(np.corrcoef(np.diff(trajectory.get_values('a.n')), np.diff(trajectory.get_values('b.n')))[0, 1]), 1)
 ```
 
 The measured correlation of the increments is the 0.8 of the covariance.
@@ -266,9 +282,10 @@ convention. Validation reports:
 
 ## Conserved noise
 
-Add thermal noise to a field without changing its total, as in System B and active field theories.
+Here thermal noise enters a field without changing its total, as in System B and active field theories.
 `NoiseLaw(target, value, conserved=True)` on a state of a field on a lattice adds the divergence of a random flux,
-`div(value eta)`.
+`div(value eta)`. The field is a [`FieldElement`](../core_components/elements.md#fieldelement) on a
+[`LatticeSpace`](../core_components/spaces.md#latticespace) of 16 by 16 sites.
 
 ```python
 from typing import Annotated
@@ -279,7 +296,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -303,13 +320,13 @@ class DensityElement(Element):
         return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)]
 
 
-gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
+gas = CompositeSystem(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
-density = simulate(gas, until=5, solver=solver, random_state=0).values('gas.rho')
+density = simulate(gas, until=5, solver=solver, random_state=0).get_values('gas.rho')
 round(float(density[-1].sum()), 6), bool(density[-1].std() > 0)
 ```
 
-The density fluctuates, and its total stays at 256, one per site.
+The block returns `(256.0, True)`. The density fluctuates, and its total stays at 256, one per site.
 
 - Every link between neighbouring sites draws one Wiener process. Site `i` gains `value / h` times the increment of the
   link from its previous neighbour and loses the same amount on the link to its next one, along every dimension of
@@ -322,7 +339,7 @@ The density fluctuates, and its total stays at 256, one per site.
 
 ## Which solvers support what
 
-Solvers and backends declare the noise structures they draw.
+This section matches a solver to the noise of a system. Solvers and backends declare the noise structures they draw.
 
 - `'diagonal'` is one process per state.
 - `'shared'` is a process that drives several states.
@@ -334,13 +351,13 @@ derivative-free correction holds for diagonal noise only, and `LammpsSolver` sup
 reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../parts/solvers.md)
 lists their supported tags.
 
-SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
-iteration reject delays and events, with an error that names the solvers to use.
+The solvers of SciPy, RK4, Euler-Maruyama, Milstein, and Heun integrate delays, events, and drivers. Velocity Verlet,
+Gillespie, and map iteration reject delays and events, with an error that names the solvers to use.
 
 ## Ready-made systems with delays and events
 
-These ready-made systems use delays, events, drivers, or noise. Each is a class of the subfield of
-`skcomplex.systems` in brackets.
+This section lists ready-made systems to start from. Each uses delays, events, drivers, or noise, and each is a
+class of the subfield of `skcomplex.systems` in brackets.
 
 - Delays, events, and drivers: `MackeyGlassSystem` (`biology.physiology`), `HutchinsonSystem` (`biology.ecology`),
   `IntegrateAndFireSystem` and `IzhikevichSystem` (`biology.neuroscience`), `DelayedKuramotoSystem`
@@ -358,3 +375,5 @@ from skcomplex.systems.physics.mechanics import BouncingBallSystem
 
 len(simulate(BouncingBallSystem()).events) > 0
 ```
+
+The bouncing ball of the catalog records its impacts as events, so the block returns `True`.

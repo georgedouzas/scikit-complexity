@@ -129,4 +129,4 @@ def test_spacetimes_reject_invalid_masses_and_spins(space):
 def test_registered_defaults_run():
     """Test that the precession runs with its registered settings."""
     trajectory = simulate(SchwarzschildPrecessionSystem(), random_state=0)
-    assert np.asarray(trajectory.values('particle.x')).shape[1] == 4
+    assert np.asarray(trajectory.get_values('particle.x')).shape[1] == 4

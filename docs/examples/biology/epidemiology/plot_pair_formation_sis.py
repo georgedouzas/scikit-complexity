@@ -7,8 +7,8 @@ monogamy, because the infection passes on before the partnership that brought it
 """
 
 # %%
-# The system is built from its class with three concurrent partners per person, run by the Gillespie solver. The
-# observer saves every frame with the default blueprint, whose primary view is the network of current partnerships,
+# The example builds `PairFormationSISSystem` with three concurrent partners per person, run by the Gillespie solver.
+# The observer saves every frame with the default blueprint, whose primary view is the network of current partnerships,
 # with the infected people bright, as partnerships dissolve and form.
 
 import matplotlib.pyplot as plt
@@ -31,8 +31,8 @@ trajectory = simulate(PairFormationSISSystem(n=200, k=3), observers=[observer], 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for k in (1, 2, 4):
     run = simulate(PairFormationSISSystem(n=300, k=k), random_state=0, until=30)
-    ax.plot(run.times, run.values('people.i').mean(axis=1), label=f'k = {k}')
-ax.plot(trajectory.times, trajectory.values('people.i').mean(axis=1), ':', label='run above')
+    ax.plot(run.times, run.get_values('people.i').mean(axis=1), label=f'k = {k}')
+ax.plot(trajectory.times, trajectory.get_values('people.i').mean(axis=1), ':', label='run above')
 ax.set_xlabel('time')
 ax.set_ylabel('prevalence')
 ax.set_title('Concurrency raises the prevalence at a fixed contact rate')

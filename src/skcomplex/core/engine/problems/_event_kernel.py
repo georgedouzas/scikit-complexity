@@ -11,7 +11,7 @@ from ._base import BaseKernel
 
 
 class EventKernel(BaseKernel):
-    """Event compiled into a guard function and a reset function of the state vector.
+    """A kernel of an event, compiled into a guard and a reset of the state vector.
 
     Args:
         label:
@@ -66,5 +66,5 @@ class EventKernel(BaseKernel):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the state vector after the event at the state, a copy of it without a reset."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         self.values_ = state.x.copy() if self.reset is None else self.reset(state.t, state.x, state.p)

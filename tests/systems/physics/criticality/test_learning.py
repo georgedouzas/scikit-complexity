@@ -13,7 +13,7 @@ def test_sk_game_freezes_at_low_temperature():
         system = SKGameSystem(128, temperature=temperature).prepare().system_
         couplings = system.elements[0].values['couplings']
         actions = np.asarray(
-            simulate(system, until=150, dt=1, random_state=0).values('agents.sigma'),
+            simulate(system, until=150, dt=1, random_state=0).get_values('agents.sigma'),
         )[-50:]
         reward = np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1]
         outcomes.append((reward, (actions[1:] != actions[:-1]).mean()))

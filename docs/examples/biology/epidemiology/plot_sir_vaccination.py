@@ -8,8 +8,8 @@ near half of the population without vaccination.
 """
 
 # %%
-# The system is built from its class with the transmission rate 0.5, the recovery rate 0.1, and 1% of the population
-# infected at the start, so the basic reproduction number is 5. Its tuned Pontryagin solver derives the
+# The example builds `SIRVaccinationSystem` with the transmission rate 0.5, the recovery rate 0.1, and 1% of the
+# population infected at the start, so the basic reproduction number is 5. Its tuned Pontryagin solver derives the
 # costates and the vaccination rate `u = (lambda_S - lambda_R) S / b` symbolically. The default blueprint shows the
 # three fractions and the vaccination rate in one time series view.
 
@@ -33,13 +33,13 @@ trajectory = simulate(SIRVaccinationSystem(), observers=[observer])
 
 uncontrolled = simulate(SIRVaccinationSystem(a=0.0))
 fig, (infected, rate) = plt.subplots(1, 2, figsize=(10, 4))
-infected.plot(uncontrolled.times, uncontrolled.values('population.I'), label='without vaccination')
-infected.plot(trajectory.times, trajectory.values('population.I'), label='optimal vaccination')
+infected.plot(uncontrolled.times, uncontrolled.get_values('population.I'), label='without vaccination')
+infected.plot(trajectory.times, trajectory.get_values('population.I'), label='optimal vaccination')
 infected.set_xlabel('time')
 infected.set_ylabel('infected fraction I')
 infected.set_title('The peak drops with vaccination')
 infected.legend()
-rate.plot(trajectory.times, trajectory.values('population.u'))
+rate.plot(trajectory.times, trajectory.get_values('population.u'))
 rate.set_xlabel('time')
 rate.set_ylabel('vaccination rate u')
 rate.set_title('Vaccinate early')

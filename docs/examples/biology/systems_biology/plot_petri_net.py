@@ -7,7 +7,7 @@ moment, a place invariant of the net.
 """
 
 # %%
-# The system is built from its class with the gene expression net, and the observer saves every frame with the default
+# The example builds `PetriNetSystem` with the gene expression net, and the observer saves every frame with the default
 # blueprint, whose primary view is the time series of the tokens.
 
 import matplotlib.pyplot as plt
@@ -29,15 +29,15 @@ trajectory = simulate(PetriNetSystem(), observers=[observer], random_state=0)
 
 continuous = simulate(PetriNetSystem(stochastic=False))
 fig, (tokens, invariant) = plt.subplots(1, 2, figsize=(11, 4.5))
-tokens.step(trajectory.times, trajectory.values('protein.n'), where='post', label='protein, stochastic')
-tokens.plot(continuous.times, continuous.values('protein.n'), label='protein, continuous')
-tokens.step(trajectory.times, trajectory.values('mRNA.n'), where='post', label='mRNA, stochastic')
+tokens.step(trajectory.times, trajectory.get_values('protein.x'), where='post', label='protein, stochastic')
+tokens.plot(continuous.times, continuous.get_values('protein.x'), label='protein, continuous')
+tokens.step(trajectory.times, trajectory.get_values('mRNA.x'), where='post', label='mRNA, stochastic')
 tokens.set_xlabel('time')
 tokens.set_ylabel('tokens')
 tokens.set_title('Firing of the transitions')
 tokens.legend()
-invariant.step(trajectory.times, trajectory.values('gene_on.n') + trajectory.values('gene_off.n'), where='post')
-invariant.step(trajectory.times, trajectory.values('gene_on.n'), where='post', alpha=0.6)
+invariant.step(trajectory.times, trajectory.get_values('gene_on.x') + trajectory.get_values('gene_off.x'), where='post')
+invariant.step(trajectory.times, trajectory.get_values('gene_on.x'), where='post', alpha=0.6)
 invariant.set_xlabel('time')
 invariant.set_ylabel('gene tokens')
 invariant.set_title('gene_on + gene_off stays 1')

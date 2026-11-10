@@ -16,7 +16,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
@@ -258,23 +258,16 @@ class MotorCouplingInteraction(Interaction):
         ]
 
 
-def _speed_of_rotor(s: SimpleNamespace) -> Expression:
+def _get_speed_of_rotor(s: SimpleNamespace) -> Expression:
     """Return the angular velocity of the rotor."""
     speed: Expression = s.rotor.phi_d1
     return speed
 
 
-def _current_of_winding(s: SimpleNamespace) -> Expression:
+def _get_current_of_winding(s: SimpleNamespace) -> Expression:
     """Return the current of the armature."""
     current: Expression = s.winding.p_i
     return current
-
-
-def _spring_energy(s: SimpleNamespace) -> Expression:
-    """Return the energy of the suspension spring and of the tire on the road step."""
-    road = step(s.t, s.car.at, s.car.height)
-    energy: Expression = s.car.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.car.kt * (s.car.y2 - road) ** 2 / 2
-    return energy
 
 
 class DcMotorSystem(BaseSystem):
@@ -320,8 +313,8 @@ class DcMotorSystem(BaseSystem):
     until = 10.0
     dt = 0.01
     observables = (
-        ObservableSpec('speed', _speed_of_rotor),
-        ObservableSpec('current', _current_of_winding),
+        ObservableSpec('speed', _get_speed_of_rotor),
+        ObservableSpec('current', _get_current_of_winding),
     )
 
     def __init__(
@@ -344,20 +337,20 @@ class DcMotorSystem(BaseSystem):
         self.b = b
 
     @staticmethod
-    def _rotor_lagrangian(s: SimpleNamespace) -> Expression:
+    def _get_rotor_lagrangian(s: SimpleNamespace) -> Expression:
         """Return the kinetic energy of the rotor."""
         energy: Expression = s.target.J * derivative(s.target.phi, 1) ** 2 / 2
         return energy
 
     @staticmethod
-    def _rotor_dissipation(s: SimpleNamespace) -> Expression:
+    def _get_rotor_dissipation(s: SimpleNamespace) -> Expression:
         """Return the Rayleigh dissipation of the viscous friction of the rotor."""
         dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
         return dissipation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 VoltageSourceElement('source', V=self.V),
@@ -376,12 +369,19 @@ class DcMotorSystem(BaseSystem):
                     'rotation',
                     target='rotor',
                     states='phi',
-                    lagrangian=self._rotor_lagrangian,
-                    dissipation=self._rotor_dissipation,
+                    lagrangian=self._get_rotor_lagrangian,
+                    dissipation=self._get_rotor_dissipation,
                 ),
                 MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=self.k),
             ],
         )
+
+
+def _get_spring_energy(s: SimpleNamespace) -> Expression:
+    """Return the energy of the suspension spring and of the tire on the road step."""
+    road = step(s.t, s.car.at, s.car.height)
+    energy: Expression = s.car.k * (s.car.y1 - s.car.y2) ** 2 / 2 + s.car.kt * (s.car.y2 - road) ** 2 / 2
+    return energy
 
 
 class QuarterCarSystem(BaseSystem):
@@ -427,7 +427,7 @@ class QuarterCarSystem(BaseSystem):
     references = ('Fritzson 2015',)
     until = 10.0
     dt = 0.005
-    observables = (ObservableSpec('energy', _spring_energy),)
+    observables = (ObservableSpec('energy', _get_spring_energy),)
 
     def __init__(
         self,
@@ -450,7 +450,7 @@ class QuarterCarSystem(BaseSystem):
         self.b = b
         self.kt = kt
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         car = QuarterCarElement(
             'car',
@@ -470,4 +470,4 @@ class QuarterCarSystem(BaseSystem):
             damping='b',
             divisor={'y1': 'm1', 'y2': 'm2'},
         )
-        return System(self.label, elements=[car], interactions=[suspension])
+        return CompositeSystem(self.label, elements=[car], interactions=[suspension])

@@ -36,7 +36,9 @@ trajectory = simulate(system, until=UNTIL, observers=[observer])
 villages = np.arange(1, 26, 2)
 stocks = np.array(
     [
-        simulate(HarvestingSystem(farmers=int(farmers), effort=EFFORT, r=R, K=K), until=200).values('land/stock.n')[-1]
+        simulate(HarvestingSystem(farmers=int(farmers), effort=EFFORT, r=R, K=K), until=200).get_values('land/stock.n')[
+            -1
+        ]
         for farmers in villages
     ],
 )

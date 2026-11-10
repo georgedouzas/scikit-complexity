@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import JumpInteraction, MapInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -154,7 +154,7 @@ class BernoulliProcessSystem(BaseSystem):
         self.n_sequences = n_sequences
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         trial = MapInteraction(
             'trial',
@@ -171,7 +171,7 @@ class BernoulliProcessSystem(BaseSystem):
             mode='increment',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('trials', element=BernoulliTrialElement, size=self.n_sequences, values={'p': self.p}),
@@ -220,7 +220,7 @@ class PoissonProcessSystem(BaseSystem):
         self.n_processes = n_processes
         self.rate = rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         counters = GroupElement(
             'counters',
@@ -229,4 +229,4 @@ class PoissonProcessSystem(BaseSystem):
             values={'rate': self.rate},
         )
         events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
-        return System(self.label, elements=[counters], interactions=[events])
+        return CompositeSystem(self.label, elements=[counters], interactions=[events])

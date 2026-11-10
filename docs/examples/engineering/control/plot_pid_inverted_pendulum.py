@@ -7,7 +7,7 @@ does not watch its position.
 """
 
 # %%
-# The system is built from its class with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
+# The example builds `PidInvertedPendulumSystem` with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
 # the gains `kp = 40`, `ki = 1`, and `kd = 8`. RK4 integrates it with steps of 1 ms, and the controller sets the force
 # after every step. The default blueprint shows the angle, the position, and the force in one time series view.
 
@@ -37,7 +37,7 @@ times = trajectory.times
 first, second = roots
 linear = 0.1 * (second * np.exp(first * times) - first * np.exp(second * times)) / (second - first)
 fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.plot(times, trajectory.values('cart.theta'), label='simulated angle')
+ax.plot(times, trajectory.get_values('cart.theta'), label='simulated angle')
 ax.plot(times, np.real(linear), '--', label='linear closed loop')
 ax.axhspan(-0.01, 0.01, color='gray', alpha=0.2, label='within 0.01 of upright')
 ax.set_xlabel('time (s)')

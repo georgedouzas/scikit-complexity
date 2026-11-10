@@ -1,7 +1,4 @@
-"""Measure networks.
-
-The measures are degrees, mixing, centralities, communities, neighbour degrees, and summary measures.
-"""
+"""Measure networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,18 +28,15 @@ SETTINGS = {
     'neighbor-degree': set(),
     'summary': set(),
 }
-"""Settings every kind reads, besides `kind`."""
-
 MIN_FIT_NODES = 50
 HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
-
 TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
 class NetworkMeasuresResult:
-    """Measures of the network of every frame of a trajectory, or of a graph.
+    """A result of `network_measures`, measures of a network at every frame.
 
     Args:
         graphs:
@@ -149,6 +143,9 @@ def network_measures(
       networks.
     - `'summary'`: the size, mean degree, clustering, path length, diameter, and components, with the path measures on
       the largest component.
+
+    It appears in many fields. It measures the hubs of the internet, the clustering of a social network, and the paths
+    of a power grid.
 
     Args:
         source:

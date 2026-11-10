@@ -149,10 +149,10 @@ dependencies = [
     "highspy>=1.15.1",
     "passagemath-polyhedra>=10.8.13",
     "pysd>=3.14.3,<4",
-    "einsteinpy>=0.5.0",
     "optuna>=5.0.0",
     "pyabc>=0.13.1",
     "numpyro>=0.22.0",
+    "pypesto>=0.8.0",
 ]
 
 [project.optional-dependencies]
@@ -164,6 +164,7 @@ metabolism = [
 structures = ["biopython>=1.88"]
 rna = ["ViennaRNA>=2.7.2"]
 trajectories = ["mdtraj>=1.11.2"]
+relativity = ["einsteinpy>=0.5.0"]
 
 [project.urls]
 Homepage = "https://georgedouzas.github.io/scikit-complexity"
@@ -262,7 +263,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.core.specs.RandomSearchSpec", "skcomplex.core.specs.DifferentialEvolutionSpec"]
+extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.systems.computer_science.evolutionary_computation._optimisers.DifferentialEvolutionSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.components.base` or `sage.all__sagemath_symbolics`."
@@ -343,6 +344,7 @@ DEP002 = [
     "biopython",
     "ViennaRNA",
     "mdtraj",
+    "einsteinpy",
     "passagemath-maxima",
     "passagemath-polyhedra",
     "passagemath-gap",
@@ -381,12 +383,20 @@ type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
     "specs",
-    "mass_action",
-    "system",
+    "systems",
     "elements | interactions",
     "laws",
     "spaces",
     "base",
+]
+
+[[tool.importlinter.contracts]]
+name = "System modules import only the modules listed after them"
+type = "layers"
+containers = ["skcomplex.core.components.systems"]
+layers = [
+    "_composite",
+    "_base",
 ]
 
 [[tool.importlinter.contracts]]
@@ -431,6 +441,21 @@ ignore_imports = [
     "skcomplex.systems.** -> skcomplex.core.components.laws.utils",
     "skcomplex.systems.** -> skcomplex.core.analysis.types",
     "skcomplex.systems.** -> skcomplex.core.engine.*",
+]
+
+[[tool.importlinter.contracts]]
+name = "Realizations shared by several fields import no field package"
+type = "forbidden"
+source_modules = ["skcomplex.systems.general"]
+forbidden_modules = [
+    "skcomplex.systems.biology",
+    "skcomplex.systems.chemistry",
+    "skcomplex.systems.computer_science",
+    "skcomplex.systems.economics",
+    "skcomplex.systems.engineering",
+    "skcomplex.systems.mathematics",
+    "skcomplex.systems.physics",
+    "skcomplex.systems.social",
 ]
 
 [[tool.importlinter.contracts]]
@@ -503,6 +528,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -515,6 +541,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -528,6 +555,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -540,6 +568,7 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -552,6 +581,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -564,6 +594,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -576,6 +607,7 @@ forbidden_modules = [
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
+    "skcomplex.systems.social.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -601,6 +633,7 @@ source_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+    "skcomplex.systems.social.common",
 ]
 forbidden_modules = [
     "skcomplex.systems.biology.collective_behaviour",
@@ -692,6 +725,7 @@ docs = [
     "mkdocstrings[python]>=0.25.1",
     "markdown-callouts>=0.4.0",
     "markdown-exec>=1.9.3",
+    "griffelib>=2.0",
     'pandas>=2.2.2',
     "matplotlib>=3.9",
 ]

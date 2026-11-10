@@ -16,13 +16,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-
-
-def _extinct_share(stocks: object) -> float:
-    """Return the share of the fisheries whose stock is extinct."""
-    return float(np.mean(np.asarray(stocks, dtype=float) <= 0))
 
 
 class MeasuredFisheryElement(Element):
@@ -100,7 +95,7 @@ class MeasuredFisheryElement(Element):
         self.restocking = restocking
 
     @staticmethod
-    def _quota(s: SimpleNamespace) -> Expression:
+    def _get_quota(s: SimpleNamespace) -> Expression:
         """Return the quota `x~ - K / 2` from the measured stock.
 
         It is floored at zero without restocking.
@@ -119,10 +114,15 @@ class MeasuredFisheryElement(Element):
             laws:
                 The laws of the element.
         """
-        quota = self._quota(s)
+        quota = self._get_quota(s)
         growth = s.x * (1 - s.x / s.K)
         noisy = s.x + (s.r0 * growth - quota) * s.step + s.sigma_r * growth * sqrt(s.step) * normal('growth', 0, 1)
         return [UpdateLaw(s.x, where(both(s.x > 0, noisy > 0), noisy, 0)), UpdateLaw(s.catch, quota)]
+
+
+def _get_extinct_share(stocks: object) -> float:
+    """Return the share of the fisheries whose stock is extinct."""
+    return float(np.mean(np.asarray(stocks, dtype=float) <= 0))
 
 
 class FisheryMeasurementErrorsSystem(BaseSystem):
@@ -180,7 +180,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Argun et al. 2016')
     until = 5000
     observables = (
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_extinct_share),
+        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
         ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
         ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )
@@ -208,7 +208,7 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.step = step
         self.restocking = restocking
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         fisheries = GroupElement(
             'fisheries',
@@ -224,4 +224,4 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
                 'restocking': float(self.restocking),
             },
         )
-        return System(self.label, elements=[fisheries])
+        return CompositeSystem(self.label, elements=[fisheries])

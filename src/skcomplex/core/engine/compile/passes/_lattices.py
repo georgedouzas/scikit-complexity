@@ -1,7 +1,4 @@
-"""Compile the laws of lattices.
-
-They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
-"""
+"""Compile the laws of lattices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,8 +15,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
-from ....components.laws.utils import neighborhoods_in
+from ....components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
+from ....components.laws.utils._reductions import neighborhoods_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
     BaseSpace,
@@ -63,7 +60,8 @@ from .._compilation import Compilation
 from .._laws import LATTICE_LAWS
 from ._cells import DEGREES
 
-_COLORING_STRATEGY = 'largest_first'
+COLORING_STRATEGY = 'largest_first'
+
 
 type LatticeStep = RuleKernel | DriveKernel | CascadeKernel | MonteCarloKernel | ExtremalKernel
 type LoweredObjective = tuple[
@@ -77,7 +75,7 @@ type LoweredObjective = tuple[
 
 
 class LatticeProblemPass(BasePass):
-    """Pass that adds the steps of lattice laws.
+    """A pass that adds the steps of lattice laws.
 
     They are local rules, drives, cascades, extremal updates, and Monte Carlo sampling.
     """
@@ -93,16 +91,20 @@ class LatticeProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the lattice steps to the problem."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         members = declarations.members
         fused = BaseCompiler._resolve_backend(compilation.backend, members)._get_name() == 'numba'
         compilation.problem = replace(
-            Compilation._required(compilation.problem, 'problem'),
-            lattice=self._compile_lattice(Compilation._required(compilation.reduced, 'reduced'), declarations, fused),
+            Compilation._get_required(compilation.problem, 'problem'),
+            lattice=self._compile_lattice(
+                Compilation._get_required(compilation.reduced, 'reduced'),
+                declarations,
+                fused,
+            ),
         )
 
     @staticmethod
-    def _lattice_state(
+    def _get_lattice_state(
         context: LatticeContextSpec,
         item: Expression,
         law: str,
@@ -128,12 +130,12 @@ class LatticeProblemPass(BasePass):
         return state
 
     @staticmethod
-    def _keywords(context: LatticeContextSpec, function: Callable[..., object]) -> ArgumentsSpec:
+    def _get_keywords(context: LatticeContextSpec, function: Callable[..., object]) -> ArgumentsSpec:
         """Return the parameters a function accepts by keyword."""
         by_name = {
             name: (is_state, start, size) for name, is_state, start, size in context.arguments.values() if not is_state
         }
-        names = LatticeProblemPass._accepted(function, list(by_name))
+        names = LatticeProblemPass._get_accepted(function, list(by_name))
         return ArgumentsSpec(
             names,
             tuple(by_name[name][0] for name in names),
@@ -142,7 +144,7 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
-    def _names_keyword(function: Callable[..., object], name: str) -> bool:
+    def _get_names_keyword(function: Callable[..., object], name: str) -> bool:
         """Return whether a function names a keyword, such as `time`, in its signature."""
         try:
             parameter = inspect.signature(function).parameters.get(name)
@@ -151,7 +153,7 @@ class LatticeProblemPass(BasePass):
         return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
 
     @staticmethod
-    def _accepted(function: Callable[..., object], names: Sequence[str]) -> tuple[str, ...]:
+    def _get_accepted(function: Callable[..., object], names: Sequence[str]) -> tuple[str, ...]:
         """Return the keyword names a function accepts among some names."""
         try:
             signature = inspect.signature(function)
@@ -164,7 +166,7 @@ class LatticeProblemPass(BasePass):
         return tuple(name for name in names if name in keywords)
 
     @staticmethod
-    def _lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> LatticeContextSpec:
+    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> LatticeContextSpec:
         """Return the lattice states, arguments, and neighbour symbols of a component.
 
         They are those of the symbols the component reads.
@@ -187,7 +189,7 @@ class LatticeProblemPass(BasePass):
         return LatticeContextSpec(spec.owner, states, arguments, fused, others)
 
     @staticmethod
-    def _monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContextSpec) -> LatticeStep:
+    def _get_monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContextSpec) -> LatticeStep:
         """Return the Monte Carlo sampling of a sample.
 
         It uses Metropolis acceptance at `intensity` by default.
@@ -201,18 +203,18 @@ class LatticeProblemPass(BasePass):
         return LatticeProblemPass._compile_monte_carlo(law.objective, law.move, sampler, context)
 
     @staticmethod
-    def _lattice_step(spec: KernelSpec, law: BaseLaw, context: LatticeContextSpec) -> LatticeStep | None:
+    def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: LatticeContextSpec) -> LatticeStep | None:
         """Return the step of a lattice law, or `None` for a law of another kind."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
-        if isinstance(law, DriveLaw):
+        if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
         if isinstance(law, CascadeLaw):
             return LatticeProblemPass._compile_cascade(law, context)
         if isinstance(law, ExtremalLaw):
             return LatticeProblemPass._compile_extremal(law, context)
         if isinstance(law, SampleLaw):
-            return LatticeProblemPass._monte_carlo_step(spec, law, context)
+            return LatticeProblemPass._get_monte_carlo_step(spec, law, context)
         return None
 
     @staticmethod
@@ -229,22 +231,22 @@ class LatticeProblemPass(BasePass):
         for spec, laws in specs:
             if not any(isinstance(law, LATTICE_LAWS) for law in laws):
                 continue
-            context = LatticeProblemPass._lattice_context(spec, declarations, fused)
-            found = [LatticeProblemPass._lattice_step(spec, law, context) for law in laws]
+            context = LatticeProblemPass._get_lattice_context(spec, declarations, fused)
+            found = [LatticeProblemPass._get_lattice_step(spec, law, context) for law in laws]
             steps += [step for step in found if step is not None]
         return tuple(steps)
 
     @staticmethod
-    def _as_table(rule: object) -> object:
+    def _convert_to_table(rule: object) -> object:
         """Return a rule code as its table.
 
-        The table comes from its `table()` method, and any other rule is unchanged.
+        The table comes from its `get_table()` method, and any other rule is unchanged.
         """
-        convert = getattr(rule, 'table', None)
+        convert = getattr(rule, 'get_table', None)
         return convert() if not callable(rule) and callable(convert) else rule
 
     @staticmethod
-    def _calls(expression: Expression, name: str) -> list[Expression]:
+    def _get_calls(expression: Expression, name: str) -> list[Expression]:
         """Return the calls of a symbolic function by name inside an expression.
 
         The outermost calls come first.
@@ -261,7 +263,7 @@ class LatticeProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _center_columns(neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood) -> int:
+    def _get_center_columns(neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood) -> int:
         """Return the number of columns of a neighbourhood that read the site itself."""
         if isinstance(neighborhood, AdjacencyNeighborhood):
             return int(neighborhood.center)
@@ -300,7 +302,7 @@ class LatticeProblemPass(BasePass):
         return space
 
     @staticmethod
-    def _coloring(size: int, rows: Indices, columns: Indices) -> tuple[Indices, ...]:
+    def _get_coloring(size: int, rows: Indices, columns: Indices) -> tuple[Indices, ...]:
         """Return the classes of a proper coloring of the graph of some members.
 
         The graph joins the given pairs.
@@ -308,12 +310,12 @@ class LatticeProblemPass(BasePass):
         graph = nx.Graph()
         graph.add_nodes_from(range(size))
         graph.add_edges_from(zip(rows.tolist(), columns.tolist(), strict=True))
-        colors = nx.greedy_color(graph, strategy=_COLORING_STRATEGY)
+        colors = nx.greedy_color(graph, strategy=COLORING_STRATEGY)
         found = np.asarray([colors[site] for site in range(size)], dtype=np.intp)
         return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
 
     @staticmethod
-    def _color_classes(table: Indices) -> tuple[Indices, ...]:
+    def _get_color_classes(table: Indices) -> tuple[Indices, ...]:
         """Return the classes of a proper coloring of the graph of the table rows.
 
         The graph joins every site to the sites of its table row.
@@ -322,21 +324,21 @@ class LatticeProblemPass(BasePass):
         rows = np.repeat(np.arange(size), table.shape[1])
         columns = table.ravel()
         real = (columns != size) & (columns != rows)
-        return LatticeProblemPass._coloring(size, rows[real], columns[real])
+        return LatticeProblemPass._get_coloring(size, rows[real], columns[real])
 
     @staticmethod
-    def _coface_classes(boundary: scipy.sparse.csr_array) -> tuple[Indices, ...]:
+    def _get_coface_classes(boundary: scipy.sparse.csr_array) -> tuple[Indices, ...]:
         """Return the classes of a proper coloring of the graph of shared cofaces.
 
         The graph joins the cells that share a coface.
         """
         shared = (abs(boundary).T @ abs(boundary)).tocoo()
         real = shared.row != shared.col
-        return LatticeProblemPass._coloring(boundary.shape[1], shared.row[real], shared.col[real])
+        return LatticeProblemPass._get_coloring(boundary.shape[1], shared.row[real], shared.col[real])
 
     @staticmethod
     @functools.cache
-    def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
+    def _get_sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
         """Return the sites of even and of odd coordinate sum."""
         colors = np.indices(space.shape_).reshape(space.n_dim_, -1).sum(axis=0) % 2
         return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
@@ -354,9 +356,11 @@ class LatticeProblemPass(BasePass):
         It is none for other schedules.
         """
         if schedule == 'checkerboard':
-            return LatticeProblemPass._sublattices(LatticeProblemPass._check_checkerboard(space, neighborhood, owner))
+            return LatticeProblemPass._get_sublattices(
+                LatticeProblemPass._check_checkerboard(space, neighborhood, owner),
+            )
         if schedule == 'colored':
-            return LatticeProblemPass._color_classes(table)
+            return LatticeProblemPass._get_color_classes(table)
         return ()
 
     @staticmethod
@@ -372,15 +376,17 @@ class LatticeProblemPass(BasePass):
         return all(item.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
 
     @staticmethod
-    def _degrees_of(
+    def _get_degrees_of(
         table: Indices,
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
     ) -> Array:
         """Return the number of real neighbours of every site, besides the site itself."""
-        return ((table != table.shape[0]).sum(axis=1) - LatticeProblemPass._center_columns(neighborhood)).astype(float)
+        return ((table != table.shape[0]).sum(axis=1) - LatticeProblemPass._get_center_columns(neighborhood)).astype(
+            float,
+        )
 
     @staticmethod
-    def _extremal_source(
+    def _get_extremal_source(
         targets: tuple[LatticeStateSpec, ...],
         key: LatticeStateSpec,
         maximum: bool,
@@ -414,7 +420,7 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
-    def _extremal_loop(
+    def _get_extremal_loop(
         rule: Callable[..., object],
         targets: tuple[LatticeStateSpec, ...],
         key: LatticeStateSpec,
@@ -427,7 +433,7 @@ class LatticeProblemPass(BasePass):
         """
         if not LatticeProblemPass._compiles_in_numba(rule):
             return None
-        source = 'import numpy as np\n\n\n' + LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
+        source = 'import numpy as np\n\n\n' + LatticeProblemPass._get_extremal_source(targets, key, maximum, arguments)
         functions = {'rule': numba.njit(error_model='numpy')(rule)}
         module = SourceLoader('skcomplex_loops', functions).prepare().run(source).module_
         loop = numba.njit(module.loop)
@@ -449,7 +455,7 @@ class LatticeProblemPass(BasePass):
         return loop
 
     @staticmethod
-    def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
+    def _get_extremal_members(table: Indices) -> tuple[Indices, Indices]:
         """Return every site followed by its real neighbours, and their counts.
 
         The neighbours have no duplicates and are padded with -1.
@@ -464,7 +470,7 @@ class LatticeProblemPass(BasePass):
         return members, counts
 
     @staticmethod
-    def _index_table(
+    def _get_index_table(
         space: BaseSpace,
         neighborhood: LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood,
         owner: str,
@@ -474,13 +480,16 @@ class LatticeProblemPass(BasePass):
         An error naming the law that reads it is raised without one.
         """
         try:
-            return space._index_table(neighborhood)
+            return space._get_index_table(neighborhood)
+        except SpaceError as error:
+            error_msg = f'{owner}: {error}'
+            raise SpaceError(error_msg) from error
         except (ValueError, ValidationError) as error:
             error_msg = f'{owner}: {error}'
             raise ValidationError(error_msg) from error
 
     @staticmethod
-    def _lookup_of(rule: object, n_offsets: int, owner: str) -> LookupSpec | None:
+    def _get_lookup_of(rule: object, n_offsets: int, owner: str) -> LookupSpec | None:
         """Return the lookup array of a table or totalistic rule.
 
         It is `None` for a function rule.
@@ -594,7 +603,7 @@ class LatticeProblemPass(BasePass):
                 error_msg = f'{owner} reduce {reduction.call}, but a local objective on cofaces only sums over them.'
                 raise ValidationError(error_msg)
             inner = SR(reduction.argument) if reduction.weight is None else SR(reduction.weight) * reduction.argument
-            calls = LatticeProblemPass._calls(inner, 'exterior_derivative')
+            calls = LatticeProblemPass._get_calls(inner, 'exterior_derivative')
             for call in calls:
                 if call.operands()[0] != target:
                     error_msg = f'{owner} read {call}, but inside a coface only the moved state {target} has a sum.'
@@ -609,7 +618,7 @@ class LatticeProblemPass(BasePass):
         return SR(expression).subs(replacements) if replacements else SR(expression)
 
     @staticmethod
-    def _coface_tables(
+    def _get_coface_tables(
         target: LatticeStateSpec,
         owner: str,
     ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
@@ -625,7 +634,7 @@ class LatticeProblemPass(BasePass):
         return space.cofaces_[degree], space.orientations_[degree], space.incidences_[degree]
 
     @staticmethod
-    def _compile_drive(law: DriveLaw, context: LatticeContextSpec) -> DriveKernel:
+    def _compile_drive(law: ArrayUpdateLaw, context: LatticeContextSpec) -> DriveKernel:
         """Return a drive compiled for its lattice state.
 
         Args:
@@ -640,7 +649,7 @@ class LatticeProblemPass(BasePass):
                 The compiled drive.
         """
         targets = law._get_targets()
-        state = LatticeProblemPass._lattice_state(context, targets[0], 'A drive', components=True)
+        state = LatticeProblemPass._get_lattice_state(context, targets[0], 'A drive', components=True)
         if len(targets) != state.components:
             error_msg = (
                 f'A drive of {context.owner} targets {len(targets)} of the {state.components} components of '
@@ -651,11 +660,11 @@ class LatticeProblemPass(BasePass):
             context.owner,
             state,
             law.function,
-            LatticeProblemPass._keywords(context, law.function),
-            timed=LatticeProblemPass._names_keyword(law.function, 'time'),
-            drawing=bool(LatticeProblemPass._accepted(law.function, ['random'])),
+            LatticeProblemPass._get_keywords(context, law.function),
+            timed=LatticeProblemPass._get_names_keyword(law.function, 'time'),
+            drawing=bool(LatticeProblemPass._get_accepted(law.function, ['random'])),
             score=law.score,
-            spaced=LatticeProblemPass._names_keyword(law.function, 'space'),
+            spaced=LatticeProblemPass._get_names_keyword(law.function, 'space'),
         ).prepare()
 
     @staticmethod
@@ -675,18 +684,18 @@ class LatticeProblemPass(BasePass):
         """
         owner = f'The local rule of {context.owner}'
         targets = tuple(
-            LatticeProblemPass._lattice_state(
+            LatticeProblemPass._get_lattice_state(
                 context,
-                LatticeProblemPass._first_component(item),
+                LatticeProblemPass._get_first_component(item),
                 'A local rule',
                 components=True,
             )
             for item in law._get_targets()
         )
         reads = tuple(
-            LatticeProblemPass._lattice_state(
+            LatticeProblemPass._get_lattice_state(
                 context,
-                LatticeProblemPass._first_component(item),
+                LatticeProblemPass._get_first_component(item),
                 'A local rule',
                 components=True,
             )
@@ -697,15 +706,17 @@ class LatticeProblemPass(BasePass):
             error_msg = f'{owner} reads and updates states of different lattices.'
             raise ValidationError(error_msg)
         space = targets[0].space
-        translations = LatticeProblemPass._translations_of(law, space, reads, owner)
+        translations = LatticeProblemPass._get_translations_of(law, space, reads, owner)
         table = (
-            LatticeProblemPass._index_table(space, law.over, owner)
+            LatticeProblemPass._get_index_table(space, law.over, owner)
             if translations is None
             else translations.reshape(translations.shape[0], -1)
         )
         n_offsets = table.shape[1] if translations is None else translations.shape[2]
         rule = (
-            law._get_linear_values if isinstance(law.rule, LinearRuleSpec) else LatticeProblemPass._as_table(law.rule)
+            law._get_linear_values
+            if isinstance(law.rule, LinearRuleSpec)
+            else LatticeProblemPass._convert_to_table(law.rule)
         )
         if isinstance(space, NetworkSpace) and isinstance(rule, TableSpec):
             error_msg = (
@@ -713,7 +724,7 @@ class LatticeProblemPass(BasePass):
                 'totalistic or an outer totalistic rule, or a function rule.'
             )
             raise ValidationError(error_msg)
-        lookup = LatticeProblemPass._lookup_of(rule, n_offsets, owner)
+        lookup = LatticeProblemPass._get_lookup_of(rule, n_offsets, owner)
         several = len(targets) > 1 or len(reads) > 1
         if lookup is not None and (several or any(state.components > 1 for state in (*targets, *reads))):
             error_msg = f'{owner} uses a lookup rule, which updates and reads a single state of one component.'
@@ -723,11 +734,11 @@ class LatticeProblemPass(BasePass):
             if not callable(rule):
                 error_msg = (
                     f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a '
-                    'rule code with a table() method.'
+                    'rule code with a get_table() method.'
                 )
                 raise ValidationError(error_msg)
             function = rule
-        reads_degree = function is not None and 'degree' in LatticeProblemPass._accepted(function, ['degree'])
+        reads_degree = function is not None and 'degree' in LatticeProblemPass._get_accepted(function, ['degree'])
         if translations is not None and (reads_degree or law.schedule in {'checkerboard', 'colored'}):
             error_msg = (
                 f'{owner} reads a memory translated by the values of a state, whose neighbours move with the '
@@ -744,15 +755,15 @@ class LatticeProblemPass(BasePass):
             lookup=lookup,
             schedule=law.schedule,
             stochastic=law.stochastic,
-            arguments=LatticeProblemPass._keywords(context, function) if function is not None else ArgumentsSpec(),
+            arguments=LatticeProblemPass._get_keywords(context, function) if function is not None else ArgumentsSpec(),
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
-            degrees=LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
+            degrees=LatticeProblemPass._get_degrees_of(table, law.over) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
             translations=translations,
         ).prepare()
 
     @staticmethod
-    def _first_component(item: object) -> object:
+    def _get_first_component(item: object) -> object:
         """Return the symbol of the first component of a state of several components.
 
         A scalar symbol is returned as it is.
@@ -760,7 +771,7 @@ class LatticeProblemPass(BasePass):
         return item[0] if isinstance(item, FreeModuleElement) else item
 
     @staticmethod
-    def _translations_of(
+    def _get_translations_of(
         law: LocalRuleLaw,
         space: BaseSpace,
         reads: tuple[LatticeStateSpec, ...],
@@ -797,7 +808,7 @@ class LatticeProblemPass(BasePass):
             error_msg = f'{owner} translates its memory by {reads[0].name}, which holds several components per site.'
             raise ValidationError(error_msg)
         try:
-            return space._translation_table(law.over)
+            return space._get_translation_table(law.over)
         except (ValueError, ValidationError, SpaceError) as error:
             error_msg = f'{owner}: {error}'
             raise ValidationError(error_msg) from error
@@ -807,7 +818,7 @@ class LatticeProblemPass(BasePass):
         """Return a law of a cascade compiled."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
-        if isinstance(law, DriveLaw):
+        if isinstance(law, ArrayUpdateLaw):
             return LatticeProblemPass._compile_drive(law, context)
         error_msg = f'A cascade of {context.owner} holds {law!r}, which is not a local rule or a drive.'
         raise ValidationError(error_msg)
@@ -834,7 +845,7 @@ class LatticeProblemPass(BasePass):
             law.label or context.owner,
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
             tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
-            tuple(LatticeProblemPass._lattice_state(context, item, "A cascade") for item in law._get_targets()),
+            tuple(LatticeProblemPass._get_lattice_state(context, item, "A cascade") for item in law._get_targets()),
             law.stable,
             max_iterations=int(law.max_iterations),
             activity=law.activity,
@@ -861,18 +872,20 @@ class LatticeProblemPass(BasePass):
         """
         owner = f'The extremal law of {context.owner}'
         targets = tuple(
-            LatticeProblemPass._lattice_state(context, item, 'An extremal law') for item in law._get_targets()
+            LatticeProblemPass._get_lattice_state(context, item, 'An extremal law') for item in law._get_targets()
         )
-        key = LatticeProblemPass._lattice_state(context, law._get_key(), 'An extremal law')
+        key = LatticeProblemPass._get_lattice_state(context, law._get_key(), 'An extremal law')
         if len({id(state.space) for state in (*targets, key)}) > 1:
             error_msg = f'{owner} reads and updates states of different lattices.'
             raise ValidationError(error_msg)
-        members, counts = LatticeProblemPass._extremal_members(
-            LatticeProblemPass._index_table(key.space, law.over, owner),
+        members, counts = LatticeProblemPass._get_extremal_members(
+            LatticeProblemPass._get_index_table(key.space, law.over, owner),
         )
-        arguments = LatticeProblemPass._keywords(context, law.rule)
+        arguments = LatticeProblemPass._get_keywords(context, law.rule)
         maximum = law.extremum == 'max'
-        loop = LatticeProblemPass._extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
+        loop = (
+            LatticeProblemPass._get_extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
+        )
         return ExtremalKernel(
             law.label or context.owner,
             context.owner,
@@ -888,7 +901,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _bond_of(
+    def _get_bond_of(
         local: Expression,
         target: Expression,
         neighbours: list[Expression],
@@ -939,7 +952,7 @@ class LatticeProblemPass(BasePass):
                 f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
             )
             raise ValidationError(error_msg)
-        table = LatticeProblemPass._index_table(target.space, over, owner)
+        table = LatticeProblemPass._get_index_table(target.space, over, owner)
         classes = LatticeProblemPass._schedule_classes(sampler.schedule, target.space, over, table, owner)
         neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
@@ -966,11 +979,11 @@ class LatticeProblemPass(BasePass):
         The objective is on cofaces.
         """
         owner = f'The Monte Carlo laws of {context.owner}'
-        table, signs, boundary = LatticeProblemPass._coface_tables(target, owner)
+        table, signs, boundary = LatticeProblemPass._get_coface_tables(target, owner)
         if sampler.schedule == 'checkerboard':
             error_msg = f"{owner} sum over cofaces, which need the 'colored' or 'random-sequential' schedule."
             raise ValidationError(error_msg)
-        classes = LatticeProblemPass._coface_classes(boundary) if sampler.schedule == 'colored' else ()
+        classes = LatticeProblemPass._get_coface_classes(boundary) if sampler.schedule == 'colored' else ()
         rests = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         orientations = [symbol(f'_sign_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
@@ -1007,7 +1020,7 @@ class LatticeProblemPass(BasePass):
                 The compiled sampling.
         """
         owner = f'The Monte Carlo laws of {context.owner}'
-        target = LatticeProblemPass._lattice_state(context, move.target, 'A move')
+        target = LatticeProblemPass._get_lattice_state(context, move.target, 'A move')
         if sampler.kind == 'heat-bath' and move.kind in {'rotate', 'gaussian', 'function'}:
             error_msg = (
                 f'{owner} use a heat-bath sampler with a {move.kind} move, which has no finite set of values to draw '
@@ -1024,7 +1037,7 @@ class LatticeProblemPass(BasePass):
         table, classes, neighbours, masks, expression, faces = lower(objective, move, sampler, context, target)
         masked = any(item in masks for item in expression.variables())
         replacements = {}
-        for call in LatticeProblemPass._calls(expression, 'neighbor'):
+        for call in LatticeProblemPass._get_calls(expression, 'neighbor'):
             state, index = call.operands()
             if state != move.target:
                 error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.target} has them.'
@@ -1034,7 +1047,7 @@ class LatticeProblemPass(BasePass):
         local = expression.subs(replacements)
         change = local.subs({move.target: proposal}) - local
         bond = (
-            LatticeProblemPass._bond_of(local, move.target, neighbours, masks, owner)
+            LatticeProblemPass._get_bond_of(local, move.target, neighbours, masks, owner)
             if move.kind == 'cluster'
             else None
         )
@@ -1106,7 +1119,7 @@ class LatticeProblemPass(BasePass):
 
         Their space is not a square lattice.
         """
-        records = Compilation._required(compilation.census, 'census').records
+        records = Compilation._get_required(compilation.census, 'census').records
         issues = []
         for record in records:
             square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'

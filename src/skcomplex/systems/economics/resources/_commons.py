@@ -15,31 +15,29 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    FeedbackInteraction,
-    LifeCycleInteraction,
-    MapInteraction,
-    MatchingInteraction,
-)
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
-from ....core.components.types import AgentViewProtocol, MatchingRule, SystemViewProtocol
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import (
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RandomSearchSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
 )
+from ...general.agents import BirthDeathInteraction
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
+from ...general.matching.types import MatchingRule
+from ..common.policy import PolicyRuleInteraction
+
+UNLIMITED = 1e9
 
 
 class HerderView(AgentView):
@@ -53,9 +51,6 @@ class HerderView(AgentView):
     upkeep: float
     newborn: float
     quota: float
-
-
-UNLIMITED = 1e9
 
 
 class HerderElement(Element):
@@ -272,8 +267,8 @@ class PastureElement(Element):
             system:
                 The system.
         """
-        stand = max(agent.grass, system.parameter('seed') * agent.capacity)
-        growth = system.parameter('regrowth') * stand * (1 - stand / agent.capacity)
+        stand = max(agent.grass, system.get_parameter('seed') * agent.capacity)
+        growth = system.get_parameter('regrowth') * stand * (1 - stand / agent.capacity)
         agent.grass = min(agent.capacity, agent.grass + growth)
 
 
@@ -281,8 +276,8 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
     """Grazing of the meadow, a matching of the cows with the pastures.
 
     After the matching every cow eats and burns energy. The rule of the matching pairs the cows with the pastures, such
-    as `PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider')`, which pairs every cow, in
-    random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
+    as `PartnerMatchingSpec('local', 'score', score=GrazingInteraction.score, value='provider')`, which pairs every cow,
+    in random order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A
     pasture takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
     appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns its
     metabolism and counts in the herd of its herder, and a cow whose energy runs out dies.
@@ -361,7 +356,7 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
     @staticmethod
     def _get_herder(cow: CowView) -> HerderView:
         """Return the herder that owns a cow, which its reference state `owner` names."""
-        herder = cow.referenced('owner')
+        herder = cow.get_referenced('owner')
         if not isinstance(herder, HerderView):
             error_msg = f'Cow {cow.id} names no herder as its owner.'
             raise SimulationError(error_msg)
@@ -383,9 +378,9 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
         if not isinstance(cow, CowView) or not isinstance(pasture, PastureView):
             return
         cow.move_to(pasture.location)
-        eaten = min(pasture.grass, system.parameter('appetite'))
+        eaten = min(pasture.grass, system.get_parameter('appetite'))
         transfer(pasture, cow, eaten, 'grass', 'energy')
-        self._get_herder(cow).income += system.parameter('milk') * eaten
+        self._get_herder(cow).income += system.get_parameter('milk') * eaten
 
     def match(self, system: SystemView) -> None:
         """Pair and feed the cows, then let every cow burn its metabolism.
@@ -397,14 +392,14 @@ class GrazingInteraction(MatchingInteraction[SystemView]):
                 The system view of the grazing.
         """
         super().match(system)
-        for cow in system.agents('requesters', CowView):
-            cow.energy -= system.parameter('metabolism')
+        for cow in system.get_agents('requesters', CowView):
+            cow.energy -= system.get_parameter('metabolism')
             self._get_herder(cow).herd += 1
             if cow.energy < 0:
                 cow.remove()
 
 
-class QuotaRegulatorInteraction(FeedbackInteraction[SystemView]):
+class QuotaRegulatorInteraction(PolicyRuleInteraction[SystemView]):
     """Regulator of the quota of cows per herder.
 
     It halves the quota when the grass runs short and raises it when it recovers. The quota is the adaptive parameter
@@ -458,64 +453,15 @@ class QuotaRegulatorInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the regulator.
         """
-        if not system.parameter('regulated'):
+        if not system.get_parameter('regulated'):
             return
-        pastures = system.agents('meadow', PastureView)
+        pastures = system.get_agents('meadow', PastureView)
         share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
-        for herder in system.agents('herders', HerderView):
-            if share < system.parameter('low'):
+        for herder in system.get_agents('herders', HerderView):
+            if share < system.get_parameter('low'):
                 herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
-            elif share > system.parameter('high'):
+            elif share > system.get_parameter('high'):
                 herder.quota += 1
-
-
-def _pays(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return whether a cow of a herder earned more than its upkeep in the last step.
-
-    The herd must also be below quota.
-    """
-    del system
-    if not isinstance(herder, HerderView):
-        return False
-    earning = herder.income / herder.herd if herder.herd else herder.upkeep + 1
-    return earning > herder.upkeep and herder.herd < herder.quota
-
-
-def _exceeds(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-    """Return whether the herd of a herder in the last step exceeds its quota.
-
-    The herder then sells a cow.
-    """
-    del system
-    return isinstance(herder, HerderView) and herder.herd > herder.quota
-
-
-def _owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
-    """Return whether a herder owns a cow.
-
-    The reference state `owner` of the cow names the herder.
-    """
-    return cow.referenced('owner') is herder
-
-
-def _get_calf(herder: AgentViewProtocol | None, system: SystemViewProtocol) -> dict[str, object]:
-    """Return the owner and the energy of a new cow of a herder."""
-    del system
-    if not isinstance(herder, HerderView):
-        return {}
-    return {'owner': float(herder.id), 'energy': herder.newborn}
-
-
-def _get_cell(herder: AgentViewProtocol | None, system: SystemViewProtocol) -> tuple[int, ...]:
-    """Return a random cell of the meadow, where a new cow starts."""
-    del herder
-    return tuple(int(system.rng.integers(int(size))) for size in system.dimensions or ())
-
-
-def _get_cleared(herder: AgentViewProtocol, system: SystemViewProtocol) -> float:
-    """Return zero, the income and the herd a herder starts a step with."""
-    del herder, system
-    return 0.0
 
 
 class TragedyOfTheCommonsSystem(BaseSystem):
@@ -579,6 +525,55 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
     )
 
+    @staticmethod
+    def _get_pays(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+        """Return whether a cow of a herder earned more than its upkeep in the last step.
+
+        The herd must also be below quota.
+        """
+        del system
+        if not isinstance(herder, HerderView):
+            return False
+        earning = herder.income / herder.herd if herder.herd else herder.upkeep + 1
+        return earning > herder.upkeep and herder.herd < herder.quota
+
+    @staticmethod
+    def _get_exceeds(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+        """Return whether the herd of a herder in the last step exceeds its quota.
+
+        The herder then sells a cow.
+        """
+        del system
+        return isinstance(herder, HerderView) and herder.herd > herder.quota
+
+    @staticmethod
+    def _get_owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
+        """Return whether a herder owns a cow.
+
+        The reference state `owner` of the cow names the herder.
+        """
+        return cow.get_referenced('owner') is herder
+
+    @staticmethod
+    def _get_calf(herder: AgentViewProtocol | None, system: SystemViewProtocol) -> dict[str, object]:
+        """Return the owner and the energy of a new cow of a herder."""
+        del system
+        if not isinstance(herder, HerderView):
+            return {}
+        return {'owner': float(herder.id), 'energy': herder.newborn}
+
+    @staticmethod
+    def _get_cell(herder: AgentViewProtocol | None, system: SystemViewProtocol) -> tuple[int, ...]:
+        """Return a random cell of the meadow, where a new cow starts."""
+        del herder
+        return tuple(int(system.rng.integers(int(size))) for size in system.dimensions or ())
+
+    @staticmethod
+    def _get_cleared(herder: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return zero, the income and the herd a herder starts a step with."""
+        del herder, system
+        return 0.0
+
     def __init__(
         self,
         n_herders: int = 20,
@@ -605,21 +600,21 @@ class TragedyOfTheCommonsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
+    def _get_investment() -> list[BirthDeathInteraction | MapInteraction]:
         """Return the member interactions of a herder.
 
         They buy or sell a cow, then clear its income and herd.
         """
         return [
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'investment',
                 target='herders',
                 group='cows',
-                birth=_pays,
-                values=_get_calf,
-                placement=_get_cell,
-                cull=_exceeds,
-                kin=_owns,
+                birth=TragedyOfTheCommonsSystem._get_pays,
+                values=TragedyOfTheCommonsSystem._get_calf,
+                placement=TragedyOfTheCommonsSystem._get_cell,
+                cull=TragedyOfTheCommonsSystem._get_exceeds,
+                kin=TragedyOfTheCommonsSystem._get_owns,
                 schedule='member',
                 phase='herding',
             ),
@@ -628,7 +623,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
                     f'{state}_clearing',
                     target='herders',
                     state=state,
-                    function=_get_cleared,
+                    function=TragedyOfTheCommonsSystem._get_cleared,
                     form='agent',
                     schedule='member',
                     phase='herding',
@@ -637,7 +632,7 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
@@ -672,14 +667,14 @@ class TragedyOfTheCommonsSystem(BaseSystem):
             'grazing',
             requesters='cows',
             providers='meadow',
-            rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider'),
+            rule=PartnerMatchingSpec('local', 'score', score=GrazingInteraction.score, value='provider'),
             herders='herders',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[meadow, herd, herders],
             interactions=[grazing, *self._get_investment(), regulator],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
             time=DiscreteTime(
                 schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
             ),

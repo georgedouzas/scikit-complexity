@@ -12,7 +12,7 @@ from skcomplex.core.analysis import bind_analysis, mode_decomposition
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
@@ -24,6 +24,7 @@ MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 DRIVEN = np.asarray([[-0.1, 1.0], [-1.0, -0.2]])
 DRIVE = np.asarray([0.0, 1.0])
 STEP = 0.1
+NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 
 class LinearElement(Element):
@@ -88,7 +89,7 @@ def _driven_runs():
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return [
         simulate(
-            System(elements=[DrivenElement('driven', x=start)]),
+            CompositeSystem(elements=[DrivenElement('driven', x=start)]),
             until=20.0,
             solver=solver,
             dt=STEP,
@@ -110,10 +111,7 @@ def _one_sample_map():
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return simulate(System(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
-
-
-NAMES = ['linear.x', 'linear.y', 'linear.z']
+    return simulate(CompositeSystem(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
 
 
 def _fit(source, **settings):
@@ -123,7 +121,7 @@ def _fit(source, **settings):
 
 def _linear_values(trajectory, samples):
     """Return the first samples of the states of the linear trajectory, one column per state."""
-    return np.column_stack([trajectory.values(name)[:samples] for name in NAMES])
+    return np.column_stack([trajectory.get_values(name)[:samples] for name in NAMES])
 
 
 def test_mode_decomposition_recovers_linear_eigenvalues():
@@ -143,7 +141,7 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     assert DEFAULT_SOLVERS[PassCompiler().prepare(decomposition.system).run().problem_.form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     run = simulate(decomposition.system, until=10.0, solver=solver, dt=0.05)
-    assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
+    assert np.allclose(run.get_values('surrogate.y'), trajectory.get_values('linear.y'), atol=1e-6)
 
 
 def test_mode_decomposition_run_continues_trajectory():
@@ -153,7 +151,7 @@ def test_mode_decomposition_run_continues_trajectory():
     assert decomposition.labels == ['linear.x', 'linear.y', 'linear.z']
     assert decomposition.states == ['x', 'y', 'z']
     assert decomposition.forecast.shape == (50, 3)
-    assert np.allclose(decomposition.forecast[:, 2], trajectory.values('linear.z')[101:151], atol=1e-8)
+    assert np.allclose(decomposition.forecast[:, 2], trajectory.get_values('linear.z')[101:151], atol=1e-8)
 
 
 def test_mode_decomposition_run_matches_simulated_system():
@@ -162,7 +160,7 @@ def test_mode_decomposition_run_matches_simulated_system():
     names = [f'surrogate.{name}' for name in decomposition.states]
     initial_state = dict(zip(names, decomposition.last_state, strict=True))
     run = simulate(decomposition.system, until=1.0, dt=0.05, initial_state=initial_state)
-    simulated = np.column_stack([run.values(name) for name in names])[1:21]
+    simulated = np.column_stack([run.get_values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast, simulated, atol=1e-4)
 
 
@@ -251,9 +249,9 @@ def test_mode_decomposition_system_with_input_follows_schedule():
     schedule = _held_input(7)
     solver = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
     run = simulate(decomposition.system, until=5.0, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
-    recorded = run.values('surrogate.u')
+    recorded = run.get_values('surrogate.u')
     assert np.allclose(recorded, [schedule(time) for time in run.times])
-    states = np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])
+    states = np.column_stack([run.get_values('surrogate.x'), run.get_values('surrogate.y')])
     predicted = states[:-1] @ decomposition.operator.T + recorded[:-1, None] @ decomposition.input_matrix.T
     assert np.abs(states[1:] - predicted).max() < 1e-6
 
@@ -262,7 +260,7 @@ def test_mode_decomposition_bounds_inputs_by_samples():
     """Test that the input of the fitted system is an adaptive parameter bounded by its range in the samples."""
     decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'])
     specification = PassCompiler().prepare(decomposition.system).run().problem_.adaptive_parameters['surrogate.u']
-    joined = np.concatenate([run.values('driven.u') for run in _driven_runs()])
+    joined = np.concatenate([run.get_values('driven.u') for run in _driven_runs()])
     assert specification.adaptive
     assert specification.bounds == (joined.min(), joined.max())
 
@@ -276,7 +274,7 @@ def test_mode_decomposition_forecast_holds_last_input():
         validation=0.1,
         horizon=2,
     )
-    last = _driven_runs()[-1].values('driven.u')[-1]
+    last = _driven_runs()[-1].get_values('driven.u')[-1]
     first = decomposition.operator @ decomposition.last_state + decomposition.input_matrix[:, 0] * last
     assert np.allclose(decomposition.forecast[0], first)
     assert decomposition.validation_error < 1e-6

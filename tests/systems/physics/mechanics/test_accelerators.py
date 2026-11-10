@@ -12,7 +12,7 @@ from skcomplex.systems.physics.mechanics import BeamBeamMapSystem, FrictionOscil
 def _beam_beam_orbit(x, y, nu, c, until):
     """Return the positions and momenta of an orbit of the beam-beam map."""
     trajectory = simulate(BeamBeamMapSystem(x, y, nu=nu, c=c), until=until)
-    return np.ravel(trajectory.values('particle.x')), np.ravel(trajectory.values('particle.y'))
+    return np.ravel(trajectory.get_values('particle.x')), np.ravel(trajectory.get_values('particle.y'))
 
 
 def test_beam_beam_map_preserves_area():
@@ -37,7 +37,7 @@ def test_beam_beam_map_origin_is_stable_when_the_trace_lies_within_two(nu, stabl
 def test_friction_oscillator_loses_a_fixed_amplitude_every_swing_and_sticks():
     """Test that every half swing ends `2 mu_k m g / k` closer and the mass sticks at the first turn inside the band."""
     trajectory = simulate(FrictionOscillatorSystem(), random_state=0)
-    x, v = np.ravel(trajectory.values('mass.x')), np.ravel(trajectory.values('mass.v'))
+    x, v = np.ravel(trajectory.get_values('mass.x')), np.ravel(trajectory.get_values('mass.v'))
     turns = x[np.flatnonzero(np.sign(v[1:]) != np.sign(v[:-1]))]
     expected = [(-1) ** n * (1.03 - 0.1 * n) for n in range(10)]
     np.testing.assert_allclose(turns[:10], expected, atol=1e-3)
@@ -48,4 +48,4 @@ def test_friction_oscillator_loses_a_fixed_amplitude_every_swing_and_sticks():
 def test_friction_oscillator_stays_put_inside_the_static_band():
     """Test that a mass released inside the band `|k x| <= mu_s m g` never moves."""
     trajectory = simulate(FrictionOscillatorSystem(x=0.055), until=5.0, dt=0.1)
-    assert np.ptp(np.ravel(trajectory.values('mass.x'))) == 0
+    assert np.ptp(np.ravel(trajectory.get_values('mass.x'))) == 0

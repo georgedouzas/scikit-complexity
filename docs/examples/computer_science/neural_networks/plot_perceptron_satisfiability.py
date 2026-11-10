@@ -34,7 +34,7 @@ for n_weights in (15, 21):
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
     result = sweep(PerceptronSatisfiabilitySystem, bounds, until=31, outputs=outputs)
-    shares = result.series('decide.satisfiable').mean(axis=0)
+    shares = result.get_series('decide.satisfiable').mean(axis=0)
     ax.plot(np.arange(1, shares.size) / n_weights, shares[1:], 'o-', markersize=3, label=f'N = {n_weights}')
 ax.axvline(0.83, color='black', linestyle='--', label='critical load 0.83')
 ax.set_xlabel('load p / N')

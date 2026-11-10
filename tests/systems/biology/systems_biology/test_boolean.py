@@ -28,6 +28,9 @@ YEAST_RECORDED = (
     '00001100100',
     *('00001000100',) * 4,
 )
+SIZE_NAMES = ('n_nodes', 'n_genes', 'size', 'n')
+CONNECTIVITY_NAMES = ('k', 'K', 'connectivity', 'n_inputs')
+N_NODES = 200
 
 
 def _damage(k, seed, n_nodes=100, steps=40):
@@ -46,15 +49,6 @@ def _damage(k, seed, n_nodes=100, steps=40):
     return float(np.abs(finals[0] - finals[1]).sum())
 
 
-SIZE_NAMES = ('n_nodes', 'n_genes', 'size', 'n')
-
-
-CONNECTIVITY_NAMES = ('k', 'K', 'connectivity', 'n_inputs')
-
-
-N_NODES = 200
-
-
 def _damage_share(factory, connectivity, seed):
     """Return the share of nodes of a random Boolean network that a flip of one node changes after 50 steps."""
     parameters = inspect.signature(factory).parameters
@@ -68,9 +62,11 @@ def _damage_share(factory, connectivity, seed):
     problem = PassCompiler().prepare(factory(**options)).run().problem_
     name = problem.states.names[0]
     perturbed = problem.initial_state.copy()
-    perturbed[problem.states.entry(name).start] = 1 - perturbed[problem.states.entry(name).start]
+    perturbed[problem.states.get_entry(name).start] = 1 - perturbed[problem.states.get_entry(name).start]
     finals = [
-        np.asarray(_run(dataclasses.replace(problem, initial_state=initial), 50, random_state=seed).values(name)[-1])
+        np.asarray(
+            _run(dataclasses.replace(problem, initial_state=initial), 50, random_state=seed).get_values(name)[-1],
+        )
         for initial in (problem.initial_state, perturbed)
     ]
     return float(np.mean(finals[0] != finals[1]))

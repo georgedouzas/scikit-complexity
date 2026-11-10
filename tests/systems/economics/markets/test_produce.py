@@ -16,14 +16,14 @@ def test_produce_market_lists_shrink_until_every_shopper_is_done():
         6,
         observables=ProduceMarketSystem().get_run_settings()['observables'],
     )
-    assert np.all(np.diff(trajectory.values('items_left')) <= 0)
-    assert trajectory.values('items_left')[-1] == 0
+    assert np.all(np.diff(trajectory.get_values('items_left')) <= 0)
+    assert trajectory.get_values('items_left')[-1] == 0
     complete = _run(
         ProduceMarketSystem(30, 5, n_items_stocked=12, random_state=1).prepare().system_,
         1,
         observables=ProduceMarketSystem().get_run_settings()['observables'],
     )
-    assert complete.values('items_left')[-1] == 0
+    assert complete.get_values('items_left')[-1] == 0
     initial = (
         ProduceMarketSystem(30, 5, n_items_stocked=12, random_state=1).prepare().system_.elements[1].values['wanted']
     )

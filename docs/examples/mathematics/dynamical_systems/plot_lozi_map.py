@@ -42,7 +42,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
 trajectory = simulate(LoziMapSystem(), until=3000, observers=[observer])
-points = np.column_stack([trajectory.values('map.x'), -trajectory.values('map.y')])[10:]
+points = np.column_stack([trajectory.get_values('map.x'), -trajectory.get_values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
 

@@ -48,12 +48,12 @@ def final_wealth(**options):
     """Return the final wealth of every agent of a run."""
     system_system = KineticWealthExchangeSystem(n_agents=500, **options)
     trajectory = simulate(system_system, until=STEPS, random_state=0)
-    return trajectory.agents('traders', STEPS).values['wealth']
+    return trajectory.get_agents('traders', STEPS).values['wealth']
 
 
 grid = np.linspace(0, 5, 200)
 fig, (saving_axis, debt_axis) = plt.subplots(1, 2, figsize=(10, 4))
-samples = {0.0: trajectory.agents('traders', STEPS).values['wealth']}
+samples = {0.0: trajectory.get_agents('traders', STEPS).values['wealth']}
 samples |= {saving: final_wealth(saving=saving) for saving in (0.5, 0.8)}
 for (saving, wealth), color in zip(samples.items(), ['C0', 'C1', 'C2'], strict=True):
     shape = 1 + 3 * saving / (1 - saving)

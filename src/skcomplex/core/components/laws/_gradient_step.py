@@ -1,7 +1,4 @@
-"""Define gradient-step laws.
-
-They are optimizer steps on the adaptive parameters of a nested system once per epoch.
-"""
+"""Define the law that takes optimizer steps on the parameters of a nested system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +12,19 @@ from ._base import BaseLaw
 
 
 class GradientStepLaw(BaseLaw):
-    """Optimizer steps on adaptive parameters of a nested system.
+    """A law that takes optimizer steps on the parameters of a nested system.
 
-    The steps are on the gradient of a loss over unrolled runs. One step of the discrete time that holds the law is one
-    epoch. In an epoch the sequences of the dataset are shuffled and split into batches, and for every batch the nested
-    system runs from its initial states over every sequence, the loss is averaged over the steps and sequences with the
-    step weights, and the optimizer changes the trained parameters by the gradient of that mean. The gradient is exact,
-    by automatic differentiation of the unrolled runs. The law records the mean batch loss of the epoch and every metric
-    over the whole dataset at the end of the epoch.
+    One step of the discrete time that holds the law is one epoch. In an epoch the sequences of the dataset are shuffled
+    and split into batches. For every batch the nested system runs from its initial states over every sequence, the loss
+    is averaged over the steps and sequences with the step weights, and the optimizer changes the trained parameters by
+    the gradient of that mean. The gradient is exact, by automatic differentiation of the runs. The law records the mean
+    batch loss of the epoch and every metric over the whole dataset.
+
+    Unlike `RateLaw`, which changes states of the system in its own time, it changes parameters of another system by
+    fitting it to data. Choose it when a part of a model learns during the run.
+
+    It appears in many fields. A recurrent neural network learns to predict a time series, a reservoir computer fits its
+    readout, and an adaptive controller tunes its gains.
 
     Args:
         trained:

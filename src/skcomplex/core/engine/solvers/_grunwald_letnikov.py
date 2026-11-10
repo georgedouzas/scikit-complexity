@@ -1,7 +1,4 @@
-"""Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations.
-
-It is of order 1.
-"""
+"""Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,14 +6,17 @@ It is of order 1.
 import numpy as np
 
 from ...types import Array
-from ._convolution import _MODE_SPACING, ConvolutionSolver
+from ._convolution import MODE_SPACING, ConvolutionSolver
 
 
 class GrunwaldLetnikovSolver(ConvolutionSolver):
-    """Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations.
+    """A solver of Caputo fractional equations by the Grünwald-Letnikov scheme.
 
     It is of order 1. A step sets `dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k w_j (x_(k-j) - x_0)` with the weights `w_j
     = (-1)^j binomial(alpha, j)`. States of order 1 take explicit Euler steps.
+
+    Choose it for a simple explicit fractional scheme with a small step. It appears in models of anomalous diffusion and
+    of fractional chaotic flows.
 
     Args:
         dt:
@@ -37,7 +37,7 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver
         >>> from skcomplex.core.specs import StepSpec
@@ -48,37 +48,37 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         ...
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = simulate(System(elements=[RelaxingElement('a')]), until=0).problem
+        >>> problem = simulate(CompositeSystem(elements=[RelaxingElement('a')]), until=0).problem
         >>> stepper = GrunwaldLetnikovSolver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 2)
         0.43
     """
 
-    def _weights(self, alpha: Array, count: int) -> Array:
+    def _get_weights(self, alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
-        return self._grunwald_letnikov_weights(alpha, count)
+        return self._get_grunwald_letnikov_weights(alpha, count)
 
-    def _tail(self, alpha: Array, rates: Array, window: int) -> Array:
+    def _get_tail(self, alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the tail weights.
 
         They are the modes of the Grünwald-Letnikov weights past a window.
         """
-        return self._grunwald_letnikov_tail(alpha, rates, window)
+        return self._get_grunwald_letnikov_tail(alpha, rates, window)
 
-    def _gain(self, alpha: Array) -> Array:
+    def _get_gain(self, alpha: Array) -> Array:
         """Return the factor 1 of the drift of every order."""
         return np.ones_like(alpha)
 
     @staticmethod
-    def _grunwald_letnikov_weights(alpha: Array, count: int) -> Array:
+    def _get_grunwald_letnikov_weights(alpha: Array, count: int) -> Array:
         """Return the Grünwald-Letnikov weights `w_0` to `w_count`, one column per order."""
         lags = np.arange(1, count + 1, dtype=float)[:, None]
         factors = 1 - (alpha[None, :] + 1) / lags
         return np.vstack([np.ones((1, alpha.size)), np.cumprod(factors, axis=0)])
 
     @staticmethod
-    def _grunwald_letnikov_tail(alpha: Array, rates: Array, window: int) -> Array:
+    def _get_grunwald_letnikov_tail(alpha: Array, rates: Array, window: int) -> Array:
         """Return the coefficients of the exponential modes of the tail weights.
 
         The sum of the modes gives the Grünwald-Letnikov weights past a window. The weights have the Laplace
@@ -87,4 +87,4 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         """
         s, a = rates[:, None], alpha[None, :]
         density = -np.sin(np.pi * a) / np.pi * np.exp(-s * (window + 1 - a)) * (-np.expm1(-s)) ** a
-        return _MODE_SPACING * s * density
+        return MODE_SPACING * s * density

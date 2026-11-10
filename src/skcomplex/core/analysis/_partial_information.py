@@ -1,7 +1,4 @@
-"""Decompose what two sources tell about a target.
-
-The parts are redundant, unique, and synergistic information.
-"""
+"""Decompose what two sources tell about a target."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,8 +12,9 @@ import numpy as np
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind
-from ._base import _import, _read_series
+from ._base import _read_series
 from ._information import _dit_distribution
+from ._utils import load_module
 from .types import Source
 
 REDUNDANCIES = {
@@ -28,13 +26,12 @@ REDUNDANCIES = {
     'dep': 'PID_dep',
 }
 SERIES = 3
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
 class PartialInformationResult:
-    """Partial information decomposition of what two sources give about a target.
+    """A result of `partial_information`, the parts of what two sources tell.
 
     Args:
         values:
@@ -81,6 +78,9 @@ def partial_information(
     two sources together with the target splits into the information both give, the information only one of them
     gives, and the information only the two together give, with a redundancy measure of `dit`.
 
+    It appears in many fields. It splits what two genes tell about a trait, or two neurons about a stimulus, into
+    unique, shared, and synergistic parts.
+
     Args:
         source:
             The trajectory, or an array of three columns: the two sources and the target.
@@ -124,7 +124,7 @@ def partial_information(
         )
         raise AnalysisError(error_msg)
     columns = np.column_stack([column.ravel() for column in series.values.T])
-    measure = getattr(_import('dit').pid, REDUNDANCIES[redundancy])
+    measure = getattr(load_module('dit').pid, REDUNDANCIES[redundancy])
     lattice = measure(_dit_distribution(columns), [[0], [1]], [2])
     scale = math.log(2) / math.log(base)
     shared = float(lattice.get_pi(((0,), (1,)))) * scale

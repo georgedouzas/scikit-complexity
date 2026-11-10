@@ -17,7 +17,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import advection, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -136,7 +136,7 @@ class ArbitrageTradersSystem(BaseSystem):
         self.A_t = A_t
 
     @staticmethod
-    def _covariant_diffusion(s: SimpleNamespace) -> Expression:
+    def _get_covariant_diffusion(s: SimpleNamespace) -> Expression:
         """Return `D (d_x - A_x(t))^2 rho + A_t rho`.
 
         The connection is `A_x(t) = A_x + E t`.
@@ -149,7 +149,7 @@ class ArbitrageTradersSystem(BaseSystem):
             + (market.D * connection**2 + market.A_t) * market.rho
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         spacing = self.length / self.n_sites
         positions = (np.arange(self.n_sites) + 0.5) * spacing - self.length / 2
@@ -157,5 +157,5 @@ class ArbitrageTradersSystem(BaseSystem):
         values = {'rho': rho, 'D': self.D, 'A_x': self.A_x, 'E': self.E, 'A_t': self.A_t}
         line = LatticeSpace(self.n_sites, spacing=spacing, boundary='periodic')
         market = FieldElement('market', element=ArbitrageDensityElement, space=line, values=values)
-        transport = RateInteraction('transport', target='market', state='rho', rate=self._covariant_diffusion)
-        return System(self.label, elements=[market], interactions=[transport])
+        transport = RateInteraction('transport', target='market', state='rho', rate=self._get_covariant_diffusion)
+        return CompositeSystem(self.label, elements=[market], interactions=[transport])

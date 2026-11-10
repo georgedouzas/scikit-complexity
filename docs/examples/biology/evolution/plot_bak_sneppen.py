@@ -7,7 +7,7 @@ every size. The view shows the space-time history of the fitnesses of the ring, 
 """
 
 # %%
-# The system is built from its class on a ring of 200 species with 200 updates per step. The observer saves every
+# The example builds `BakSneppenSystem` on a ring of 200 species with 200 updates per step. The observer saves every
 # tenth step with the default blueprint, whose primary view is the space-time image of the fitnesses.
 
 import matplotlib.pyplot as plt
@@ -38,7 +38,7 @@ rise.set_xlabel('update')
 rise.set_ylabel('largest minimum fitness so far')
 rise.set_title('The gap rises towards f_c')
 rise.legend()
-spread.hist(trajectory.values('species.fitness')[-1], bins=20, range=(0, 1), density=True)
+spread.hist(trajectory.get_values('species.fitness')[-1], bins=20, range=(0, 1), density=True)
 spread.axvline(0.667, color='black', linestyle='--', label='f_c = 0.667')
 spread.set_xlabel('fitness')
 spread.set_ylabel('density')

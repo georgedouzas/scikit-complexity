@@ -36,12 +36,12 @@ deflections = []
 for impact in impacts:
     ray = LightBendingSystem(impact_parameter=impact, distance=2000.0)
     trajectory = simulate(ray, until=4000.0, dt=4.0, solver=solver)
-    x = np.asarray(trajectory.values('photon.x'))[-1]
-    u = np.asarray(trajectory.values('photon.x_d1'))[-1]
+    x = np.asarray(trajectory.get_values('photon.x'))[-1]
+    u = np.asarray(trajectory.get_values('photon.x_d1'))[-1]
     vx = u[1] * np.cos(x[3]) - x[1] * np.sin(x[3]) * u[3]
     vy = u[1] * np.sin(x[3]) + x[1] * np.cos(x[3]) * u[3]
     deflections.append(-np.arctan2(vy, vx))
-x = np.asarray(simulation.values('photon.x'))
+x = np.asarray(simulation.get_values('photon.x'))
 fig, (path, angle) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(x[:, 1] * np.cos(x[:, 3]), x[:, 1] * np.sin(x[:, 3]))
 path.plot(0, 0, '*', color='black', markersize=10)

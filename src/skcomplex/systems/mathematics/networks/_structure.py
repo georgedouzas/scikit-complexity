@@ -15,10 +15,15 @@ import numpy as np
 from ....core.analysis import motifs, network_measures
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
-from ..common._network_node import NetworkNodeElement
+from ..common.networks import NetworkNodeElement
+
+BLOCKS = 4
+BLOCK_SIZE = 100
+IN_DEGREE = 16
+OUT_DEGREE = 2
 
 
 class NetworkMeasuresElement(Element):
@@ -73,39 +78,27 @@ class NetworkMeasuresElement(Element):
         self.triangle_zscore = triangle_zscore
 
 
-BLOCKS = 4
-
-
-BLOCK_SIZE = 100
-
-
-IN_DEGREE = 16
-
-
-OUT_DEGREE = 2
-
-
-def _path_length(s: SimpleNamespace) -> object:
+def _get_path_length(s: SimpleNamespace) -> object:
     """Return the mean shortest path length of the largest component."""
     return s.measures.path_length
 
 
-def _assortativity(s: SimpleNamespace) -> object:
+def _get_assortativity(s: SimpleNamespace) -> object:
     """Return the degree assortativity."""
     return s.measures.assortativity
 
 
-def _modularity(s: SimpleNamespace) -> object:
+def _get_modularity(s: SimpleNamespace) -> object:
     """Return the modularity of the detected communities."""
     return s.measures.modularity
 
 
-def _agreement(s: SimpleNamespace) -> object:
+def _get_agreement(s: SimpleNamespace) -> object:
     """Return the agreement of the detected communities with the reference partition."""
     return s.measures.agreement
 
 
-def _triangle_zscore(s: SimpleNamespace) -> object:
+def _get_triangle_zscore(s: SimpleNamespace) -> object:
     """Return the z-score of triangles against degree-preserving edge switches."""
     return s.measures.triangle_zscore
 
@@ -155,11 +148,11 @@ class NetworkStructureAnalysisSystem(BaseSystem):
     dt = 1
     observables = (
         ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
-        ObservableSpec('path_length', _path_length),
-        ObservableSpec('assortativity', _assortativity),
-        ObservableSpec('modularity', _modularity),
-        ObservableSpec('agreement', _agreement),
-        ObservableSpec('triangle_zscore', _triangle_zscore),
+        ObservableSpec('path_length', _get_path_length),
+        ObservableSpec('assortativity', _get_assortativity),
+        ObservableSpec('modularity', _get_modularity),
+        ObservableSpec('agreement', _get_agreement),
+        ObservableSpec('triangle_zscore', _get_triangle_zscore),
     )
 
     def __init__(
@@ -178,7 +171,7 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _planted_partition(random_state: int | None) -> nx.Graph:
+    def _get_planted_partition(random_state: int | None) -> nx.Graph:
         """Return a stochastic block graph of 4 blocks of 100 nodes.
 
         The mean degree is 16 in a block and 2 out of it.
@@ -189,7 +182,7 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         return nx.stochastic_block_model([BLOCK_SIZE] * BLOCKS, probabilities, seed=random_state)
 
     @staticmethod
-    def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
+    def _get_reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
         """Return the reference community of every node from an attribute.
 
         The community is `None` when a node lacks the attribute.
@@ -199,16 +192,16 @@ class NetworkStructureAnalysisSystem(BaseSystem):
         values = nx.get_node_attributes(graph, attribute)
         return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a recorded network with centralities, mixing, communities, and motifs.
 
         The mixing is degree mixing, and the motifs are measured by the triangle z-score.
         """
-        network = self._planted_partition(self.random_state) if self.graph is None else self.graph
+        network = self._get_planted_partition(self.random_state) if self.graph is None else self.graph
         found = network_measures(
             network,
             kind='communities',
-            reference=self._reference(network, self.reference),
+            reference=self._get_reference(network, self.reference),
             random_state=self.random_state,
         )
         summary = network_measures(network)
@@ -250,4 +243,4 @@ class NetworkStructureAnalysisSystem(BaseSystem):
             agreement=0.0 if found.agreement is None else float(found.agreement[0]),
             triangle_zscore=zscore,
         )
-        return System(self.label, elements=[group, measures], space=NetworkSpace(network))
+        return CompositeSystem(self.label, elements=[group, measures], space=NetworkSpace(network))

@@ -10,7 +10,7 @@ def test_memristive_mixed_mode_oscillator_settles_on_two_large_and_eleven_small_
     """Test that the defaults give Trzaska's mixed-mode oscillation `2^11` with his period 7.816."""
     trajectory = simulate(MemristiveMixedModeOscillatorSystem())
     settled = trajectory.times > 60
-    x, times = trajectory.values('circuit.x')[settled], trajectory.times[settled]
+    x, times = trajectory.get_values('circuit.x')[settled], trajectory.times[settled]
     inner = (x[1:-1] > x[:-2]) & (x[1:-1] > x[2:])
     peaks, peak_times = x[1:-1][inner], times[1:-1][inner]
     spikes = peak_times[peaks > 30]

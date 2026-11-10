@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.system import System
+from ...components.systems import CompositeSystem
 from ...errors import ParameterError, SimulationError, ValidationError
 from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
 from ...types import Array, FormKind
@@ -34,17 +34,17 @@ from ._invariants import InvariantObserver
 from ._recorder import RecorderObserver
 from ._trajectories import Trajectory
 
-_DEFAULT_DT = 0.01
-_MAX_FRAMES = 1000
-_FRAME_MANTISSAS = (1, 2, 5)
+DEFAULT_DT = 0.01
+MAX_FRAMES = 1000
+FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
-_STEPWISE_FORMS = frozenset(
+STEPWISE_FORMS = frozenset(
     {FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO, FormKind.LEARNING},
 )
 
 
 class Simulation(BaseConfig[None, float]):
-    """Simulation of a system with the solver of its form.
+    """A simulation of a system with the solver of its form, run frame by frame.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters change between frames
     only through the schedule, whose values are checked against the domains of their parameters, and `extend`
@@ -150,21 +150,21 @@ class Simulation(BaseConfig[None, float]):
             The recorder of the draws of a run that records or replays them, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
-        >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
-        >>> round(simulation.trajectory_.values('rabbits.n')[-1])
+        >>> round(simulation.trajectory_.get_values('rabbits.x')[-1])
         100
     """
 
     def __init__(
         self,
-        system: System | BaseProblemSpec,
+        system: CompositeSystem | BaseProblemSpec,
         *,
         compiler: BaseCompiler | None = None,
         solver: BaseSolver | None = None,
@@ -208,8 +208,8 @@ class Simulation(BaseConfig[None, float]):
         """
         partitions = [item for item in self._partition_problems(problem) if not getattr(item, 'programs', ())]
         forms = {problem.form, *(item.form for item in partitions)}
-        stepwise = bool(forms & _STEPWISE_FORMS) or self.stepper_._is_stepwise()
-        default = 1.0 if stepwise else self._default_dt(until)
+        stepwise = bool(forms & STEPWISE_FORMS) or self.stepper_._is_stepwise()
+        default = 1.0 if stepwise else self._get_default_dt(until)
         dt = default if self.dt is None else self.dt
         if not EntrySpec._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
@@ -244,20 +244,20 @@ class Simulation(BaseConfig[None, float]):
                 The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
                 run, with every problem found.
         """
-        if not isinstance(self.system, System | BaseProblemSpec):
+        if not isinstance(self.system, CompositeSystem | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
                 'library from its class, such as `SIRSystem()`.'
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
-            self._compiler().prepare(self.system).report_._check()
+            self._get_compiler().prepare(self.system).report_._check()
         initial = dict(self.initial_state or {})
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
-            self.problem_ = PassCompiler._with_initial_state(self.system, initial)
+            self.problem_ = PassCompiler._copy_with_initial_state(self.system, initial)
         else:
-            compiler = self._compiler().prepare(self.system)
+            compiler = self._get_compiler().prepare(self.system)
             self.problem_ = compiler.run(initial).problem_
             named = compiler.solver_
         if named is not None and not isinstance(named, BaseSolver):
@@ -267,7 +267,7 @@ class Simulation(BaseConfig[None, float]):
         if self.solver is not None:
             self.stepper_ = self.solver
         else:
-            self.stepper_ = named if named is not None else self._default_solver(self.problem_)
+            self.stepper_ = named if named is not None else self._get_default_solver(self.problem_)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
@@ -294,7 +294,7 @@ class Simulation(BaseConfig[None, float]):
             observer.prepare(self.problem_)
 
     def _draw_recorder(self) -> DrawRecorder | None:
-        """Return the recorder of the draws of a run that records or replays them, or `None`.
+        """Return the recorder of the draws of a run that records or replays, or `None`.
 
         Returns:
             recorder:
@@ -357,7 +357,7 @@ class Simulation(BaseConfig[None, float]):
         for observer in self.observers_:
             observer.run(frame)
 
-    def _loop(self, until: float) -> None:
+    def _advance_frames(self, until: float) -> None:
         """Advance frame by frame from the current time until `until`.
 
         A terminal event stops it earlier. The stepper runs once per frame, and its last run, at the last frame or after
@@ -482,21 +482,21 @@ class Simulation(BaseConfig[None, float]):
             error_msg = 'The simulation has not been run. Call `run` first.'
             raise SimulationError(error_msg)
 
-    def _compiler(self) -> BaseCompiler:
+    def _get_compiler(self) -> BaseCompiler:
         """Return a copy of the compiler with the settings of the simulation.
 
         The settings are the backend, the solver, and the observables.
         """
         if self.compiler is not None:
             compiler = clone(self.compiler)
-        elif isinstance(self.system, System):
-            compiler = self._default_compiler(self.system) or PassCompiler()
+        elif isinstance(self.system, CompositeSystem):
+            compiler = self._get_default_compiler(self.system) or PassCompiler()
         else:
             compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
     @staticmethod
-    def _default_compiler(system: System) -> BaseCompiler | None:
+    def _get_default_compiler(system: CompositeSystem) -> BaseCompiler | None:
         """Return the compiler of the library's form that a system holds.
 
         It returns `None` for the pass compiler.
@@ -516,7 +516,7 @@ class Simulation(BaseConfig[None, float]):
             return RewritingCompiler()
         return None
 
-    def _default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
+    def _get_default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
         """Return the default solver of the form of a problem.
 
         A problem that runs as partitions takes `CoSimulationSolver`, and a stochastic problem driven by fractional
@@ -600,7 +600,7 @@ class Simulation(BaseConfig[None, float]):
             raise ValidationError(error_msg)
         until = 0.0 if self.problem_.form == FormKind.STATIC else float(end)
         self._start(until)
-        self._loop(until)
+        self._advance_frames(until)
 
     def extend(self, until: float) -> Self:
         """Continue a finished run from its last frame to `until`.
@@ -622,11 +622,11 @@ class Simulation(BaseConfig[None, float]):
                 The simulation has not run, ended at a terminal event, or `until` is not later than its time.
 
         Examples:
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.core.engine.runtime._simulations import Simulation
-            >>> system = System(
-            ...     elements=[PopulationElement('rabbits', n=10)],
+            >>> system = CompositeSystem(
+            ...     elements=[PopulationElement('rabbits', x=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
@@ -634,7 +634,7 @@ class Simulation(BaseConfig[None, float]):
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory.values('rabbits.n')[5] == trajectory.values('rabbits.n')[10])
+            >>> bool(trajectory.get_values('rabbits.x')[5] == trajectory.get_values('rabbits.x')[10])
             True
         """
         self._check_prepared()
@@ -647,7 +647,7 @@ class Simulation(BaseConfig[None, float]):
         if self.stepper_.stopped_at_ is not None:
             error_msg = f'A terminal event ended the run at t = {self.time_}, so it cannot be extended.'
             raise SimulationError(error_msg)
-        self._loop(until)
+        self._advance_frames(until)
         return self
 
     @property
@@ -672,17 +672,17 @@ class Simulation(BaseConfig[None, float]):
         return problem.partition_problems
 
     @staticmethod
-    def _default_dt(until: float) -> float:
+    def _get_default_dt(until: float) -> float:
         """Return the smallest round time step that keeps a run within 1000 frames.
 
         The candidates are 0.01, 0.02, 0.05, 0.1, and so on, for a run until a time.
         """
         if not math.isfinite(until):
-            return _DEFAULT_DT
-        exponent = round(math.log10(_DEFAULT_DT))
+            return DEFAULT_DT
+        exponent = round(math.log10(DEFAULT_DT))
         while True:
-            for mantissa in _FRAME_MANTISSAS:
+            for mantissa in FRAME_MANTISSAS:
                 dt = float(f'{mantissa}e{exponent}')
-                if until / dt <= _MAX_FRAMES * (1 + TIME_TOLERANCE):
+                if until / dt <= MAX_FRAMES * (1 + TIME_TOLERANCE):
                     return dt
             exponent += 1

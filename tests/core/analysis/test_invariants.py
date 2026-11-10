@@ -9,7 +9,7 @@ from skcomplex.core.analysis import invariants
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, SymmetrySpec
 from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem, TwoBodyOrbitSystem
@@ -58,10 +58,10 @@ def _jacobi(s):
     return body.x**2 + body.y**2 + 2 * (1 - MU) / first + 2 * MU / second - body.x_d1**2 - body.y_d1**2
 
 
-def _lagrangian_three_body() -> System:
+def _lagrangian_three_body() -> CompositeSystem:
     """Return the restricted three-body problem written with an Euler-Lagrange interaction."""
     motion = EulerLagrangeInteraction('motion', target='body', states=('x', 'y'), lagrangian=_rotating_lagrangian)
-    return System(elements=[LagrangianBodyElement('body')], interactions=[motion])
+    return CompositeSystem(elements=[LagrangianBodyElement('body')], interactions=[motion])
 
 
 def _kepler_expressions() -> list[ObservableSpec]:

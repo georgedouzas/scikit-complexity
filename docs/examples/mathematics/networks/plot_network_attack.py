@@ -41,7 +41,7 @@ trajectory = simulate(NetworkAttackSystem(), until=17, observers=[observer], ran
 
 def giant_share(trajectory, frame, size):
     """Return the share of the original nodes in the largest component at a frame."""
-    graph = trajectory.network(frame).graph()
+    graph = trajectory.get_network(frame).get_graph()
     return max((len(component) for component in nx.connected_components(graph)), default=0) / size
 
 
@@ -55,7 +55,7 @@ size = 1000
 fig, axis = plt.subplots(figsize=(6, 4))
 for strategy, rate in (('targeted', 0.0), ('random', 0.01)):
     run = simulate(NetworkAttackSystem(n_nodes=size, strategy=strategy, rate=rate), until=60, random_state=0)
-    removed = [1 - len(run.network(frame).nodes) / size for frame in range(len(run.times))]
+    removed = [1 - len(run.get_network(frame).nodes) / size for frame in range(len(run.times))]
     giants = [giant_share(run, frame, size) for frame in range(len(run.times))]
     axis.plot(removed, giants, 'o-', markersize=3, label=strategy)
 axis.plot([0, 1], [1, 0], 'k:', label='removed nodes only')

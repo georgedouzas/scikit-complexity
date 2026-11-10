@@ -21,7 +21,7 @@ def _diagram(density, gamma, deceleration=0.95):
 def test_homogeneous_crowd_follows_the_fundamental_diagram(walkers, stress):
     """Test that with one cell over the street the mean speed is the fundamental diagram of the density."""
     trajectory = _run(KineticCrowdSystem(walkers, stress=stress, cell=20.0), 300)
-    speed = trajectory.values('decisions.mean_speed')[-100:].mean()
+    speed = trajectory.get_values('decisions.mean_speed')[-100:].mean()
     assert speed == pytest.approx(_diagram(walkers / 400, stress), rel=0.1)
 
 
@@ -31,7 +31,7 @@ def test_walkers_stay_between_the_walls_and_panic_speeds_them_up():
     for frame in (50, 150, 300):
         y = _values(trajectory, 'walkers', 'y', frame)
         assert np.all((y >= 0) & (y <= 5))
-    speeds = trajectory.values('decisions.mean_speed')
+    speeds = trajectory.get_values('decisions.mean_speed')
     assert speeds[250:].mean() > speeds[100:150].mean() + 0.2
-    band = trajectory.values('decisions.band_index')
+    band = trajectory.get_values('decisions.band_index')
     assert np.all((band[1:] >= 0) & (band[1:] <= 1))

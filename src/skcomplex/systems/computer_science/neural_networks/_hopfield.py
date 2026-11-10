@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import ZZ
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -111,7 +111,7 @@ class HopfieldUpdateInteraction(MapInteraction):
         """
         del system
         weights = np.asarray(agent.weights)
-        neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
+        neighbors = [other for other in agent.get_neighbors() if isinstance(other, NeuronView)]
         field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
         return float(np.sign(field)) if field != 0 else float(agent.spin)
 
@@ -172,7 +172,7 @@ class HopfieldSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _hebbian_weights(patterns: Array) -> Array:
+    def _get_hebbian_weights(patterns: Array) -> Array:
         """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns.
 
         There is no self-coupling.
@@ -181,7 +181,7 @@ class HopfieldSystem(BaseSystem):
         np.fill_diagonal(weights, 0.0)
         return weights
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         stored: Array = np.asarray(
@@ -194,9 +194,9 @@ class HopfieldSystem(BaseSystem):
             'neurons',
             element=NeuronElement,
             size=size,
-            values={'spin': spins, 'weights': self._hebbian_weights(stored)},
+            values={'spin': spins, 'weights': self._get_hebbian_weights(stored)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[neurons],
             interactions=[HopfieldUpdateInteraction('update', target='neurons')],

@@ -1,4 +1,4 @@
-"""Define discrete time, in which updates and rules change the states every step."""
+"""Define discrete time, in which states change once per step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +16,16 @@ SCHEDULES = ('synchronous', 'random-sequential')
 
 
 class DiscreteTime(BaseTime):
-    """Discrete time, in which the states change every step.
+    """A time that advances in steps, in which updates and rules change the states.
 
-    They change by updates, rules, local rules, rewrites, and samples.
+    The laws it accepts are updates, agent rules, local rules, rewrites, and Monte Carlo samples. A `schedule` may order
+    the laws of one step in phases.
+
+    Unlike `ContinuousTime`, which flows, it advances by whole steps. Choose it when the model is a map, a cellular
+    automaton, or an agent-based model.
+
+    It appears in many fields. A population grows by generations, a cellular automaton steps its cells, agents trade in
+    rounds, and an account compounds interest monthly.
 
     Args:
         schedule:

@@ -1,7 +1,4 @@
-"""Compile the binary collision integral of a density over two velocity axes.
-
-The integral is computed by the fast spectral method.
-"""
+"""Compile the binary collision integral of a density over two velocity axes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ PLANE = 2
 
 
 class CollisionKernel(BaseKernel):
-    """Binary collision integral of a density over two uniform velocity axes.
+    """A kernel of the binary collision integral of a density over two velocity axes.
 
     It is computed by the method of Mouhot and Pareschi. The integral is `Q(f, f)(v) = int int B(|g|, cos t) (f(v')
     f(v'*) - f(v) f(v*)) ds dv*` in the Carleman form, an integral over the two orthogonal displacements `x = v' - v`
@@ -140,7 +137,7 @@ class CollisionKernel(BaseKernel):
 
         The density is the `x` of `inputs`.
         """
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         sizes = self.dimensions[-PLANE:]
         grid = np.reshape(state.x, self.dimensions)
         axes = (-2, -1)

@@ -18,18 +18,16 @@ from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, Interaction, MatchingInteraction, TransferInteraction
+from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BaseSpec,
-    MatchSpec,
     ObservableSpec,
     ParameterSpec,
-    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
     RoleSpec,
@@ -37,7 +35,15 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
+
+PROPENSITIES = {'fertility': 0.3, 'exploration': 1.0, 'enterprise': 0.3, 'restlessness': 0.1}
+ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
+OLD_AGE_DEATH = 1 / 7
+MODES = ('hunter_gatherer', 'monetary')
+PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
+SIGHT = 5.0
 
 
 class BusinessView(AgentView):
@@ -268,15 +274,6 @@ class _PeopleSpec(BaseSpec):
     people: Mapping[int, SettlerView]
 
 
-PROPENSITIES = {'fertility': 0.3, 'exploration': 1.0, 'enterprise': 0.3, 'restlessness': 0.1}
-
-
-ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
-
-
-OLD_AGE_DEATH = 1 / 7
-
-
 class SettlerElement(Element):
     """Mortal person who eats, ages, raises children, and moves.
 
@@ -449,7 +446,7 @@ class SettlerElement(Element):
 
     def _feed_child(self, agent: SettlerView, system: SystemView) -> None:
         """Take food from the living parent and follow it."""
-        parent = agent.referenced('parent')
+        parent = agent.get_referenced('parent')
         if not isinstance(parent, SettlerView):
             return
         given = min(agent.need, max(parent.food - parent.need, 0.0))
@@ -480,7 +477,7 @@ class SettlerElement(Element):
             if system.rng.random() < agent.restlessness:
                 agent.employer = -1.0
             return agent.employer >= 0
-        if agent.agents_here('businesses') or SettlerElement._patch_here(agent).food <= 0:
+        if agent.get_agents_here('businesses') or SettlerElement._get_patch_here(agent).food <= 0:
             return False
         if system.rng.random() >= agent.enterprise:
             return False
@@ -518,12 +515,12 @@ class SettlerElement(Element):
         agent.harvested = 0.0
 
     @staticmethod
-    def _patch_here(agent: AgentView) -> PlotView:
+    def _get_patch_here(agent: AgentView) -> PlotView:
         """Return the patch of the cell of an agent."""
-        return next(patch for patch in agent.agents_here('patches') if isinstance(patch, PlotView))
+        return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
     @staticmethod
-    def _cell(agent: AgentView) -> tuple[int, ...]:
+    def _get_cell(agent: AgentView) -> tuple[int, ...]:
         """Return the cell of an agent of the lattice."""
         location = agent.location
         if not isinstance(location, tuple):
@@ -541,10 +538,10 @@ class SettlerElement(Element):
             width, height = system.dimensions or (1, 1)
             reach = int(sight)
             dx, dy = system.rng.integers(-reach, reach + 1, size=2)
-            x, y = SettlerElement._cell(agent)
+            x, y = SettlerElement._get_cell(agent)
             agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
             return
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
 
 
@@ -669,7 +666,7 @@ class BusinessElement(Element):
             transfer(bank, agent, amount, 'money')
             transfer(agent, bank, amount, 'loans')
 
-    def _service(self, agent: BusinessView, bank: CentralBankView) -> None:
+    def _pay_debt(self, agent: BusinessView, bank: CentralBankView) -> None:
         """Pay the interest and the repayment of the debt.
 
         The firm borrows anew what it lacks.
@@ -713,10 +710,10 @@ class BusinessElement(Element):
             system:
                 The system.
         """
-        people = BusinessElement._people_by_id(system)
+        people = BusinessElement._get_people_by_id(system)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = system.agents('bank', CentralBankView)[0]
-        patch = SettlerElement._patch_here(agent)
+        bank = system.get_agents('bank', CentralBankView)[0]
+        patch = SettlerElement._get_patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
             worker.move_to(agent.location)
@@ -729,10 +726,10 @@ class BusinessElement(Element):
         for worker in workers:
             transfer(agent, worker, agent.wage, 'money')
             worker.harvested = worker.need
-        self._service(agent, bank)
+        self._pay_debt(agent, bank)
         self._adjust(agent, workers, patch, sold_out)
         agent.workers, agent.revenue = float(len(workers)), 0.0
-        owner = agent.referenced('owner')
+        owner = agent.get_referenced('owner')
         if not isinstance(owner, SettlerView) and workers:
             owner = workers[0]
             agent.owner = float(owner.id)
@@ -740,14 +737,14 @@ class BusinessElement(Element):
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
     @staticmethod
-    def _people_by_id(system: SystemView) -> dict[int, SettlerView]:
+    def _get_people_by_id(system: SystemView) -> dict[int, SettlerView]:
         """Return the living people by id.
 
         They are built once per step in the storage of the caller.
         """
         cached = system.storage.get('people')
         if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
-            people = {person.id: person for person in system.agents('people', SettlerView) if person.alive}
+            people = {person.id: person for person in system.get_agents('people', SettlerView) if person.alive}
             cached = _PeopleSpec(system.time, people)
             system.storage['people'] = cached
         return dict(cached.people)
@@ -804,10 +801,10 @@ class CommonsInteraction(Interaction):
                 The system view of the interaction.
         """
         cells: dict[tuple[int, ...], list[SettlerView]] = {}
-        for person in system.agents('people', SettlerView):
-            cells.setdefault(SettlerElement._cell(person), []).append(person)
+        for person in system.get_agents('people', SettlerView):
+            cells.setdefault(SettlerElement._get_cell(person), []).append(person)
         for group in cells.values():
-            patch = SettlerElement._patch_here(group[0])
+            patch = SettlerElement._get_patch_here(group[0])
             labour = sum(person.labour for person in group if person.age >= person.maturity)
             harvest = min(patch.food, max(labour - patch.resistance, 0.0))
             patch.food -= harvest
@@ -871,7 +868,7 @@ class EstateInteraction(Interaction):
             system:
                 The system view of the interaction.
         """
-        people = system.agents('people', SettlerView)
+        people = system.get_agents('people', SettlerView)
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         system.report('births', float(sum(person.age == 0 for person in living)))
@@ -900,13 +897,13 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
     They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
     `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
     purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
-    `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, clearing='provider')`, whose score prefers the
+    `PartnerMatchingSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import FoodMarketInteraction
-        >>> rule = PartnerSpec(5.0, 'score', score=FoodMarketInteraction.score, clearing='provider')
+        >>> rule = PartnerMatchingSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
         >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
         'gdp'
     """
@@ -971,7 +968,7 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
     They take it in random order. A matching of the people, who request a job, with the firms, which provide their
     vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
     still has a vacancy, and moves to it. Build it with
-    `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, clearing='provider')`.
+    `PartnerMatchingSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
         >>> from skcomplex.core.specs import PartnerSpec
@@ -980,8 +977,8 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         ...     'jobs',
         ...     requesters='people',
         ...     providers='businesses',
-        ...     rule=PartnerSpec(5.0, 'score', score=LabourMarketInteraction.score, clearing='provider'),
-        ...     limit=('hireable', 'limit'),
+        ...     rule=PartnerMatchingSpec(5.0, 'score', score=LabourMarketInteraction.score, value='provider'),
+        ...     reserve=('hireable', 'reserve'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,
         ... ).providers
@@ -1022,48 +1019,6 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         if isinstance(person, SettlerView) and isinstance(firm, BusinessView):
             person.employer = float(firm.id)
             person.move_to(firm.location)
-
-
-MODES = ('hunter_gatherer', 'monetary')
-
-
-PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
-
-
-SIGHT = 5.0
-
-
-def _bank_balance(bank: SimpleNamespace) -> float:
-    """Return the money the bank has issued plus the loans it holds.
-
-    It is zero when every unit of money is a loan.
-    """
-    return float(bank.money + bank.loans)
-
-
-def _living(fates: object) -> float:
-    """Return the number of living people from their fates."""
-    return float(np.sum(np.asarray(fates) == ALIVE))
-
-
-def _money_gini(money: object) -> float:
-    """Return the Gini coefficient of the money of people."""
-    gini = distribution(np.asarray(money, dtype=float), kind='gini').gini
-    return 0.0 if gini is None else gini
-
-
-def _metaphoria_observables(system: System) -> list[ObservableSpec]:
-    """Return the population, the Gini coefficient of money, and the bank balance.
-
-    The population is the living one, of a monetary economy.
-    """
-    observables = [
-        ObservableSpec('population', group='people', variable='fate', reduce=_living),
-        ObservableSpec('money_gini', group='people', variable='money', reduce=_money_gini),
-    ]
-    if any(element.label == 'bank' for element in system.elements):
-        observables.append(ObservableSpec('bank_balance', _bank_balance, group='bank', reduce='sum'))
-    return observables
 
 
 class MetaphoriaSystem(BaseSystem):
@@ -1138,6 +1093,41 @@ class MetaphoriaSystem(BaseSystem):
     references = ('Gooding 2019',)
     until = 300
 
+    @staticmethod
+    def _get_bank_balance(bank: SimpleNamespace) -> float:
+        """Return the money the bank has issued plus the loans it holds.
+
+        It is zero when every unit of money is a loan.
+        """
+        return float(bank.money + bank.loans)
+
+    @staticmethod
+    def _get_living(fates: object) -> float:
+        """Return the number of living people from their fates."""
+        return float(np.sum(np.asarray(fates) == ALIVE))
+
+    @staticmethod
+    def _get_money_gini(money: object) -> float:
+        """Return the Gini coefficient of the money of people."""
+        gini = distribution(np.asarray(money, dtype=float), kind='gini').gini
+        return 0.0 if gini is None else gini
+
+    @staticmethod
+    def _get_metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the population, the Gini coefficient of money, and the bank balance.
+
+        The population is the living one, of a monetary economy.
+        """
+        observables = [
+            ObservableSpec('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
+            ObservableSpec('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
+        ]
+        if any(element.label == 'bank' for element in system.elements):
+            observables.append(
+                ObservableSpec('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
+            )
+        return observables
+
     def __init__(
         self,
         n_people: int = 100,
@@ -1169,7 +1159,7 @@ class MetaphoriaSystem(BaseSystem):
         self.n_firms = n_firms
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         shape = self.shape
         if self.mode not in MODES:
@@ -1226,8 +1216,8 @@ class MetaphoriaSystem(BaseSystem):
             'jobs',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, clearing='provider'),
-            limit=('hireable', 'limit'),
+            rule=PartnerMatchingSpec(SIGHT, 'score', score=LabourMarketInteraction.score, value='provider'),
+            reserve=('hireable', 'reserve'),
             quantity=('quantity', 'vacancies'),
             phase='hiring',
             on_match=LabourMarketInteraction.hire,
@@ -1236,10 +1226,10 @@ class MetaphoriaSystem(BaseSystem):
             'shops',
             requesters='people',
             providers='businesses',
-            rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
-            limit=('limit', 'price'),
+            rule=PartnerMatchingSpec(SIGHT, 'score', score=FoodMarketInteraction.score, value='provider'),
+            reserve=('reserve', 'price'),
             quantity=('shortfall', 'stock'),
-            allowance='money',
+            cap='money',
             transfers=(('money', -1),),
             phase='market',
             on_match=FoodMarketInteraction.sell,
@@ -1261,7 +1251,7 @@ class MetaphoriaSystem(BaseSystem):
             if self.mode == 'hunter_gatherer'
             else [jobs, dividends, shops]
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[patches, people, *economy],
             interactions=[
@@ -1286,5 +1276,5 @@ class MetaphoriaSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _metaphoria_observables(self._pass_parameters())
+        settings['observables'] = MetaphoriaSystem._get_metaphoria_observables(self._get_pass_parameters())
         return settings

@@ -6,8 +6,8 @@ feedback makes the concentration oscillate irregularly, a chaotic signal that ne
 """
 
 # %%
-# The system is built from its class with the delay `tau = 17` and run for 500 days. The observer saves every fourth
-# frame with the default blueprint, whose primary view is the time series of the concentration.
+# The example builds `MackeyGlassSystem` with the delay `tau = 17` and runs it for 500 days. The observer saves every
+# fourth frame with the default blueprint, whose primary view is the time series of the concentration.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ trajectory = simulate(MackeyGlassSystem(tau=17.0), observers=[observer])
 fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
     trajectory = simulate(MackeyGlassSystem(tau=tau), until=1000)
-    values = trajectory.values('cells.x')[trajectory.times > 200]
+    values = trajectory.get_values('cells.x')[trajectory.times > 200]
     vectors = embedding(values, delay=int(tau / 0.5), dimension=2).points
     ax.plot(vectors[:, 1], vectors[:, 0], linewidth=0.6)
     ax.set_xlabel('x(t)')

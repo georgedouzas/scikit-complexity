@@ -1,7 +1,4 @@
-"""Rank the inputs of a system by their effect on an output.
-
-The methods are one at a time, Morris screening, and Sobol.
-"""
+"""Rank the inputs of a system by their effect on an output."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,12 +22,11 @@ from .types import Bounds, Source
 
 METHODS = ('oat', 'morris', 'sobol')
 SIZES = {'oat': 0, 'morris': 10, 'sobol': 1024}
-"""The default number of Morris trajectories or of base points of every method."""
 
 
 @dataclass(frozen=True)
 class SensitivityResult:
-    """Sensitivity of a scalar output of a system to its inputs.
+    """A result of `sensitivity`, the effect of each input on a scalar output.
 
     Args:
         names:
@@ -109,6 +105,9 @@ def sensitivity(
     - `'sobol'` runs Saltelli's sample of `n` base points, 1024 by default and best a power of 2, and gives the
       first-order and total Sobol indices.
 
+    It appears in many fields. It ranks the parameters of an epidemic by their effect on its peak, the inputs of a
+    climate model by their effect on warming, and the costs of a supply chain by their effect on profit.
+
     Args:
         system:
             The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
@@ -159,7 +158,7 @@ def sensitivity(
         >>> from skcomplex.core.experiments import sensitivity
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
-        >>> result = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
+        >>> result = sensitivity(LogisticGrowthSystem(), bounds, output='population.x', method='oat', until=20)
         >>> result.ranking[0]
         'growth.K'
     """
@@ -188,7 +187,7 @@ def sensitivity(
     )
     names = list(bounds)
     inputs = np.asarray([[row[name] for name in names] for row in rows], dtype=float)
-    outputs = np.asarray(result.column(output), dtype=float)
+    outputs = np.asarray(result.get_column(output), dtype=float)
     problem = {'num_vars': len(names), 'names': names}
     if method == 'oat':
         effects = dict(zip(names, map(float, outputs[1::2] - outputs[0::2]), strict=True))

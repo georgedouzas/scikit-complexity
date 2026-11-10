@@ -19,89 +19,13 @@ from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import lag, mod
 from ....core.components.spaces import BaseSpace, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.flows import LorenzElement
 
-
-class LorenzElement(Element):
-    """Lorenz flow `x' = sigma (y - x)`, `y' = x (rho - z) - y`, `z' = x y - beta z`.
-
-    It is the response that a Rössler oscillator drives into generalized synchronization, and its auxiliary copy.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial convection intensity.
-
-        y:
-            The initial temperature difference between rising and falling currents.
-
-        z:
-            The initial deviation of the vertical temperature profile.
-
-        sigma:
-            The Prandtl number.
-
-        rho:
-            The Rayleigh number relative to its critical value.
-
-        beta:
-            The geometric factor.
-
-    Examples:
-        >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.systems.physics.synchronization._chaos import LorenzElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[LorenzElement('lorenz', x=0.0, y=0.0, z=2.0, beta=0.5)])
-        >>> trajectory = simulate(system, until=1.0, dt=0.5)
-        >>> [round(float(value), 4) for value in trajectory.values('lorenz.z')]
-        [2.0, 1.5576, 1.2131]
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 1.0,
-        z: Annotated[float, StateSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 10.0,
-        rho: Annotated[float, ParameterSpec()] = 28.0,
-        beta: Annotated[float, ParameterSpec()] = 8 / 3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.sigma = sigma
-        self.rho = rho
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the three modes.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rates of `x`, `y`, and `z`.
-        """
-        return [
-            RateLaw(s.x, s.sigma * (s.y - s.x)),
-            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-            RateLaw(s.z, s.x * s.y - s.beta * s.z),
-        ]
+MAPS = ('logistic', 'bernoulli')
+PAIR = 2
 
 
 class DelayedUnitElement(DeclaredElement):
@@ -289,9 +213,6 @@ class RosslerOscillatorElement(Element):
         ]
 
 
-MAPS = ('logistic', 'bernoulli')
-
-
 class AggregateAveragingInteraction(MapInteraction):
     """Logistic or Bernoulli map of an aggregate of a target value and a source value.
 
@@ -441,9 +362,6 @@ class DiffusiveCouplingInteraction(RateInteraction):
         return namespace.k * (getattr(namespace.source, self.state) - getattr(namespace.target, self.state))
 
 
-PAIR = 2
-
-
 class CoupledRosslerSystem(BaseSystem):
     """Chaotic Rössler oscillators on a ring.
 
@@ -513,7 +431,7 @@ class CoupledRosslerSystem(BaseSystem):
         self.c = c
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return chaotic Rössler oscillators on a ring.
 
         The oscillators are diffusively coupled through their second variable.
@@ -546,7 +464,7 @@ class CoupledRosslerSystem(BaseSystem):
             for first, second in links
             for source, target in ((first, second), (second, first))
         ]
-        return System(self.label, elements=oscillators, interactions=couplings)
+        return CompositeSystem(self.label, elements=oscillators, interactions=couplings)
 
 
 class AggregateAveragingSynchronizationSystem(BaseSystem):
@@ -620,7 +538,7 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
         self.kind = kind
         self.delay = delay
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two chaotic maps coupled by aggregate averaging.
 
         The maps synchronize their chaos for strong coupling.
@@ -644,7 +562,7 @@ class AggregateAveragingSynchronizationSystem(BaseSystem):
             )
             for source, target in (('second', 'first'), ('first', 'second'))
         ]
-        return System(self.label, elements=units, interactions=averaging, time=DiscreteTime())
+        return CompositeSystem(self.label, elements=units, interactions=averaging, time=DiscreteTime())
 
 
 class RosslerDrivenLorenzSystem(BaseSystem):
@@ -699,7 +617,7 @@ class RosslerDrivenLorenzSystem(BaseSystem):
         self.auxiliary = auxiliary
         self.p = p
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a chaotic Rössler system that drives a Lorenz-63 system.
 
         The drive acts through the second variable.
@@ -718,4 +636,4 @@ class RosslerDrivenLorenzSystem(BaseSystem):
             )
             for response in responses
         ]
-        return System(self.label, elements=[drive, *responses], interactions=couplings)
+        return CompositeSystem(self.label, elements=[drive, *responses], interactions=couplings)

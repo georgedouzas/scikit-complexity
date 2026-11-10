@@ -1,4 +1,4 @@
-"""Define production laws, the productions of string rewriting systems on words."""
+"""Define the law of one production of a string rewriting system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,13 +13,20 @@ from ._base import BaseLaw
 
 
 class ProductionLaw(BaseLaw):
-    """Production of a string rewriting system.
+    """A law that rewrites every matching symbol of a word by a successor.
 
-    It replaces every matching module of a word by a successor. A word element returns its productions from `_get_laws`,
-    and every generation applies all of them at once. The predecessor's parameters are symbols bound to the parameters
-    of each matching module. The condition, the successor's parameters, and the probability are expressions of these
-    symbols and of the parameters of the element. A production with a left or a right context matches only modules whose
-    neighbours, skipping the ignored symbols of the word and its bracketed branches, spell the context.
+    A string rewriting system, or L-system, grows a word by replacing each symbol by a string at every generation. A
+    word element returns its productions from `_get_laws`, and every generation applies all of them at once. The
+    parameters of the predecessor are symbols bound to the parameters of each matching symbol. The condition, the
+    parameters of the successor, and the probability are expressions of these symbols and of the parameters of the
+    element. A production with a left or a right context matches only where the neighbours spell it, skipping ignored
+    symbols and bracketed branches.
+
+    Unlike `UpdateLaw`, which changes the value of a fixed number of states, it replaces symbols by strings, so the word
+    grows. Choose it when a structure develops by repeated rewriting.
+
+    It appears in many fields. Lindenmayer systems model the branching of plants, rewriting rules build fractal curves,
+    and grammars generate the structure of sentences.
 
     Args:
         predecessor:

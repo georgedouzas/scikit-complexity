@@ -7,8 +7,8 @@ stops in one of two stable states.
 """
 
 # %%
-# The system is built from its class with the negative circuit, and the observer saves every frame with the default
-# blueprint, whose primary view is the time series of the levels.
+# The example builds `GeneralizedLogicalNetworkSystem` with the negative circuit, and the observer saves every frame
+# with the default blueprint, whose primary view is the time series of the levels.
 
 import collections
 import itertools
@@ -30,7 +30,9 @@ trajectory = simulate(GeneralizedLogicalNetworkSystem(), observers=[observer], r
 # ----------------------------
 # The transitions between consecutive frames should trace a cycle through the states of `x` and `y`.
 
-states = list(zip(trajectory.values('x.level').astype(int), trajectory.values('y.level').astype(int), strict=True))
+states = list(
+    zip(trajectory.get_values('x.level').astype(int), trajectory.get_values('y.level').astype(int), strict=True),
+)
 moves = collections.Counter((a, b) for a, b in itertools.pairwise(states) if a != b)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for (start, end), count in moves.items():

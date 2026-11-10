@@ -58,12 +58,12 @@ class StuartLandauElement(Element):
 
     Examples:
         >>> import math
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.oscillators import StuartLandauElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(elements=[StuartLandauElement('oscillator', x=0.1, mu=4.0)])
+        >>> system = CompositeSystem(elements=[StuartLandauElement('oscillator', x=0.1, mu=4.0)])
         >>> trajectory = simulate(system, until=10.0, dt=0.5)
-        >>> round(math.hypot(trajectory.values('oscillator.x')[-1], trajectory.values('oscillator.y')[-1]), 4)
+        >>> round(math.hypot(trajectory.get_values('oscillator.x')[-1], trajectory.get_values('oscillator.y')[-1]), 4)
         2.0
     """
 

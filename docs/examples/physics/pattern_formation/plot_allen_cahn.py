@@ -8,7 +8,7 @@ run: large yellow and purple domains with smooth, gently curved walls.
 """
 
 # %%
-# The system is built from its class on a periodic square of 128 sites with unit spacing, from noise of
+# The example builds `AllenCahnSystem` on a periodic square of 128 sites with unit spacing, from noise of
 # amplitude 0.05 around 0. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the order parameter as an image, one frame per time unit.
 
@@ -33,7 +33,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # follow a line of slope -1/2 on log-log axes once the domains have formed. The mean of the order parameter is not
 # conserved: it wanders as domains of one sign win over the other.
 
-phi = trajectory.lattice('mixture.phi')
+phi = trajectory.get_lattice('mixture.phi')
 times = trajectory.times
 signs = np.sign(phi)
 walls = 0.5 * (

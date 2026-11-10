@@ -1,7 +1,4 @@
-"""Describe the distribution of a sample.
-
-The descriptions are histograms, survival functions, moments, inequality, tails, and records.
-"""
+"""Describe the distribution of a sample."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,6 @@ from ._base import _check_choice, _check_settings, _read_real, _read_samples_of
 from .types import Source
 
 ORDER_COUNT = 2
-
 KINDS = (
     'histogram',
     'ccdf',
@@ -44,14 +40,9 @@ SETTINGS = {
     'records': set(),
     'total-variation': set(),
 }
-"""Settings every kind reads, besides `kind`, `variables`, and `group`."""
-
 POOLED = ('histogram', 'ccdf', 'gini', 'tail-index')
-"""The kinds that pool every series into one sample."""
-
 GROUPS = 2
 UNIT_COLUMNS = 2
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'records': AnalysisTags(DataKind.ENSEMBLE),
@@ -60,7 +51,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class DistributionResult:
-    """Distribution of the values of a source.
+    """A result of `distribution`, the distribution of the values of a source.
 
     Args:
         values:
@@ -173,6 +164,9 @@ def distribution(
     - `'total-variation'`: the total variation distance `1/2 Σ_u |a_u / A - b_u / B|` between the distributions of
       two groups across units, from one row per item with its group and its unit, 0 for identical distributions and
       1 for disjoint ones.
+
+    It appears in many fields. It describes the spread of incomes in an economy, of city sizes, and of the sizes of
+    avalanches of a sandpile.
 
     Args:
         source:

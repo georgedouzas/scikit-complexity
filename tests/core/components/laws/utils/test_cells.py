@@ -9,15 +9,10 @@ from sage.all__sagemath_symbolics import cos, sin, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.laws.utils import (
-    cell_operations_in,
-    codifferential,
-    exterior_derivative,
-    hodge_star,
-    neighbors,
-)
+from skcomplex.core.components.laws.utils import codifferential, exterior_derivative, hodge_star, neighbors
+from skcomplex.core.components.laws.utils._cells import cell_operations_in
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -151,7 +146,7 @@ def test_curl_of_a_gradient_is_exactly_zero(backend):
         sources=['sites'],
         rate=lambda n: exterior_derivative(exterior_derivative(n.sources[0].u)),
     )
-    system = System(elements=_groups(space, sites=values), interactions=[rate])
+    system = CompositeSystem(elements=_groups(space, sites=values), interactions=[rate])
     rates = _rates(system, backend, 'faces.f')
     assert rates.size == len(space.hyperedges_)
     assert np.all(rates == 0.0)
@@ -169,7 +164,7 @@ def test_divergence_of_a_curl_is_zero(backend):
         sources=['faces'],
         rate=lambda n: codifferential(codifferential(n.sources[0].f)),
     )
-    rates = _rates(System(elements=_groups(space, faces=values), interactions=[rate]), backend, 'sites.u')
+    rates = _rates(CompositeSystem(elements=_groups(space, faces=values), interactions=[rate]), backend, 'sites.u')
     assert rates.size == space.size_
     assert np.abs(rates).max() < 1e-12
 
@@ -213,7 +208,7 @@ def test_operations_are_the_incidence_products(backend):
         ),
         RateInteraction('star', target='links', state='c', rate=lambda n: hodge_star(n.target.a)),
     ]
-    system = System(elements=_groups(space, sites, links, faces), interactions=interactions)
+    system = CompositeSystem(elements=_groups(space, sites, links, faces), interactions=interactions)
     d0, d1 = space.incidences_
     assert np.allclose(_rates(system, backend, 'links.a'), d0 @ sites['u'])
     assert np.allclose(_rates(system, backend, 'faces.f'), d1 @ links['a'])
@@ -234,7 +229,7 @@ def test_codifferential_reads_the_spacings_of_a_lattice(backend):
         sources=['links'],
         rate=lambda n: codifferential(n.sources[0].a),
     )
-    rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
+    rates = _rates(CompositeSystem(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
     assert np.allclose(rates, -(space.incidences_[0].T @ links['a']) / 4.0)
 
 
@@ -252,7 +247,7 @@ def test_codifferential_reads_the_weights_of_the_groups_of_a_network(backend):
         sources=['links'],
         rate=lambda n: codifferential(n.sources[0].a),
     )
-    rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
+    rates = _rates(CompositeSystem(elements=_groups(space, links=links), interactions=[rate]), backend, 'sites.u')
     assert np.allclose(rates, -space.incidences_[0].T @ (weights * links['a']))
 
 
@@ -267,7 +262,7 @@ def test_operations_compose_with_functions_of_their_values(backend):
         state='b',
         rate=lambda n: codifferential(sin(exterior_derivative(n.target.a))),
     )
-    rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'links.b')
+    rates = _rates(CompositeSystem(elements=_groups(space, links=links), interactions=[rate]), backend, 'links.b')
     d1 = space.incidences_[1]
     assert np.allclose(rates, d1.T @ np.sin(d1 @ links['a']))
 
@@ -283,7 +278,7 @@ def test_coface_reduction_reads_the_oriented_sum_of_the_one_face(backend):
         state='c',
         rate=lambda n: neighbors(cos(exterior_derivative(n.target.a)), over=CofaceNeighborhood()),
     )
-    rates = _rates(System(elements=_groups(space, links=links), interactions=[rate]), backend, 'links.c')
+    rates = _rates(CompositeSystem(elements=_groups(space, links=links), interactions=[rate]), backend, 'links.c')
     d1 = space.incidences_[1]
     assert np.allclose(rates, abs(d1).T @ np.cos(d1 @ links['a']))
 
@@ -309,7 +304,7 @@ def test_abelian_plaquette_is_the_exterior_derivative_at_the_faces(backend):
             rate=lambda n: exterior_derivative(n.sources[0].a),
         ),
     ]
-    system = System(elements=_groups(space, links=links), interactions=interactions)
+    system = CompositeSystem(elements=_groups(space, links=links), interactions=interactions)
     around = _rates(system, backend, 'links.c')
     plaquettes = _rates(system, backend, 'faces.f')
     assert np.allclose(around, abs(space.incidences_[1]).T @ plaquettes)
@@ -329,7 +324,7 @@ def test_coface_reduction_of_a_site_runs_over_its_edges():
         rate=lambda n: neighbors(exterior_derivative(n.target.u), over=CofaceNeighborhood()),
     )
     groups = [GroupElement('sites', element=SiteElement, space=space, on='sites', values=sites)]
-    rates = _rates(System(elements=groups, interactions=[rate]), NumpyBackend, 'sites.v')
+    rates = _rates(CompositeSystem(elements=groups, interactions=[rate]), NumpyBackend, 'sites.v')
     assert rates.tolist() == [2.0, 6.0, 4.0]
 
 
@@ -361,9 +356,9 @@ def test_gauss_law_holds_for_rate_laws_of_a_first_order_pair():
             rate=lambda n: codifferential(exterior_derivative(n.target.a)),
         ),
     ]
-    system = System(elements=[links], interactions=interactions)
+    system = CompositeSystem(elements=[links], interactions=interactions)
     trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.02))
-    residual = -space.incidences_[0].T @ trajectory.values('links.e').T - density[:, None]
+    residual = -space.incidences_[0].T @ trajectory.get_values('links.e').T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
 
@@ -378,9 +373,9 @@ def test_gauss_law_holds_for_velocity_verlet():
         state='a',
         rate=lambda n: -codifferential(exterior_derivative(n.target.a)),
     )
-    system = System(elements=[links], interactions=[rate])
+    system = CompositeSystem(elements=[links], interactions=[rate])
     trajectory = simulate(system, until=50.0, solver=VelocityVerletSolver(dt=0.05))
-    electric = -trajectory.values('links.a_d1')
+    electric = -trajectory.get_values('links.a_d1')
     residual = -space.incidences_[0].T @ electric.T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
@@ -402,13 +397,13 @@ def test_lattice_dispersion_follows_the_lattice_laplacian(spacing):
         state='a',
         rate=lambda n: -codifferential(exterior_derivative(n.target.a)),
     )
-    system = System(elements=[links], interactions=[rate])
+    system = CompositeSystem(elements=[links], interactions=[rate])
     expected = (2 / spacing) * np.sin(wave_number * spacing / 2)
     period = 2 * np.pi / expected
     until = 4 * period
     step = period / 200
     trajectory = simulate(system, until=until, solver=VelocityVerletSolver(dt=step / 4), dt=step)
-    series = trajectory.values('links.a')[:, size * size]
+    series = trajectory.get_values('links.a')[:, size * size]
     crossings = np.flatnonzero(np.diff(np.sign(series)) != 0)
     measured = np.pi * (crossings.size - 1) / (trajectory.times[crossings[-1]] - trajectory.times[crossings[0]])
     assert abs(measured - expected) / expected < DISPERSION_LIMIT

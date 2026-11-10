@@ -7,8 +7,8 @@ neighbours, leaving sparse sensory bristles several cell diameters apart.
 """
 
 # %%
-# The system is built from its class with forty cells, and the observer saves every frame with the default blueprint,
-# whose primary view is the time series of the neural states.
+# The example builds `BristleLateralInhibitionSystem` with forty cells, and the observer saves every frame with the
+# default blueprint, whose primary view is the time series of the neural states.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,7 +28,7 @@ trajectory = simulate(BristleLateralInhibitionSystem(), observers=[observer])
 # The trajectories should peel off a common envelope near the saddle on the diagonal, and the neural cells should end
 # at least four cells apart.
 
-states = trajectory.values('cells.a')
+states = trajectory.get_values('cells.a')
 neural = np.flatnonzero(states[-1] > 0.5)
 gaps = np.diff(np.r_[neural, neural[0] + states.shape[1]])
 fig, (series, ring) = plt.subplots(1, 2, figsize=(11, 4.5))

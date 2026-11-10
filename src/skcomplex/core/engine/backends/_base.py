@@ -1,7 +1,4 @@
-"""Define the base of the backends.
-
-A backend turns kernels into the numeric functions of a form.
-"""
+"""Define the base of the backends."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,11 +16,11 @@ from ..problems._output_spec import OutputSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..types import OptionalPairs, ReadKind
 
-_AUTO_MEMBERS = 1000
+AUTO_MEMBERS = 1000
 
 
 class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
-    """Base of the backends.
+    """An abstract backend, which writes the numeric functions of a compiled problem.
 
     A backend turns the kernels of a problem into the numeric functions of its form. A backend stores its settings in
     its constructor, `prepare()` takes nothing, and `run(kernels)` takes the `LoweredKernelsSpec` of a problem, with its
@@ -105,7 +102,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         return cls._get_support().get_tags()
 
     @staticmethod
-    def _outputs_of(kernel: LawKernel, state: RunStateSpec) -> tuple[OptionalPairs, list[Array]]:
+    def _get_outputs_of(kernel: LawKernel, state: RunStateSpec) -> tuple[OptionalPairs, list[Array]]:
         """Return the pairs and the values of every output of a law kernel at a state.
 
         Args:
@@ -123,7 +120,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         return pairs, values
 
     @staticmethod
-    def _adding_function(kernels: list[LawKernel], size: int) -> VectorFunction:
+    def _get_adding_function(kernels: list[LawKernel], size: int) -> VectorFunction:
         """Return the function that sums the outputs of kernels into a zero vector.
 
         Args:
@@ -142,7 +139,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             """Sum every kernel's outputs into their targets."""
             output = np.zeros(size)
             for kernel in kernels:
-                pairs, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
+                pairs, values = BaseBackend._get_outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
                     BaseBackend._add_into(output, item.target, value, pairs, p)
             return output
@@ -150,7 +147,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         return evaluate
 
     @staticmethod
-    def _assigning_function(kernels: list[LawKernel]) -> VectorFunction:
+    def _get_assigning_function(kernels: list[LawKernel]) -> VectorFunction:
         """Return the function that sets the outputs of kernels on a copy of the state.
 
         The state is the state vector. An output that combines with an earlier output of its target adds its change from
@@ -173,7 +170,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             """
             output = x.copy()
             for kernel in kernels:
-                _, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
+                _, values = BaseBackend._get_outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
                     if item.reduce is not None:
                         BaseBackend._reduce_into(output, x, item, value, p)
@@ -186,7 +183,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         return evaluate
 
     @staticmethod
-    def _concatenating_function(kernels: list[LawKernel]) -> VectorFunction:
+    def _get_concatenating_function(kernels: list[LawKernel]) -> VectorFunction:
         """Return the function that concatenates the outputs of kernels.
 
         It gives one value per evaluation index.
@@ -203,7 +200,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         def evaluate(t: float, x: Array, p: Array) -> Array:
             """Concatenate every kernel's outputs."""
             state = RunStateSpec(t, x, p)
-            values = [value for kernel in kernels for value in BaseBackend._outputs_of(kernel, state)[1]]
+            values = [value for kernel in kernels for value in BaseBackend._get_outputs_of(kernel, state)[1]]
             return np.concatenate([np.zeros(0), *values])
 
         return evaluate
@@ -248,7 +245,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target.source is ReadKind.MEMBER:
             column += values
         elif target.source is ReadKind.NEIGHBOR:
-            np.add.at(column, target.shifted.members(p), values)
+            np.add.at(column, target.shifted.get_members(p), values)
         else:
             assert pairs is not None
             np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
@@ -278,7 +275,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            output[target.members][target.shifted.members(p)] = values
+            output[target.members][target.shifted.get_members(p)] = values
             return
         if target.source is not ReadKind.MEMBER:
             output[target.index] = values[0]
@@ -315,7 +312,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            indices = target.shifted.members(p)
+            indices = target.shifted.get_members(p)
             np.add.at(output[target.members], indices, values - x[target.members][indices])
             return
         if target.source is not ReadKind.MEMBER:
@@ -355,7 +352,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target is None or target.source is not ReadKind.NEIGHBOR or counts is None:
             error_msg = 'An output that reduces over rows needs a target read through a gather table and its counts.'
             raise ValidationError(error_msg)
-        indices = target.shifted.members(p)
+        indices = target.shifted.get_members(p)
         state = x[target.members][indices]
         shares = values - state / counts if item.reduce == 'sum' else (values - state) / counts
         np.add.at(output[target.members], indices, shares)

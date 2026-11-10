@@ -28,7 +28,7 @@ trajectory = simulate(system, observers=[observer])
 # With insulated edges the total heat should stay constant. Away from the edges the variance of the temperature
 # profile along each axis grows as `var(t) = var(0) + 2 D t`, so the measured variance should follow that line.
 
-fields = trajectory.lattice('plate.u')
+fields = trajectory.get_lattice('plate.u')
 times = np.asarray(trajectory.times)
 coordinates = np.arange(fields.shape[1])
 total = fields.sum(axis=(1, 2))

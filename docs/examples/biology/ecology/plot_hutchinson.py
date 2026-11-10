@@ -6,7 +6,7 @@ settles on sustained oscillations around it, because the delay `tau` times the g
 """
 
 # %%
-# The system is built from its class with `r tau = 2`, above the threshold of π/2. The observer saves every fourth
+# The example builds `HutchinsonSystem` with `r tau = 2`, above the threshold of π/2. The observer saves every fourth
 # frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ trajectory = simulate(HutchinsonSystem(n=50.0, r=1.0, K=100.0, tau=2.0), observe
 # Near the threshold the period of the oscillation is `4 tau`, and it lengthens as `r tau` grows. The time between
 # successive peaks of the settled oscillation should be somewhat above `4 tau = 8`, and the same at every peak.
 
-times, population = trajectory.times, trajectory.values('population.n')
+times, population = trajectory.times, trajectory.get_values('population.x')
 peaks, _ = find_peaks(population)
 periods = np.diff(times[peaks])
 fig, (series, period) = plt.subplots(1, 2, figsize=(10, 4))

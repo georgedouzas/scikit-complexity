@@ -32,8 +32,8 @@ trajectory = simulate(system, until=3000, observers=[observer], random_state=0)
 # cooperation (genes `C` and `CC`) is cooperation, and falls when exploiters that defect after `C` spread.
 
 frames = range(0, len(trajectory.times), 10)
-genes = np.array([np.asarray(trajectory.agents('agents', frame).values['genome']).mean(axis=0) for frame in frames])
-scores = [np.mean(trajectory.agents('agents', frame).values['fitness']) for frame in frames]
+genes = np.array([np.asarray(trajectory.get_agents('agents', frame).values['genome']).mean(axis=0) for frame in frames])
+scores = [np.mean(trajectory.get_agents('agents', frame).values['fitness']) for frame in frames]
 times = np.asarray(trajectory.times)[list(frames)]
 fig, (strategy, score) = plt.subplots(2, 1, figsize=(9, 5.5), sharex=True, height_ratios=[2, 1])
 strategy.imshow(genes.T, aspect='auto', cmap='viridis', extent=(times[0], times[-1], 6.5, -0.5), vmin=0, vmax=1)

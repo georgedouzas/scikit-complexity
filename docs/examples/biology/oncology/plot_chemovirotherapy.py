@@ -6,9 +6,10 @@ infected cells rise behind it.
 """
 
 # %%
-# The system is built from its class with the initial conditions of Malinzi: one unit of uninfected cells, a million
-# cells, a tenth of a unit of virus, and a constant drug infusion. One unit of time is two days. The observer saves
-# every frame with the default blueprint, whose primary view is the time series of the cells, the virus, and the drug.
+# The example builds `ChemovirotherapySystem` with the initial conditions of Malinzi: one unit of uninfected cells, a
+# million cells, a tenth of a unit of virus, and a constant drug infusion. One unit of time is two days. The observer
+# saves every frame with the default blueprint, whose primary view is the time series of the cells, the virus, and the
+# drug.
 
 import matplotlib.pyplot as plt
 
@@ -36,11 +37,11 @@ fig, (curves, bars) = plt.subplots(1, 2, figsize=(10, 4))
 finals = {}
 for name, arm in arms.items():
     trajectory = simulate(arm, dt=0.2, until=32)
-    total = trajectory.values('tumour.AU') + trajectory.values('tumour.AV')
+    total = trajectory.get_values('tumour.AU') + trajectory.get_values('tumour.AV')
     curves.semilogy(2 * trajectory.times, total, label=name)
     finals[name] = total[-1]
 combined = trajectory
-total = combined.values('tumour.AU') + combined.values('tumour.AV')
+total = combined.get_values('tumour.AU') + combined.get_values('tumour.AV')
 curves.semilogy(2 * combined.times, total, label='combination', color='black')
 finals['combination'] = total[-1]
 curves.set_xlabel('time (days)')

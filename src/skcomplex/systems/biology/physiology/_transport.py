@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -125,10 +125,10 @@ class FlowAdaptationInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        rate = CallSpec(self._adaptation, (s.vessels.C, s.alpha1, s.alpha2, s.gamma), vectorized=True)
+        rate = CallSpec(self._get_adaptation, (s.vessels.C, s.alpha1, s.alpha2, s.gamma), vectorized=True)
         return [RateLaw(s.vessels.C, rate)]
 
-    def _adaptation(
+    def _get_adaptation(
         self,
         t: float,
         C: npt.NDArray[np.float64],
@@ -137,10 +137,10 @@ class FlowAdaptationInteraction(Interaction):
         gamma: npt.NDArray[np.float64],
     ) -> npt.NDArray[np.float64]:
         """Return the rates of the conductances at the pressures of the mass balance."""
-        drops = self._pressure_drops(np.asarray(C, dtype=float))
+        drops = self._get_pressure_drops(np.asarray(C, dtype=float))
         return C * (alpha1 * np.abs(drops) ** gamma - alpha2)
 
-    def _pressure_drops(self, C: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    def _get_pressure_drops(self, C: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the pressure drop `p_i - p_j` along every edge.
 
         It solves `h = K p` with the first pressure at zero.
@@ -222,7 +222,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.inflow = inflow
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a square grid of vessels.
 
         It is fed at one corner and drained at every other node.
@@ -251,4 +251,4 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
             alpha2=self.alpha2,
             gamma=self.gamma,
         )
-        return System(self.label, elements=[vessels], interactions=[adaptation])
+        return CompositeSystem(self.label, elements=[vessels], interactions=[adaptation])

@@ -7,9 +7,9 @@ sites with it, and the network runs through its memories one after the other.
 """
 
 # %%
-# The system is built from its class with the seven sites and six cliques of Gros (2015, figure 10.12), started in the
-# clique (0, 1). The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the activities.
+# The example builds `AssociativeThoughtProcessSystem` with the seven sites and six cliques of Gros (2015, figure
+# 10.12), started in the clique (0, 1). The observer saves every frame with the default blueprint, whose primary view is
+# the time series of the activities.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +29,7 @@ trajectory = simulate(AssociativeThoughtProcessSystem(), observers=[observer])
 # Every lasting coalition of active sites should be one of the stored cliques, (0, 1), (0, 6), (3, 6), (1, 2, 3),
 # (4, 5, 6), or (1, 2, 4, 5), and the reservoirs of a clique should fall while it is active and recover after.
 
-activities, reservoirs = trajectory.values('sites.x'), trajectory.values('sites.phi')
+activities, reservoirs = trajectory.get_values('sites.x'), trajectory.get_values('sites.phi')
 fig, (top, bottom) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
 top.imshow(activities.T, aspect='auto', origin='lower', cmap='Greys', extent=(0, trajectory.times[-1], -0.5, 6.5))
 top.set_ylabel('site')

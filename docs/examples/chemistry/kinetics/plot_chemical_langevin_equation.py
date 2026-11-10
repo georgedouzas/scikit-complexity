@@ -7,9 +7,9 @@ fluctuates around one state for a while and then switches to the other, again an
 """
 
 # %%
-# The system is built from its class with its default rate constants, Gillespie's scaled to a volume five
-# times smaller, and starts at `x = 50`. It is integrated with the Euler-Maruyama scheme for 200 time units. The default
-# blueprint shows `x` in one time series view.
+# The example builds `ChemicalLangevinEquationSystem` with its default rate constants, Gillespie's scaled to a volume
+# five times smaller, and starts at `x = 50`. It is integrated with the Euler-Maruyama scheme for 200 time units. The
+# default blueprint shows `x` in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +34,7 @@ trajectory = simulate(ChemicalLangevinEquationSystem(), observers=[observer], ra
 c1, c2, c3, c4, A, B = 1.5e-6, 2.5e-3, 2e-4, 3.5, 1e5, 2e5
 drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 + c2 / 2, -c2 / 6])
 roots = np.sort(drift.roots().real)
-x = trajectory.values('reactor.x')
+x = trajectory.get_values('reactor.x')
 histogram = distribution(x[trajectory.times > 5], kind='histogram', bins=40)
 edges, density = histogram.edges, histogram.density
 fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))

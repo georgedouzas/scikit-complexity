@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.systems.physics.common.oscillators import (
     KuramotoCouplingInteraction,
@@ -40,7 +40,11 @@ def test_group_coupling_is_the_lagged_sine_sum(include_self, reduce):
     if not include_self:
         np.fill_diagonal(terms, 0.0)
     expected = terms.sum(axis=1) / (1 if reduce == 'sum' else 5 - (0 if include_self else 1))
-    np.testing.assert_allclose(_drift(System(elements=[phases], interactions=[coupling])), expected, atol=1e-12)
+    np.testing.assert_allclose(
+        _drift(CompositeSystem(elements=[phases], interactions=[coupling])),
+        expected,
+        atol=1e-12,
+    )
 
 
 def test_coupling_within_a_radius_on_a_periodic_ring():
@@ -59,6 +63,10 @@ def test_coupling_within_a_radius_on_a_periodic_ring():
         include_self=True,
         neighborhood=RadiusNeighborhood(1.5),
     )
-    system = System(elements=[ring], interactions=[coupling], space=ContinuousSpace((5.0,), boundary='periodic'))
+    system = CompositeSystem(
+        elements=[ring],
+        interactions=[coupling],
+        space=ContinuousSpace((5.0,), boundary='periodic'),
+    )
     expected = 0.7 * sum(np.sin(np.roll(THETA, shift) - THETA - 0.4) for shift in (-1, 0, 1))
     np.testing.assert_allclose(_drift(system)[:5], expected, atol=1e-12)

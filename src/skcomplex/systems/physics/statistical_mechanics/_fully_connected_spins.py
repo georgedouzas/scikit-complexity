@@ -15,27 +15,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
-
-
-def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Generator | None) -> Array:
-    """Return all spins up, or random spins, for `initial` set to `'up'` or `'random'`."""
-    if initial == 'up':
-        return np.ones(n_spins)
-    return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
-
-
-def _magnetization() -> ObservableSpec:
-    """Return the observable of the mean spin of the group `spins`."""
-    return ObservableSpec('magnetization', group='spins', variable='spin')
 
 
 class FullyConnectedSpinElement(Element):
@@ -95,7 +83,7 @@ class FullyConnectedSpinElement(Element):
         self.temperature = temperature
         self.couplings = couplings
 
-    def _field(self, s: SimpleNamespace) -> Expression:
+    def _get_field(self, s: SimpleNamespace) -> Expression:
         """Return the local field of a spin, without its own contribution."""
         if self.couplings is None:
             return s.J * (mean(s.spin) - s.spin / count()) + s.h
@@ -112,8 +100,13 @@ class FullyConnectedSpinElement(Element):
             laws:
                 The laws of the component.
         """
-        rate = 1 / (1 + exp(2 * s.spin * self._field(s) / s.temperature))
+        rate = 1 / (1 + exp(2 * s.spin * self._get_field(s) / s.temperature))
         return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
+
+
+def _get_magnetization() -> ObservableSpec:
+    """Return the observable of the mean spin of the group `spins`."""
+    return ObservableSpec('magnetization', group='spins', variable='spin')
 
 
 class CurieWeissSystem(BaseSystem):
@@ -159,7 +152,14 @@ class CurieWeissSystem(BaseSystem):
     references = ('Bertin 2021', 'Glauber 1963')
     until = 30.0
     dt = 0.1
-    observables = (_magnetization(),)
+    observables = (_get_magnetization(),)
+
+    @staticmethod
+    def _get_initial_spins(n_spins: int, initial: str, random_state: int | np.random.Generator | None) -> Array:
+        """Return all spins up, or random spins, for `initial` set to `'up'` or `'random'`."""
+        if initial == 'up':
+            return np.ones(n_spins)
+        return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
 
     def __init__(
         self,
@@ -180,17 +180,18 @@ class CurieWeissSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        spins = _initial_spins(self.n_spins, self.initial, self.random_state)
-        group = LatticeElement(
+        spins = CurieWeissSystem._get_initial_spins(self.n_spins, self.initial, self.random_state)
+        group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
             visual=SPIN_IMAGE,
+            on='sites',
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])
 
 
 class SherringtonKirkpatrickSystem(BaseSystem):
@@ -235,7 +236,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
     references = ('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987')
     until = 50.0
     dt = 0.5
-    observables = (_magnetization(),)
+    observables = (_get_magnetization(),)
 
     def __init__(
         self,
@@ -254,12 +255,12 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         self.h = h
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
-        spins = _initial_spins(self.n_spins, 'random', rng)
-        group = LatticeElement(
+        spins = CurieWeissSystem._get_initial_spins(self.n_spins, 'random', rng)
+        group = GroupElement(
             'spins',
             element=FullyConnectedSpinElement,
             space=LatticeSpace(self.n_spins),
@@ -271,5 +272,6 @@ class SherringtonKirkpatrickSystem(BaseSystem):
                 'couplings': upper + upper.T,
             },
             visual=SPIN_IMAGE,
+            on='sites',
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])

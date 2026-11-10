@@ -6,9 +6,9 @@ and a constant drug infusion ends the bursts by clearing the tumour in one of it
 """
 
 # %%
-# The system is built from its class with a constant infusion of 0.03, the top of the book's range, and the conversion
-# delay of 45.6. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the cells and the drug.
+# The example builds `DelayedRestingHuntingChemotherapySystem` with a constant infusion of 0.03, the top of the range of
+# the book of Padmanabhan, Meskin, and Al Moustafa (2021), and the conversion delay of 45.6. The observer saves every
+# frame with the default blueprint, whose primary view is the time series of the cells and the drug.
 
 import matplotlib.pyplot as plt
 
@@ -30,13 +30,13 @@ trajectory = simulate(DelayedRestingHuntingChemotherapySystem(u=0.03), observers
 untreated = simulate(DelayedRestingHuntingChemotherapySystem(), until=1000)
 treated = trajectory
 fig, (tumour, phase) = plt.subplots(1, 2, figsize=(10, 4))
-tumour.plot(untreated.times, untreated.values('patient.A'), label='untreated')
-tumour.plot(treated.times, treated.values('patient.A'), label='infusion u = 0.03')
+tumour.plot(untreated.times, untreated.get_values('patient.A'), label='untreated')
+tumour.plot(treated.times, treated.get_values('patient.A'), label='infusion u = 0.03')
 tumour.set_xlabel('time')
 tumour.set_ylabel('tumour cells')
 tumour.set_title('The infusion ends the bursts')
 tumour.legend()
-phase.plot(untreated.values('patient.A'), untreated.values('patient.E'))
+phase.plot(untreated.get_values('patient.A'), untreated.get_values('patient.E'))
 phase.set_xlabel('tumour cells')
 phase.set_ylabel('hunting cells')
 phase.set_title('Untreated, the cells oscillate')

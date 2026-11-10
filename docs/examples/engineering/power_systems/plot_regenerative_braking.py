@@ -7,7 +7,7 @@ starts to push current back.
 """
 
 # %%
-# The system is built from its class for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
+# The example builds `RegenerativeBrakingSystem` for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
 # for one minute. The blueprint shows the speed and the capacitor voltage in one time series view, leaving out the
 # current, which is a hundred times larger.
 
@@ -47,8 +47,8 @@ trajectory = simulate(system, observers=[observer])
 # capacitor holds should reach its maximum when the current changes sign.
 
 m, C = 1000.0, 680.0
-kinetic = m * trajectory.values('car.v') ** 2 / 2
-stored = C * trajectory.values('car.Vs') ** 2 / 2
+kinetic = m * trajectory.get_values('car.v') ** 2 / 2
+stored = C * trajectory.get_values('car.Vs') ** 2 / 2
 recovered = np.divide(stored, kinetic[0] - kinetic, out=np.zeros_like(stored), where=kinetic[0] > kinetic)
 fig, (energies, share) = plt.subplots(1, 2, figsize=(10, 4))
 energies.plot(trajectory.times, kinetic / 1e3, label='kinetic energy of the car')
@@ -59,7 +59,7 @@ energies.set_title('Kinetic energy moves into the capacitor')
 energies.legend()
 share.plot(trajectory.times, recovered)
 share.axvline(
-    trajectory.times[np.argmax(trajectory.values('car.I') < 0)],
+    trajectory.times[np.argmax(trajectory.get_values('car.I') < 0)],
     color='black',
     linestyle='--',
     label='current reverses',

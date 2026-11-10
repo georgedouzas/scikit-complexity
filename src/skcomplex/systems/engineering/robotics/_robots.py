@@ -19,9 +19,12 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import delayed, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+
+EDGE_FRACTION = 1e-9
+BEACON_MARGIN = 5.0
 
 
 class LightSensitiveRobotElement(Element):
@@ -119,9 +122,9 @@ class LightSensitiveRobotElement(Element):
                 The laws of the component.
         """
         sensed = (
-            LightSensitiveRobotElement._light(s, delayed(s.x, self.delay), delayed(s.y, self.delay))
+            LightSensitiveRobotElement._get_light(s, delayed(s.x, self.delay), delayed(s.y, self.delay))
             if self.delay
-            else LightSensitiveRobotElement._light(s, s.x, s.y)
+            else LightSensitiveRobotElement._get_light(s, s.x, s.y)
         )
         speed = s.V_inf + (s.V0 - s.V_inf) * exp(-sensed)
         reach = where(sqrt(s.x**2 + s.y**2) > s.R, sqrt(s.x**2 + s.y**2), s.R)
@@ -134,7 +137,7 @@ class LightSensitiveRobotElement(Element):
         ]
 
     @staticmethod
-    def _light(s: SimpleNamespace, x: Expression, y: Expression) -> Expression:
+    def _get_light(s: SimpleNamespace, x: Expression, y: Expression) -> Expression:
         """Return the Gaussian light intensity `I0 exp(-(x^2 + y^2) / r0^2)` at a point."""
         return s.I0 * exp(-(x**2 + y**2) / s.r0**2)
 
@@ -157,9 +160,6 @@ class SwarmRobotView(AgentView):
     beacon_x: float
     beacon_y: float
     arena: float
-
-
-EDGE_FRACTION = 1e-9
 
 
 class SwarmRobotElement(Element):
@@ -269,13 +269,13 @@ class SwarmRobotElement(Element):
 
     def _is_shadowed(self, agent: SwarmRobotView, neighbors: list[AgentView]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
-        x, y = SwarmRobotElement._position(agent)
-        bearing = SwarmRobotElement._bearing(agent.beacon_x - x, agent.beacon_y - y)
+        x, y = SwarmRobotElement._get_position(agent)
+        bearing = SwarmRobotElement._get_bearing(agent.beacon_x - x, agent.beacon_y - y)
         return any(
-            SwarmRobotElement._angle_between(
-                SwarmRobotElement._bearing(
-                    SwarmRobotElement._position(other)[0] - x,
-                    SwarmRobotElement._position(other)[1] - y,
+            SwarmRobotElement._get_angle_between(
+                SwarmRobotElement._get_bearing(
+                    SwarmRobotElement._get_position(other)[0] - x,
+                    SwarmRobotElement._get_position(other)[1] - y,
                 ),
                 bearing,
             )
@@ -299,19 +299,19 @@ class SwarmRobotElement(Element):
 
         Without such a neighbour the heading is unchanged.
         """
-        x, y = SwarmRobotElement._position(agent)
+        x, y = SwarmRobotElement._get_position(agent)
         radius = agent.avoid_illuminated if agent.illuminated else agent.avoid_shadowed
         distances = [
-            math.hypot(SwarmRobotElement._position(other)[0] - x, SwarmRobotElement._position(other)[1] - y)
+            math.hypot(SwarmRobotElement._get_position(other)[0] - x, SwarmRobotElement._get_position(other)[1] - y)
             for other in neighbors
         ]
         close = [(distance, other) for distance, other in zip(distances, neighbors, strict=True) if distance < radius]
         if not close:
             return heading
         _, nearest = min(close, key=lambda pair: pair[0])
-        return SwarmRobotElement._bearing(
-            x - SwarmRobotElement._position(nearest)[0],
-            y - SwarmRobotElement._position(nearest)[1],
+        return SwarmRobotElement._get_bearing(
+            x - SwarmRobotElement._get_position(nearest)[0],
+            y - SwarmRobotElement._get_position(nearest)[1],
         )
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -337,36 +337,33 @@ class SwarmRobotElement(Element):
             system:
                 The system.
         """
-        neighbors = agent.neighbors(agent.radio_range)
+        neighbors = agent.get_neighbors(agent.radio_range)
         count = len(neighbors)
         agent.illuminated = 0.0 if self._is_shadowed(agent, neighbors) else 1.0
         heading = self._avoid(agent, neighbors, self._turn(agent, system, count))
         agent.connections = count
         agent.heading = heading % (2 * math.pi)
-        x, y = SwarmRobotElement._position(agent)
+        x, y = SwarmRobotElement._get_position(agent)
         edge = agent.arena * (1 - EDGE_FRACTION)
         x = min(max(x + agent.speed * math.cos(heading), 0.0), edge)
         y = min(max(y + agent.speed * math.sin(heading), 0.0), edge)
         agent.move_to((x, y))
 
     @staticmethod
-    def _position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentView) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
 
     @staticmethod
-    def _bearing(dx: float, dy: float) -> float:
+    def _get_bearing(dx: float, dy: float) -> float:
         """Return the angle of a vector."""
         return math.atan2(dy, dx)
 
     @staticmethod
-    def _angle_between(first: float, second: float) -> float:
+    def _get_angle_between(first: float, second: float) -> float:
         """Return the absolute difference of two angles, between 0 and pi."""
         return abs((first - second + math.pi) % (2 * math.pi) - math.pi)
-
-
-BEACON_MARGIN = 5.0
 
 
 class LightSeekingRobotsSystem(BaseSystem):
@@ -444,7 +441,7 @@ class LightSeekingRobotsSystem(BaseSystem):
         self.tau = tau
         self.R = R
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
         robots = GroupElement(
@@ -464,7 +461,7 @@ class LightSeekingRobotsSystem(BaseSystem):
                 'delay': self.delay,
             },
         )
-        return System(self.label, elements=[robots])
+        return CompositeSystem(self.label, elements=[robots])
 
 
 class SwarmtaxisSystem(BaseSystem):
@@ -538,7 +535,7 @@ class SwarmtaxisSystem(BaseSystem):
         self.avoid_shadowed = avoid_shadowed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         start = np.array([self.size / 5, self.size / 2])
@@ -560,4 +557,4 @@ class SwarmtaxisSystem(BaseSystem):
             },
             location=[tuple(map(float, point)) for point in points],
         )
-        return System(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))
+        return CompositeSystem(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))

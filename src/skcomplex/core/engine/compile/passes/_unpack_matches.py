@@ -10,7 +10,7 @@ from .._compilation import Compilation
 
 
 class UnpackMatchesPass(BasePass):
-    """Pass that replaces every matching by the rule it runs."""
+    """A pass that replaces every matching by the rule it runs."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -25,5 +25,5 @@ class UnpackMatchesPass(BasePass):
         compilation = self.compilation_
         compilation.collected = [
             (spec, [law._get_rule() if isinstance(law, MatchLaw) else law for law in laws], block)
-            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
+            for spec, laws, block in Compilation._get_required(compilation.collected, 'collected')
         ]

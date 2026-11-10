@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -133,13 +133,13 @@ class RandomBranchMapSystem(BaseSystem):
         self.mu = mu
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return orbits of a random map of `[0, 1]`.
 
         The map has the two branches `(1 + x) / 2` and `mu x²`.
         """
         start = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.n_orbits)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

@@ -14,12 +14,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
 
 
 class CoalitionPatronView(AgentView):
@@ -94,7 +94,7 @@ class CoalitionPatronElement(Element):
         return []
 
 
-class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
+class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
     """El Farol bar of Rand and Wilensky with coalitions of patrons.
 
     The patrons share strategies within coalitions that split and merge. A strategy `s` in `[-1, 1]^(m + 1)` predicts
@@ -163,7 +163,7 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         self.coalitions = coalitions
 
     @staticmethod
-    def _errors(strategies: Array, history: Array) -> Array:
+    def _get_errors(strategies: Array, history: Array) -> Array:
         """Return the total absolute error over the last `m` nights of every strategy.
 
         It starts from the newest attendance.
@@ -185,7 +185,7 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
 
         It returns the number of splits.
         """
-        rng, capacity, splits = system.rng, system.parameter('capacity'), 0
+        rng, capacity, splits = system.rng, system.get_parameter('capacity'), 0
         for label in rng.permutation(np.unique(labels)):
             members = np.flatnonzero(labels == label)
             excesses = [attendance - capacity for attendance, _ in records.get(int(label), []) if attendance > capacity]
@@ -211,7 +211,7 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
 
         Safely means without risking crowding, and it returns the joins.
         """
-        capacity, joins = system.parameter('capacity'), 0
+        capacity, joins = system.get_parameter('capacity'), 0
         present = [int(label) for label in system.rng.permutation(np.unique(labels[attended]))]
         merged: set[int] = set()
         for first in present:
@@ -239,9 +239,9 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the bar.
         """
-        patrons = sorted(system.agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
+        patrons = sorted(system.get_agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
         strategies = np.asarray(self.strategies, dtype=float)
-        memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.parameter('capacity')
+        memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.get_parameter('capacity')
         stored = system.storage.get('history')
         history = np.asarray(stored) if isinstance(stored, np.ndarray) else system.rng.integers(0, size + 1, 2 * memory)
         records = system.storage.get('records')
@@ -249,7 +249,7 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         labels = np.array([int(patron.coalition) for patron in patrons])
         if not self.coalitions:
             labels = np.arange(size)
-        errors = self._errors(strategies, history.astype(float))
+        errors = self._get_errors(strategies, history.astype(float))
         best: dict[int, int] = {}
         attends = np.zeros(size, dtype=bool)
         for label in np.unique(labels):
@@ -261,7 +261,7 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         attendance = float(attends.sum())
         crowded = attendance > capacity
         good = np.where(attends, not crowded, crowded)
-        smoothing = system.parameter('smoothing')
+        smoothing = system.get_parameter('smoothing')
         scores = np.array([patron.score for patron in patrons]) * (1 - smoothing) + smoothing * good
         for label in np.unique(labels[attends]):
             records.setdefault(int(label), []).append((attendance, float(np.sum(labels == label))))
@@ -354,7 +354,7 @@ class ElFarolCoalitionsSystem(BaseSystem):
         self.coalitions = coalitions
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         strategies = rng.uniform(-1.0, 1.0, (self.n_agents, self.n_strategies, self.memory + 1))
@@ -372,4 +372,4 @@ class ElFarolCoalitionsSystem(BaseSystem):
             smoothing=self.smoothing,
             coalitions=self.coalitions,
         )
-        return System(self.label, elements=[patrons], interactions=[bar])
+        return CompositeSystem(self.label, elements=[patrons], interactions=[bar])

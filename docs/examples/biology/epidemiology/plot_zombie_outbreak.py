@@ -6,8 +6,8 @@ rise again, so whatever the humans do the outbreak ends in the doomsday state wh
 """
 
 # %%
-# The system is built from its class with the parameters of Munz et al. (2009), and the observer saves every other
-# frame with the default blueprint, whose primary view is the time series of the three compartments.
+# The example builds `ZombieOutbreakSystem` with the parameters of Munz et al. (2009), and the observer saves every
+# other frame with the default blueprint, whose primary view is the time series of the three compartments.
 
 import matplotlib.pyplot as plt
 
@@ -28,9 +28,9 @@ trajectory = simulate(ZombieOutbreakSystem(), observers=[observer])
 
 times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4.5))
-for label, name in (('S.n', 'humans'), ('Z.n', 'zombies'), ('R.n', 'removed')):
-    ax.plot(times, trajectory.values(label), label=name)
-total = trajectory.values('S.n') + trajectory.values('Z.n') + trajectory.values('R.n')
+for label, name in (('S.x', 'humans'), ('Z.x', 'zombies'), ('R.x', 'removed')):
+    ax.plot(times, trajectory.get_values(label), label=name)
+total = trajectory.get_values('S.x') + trajectory.get_values('Z.x') + trajectory.get_values('R.x')
 ax.plot(times, total, '--', color='black', label='total')
 ax.set_xlabel('time (days)')
 ax.set_ylabel('individuals')

@@ -1,7 +1,4 @@
-"""Estimate the Kramers-Moyal drift and diffusion of a series.
-
-They are functions of its value.
-"""
+"""Estimate the Kramers-Moyal drift and diffusion of a series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,15 +16,13 @@ from ._base import _read_series
 from .types import Source
 
 MIN_SERIES_SIZE = 2
-
 ZERO_MASS = 1e-10
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
 class KramersMoyalResult:
-    """Drift and diffusion of one series, estimated from its increments.
+    """A result of `kramers_moyal`, the drift and diffusion of one series.
 
     Args:
         values:
@@ -61,6 +56,9 @@ def kramers_moyal(
 
     They are estimated from the moments of its increments. The increments are binned by the value they start from, and
     an Epanechnikov kernel smooths the bins. This is the estimator of Lamouroux and Lehnertz.
+
+    It appears in many fields. It estimates the drift and noise of wind speeds, of heart rates, and of exchange rates
+    from one record.
 
     Args:
         source:

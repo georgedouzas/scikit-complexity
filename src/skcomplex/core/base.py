@@ -1,4 +1,4 @@
-"""Define the root of every configurable class of the library."""
+"""Define the abstract base of every configurable class of the library."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,19 +12,25 @@ from .errors import NotPreparedError
 
 
 class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
-    """Root of every configurable class of the library.
+    """An abstract configurable class, the root of every class of the library.
 
-    The constructor stores every setting unmodified under its own name, as in scikit-learn, so `get_params`,
-    `set_params`, and `clone` work on every class. The main public methods call the abstract hooks `_prepare` and
-    `_run`, which every child implements, itself or through the base of its family, and every main public method
-    returns the object, as in scikit-learn:
+    The constructor stores every setting unchanged under its own name, as a scikit-learn estimator does, so
+    `get_params`, `set_params`, and `clone` work on every class. The main public methods call the abstract hooks
+    `_prepare` and `_run`, which every child implements, itself or through the base of its family, and each returns the
+    object:
 
-    - `prepare(context)` prepares the object against the one thing it serves through `_prepare(context)`, which first
-      checks the settings, raising a named error for one the object cannot take, and then sets the attributes that end
-      in `_`.
-    - `run(inputs, final=False)` performs the one action of the prepared object on its one input through
-      `_run(inputs)`, and keeps what the action produces in attributes that end in `_`. A last call with `final=True`
-      also releases what preparing acquired through `_release()`, an optional hook that releases nothing by default.
+    - `prepare(context)` prepares the object against the one thing it serves, through `_prepare(context)`. The hook
+      first checks the settings, raising a named error for one the object cannot take, and then sets the attributes that
+      end in `_`.
+    - `run(inputs, final=False)` performs the one action of the prepared object on its input, through `_run(inputs)`,
+      and keeps what it produces in attributes that end in `_`. A last call with `final=True` also releases what
+      preparing acquired, through the optional hook `_release`.
+
+    Unlike `BaseEstimator` of scikit-learn, which fits data, it prepares against a context and runs on an input. Choose
+    it when a new family of classes needs settings that `clone` and `set_params` read, such as a new solver or backend.
+
+    It appears in every part of the library, such as the elements and interactions of a system, its solvers, its
+    backends, and the passes of its compiler.
 
     Examples:
         >>> from skcomplex.core.base import BaseConfig

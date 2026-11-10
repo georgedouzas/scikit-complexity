@@ -1,1 +1,1 @@
-"""Specs that name classes of experiments."""
+"""Define the specs that name classes of experiments."""

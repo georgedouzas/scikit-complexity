@@ -16,9 +16,11 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+N_FIRMS = 2
 
 
 class DuopolistView(AgentView):
@@ -120,16 +122,13 @@ class CournotAdjustmentInteraction(MapInteraction):
 
         The belief is about the last output of its rival.
         """
-        a, b, error = (system.parameter(name) for name in ('a', 'b', 'error'))
-        rival = next(firm for firm in system.agents('target', DuopolistView) if firm.id != agent.id)
+        a, b, error = (system.get_parameter(name) for name in ('a', 'b', 'error'))
+        rival = next(firm for firm in system.get_agents('target', DuopolistView) if firm.id != agent.id)
         belief = rival.output * (1 + error * float(system.rng.uniform(-1.0, 1.0)))
         return max((a - agent.cost) / (2 * b) - belief / 2, 0.0)
 
 
-N_FIRMS = 2
-
-
-def _price(s: SimpleNamespace) -> Expression:
+def _get_price(s: SimpleNamespace) -> Expression:
     """Return the market price of the total output.
 
     It follows the inverse demand of the interaction `market`.
@@ -175,7 +174,7 @@ class CournotDuopolySystem(BaseSystem):
     until = 30
     observables = (
         ObservableSpec('total', group='firms', reduce='sum', variable='output'),
-        ObservableSpec('price', _price),
+        ObservableSpec('price', _get_price),
     )
 
     def __init__(
@@ -195,7 +194,7 @@ class CournotDuopolySystem(BaseSystem):
         self.b = b
         self.error = error
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         firms = GroupElement(
             'firms',
@@ -203,7 +202,7 @@ class CournotDuopolySystem(BaseSystem):
             size=N_FIRMS,
             values={'output': list(self.outputs), 'cost': list(self.costs)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[firms],
             interactions=[CournotAdjustmentInteraction('market', target='firms', a=self.a, b=self.b, error=self.error)],

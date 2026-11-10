@@ -36,10 +36,10 @@ trajectory = simulate(OilEconomySystem(), until=UNTIL, observers=[observer])
 fig, (capital, extraction) = plt.subplots(1, 2, figsize=(10, 4))
 for index, resource in enumerate((1000.0, 2000.0, 4000.0)):
     trajectory = simulate(OilEconomySystem(resource=resource), until=UNTIL, dt=0.5)
-    times, stock = trajectory.times, trajectory.values('oil.capital')
+    times, stock = trajectory.times, trajectory.get_values('oil.capital')
     peak = times[stock.argmax()]
     capital.plot(times, stock, color=f'C{index}', label=f'resource {resource:.0f}, peak at {peak:.0f}')
-    rate = -np.gradient(trajectory.values('oil.resource'), times)
+    rate = -np.gradient(trajectory.get_values('oil.resource'), times)
     extraction.plot(
         times,
         rate,

@@ -3,7 +3,7 @@
 The barter is of Cobb-Douglas traders on trade networks.
 """
 
-from ..common import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
+from ..common.exchange import ExchangeInteraction, cobb_douglas, marginal_rate, trade_goods
 from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, GoodingDoubleAuctionSystem
 from ._barter import BartererElement, BarterSystem, contract_curve
 from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, WilhiteTradeNetworksSystem
@@ -32,10 +32,10 @@ from ._oligopoly import (
     PricingGameSpec,
 )
 from ._perishables import CustomerElement, PerishableGoodsDuopolySystem, ProductElement
-from ._prices import QuadraticSupplyMarketElement, RiccatiPricesSystem
+from ._prices import RiccatiPricesSystem
 from ._produce import ProduceMarketSystem, ShopperElement, StallElement
 from ._queues import CarElement, CarWashOperationInteraction, CarWashSystem, TillElement, WasherElement
-from ._shops import ResidentElement, ShopsSystem, StoreElement
+from ._shops import PriceAdjustmentInteraction, ResidentElement, ShopsSystem, StoreElement
 from ._sugarscape import ForagerElement, SugarPatchElement, SugarscapeSystem
 from ._supply_chains import (
     BeerGameSystem,
@@ -95,13 +95,13 @@ __all__: list[str] = [
     'MarketElement',
     'OligopolyEquilibriaSystem',
     'PerishableGoodsDuopolySystem',
+    'PriceAdjustmentInteraction',
     'PricePointElement',
     'PricingFirmElement',
     'PricingGameSpec',
     'ProduceMarketSystem',
     'ProductElement',
     'ProgramMemberElement',
-    'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
     'RetailerElement',

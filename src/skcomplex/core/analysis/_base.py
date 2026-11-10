@@ -1,7 +1,4 @@
-"""Define the base of the analyses.
-
-The base holds the binding of settings, the checks of settings, and the readers of sources.
-"""
+"""Define the base of the analyses."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,9 +6,7 @@ The base holds the binding of settings, the checks of settings, and the readers 
 import inspect
 import sys
 from collections.abc import Callable, Sequence, Set
-from functools import cache, partial
-from importlib import import_module
-from types import ModuleType
+from functools import partial
 
 import networkx as nx
 import numpy as np
@@ -19,9 +14,9 @@ import numpy.typing as npt
 
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
-from ..components.system import BaseSystem, System
+from ..components.systems import BaseSystem, CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
-from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, TagError, ValidationError
 from ..specs import (
@@ -97,12 +92,6 @@ def _get_analysis_tags(analysis: Callable[..., object], kind: str | None = None)
     Returns:
         tags:
             The tags the analysis needs.
-
-    Examples:
-        >>> from skcomplex.core.analysis import lyapunov
-        >>> from skcomplex.core.analysis._base import _get_analysis_tags
-        >>> _get_analysis_tags(lyapunov, 'largest').data
-        <DataKind.SERIES: 'series'>
     """
     module = sys.modules[analysis.__module__]
     by_kind: dict[str, AnalysisTags] = getattr(module, 'KIND_TAGS', {})
@@ -153,7 +142,7 @@ def _check_tags(analysis: Callable[..., object], source: object, kind: str | Non
     if tags is None:
         return
     needed = _get_analysis_tags(analysis, kind)
-    missing = needed.missing(tags)
+    missing = needed.get_missing(tags)
     if missing:
         name, values = next(iter(missing.items()))
         wanted = {'time': needed.time, 'space': needed.space, 'randomness': {needed.randomness}}[name]
@@ -232,55 +221,25 @@ def _composite(source: Source) -> Source:
 
     Returns:
         source:
-            The prepared composite `System` of a system that builds its parts, or the source itself.
+            The prepared composite `CompositeSystem` of a system that builds its parts, or the source itself.
     """
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
     return source
 
 
-def _get_problem(source: Trajectory | System | BaseProblemSpec) -> BaseProblemSpec:
+def _get_problem(source: Trajectory | CompositeSystem | BaseProblemSpec) -> BaseProblemSpec:
     """Return the compiled problem of a trajectory or a system."""
     if isinstance(source, Trajectory):
         return source.problem
-    if isinstance(source, System):
+    if isinstance(source, CompositeSystem):
         return PassCompiler().prepare(source).run().problem_
     return source
 
 
-def _compiled_problem(system: System | BaseProblemSpec, purpose: str) -> ProblemSpec:
-    """Return the general compiler's problem of a system, or the problem itself.
-
-    It serves work that reads its fields.
-
-    Args:
-        system:
-            A system, or a problem compiled from one.
-
-        purpose:
-            What needs the general compiler's problem, such as `'Linear stability'`, for the error message.
-
-    Returns:
-        problem:
-            The problem of the general compiler.
-
-    Raises:
-        AnalysisError:
-            A compiler of whole systems compiles the system to a problem of its own, which the work cannot read.
-    """
-    problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
-    if isinstance(problem, ProblemSpec):
-        return problem
-    error_msg = (
-        f'{purpose} reads the problem of the general compiler, but the system compiles to a '
-        f'{type(problem).__name__} of the {problem.form} form.'
-    )
-    raise AnalysisError(error_msg)
-
-
 def _get_lattice_names(problem: BaseProblemSpec) -> list[str]:
     """Return the states of a problem that live on lattices or grids."""
-    return [name for name in problem.states.names if problem.lattice_shape(name) is not None]
+    return [name for name in problem.states.names if problem.get_lattice_shape(name) is not None]
 
 
 def _get_path_names(problem: BaseProblemSpec) -> list[str]:
@@ -294,7 +253,7 @@ def _get_path_names(problem: BaseProblemSpec) -> list[str]:
         return names
     if problem.form == FormKind.DISCRETE:
         discrete = {DomainKind.CATEGORICAL, DomainKind.BOOLEAN, DomainKind.INTEGER}
-        return [name for name in names if problem.states.entry(name).kind in discrete]
+        return [name for name in names if problem.states.get_entry(name).kind in discrete]
     return []
 
 
@@ -372,7 +331,7 @@ def _get_scalar_series(trajectory: Trajectory) -> list[str]:
     return observed + reported or _get_series_states(trajectory.problem)
 
 
-def _has_series(source: Trajectory | System | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
+def _has_series(source: Trajectory | CompositeSystem | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
     """Check whether a source records scalar series.
 
     The series are observables, reporters, or states that count as series.
@@ -398,7 +357,7 @@ def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
     source = _composite(source) if not isinstance(source, BaseProblemSpec) else source
     if isinstance(source, nx.Graph | NetworkSnapshotSpec):
         return [DataKind.NETWORK]
-    if not isinstance(source, Trajectory | System | BaseProblemSpec):
+    if not isinstance(source, Trajectory | CompositeSystem | BaseProblemSpec):
         dimensions = np.ndim(source)
         return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
     problem = _get_problem(source)
@@ -473,7 +432,7 @@ def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
 
     The snapshots are aligned on the agents present in every frame.
     """
-    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
+    frames = [trajectory.get_agents(group, frame) for frame in range(len(trajectory.times))]
     common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
     ids = np.asarray(sorted(common), dtype=np.int64)
     columns = [_get_columns(frame.ids, ids) for frame in frames]
@@ -513,7 +472,7 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
 
     A scalar state is one dimension.
     """
-    values = [np.asarray(trajectory.values(name), dtype=float) for name in states]
+    values = [np.asarray(trajectory.get_values(name), dtype=float) for name in states]
     return np.concatenate(
         [item[..., None] if item.ndim == SNAPSHOT_DIMENSIONS else item for item in values],
         axis=-1,
@@ -540,7 +499,7 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpe
     moving = derivatives or _get_role_states(element, 'velocity')
     velocities = _read_axes(trajectory, [element.states[name] for name in moving]) if moving else None
     others = {
-        name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
+        name: np.asarray(trajectory.get_values(dotted)).reshape(len(trajectory.times), -1)
         for name, dotted in element.states.items()
         if name not in {*located, *moving}
     }
@@ -590,7 +549,7 @@ def _read_series(source: Source, names: Sequence[str] | None = None) -> SeriesSp
         for spec in source.problem.agents:
             if name.rpartition('.')[0] == spec.path:
                 _refuse_objects(source, spec.path, [name.rpartition('.')[2]])
-        values = np.asarray(source.values(name), dtype=float).reshape(len(source.times), -1)
+        values = np.asarray(source.get_values(name), dtype=float).reshape(len(source.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
     return SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
@@ -627,7 +586,7 @@ def _read_path(source: Source, name: str | None = None) -> JumpPathSpec:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _get_missing_error(source, 'discrete state')
-    values = np.asarray(source.values(chosen), dtype=float).reshape(len(source.times), -1)
+    values = np.asarray(source.get_values(chosen), dtype=float).reshape(len(source.times), -1)
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     times = np.asarray(source.times, dtype=float)[changed]
@@ -660,7 +619,7 @@ def _read_fields(source: Source, name: str | None = None) -> Array:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _get_missing_error(source, 'lattice or grid state')
-    return np.asarray(source.lattice(chosen), dtype=float)
+    return np.asarray(source.get_lattice(chosen), dtype=float)
 
 
 def _read_snapshots(source: Source, group: str | None = None) -> SnapshotsSpec:
@@ -788,7 +747,7 @@ def _read_networks(source: Source) -> list[nx.Graph]:
     if isinstance(source, nx.Graph):
         return [source]
     if isinstance(source, NetworkSnapshotSpec):
-        return [source.graph()]
+        return [source.get_graph()]
     if not isinstance(source, Trajectory):
         error_msg = f'Networks are read from a trajectory or a graph, not from {type(source).__name__}.'
         raise AnalysisError(error_msg)
@@ -802,27 +761,7 @@ def _read_networks(source: Source) -> list[nx.Graph]:
     return [space.graph] * len(trajectory.times)
 
 
-@cache
-def _import(name: str) -> ModuleType:
-    """Return a module, importing it on the first call.
-
-    Args:
-        name:
-            The dotted name of the module.
-
-    Returns:
-        module:
-            The imported module.
-
-    Examples:
-        >>> from skcomplex.core.analysis._base import _import
-        >>> _import('math').sqrt(4.0)
-        2.0
-    """
-    return import_module(name)
-
-
-def _read_system(source: object) -> System | BaseProblemSpec:
+def _read_system(source: object) -> CompositeSystem | BaseProblemSpec:
     """Return the system or the problem of a source.
 
     It is the problem of a trajectory, or a system or problem as it is.
@@ -841,9 +780,9 @@ def _read_system(source: object) -> System | BaseProblemSpec:
     """
     if isinstance(source, Trajectory):
         return source.problem
-    if isinstance(source, BaseSystem) and not isinstance(source, System):
+    if isinstance(source, BaseSystem) and not isinstance(source, CompositeSystem):
         return source.prepare().system_
-    if isinstance(source, System | BaseProblemSpec):
+    if isinstance(source, CompositeSystem | BaseProblemSpec):
         return source
     error_msg = (
         f'The analysis reads a system, a problem, or a trajectory, not {type(source).__name__}. Pass one of them.'
@@ -901,7 +840,7 @@ def _runs_of(source: Runs) -> list[Run]:
     """
     if isinstance(source, Trajectory):
         return [source]
-    if isinstance(source, System | NetworkSnapshotSpec | nx.Graph):
+    if isinstance(source, CompositeSystem | NetworkSnapshotSpec | nx.Graph):
         error_msg = f'Runs are read from trajectories or arrays, not from {type(source).__name__}.'
         raise AnalysisError(error_msg)
     if isinstance(source, list):

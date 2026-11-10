@@ -14,10 +14,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
@@ -165,7 +165,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
             label,
             target=target,
             state=state,
-            energy=self._energy,
+            energy=self._get_energy,
             move='random-value',
             rule=rule,
             neighborhood=neighborhood,
@@ -173,7 +173,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         )
         self.q = q
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J` times the number of neighbours in the spin's state."""
         color, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * neighbors(where(other == color, 1, 0), over=self.neighborhood)
@@ -222,23 +222,16 @@ class XYSamplingInteraction(SpinSamplingInteraction):
             label,
             target=target,
             state=state,
-            energy=self._energy,
+            energy=self._get_energy,
             move='rotate',
             neighborhood=neighborhood,
             width=width,
         )
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J sum_j cos(theta - theta_j)` of a spin."""
         angle, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)
-
-
-def _square(size: int | Sequence[int]) -> tuple[int, ...]:
-    """Return the shape of a square lattice of a side, or a given shape."""
-    if isinstance(size, Sequence):
-        return tuple(int(item) for item in size)
-    return (int(size), int(size))
 
 
 class IsingSystem(BaseSystem):
@@ -285,6 +278,13 @@ class IsingSystem(BaseSystem):
     until = 200
     dt = 1
 
+    @staticmethod
+    def _get_square(size: int | Sequence[int]) -> tuple[int, ...]:
+        """Return the shape of a square lattice of a side, or a given shape."""
+        if isinstance(size, Sequence):
+            return tuple(int(item) for item in size)
+        return (int(size), int(size))
+
     def __init__(
         self,
         size: int | Sequence[int] = 64,
@@ -306,22 +306,23 @@ class IsingSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         spins = (
             np.ones(shape)
             if self.initial == 'up'
             else np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=shape)
         )
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=IsingSpinElement,
             space=space,
             values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[IsingSamplingInteraction('sampling', target='spins', rule=self.sampler)],
@@ -388,21 +389,22 @@ class PottsSystem(BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the q-state Potts system on a torus.
 
         The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
         """
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=PottsSpinElement,
             space=space,
             values={'color': colors, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[PottsSamplingInteraction('sampling', target='spins', q=self.q, rule=self.sampler)],
@@ -464,18 +466,19 @@ class XYSystem(BaseSystem):
         self.width = width
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        shape = _square(self.size)
+        shape = IsingSystem._get_square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=XYSpinElement,
             space=space,
             values={'theta': angles, 'J': self.J, 'temperature': self.temperature},
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[XYSamplingInteraction('sampling', target='spins', width=self.width)],

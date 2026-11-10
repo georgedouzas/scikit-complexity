@@ -10,7 +10,7 @@ from ...specs._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PrintedSpec(BaseSpec):
-    """Code of an expression and how tightly it binds.
+    """A spec of the code of an expression and how tightly it binds.
 
     How tightly it binds decides whether an operator around it needs parentheses.
 

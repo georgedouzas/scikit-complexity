@@ -8,7 +8,7 @@ import skfem
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import PairCouplingInteraction
+from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     convolve,
@@ -25,7 +25,7 @@ from skcomplex.core.components.laws.utils import (
     where,
 )
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -33,7 +33,6 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import FisherKPPElement
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
@@ -93,7 +92,7 @@ def test_jacobian_against_finite_differences(laws):
             """Return the laws of the member element."""
             return laws(s)
 
-    system = System(
+    system = CompositeSystem(
         elements=[
             GroupElement(
                 'group',
@@ -108,7 +107,7 @@ def test_jacobian_against_finite_differences(laws):
     exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     estimate = _finite_differences(problem, x, p)
     np.testing.assert_allclose(exact, estimate, atol=1e-6)
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     assert pattern[np.abs(estimate) > 1e-9].all()
 
 
@@ -116,7 +115,7 @@ def _pair_ring(size):
     """Return phase oscillators on a periodic ring, coupled by the sine of their phase differences within two sites."""
     values = {'theta': RNG.uniform(0, 2 * np.pi, size), 'x': np.arange(size, dtype=float).reshape(-1, 1)}
     ring = GroupElement('ring', element=SitedOscillatorElement, size=size, values=values)
-    coupling = PairCouplingInteraction(
+    coupling = PairInteraction(
         'coupling',
         'ring',
         'ring',
@@ -125,7 +124,7 @@ def _pair_ring(size):
         function=lambda s: sin(s.second.theta - s.first.theta),
         period=float(size),
     )
-    return System(elements=[ring], interactions=[coupling], space=ContinuousSpace(n_dim=1))
+    return CompositeSystem(elements=[ring], interactions=[coupling], space=ContinuousSpace(n_dim=1))
 
 
 def test_jacobian_of_pair_sums_is_not_derived():
@@ -156,9 +155,33 @@ def test_pattern_is_omitted_above_the_limit():
             return [RateLaw(s.x, total(s.x))]
 
     MemberElement = WideElement
-    system = System(elements=[GroupElement('group', element=MemberElement, size=3000)])
+    system = CompositeSystem(elements=[GroupElement('group', element=MemberElement, size=3000)])
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.jacobian.pattern() is None
+    assert problem.jacobian.get_pattern() is None
+
+
+class FisherKPPElement(Element):
+    """Site of a line whose density `u` diffuses and grows logistically, `du/dt = D laplacian(u) + r u (1 - u)`."""
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
+
+    def _get_laws(self, s):
+        """Return the diffusion and the logistic growth of the density."""
+        return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
 
 class ReactiveHeatElement(Element):
@@ -193,19 +216,21 @@ def _reactive_mesh(refine=2):
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
-    return System(elements=[plate])
+    return CompositeSystem(elements=[plate])
 
 
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(elements=[FieldElement('line', element=FisherKPPElement, space=space, boundary={'u': boundary})])
+    return CompositeSystem(
+        elements=[FieldElement('line', element=FisherKPPElement, space=space, boundary={'u': boundary})],
+    )
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
 def test_stencil_pattern(boundary, entries):
     """Test that the three-point Laplacian gives a tridiagonal pattern, closed into a ring by periodic edges."""
-    pattern = PassCompiler().prepare(_fisher_line(1000, boundary)).run().problem_.jacobian.pattern()
+    pattern = PassCompiler().prepare(_fisher_line(1000, boundary)).run().problem_.jacobian.get_pattern()
     assert pattern.nnz == entries
     rows, columns = pattern.nonzero()
     assert set(np.abs(rows - columns)) <= ({0, 1, 999} if boundary == 'periodic' else {0, 1})
@@ -214,9 +239,9 @@ def test_stencil_pattern(boundary, entries):
 def test_mesh_pattern():
     """Test that the mesh pattern is the stiffness pattern with the diagonal on free nodes and empty fixed rows."""
     problem = PassCompiler().prepare(_reactive_mesh()).run().problem_
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     grid = skfem.MeshTri.init_lshaped().refined(2)
-    stiffness = FieldLowering._mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
+    stiffness = FieldLowering._get_mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()
@@ -235,7 +260,7 @@ def test_pattern_agrees_with_split_solver(system):
     solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     operator = solver.sparse_
-    pattern = problem.jacobian.pattern().toarray()
+    pattern = problem.jacobian.get_pattern().toarray()
     assert pattern[operator.toarray() != 0].all()
 
 
@@ -246,7 +271,7 @@ def test_pattern_agrees_with_split_solver(system):
 )
 def test_run_time_couplings_are_dense(system, block):
     """Test that pair interactions and spectral operators give the dense block of their group or field."""
-    pattern = PassCompiler().prepare(system).run().problem_.jacobian.pattern().toarray()
+    pattern = PassCompiler().prepare(system).run().problem_.jacobian.get_pattern().toarray()
     assert pattern[:block, :block].all()
 
 
@@ -282,7 +307,7 @@ def test_exact_jacobian_reads_the_parameters_it_receives():
     problem = PassCompiler().prepare(_fisher_line(20, 'zero-flux')).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     first = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
-    p[problem.parameters.entry('line.D').indices] *= 2
+    p[problem.parameters.get_entry('line.D').indices] *= 2
     second = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     off = ~np.eye(20, dtype=bool)
     np.testing.assert_allclose(second[off], 2 * first[off])
@@ -313,11 +338,11 @@ def test_exact_jacobian_of_callable_law_raises():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    system = System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
+    system = CompositeSystem(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
     problem = PassCompiler().prepare(system).run().problem_
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.prepare(problem)
-    assert problem.jacobian.pattern().toarray().all()
+    assert problem.jacobian.get_pattern().toarray().all()
 
 
 def _nonlocal_line(law, size=40, **settings):
@@ -341,17 +366,17 @@ def _nonlocal_line(law, size=40, **settings):
             return [RateLaw(s.u, law(s))]
 
     space = LatticeSpace(size, spacing=1 / (size + 1), boundary='fixed')
-    return System(elements=[FieldElement('line', element=NonlocalElement, space=space, **settings)])
+    return CompositeSystem(elements=[FieldElement('line', element=NonlocalElement, space=space, **settings)])
 
 
 def test_pattern_marks_inversions_dense_and_convolutions_within_their_radius():
     """Test that an inversion couples every site and a convolution of radius two the sites within two spacings."""
     system = _nonlocal_line(lambda s: partial(inverse_helmholtz(s.u, 1), 0))
     inverted = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
-    assert inverted.jacobian.pattern().toarray().all()
+    assert inverted.jacobian.get_pattern().toarray().all()
     system = _nonlocal_line(lambda s: convolve(s.u, 1 + displacement(0) ** 2, 2 / 41))
     convolved = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
-    rows, columns = convolved.jacobian.pattern().nonzero()
+    rows, columns = convolved.jacobian.get_pattern().nonzero()
     assert set(np.abs(rows - columns)) == {0, 1, 2}
 
 

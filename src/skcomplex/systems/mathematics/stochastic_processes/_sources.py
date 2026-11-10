@@ -9,9 +9,12 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element
 from ....core.components.interactions import TransitionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from .types import Matrix
+
+CHAIN = ((0.9, 0.1), (0.4, 0.6))
+EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 
 class HiddenMarkovSourceElement(Element):
@@ -83,12 +86,6 @@ class MarkovSourceElement(Element):
         self.symbol = symbol
 
 
-CHAIN = ((0.9, 0.1), (0.4, 0.6))
-
-
-EMISSION = ((0.7, 0.3), (0.2, 0.8))
-
-
 class MarkovSourceSystem(BaseSystem):
     """A Markov source.
 
@@ -131,13 +128,17 @@ class MarkovSourceSystem(BaseSystem):
         self.transition = transition
         self.symbol = symbol
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a Markov source.
 
         Each symbol of the sequence depends on the one before it.
         """
         chain = TransitionInteraction('chain', target='source', state='symbol', matrix=lambda s: self.transition)
-        return System(self.label, elements=[MarkovSourceElement('source', symbol=self.symbol)], interactions=[chain])
+        return CompositeSystem(
+            self.label,
+            elements=[MarkovSourceElement('source', symbol=self.symbol)],
+            interactions=[chain],
+        )
 
 
 class HiddenMarkovSourceSystem(BaseSystem):
@@ -183,7 +184,7 @@ class HiddenMarkovSourceSystem(BaseSystem):
         self.transition = transition
         self.emission = emission
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         chain = TransitionInteraction(
             'chain',
@@ -193,4 +194,4 @@ class HiddenMarkovSourceSystem(BaseSystem):
             emission=lambda s: self.emission,
             observed='symbol',
         )
-        return System(self.label, elements=[HiddenMarkovSourceElement('source')], interactions=[chain])
+        return CompositeSystem(self.label, elements=[HiddenMarkovSourceElement('source')], interactions=[chain])

@@ -6,8 +6,8 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 """
 
 # %%
-# The system is built from its class on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
-# and integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
+# The example builds `SchnakenbergSystem` on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
+# and integrates it with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +31,7 @@ trajectory = simulate(SchnakenbergSystem(random_state=0), dt=2.0, observers=[obs
 
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
-u = trajectory.lattice('cells.u')[-1]
+u = trajectory.get_lattice('cells.u')[-1]
 factor = spectrum(u, kind='structure-factor')
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(

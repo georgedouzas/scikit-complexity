@@ -11,12 +11,19 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LifeCycleInteraction, MapInteraction, MovementInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
+
+DAYS_PER_YEAR = 365
+PREDISPOSED = 0.1
+AFFECTS = (0.0, 0.5, 1.0)
+AFFECT_SHARES = (0.1, 0.8, 0.1)
+HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
 
 
 class EmployeeView(AgentView):
@@ -213,21 +220,6 @@ class EmployeeElement(Element):
         return EmployeeView
 
 
-DAYS_PER_YEAR = 365
-
-
-PREDISPOSED = 0.1
-
-
-AFFECTS = (0.0, 0.5, 1.0)
-
-
-AFFECT_SHARES = (0.1, 0.8, 0.1)
-
-
-HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
-
-
 class InsiderSabotageSystem(BaseSystem):
     """The insider sabotage system of employees whose risk of sabotage builds up.
 
@@ -299,7 +291,7 @@ class InsiderSabotageSystem(BaseSystem):
         return float(agent.feeling if agent.predisposed and agent.days == 0 else agent.first)
 
     @staticmethod
-    def _disgruntle(agent: EmployeeView, system: SystemViewProtocol) -> float:
+    def _get_disgruntlement(agent: EmployeeView, system: SystemViewProtocol) -> float:
         """Return the disgruntlement.
 
         It is the shortfall of today's feeling from the expectation of a predisposed one.
@@ -334,12 +326,12 @@ class InsiderSabotageSystem(BaseSystem):
         return float(weighted / weights)
 
     @staticmethod
-    def _stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
+    def _get_stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
         """Return the change of stress towards its level.
 
         The level is that in sight of a supervisor, an agent of another group, or out.
         """
-        supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
+        supervised = any(other.group != agent.group for other in [*agent.get_neighbors(), *agent.get_agents_here()])
         if supervised:
             return float(agent.alpha_seen * (agent.lambda_seen - agent.stress))
         return float(agent.alpha_unseen * (agent.lambda_unseen - agent.stress))
@@ -370,7 +362,7 @@ class InsiderSabotageSystem(BaseSystem):
         """
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
@@ -391,11 +383,11 @@ class InsiderSabotageSystem(BaseSystem):
         maps = [
             ('feeling', self._feel, 'replace'),
             ('first', self._remember_first, 'replace'),
-            ('disgruntlement', self._disgruntle, 'replace'),
+            ('disgruntlement', self._get_disgruntlement, 'replace'),
             ('days', self._count_day, 'increment'),
             ('mean_feeling', self._average, 'increment'),
             ('expectation', self._expect, 'replace'),
-            ('stress', self._stress, 'increment'),
+            ('stress', self._get_stress, 'increment'),
             ('skill', self._learn, 'increment'),
         ]
         work = [
@@ -412,7 +404,7 @@ class InsiderSabotageSystem(BaseSystem):
                 )
                 for state, function, mode in maps
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'turnover',
                 target='employees',
                 death=self._leave,
@@ -429,9 +421,9 @@ class InsiderSabotageSystem(BaseSystem):
                 form='agent',
             ),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[employees, supervisors],
             interactions=[wandering, *work],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )

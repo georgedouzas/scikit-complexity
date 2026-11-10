@@ -1,7 +1,7 @@
 """
 # Swift-Hohenberg
 
-Just above the onset of convection, small random noise organizes itself into parallel rolls of one preferred width,
+Slightly above the onset of convection, small random noise organizes itself into parallel rolls of one preferred width,
 the wavelength `2π`. Patches of rolls with different orientations meet at defects and slowly straighten out.
 """
 
@@ -29,7 +29,7 @@ trajectory = simulate(SwiftHohenbergSystem(random_state=0), observers=[observer]
 # The linear growth rate `r - (1 - k^2)^2` is largest at the wavenumber `k = 1`. The structure factor of the final
 # field should peak there, and the dominant wavelength measured from the pattern should be close to `2π`.
 
-field = trajectory.lattice('cells.u')[-1]
+field = trajectory.get_lattice('cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
 factor = spectrum(field, kind='structure-factor', spacing=spacing)
 wavelength = domains(field, kind='wavelength', spacing=spacing).wavelength[0]

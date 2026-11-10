@@ -17,7 +17,7 @@ from ._network_snapshot_spec import NetworkSnapshotSpec
 
 @dataclass(frozen=True)
 class NetworkRowsSpec(BaseSpec):
-    """Variable groups of one network.
+    """A spec of the variable groups of one network.
 
     They are the groups on its nodes, the edge group of every changing layer, and hyperedges.
 
@@ -40,7 +40,7 @@ class NetworkRowsSpec(BaseSpec):
     directed: Mapping[str | None, bool]
     hyperedges: CapacityRowsSpec | None = None
 
-    def present(self, p: Array) -> npt.NDArray[np.bool_]:
+    def get_present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every node row holds a node.
 
         Args:
@@ -51,9 +51,9 @@ class NetworkRowsSpec(BaseSpec):
             present:
                 One flag per node row.
         """
-        return self.nodes[0].present(p)
+        return self.nodes[0].get_present(p)
 
-    def order_ends(self, layer: str | None, first: int, second: int) -> Pair:
+    def get_order_ends(self, layer: str | None, first: int, second: int) -> Pair:
         """Return the ends of an edge, in node order on an undirected layer.
 
         Args:
@@ -72,7 +72,7 @@ class NetworkRowsSpec(BaseSpec):
         """
         return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
 
-    def neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
+    def get_neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
         """Return the node rows a node joins in a layer.
 
         On a directed layer they are its successors.
@@ -92,14 +92,14 @@ class NetworkRowsSpec(BaseSpec):
                 The node rows.
         """
         edges = self.edges[layer]
-        sources, targets = edges.ends(p)
-        present = edges.present(p)
+        sources, targets = edges.get_ends(p)
+        present = edges.get_present(p)
         found = targets[present & (sources == node)]
         if self.directed[layer]:
             return found
         return np.concatenate([found, sources[present & (targets == node)]])
 
-    def snapshot(self, p: Array, layer: str | None) -> NetworkSnapshotSpec:
+    def get_snapshot(self, p: Array, layer: str | None) -> NetworkSnapshotSpec:
         """Return the nodes and the edges of a layer present at the parameters of a frame.
 
         Args:
@@ -114,13 +114,13 @@ class NetworkRowsSpec(BaseSpec):
                 The nodes and edges present.
         """
         edges = self.edges[layer]
-        present = edges.present(p)
-        sources, targets = edges.ends(p)
+        present = edges.get_present(p)
+        sources, targets = edges.get_ends(p)
         hyperedges = None
         if self.hyperedges is not None:
-            hyperedges = self.hyperedges.hyperedges(p)[self.hyperedges.present(p)]
+            hyperedges = self.hyperedges.get_hyperedges(p)[self.hyperedges.get_present(p)]
         return NetworkSnapshotSpec(
-            np.flatnonzero(self.present(p)).astype(np.intp),
+            np.flatnonzero(self.get_present(p)).astype(np.intp),
             sources[present],
             targets[present],
             np.flatnonzero(present).astype(np.intp),

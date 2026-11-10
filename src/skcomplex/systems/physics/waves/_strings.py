@@ -19,7 +19,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
@@ -203,7 +203,7 @@ class SpringChainSystem(BaseSystem):
         peak = at * length
         return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return masses joined in a row by zero rest length springs between two anchors.
 
         The chain is a discrete string.
@@ -242,7 +242,12 @@ class SpringChainSystem(BaseSystem):
                 center=[self.length, 0.0],
             ),
         ]
-        return System(self.label, elements=masses, interactions=[*anchors, *springs], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(
+            self.label,
+            elements=masses,
+            interactions=[*anchors, *springs],
+            space=ContinuousSpace(n_dim=2),
+        )
 
 
 class StandingWavesSystem(BaseSystem):
@@ -303,7 +308,7 @@ class StandingWavesSystem(BaseSystem):
         self.mode = mode
         self.amplitude = amplitude
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a string with fixed ends on `[-length / 2, length / 2]`.
 
         The string vibrates as a standing wave.
@@ -326,4 +331,4 @@ class StandingWavesSystem(BaseSystem):
             state='u',
             rate=lambda s: s.target.c**2 * laplacian(s.target.u),
         )
-        return System(self.label, elements=[string], interactions=[tension])
+        return CompositeSystem(self.label, elements=[string], interactions=[tension])

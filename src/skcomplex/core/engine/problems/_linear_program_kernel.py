@@ -1,7 +1,4 @@
-"""Solve the linear program of a problem with HiGHS.
-
-The program is warm-started and solved once per evaluation and per member.
-"""
+"""Solve the linear program of a problem with HiGHS."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +25,7 @@ INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelS
 
 
 class LinearProgramKernel(BaseKernel):
-    """Linear program lowered for a problem.
+    """A kernel of a linear program lowered for a problem.
 
     It is solved with one warm-started HiGHS system per member. `prepare(state)` evaluates the bounds and coefficients
     at a state without solving. `run(state)` keeps in `values_` a copy of the state vector with the variables, objective
@@ -121,14 +118,14 @@ class LinearProgramKernel(BaseKernel):
         self._last: Array | None = None
         self._first_solution: highspy.HighsSolution | None = None
         if isinstance(context, RunStateSpec):
-            self._set_sides(self._compiled_values(context))
+            self._set_sides(self._get_compiled_values(context))
 
-    def _compiled_values(self, state: RunStateSpec) -> list[Array]:
+    def _get_compiled_values(self, state: RunStateSpec) -> list[Array]:
         """Return the compiled values at a state, one array with a value per member each."""
         program = self.program
         if program.function is None:
             return []
-        columns = [reference.column_of(state.x, state.p) for reference in program.arguments]
+        columns = [reference.get_column_of(state.x, state.p) for reference in program.arguments]
         values = program.function(state.t, *columns)
         return [np.broadcast_to(np.asarray(item, dtype=float), (program.members,)) for item in values]
 
@@ -149,9 +146,9 @@ class LinearProgramKernel(BaseKernel):
             else:
                 row_upper[:, side.position] = value
         self.lower_, self.upper_, self.row_lower_, self.row_upper_ = lower, upper, row_lower, row_upper
-        self.matrix_ = self._matrix_of(0, values)
+        self.matrix_ = self._get_matrix_of(0, values)
 
-    def _matrix_of(self, member: int, values: Sequence[Array]) -> sparse.csr_array:
+    def _get_matrix_of(self, member: int, values: Sequence[Array]) -> sparse.csr_array:
         """Return the coefficients of the rows of a member."""
         program = self.program
         if not program.entries:
@@ -161,7 +158,7 @@ class LinearProgramKernel(BaseKernel):
             matrix[entry.row, entry.column] = values[entry.value][member]
         return matrix.tocsr()
 
-    def _new_system(self) -> highspy.Highs:
+    def _get_new_system(self) -> highspy.Highs:
         """Return a HiGHS system of the program.
 
         The system holds its parts of absolute values and its rows that fix objectives.
@@ -199,14 +196,14 @@ class LinearProgramKernel(BaseKernel):
         system.passModel(lp)
         return system
 
-    def _system_of(self, member: int) -> highspy.Highs:
+    def _get_system_of(self, member: int) -> highspy.Highs:
         """Return the system of a member.
 
         The system keeps its basis from one solve to the next.
         """
         system = self._systems.get(member)
         if system is None:
-            system = self._systems[member] = self._new_system()
+            system = self._systems[member] = self._get_new_system()
         return system
 
     def _set_bounds(self, system: highspy.Highs, member: int) -> None:
@@ -225,7 +222,7 @@ class LinearProgramKernel(BaseKernel):
         for row in range(start, start + program.costs.shape[0] - 1):
             system.changeRowBounds(row, -INFINITY, INFINITY)
 
-    def _costs_of(self, member: int, values: Sequence[Array]) -> Array:
+    def _get_costs_of(self, member: int, values: Sequence[Array]) -> Array:
         """Return the cost of every column per objective for a member.
 
         Costs are in the minimising sense.
@@ -277,7 +274,7 @@ class LinearProgramKernel(BaseKernel):
         raise InfeasibleError(error_msg)
 
     @staticmethod
-    def _solved_status(system: highspy.Highs) -> highspy.HighsModelStatus:
+    def _get_solved_status(system: highspy.Highs) -> highspy.HighsModelStatus:
         """Run a system, retrying when a warm start ends without an answer.
 
         The retry runs it from no basis, then also with presolve.
@@ -294,7 +291,7 @@ class LinearProgramKernel(BaseKernel):
         system.setOptionValue('presolve', 'off')
         return status
 
-    def _objective_values(self, system: highspy.Highs, costs: Array) -> list[float] | None:
+    def _get_objective_values(self, system: highspy.Highs, costs: Array) -> list[float] | None:
         """Solve the objectives in order and return their values.
 
         Each objective is kept near its optimum. Without objectives, `None` is returned.
@@ -306,7 +303,7 @@ class LinearProgramKernel(BaseKernel):
         start = len(program.row_lower) + len(program.parts)
         for index in range(max(1, costs.shape[0])):
             system.changeColsCost(columns, positions, costs[index] if costs.size else np.zeros(columns))
-            status = self._solved_status(system)
+            status = self._get_solved_status(system)
             if status in INFEASIBLE_STATUSES:
                 return None
             if status != highspy.HighsModelStatus.kOptimal:
@@ -326,7 +323,7 @@ class LinearProgramKernel(BaseKernel):
                 system.changeRowBounds(start + index, -INFINITY, value + slack)
         return found
 
-    def _dual_values(self, member: int, solution: highspy.HighsSolution | None) -> list[float]:
+    def _get_dual_values(self, member: int, solution: highspy.HighsSolution | None) -> list[float]:
         """Return the dual of every recorded constraint.
 
         It is the change of the first objective with its right side.
@@ -335,9 +332,15 @@ class LinearProgramKernel(BaseKernel):
         sign = program.signs[0] if program.signs else 1.0
         if solution is None:
             return [0.0] * len(program.duals)
-        return [self._dual_of(item, member, solution, sign) for item in program.duals]
+        return [self._get_dual_of(item, member, solution, sign) for item in program.duals]
 
-    def _dual_of(self, item: LinearProgramDualSpec, member: int, solution: highspy.HighsSolution, sign: float) -> float:
+    def _get_dual_of(
+        self,
+        item: LinearProgramDualSpec,
+        member: int,
+        solution: highspy.HighsSolution,
+        sign: float,
+    ) -> float:
         """Return the dual of one constraint.
 
         It is a row dual, or the reduced cost of a variable at its bound.
@@ -363,13 +366,13 @@ class LinearProgramKernel(BaseKernel):
         An infeasible solve returns `None` for the policy to decide.
         """
         program = self.program
-        system = self._system_of(member)
+        system = self._get_system_of(member)
         self._set_bounds(system, member)
-        costs = self._costs_of(member, values)
+        costs = self._get_costs_of(member, values)
         if program.entries or program.cost_entries:
             self._set_coefficients(system, costs, values, member)
         self.solves_ += 1
-        objectives = self._objective_values(system, costs)
+        objectives = self._get_objective_values(system, costs)
         if objectives is None:
             if program.infeasible == 'raise':
                 self._raise_infeasible(system, t, member)
@@ -381,10 +384,10 @@ class LinearProgramKernel(BaseKernel):
             sign * value + offset
             for sign, value, offset in zip(program.signs, objectives, program.offsets, strict=True)
         ]
-        duals = self._dual_values(member, self._first_solution) if program.duals else []
+        duals = self._get_dual_values(member, self._first_solution) if program.duals else []
         return np.concatenate([variables, shown, duals])
 
-    def _active_members(self, values: Sequence[Array]) -> Indices:
+    def _get_active_members(self, values: Sequence[Array]) -> Indices:
         """Return the members whose activity holds."""
         program = self.program
         holds = np.ones(program.members, dtype=bool)
@@ -392,12 +395,12 @@ class LinearProgramKernel(BaseKernel):
             holds &= values[position] > ACTIVE_THRESHOLD
         return np.flatnonzero(holds)
 
-    def _solved_values(self, state: RunStateSpec, last: Array) -> Array:
+    def _get_solved_values(self, state: RunStateSpec, last: Array) -> Array:
         """Return the values of every member at a state, one row per member."""
-        values = self._compiled_values(state)
+        values = self._get_compiled_values(state)
         self._set_sides(values)
         following = np.zeros_like(last)
-        for member in self._active_members(values):
+        for member in self._get_active_members(values):
             row = self._solve_member(int(member), values, state.t)
             if row is not None:
                 following[member] = row
@@ -405,12 +408,12 @@ class LinearProgramKernel(BaseKernel):
                 following[member] = last[member]
         return following
 
-    def _key_of(self, state: RunStateSpec) -> tuple[float, bytes]:
+    def _get_key_of(self, state: RunStateSpec) -> tuple[float, bytes]:
         """Return what decides a solve.
 
         It is the time and the values the program reads.
         """
-        columns = [reference.column_of(state.x, state.p) for reference in self.program.arguments]
+        columns = [reference.get_column_of(state.x, state.p) for reference in self.program.arguments]
         return state.t, b''.join(item.tobytes() for item in columns)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
@@ -422,14 +425,14 @@ class LinearProgramKernel(BaseKernel):
             inputs:
                 The state.
         """
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         places = self._places
         members = self.program.members
-        key = self._key_of(state)
+        key = self._get_key_of(state)
         if self._last is None:
             self._last = state.x[places].reshape(members, -1, order='F').copy()
         if key != self._key:
-            self._last = self._solved_values(state, self._last)
+            self._last = self._get_solved_values(state, self._last)
             self._key = key
         following = state.x.copy()
         following[places] = self._last.ravel(order='F')

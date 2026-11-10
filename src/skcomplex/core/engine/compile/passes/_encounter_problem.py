@@ -1,7 +1,4 @@
-"""Pass that makes the problem of a system with encounter laws kinetic.
-
-The kinetic problem holds the encounter laws.
-"""
+"""Pass that makes the problem of a system with encounter laws kinetic."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from .._compilation import Compilation
 
 
 class EncounterProblemPass(BasePass):
-    """Pass that makes the problem of a system with encounter laws kinetic.
+    """A pass that makes the problem of a system with encounter laws kinetic.
 
     The kinetic problem holds the encounter laws.
     """
@@ -33,6 +30,6 @@ class EncounterProblemPass(BasePass):
         encounters = compilation.encounters
         if not encounters:
             return
-        problem = Compilation._required(compilation.problem, 'problem')
+        problem = Compilation._get_required(compilation.problem, 'problem')
         values = {item.name: getattr(problem, item.name) for item in fields(problem)}
         compilation.problem = KineticProblemSpec(**values, encounters=encounters)

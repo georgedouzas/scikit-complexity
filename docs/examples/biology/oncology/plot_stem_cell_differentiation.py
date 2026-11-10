@@ -6,9 +6,10 @@ a steady state in which the mutation of normal progenitors feeds a small maligna
 """
 
 # %%
-# The system is built from its class with the book's parameters and initial cells, a mutation rate drawn once with the
-# seed 0, and continuous therapy, and runs for 2000 time units. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the eight compartments.
+# The example builds `StemCellDifferentiationSystem` with the parameters and initial cells of the book of Padmanabhan,
+# Meskin, and Al Moustafa (2021), a mutation rate drawn once with the seed 0, and continuous therapy, and runs for 2000
+# time units. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# eight compartments.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +31,7 @@ trajectory = simulate(StemCellDifferentiationSystem(seed=0), observers=[observer
 
 fig, (lineages, mutation) = plt.subplots(1, 2, figsize=(10, 4))
 for state, name in [('NPr', 'normal progenitors'), ('ND', 'normal differentiated'), ('AD', 'malignant differentiated')]:
-    lineages.semilogy(trajectory.times, trajectory.values(f'tissue.{state}').clip(1e-3), label=name)
+    lineages.semilogy(trajectory.times, trajectory.get_values(f'tissue.{state}').clip(1e-3), label=name)
 lineages.set_xlabel('time')
 lineages.set_ylabel('cells')
 lineages.set_title('The lineages settle under therapy')
@@ -39,7 +40,7 @@ rates, finals = [], []
 for seed in range(8):
     run = StemCellDifferentiationSystem(seed=seed).prepare().system_
     rates.append(run.elements[0].m1)
-    finals.append(simulate(run, dt=10.0, until=2000).values('tissue.AD')[-1])
+    finals.append(simulate(run, dt=10.0, until=2000).get_values('tissue.AD')[-1])
 mutation.plot(rates, finals, 'o')
 mutation.set_xlabel('mutation rate m1')
 mutation.set_ylabel('final malignant differentiated cells')

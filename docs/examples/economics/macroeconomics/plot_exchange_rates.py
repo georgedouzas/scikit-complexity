@@ -1,7 +1,7 @@
 """
 # Exchange rates
 
-Hamill and Gilbert's staged adjustment of a trading economy to a rise in its home prices. Prices move first and
+Hamill and Gilbert let a trading economy adjust in stages to a rise in its home prices. Prices move first and
 trade volumes follow a stage later, so under a fixed exchange rate the balance of trade first swings into surplus,
 the dearer exports still selling as before, and then into deficit once buyers turn away, the J-curve. A floating
 rate depreciates at once instead, and the delayed fall of imports then carries the balance into surplus.
@@ -21,6 +21,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
 
 SYSTEM = 'exchange_rates'
+EXPORTS, PRICE, RISE = 32.0, 1.2, 0.1
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -42,8 +44,6 @@ trajectory = simulate(system, until=4, observers=[observer])
 # the first stage, export prices abroad stay put, and imports fall with `e_m`, so the balance becomes the surplus
 # `-pi e_m X0 PH0 (1 + pi)`. The simulated balances should lie on both lines for every elasticity.
 
-EXPORTS, PRICE, RISE = 32.0, 1.2, 0.1
-
 
 def run(elasticity, floating):
     """Return the trajectory of two stages of adjustment with equal elasticities."""
@@ -61,10 +61,10 @@ fig, (stages, sign) = plt.subplots(1, 2, figsize=(10, 4))
 for floating, color in ((False, 'C0'), (True, 'C1')):
     name = 'floating' if floating else 'fixed'
     trajectory = run(-1.0, floating)
-    stages.plot(trajectory.times, trajectory.values('balance'), 'o-', color=color, label=name)
+    stages.plot(trajectory.times, trajectory.get_values('balance'), 'o-', color=color, label=name)
     sign.plot(
         -elasticities,
-        [run(elasticity, floating).values('balance')[-1] for elasticity in elasticities],
+        [run(elasticity, floating).get_values('balance')[-1] for elasticity in elasticities],
         'o',
         color=color,
     )

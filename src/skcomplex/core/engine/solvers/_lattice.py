@@ -1,14 +1,11 @@
-"""Solver of lattice dynamics that applies every lattice law once per step.
-
-The laws are local rules, drives, cascades, and extremal laws.
-"""
+"""Solver of lattice dynamics that applies every lattice law once per step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
 
-from ...components.laws import BoundaryLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
+from ...components.laws import ArrayUpdateLaw, BoundaryLaw, CascadeLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
@@ -16,7 +13,7 @@ from ._solver import Solver
 
 
 class LatticeSolver(Solver):
-    """Solver of lattice dynamics that applies every lattice law once per step.
+    """A solver that applies every lattice law once per step.
 
     The laws are local rules, drives, cascades, and extremal laws. Steps apply in the order the laws are declared, and
     the boundary laws apply after every step. Cascades record their size, duration, and area as events, and extremal
@@ -41,7 +38,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -79,5 +76,5 @@ class LatticeSolver(Solver):
                     self.locator_.records.append(result)
                 elif isinstance(result, list):
                     self.locator_.records.extend(result)
-            state = self._bounded(float(step + 1), state, p)
+            state = self._get_bounded(float(step + 1), state, p)
         return state

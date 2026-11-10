@@ -1,7 +1,4 @@
-"""Transition or emission matrix of a Markov law.
-
-It is evaluated from the parameters to check its rows.
-"""
+"""Transition or emission matrix of a Markov law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,11 +12,11 @@ from ...specs import RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
 
-_ROW_TOLERANCE = 1e-9
+ROW_TOLERANCE = 1e-9
 
 
 class MarkovKernel(BaseKernel):
-    """Transition or emission matrix of a Markov law.
+    """A kernel of the transition or emission matrix of a Markov law.
 
     It is evaluated from the parameters to check its rows. `run(state)` keeps in `values_` the description of the first
     negative entry or row that does not sum to one at the parameters of the state, or `None` when every matrix is
@@ -57,9 +54,9 @@ class MarkovKernel(BaseKernel):
 
         It is `None` when nothing is wrong.
         """
-        self.values_ = self._problem(self._state_of(inputs))
+        self.values_ = self._get_problem(self._get_state_of(inputs))
 
-    def _problem(self, state: RunStateSpec) -> str | None:
+    def _get_problem(self, state: RunStateSpec) -> str | None:
         """Return the description of what is wrong with the matrix at a state.
 
         The matrix is read at the parameters of the state, and `None` is returned when nothing is wrong.
@@ -72,7 +69,7 @@ class MarkovKernel(BaseKernel):
                 row, column = negative[0]
                 return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
             sums = matrix.sum(axis=1)
-            wrong = np.flatnonzero(np.abs(sums - 1) > _ROW_TOLERANCE)
+            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
             if wrong.size:
                 return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
         return None

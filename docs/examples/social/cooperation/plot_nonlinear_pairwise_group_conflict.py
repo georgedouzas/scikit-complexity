@@ -10,9 +10,9 @@ of punishers on the right.
 """
 
 # %%
-# The system is built from its class with the group Fermi rule of sensitivity 2, a punishment of 0.5, and
-# a per-interaction cost of 0.1, on 100 cells of the fraction of punishers. Between-group conflict is strong, with
-# `lambda = 2`. The observer saves every frame of 0.5 up to `t = 15`.
+# The example builds `NonlinearPairwiseGroupConflictSystem` with the group Fermi rule of sensitivity 2, a punishment of
+# 0.5, and a per-interaction cost of 0.1, on 100 cells of the fraction of punishers. Between-group conflict is strong,
+# with `lambda = 2`. The observer saves every frame of 0.5 up to `t = 15`.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,7 +26,7 @@ SYSTEM = 'nonlinear_pairwise_group_conflict'
 CELLS = 100
 
 system = NonlinearPairwiseGroupConflictSystem(cells=CELLS, group_strength=2.0)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='groups/x', interval=1)
 trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 
 # %%
@@ -38,7 +38,7 @@ trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 # of punishers they reach rises with the strength of conflict.
 
 centres = (np.arange(CELLS) + 0.5) / CELLS
-density = trajectory.values('groups.f').reshape(-1, CELLS)
+density = trajectory.get_values('groups.x').reshape(-1, CELLS)
 times = trajectory.times
 strengths = np.linspace(0.1, 3.0, 8)
 fig, (profiles, means) = plt.subplots(1, 2, figsize=(11, 4))
@@ -52,7 +52,7 @@ for victory in ('fermi', 'local', 'tullock'):
     for strength in strengths:
         model = NonlinearPairwiseGroupConflictSystem(cells=50, victory=victory, group_strength=strength, exponent=2.0)
         run = simulate(model, dt=15.0, solver=RK4Solver(dt=0.02))
-        finals.append(run.values('groups.f')[-1].reshape(50) @ ((np.arange(50) + 0.5) / 50) / 50)
+        finals.append(run.get_values('groups.x')[-1].reshape(50) @ ((np.arange(50) + 0.5) / 50) / 50)
     means.plot(strengths, finals, 'o-', label=victory)
 means.set_xlabel('strength of between-group conflict lambda')
 means.set_ylabel('mean fraction of punishers at t = 15')

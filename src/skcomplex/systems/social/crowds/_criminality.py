@@ -15,15 +15,20 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import DensityElement, Element, GroupElement
-from ....core.components.interactions import EncounterInteraction, RateInteraction
+from ....core.components.elements import GroupElement
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.kinetics import EncounterInteraction
+from ..common.kinetics import ActivityDensityElement
+
+CRIMINAL_THRESHOLD = 0.5
+CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
 
 
-class SecurityAgentsElement(Element):
+class SecurityAgentsElement(ActivityDensityElement):
     """Density of security agents at one efficacy class.
 
     It holds the share of new recruits that join the class.
@@ -35,7 +40,7 @@ class SecurityAgentsElement(Element):
         visual:
             How the agent is drawn, or `None` for `default_visual_`.
 
-        f:
+        x:
             The initial density.
 
         share:
@@ -53,11 +58,10 @@ class SecurityAgentsElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
+        super().__init__(label, visual=visual, x=x)
         self.share = share
 
 
@@ -271,7 +275,7 @@ def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
 class RecruitmentInteraction(RateInteraction):
     """Recruitment of security agents in proportion to the mean criminality.
 
-    It is a macro-scale external action. It is a `RateInteraction` of the density `f` of the security forces that reads
+    It is a macro-scale external action. It is a `RateInteraction` of the density `x` of the security forces that reads
     the citizens. The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the
     mean criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
 
@@ -310,7 +314,7 @@ class RecruitmentInteraction(RateInteraction):
         recruitment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         retirement: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label, target=target, state='f', rate=self._get_rate)
+        super().__init__(label, target=target, state='x', rate=self._get_rate)
         self.citizens = citizens
         self.classes = classes
         self.recruitment = recruitment
@@ -322,14 +326,8 @@ class RecruitmentInteraction(RateInteraction):
         The recruitment is in proportion to the mean criminality. The criminality is that of the citizens.
         """
         security, citizens = s.target, s.citizens
-        criminality = moment(citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
-        return s.recruitment * criminality * security.share - s.retirement * security.f
-
-
-CRIMINAL_THRESHOLD = 0.5
-
-
-CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
+        criminality = moment(citizens.x, 1, criminality_grid(int(self.classes)), normalized=True)
+        return s.recruitment * criminality * security.share - s.retirement * security.x
 
 
 def mean_criminality(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -> Expression:
@@ -346,7 +344,7 @@ def mean_criminality(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -
         mean:
             The normalized first moment.
     """
-    return moment(s.f, 1, criminality, normalized=True)
+    return moment(s.x, 1, criminality, normalized=True)
 
 
 def criminal_fraction(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -> Expression:
@@ -363,7 +361,7 @@ def criminal_fraction(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) 
         fraction:
             The moment of the indicator of the criminal classes, divided by the density.
     """
-    return moment(s.f, 1, (criminality >= CRIMINAL_THRESHOLD).astype(float), normalized=True)
+    return moment(s.x, 1, (criminality >= CRIMINAL_THRESHOLD).astype(float), normalized=True)
 
 
 def security_density(s: SimpleNamespace, forces: int) -> Expression:
@@ -380,13 +378,7 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
         density:
             The order-0 moment.
     """
-    return moment(s.f, 0, np.arange(forces, dtype=float))
-
-
-def _sizes_of(system: System) -> tuple[int, int]:
-    """Return the number of criminality classes and of efficacy classes of a system."""
-    sizes = {item.label: int(item.size or 0) for item in system.elements}
-    return sizes['citizens'], sizes['security']
+    return moment(s.x, 0, np.arange(forces, dtype=float))
 
 
 def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
@@ -475,6 +467,12 @@ class CriminalitySystem(BaseSystem):
     until = 60
     dt = 0.5
 
+    @staticmethod
+    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+        """Return the number of criminality classes and of efficacy classes of a system."""
+        sizes = {item.label: int(item.size or 0) for item in system.elements}
+        return sizes['citizens'], sizes['security']
+
     def __init__(
         self,
         classes: int = 5,
@@ -500,14 +498,20 @@ class CriminalitySystem(BaseSystem):
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                GroupElement('citizens', element=DensityElement, size=self.classes, on='sites', values={'f': citizens}),
+                GroupElement(
+                    'citizens',
+                    element=ActivityDensityElement,
+                    size=self.classes,
+                    on='sites',
+                    values={'x': citizens},
+                ),
                 GroupElement(
                     'security',
                     element=SecurityAgentsElement,
@@ -515,7 +519,7 @@ class CriminalitySystem(BaseSystem):
                     on='sites',
                     space=LatticeSpace(self.forces, boundary='fixed'),
                     values={
-                        'f': np.full(self.forces, self.security / self.forces),
+                        'x': np.full(self.forces, self.security / self.forces),
                         'share': np.full(self.forces, 1.0 / self.forces),
                     },
                 ),
@@ -556,6 +560,6 @@ class CriminalitySystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        system = self._pass_parameters()
-        settings['observables'] = criminality_observables(*_sizes_of(system))
+        system = self._get_pass_parameters()
+        settings['observables'] = criminality_observables(*CriminalitySystem._get_sizes_of(system))
         return settings

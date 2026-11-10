@@ -12,20 +12,17 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, PointElement
-from ....core.components.interactions import (
-    CouplingInteraction,
-    MapInteraction,
-    MovementInteraction,
-    PairCouplingInteraction,
-    RateInteraction,
-)
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import MapInteraction, PairInteraction, RateInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import MovementInteraction
+from ...general.elements import PointElement
+from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
 class BoidView(AgentView):
@@ -274,7 +271,7 @@ class FlightInteraction(MovementInteraction):
         return tuple(float(item) for item in np.mod(position, np.array([boid.width, boid.height])))
 
 
-class FlockingInteraction(CouplingInteraction):
+class FlockingInteraction(ZoneCouplingInteraction):
     """Reynolds' steering of every boid by the boids it sees, with a bounded speed.
 
     It steers a boid toward, away from, and along those boids.
@@ -306,7 +303,6 @@ class FlockingInteraction(CouplingInteraction):
             label,
             target=target,
             write=('vx', 'vy'),
-            form='agent',
             radii=(
                 RadiusSpec('radius', self._get_cohesion, reduce='mean'),
                 RadiusSpec('separation_radius', self._get_separation),
@@ -378,7 +374,7 @@ class HeadingInteraction(MapInteraction):
     @staticmethod
     def _get_steering(boid: SpatialBoidView, others: list[SpatialBoidView]) -> Array:
         """Return the change of the velocity of a boid from the boids it sees."""
-        offsets = np.array([boid.displacement_to(other) for other in others])
+        offsets = np.array([boid.get_displacement_to(other) for other in others])
         velocities = np.array([other.velocity for other in others])
         close = np.linalg.norm(offsets, axis=1) < boid.separation_radius
         return (
@@ -394,7 +390,7 @@ class HeadingInteraction(MapInteraction):
         Its speed is clipped.
         """
         boid = cast(SpatialBoidView, agent)
-        others = [cast(SpatialBoidView, other) for other in boid.neighbors(boid.radius)]
+        others = [cast(SpatialBoidView, other) for other in boid.get_neighbors(boid.radius)]
         velocity = np.asarray(boid.velocity, dtype=float)
         if others:
             velocity = velocity + HeadingInteraction._get_steering(boid, others)
@@ -402,7 +398,7 @@ class HeadingInteraction(MapInteraction):
         return velocity * np.clip(speed, boid.min_speed, boid.max_speed) / speed if speed else velocity
 
 
-class MorsePotentialInteraction(PairCouplingInteraction):
+class MorsePotentialInteraction(PairInteraction):
     """Attraction at long range and repulsion at short range.
 
     The potential is `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
@@ -637,7 +633,7 @@ class BoidsSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Reynolds' boids in two dimensions.
 
         The boids are birds that flock by local rules without a leader.
@@ -661,7 +657,7 @@ class BoidsSystem(BaseSystem):
             location=[tuple(point) for point in rng.uniform(0.0, self.size, (self.n_boids, 2))],
         )
         interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -734,7 +730,7 @@ class Boids3dSystem(BaseSystem):
         self.alignment = alignment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of Boids in three dimensions.
 
         The boids are birds that flock by local rules in a periodic cube.
@@ -758,7 +754,7 @@ class Boids3dSystem(BaseSystem):
             HeadingInteraction('heading', target='flock'),
             SpatialFlightInteraction('flight', target='flock'),
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[flock],
             interactions=interactions,
@@ -838,7 +834,7 @@ class BirdSwarmSystem(BaseSystem):
         self.l_r = l_r
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a swarm of self-propelled birds.
 
         A pair potential holds the birds together.
@@ -862,4 +858,9 @@ class BirdSwarmSystem(BaseSystem):
             l_r=self.l_r,
         )
         flight = SelfPropulsionInteraction('flight', target='birds', alpha=self.alpha, beta=self.beta)
-        return System(self.label, elements=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(
+            self.label,
+            elements=[birds],
+            interactions=[potential, flight],
+            space=ContinuousSpace(n_dim=2),
+        )

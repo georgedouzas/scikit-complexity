@@ -6,27 +6,26 @@ The systems cover resistance, delays, and metastasis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, RateInteraction, ReactionInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import BaseInteraction, RateInteraction
 from ....core.components.laws.utils import clip, delayed
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
+from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 DRUGS = (1, 2, 3)
-
 RESISTANCE_CLASSES = {
     (): 'S',
     (1,): 'R1',
@@ -431,146 +430,6 @@ class MultidrugResistanceElement(Element):
         self.u3 = u3
 
 
-class ResistanceSwitchingElement(Element):
-    """Sensitive cells and cells resistant by mutation or by a phenotype switch.
-
-    The switch is reversible, and the dose is constant.
-
-    With the total `V = S + Rm + Rp`, the sensitive cells follow
-    `dS/dt = r1 (1 - b V) S - (m1 + m2) S - (alpha_m + alpha_p) u S - a u S + m5 Rp`, the mutated cells
-    `dRm/dt = r2 (1 - b V) Rm + m1 S + alpha_m u S - am u Rm`, and the switched cells
-    `dRp/dt = r3 (1 - b V) Rp + m2 S + alpha_p u S - m5 Rp - ap u Rp`. The rates `m1` and `m2` are the spontaneous
-    (acquired) resistance, `alpha_m` and `alpha_p` the resistance the drug induces, and `m5` the resensitization of
-    switched cells.
-
-    Args:
-        label:
-            The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        S:
-            The initial sensitive cells.
-
-        Rm:
-            The initial cells resistant by mutation.
-
-        Rp:
-            The initial cells resistant by phenotype switching.
-
-        r1:
-            The growth rate of sensitive cells.
-
-        r2:
-            The growth rate of mutated cells.
-
-        r3:
-            The growth rate of switched cells.
-
-        b:
-            The reciprocal carrying capacity of the tumour.
-
-        m1:
-            The rate of spontaneous resistance by mutation.
-
-        m2:
-            The rate of spontaneous resistance by phenotype switching.
-
-        alpha_m:
-            The rate per unit of dose of resistance induced by mutation.
-
-        alpha_p:
-            The rate per unit of dose of resistance induced by phenotype switching.
-
-        m5:
-            The rate at which switched cells become sensitive again.
-
-        a:
-            The kill rate of sensitive cells per unit of dose.
-
-        am:
-            The kill rate of mutated cells per unit of dose.
-
-        ap:
-            The kill rate of switched cells per unit of dose.
-
-        u:
-            The effective dose.
-
-    Examples:
-        >>> from skcomplex.systems.biology.oncology import ResistanceSwitchingElement
-        >>> ResistanceSwitchingElement('tumour').alpha_m
-        0.01
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        Rm: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Rp: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha_m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        alpha_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        m5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        am: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.S = S
-        self.Rm = Rm
-        self.Rp = Rp
-        self.r1 = r1
-        self.r2 = r2
-        self.r3 = r3
-        self.b = b
-        self.m1 = m1
-        self.m2 = m2
-        self.alpha_m = alpha_m
-        self.alpha_p = alpha_p
-        self.m5 = m5
-        self.a = a
-        self.am = am
-        self.ap = ap
-        self.u = u
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth, transitions, and kill of the cells.
-
-        The cells are sensitive, mutated, and switched.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        S, Rm, Rp, u = s.S, s.Rm, s.Rp, s.u
-        room = 1 - s.b * (S + Rm + Rp)
-        return [
-            RateLaw(
-                S,
-                s.r1 * room * S - (s.m1 + s.m2) * S - (s.alpha_m + s.alpha_p) * u * S - s.a * u * S + s.m5 * Rp,
-            ),
-            RateLaw(Rm, s.r2 * room * Rm + s.m1 * S + s.alpha_m * u * S - s.am * u * Rm),
-            RateLaw(Rp, s.r3 * room * Rp + s.m2 * S + s.alpha_p * u * S - s.m5 * Rp - s.ap * u * Rp),
-        ]
-
-
 class RestingHuntingChemotherapyElement(Element):
     """Hunting immune cells recruited from resting cells after a delay, and a tumour.
 
@@ -769,9 +628,9 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.r1 = r1
         self.a2 = a2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the de Pillis-Radunskaya system of immune."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 TumourImmuneChemotherapyElement(
@@ -850,7 +709,7 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u2 = u2
         self.u3 = u3
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour of eight populations resistant to three drugs.
 
         The populations are resistant to subsets of the drugs.
@@ -889,9 +748,11 @@ class MultidrugResistanceSystem(BaseSystem):
                 target='tumour',
                 reactants={name: 1},
                 modifiers={f'U{drug}': 1},
-                propensity=lambda s: getattr(s.target, f'a{drug}')
-                * clip(getattr(s.target, f'U{drug}') - s.target.Uth, 0)
-                * getattr(s.target, name),
+                propensity=lambda s: (
+                    getattr(s.target, f'a{drug}')
+                    * clip(getattr(s.target, f'U{drug}') - s.target.Uth, 0)
+                    * getattr(s.target, name)
+                ),
             )
 
         def pharmacokinetics(drug: int) -> list[BaseInteraction]:
@@ -939,10 +800,10 @@ class MultidrugResistanceSystem(BaseSystem):
         ]
         kills = [kill(name, drug) for _, name, drug in sensitivities]
         drugs = [interaction for drug in DRUGS for interaction in pharmacokinetics(drug)]
-        return System(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
+        return CompositeSystem(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
 
 
-class DrugResistanceSwitchingSystem(BaseSystem):
+class DrugResistanceSwitchingSystem(DynamicalSystem):
     """Sensitive cells and cells resistant by mutation or by a phenotype switch.
 
     The switch is reversible, and the cells are under a dose.
@@ -988,7 +849,7 @@ class DrugResistanceSwitchingSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
-        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].alpha_m
+        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].get_value('alpha_m')
         0.0
     """
 
@@ -1012,7 +873,7 @@ class DrugResistanceSwitchingSystem(BaseSystem):
         r3: float = 0.2,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.S = S
         self.u = u
         self.m1 = m1
@@ -1023,21 +884,78 @@ class DrugResistanceSwitchingSystem(BaseSystem):
         self.r2 = r2
         self.r3 = r3
 
-    def _build_system(self) -> System:
-        """Return the parts of the system."""
-        tumour = ResistanceSwitchingElement(
-            'tumour',
-            S=self.S,
-            u=self.u,
-            m1=self.m1,
-            m2=self.m2,
-            alpha_m=self.alpha_m,
-            alpha_p=self.alpha_p,
-            m5=self.m5,
-            r2=self.r2,
-            r3=self.r3,
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'tumour'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'S': DeclaredVariableSpec(self.S, StateSpec(domain=nonnegative)),
+            'Rm': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'Rp': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
+            'r1': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
+            'r2': DeclaredVariableSpec(self.r2, ParameterSpec(domain=nonnegative)),
+            'r3': DeclaredVariableSpec(self.r3, ParameterSpec(domain=nonnegative)),
+            'b': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
+            'm1': DeclaredVariableSpec(self.m1, ParameterSpec(domain=nonnegative)),
+            'm2': DeclaredVariableSpec(self.m2, ParameterSpec(domain=nonnegative)),
+            'alpha_m': DeclaredVariableSpec(self.alpha_m, ParameterSpec(domain=nonnegative)),
+            'alpha_p': DeclaredVariableSpec(self.alpha_p, ParameterSpec(domain=nonnegative)),
+            'm5': DeclaredVariableSpec(self.m5, ParameterSpec(domain=nonnegative)),
+            'a': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
+            'am': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
+            'ap': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
+            'u': DeclaredVariableSpec(self.u, ParameterSpec(domain=nonnegative)),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells."""
+        return {'S': self._get_sensitive_rate, 'Rm': self._get_mutated_rate, 'Rp': self._get_switched_rate}
+
+    @staticmethod
+    def _get_room(tumour: SimpleNamespace) -> Expression:
+        """Return the room left for growth, `1 - b V`."""
+        return 1 - tumour.b * (tumour.S + tumour.Rm + tumour.Rp)
+
+    @staticmethod
+    def _get_sensitive_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate of the sensitive cells."""
+        tumour = s.target
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
+        return (
+            tumour.r1 * room * tumour.S
+            - (tumour.m1 + tumour.m2) * tumour.S
+            - (tumour.alpha_m + tumour.alpha_p) * tumour.u * tumour.S
+            - tumour.a * tumour.u * tumour.S
+            + tumour.m5 * tumour.Rp
         )
-        return System(self.label, elements=[tumour])
+
+    @staticmethod
+    def _get_mutated_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate of the cells resistant by mutation."""
+        tumour = s.target
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
+        return (
+            tumour.r2 * room * tumour.Rm
+            + tumour.m1 * tumour.S
+            + tumour.alpha_m * tumour.u * tumour.S
+            - tumour.am * tumour.u * tumour.Rm
+        )
+
+    @staticmethod
+    def _get_switched_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate of the cells resistant by phenotype switching."""
+        tumour = s.target
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
+        return (
+            tumour.r3 * room * tumour.Rp
+            + tumour.m2 * tumour.S
+            + tumour.alpha_p * tumour.u * tumour.S
+            - tumour.m5 * tumour.Rp
+            - tumour.ap * tumour.u * tumour.Rp
+        )
 
 
 class DelayedRestingHuntingChemotherapySystem(BaseSystem):
@@ -1103,7 +1021,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.tau = tau
         self.a = a
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the tumour-immune system of resting and hunting cells.
 
         The conversion of the cells is delayed.
@@ -1191,7 +1109,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
             ),
             *drug_effects,
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
 
 
 class DelayedMetastasisSystem(BaseSystem):
@@ -1265,7 +1183,7 @@ class DelayedMetastasisSystem(BaseSystem):
         self.us = us
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of normal and tumour cells at a primary and a secondary site."""
         patient = MetastasisChemotherapyElement(
             'patient',
@@ -1285,18 +1203,20 @@ class DelayedMetastasisSystem(BaseSystem):
                     f'growth_{cells}',
                     target='patient',
                     state=cells,
-                    rate=lambda s: getattr(s.target, f'r{index}')
-                    * getattr(s.target, cells)
-                    * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells)),
+                    rate=lambda s: (
+                        getattr(s.target, f'r{index}')
+                        * getattr(s.target, cells)
+                        * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells))
+                    ),
                 ),
                 ReactionInteraction(
                     f'competition_{cells}',
                     target='patient',
                     reactants={cells: 1},
                     modifiers={other: 1},
-                    propensity=lambda s: getattr(s.target, f'c{index}')
-                    * getattr(s.target, cells)
-                    * getattr(s.target, other),
+                    propensity=lambda s: (
+                        getattr(s.target, f'c{index}') * getattr(s.target, cells) * getattr(s.target, other)
+                    ),
                 ),
                 MichaelisMentenInteraction(
                     f'drug_kill_{cells}',
@@ -1357,4 +1277,4 @@ class DelayedMetastasisSystem(BaseSystem):
                 rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)

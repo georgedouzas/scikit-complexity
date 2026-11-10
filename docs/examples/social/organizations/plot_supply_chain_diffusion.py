@@ -1,10 +1,10 @@
 """
 # Namrata's Family
 
-Chesney's model of the diffusion of good working conditions through a garment supply network. A buyer can force a
+Chesney models the diffusion of good working conditions through a garment supply network. A buyer can force a
 supplier to adopt them when the supplier needs the buyer more than the buyer needs the supplier, measured by the share
 of each one's business that flows between them. Starting from a seed group of buyers, adoption spreads down the
-network until it meets suppliers powerful enough to resist.
+network until it meets suppliers strong enough to resist.
 """
 
 # %%
@@ -30,8 +30,8 @@ trajectory = simulate(SupplyChainDiffusionSystem(), observers=[observer], random
 # its business, is at least the inflow of each of its adopting buyers, so the firms that never adopt should be the
 # larger suppliers.
 
-adopted = [trajectory.agents('firms', frame).values['adopted'].sum() for frame in range(len(trajectory.times))]
-final = trajectory.agents('firms', len(trajectory.times) - 1).values
+adopted = [trajectory.get_agents('firms', frame).values['adopted'].sum() for frame in range(len(trajectory.times))]
+final = trajectory.get_agents('firms', len(trajectory.times) - 1).values
 fig, (spread, sizes) = plt.subplots(1, 2, figsize=(10, 4))
 spread.step(trajectory.times, adopted, where='post')
 spread.set_xlabel('time period')

@@ -14,12 +14,29 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
+
+DIRECTIONS = 6
+CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
+SITE = LatticeNeighborhood(((0, 0),))
+TRIANGULAR = BallNeighborhood(metric='hexagonal')
+VELOCITIES = np.column_stack(
+    [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
+)
+HEAD_ON = (0b001001, 0b010010, 0b100100)
+TRIPLES = (0b010101, 0b101010)
+TURN_PROBABILITY = 0.5
+DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+SQUARE_DIRECTIONS = 4
+SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
+SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
+ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
+SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
 
 
 class HPPSiteElement(Element):
@@ -82,24 +99,6 @@ class HPPSiteElement(Element):
         self.density = density
 
 
-DIRECTIONS = 6
-CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
-SITE = LatticeNeighborhood(((0, 0),))
-TRIANGULAR = TriangularNeighborhood()
-VELOCITIES = np.column_stack(
-    [np.cos(np.arange(DIRECTIONS) * np.pi / 3), np.sin(np.arange(DIRECTIONS) * np.pi / 3)],
-)
-HEAD_ON = (0b001001, 0b010010, 0b100100)
-TRIPLES = (0b010101, 0b101010)
-TURN_PROBABILITY = 0.5
-DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
-SQUARE_DIRECTIONS = 4
-SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
-SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
-ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
-SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
-
-
 def _rotated(code: int, turns: int) -> int:
     """Return the occupation code of a site with every particle turned.
 
@@ -124,11 +123,6 @@ def _collisions() -> npt.NDArray[np.intp]:
 
 
 COLLISIONS = _collisions()
-
-
-def _count(*channels: Array) -> Array:
-    """Return the number of particles at every site."""
-    return np.sum(channels, axis=0)
 
 
 class FHPSiteElement(Element):
@@ -238,6 +232,11 @@ class FHPLatticeGasSystem(BaseSystem):
     until = 200
     dt = 1
 
+    @staticmethod
+    def _count(*channels: Array) -> Array:
+        """Return the number of particles at every site."""
+        return np.sum(channels, axis=0)
+
     def __init__(
         self,
         shape: Sequence[int] = (64, 64),
@@ -270,7 +269,7 @@ class FHPLatticeGasSystem(BaseSystem):
         """Return the channels after every particle moves one site along its direction."""
         return tuple(columns[DIRECTIONS * direction + (direction + 3) % DIRECTIONS] for direction in range(DIRECTIONS))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), geometry='triangular').prepare()
         positions = space.positions_
@@ -282,14 +281,15 @@ class FHPLatticeGasSystem(BaseSystem):
             float,
         )
         channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-        gas = LatticeElement(
+        gas = GroupElement(
             'gas',
             element=FHPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[gas],
             interactions=[
@@ -312,7 +312,7 @@ class FHPLatticeGasSystem(BaseSystem):
                     'count',
                     target='gas',
                     state='density',
-                    rule=_count,
+                    rule=FHPLatticeGasSystem._count,
                     neighborhood=SITE,
                     reads=CHANNELS,
                 ),
@@ -410,7 +410,7 @@ class HPPLatticeGasSystem(BaseSystem):
         """
         return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = LatticeSpace(tuple(self.shape), boundary='periodic').prepare()
         rng = np.random.default_rng(self.random_state)
@@ -424,14 +424,15 @@ class HPPLatticeGasSystem(BaseSystem):
             probability = np.where(inside, self.bump, self.density)[:, None]
             occupied = (rng.random((space.size_, SQUARE_DIRECTIONS)) < probability).astype(float)
         channels = {name: occupied[:, direction] for direction, name in enumerate(SQUARE_CHANNELS)}
-        gas = LatticeElement(
+        gas = GroupElement(
             'gas',
             element=HPPSiteElement,
             space=space,
             values={'density': occupied.sum(axis=1), **channels},
             visual=DENSITY_VISUAL,
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[gas],
             interactions=[
@@ -453,7 +454,7 @@ class HPPLatticeGasSystem(BaseSystem):
                     'count',
                     target='gas',
                     state='density',
-                    rule=_count,
+                    rule=FHPLatticeGasSystem._count,
                     neighborhood=SITE,
                     reads=SQUARE_CHANNELS,
                 ),

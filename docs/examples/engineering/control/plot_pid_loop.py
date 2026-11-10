@@ -6,7 +6,7 @@ and the integral action pulls it back to the set point instead of leaving a last
 """
 
 # %%
-# The system is built from its class with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
+# The example builds `PidLoopSystem` with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
 # disturbance -0.5 steps in at time 10. The default blueprint shows the output and the integral of the error in one time
 # series view.
 
@@ -30,9 +30,9 @@ trajectory = simulate(system, observers=[observer])
 # should return to the set point 1 after every step.
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.plot(trajectory.times, trajectory.values('process.y'), label='PID, Ki = 1')
+ax.plot(trajectory.times, trajectory.get_values('process.y'), label='PID, Ki = 1')
 proportional = simulate(PidLoopSystem(Ki=0.0, Kd=0.0))
-ax.plot(proportional.times, proportional.values('process.y'), label='P only, Ki = 0')
+ax.plot(proportional.times, proportional.get_values('process.y'), label='P only, Ki = 0')
 ax.axhline(1.0, color='black', linestyle='--', linewidth=0.8, label='set point')
 ax.axhline(2 / 3, color='gray', linestyle=':', linewidth=0.8, label='P-only level 2/3')
 ax.axvline(10.0, color='C3', linewidth=0.8, label='disturbance')

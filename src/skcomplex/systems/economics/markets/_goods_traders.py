@@ -14,13 +14,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MovementInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common._exchange import cobb_douglas
-from ..common._exchange_interaction import GOODS, ExchangeInteraction
+from ...general.agents import MovementInteraction
+from ..common.exchange import ExchangeInteraction, cobb_douglas
+from ..common.exchange._exchange_interaction import GOODS
+
+WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 
 
 class GoodsTraderElement(Element):
@@ -79,10 +81,7 @@ class GoodsTraderElement(Element):
         self.salt_weight = salt_weight
 
 
-WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
-
-
-def _utility(agent: object) -> float:
+def _get_utility(agent: object) -> float:
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
@@ -148,7 +147,7 @@ class GoodsTradersSystem(BaseSystem):
     until = 50
     invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
-        ObservableSpec('utility', _utility, group='traders', reduce='mean'),
+        ObservableSpec('utility', _get_utility, group='traders', reduce='mean'),
         *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
 
@@ -177,7 +176,7 @@ class GoodsTradersSystem(BaseSystem):
         self.high = high
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.goods not in (2, 3):
             error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
@@ -197,7 +196,7 @@ class GoodsTradersSystem(BaseSystem):
             variable=True,
             location=locations,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[
@@ -211,6 +210,6 @@ class GoodsTradersSystem(BaseSystem):
                     quantity=self.quantity,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
             time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
         )

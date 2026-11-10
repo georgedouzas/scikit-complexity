@@ -7,7 +7,7 @@ comes. A few visitors between two cities lock their outbreaks, here out of phase
 """
 
 # %%
-# The system is built from its class with the infection starting in the first city and six steps of immunity. The
+# The example builds `DelayedSIRSSystem` with the infection starting in the first city and six steps of immunity. The
 # blueprint shows the infected fraction of each city in one time series view over the last 60 steps.
 
 import matplotlib.pyplot as plt
@@ -48,7 +48,7 @@ trajectory = simulate(DelayedSIRSSystem(first=0.01, second=0.0, recovery=6, e=0.
 # lose the immunity. The second city catches the disease from the visitors and its outbreaks should lock to those of
 # the first half a period apart, so the two series are anticorrelated at zero lag and correlated at half a period.
 
-first, second = trajectory.values('first.x'), trajectory.values('second.x')
+first, second = trajectory.get_values('first.x'), trajectory.get_values('second.x')
 late = trajectory.times > 100
 lags = np.arange(-12, 13)
 correlation = [np.corrcoef(first[late], np.roll(second, lag)[late])[0, 1] for lag in lags]

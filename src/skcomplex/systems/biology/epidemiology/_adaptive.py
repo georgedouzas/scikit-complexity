@@ -14,13 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TopologyInteraction, TransitionInteraction
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import NetworkDynamicalSystem
+from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
 
 HIDDEN = VisualSpec('sites', {'states': []})
@@ -77,60 +78,7 @@ class ActiveHostElement(Element):
         self.mu = mu
 
 
-class CarrierElement(Element):
-    """Node of a network holding its infection probability, in quenched mean field.
-
-    The node recovers at rate 1 and every infected neighbour infects it at rate `lam`, with the probabilities of the
-    neighbours taken as independent, so `dp_i / dt = -p_i + lam (1 - p_i) sum_j A_ij p_j` over the neighbours `j`.
-
-    Args:
-        label:
-            The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        p:
-            The initial probability of being infected.
-
-        lam:
-            The spreading rate, the ratio of the infection rate per edge and the recovery rate.
-
-    Examples:
-        >>> from skcomplex.systems.biology.epidemiology import CarrierElement
-        >>> CarrierElement('node').lam
-        0.2
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.p = p
-        self.lam = lam
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recovery and the infection by the neighbours.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.p, -s.p + s.lam * (1 - s.p) * neighbors(s.other.p))]
-
-
-class QuenchedMeanFieldSISSystem(BaseSystem):
+class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
     """The SIS epidemic on a fixed network in quenched mean field.
 
     It has one infection probability per node.
@@ -185,7 +133,7 @@ class QuenchedMeanFieldSISSystem(BaseSystem):
         seed: int | None = 1,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.graph = graph
         self.n = n
         self.m = m
@@ -193,19 +141,25 @@ class QuenchedMeanFieldSISSystem(BaseSystem):
         self.p = p
         self.seed = seed
 
-    def _build_system(self) -> System:
-        """Return the parts of the SIS epidemic on a fixed network in quenched mean field."""
-        space = (
-            NetworkSpace(self.graph)
-            if self.graph is not None
-            else NetworkSpace(nx.barabasi_albert_graph(self.n, self.m, seed=self.seed))
-        )
-        return System(
-            self.label,
-            elements=[
-                LatticeElement('nodes', element=CarrierElement, space=space, values={'p': self.p, 'lam': self.lam}),
-            ],
-        )
+    def _get_graph(self) -> nx.Graph:
+        """Return the graph, a Barabási-Albert network of `n` nodes by default."""
+        return self.graph if self.graph is not None else nx.barabasi_albert_graph(self.n, self.m, seed=self.seed)
+
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the nodes."""
+        return 'nodes'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the infection probability and the spreading rate."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'p': DeclaredVariableSpec(self.p, StateSpec(domain=nonnegative)),
+            'lam': DeclaredVariableSpec(self.lam, ParameterSpec(domain=nonnegative)),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the recovery of every node and its infection by its neighbours."""
+        return {'p': lambda s: -s.target.p + s.target.lam * (1 - s.target.p) * neighbors(s.target.other.p)}
 
 
 class AdaptiveSISSystem(BaseSystem):
@@ -304,13 +258,13 @@ class AdaptiveSISSystem(BaseSystem):
         )
 
     @staticmethod
-    def _random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
+    def _get_random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
         """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a network."""
-        space = self._random_network(self.n, self.k, self.seed)
+        space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         hosts = GroupElement(
             'hosts',
@@ -333,7 +287,7 @@ class AdaptiveSISSystem(BaseSystem):
             visual=HIDDEN,
         )
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[hosts, contacts],
             interactions=[spreading, self._get_rewiring('source'), self._get_rewiring('target')],
@@ -433,7 +387,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         probability: Expression = s.target.mu
         return probability
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of SIS spreading on an activity-driven temporal network.
 
         The edges of the network last one step.
@@ -461,7 +415,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
             capacity=2 * self.m * self.n,
             visual=HIDDEN,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[hosts, contacts],
             interactions=[

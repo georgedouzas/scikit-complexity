@@ -17,7 +17,7 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import minimum
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 TONNES_PER_MILLION_KG = 1e3
@@ -32,73 +32,6 @@ STAGES = (
     ('adults', 'adult_ocean_time', 12.0, 'second_year_loss', 0.5),
     ('migrants', 'migration_time', 2.0, 'migration_loss', 0.25),
 )
-
-
-def _stage(
-    label: str,
-    stock: str,
-    following: str,
-    time: str,
-    losses: tuple[tuple[str, str], ...],
-) -> TransferInteraction:
-    """Return the transfer that drains a stage over its duration.
-
-    A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of every
-    loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
-    `hilsa.<label>_<loss>`.
-    """
-    shares = [share for share, _ in losses]
-    return TransferInteraction(
-        label,
-        source='hilsa',
-        target='hilsa',
-        state=stock,
-        into=following,
-        amount=partial(_survival, stock=stock, time=time, shares=shares),
-        flow=label,
-        legs=[
-            (stock, Sink(sink), partial(_loss, stock=stock, time=time, share=share), f'{label}_{sink}')
-            for share, sink in losses
-        ],
-    )
-
-
-def _outflow(s: SimpleNamespace, stock: str, time: str) -> Expression:
-    """Return the outflow of a stage over its duration."""
-    return getattr(s.source, stock) / getattr(s.source, time)
-
-
-def _survival(s: SimpleNamespace, stock: str, time: str, shares: list[str]) -> Expression:
-    """Return the outflow of a stage that survives its losses into the next stage."""
-    return (1 - sum((getattr(s.source, share) for share in shares), start=0)) * _outflow(s, stock, time)
-
-
-def _loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
-    """Return the outflow of a stage to one loss."""
-    return getattr(s.source, share) * _outflow(s, stock, time)
-
-
-def _spawning(s: SimpleNamespace) -> Expression:
-    """Return the spawning.
-
-    It is the adults about to spawn that the catch spares over the spawning time.
-    """
-    return (1 - s.adult_harvest) * s.spawners / s.spawning_time
-
-
-def _nests(s: SimpleNamespace) -> Expression:
-    """Return the nests of the spawners, limited by the spawning grounds."""
-    return minimum(s.female_fraction * _spawning(s), s.max_nests)
-
-
-def _adult_weight(s: SimpleNamespace) -> Expression:
-    """Return the weight of the adults about to spawn, in tonnes."""
-    return s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG
-
-
-def _juvenile_weight(s: SimpleNamespace) -> Expression:
-    """Return the weight of the juveniles, in tonnes."""
-    return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
 
 
 class HilsaElement(Element):
@@ -258,6 +191,29 @@ class HilsaElement(Element):
         self.weight_per_juvenile = weight_per_juvenile
 
 
+def _nests(s: SimpleNamespace) -> Expression:
+    """Return the nests of the spawners, limited by the spawning grounds."""
+    return minimum(s.female_fraction * _get_spawning(s), s.max_nests)
+
+
+def _get_adult_weight(s: SimpleNamespace) -> Expression:
+    """Return the weight of the adults about to spawn, in tonnes."""
+    return s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG
+
+
+def _get_juvenile_weight(s: SimpleNamespace) -> Expression:
+    """Return the weight of the juveniles, in tonnes."""
+    return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
+
+
+def _get_spawning(s: SimpleNamespace) -> Expression:
+    """Return the spawning.
+
+    It is the adults about to spawn that the catch spares over the spawning time.
+    """
+    return (1 - s.adult_harvest) * s.spawners / s.spawning_time
+
+
 class HilsaFisherySystem(BaseSystem):
     """A hilsa fishery, the life cycle of a migratory fish.
 
@@ -308,9 +264,62 @@ class HilsaFisherySystem(BaseSystem):
     dt = 0.5
     observables = (
         ObservableSpec('nests', _nests, element='hilsa'),
-        ObservableSpec('adult_weight', _adult_weight, element='hilsa'),
-        ObservableSpec('juvenile_weight', _juvenile_weight, element='hilsa'),
+        ObservableSpec('adult_weight', _get_adult_weight, element='hilsa'),
+        ObservableSpec('juvenile_weight', _get_juvenile_weight, element='hilsa'),
     )
+
+    @staticmethod
+    def _get_stage(
+        label: str,
+        stock: str,
+        following: str,
+        time: str,
+        losses: tuple[tuple[str, str], ...],
+    ) -> TransferInteraction:
+        """Return the transfer that drains a stage over its duration.
+
+        A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of
+        every loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
+        `hilsa.<label>_<loss>`.
+        """
+        shares = [share for share, _ in losses]
+        return TransferInteraction(
+            label,
+            source='hilsa',
+            target='hilsa',
+            state=stock,
+            into=following,
+            amount=partial(HilsaFisherySystem._get_survival, stock=stock, time=time, shares=shares),
+            flow=label,
+            legs=[
+                (
+                    stock,
+                    Sink(sink),
+                    partial(HilsaFisherySystem._get_loss, stock=stock, time=time, share=share),
+                    f'{label}_{sink}',
+                )
+                for share, sink in losses
+            ],
+        )
+
+    @staticmethod
+    def _get_outflow(s: SimpleNamespace, stock: str, time: str) -> Expression:
+        """Return the outflow of a stage over its duration."""
+        return getattr(s.source, stock) / getattr(s.source, time)
+
+    @staticmethod
+    def _get_survival(s: SimpleNamespace, stock: str, time: str, shares: list[str]) -> Expression:
+        """Return the outflow of a stage that survives its losses into the next stage."""
+        return (1 - sum((getattr(s.source, share) for share in shares), start=0)) * HilsaFisherySystem._get_outflow(
+            s,
+            stock,
+            time,
+        )
+
+    @staticmethod
+    def _get_loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
+        """Return the outflow of a stage to one loss."""
+        return getattr(s.source, share) * HilsaFisherySystem._get_outflow(s, stock, time)
 
     def __init__(
         self,
@@ -330,7 +339,7 @@ class HilsaFisherySystem(BaseSystem):
         self.migration_loss = migration_loss
 
     @staticmethod
-    def _life_cycle() -> list[TransferInteraction]:
+    def _get_birth_death() -> list[TransferInteraction]:
         """Return the life cycle flows of the stages of the hilsa.
 
         They are the spawning, hatching, growth, migration, losses, and catch.
@@ -346,25 +355,49 @@ class HilsaFisherySystem(BaseSystem):
                 amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
                 flow='egg_deposition',
             ),
-            _stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
-            _stage('juvenile_entering', 'larvae', 'juveniles', 'larval_time', (('larval_loss', mortality),)),
-            _stage(
+            HilsaFisherySystem._get_stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
+            HilsaFisherySystem._get_stage(
+                'juvenile_entering',
+                'larvae',
+                'juveniles',
+                'larval_time',
+                (('larval_loss', mortality),),
+            ),
+            HilsaFisherySystem._get_stage(
                 'young_entering_ocean',
                 'juveniles',
                 'yearlings',
                 'river_time',
                 (('juvenile_loss', mortality), ('juvenile_harvest', 'catch')),
             ),
-            _stage('maturation', 'yearlings', 'adults', 'ocean_time', (('first_year_loss', mortality),)),
-            _stage('adults_entering', 'adults', 'migrants', 'adult_ocean_time', (('second_year_loss', mortality),)),
-            _stage('adults_leaving', 'migrants', 'spawners', 'migration_time', (('migration_loss', mortality),)),
+            HilsaFisherySystem._get_stage(
+                'maturation',
+                'yearlings',
+                'adults',
+                'ocean_time',
+                (('first_year_loss', mortality),),
+            ),
+            HilsaFisherySystem._get_stage(
+                'adults_entering',
+                'adults',
+                'migrants',
+                'adult_ocean_time',
+                (('second_year_loss', mortality),),
+            ),
+            HilsaFisherySystem._get_stage(
+                'adults_leaving',
+                'migrants',
+                'spawners',
+                'migration_time',
+                (('migration_loss', mortality),),
+            ),
             TransferInteraction(
                 'spawning',
                 source='hilsa',
                 target='hilsa',
                 state='spawners',
                 into=Sink('spent'),
-                amount=lambda s: _spawning(s.source),
+                amount=lambda s: _get_spawning(s.source),
                 flow='spawning',
                 legs=[
                     (
@@ -378,7 +411,7 @@ class HilsaFisherySystem(BaseSystem):
         ]
 
     @staticmethod
-    def _filled_stages(
+    def _get_filled_stages(
         spawners: float,
         eggs_per_nest: float,
         juvenile_harvest: float,
@@ -398,7 +431,7 @@ class HilsaFisherySystem(BaseSystem):
             inflow *= 1 - losses.get(name, fraction)
         return {**stages, 'spawners': spawners}
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         hilsa = HilsaElement(
             'hilsa',
@@ -408,7 +441,7 @@ class HilsaFisherySystem(BaseSystem):
             migration_loss=self.migration_loss,
         )
         hilsa.set_params(
-            **self._filled_stages(
+            **self._get_filled_stages(
                 self.spawners,
                 self.eggs_per_nest,
                 self.juvenile_harvest,
@@ -416,4 +449,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return System(self.label, elements=[hilsa], interactions=self._life_cycle())
+        return CompositeSystem(self.label, elements=[hilsa], interactions=self._get_birth_death())

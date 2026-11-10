@@ -41,7 +41,7 @@ speeds = np.linspace(50.0, 400.0, 8)
 heights = []
 for speed in speeds:
     run = simulate(BallisticPendulumSystem(speed=speed, distance=1.0, m=0.01, M=1.0), until=2.0, dt=0.005)
-    angle = np.ravel(run.values('pendulum.theta'))
+    angle = np.ravel(run.get_values('pendulum.theta'))
     heights.append(1 - np.cos(np.abs(angle).max()))
 grid = np.linspace(0.0, 400.0, 200)
 fig, ax = plt.subplots(figsize=(6, 4))

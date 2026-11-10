@@ -10,7 +10,7 @@ from ..conftest import _run_until
 
 def _health(trajectory, group, frame):
     """Return the health of the agents of a group at a frame."""
-    return trajectory.agents(group, frame).values['health']
+    return trajectory.get_agents(group, frame).values['health']
 
 
 def test_agent_based_sir_spreads_more_with_higher_infection():
@@ -38,7 +38,7 @@ def test_agent_based_sir_extensions():
         AgentBasedSIRSystem(20, 20, people=200, lockdown_length=50, lockdown_d=0.0, random_state=0).prepare().system_
     )
     still = _run_until(locked, 5, random_state=0)
-    assert np.array_equal(still.agents('people', 5).locations, still.agents('people', 0).locations)
+    assert np.array_equal(still.get_agents('people', 5).locations, still.get_agents('people', 0).locations)
 
 
 def test_random_walkers_die_after_infection():
@@ -54,7 +54,7 @@ def test_random_walkers_die_after_infection():
 def test_network_sir_spreads_between_cities():
     """Test that travellers carry the infection to several cities, where the infected recover."""
     trajectory = _run_until(NetworkSIRSystem(tau=0.1, m=0.1, random_state=0), 150, random_state=0)
-    final = trajectory.agents('travellers', 150)
+    final = trajectory.get_agents('travellers', 150)
     recovered = final.values['health'] == 3
     assert recovered.sum() > 50
     assert len({final.locations[index] for index in np.flatnonzero(recovered)}) > 5

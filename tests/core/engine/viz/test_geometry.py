@@ -4,7 +4,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._rewriting_compiler import RewritingCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
@@ -27,8 +27,8 @@ def _views(system):
 
 def test_views_and_logs_of_word_geometries(tmp_path):
     """Test the views of a 3D word geometry and an unbounded word, and that each is logged."""
-    tree = System(elements=[TreeElement('tree', axiom='F', geometry=GeometrySpec(angle=30.0, dimension=3))])
-    plain = System(elements=[WordElement('word', axiom='F', geometry=GeometrySpec())])
+    tree = CompositeSystem(elements=[TreeElement('tree', axiom='F', geometry=GeometrySpec(angle=30.0, dimension=3))])
+    plain = CompositeSystem(elements=[WordElement('word', axiom='F', geometry=GeometrySpec())])
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]
     for name, system in [('tree', tree), ('plain', plain)]:

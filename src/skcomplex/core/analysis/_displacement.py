@@ -1,7 +1,4 @@
-"""Measure the mean squared displacement of particles.
-
-The module also measures its scaling exponent and their diffusion coefficient.
-"""
+"""Measure the mean squared displacement of particles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,15 +18,13 @@ from ._base import _read_real, _read_snapshots
 from .types import Source
 
 MIN_LINE_POINTS = 2
-
 FIT_POINTS = 20
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 
 
 @dataclass(frozen=True)
 class DisplacementResult:
-    """Mean squared displacement of particles over all lags.
+    """A result of `displacement`, the mean squared displacement over lags.
 
     It comes with its scaling exponent and the diffusion coefficient.
 
@@ -70,6 +65,9 @@ def displacement(
 
     It comes with its scaling exponent and the diffusion. The displacement of every particle is computed for all lags at
     once with an FFT, so positions must be unwrapped across periodic boundaries, as a trajectory gives them.
+
+    It appears in many fields. It tells diffusion from flight in the paths of particles in a fluid, of cells in a
+    tissue, and of animals that forage.
 
     Args:
         source:

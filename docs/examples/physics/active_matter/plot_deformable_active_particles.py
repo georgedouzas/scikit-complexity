@@ -33,7 +33,7 @@ kappas = np.linspace(0.1, 1.5, 15)
 turning = []
 for kappa in kappas:
     trajectory = simulate(DeformableActiveParticlesSystem(n_particles=2, kappa=kappa), until=100, random_state=0)
-    velocity = np.asarray(trajectory.values('cells.v'))
+    velocity = np.asarray(trajectory.get_values('cells.v'))
     angle = np.unwrap(np.arctan2(velocity[..., 1], velocity[..., 0]), axis=0)
     turning.append(np.abs(angle[-1] - angle[-41]).mean() / 10.0)
 theory = np.sqrt(np.clip(1.0 - kappas / 2 - kappas**2, 0, None)) / 2

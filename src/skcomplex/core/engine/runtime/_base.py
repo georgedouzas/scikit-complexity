@@ -1,7 +1,4 @@
-"""Define the bases of the runtime.
-
-Observers receive the frames of a simulation, and clocks pace them.
-"""
+"""Define the bases of the runtime."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from ..problems import BaseProblemSpec, FrameSpec
 
 
 class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """Base class of objects that receive the frames of a simulation.
+    """An abstract observer, which receives the frames of a simulation.
 
     An observer follows the common API of the engine. A simulation checks it, calls `prepare(problem)` with the
     compiled problem before the first frame, `run(frame)` with every frame, and `run(final=True)` without a frame once
@@ -22,7 +19,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
     and `_release`.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):
@@ -32,7 +29,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
         >>> observer = CountingObserver()
-        >>> _ = simulate(System(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
+        >>> _ = simulate(CompositeSystem(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
         >>> observer.count_
         4
     """
@@ -83,7 +80,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 
 
 class BaseClock(BaseConfig[None, float]):
-    """Base class of clocks.
+    """An abstract clock, which paces a simulation against wall time.
 
     A clock decides how long to wait between frames. A clock follows the common API of the engine. It is prepared at the
     start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed`

@@ -12,7 +12,7 @@ from ._lattice import LatticeSolver
 
 
 class MonteCarloSolver(LatticeSolver):
-    """Solver of Monte Carlo sampling that sweeps the lattice once per unit of time.
+    """A solver of Monte Carlo sampling that sweeps the lattice once per unit of time.
 
     Examples:
         >>> import numpy as np

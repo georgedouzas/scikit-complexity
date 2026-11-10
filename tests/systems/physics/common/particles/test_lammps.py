@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver, VelocityVerletSolver
 from skcomplex.systems.physics.common.particles import (
@@ -19,7 +19,7 @@ from skcomplex.systems.physics.common.particles import (
 
 def test_lammps_fixes_match_the_native_force_and_damping():
     """Test that the native LAMMPS fixes of a constant force and a damping agree with the native solver."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': [[0.0, 0.0], [5.0, 0.0]]})],
         interactions=[
             ConstantForceInteraction('push', target='gas', F=[0.5, -0.2]),
@@ -28,7 +28,7 @@ def test_lammps_fixes_match_the_native_force_and_damping():
         space=ContinuousSpace(n_dim=2),
     )
     trajectories = [
-        simulate(system, until=1, solver=solver, dt=0.1).values('gas.x_d1')
+        simulate(system, until=1, solver=solver, dt=0.1).get_values('gas.x_d1')
         for solver in (VelocityVerletSolver(dt=0.001), LammpsSolver(dt=0.001, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES))
     ]
     np.testing.assert_allclose(trajectories[1], trajectories[0], atol=1e-3)

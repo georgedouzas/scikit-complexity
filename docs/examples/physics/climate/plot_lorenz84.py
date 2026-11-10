@@ -6,7 +6,7 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 """
 
 # %%
-# The system is built from its class with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
+# The example builds `Lorenz84System` with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
 # runs for 100 time units. The default blueprint shows the jet and the two eddy phases in one time series view.
 
 import matplotlib.pyplot as plt
@@ -32,7 +32,11 @@ trajectory = simulate(system, observers=[observer])
 settled = trajectory.times > 10
 exponents = lyapunov(system.prepare().system_, until=500.0, dt=0.01).exponents
 fig, (attractor, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
-attractor.plot(trajectory.values('atmosphere.x')[settled], trajectory.values('atmosphere.y')[settled], linewidth=0.5)
+attractor.plot(
+    trajectory.get_values('atmosphere.x')[settled],
+    trajectory.get_values('atmosphere.y')[settled],
+    linewidth=0.5,
+)
 attractor.set_xlabel('jet x')
 attractor.set_ylabel('eddy phase y')
 attractor.set_title('Strange attractor')

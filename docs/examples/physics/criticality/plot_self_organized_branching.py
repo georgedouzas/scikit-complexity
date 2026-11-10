@@ -30,7 +30,7 @@ trajectory = simulate(SelfOrganizedBranchingSystem(), until=30000, observers=[ob
 fig, ax = plt.subplots(figsize=(6, 4))
 for start in (0.3, 0.7):
     run = simulate(SelfOrganizedBranchingSystem(p=start), until=30000, random_state=0)
-    ax.plot(np.asarray(run.times), np.ravel(run.values('tree.p')), label=f'p(0) = {start}')
+    ax.plot(np.asarray(run.times), np.ravel(run.get_values('tree.p')), label=f'p(0) = {start}')
 ax.axhline(0.5, linestyle='--', color='black')
 ax.set_xlabel('generations')
 ax.set_ylabel('branching probability p')

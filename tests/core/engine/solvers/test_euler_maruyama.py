@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -26,7 +26,7 @@ from ....conftest import _correlated
 
 def test_euler_maruyama_without_noise_matches_ode():
     """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
-    system = System(
+    system = CompositeSystem(
         elements=[AssetElement('s', price=1.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='s', mu=1.0, sigma=0.0)],
     )
@@ -39,7 +39,10 @@ def test_euler_maruyama_without_noise_matches_ode():
 
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
-    system = System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')])
+    system = CompositeSystem(
+        elements=[AssetElement('s')],
+        interactions=[GeometricBrownianMotionInteraction('gbm', target='s')],
+    )
     problem = PassCompiler().prepare(system).run().problem_
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
@@ -90,15 +93,15 @@ class PairElement(Element):
 def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
     trajectory = simulate(
-        System(elements=[PairElement('pair')]),
+        CompositeSystem(elements=[PairElement('pair')]),
         until=5,
         backend=backend(),
         solver=stepper(dt=0.01),
         random_state=0,
         dt=0.1,
     )
-    np.testing.assert_array_equal(trajectory.values('pair.x'), trajectory.values('pair.y'))
-    assert np.corrcoef(trajectory.values('pair.x'), trajectory.values('pair.y'))[0, 1] == pytest.approx(1.0)
+    np.testing.assert_array_equal(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))
+    assert np.corrcoef(trajectory.get_values('pair.x'), trajectory.get_values('pair.y'))[0, 1] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
@@ -113,7 +116,7 @@ def test_correlated_increments_reproduce_covariance(backend):
         random_state=0,
         dt=1.0,
     )
-    increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
+    increments = np.diff(np.stack([trajectory.get_values('a.n'), trajectory.get_values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), covariance, atol=0.1)
 
 
@@ -143,7 +146,7 @@ def test_shared_stratonovich_process_has_exact_mean():
                 NoiseLaw(s.y, sigma * s.x, convention='stratonovich', process='common'),
             ]
 
-    system = System(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
+    system = CompositeSystem(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
     state = simulate(system, until=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).states[-1]
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)

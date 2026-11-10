@@ -35,7 +35,7 @@ means, spreads = [], []
 for coupling in couplings:
     system_system = WinfreeSystem(n_oscillators=50, K=coupling, spread=0.1, seed=0)
     run = simulate(system_system, until=200, dt=0.25)
-    times, phases = np.asarray(run.times), np.asarray(run.values('oscillators.theta'))
+    times, phases = np.asarray(run.times), np.asarray(run.get_values('oscillators.theta'))
     late = times >= 100
     frequencies = (phases[late][-1] - phases[late][0]) / (times[late][-1] - times[late][0])
     means.append(frequencies.mean())

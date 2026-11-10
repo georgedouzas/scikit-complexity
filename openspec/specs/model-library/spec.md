@@ -66,7 +66,7 @@ helper that builds an ideal gas of a given size and temperature.
 
 ### Requirement: Pair potentials for particle groups
 The physics module SHALL provide Lennard-Jones and soft-sphere pair interactions with a cutoff, built on the core
-`PairCouplingInteraction` on positions of order 2, which run on the native solvers and on the LAMMPS backend.
+`PairInteraction` on positions of order 2, which run on the native solvers and on the LAMMPS backend.
 
 #### Scenario: Lennard-Jones minimum
 - **WHEN** two members interact through a Lennard-Jones potential with `sigma = 1`
@@ -74,7 +74,8 @@ The physics module SHALL provide Lennard-Jones and soft-sphere pair interactions
 
 ### Requirement: Langevin thermostat
 The physics module SHALL provide a Langevin thermostat that adds drag and random forces to a particle group, built on
-the core `RelaxationInteraction` acting on the first derivative of the position, which runs on the native SDE solvers and on the LAMMPS
+its `RelaxationTimeInteraction`, a `RateInteraction` with the rate `(goal - x) / time` acting on the first derivative
+of the position, which runs on the native SDE solvers and on the LAMMPS
 backend.
 
 #### Scenario: Equilibrium temperature
@@ -117,9 +118,11 @@ logistic ODE, and the harvest depends on the number of farmers through an aggreg
 - **THEN** the resource stock settles at a positive level
 
 ### Requirement: Ready-made systems are classes
-Every ready-made system SHALL be a class on `BaseSystem`, or on a general core system such as `MassActionSystem`, in
-the module of its subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its field
-path, topics, references, and tuned run settings as class attributes. `all_systems()` SHALL find every such class.
+Every ready-made system SHALL be a class on `BaseSystem`, or on a general system of `skcomplex.systems.general` such as
+`ReactionNetworkSystem`, `DynamicalSystem`, `NetworkDynamicalSystem`, `ReactionDiffusionSystem`, or `StockFlowSystem`,
+in the module of its subfield. It SHALL take its model parameters as arguments of its constructor and SHALL give its
+field path, topics, references, and tuned run settings as class attributes. `all_systems()` SHALL find every such
+class, and SHALL list no general system of `skcomplex.systems.general`, which has no field.
 
 #### Scenario: Browse the catalog
 - **WHEN** a user calls `all_systems(field='biology')` or `all_systems(field='biology/ecology')`
@@ -1077,23 +1080,23 @@ stall on its stick-slip switches.
 - **THEN** no warning is raised, no block moves backwards, and some frame holds a slip above 0.3
 
 ### Requirement: Specific realizations live in the system library
-The library SHALL hold every specific realization of a core primitive or a general analysis in its own private module
-of the system package that uses it, next to the system definitions, exported from that package. A realization that
-several packages of one field share SHALL live in `skcomplex.systems.<field>.common`, grouped in family packages such as
-`particles`, `oscillators`, `excitable`, or `forecasting`, with no loose modules beside the families, and only that
-field's packages import it. A realization SHALL be a subclass of a general core class, even a pure renaming, and no field
-SHALL define the same realization twice. A field whose packages share no code SHALL have no `common`
-package. A system class whose mechanism the core provides SHALL use the core class and keep only what is its own.
+The library SHALL hold every specific realization of a core primitive or a general analysis, and every recipe, in its
+own private module of the system package that uses it, next to the system definitions, exported from that package. A
+realization that several packages of one field share SHALL live in `skcomplex.systems.<field>.common`, grouped in family
+packages such as `particles`, `oscillators`, `excitable`, or `forecasting`, with no loose modules beside the families,
+and only that field's packages import it. A realization that several fields share SHALL live in a concept subpackage of
+`skcomplex.systems.general`. A realization SHALL be a subclass of a general core class, even a pure renaming, and no
+field SHALL define the same realization twice. A field whose packages share no code SHALL have no `common` package. A
+system class whose mechanism the core provides SHALL use the core class and keep only what is its own.
 
 #### Scenario: Order book from the library
 - **WHEN** the finance systems build their order book, and an engineering system pairs riders with cars
-- **THEN** both use the core `MatchingInteraction`, the order book binds it to bids, asks, money, and goods with
-  `ContinuousMatchingSpec`, and the earlier of two same-limit sell orders trades first
+- **THEN** both use `MatchingInteraction` of `skcomplex.systems.general.matching`, the order book binds it to bids,
+  asks, money, and goods with `ContinuousMatchingSpec`, and the earlier of two same-limit sell orders trades first
 
 #### Scenario: Potential from the library
 - **WHEN** a user imports the Lennard-Jones potential from `skcomplex.systems.physics.common.particles`
-- **THEN** it is a realization built on the core `PairCouplingInteraction`, and the existing LAMMPS agreement tests pass
-  with it
+- **THEN** it is a realization built on the core `PairInteraction`, and the existing LAMMPS agreement tests pass with it
 
 #### Scenario: Realization of one package
 - **WHEN** only the climate systems use `early_warning`
@@ -1101,8 +1104,8 @@ package. A system class whose mechanism the core provides SHALL use the core cla
 
 #### Scenario: No copy across fields
 - **WHEN** the ecology meadow and the economics commons systems are built
-- **THEN** both build foraging and regrowth from the core `TransferInteraction`, `LifeCycleInteraction`, and
-  `MapInteraction`
+- **THEN** both build foraging and regrowth from the core `TransferInteraction` and `MapInteraction` and from
+  `BirthDeathInteraction` of `skcomplex.systems.general.agents`
 
 ### Requirement: Library systems keep their behaviour across the redesign
 Every library system SHALL produce the same trajectory on fixed seeds after migrating to the new vocabulary, within the
@@ -1188,7 +1191,7 @@ twice.
 
 ### Requirement: Repeated agent economy systems
 The library SHALL provide `GoodsTradersSystem`, `shops`, `barter`, `order_book`, `TragedyOfTheCommonsSystem`, and
-`ridesharing` as system classes, each with a curated gallery example. Each SHALL be a `System` under discrete
+`ridesharing` as system classes, each with a curated gallery example. Each SHALL be a `CompositeSystem` under discrete
 time with a phases schedule, with agents as elements with rule laws in groups, built on the core's matching, transfer,
 and invariant laws and on the trading realizations of `skcomplex.systems.economics.realizations`, and none SHALL add a
 core primitive.
@@ -1628,8 +1631,8 @@ The library SHALL provide, as system classes built on the general interactions a
 ### Requirement: Kinetic equations of gases and plasmas
 The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK system, the Vlasov-Poisson equation
 with Landau damping and two-stream set-ups, and the local Enskog equation as system classes under
-`physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, `AdvectionInteraction`,
-`EncounterInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
+`physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, the physics `AdvectionInteraction` on
+`ConservationInteraction`, `EncounterInteraction`, and the physics `RelaxationTimeInteraction` on `RateInteraction`. The inventory SHALL record them as implemented.
 
 #### Scenario: Sod shock tube near the fluid limit
 - **WHEN** the BGK system runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4
@@ -1697,7 +1700,7 @@ their parameters through `sweep`.
 
 ### Requirement: Dynamic equilibrium, satisfiability, and search systems
 The library SHALL provide the fictitious play of `OligopolyEquilibriaSystem` with `dynamics='fictitious-play'`, built on
-`ChoiceInteraction` and `ReinforcementInteraction`, `perceptron_satisfiability` in `computer_science/neural_networks`,
+`ChoiceInteraction` and the economics `PayoffLearningInteraction` on `MapInteraction`, `perceptron_satisfiability` in `computer_science/neural_networks`,
 built on `SatisfiabilityInteraction`, and `EvolutionaryOptimisersSystem` in `computer_science/evolutionary_computation`,
 built on `OptimizationInteraction` and on `SamplingInteraction` with `cooling`, all under discrete time.
 
@@ -2235,9 +2238,9 @@ defines them.
 
 ### Requirement: Fuzzy oil drop system
 The library SHALL provide `fuzzy_oil_drop` in `biology/systems_biology` (Konieczny et al. 2023 §1.3.1, Eqs. 1.1–1.9).
-By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through a `DriveLaw`, one system per frame. With
-`dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and a
-clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
+By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through an `ArrayUpdateLaw`, one system per frame.
+With `dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and
+a clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
 
 #### Scenario: Ensemble of the Trp-cage
 - **WHEN** `fuzzy_oil_drop` runs with its defaults
@@ -3110,3 +3113,116 @@ implemented with their sources and primitives, and the gallery SHALL hold their 
 #### Scenario: Inventory and gallery
 - **WHEN** the inventory check and the strict gallery coverage run
 - **THEN** they report no problem for the three systems
+
+### Requirement: Field realizations of merged interactions
+A field that has its own term for a form of a core interaction SHALL hold it as a named subclass of that core class, in
+the system module of its one user or in the field's `common` package when several packages share it. Fields without
+such a term SHALL use the core class with its function. The realization SHALL keep the arguments, checks, and hooks
+the form had in the core, and its tests SHALL move with it.
+
+#### Scenario: Relaxations by field
+- **WHEN** the physics Langevin thermostat and BGK, the engineering optimal velocity, the chemistry reactors, the
+  neuroscience populations, and the food sector of economics relax a state towards a goal
+- **THEN** they use `RelaxationTimeInteraction`, `SpeedAdaptationInteraction`, `MassExchangeInteraction`,
+  `LeakyIntegrationInteraction`, and `PartialAdjustmentInteraction`, each a subclass of `RateInteraction`, and every
+  run keeps its trajectory
+
+#### Scenario: Transport by field
+- **WHEN** the heat, fluid, ocean, and gel systems diffuse or advect a field, and the multilevel selection and forest
+  size systems carry a density along a trait or a size
+- **THEN** physics uses `DiffusivityInteraction` on `RateInteraction` and `AdvectionInteraction` on
+  `ConservationInteraction`, social `SelectionDriftInteraction`, and biology `SizeGrowthInteraction`, both on
+  `ConservationInteraction`
+
+#### Scenario: Pulses, kicks, and fractions
+- **WHEN** the circuit, magnetic levitation, and minimum-time control systems pulse a state, the impulsive oscillator
+  kicks it, and radiotherapy gives dose fractions
+- **THEN** they use `PulseInteraction`, `KickInteraction`, and `IrradiationInteraction`, each a subclass of
+  `CrossingInteraction` whose guard is `periodic_guard`, and every event falls at the time it fell before
+
+#### Scenario: Learning and price search in economics
+- **WHEN** the oligopoly, Brock-Hommes, perishables, El Farol, and minority systems score options, and the shops search
+  their prices
+- **THEN** they use `PayoffLearningInteraction` of `skcomplex.systems.economics.common` and `PriceAdjustmentInteraction`
+  of `skcomplex.systems.economics.markets`, both subclasses of `MapInteraction`
+
+#### Scenario: Physics-only interactions
+- **WHEN** the squirmers and the coupled traps move spheres through a Stokes fluid, and the metric cosmologies solve the
+  field equations of an ansatz
+- **THEN** they use `StokesianMobilityInteraction` of `skcomplex.systems.physics.common.particles` and
+  `EinsteinFieldEquationsInteraction` of `skcomplex.systems.physics.cosmology`
+
+### Requirement: Recipes of one field live in that field
+A recipe that leaves the core and serves one field SHALL live in that field with its arguments, checks, reports, and
+tests: toppling in `physics.common.avalanches`, the policy rule in `economics.common.policy`, spacetimes and geodesics
+in `physics.common.relativity`, population search and satisfiability in their computer science packages, zone flocking
+in `biology.collective_behaviour`, and the region and holonomy scores in their sampling modules.
+
+#### Scenario: Sandpile and fault from one physics family
+- **WHEN** the sandpile, criticality, and fault systems build their avalanches
+- **THEN** all use `TopplingInteraction` of `skcomplex.systems.physics.common.avalanches`, and their avalanche
+  statistics equal those before the move
+
+#### Scenario: Zones of a flock
+- **WHEN** the Couzin flock and the leadership systems run with repulsion, orientation, and attraction zones
+- **THEN** both use `ZoneCouplingInteraction`, their trajectories equal those before the move, and the core
+  `CouplingInteraction` takes no argument `radii` or `clamp`
+
+#### Scenario: Search and satisfiability in computer science
+- **WHEN** `EvolutionaryOptimisersSystem` and `perceptron_satisfiability` run with the same seeds as before the move
+- **THEN** their reports are the same, and `skcomplex.core.specs` holds no algorithm or constraint spec of either
+
+#### Scenario: Policy rules in economics
+- **WHEN** the banking, Mark-0, and commons systems set parameters from what they read every round
+- **THEN** each uses `PolicyRuleInteraction` of `skcomplex.systems.economics.common.policy`, and its trajectory equals
+  the one with the former `FeedbackInteraction`
+
+### Requirement: Ready-made systems use the general system of their shape
+A ready-made system whose structure is that of a general system SHALL subclass it, imported from
+`skcomplex.systems.general`, unless its element class is a part that other systems or users compose, such as an element
+of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move into the
+hooks of the system.
+
+#### Scenario: Map of one field
+- **WHEN** a contributor reads `HenonMapSystem` of `mathematics/dynamical_systems`
+- **THEN** it subclasses `DynamicalSystem` in discrete time, and the module defines no element class for it
+
+#### Scenario: Shared element
+- **WHEN** an element class such as the Lorenz element of `mathematics/common/flows` serves several systems
+- **THEN** the systems that compose it keep it, and none of them rebases onto `DynamicalSystem`
+
+### Requirement: Rebasing keeps a system's interface and results
+Rebasing a ready-made system onto a general system SHALL keep its public name, its import path, its constructor
+parameters with their defaults, its state and observable names, its tags, and its trajectory. A rebase that changes any
+of these SHALL NOT be made, and the system SHALL keep its base.
+
+#### Scenario: Same trajectory
+- **WHEN** a rebased system is simulated with its defaults, `random_state=0` where it takes one, and its tuned run
+  settings, before and after the rebase
+- **THEN** both trajectories hold the same names and equal values
+
+#### Scenario: Same parameters
+- **WHEN** a user calls `get_params()` on a rebased system
+- **THEN** the result equals the one before the rebase
+
+### Requirement: Immuno-oncology QSP system
+The library SHALL provide `ImmunoOncologyQspSystem` in `biology/oncology`, a reduced model of the QSP-IO platform that
+Wang et al. (2024, arXiv 2403.03335) review: cancer cells killed by effector T cells, regulatory T cells that suppress
+them, PD-1 occupancy from an anti-PD-1 antibody with two-compartment kinetics, and doses given by a schedule. It SHALL
+declare the tumour diameter and the ratio of effector to regulatory T cells as observables.
+
+#### Scenario: Treatment shrinks the tumour
+- **WHEN** the system runs 180 days with a dose every two weeks and again without doses, from the same state
+- **THEN** the final tumour diameter with doses is smaller than without them
+
+#### Scenario: Antibody kinetics
+- **WHEN** one dose is given and the T cells are held at zero
+- **THEN** the central antibody concentration decays with the two exponential phases of the two-compartment kinetics
+
+### Requirement: The QSP system is recorded in the system inventory
+The inventory SHALL record `immuno_oncology_qsp` as implemented with the source 2403.03335 and its primitives, and the
+gallery SHALL hold its example, which builds a virtual population and calibrates one virtual patient.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for `immuno_oncology_qsp`

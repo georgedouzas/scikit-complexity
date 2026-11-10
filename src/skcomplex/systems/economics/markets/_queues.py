@@ -12,9 +12,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+WASH = 0
+VALET = 1
+CREW_SIZE = 2
+PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
 
 
 class CarView(AgentView):
@@ -26,9 +31,6 @@ class CarView(AgentView):
     stage: float
     work: float
     crew: float
-
-
-WASH = 0
 
 
 class CarElement(Element):
@@ -92,12 +94,6 @@ class CarElement(Element):
         return []
 
 
-VALET = 1
-
-
-CREW_SIZE = 2
-
-
 class WasherElement(Element):
     """Worker who joins the front car of the wash or of the valet.
 
@@ -142,9 +138,11 @@ class WasherElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(self.cars, CarView)
+        cars = system.get_agents(self.cars, CarView)
         fronts = [
-            car for car in (WasherElement._front(cars, WASH), WasherElement._front(cars, VALET)) if car is not None
+            car
+            for car in (WasherElement._get_front(cars, WASH), WasherElement._get_front(cars, VALET))
+            if car is not None
         ]
         if not fronts:
             return
@@ -154,7 +152,7 @@ class WasherElement(Element):
         car.work -= 1.0
 
     @staticmethod
-    def _front(cars: list[CarView], stage: int) -> CarView | None:
+    def _get_front(cars: list[CarView], stage: int) -> CarView | None:
         """Return the car that came first among the cars at a stage.
 
         It is `None` if there is none.
@@ -241,9 +239,6 @@ class TillElement(Element):
                 The laws of the component.
         """
         return []
-
-
-_PARAMETERS = ('p_pass', 'p_enter', 'p_valet', 'wash_work', 'valet_work', 'wash_price', 'valet_price', 'balk')
 
 
 class CarWashOperationInteraction(Interaction):
@@ -359,15 +354,15 @@ class CarWashOperationInteraction(Interaction):
             system:
                 The system.
         """
-        values = {name: float(system.parameter(name)) for name in _PARAMETERS}
-        till = system.agents('till', TillView)[0]
-        for car in system.agents('cars', CarView):
+        values = {name: float(system.get_parameter(name)) for name in PARAMETERS}
+        till = system.get_agents('till', TillView)[0]
+        for car in system.get_agents('cars', CarView):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, system, values)
         if system.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in system.agents('cars', CarView)) >= values['balk']:
+        if sum(car.stage == WASH for car in system.get_agents('cars', CarView)) >= values['balk']:
             till.turned_away += 1
             return
         system.create('cars', stage=WASH, work=values['wash_work'])
@@ -453,7 +448,7 @@ class CarWashSystem(BaseSystem):
         self.valet_price = valet_price
         self.balk = balk
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         operation = CarWashOperationInteraction(
             'wash',
@@ -468,7 +463,7 @@ class CarWashSystem(BaseSystem):
             valet_price=self.valet_price,
             balk=float(self.balk),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement('workers', element=WasherElement, size=self.n_workers, variable=True),

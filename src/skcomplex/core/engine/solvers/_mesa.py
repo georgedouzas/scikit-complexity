@@ -31,7 +31,7 @@ from ...components.spaces import (
     NetworkSpace,
 )
 from ...components.specs import CompiledAgentsSpec
-from ...components.system import System
+from ...components.systems import CompositeSystem
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import (
     DEFAULT_PHASE,
@@ -53,7 +53,7 @@ from ..types import MesaSpace
 from ._external import ExternalSolver
 
 MAX_SEED = 2**31 - 1
-_HISTORY_LENGTH = 10_000
+HISTORY_LENGTH = 10_000
 CONTINUOUS_SIDES = (2, 3)
 MIN_CONTINUOUS_ROOM = 2
 
@@ -74,7 +74,7 @@ class _AgentSystem(mesa.Model):
 
 
 class SystemView:
-    """System as rules see it: parameters, random numbers, time, agents, and the space.
+    """A view of the system as agent rules see it: parameters, time, agents, and space.
 
     Every rule receives the view scoped to the interaction or agent group that owns it, so the rule reads the owner's
     parameters by name and the groups bound to the owner's roles by role, also when its system is nested in another.
@@ -100,7 +100,7 @@ class SystemView:
         self._owner = owner
         self._roles = dict(roles or {})
 
-    def _paths(self, name: str) -> list[str]:
+    def _get_paths(self, name: str) -> list[str]:
         """Return the paths of the groups a role of the owner binds to.
 
         A group given by relative or absolute path is resolved too.
@@ -115,7 +115,7 @@ class SystemView:
             error_msg = f'No role or agent group named {name!r} for {owner}. Its roles are: {roles}. {error}'
             raise SimulationError(error_msg) from error
 
-    def parameter(self, name: str) -> float:
+    def get_parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner.
 
         One component is read as `name[i]`.
@@ -155,7 +155,7 @@ class SystemView:
         stepper = self._stepper
         return {
             name: float(np.ravel(value)[0])
-            for name, value in stepper.problem_.parameters.values(stepper.parameters_).items()
+            for name, value in stepper.problem_.parameters.get_values(stepper.parameters_).items()
         }
 
     @property
@@ -248,12 +248,12 @@ class SystemView:
         return bool(getattr(self._stepper.space_, 'torus', False))
 
     @overload
-    def agents(self, name: str) -> list['AgentView']: ...
+    def get_agents(self, name: str) -> list['AgentView']: ...
 
     @overload
-    def agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
+    def get_agents[V: AgentView](self, name: str, view: type[V]) -> list[V]: ...
 
-    def agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
+    def get_agents[V: AgentView](self, name: str, view: type[V] | None = None) -> list[V] | list['AgentView']:
         """Return the views of the agents of a group bound to a role of the owner.
 
         A group may also be named by path.
@@ -274,7 +274,11 @@ class SystemView:
                 No role or group has that name, or the views of a group are not of the view class.
         """
         stepper = self._stepper
-        views = [MesaSolver._view_of(agent) for path in self._paths(name) for agent in stepper._group_agents(path)]
+        views = [
+            MesaSolver._get_view_of(agent)
+            for path in self._get_paths(name)
+            for agent in stepper._get_group_agents(path)
+        ]
         wanted = AgentView if view is None else view
         wrong = [item for item in views if not isinstance(item, wanted)]
         if wrong:
@@ -285,7 +289,7 @@ class SystemView:
             return views
         return [item for item in views if isinstance(item, view)]
 
-    def groups(self, name: str) -> list[str]:
+    def get_groups(self, name: str) -> list[str]:
         """Return the paths of the groups a role of the owner binds.
 
         A group may also be named by relative or absolute path.
@@ -302,7 +306,7 @@ class SystemView:
             SimulationError:
                 No role or group has that name.
         """
-        return self._paths(name)
+        return self._get_paths(name)
 
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner.
@@ -321,9 +325,9 @@ class SystemView:
             SimulationError:
                 No role or group has that name.
         """
-        return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
+        return sum(len(self._stepper._get_group_agents(path)) for path in self._get_paths(name))
 
-    def composition(self, name: str, state: str) -> dict[Hashable, int]:
+    def get_composition(self, name: str, state: str) -> dict[Hashable, int]:
         """Return the number of agents of a group that hold every value of a state.
 
         Only the values some agent holds are counted. The stepper keeps the counts as agents are created, removed, and
@@ -345,12 +349,12 @@ class SystemView:
                 No role or group has that name, or its agents have no such state.
         """
         counts: dict[Hashable, int] = {}
-        for path in self._paths(name):
-            for value, count in self._stepper._composition(path, state).items():
+        for path in self._get_paths(name):
+            for value, count in self._stepper._get_composition(path, state).items():
                 counts[value] = counts.get(value, 0) + count
         return {value: count for value, count in counts.items() if count}
 
-    def occupancy(self, name: str) -> dict[Hashable, int]:
+    def get_occupancy(self, name: str) -> dict[Hashable, int]:
         """Return the number of agents of a group in every cell or node that holds one.
 
         The counts are keyed by the key of the location.
@@ -369,13 +373,13 @@ class SystemView:
                 No role or group has that name.
         """
         counts: dict[Hashable, int] = {}
-        for path in self._paths(name):
-            for agent in self._stepper._group_agents(path):
-                key = self._stepper._view_of(agent).location_key
+        for path in self._get_paths(name):
+            for agent in self._stepper._get_group_agents(path):
+                key = self._stepper._get_view_of(agent).location_key
                 counts[key] = counts.get(key, 0) + 1
         return counts
 
-    def regions(self, layer: str) -> int:
+    def get_regions(self, layer: str) -> int:
         """Return the number of regions of a layer of the continuous space.
 
         Args:
@@ -390,9 +394,9 @@ class SystemView:
             SimulationError:
                 The space has no such layer.
         """
-        return len(self._stepper._index_of(layer).geometries)
+        return len(self._stepper._get_index_of(layer).geometries)
 
-    def region(self, layer: str, index: int) -> Polygon:
+    def get_region(self, layer: str, index: int) -> Polygon:
         """Return the polygon of a region of a layer of the continuous space.
 
         A rule can pass the polygon to `move_to`.
@@ -412,13 +416,13 @@ class SystemView:
             SimulationError:
                 The space has no such layer, or the layer has no region of that index.
         """
-        polygons = self._stepper._index_of(layer).geometries
+        polygons = self._stepper._get_index_of(layer).geometries
         if not 0 <= index < len(polygons):
             error_msg = f'The layer {layer!r} has {len(polygons)} regions, and a rule asks for the region {index}.'
             raise SimulationError(error_msg)
         return polygons[index]
 
-    def _field_name(self, name: str) -> str:
+    def _get_field_name(self, name: str) -> str:
         """Return the path of a field state.
 
         The state is named by its path, or as `<role>.<state>` of a role of the owner.
@@ -427,14 +431,14 @@ class SystemView:
         bound = self._roles.get(role)
         return f'{bound}.{state}' if isinstance(bound, str) else name
 
-    def _site(self, name: str, cell: object) -> int:
+    def _get_site(self, name: str, cell: object) -> int:
         """Return the member index of a field state's site at a cell or network node."""
         problem = self._stepper.problem_
         if not problem.states.has(name):
             names = [entry.name for entry in problem.states.entries if entry.members is not None]
             error_msg = f'No field state named {name!r}. Available group states are: {", ".join(names)}.'
             raise KeyError(error_msg)
-        shape = problem.lattice_shape(name)
+        shape = problem.get_lattice_shape(name)
         if shape is not None:
             return int(np.ravel_multi_index(tuple(int(item) for item in np.atleast_1d(np.asarray(cell))), shape))
         owner = name.rpartition('.')[0]
@@ -445,7 +449,7 @@ class SystemView:
             raise KeyError(error_msg)
         return list(space.graph.nodes).index(cell)
 
-    def field(self, name: str, cell: object) -> float:
+    def get_field(self, name: str, cell: object) -> float:
         """Return the value of a field at a cell.
 
         It is the value at the last synchronisation point.
@@ -467,8 +471,8 @@ class SystemView:
             KeyError:
                 The name is not a state of a field.
         """
-        name = self._field_name(name)
-        site = self._site(name, cell)
+        name = self._get_field_name(name)
+        site = self._get_site(name, cell)
         values = self._stepper.inputs_.get(name)
         if values is None:
             error_msg = f'The agents read the field {name}, which no other partition provides. Run it in co-simulation.'
@@ -493,19 +497,19 @@ class SystemView:
             KeyError:
                 The name is not a state of a field.
         """
-        name = self._field_name(name)
-        site = self._site(name, cell)
-        entry = self._stepper.problem_.states.entry(name)
+        name = self._get_field_name(name)
+        site = self._get_site(name, cell)
+        entry = self._stepper.problem_.states.get_entry(name)
         self._stepper.deposits_[entry.start + site * entry.columns] += amount
 
-    def random_empty_cell(self) -> object:
+    def get_random_empty_cell(self) -> object:
         """Return the coordinates of a random empty cell of the grid or network.
 
         Returns:
             location:
                 The cell coordinates or the network node.
         """
-        return self._stepper._cells().select_random_empty_cell().coordinate
+        return self._stepper._get_cells().select_random_empty_cell().coordinate
 
     def create(self, group: str, location: object = None, **values: object) -> 'AgentView':
         """Create an agent of a group, at a location or at a random place.
@@ -529,7 +533,7 @@ class SystemView:
             SimulationError:
                 The group is not variable, so its size cannot change.
         """
-        return MesaSolver._view_of(self._stepper._create_agent(self._paths(group)[0], location, values))
+        return MesaSolver._get_view_of(self._stepper._create_agent(self._get_paths(group)[0], location, values))
 
     @property
     def round(self) -> int:
@@ -574,9 +578,9 @@ class SystemView:
             raise SimulationError(error_msg)
         kept = float(value) if isinstance(value, numbers.Real) else value
         self._stepper.reports_[full] = kept
-        self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(kept)
+        self._stepper.reported_.setdefault(full, deque(maxlen=HISTORY_LENGTH)).append(kept)
 
-    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter, or of an observable.
 
         An observable gives its values at the end of each earlier step, the last one last.
@@ -603,7 +607,7 @@ class SystemView:
         )
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
-    def observable(self, name: str) -> object:
+    def get_observable(self, name: str) -> object:
         """Return the current value of an observable of the system.
 
         An example is an aggregate of a group.
@@ -620,7 +624,7 @@ class SystemView:
             SimulationError:
                 The system has no such observable.
         """
-        return self._stepper._observable(name)
+        return self._stepper._get_observable(name)
 
     def set_parameter(self, name: str, value: float) -> None:
         """Set a parameter of any group or interaction during the run.
@@ -647,7 +651,7 @@ class SystemView:
 
 
 class AgentView:
-    """Agent as rules see it.
+    """A view of an agent as agent rules see it.
 
     It shows its states as attributes, its group's parameters, its neighbours, and its location. The stepper gives every
     agent one view of the class of its group, whose states and parameters are properties, so two views of an agent are
@@ -676,7 +680,7 @@ class AgentView:
     @property
     def group(self) -> str:
         """Path of the agent's group."""
-        return self._stepper._spec_of(self._agent).path
+        return self._stepper._get_spec_of(self._agent).path
 
     @property
     def group_label(self) -> str:
@@ -686,7 +690,7 @@ class AgentView:
     @property
     def location(self) -> object:
         """Grid coordinates, network node, or position of the agent."""
-        return MesaSolver._location_of(self._agent)
+        return MesaSolver._get_location_of(self._agent)
 
     @property
     def location_key(self) -> Hashable:
@@ -709,7 +713,7 @@ class AgentView:
         """Whether the agent has not been removed."""
         return not getattr(self._agent, 'removed_', False)
 
-    def displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
+    def get_displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
         """Return the vector from the agent to another agent or a location.
 
         On a torus, it is the shortest one.
@@ -741,7 +745,7 @@ class AgentView:
         size = np.asarray(dimensions, dtype=float)
         return delta - size * np.round(delta / size)
 
-    def distance_to(self, other: 'AgentView | object') -> float:
+    def get_distance_to(self, other: 'AgentView | object') -> float:
         """Return the distance to another agent or a location.
 
         On a network, it is the number of hops.
@@ -762,9 +766,9 @@ class AgentView:
         if isinstance(space, NetworkSpace):
             target = other.location if isinstance(other, AgentView) else other
             return float(nx.shortest_path_length(space.graph, self.location, target))
-        return float(np.linalg.norm(self.displacement_to(other)))
+        return float(np.linalg.norm(self.get_displacement_to(other)))
 
-    def neighbor_cells(self) -> list[object]:
+    def get_neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node.
 
         Returns:
@@ -773,7 +777,7 @@ class AgentView:
         """
         return [cell.coordinate for cell in self._agent.cell.neighborhood]
 
-    def neighbors(
+    def get_neighbors(
         self,
         radius: float | None = None,
         layer: str | None = None,
@@ -817,15 +821,16 @@ class AgentView:
         if over is not None:
             triangulated = stepper._resolve_group(group, self.group) if group is not None else self.group
             return [
-                MesaSolver._view_of(agent) for agent in stepper._delaunay_neighbors(self._agent, triangulated, over)
+                MesaSolver._get_view_of(agent)
+                for agent in stepper._get_delaunay_neighbors(self._agent, triangulated, over)
             ]
         if layer is not None:
             graph = getattr(stepper.problem_.agent_space, 'graphs_', {})[layer]
-            cells = stepper._cells()
+            cells = stepper._get_cells()
             agents = [
                 agent
                 for node in graph.neighbors(self.location_key)
-                for agent in cells[MesaSolver._cell_key(node)].agents
+                for agent in cells[MesaSolver._get_cell_key(node)].agents
             ]
         elif radius is not None:
             found, _ = self._agent.get_neighbors_in_radius(radius)
@@ -833,9 +838,13 @@ class AgentView:
         else:
             agents = list(self._agent.cell.neighborhood.agents)
         path = stepper._resolve_group(group, self.group) if group is not None else None
-        return [MesaSolver._view_of(agent) for agent in agents if path is None or stepper._spec_of(agent).path == path]
+        return [
+            MesaSolver._get_view_of(agent)
+            for agent in agents
+            if path is None or stepper._get_spec_of(agent).path == path
+        ]
 
-    def agents_here(self, group: str | None = None) -> list['AgentView']:
+    def get_agents_here(self, group: str | None = None) -> list['AgentView']:
         """Return the other agents in the agent's cell or node.
 
         They are of one group or of every group.
@@ -851,12 +860,12 @@ class AgentView:
         stepper = self._stepper
         path = stepper._resolve_group(group, self.group) if group is not None else None
         return [
-            MesaSolver._view_of(agent)
+            MesaSolver._get_view_of(agent)
             for agent in self._agent.cell.agents
-            if agent is not self._agent and (path is None or stepper._spec_of(agent).path == path)
+            if agent is not self._agent and (path is None or stepper._get_spec_of(agent).path == path)
         ]
 
-    def regions_here(self, layer: str) -> list[int]:
+    def get_regions_here(self, layer: str) -> list[int]:
         """Return the indices of the regions of a layer that contain the agent.
 
         Regions with the agent on their boundaries count too.
@@ -873,7 +882,7 @@ class AgentView:
             SimulationError:
                 The space has no such layer.
         """
-        hits = self._stepper._index_of(layer).query(Point(self.location), predicate='intersects')
+        hits = self._stepper._get_index_of(layer).query(Point(self.location), predicate='intersects')
         return sorted(int(index) for index in hits)
 
     def move_to(self, location: object) -> None:
@@ -891,9 +900,9 @@ class AgentView:
         """
         space = self._stepper.problem_.agent_space
         if isinstance(space, ContinuousSpace):
-            self._agent.position = self._stepper._position_of(location, space)
+            self._agent.position = self._stepper._get_position_of(location, space)
             return
-        self._agent.cell = self._stepper._cell_at(location)
+        self._agent.cell = self._stepper._get_cell_at(location)
 
     def remove(self) -> None:
         """Remove the agent from the system.
@@ -908,7 +917,7 @@ class AgentView:
             SimulationError:
                 The agent's group is not variable, so its size cannot change.
         """
-        spec = self._stepper._spec_of(self._agent)
+        spec = self._stepper._get_spec_of(self._agent)
         MesaSolver._check_variable(spec, 'remove')
         held = {
             name: value
@@ -952,9 +961,9 @@ class AgentView:
         stepper = self._stepper
         target = stepper._resolve_group(group, self.group) if group is not None else self.group
         place = location if location is not None else self.location
-        return MesaSolver._view_of(stepper._create_agent(target, place, values))
+        return MesaSolver._get_view_of(stepper._create_agent(target, place, values))
 
-    def referenced(self, state: str) -> 'AgentView | None':
+    def get_referenced(self, state: str) -> 'AgentView | None':
         """Return the member of another group that a reference state of the agent names.
 
         The state names it by its id. A state declared with `StateSpec(reference=group)` holds the id of a member of the
@@ -973,16 +982,16 @@ class AgentView:
                 The state of the agent names no member of a group.
         """
         stepper = self._stepper
-        path = stepper._reference_of(stepper._spec_of(self._agent), state)
+        path = stepper._get_reference_of(stepper._get_spec_of(self._agent), state)
         value = float(getattr(self._agent, state))
         if value < 0 or path is None:
             return None
         agent = stepper.members_.get(int(value))
-        if agent is None or getattr(agent, 'removed_', False) or stepper._spec_of(agent).path != path:
+        if agent is None or getattr(agent, 'removed_', False) or stepper._get_spec_of(agent).path != path:
             return None
-        return MesaSolver._view_of(agent)
+        return MesaSolver._get_view_of(agent)
 
-    def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
+    def get_lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a state of an agent.
 
         They are the values at the ends of the last steps, the last one last. An agent remembers a state declared with
@@ -1005,8 +1014,8 @@ class AgentView:
             KeyError:
                 The state of the agent keeps no lags.
         """
-        spec = self._stepper._spec_of(self._agent)
-        declaration = declarations_of(MesaSolver._agent_type(spec), VariableKind.STATE).get(state)
+        spec = self._stepper._get_spec_of(self._agent)
+        declaration = declarations_of(MesaSolver._get_agent_type(spec), VariableKind.STATE).get(state)
         if declaration is None or not declaration.lags:
             error_msg = (
                 f'The agents of {spec.path} do not remember {state!r}. Declare the state with lags, such as '
@@ -1018,7 +1027,7 @@ class AgentView:
 
 
 class MesaSolver(ExternalSolver):
-    """Mesa backend of agent-based problems, one Mesa step per unit of time.
+    """A solver that runs agent-based problems in Mesa, one step per unit of time.
 
     The agents are the members of the elements and groups whose laws include `RuleLaw`s, and of the variable groups.
     Every step advances Mesa's clock by one, activates all agents in random order, or by the phases of the system's
@@ -1040,7 +1049,7 @@ class MesaSolver(ExternalSolver):
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.laws import RuleLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import MesaSolver
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class CounterElement(Element):
@@ -1053,9 +1062,9 @@ class MesaSolver(ExternalSolver):
         ...
         ...     def tick(self, agent, system):
         ...         agent.count += 1
-        >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
+        >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
         >>> trajectory = simulate(system, until=4, solver=MesaSolver())
-        >>> trajectory.agents('counters', 4).values['count'].tolist()
+        >>> trajectory.get_agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
 
@@ -1088,7 +1097,7 @@ class MesaSolver(ExternalSolver):
         """Return the name of the library the solver wraps."""
         return 'Mesa'
 
-    def _unsupported(self, problem: ProblemSpec) -> list[str]:
+    def _get_unsupported(self, problem: ProblemSpec) -> list[str]:
         """Return a continuous space that is not a box of two or three sides.
 
         It is the only problem Mesa does not run.
@@ -1134,7 +1143,7 @@ class MesaSolver(ExternalSolver):
         self._lags = {
             spec.path: {
                 name: declaration.lags
-                for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
+                for name, declaration in declarations_of(self._get_agent_type(spec), VariableKind.STATE).items()
                 if declaration.lags
             }
             for spec in problem.agents
@@ -1142,7 +1151,7 @@ class MesaSolver(ExternalSolver):
         self._quantities = {
             spec.path: [
                 name
-                for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
+                for name, declaration in declarations_of(self._get_agent_type(spec), VariableKind.STATE).items()
                 if declaration.quantity is not None
             ]
             for spec in problem.agents
@@ -1167,10 +1176,10 @@ class MesaSolver(ExternalSolver):
             if rule.members is None:
                 self._rules.append((view, rule))
                 continue
-            for path in view._paths(rule.members):
+            for path in view._get_paths(rule.members):
                 self._member_rules.setdefault(path, []).append((view, rule))
-        declared = self._declared_phases(problem.system) if problem.system is not None else []
-        self._phases = self._phase_plan(declared, problem)
+        declared = self._get_declared_phases(problem.system) if problem.system is not None else []
+        self._phases = self._get_phase_plan(declared, problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
             for spec in problem.agents
@@ -1185,7 +1194,7 @@ class MesaSolver(ExternalSolver):
         self._populating = False
         self._collect()
 
-    def _agent_class(self, spec: CompiledAgentsSpec) -> type:
+    def _get_agent_class(self, spec: CompiledAgentsSpec) -> type:
         """Return the Mesa agent class of a group, created on first use."""
         for agent_class, known in self._classes.items():
             if known is spec:
@@ -1202,23 +1211,23 @@ class MesaSolver(ExternalSolver):
 
             They do not run if the agent was removed earlier.
             """
-            view = self._view_of(agent)
-            for system, rule in self._agent_rules(spec):
+            view = self._get_view_of(agent)
+            for system, rule in self._get_agent_rules(spec):
                 if getattr(agent, 'removed_', False):
                     return
                 rule.function(view, system)
 
         agent_class = type(f'{spec.path.replace("/", "_")}_agent', (base,), {'step': step})
         self._classes[agent_class] = spec
-        self._view_classes[agent_class] = self._view_class(spec)
+        self._view_classes[agent_class] = self._get_view_class(spec)
         return agent_class
 
-    def _agent_rules(self, spec: CompiledAgentsSpec) -> list[tuple[SystemView, RuleLaw]]:
+    def _get_agent_rules(self, spec: CompiledAgentsSpec) -> list[tuple[SystemView, RuleLaw]]:
         """Return the rules of an agent with their views.
 
         Those of its element come first, then its member rules.
         """
-        own = [(self._views[spec.path], rule) for rule in self._rules_of(spec.rules)]
+        own = [(self._views[spec.path], rule) for rule in self._get_rules_of(spec.rules)]
         return own + self._member_rules.get(spec.path, [])
 
     def _place(self, agent: mesa.Agent, location: object) -> None:
@@ -1230,17 +1239,17 @@ class MesaSolver(ExternalSolver):
         if isinstance(space, ContinuousSpace):
             sides = len(space.extent_)
             point = location if location is not None else self.system_.rng.uniform(np.zeros(sides), space.extent_)
-            agent.position = self._position_of(point, space)
+            agent.position = self._get_position_of(point, space)
         elif space is not None:
-            cells = self._cells()
+            cells = self._get_cells()
             if location is not None:
-                agent.cell = self._cell_at(location)
+                agent.cell = self._get_cell_at(location)
             elif space.capacity is not None:
                 agent.cell = cells.select_random_empty_cell()
             else:
                 agent.cell = cells.all_cells.select_random_cell()
 
-    def _triangles_of(self, polygon: Polygon) -> tuple[Array, Array]:
+    def _get_triangles_of(self, polygon: Polygon) -> tuple[Array, Array]:
         """Return the corners of the constrained Delaunay triangles of a polygon.
 
         Their areas are returned too, and both are computed once.
@@ -1273,7 +1282,7 @@ class MesaSolver(ExternalSolver):
 
         A triangle is drawn by its area, then a uniform point of the triangle.
         """
-        corners, areas = self._triangles_of(polygon)
+        corners, areas = self._get_triangles_of(polygon)
         rng = self.system_.rng
         first, second, third = corners[int(rng.choice(len(areas), p=areas / areas.sum()))]
         along, across = rng.random(2)
@@ -1281,7 +1290,7 @@ class MesaSolver(ExternalSolver):
             along, across = 1.0 - along, 1.0 - across
         return first + along * (second - first) + across * (third - first)
 
-    def _position_of(self, location: object, space: ContinuousSpace) -> Array:
+    def _get_position_of(self, location: object, space: ContinuousSpace) -> Array:
         """Return the position a location of a continuous space names.
 
         A polygon names a point drawn inside it.
@@ -1310,7 +1319,7 @@ class MesaSolver(ExternalSolver):
             raise SpaceError(error_msg)
         return position
 
-    def _cell_at(self, location: object) -> object:
+    def _get_cell_at(self, location: object) -> object:
         """Return the Mesa cell of the coordinates of a cell or a network node.
 
         Args:
@@ -1328,9 +1337,9 @@ class MesaSolver(ExternalSolver):
         if isinstance(location, Polygon):
             error_msg = 'A polygon is a location of a continuous space. Give the coordinates of a cell or a node.'
             raise SpaceError(error_msg)
-        return self._cells()[self._cell_key(location)]
+        return self._get_cells()[self._get_cell_key(location)]
 
-    def _index_of(self, layer: str) -> STRtree:
+    def _get_index_of(self, layer: str) -> STRtree:
         """Return the index of the regions of a layer of the continuous space.
 
         Args:
@@ -1352,7 +1361,7 @@ class MesaSolver(ExternalSolver):
             raise SimulationError(error_msg)
         return layers[layer]
 
-    def _cells(self) -> OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network:
+    def _get_cells(self) -> OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network:
         """Return the Mesa grid or network the agents live on.
 
         Returns:
@@ -1422,7 +1431,7 @@ class MesaSolver(ExternalSolver):
         spec = self._specs[self._resolve_group(group)]
         if not self._populating:
             self._check_variable(spec, 'create')
-        agent_class = self._agent_class(spec)
+        agent_class = self._get_agent_class(spec)
         agent = (
             agent_class(self.space_, self.system_)
             if agent_class.__mro__[1] is ContinuousSpaceAgent
@@ -1430,9 +1439,9 @@ class MesaSolver(ExternalSolver):
         )
         vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
-        defaults = self._agent_type(spec)
+        defaults = self._get_agent_type(spec)
         for name in spec.states:
-            value = values[name] if name in values else self._shared_default(defaults, name)
+            value = values[name] if name in values else self._get_shared_default(defaults, name)
             setattr(agent, name, value)
         self._place(agent, location)
         self._recount(agent, 1)
@@ -1447,13 +1456,13 @@ class MesaSolver(ExternalSolver):
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
         group = spec.element if isinstance(spec.element, GroupElement) and spec.element.location is not None else None
         for index in range(spec.size):
-            values = {name: self._member_of(spec, name, value, index) for name, value in spec.values.items()}
-            location = None if group is None else self._cell_key(group._get_member_location(index, spec.size))
+            values = {name: self._get_member_of(spec, name, value, index) for name, value in spec.values.items()}
+            location = None if group is None else self._get_cell_key(group._get_member_location(index, spec.size))
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
-    def _reference_of(self, spec: CompiledAgentsSpec, state: str) -> str | None:
+    def _get_reference_of(self, spec: CompiledAgentsSpec, state: str) -> str | None:
         """Return the path of the group a reference state of a group names members of.
 
         Args:
@@ -1472,7 +1481,7 @@ class MesaSolver(ExternalSolver):
             KeyError:
                 The state names no member of a group.
         """
-        declaration = declarations_of(self._agent_type(spec), VariableKind.STATE).get(state)
+        declaration = declarations_of(self._get_agent_type(spec), VariableKind.STATE).get(state)
         if declaration is None or declaration.reference is None:
             error_msg = (
                 f'The state {state!r} of {spec.path} names no member of a group. Declare it with '
@@ -1497,14 +1506,14 @@ class MesaSolver(ExternalSolver):
             SimulationError:
                 An initial position is beyond the initial members of the referenced group.
         """
-        declarations = declarations_of(self._agent_type(spec), VariableKind.STATE)
+        declarations = declarations_of(self._get_agent_type(spec), VariableKind.STATE)
         for name, declaration in declarations.items():
             if declaration.reference is None:
                 continue
-            path = self._reference_of(spec, name)
-            members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id) if path else []
+            path = self._get_reference_of(spec, name)
+            members = sorted(self._get_group_agents(path), key=lambda agent: agent.unique_id) if path else []
             ids = [agent.unique_id for agent in members]
-            for agent in self._group_agents(spec.path):
+            for agent in self._get_group_agents(spec.path):
                 position = int(float(getattr(agent, name)))
                 if position >= len(ids):
                     error_msg = (
@@ -1514,7 +1523,7 @@ class MesaSolver(ExternalSolver):
                     raise SimulationError(error_msg)
                 setattr(agent, name, float(ids[position]) if position >= 0 else -1.0)
 
-    def _spec_of(self, agent: mesa.Agent) -> CompiledAgentsSpec:
+    def _get_spec_of(self, agent: mesa.Agent) -> CompiledAgentsSpec:
         """Return the group of a Mesa agent created by the stepper.
 
         Args:
@@ -1527,17 +1536,19 @@ class MesaSolver(ExternalSolver):
         """
         return self._classes[type(agent)]
 
-    def _agents_of(self, group: str) -> list[AgentView] | None:
+    def _get_agents_of(self, group: str) -> list[AgentView] | None:
         """Return the views of the alive agents of a group.
 
         It returns `None` when the system has no such group.
         """
         if group not in self._specs:
             return None
-        return [self._view_of(agent) for agent in self._group_agents(group)]
+        return [self._get_view_of(agent) for agent in self._get_group_agents(group)]
 
-    def _delaunay_neighbors(self, agent: mesa.Agent, group: str, over: DelaunayNeighborhood) -> list[mesa.Agent]:
-        """Return the agents of a group joined to an agent by an edge of the Delaunay triangulation of their positions.
+    def _get_delaunay_neighbors(self, agent: mesa.Agent, group: str, over: DelaunayNeighborhood) -> list[mesa.Agent]:
+        """Return the agents of a group that share a Delaunay edge with an agent.
+
+        The triangulation is that of the positions of the agents.
 
         The triangulation is kept for the step while the number of agents of the group stays the same, so it is
         computed again in a step only after agents are created or removed, and an agent removed in the step is left out.
@@ -1564,12 +1575,12 @@ class MesaSolver(ExternalSolver):
         if not isinstance(space, MesaContinuousSpace):
             error_msg = 'Delaunay neighbours triangulate positions, so they need a continuous space.'
             raise SpaceError(error_msg)
-        members = self._group_agents(group)
+        members = self._get_group_agents(group)
         key = (float(self.system_.time), self.visit_, group, len(members))
         if self.triangulation_[0] != key:
-            positions = np.asarray([MesaSolver._location_of(item) for item in members], dtype=float)
+            positions = np.asarray([MesaSolver._get_location_of(item) for item in members], dtype=float)
             periods = tuple(float(side) for side in space.size) if space.torus else None
-            readers, others = MetricSearch._delaunay(positions.reshape(len(members), -1), periods)
+            readers, others = MetricSearch._get_delaunay(positions.reshape(len(members), -1), periods)
             table: dict[int, list[mesa.Agent]] = {item.unique_id: [] for item in members}
             for reader, other in zip(readers.tolist(), others.tolist(), strict=True):
                 table[members[reader].unique_id].append(members[other])
@@ -1579,7 +1590,7 @@ class MesaSolver(ExternalSolver):
         ]
         return [agent, *found] if over.center else found
 
-    def _group_agents(self, group: str) -> list[mesa.Agent]:
+    def _get_group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.
 
         Args:
@@ -1599,7 +1610,7 @@ class MesaSolver(ExternalSolver):
         """Make new parameter values visible to the rules."""
         self.parameters_ = p.copy()
 
-    def _composition(self, path: str, state: str) -> dict[Hashable, int]:
+    def _get_composition(self, path: str, state: str) -> dict[Hashable, int]:
         """Return the counts of the values of a state among the agents of a group.
 
         They are kept from their first reading.
@@ -1626,8 +1637,8 @@ class MesaSolver(ExternalSolver):
         counts = self._compositions.get((path, state))
         if counts is None:
             counts = {}
-            for agent in self._group_agents(path):
-                value = MesaSolver._counted(getattr(agent, state))
+            for agent in self._get_group_agents(path):
+                value = MesaSolver._get_counted(getattr(agent, state))
                 counts[value] = counts.get(value, 0) + 1
             self._compositions[path, state] = counts
         return counts
@@ -1639,10 +1650,10 @@ class MesaSolver(ExternalSolver):
         """
         if not self._compositions:
             return
-        path = self._spec_of(agent).path
+        path = self._get_spec_of(agent).path
         for (group, state), counts in self._compositions.items():
             if group == path and (names is None or state in names):
-                value = MesaSolver._counted(getattr(agent, state))
+                value = MesaSolver._get_counted(getattr(agent, state))
                 counts[value] = counts.get(value, 0) + change
 
     def _write(self, agent: mesa.Agent, name: str, value: object) -> None:
@@ -1660,10 +1671,10 @@ class MesaSolver(ExternalSolver):
             return
         if self._evaluator is None:
             self._evaluator = ObservableEvaluator(self.problem_).prepare()
-        values = self._evaluator.evaluate(float(self.system_.time), self._state, self.parameters_, self._agents_of)
+        values = self._evaluator.evaluate(float(self.system_.time), self._state, self.parameters_, self._get_agents_of)
         for name, value in values.items():
             array = value if isinstance(value, np.ndarray) else None
-            history = self.observed_.setdefault(name, deque(maxlen=_HISTORY_LENGTH))
+            history = self.observed_.setdefault(name, deque(maxlen=HISTORY_LENGTH))
             if isinstance(value, numbers.Number) or (
                 array is not None and array.ndim == 0 and np.issubdtype(array.dtype, np.number)
             ):
@@ -1691,19 +1702,19 @@ class MesaSolver(ExternalSolver):
         self._remember()
         self._observe()
 
-    def _phase_paths(self, phase: PhaseSpec) -> list[str]:
+    def _get_phase_paths(self, phase: PhaseSpec) -> list[str]:
         """Return the paths of the groups a phase activates, those it names or every group."""
         return [self._resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]]
 
-    def _ordered_agents(self, phase: PhaseSpec) -> list[mesa.Agent]:
+    def _get_ordered_agents(self, phase: PhaseSpec) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""
         if phase.activation == 'sequential':
             return sorted(self.system_.agents, key=lambda agent: agent.unique_id)
         if phase.activation == 'by-type':
-            paths = self._phase_paths(phase)
+            paths = self._get_phase_paths(phase)
             ordered: list[mesa.Agent] = []
             for path in paths:
-                members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id)
+                members = sorted(self._get_group_agents(path), key=lambda agent: agent.unique_id)
                 ordered += [members[index] for index in self.system_.rng.permutation(len(members))]
             return ordered
         agents = sorted(self.system_.agents, key=lambda agent: agent.unique_id)
@@ -1714,11 +1725,11 @@ class MesaSolver(ExternalSolver):
 
         Those of its element run first, then its member rules.
         """
-        view = self._view_of(agent)
-        for system, rule in self._agent_rules(self._spec_of(agent)):
+        view = self._get_view_of(agent)
+        for system, rule in self._get_agent_rules(self._get_spec_of(agent)):
             if getattr(agent, 'removed_', False):
                 return
-            if self._phase_of(rule) == phase.name:
+            if self._get_phase_of(rule) == phase.name:
                 rule.function(view, system)
 
     def _visit(self, phase: PhaseSpec) -> None:
@@ -1726,11 +1737,11 @@ class MesaSolver(ExternalSolver):
 
         There are `visits` times as many as there are agents at its start.
         """
-        paths = self._phase_paths(phase)
-        count = int(sum(len(self._group_agents(path)) for path in paths) * phase.visits)
+        paths = self._get_phase_paths(phase)
+        count = int(sum(len(self._get_group_agents(path)) for path in paths) * phase.visits)
         try:
             for visit in range(count):
-                agents = [agent for path in paths for agent in self._group_agents(path)]
+                agents = [agent for path in paths for agent in self._get_group_agents(path)]
                 if not agents:
                     return
                 self.visit_ = (visit, count)
@@ -1749,14 +1760,14 @@ class MesaSolver(ExternalSolver):
             if phase.activation == 'visits':
                 self._visit(phase)
             else:
-                for agent in self._ordered_agents(phase):
+                for agent in self._get_ordered_agents(phase):
                     self._activate(agent, phase)
         finally:
             buffer, self.buffer_ = self.buffer_, None
         for (agent, name), value in (buffer or {}).items():
             self._write(agent, name, value)
         for system, rule in self._rules:
-            if self._phase_of(rule) == phase.name:
+            if self._get_phase_of(rule) == phase.name:
                 rule.function(system)
 
     def _remember(self) -> None:
@@ -1765,7 +1776,7 @@ class MesaSolver(ExternalSolver):
         This happens at the end of a step.
         """
         for agent in self.system_.agents:
-            for name, lags in self._lags[self._spec_of(agent).path].items():
+            for name, lags in self._lags[self._get_spec_of(agent).path].items():
                 for index in range(lags, 1, -1):
                     setattr(agent, f'{name}_lag{index}', getattr(agent, f'{name}_lag{index - 1}'))
                 setattr(agent, f'{name}_lag1', getattr(agent, name))
@@ -1787,7 +1798,7 @@ class MesaSolver(ExternalSolver):
         if self._live is not None:
             self._live[indices] = value
 
-    def _observable(self, name: str) -> object:
+    def _get_observable(self, name: str) -> object:
         """Return the current value of an observable of the problem.
 
         Args:
@@ -1804,7 +1815,7 @@ class MesaSolver(ExternalSolver):
         """
         if self._evaluator is None:
             self._evaluator = ObservableEvaluator(self.problem_).prepare()
-        values = self._evaluator.evaluate(float(self.system_.time), self._state, self.parameters_, self._agents_of)
+        values = self._evaluator.evaluate(float(self.system_.time), self._state, self.parameters_, self._get_agents_of)
         if name not in values:
             error_msg = f'No observable named {name!r}. Available observables are: {", ".join(values) or "none"}.'
             raise SimulationError(error_msg)
@@ -1842,22 +1853,22 @@ class MesaSolver(ExternalSolver):
         """Set the agents of every group and the reporters at the current step."""
         groups, agents = {}, {}
         for spec in self.problem_.agents:
-            agents[spec.path] = self._group_agents(spec.path)
-            groups[spec.path] = self._snapshot_of(
+            agents[spec.path] = self._get_group_agents(spec.path)
+            groups[spec.path] = self._get_snapshot_of(
                 agents[spec.path],
-                {name: self._attribute(name) for name in spec.states},
+                {name: self._get_attribute(name) for name in spec.states},
                 spec,
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
         self.snapshot_ = AgentStateSpec(groups, {**reporters, **cast(dict[str, float], self.reports_)})
-        self.agents_ = {path: [self._view_of(agent) for agent in members] for path, members in agents.items()}
+        self.agents_ = {path: [self._get_view_of(agent) for agent in members] for path, members in agents.items()}
 
     @staticmethod
     def _build_space(space: BaseSpace | None, system: mesa.Model, n_agents: int) -> MesaSpace | None:
         """Return the Mesa space of a framework space."""
         if isinstance(space, LatticeSpace):
-            grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
+            grid = OrthogonalVonNeumannGrid if space.metric_ == 'manhattan' else OrthogonalMooreGrid
             return grid(space.shape_[:2], torus=space.periodic_, capacity=space.capacity, random=system.random)
         if isinstance(space, NetworkSpace):
             return Network(space.graph, capacity=space.capacity, random=system.random, layout=None)
@@ -1868,7 +1879,7 @@ class MesaSolver(ExternalSolver):
         return None
 
     @staticmethod
-    def _rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
+    def _get_rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
         """Return the rules among laws.
 
         The compiled agents and the system rules hold them alone.
@@ -1876,12 +1887,12 @@ class MesaSolver(ExternalSolver):
         return [law for law in laws if isinstance(law, RuleLaw)]
 
     @staticmethod
-    def _phase_of(rule: RuleLaw) -> str:
+    def _get_phase_of(rule: RuleLaw) -> str:
         """Return the name of the phase a rule runs in."""
         return rule.phase or DEFAULT_PHASE
 
     @staticmethod
-    def _declared_phases(system: System) -> list[PhaseSpec]:
+    def _get_declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems.
 
         The first phase of every name is kept.
@@ -1890,26 +1901,26 @@ class MesaSolver(ExternalSolver):
         schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
-            phases += MesaSolver._declared_phases(nested)
+            phases += MesaSolver._get_declared_phases(nested)
         kept: dict[str, PhaseSpec] = {}
         for phase in phases:
             kept.setdefault(phase.name, phase)
         return list(kept.values())
 
     @staticmethod
-    def _phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
+    def _get_phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
         """Return the phases of a step with the default phase.
 
         It returns `None` when no phase is declared or named.
         """
-        rules = MesaSolver._rules_of(
+        rules = MesaSolver._get_rules_of(
             [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.system_rules)],
         )
         if not phases and all(rule.phase is None for rule in rules):
             return None
         names = [phase.name for phase in phases]
         plan = list(phases) if DEFAULT_PHASE in names else [PhaseSpec(DEFAULT_PHASE), *phases]
-        unknown = sorted({MesaSolver._phase_of(rule) for rule in rules} - {phase.name for phase in plan})
+        unknown = sorted({MesaSolver._get_phase_of(rule) for rule in rules} - {phase.name for phase in plan})
         if unknown:
             error_msg = (
                 f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases '
@@ -1919,12 +1930,12 @@ class MesaSolver(ExternalSolver):
         return plan
 
     @staticmethod
-    def _attribute(name: str) -> Callable[[mesa.Agent], object]:
+    def _get_attribute(name: str) -> Callable[[mesa.Agent], object]:
         """Return a function that reads an attribute of an agent."""
         return lambda agent: getattr(agent, name)
 
     @staticmethod
-    def _snapshot_of(
+    def _get_snapshot_of(
         agents: list[mesa.Agent],
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
         spec: CompiledAgentsSpec,
@@ -1943,17 +1954,17 @@ class MesaSolver(ExternalSolver):
             )
             for name, reporter in reporters.items()
         }
-        locations = [MesaSolver._location_of(agent) for agent in agents]
+        locations = [MesaSolver._get_location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
-    def _shared_default(element_type: type, name: str) -> object:
+    def _get_shared_default(element_type: type, name: str) -> object:
         """Return the default of a state of an element type."""
         return default_of(element_type, name)
 
     @staticmethod
-    def _state_property(name: str) -> property:
+    def _get_state_property(name: str) -> property:
         """Return the property of a state of agents.
 
         The property sets the agent at the end of a simultaneous phase.
@@ -1972,7 +1983,7 @@ class MesaSolver(ExternalSolver):
         return property(read, write, doc=f'State {name} of the agent.')
 
     @staticmethod
-    def _parameter_property(name: str, entry: str) -> property:
+    def _get_parameter_property(name: str, entry: str) -> property:
         """Return the read-only property of a parameter of the group of agents."""
 
         def read(view: AgentView) -> float:
@@ -1982,26 +1993,26 @@ class MesaSolver(ExternalSolver):
         return property(read, doc=f'Parameter {name} of the group of the agent.')
 
     @staticmethod
-    def _view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
+    def _get_view_class(spec: CompiledAgentsSpec) -> type[AgentView]:
         """Return the class of the views of a group's agents.
 
         The class has a property per state and parameter.
         """
         names: dict[str, object] = {
-            name: MesaSolver._parameter_property(name, entry)
+            name: MesaSolver._get_parameter_property(name, entry)
             for name, entry in spec.parameters.items()
             if name not in spec.states
         }
-        names.update({name: MesaSolver._state_property(name) for name in spec.states})
+        names.update({name: MesaSolver._get_state_property(name) for name in spec.states})
         names['__slots__'] = ()
-        base = MesaSolver._agent_type(spec)._get_view() or AgentView
+        base = MesaSolver._get_agent_type(spec)._get_view() or AgentView
         if not issubclass(base, AgentView):
             error_msg = f'The view of {spec.path} is {base.__name__}, which does not derive from AgentView.'
             raise ValidationError(error_msg)
         return type(f'{spec.path.replace("/", "_")}_view', (base,), names)
 
     @staticmethod
-    def _counted(value: object) -> Hashable:
+    def _get_counted(value: object) -> Hashable:
         """Return the key that counts a value of a state.
 
         It is a float for a number, and an object as it is.
@@ -2014,17 +2025,17 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _member_of(spec: CompiledAgentsSpec, name: str, value: object, index: int) -> object:
+    def _get_member_of(spec: CompiledAgentsSpec, name: str, value: object, index: int) -> object:
         """Return the initial value of one agent.
 
         It comes from a list of one object per agent, or from one shared value.
         """
         if name not in spec.objects:
-            return MesaSolver._member_value(value, index, spec.size)
+            return MesaSolver._get_member_value(value, index, spec.size)
         return value[index] if isinstance(value, list | np.ndarray) and len(value) == spec.size else value
 
     @staticmethod
-    def _member_value(value: object, index: int, size: int) -> object:
+    def _get_member_value(value: object, index: int, size: int) -> object:
         """Return the initial value of one agent from a per-agent array or a shared value."""
         array = np.asarray(value)
         if array.ndim and array.shape[0] == size:
@@ -2033,12 +2044,12 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _agent_type(spec: CompiledAgentsSpec) -> type[BaseElement]:
+    def _get_agent_type(spec: CompiledAgentsSpec) -> type[BaseElement]:
         """Return the element type of a compiled agent element or group."""
         return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
     @staticmethod
-    def _cell_key(location: object) -> object:
+    def _get_cell_key(location: object) -> object:
         """Return a location as a hashable cell key.
 
         The key is a tuple of grid coordinates or a network node.
@@ -2064,7 +2075,7 @@ class MesaSolver(ExternalSolver):
         raise SimulationError(error_msg)
 
     @staticmethod
-    def _location_of(agent: mesa.Agent) -> object:
+    def _get_location_of(agent: mesa.Agent) -> object:
         """Return the location of a Mesa agent.
 
         It is grid coordinates, a network node, a position, or `None`.
@@ -2078,7 +2089,7 @@ class MesaSolver(ExternalSolver):
         return getattr(agent, 'pos', None)
 
     @staticmethod
-    def _view_of(agent: mesa.Agent) -> AgentView:
+    def _get_view_of(agent: mesa.Agent) -> AgentView:
         """Return the view of an agent.
 
         The stepper creates the view with the agent.

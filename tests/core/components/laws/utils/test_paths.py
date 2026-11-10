@@ -8,12 +8,13 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction, MapInteraction, TopologyInteraction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import neighborhoods_in, shortest_paths
+from skcomplex.core.components.laws.utils import shortest_paths
+from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
@@ -70,9 +71,9 @@ def test_shortest_paths_agrees_with_networkx_on_the_open_links(reduce):
     graph = nx.gnp_random_graph(30, 0.15, seed=1)
     weights = (rng.uniform(size=graph.number_of_edges()) < 0.8).astype(float)
     space = NetworkSpace(graph)
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=ValueElement, space=space),
+            GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': weights}),
         ],
         interactions=[PathsInteraction('paths', nodes='nodes', links='links', reduce=reduce)],
@@ -92,9 +93,9 @@ def test_neighborhood_kernel_reuses_the_paths_of_unchanged_links():
     kernel = NeighborhoodKernel.__new__(NeighborhoodKernel)
     kernel.kind, kernel.paths_ = 'path-betweenness', None
     kernel.entry = type('Entry', (), {'rows': 4})()
-    first = kernel._cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3]))
-    assert kernel._cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3])) is first
-    assert kernel._cached_paths(np.array([0, 1]), np.array([1, 2])).tolist() == [0.0, 1.0, 0.0, 0.0]
+    first = kernel._get_cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3]))
+    assert kernel._get_cached_paths(np.array([0, 1, 2]), np.array([1, 2, 3])) is first
+    assert kernel._get_cached_paths(np.array([0, 1]), np.array([1, 2])).tolist() == [0.0, 1.0, 0.0, 0.0]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -106,23 +107,23 @@ def test_shortest_paths_follow_a_network_whose_nodes_are_removed(backend):
     load = MapInteraction('load', target='nodes', state='a', function=lambda s: shortest_paths(1))
     removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=0.05)
     space = NetworkSpace(graph)
-    system = System(elements=[nodes, links], interactions=[load, removal], space=space, time=DiscreteTime())
+    system = CompositeSystem(elements=[nodes, links], interactions=[load, removal], space=space, time=DiscreteTime())
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BackendWarning)
         trajectory = simulate(system, until=6, backend=backend, random_state=0)
     for frame in range(5):
-        expected = nx.betweenness_centrality(trajectory.network(frame).graph(), normalized=False)
-        kept = trajectory.network(frame + 1).nodes
-        values = trajectory.values('nodes.a')[frame + 1]
+        expected = nx.betweenness_centrality(trajectory.get_network(frame).get_graph(), normalized=False)
+        kept = trajectory.get_network(frame + 1).nodes
+        values = trajectory.get_values('nodes.a')[frame + 1]
         np.testing.assert_allclose(values[kept], [expected[node] for node in kept.tolist()])
 
 
 def test_numba_runs_shortest_paths_in_python_with_a_warning():
     """Test that the Numba backend warns that it runs the laws of a shortest paths reduction in Python."""
     space = NetworkSpace(nx.path_graph(4))
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=ValueElement, space=space),
+            GroupElement('nodes', element=ValueElement, space=space, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': 1.0}),
         ],
         interactions=[PathsInteraction('paths', nodes='nodes', links='links')],

@@ -42,9 +42,9 @@ solution = linprog(
     b_ub=external,
     bounds=list(zip(np.zeros(size), owed, strict=True)),
 )
-payments = trajectory.agents('banks', len(trajectory.times) - 1).values['payment']
+payments = trajectory.get_agents('banks', len(trajectory.times) - 1).values['payment']
 fig, (rounds, check) = plt.subplots(1, 2, figsize=(10, 4))
-rounds.plot(trajectory.times[1:], trajectory.values('clearing.shortfall')[1:])
+rounds.plot(trajectory.times[1:], trajectory.get_values('clearing.shortfall')[1:])
 rounds.set_xlabel('round')
 rounds.set_ylabel('total shortfall')
 rounds.set_title('The iteration from full payments')

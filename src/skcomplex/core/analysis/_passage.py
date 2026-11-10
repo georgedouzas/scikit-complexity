@@ -27,10 +27,7 @@ SETTINGS = {
     'committor': {'origin', 'target', 'lag'},
     'mean-first-passage': {'origin', 'target', 'lag', 'dt'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MATRIX_KINDS = ('committor', 'mean-first-passage')
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'return-times': AnalysisTags(DataKind.SERIES),
@@ -39,7 +36,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class PassageResult:
-    """Passages of paths to a level or a set, or of a Markov chain between two sets.
+    """A result of `passage`, the first passages of paths to a level or a set.
 
     The set is a set of states.
 
@@ -109,6 +106,9 @@ def passage(
       started in their stationary weights, to the `target` states.
 
     The matrix kinds estimate the transition matrix at `lag` of the jump path of a trajectory.
+
+    It appears in many fields. It finds the time until a population dies out, until a price hits a barrier, and until a
+    protein folds.
 
     Args:
         source:

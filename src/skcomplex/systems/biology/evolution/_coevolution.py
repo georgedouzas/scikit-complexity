@@ -15,10 +15,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, ExtremalLaw
 from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -28,14 +28,6 @@ SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = 
 }
 FITNESS_VISUAL = VisualSpec('image', {'states': ('fitness',), 'low': 0.0, 'high': 1.0, 'history': 256})
 FITNESS_SITES = VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high': 1.0})
-
-
-def _renew(fitness: Array, random: Array) -> Array:
-    """Return new fitnesses for the least fit species and its neighbours.
-
-    The fitnesses are drawn uniformly from the unit interval.
-    """
-    return random
 
 
 class SpeciesElement(Element):
@@ -70,6 +62,14 @@ class SpeciesElement(Element):
 
     law_classes = (ExtremalLaw,)
 
+    @staticmethod
+    def _renew(fitness: Array, random: Array) -> Array:
+        """Return new fitnesses for the least fit species and its neighbours.
+
+        The fitnesses are drawn uniformly from the unit interval.
+        """
+        return random
+
     def __init__(
         self,
         label: str,
@@ -96,7 +96,7 @@ class SpeciesElement(Element):
                 The laws of the component.
         """
         neighborhood = SPECIES_NEIGHBORHOODS[self.neighbors]
-        return [ExtremalLaw(s.fitness, neighborhood, _renew, repeat=self.updates, label='extinction')]
+        return [ExtremalLaw(s.fitness, neighborhood, SpeciesElement._renew, repeat=self.updates, label='extinction')]
 
 
 class BakSneppenSystem(BaseSystem):
@@ -151,12 +151,12 @@ class BakSneppenSystem(BaseSystem):
         self.updates = updates
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Bak-Sneppen system."""
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)
         fitness = np.random.default_rng(self.random_state).random(count)
-        species = LatticeElement(
+        species = GroupElement(
             'species',
             element=SpeciesElement,
             space=space,
@@ -166,5 +166,6 @@ class BakSneppenSystem(BaseSystem):
                 'neighbors': 'ring' if self.graph is None else 'graph',
             },
             visual=FITNESS_VISUAL if self.graph is None else FITNESS_SITES,
+            on='sites',
         )
-        return System(self.label, elements=[species])
+        return CompositeSystem(self.label, elements=[species])

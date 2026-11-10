@@ -21,6 +21,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 
 SYSTEM = 'barter'
+A, B = 0.6, 0.3
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -45,7 +47,6 @@ trajectory = simulate(system, until=30, observers=[observer], random_state=0)
 # `y = b (1 - a) x Y / (a (1 - b) (X - x) + b (1 - a) x)`, within the quantity of one trade, whatever the endowment.
 # Among the prisoners the spread of the logarithm of the price should fall toward zero.
 
-A, B = 0.6, 0.3
 fig, (box, spread) = plt.subplots(1, 2, figsize=(11, 4.5))
 chocolate = np.linspace(0.05, 9.95, 200)
 box.plot(chocolate, contract_curve(chocolate, A, B, 10.0, 10.0), color='black', label='contract curve')
@@ -53,7 +54,7 @@ rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
     edgeworth = BarterSystem(chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
-    final = simulate(edgeworth, until=2, random_state=0).agents('barterers', 2).values
+    final = simulate(edgeworth, until=2, random_state=0).get_agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)
     box.scatter(x, y, color='C0', label=label[0])
@@ -64,7 +65,7 @@ box.set_xlabel('chocolate of the first barterer')
 box.set_ylabel('cigarettes of the first barterer')
 box.set_title('Barter ends on the contract curve')
 box.legend()
-dispersion = trajectory.values('exchange.dispersion')
+dispersion = trajectory.get_values('exchange.dispersion')
 spread.semilogy(trajectory.times, dispersion, marker='.')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')

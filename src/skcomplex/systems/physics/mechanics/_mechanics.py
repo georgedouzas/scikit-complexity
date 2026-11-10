@@ -18,7 +18,7 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (
@@ -28,6 +28,9 @@ from ..common.particles import (
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+
+WALL_POINTS = 200
+GRAVITY = 9.81
 
 
 class BouncingBallElement(Element):
@@ -74,10 +77,7 @@ class BouncingBallElement(Element):
         self.g = g
 
 
-WALL_POINTS = 200
-
-
-def _disc_wall(radius: float, **_: float) -> list[np.ndarray]:
+def _get_disc_wall(radius: float, **_: float) -> list[np.ndarray]:
     """Return the wall of a disc table as one closed polyline."""
     angles = np.linspace(0.0, 2 * np.pi, WALL_POINTS)
     return [radius * np.column_stack([np.cos(angles), np.sin(angles)])]
@@ -120,7 +120,7 @@ class DiscBilliardElement(Element):
 
     law_classes = (RateLaw,)
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _get_disc_wall})
 
     def __init__(
         self,
@@ -276,9 +276,6 @@ class ElasticCollisionInteraction(Interaction):
         ]
 
 
-GRAVITY = 9.81
-
-
 class ProjectileSystem(BaseSystem):
     """A particle launched under uniform gravity, optionally slowed by linear drag.
 
@@ -327,7 +324,7 @@ class ProjectileSystem(BaseSystem):
         self.mass = mass
         self.drag = drag
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle launched under uniform gravity.
 
         Linear drag optionally slows the particle.
@@ -339,7 +336,7 @@ class ProjectileSystem(BaseSystem):
         ]
         if self.drag:
             interactions.append(DampingInteraction('drag', target='ball', gamma=self.drag))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=self.mass)],
             interactions=interactions,
@@ -400,12 +397,12 @@ class HarmonicOscillatorSystem(BaseSystem):
         self.mass = mass
         self.damping = damping
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle on a spring, optionally damped."""
         interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=self.k)]
         if self.damping:
             interactions.append(DampingInteraction('damping', target='mass', gamma=self.damping))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.mass)],
             interactions=interactions,
@@ -466,12 +463,12 @@ class PendulumSystem(BaseSystem):
         self.g = g
         self.l = l
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a pendulum.
 
         Its angle follows Newton's second law `m l θ'' = -m g sin θ`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[PendulumElement('bob', theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
             interactions=[PendulumInteraction('swing', target='bob')],
@@ -543,12 +540,12 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         self.F = F
         self.omega = omega
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a mass on a spring with damping and a periodic force.
 
         The mass follows `m x'' = -k x - c x' + F cos(ω t)`.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.m)],
             interactions=[
@@ -614,9 +611,9 @@ class BouncingBallSystem(BaseSystem):
         self.g = g
         self.e = e
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[BouncingBallElement('ball', h=self.h, h_d1=self.v, g=self.g)],
             interactions=[
@@ -696,7 +693,7 @@ class NewtonsCradleSystem(BaseSystem):
         self.length = length
         self.g = g
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Newton's cradle.
 
         Pendulum balls in a row pass momentum along by elastic collisions.
@@ -730,7 +727,7 @@ class NewtonsCradleSystem(BaseSystem):
             )
             for index in range(self.n_balls - 1)
         ]
-        return System(self.label, elements=elements, interactions=[*swings, *collisions])
+        return CompositeSystem(self.label, elements=elements, interactions=[*swings, *collisions])
 
 
 class CircularBilliardSystem(BaseSystem):
@@ -787,7 +784,7 @@ class CircularBilliardSystem(BaseSystem):
         self.vy = vy
         self.radius = radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle moving freely inside a circle.
 
         The particle reflects specularly off the wall of the circle.
@@ -800,7 +797,7 @@ class CircularBilliardSystem(BaseSystem):
             velocities=('vx', 'vy'),
             direction=1,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[DiscBilliardElement('particle', x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)],
             interactions=[wall],

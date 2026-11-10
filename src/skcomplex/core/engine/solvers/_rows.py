@@ -1,7 +1,4 @@
-"""Rows of values at consecutive grid steps, kept in one array.
-
-The array grows or keeps only the latest rows.
-"""
+"""Rows of values at consecutive grid steps, kept in one array."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +8,7 @@ import numpy as np
 
 from ...types import Array
 
-_INITIAL_ROWS = 64
+INITIAL_ROWS = 64
 
 
 class _Rows:
@@ -22,7 +19,7 @@ class _Rows:
 
     def __init__(self, first: Array, keep: int | None) -> None:
         self.keep = keep
-        self.values = np.zeros((_INITIAL_ROWS if keep is None else 2 * keep + 2, first.size))
+        self.values = np.zeros((INITIAL_ROWS if keep is None else 2 * keep + 2, first.size))
         self.values[0] = first
         self.start = 0
         self.stop = 1
@@ -49,10 +46,10 @@ class _Rows:
         self.values[self.stop - self.start] = row
         self.stop += 1
 
-    def rows(self, first: int, last: int) -> Array:
+    def get_rows(self, first: int, last: int) -> Array:
         """Return the rows of the steps `first` to `last - 1`."""
         return self.values[first - self.start : last - self.start]
 
-    def row(self, step: int) -> Array:
+    def get_row(self, step: int) -> Array:
         """Return the row of one step."""
         return self.values[step - self.start]

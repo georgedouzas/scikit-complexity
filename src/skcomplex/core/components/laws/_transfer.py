@@ -1,26 +1,29 @@
-"""Define transfer laws.
-
-They are the flows of a conserved quantity between states and the environment.
-"""
+"""Define the law that moves an amount between two holders."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
+from ...specs import BaseSpec, RequirementSpec
 from ._base import BaseLaw
 
 SHIFT = 'shift_member'
 
 
-class Source:
-    """Environment a transfer draws a quantity from, outside the system.
+@dataclass(frozen=True)
+class Source(BaseSpec):
+    """A holder outside the system that a transfer takes an amount from.
 
-    An example is a bank that creates money.
+    Unlike a state, it has no value and never runs out. Choose it when an amount enters the system from outside, as the
+    source of a `TransferLaw` or of a leg of a `TransferInteraction`.
+
+    It appears in many fields as the origin of what enters a system, such as a bank that creates money, births into a
+    population, or an inflow into a reservoir.
 
     Args:
         label:
@@ -32,14 +35,18 @@ class Source:
         'environment'
     """
 
-    def __init__(self, label: str = 'environment') -> None:
-        self.label = label
+    label: str = 'environment'
 
 
-class Sink:
-    """Environment a transfer releases a quantity to, outside the system.
+@dataclass(frozen=True)
+class Sink(BaseSpec):
+    """A holder outside the system that a transfer releases an amount to.
 
-    Examples are a drain or the atmosphere.
+    Unlike a state, it has no value and never fills. Choose it when an amount leaves the system, as the sink of a
+    `TransferLaw` or of a leg of a `TransferInteraction`.
+
+    It appears in many fields as the end of what leaves a system, such as a drain, the atmosphere, or deaths out of a
+    population.
 
     Args:
         label:
@@ -51,19 +58,24 @@ class Sink:
         'drain'
     """
 
-    def __init__(self, label: str = 'environment') -> None:
-        self.label = label
+    label: str = 'environment'
 
 
 class TransferLaw(BaseLaw):
-    """Movement of an amount of a quantity from a source holder to a sink holder.
+    """A law that moves an amount from a source holder to a sink holder.
 
-    It runs in continuous or discrete time. A transfer is one outflow of its source and one inflow of its sink. Its
-    amount is a rate in a system of rate laws, the amount moved per step in a system of update laws, and the size of
-    every jump when a `rate` is given. The trajectory records the amount at every frame under `<path>.<label>`, the path
-    of the part that declares the transfer, or `owner` when given. One holder may be a state of a group read by
-    `shift_member` at a member offset, so every member transfers with the member that many places along the group order.
-    Past the ends of a fixed boundary no member is there, and the transfer moves nothing.
+    A transfer is one outflow of its source and one inflow of its sink, so what one loses the other gains. Its `amount`
+    is a rate in continuous time, the amount moved per step in discrete time, and the size of every jump when a `rate`
+    is given. The trajectory records the amount at every frame under `<path>.<label>`, the path of the part that
+    declares the transfer, or `owner`. One holder may be a state read by `shift_member` some places along a group, so
+    every member transfers with the member that many places along. Past the ends of a fixed boundary no member is there,
+    and the transfer moves nothing.
+
+    Unlike `RateLaw`, which changes one state, it pairs a loss with a gain, so the amount is conserved. Choose it when a
+    quantity moves between holders and its flow is worth recording.
+
+    It appears in many fields. People move from susceptible to infected, money moves between accounts, water flows
+    between reservoirs, and stock moves along a supply chain.
 
     Args:
         source:

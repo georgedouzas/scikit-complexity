@@ -1,8 +1,4 @@
-"""Define the types that only the engine reads.
-
-They are arrays, functions, records, and library classes. The neighbour search on a grid of cells passes tuples, since
-its Numba kernels take no other records.
-"""
+"""Define the types that only the engine reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +15,6 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
-from ..components.laws import BilinearLaw, EncounterLaw
 from ..specs import ObservableSpec
 from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
@@ -57,7 +52,6 @@ type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
 type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
-type KineticLaw = EncounterLaw | BilinearLaw
 type Generators = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
 type Declared = dict[str, tuple[str, ObservableSpec]]
@@ -67,7 +61,7 @@ type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
 class LinearProgramBound(IntEnum):
-    """The bound of a column or a row of a linear program that a compiled value gives."""
+    """A bound of a column or a row of a linear program that a compiled value gives."""
 
     COLUMN_LOWER = 0
     COLUMN_UPPER = 1
@@ -76,7 +70,7 @@ class LinearProgramBound(IntEnum):
 
 
 class ReadKind(StrEnum):
-    """How a symbol is read for each evaluation index of a kernel."""
+    """A kind of read of a symbol for each evaluation index of a kernel."""
 
     MEMBER = 'member'
     SINGLE = 'single'

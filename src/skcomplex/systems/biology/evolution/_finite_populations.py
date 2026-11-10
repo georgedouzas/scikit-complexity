@@ -17,14 +17,14 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction, LifeCycleInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import BirthDeathInteraction, EvolutionInteraction
 
 ORGANISMS = 'organisms'
 
@@ -131,14 +131,14 @@ class ClimberElement(Element):
         """
         n, k, seed = int(agent.n), int(agent.k), int(agent.seed)
         mutant = int(agent.genome) ^ (1 << int(system.rng.integers(n)))
-        fitness = ClimberElement._nk_fitness(mutant, n, k, seed)
+        fitness = ClimberElement._get_nk_fitness(mutant, n, k, seed)
         if fitness > agent.fitness:
             agent.genome = float(mutant)
             agent.fitness = fitness
 
     @staticmethod
     @lru_cache(maxsize=16)
-    def _nk_tables(seed: int, n: int, k: int) -> Array:
+    def _get_nk_tables(seed: int, n: int, k: int) -> Array:
         """Return the fitness contributions of every locus.
 
         There is one contribution for every configuration of the locus and its `k` neighbours.
@@ -146,12 +146,12 @@ class ClimberElement(Element):
         return np.random.default_rng(seed).random((n, 2 ** (k + 1)))
 
     @staticmethod
-    def _nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
+    def _get_nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
         """Return the NK fitness of a genome.
 
         It is the mean contribution of its loci, each read with the next `k` loci.
         """
-        tables = ClimberElement._nk_tables(seed, n, k)
+        tables = ClimberElement._get_nk_tables(seed, n, k)
         bits = [(genome >> locus) & 1 for locus in range(n)]
         total = 0.0
         for locus in range(n):
@@ -272,7 +272,10 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
                 The fitness of every genome.
         """
         return np.array(
-            [AdaptiveClimbingInteraction._random_fitness(int(genome), self.seed) for genome in np.ravel(strategies)],
+            [
+                AdaptiveClimbingInteraction._get_random_fitness(int(genome), self.seed)
+                for genome in np.ravel(strategies)
+            ],
         )
 
     def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
@@ -302,7 +305,7 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
         return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
     @staticmethod
-    def _random_fitness(genome: int, seed: int) -> float:
+    def _get_random_fitness(genome: int, seed: int) -> float:
         """Return the fitness of a genome in the random energy system.
 
         The fitness is uniform in [0, 1] and fixed by the seed.
@@ -378,10 +381,10 @@ class MoranStepInteraction(EvolutionInteraction):
             fitness:
                 The fitness of every trait.
         """
-        return (1 + system.parameter('advantage')) ** np.ravel(strategies)
+        return (1 + system.get_parameter('advantage')) ** np.ravel(strategies)
 
 
-class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
+class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
     """Life cycle of the organisms of the Tangled Nature system.
 
     The cycle is run by the visits of a phase drawn with replacement.
@@ -484,11 +487,11 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
             probability:
                 The probability of reproduction.
         """
-        composition = system.composition('target', 'trait')
+        composition = system.get_composition('target', 'trait')
         size = sum(composition.values())
         row = self._get_couplings(self.seed, self.length)[int(agent.trait)]
         coupling = sum(row[int(np.asarray(genome))] * count for genome, count in composition.items())
-        return float(expit(system.parameter('k') / size * coupling - system.parameter('mu') * size))
+        return float(expit(system.get_parameter('k') / size * coupling - system.get_parameter('mu') * size))
 
     def compute_kill(self, agent: IndividualView, system: SystemView) -> float:
         """Return the probability `p_kill` that a visit kills a random organism.
@@ -504,7 +507,7 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
             probability:
                 The probability of a death.
         """
-        return system.parameter('p_kill')
+        return system.get_parameter('p_kill')
 
     def mutate_genome(self, values: dict[str, object], system: SystemViewProtocol) -> dict[str, object]:
         """Return the values of an offspring with mutated genome bits.
@@ -523,7 +526,7 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
                 The values with the mutated genome.
         """
         genome = int(np.asarray(values['trait'], dtype=float))
-        flips = np.flatnonzero(system.rng.random(self.length) < system.parameter('p_mut'))
+        flips = np.flatnonzero(system.rng.random(self.length) < system.get_parameter('p_mut'))
         return {**values, 'trait': float(genome ^ sum(1 << int(locus) for locus in flips))}
 
 
@@ -579,11 +582,11 @@ class MoranProcessSystem(BaseSystem):
         self.selection = selection
         self.mutation = mutation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Moran process."""
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -672,7 +675,7 @@ class TangledNatureSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Tangled Nature system."""
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
@@ -686,7 +689,7 @@ class TangledNatureSystem(BaseSystem):
             seed=self.seed,
         )
         visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -756,10 +759,10 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.length = length
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a finite population."""
-        fitness = AdaptiveClimbingInteraction._random_fitness(0, self.seed)
-        return System(
+        fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -838,10 +841,10 @@ class NKLandscapeSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
-        fitness = [ClimberElement._nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
+        fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
         group = GroupElement(
             'climbers',
             element=ClimberElement,
@@ -855,4 +858,4 @@ class NKLandscapeSystem(BaseSystem):
             },
             variable=True,
         )
-        return System(self.label, elements=[group])
+        return CompositeSystem(self.label, elements=[group])

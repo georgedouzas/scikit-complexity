@@ -1,7 +1,4 @@
-"""Measure correlations.
-
-The correlations are autocorrelations of series, two-time correlations, spatial correlations, and overlaps.
-"""
+"""Measure correlations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,14 +12,13 @@ from scipy import optimize
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
+from ..specs import AnalysisTags, SeriesSpec
 from ..types import Array, DataKind
-from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
+from ._base import STEP_TOLERANCE, _check_choice, _check_settings, _read_fields, _read_real, _read_series, _step_of
 from .types import Source
 
 MIN_LINE_POINTS = 2
 MIN_FIT_POINTS = 3
-
 KINDS = ('auto', 'two-time', 'function', 'length', 'overlap')
 METHODS = ('moment', 'fit')
 SETTINGS = {
@@ -32,11 +28,8 @@ SETTINGS = {
     'length': {'method', 'spacing', 'frames'},
     'overlap': set(),
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MOMENT_ITERATIONS = 8
 REPLICAS = 2
-
 TAGS = AnalysisTags(DataKind.FIELD)
 KIND_TAGS = {
     'auto': AnalysisTags(DataKind.SERIES),
@@ -46,7 +39,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class CorrelationResult:
-    """Correlation of series, of an ensemble at two times, or of a field in space.
+    """A result of `correlation`, the correlation of series or of a field.
 
     It covers every series of a source.
 
@@ -93,7 +86,7 @@ def correlation(
     kind: str = 'auto',
     variables: Sequence[str] | None = None,
     max_lag: int | None = None,
-    dt: float = 1.0,
+    dt: float | None = None,
     waiting: Sequence[int] | None = None,
     lags: Sequence[int] | None = None,
     connected: bool = False,
@@ -122,6 +115,9 @@ def correlation(
 
     The kinds `'function'` and `'length'` read the last frame of a trajectory, or every frame when `frames` is true.
 
+    It appears in many fields. It finds how far order reaches in a magnet, how long a stock price remembers its past,
+    and how two regions of the brain move together.
+
     Args:
         source:
             The trajectory, an array of series, an ensemble, a field, or a pair of replicas for `'overlap'`.
@@ -136,7 +132,7 @@ def correlation(
             The largest lag in steps, or `None` for half the series length.
 
         dt:
-            The time between samples.
+            The time between the samples of an array, or `None` for 1. A trajectory gives its own step.
 
         waiting:
             The waiting times `t_w` in frames.
@@ -166,7 +162,7 @@ def correlation(
     Raises:
         AnalysisError:
             The kind or method is unknown, a setting the kind does not read is changed, a setting the kind needs is
-            missing, or a setting is not positive.
+            missing, a setting is not positive, or `dt` differs from the step of a trajectory.
 
     Examples:
         >>> import numpy as np
@@ -199,19 +195,20 @@ def correlation(
     if kind == 'two-time' and (waiting is None or lags is None):
         error_msg = 'correlation of kind two-time needs waiting times and lags. Give both in frames.'
         raise AnalysisError(error_msg)
-    if dt <= 0 or spacing <= 0:
+    if (dt is not None and dt <= 0) or spacing <= 0:
         error_msg = f'correlation has dt={dt!r} and spacing={spacing!r}. Use positive values.'
         raise AnalysisError(error_msg)
     if kind == 'auto':
         series = _read_series(source, variables)
+        step = _read_step(source, series, dt)
         values = series.values
         autocorrelation = np.asarray([_autocorrelation(column, max_lag) for column in values.T])
         return CorrelationResult(
             values,
             series.labels,
-            lags=np.asarray(np.arange(autocorrelation.shape[1]) * dt, dtype=float),
+            lags=np.asarray(np.arange(autocorrelation.shape[1]) * step, dtype=float),
             correlation=autocorrelation,
-            time=np.asarray([_autocorrelation_time(column, dt) for column in values.T]),
+            time=np.asarray([_autocorrelation_time(column, step) for column in values.T]),
         )
     name = variables[0] if variables else None
     if kind == 'two-time' and waiting is not None and lags is not None:
@@ -247,6 +244,39 @@ def _read_replicas(source: Source, name: str | None) -> Array:
         )
         raise AnalysisError(error_msg)
     return np.stack([_read_fields(replica, name) for replica in replicas])
+
+
+def _read_step(source: Source, series: SeriesSpec, dt: float | None) -> float:
+    """Return the time between samples, read from a trajectory or given for an array.
+
+    Args:
+        source:
+            The trajectory or the array of series.
+
+        series:
+            The series read from the source.
+
+        dt:
+            The time between the samples of an array, or `None` for 1.
+
+    Returns:
+        step:
+            The time between samples.
+
+    Raises:
+        AnalysisError:
+            `dt` differs from the step of a trajectory.
+    """
+    if not isinstance(source, Trajectory):
+        return 1.0 if dt is None else float(dt)
+    step = _step_of(series)
+    if dt is not None and not np.isclose(dt, step, rtol=STEP_TOLERANCE, atol=0.0):
+        error_msg = (
+            f'correlation has dt={dt!r}, but the trajectory is sampled every {step!r}. Leave dt unset for a '
+            'trajectory, which gives its own step.'
+        )
+        raise AnalysisError(error_msg)
+    return step
 
 
 def _autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:

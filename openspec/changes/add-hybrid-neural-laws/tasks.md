@@ -60,7 +60,20 @@
   citing 2602.03215 and 2310.09167, and the primitive `neural-functions` with `change = "add-hybrid-neural-laws"`, and
   verify the inventory check passes
 
-## 6. Checks
+## 6. Neural cellular automaton
 
-- [ ] 6.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules, doctests, the
+- [ ] 6.1 Verify that `neural_function` lowers on the sites of a lattice with `convolve` inputs on JAX and NumPy, with
+  a test of a one-layer network over the identity and Sobel perception of a 16 by 16 field
+- [ ] 6.2 Add `GrowingNeuralCellularAutomatonSystem` in
+  `src/skcomplex/systems/computer_science/automata/_neural_cellular_automaton.py`, export it, and verify the
+  untrained-network and dead-cells scenarios in `tests/systems/computer_science/automata/`
+- [ ] 6.3 Verify the training scenario on JAX, marked slow
+- [ ] 6.4 Add the inventory entry `growing_neural_cellular_automaton` under `[computer_science.automata]` citing
+  2509.11131 with the primitive `neural-functions`, and the gallery example
+  `docs/examples/computer_science/automata/plot_growing_neural_cellular_automaton.py` that trains and grows the
+  synthetic ring, and verify the inventory check and the gallery build pass
+
+## 7. Checks
+
+- [ ] 7.1 Run `nox` (formatting, ruff, mypy, pydoclint, import contracts, tests of the touched modules, doctests, the
   inventory check, and the strict docs build) and verify every session passes

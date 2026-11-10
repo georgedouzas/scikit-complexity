@@ -57,8 +57,8 @@ for noise in noises:
         random_state=1,
         observables=GinelliNematicsSystem.observables,
     )
-    nematic.append(np.mean(np.asarray(trajectory.values('nematic_order'), dtype=float)[-10:]))
-    polar.append(np.mean(np.asarray(trajectory.values('polarization'), dtype=float)[-10:]))
+    nematic.append(np.mean(np.asarray(trajectory.get_values('nematic_order'), dtype=float)[-10:]))
+    polar.append(np.mean(np.asarray(trajectory.get_values('polarization'), dtype=float)[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(noises, nematic, 'o-', label='nematic order')
 ax.plot(noises, polar, 's-', label='polar order')

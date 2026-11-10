@@ -7,66 +7,16 @@ The product diffuses through innovators and imitators.
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import StockFlowSystem
+from ...general.dynamics.types import FlowTable
 
 
-class BassMarketElement(Element):
-    """Market of a new product, split into potential adopters and adopters.
-
-    People adopt by innovation and imitation. The market holds the stocks and the coefficients, and a transfer within it
-    moves the adopters from `P` to `A`.
-
-    Args:
-        label:
-            The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        P:
-            The potential adopters.
-
-        A:
-            The adopters.
-
-        p:
-            The coefficient of innovation.
-
-        q:
-            The coefficient of imitation.
-
-    Examples:
-        >>> from skcomplex.systems.economics.innovation._bass import BassMarketElement
-        >>> BassMarketElement('market', P=900.0, A=100.0).q
-        0.38
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        P: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000.0,
-        A: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 0.0,
-        p: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        q: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.38,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.P = P
-        self.A = A
-        self.p = p
-        self.q = q
-
-
-class BassDiffusionSystem(BaseSystem):
+class BassDiffusionSystem(StockFlowSystem):
     """The Bass diffusion system, people who adopt a new product.
 
     They adopt through advertising and word of mouth. A market of `N` people splits into potential adopters `P` and
@@ -98,7 +48,7 @@ class BassDiffusionSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
-        >>> BassDiffusionSystem(market=500.0, adopters=10.0).prepare().system_.elements[0].P
+        >>> BassDiffusionSystem(market=500.0, adopters=10.0).prepare().system_.elements[0].get_value('P')
         490.0
     """
 
@@ -117,14 +67,14 @@ class BassDiffusionSystem(BaseSystem):
         q: float = 0.38,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.market = market
         self.adopters = adopters
         self.p = p
         self.q = q
 
     @staticmethod
-    def _adoption(s: SimpleNamespace) -> Expression:
+    def _get_adoption(s: SimpleNamespace) -> Expression:
         """Return the adoption rate `(p + q A / (P + A)) P` of the market.
 
         A transfer moves people within the market.
@@ -132,19 +82,24 @@ class BassDiffusionSystem(BaseSystem):
         market = s.source
         return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 
-    def _build_system(self) -> System:
-        """Return the parts of the system built from its model parameters."""
-        adoption = TransferInteraction(
-            'adoption',
-            source='market',
-            target='market',
-            state='P',
-            into='A',
-            amount=self._adoption,
-            flow='adoption',
-        )
-        return System(
-            self.label,
-            elements=[BassMarketElement('market', P=self.market - self.adopters, A=self.adopters, p=self.p, q=self.q)],
-            interactions=[adoption],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the stocks."""
+        return 'market'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the stocks and the parameters with their specs."""
+        return {
+            'P': DeclaredVariableSpec(
+                self.market - self.adopters,
+                StateSpec(domain=RealSet.closed_open(0, oo), quantity='people'),
+            ),
+            'A': DeclaredVariableSpec(self.adopters, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')),
+            'p': DeclaredVariableSpec(self.p, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'q': DeclaredVariableSpec(self.q, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_flows(self) -> FlowTable:
+        """Return the flows between the stocks."""
+        return {
+            'adoption': ('P', 'A', self._get_adoption),
+        }

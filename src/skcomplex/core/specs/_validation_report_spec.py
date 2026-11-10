@@ -8,12 +8,12 @@ from dataclasses import dataclass
 
 from ..errors import ValidationError, ValidationWarning
 from ._base_spec import BaseSpec
-from ._issue_spec import _ERROR, _WARNING, IssueSpec
+from ._issue_spec import ERROR, WARNING, IssueSpec
 
 
 @dataclass(frozen=True)
 class ValidationReportSpec(BaseSpec):
-    """Every issue that a compiler found in a system, its solver, and its backend.
+    """A spec of every issue a compiler found in a system, solver, and backend.
 
     Its check emits the warnings of the report and raises one error that lists its errors, so a valid report passes
     its check.
@@ -35,12 +35,12 @@ class ValidationReportSpec(BaseSpec):
     @property
     def errors(self) -> list[IssueSpec]:
         """Return the issues that stop compilation."""
-        return [issue for issue in self.issues if issue.severity == _ERROR]
+        return [issue for issue in self.issues if issue.severity == ERROR]
 
     @property
     def warnings(self) -> list[IssueSpec]:
         """Return the issues that do not stop compilation."""
-        return [issue for issue in self.issues if issue.severity == _WARNING]
+        return [issue for issue in self.issues if issue.severity == WARNING]
 
     @property
     def ok(self) -> bool:

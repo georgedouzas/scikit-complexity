@@ -9,9 +9,9 @@ rises after the one-second hormone pulse and decays back to zero within the run.
 """
 
 # %%
-# The system is built from its class: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP hydrolysis rate
-# `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view shows the active
-# phosphorylase over the whole run, and a second view shows the active G protein.
+# The example builds `HormoneCascadeAmplifierSystem`: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP
+# hydrolysis rate `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view
+# shows the active phosphorylase over the whole run, and a second view shows the active G protein.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,7 +57,7 @@ runs = {
 }
 trajectory = runs[0.5]
 integrals = [
-    np.trapezoid(trajectory.values(f'{stage}.{"g" if stage == "g_protein" else "x"}'), trajectory.times)
+    np.trapezoid(trajectory.get_values(f'{stage}.{"g" if stage == "g_protein" else "x"}'), trajectory.times)
     for stage in STAGES
 ]
 
@@ -75,7 +75,7 @@ stages.set_ylabel('integral over the signal')
 stages.set_title(f'Amplification {integrals[-1] / integrals[0]:,.0f}')
 stages.legend()
 for k_gtp, label in [(0.5, 'k_gtp = 0.5'), (0.05, 'k_gtp = 0.05, toxin')]:
-    timer.plot(runs[k_gtp].times, runs[k_gtp].values('phosphorylase.x'), label=label)
+    timer.plot(runs[k_gtp].times, runs[k_gtp].get_values('phosphorylase.x'), label=label)
 timer.set_xlabel('time')
 timer.set_ylabel('active phosphorylase')
 timer.set_title('A slower timer prolongs the signal')

@@ -1,7 +1,4 @@
-"""Lower differential operators on fields to stencils and graph Laplacians.
-
-The stencils are finite-difference stencils.
-"""
+"""Lower differential operators on fields to stencils and graph Laplacians."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 import scipy.fft
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR, Expression, fast_callable
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
@@ -25,14 +22,9 @@ from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
 from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import (
-    COORDINATE_PREFIX,
-    INVERSION_BOUNDARIES,
-    coordinate,
-    displacement,
-    integration_variable,
-    where,
-)
+from ...components.laws.utils import coordinate, displacement, integration_variable, where
+from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
+from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -44,7 +36,7 @@ from ...components.spaces import (
 )
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
-from ...types import Indices, IntTuple
+from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
@@ -67,11 +59,11 @@ OPERATOR_NAMES = (
     'shifted',
     'reduce_axes',
     'maximum_entropy',
-    'collision',
+    'collision_integral',
     'integral_transform',
     'cumulative_integral',
 )
-PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision', 'integral_transform')
+PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision_integral', 'integral_transform')
 NEWTON_STEPS = 50
 NEWTON_TOLERANCE = 1e-14
 LARGEST_EXPONENT_CHANGE = 5.0
@@ -84,7 +76,7 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """Lowering of the differential operators in the laws of one component to stencils.
+    """A lowering of the differential operators in the laws of one part to stencils.
 
     The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
     values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
@@ -123,12 +115,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         solution_boundaries_:
             The boundary condition given to an inversion, by the symbol of its solution.
 
-        cross_section_:
-            The cross-section of the collision law being lowered, or `None`.
-
         applied_:
-            The lowered value of every operator call so far, by its name, its lowered operands, and the cross-section,
-            so an identical call shares one value.
+            The lowered value of every operator call so far, by its name and its lowered operands, so an identical call
+            shares one value.
     """
 
     fields_: Mapping[str, FieldElement]
@@ -140,7 +129,6 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
     solution_boundaries_: dict[Expression, tuple[str, object]]
-    cross_section_: Callable[..., object] | None
     applied_: dict[tuple[object, ...], Expression]
 
     def __init__(self, spec: KernelSpec) -> None:
@@ -162,12 +150,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if declarations is None:
             error_msg = 'The compilation has no layout yet. Lower differential operators after the layout pass.'
             raise ValidationError(error_msg)
-        self.fields_ = self._field_entries(declarations)
-        self.initial_ = self._initial_values(self.spec, declarations)
+        self.fields_ = self._get_field_entries(declarations)
+        self.initial_ = self._get_initial_values(self.spec, declarations)
         self.shifted_, self.derived_, self.tables_, self.solution_boundaries_, self.applied_ = {}, {}, {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
-        self.cross_section_ = None
 
     def _run(self, inputs: list[BaseLaw] | None) -> None:
         """Set laws whose differential operators are lowered.
@@ -180,24 +167,25 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
-            if isinstance(law, FluxLaw) and self._law_has_operators(law):
-                result.append(BasePass._replaced(law, flux=[self._lower(SR(item)) for item in self._components(law)]))
+            if isinstance(law, FluxLaw) and self._get_law_has_operators(law):
+                result.append(
+                    BasePass._get_replaced(law, flux=[self._lower(SR(item)) for item in self._get_components(law)]),
+                )
                 continue
             if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not self._has_operators(law.value):
                 result.append(law)
                 continue
             if isinstance(law, RateLaw):
                 self._note_limit(law.value)
-            self.cross_section_ = law.cross_section if isinstance(law, RateLaw) else None
             lowered = self._lower(law.value)
             if isinstance(law.value, Expression):
-                for reference in self.spec._target_references(law._get_targets()[0]):
+                for reference in self.spec._get_target_references(law._get_targets()[0]):
                     self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
-            result.append(BasePass._replaced(law, value=lowered))
+            result.append(BasePass._get_replaced(law, value=lowered))
         self.lowered_ = result
 
     @staticmethod
-    def _field_entries(declarations: DeclarationsSpec) -> dict[str, FieldElement]:
+    def _get_field_entries(declarations: DeclarationsSpec) -> dict[str, FieldElement]:
         """Return the fields by the name of each of their entries."""
         return {
             entry.name: block.node.component
@@ -207,7 +195,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         }
 
     @staticmethod
-    def _initial_values(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[Expression, float]:
+    def _get_initial_values(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[Expression, float]:
         """Return the initial value of every symbol of a component.
 
         For groups, it is the value of the first member.
@@ -220,7 +208,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             if reference.entry.start + reference.column < (states if reference.is_state else parameters).size
         }
 
-    def _known_reference(self, item: Expression) -> ReferenceSpec:
+    def _get_known_reference(self, item: Expression) -> ReferenceSpec:
         """Return the reference of a symbol of the spec.
 
         A symbol the spec does not read raises an error.
@@ -237,15 +225,15 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             ValidationError:
                 The spec does not read the symbol.
         """
-        reference = self._reference_of(item, self.spec)
+        reference = self._get_reference_of(item, self.spec)
         if reference is None:
             error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter of its namespace.'
             raise ValidationError(error_msg)
         return reference
 
-    def _field_of(self, item: Expression) -> FieldElement | None:
+    def _get_field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
-        reference = self._known_reference(item)
+        reference = self._get_known_reference(item)
         if reference.source is not ReadKind.MEMBER:
             return None
         found = self.fields_.get(reference.entry.name)
@@ -257,14 +245,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return found
 
-    def _table(
+    def _get_table(
         self,
         item: Expression,
         place: FieldElement,
         offset: IntTuple | int,
     ) -> tuple[Indices, float | None, int | None]:
         """Return the neighbour table, fixed value, and mode of a symbol at an offset."""
-        reference = self._known_reference(item)
+        reference = self._get_known_reference(item)
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
             kind, value = place._get_boundary(variable, reference.column)
@@ -277,7 +265,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if key not in self.tables_:
             space = place.space
             if isinstance(space, NetworkSpace):
-                table = space._index_table(AdjacencyNeighborhood())
+                table = space._get_index_table(AdjacencyNeighborhood())
                 sites = np.arange(table.shape[0])[:, None]
                 self.tables_[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
@@ -287,8 +275,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                         'lattice with a number outside fixed edges.'
                     )
                     raise ValidationError(error_msg)
-                lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
-                table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
+                lattice = space._copy_with_edges(LATTICE_BOUNDARIES[kind], value)
+                table = lattice._get_index_table(LatticeNeighborhood((offset,)))[:, 0]
                 self.tables_[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self.tables_[key]
         return table, ghost, self._read_mode(place.space, kind, offset)
@@ -312,9 +300,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         for item in expression.variables():
             base, current = self.shifted_.get(item, (item, None))
             if base in self.derived_:
-                replacements[item] = self._shifted_derived(base, self._total_offset(current, offset))
+                replacements[item] = self._get_shifted_derived(base, self._get_total_offset(current, offset))
                 continue
-            reference = self._reference_of(base, self.spec)
+            reference = self._get_reference_of(base, self.spec)
             if reference is None:
                 continue
             if reference.source is ReadKind.NEIGHBOR and base == item and base not in self.shifted_:
@@ -323,18 +311,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                     'by a stencil. Use the finite-volume discretization, whose fluxes read it cell by cell.'
                 )
                 raise ValidationError(error_msg)
-            place = self._field_of(base)
+            place = self._get_field_of(base)
             if place is None:
                 continue
-            total = self._total_offset(current, offset)
+            total = self._get_total_offset(current, offset)
             if not isinstance(total, int) and not any(total):
                 replacements[item] = base
                 continue
             name = f'{base}__{self._tag(total)}'
             target = symbol(name, domain_of(base))
-            if self._reference_of(target, self.spec) is None:
-                reference = self._known_reference(base)
-                table, ghost, mode = self._table(base, place, total)
+            if self._get_reference_of(target, self.spec) is None:
+                reference = self._get_known_reference(base)
+                table, ghost, mode = self._get_table(base, place, total)
                 space = place.space
                 lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
                 read = NeighborReadSpec(
@@ -367,7 +355,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         }
         return MODES[kinds.pop() if kinds else kind] if len(kinds) < PLANE else None
 
-    def _total_offset(self, current: IntTuple | int | None, offset: IntTuple | int) -> IntTuple | int:
+    def _get_total_offset(self, current: IntTuple | int | None, offset: IntTuple | int) -> IntTuple | int:
         """Return the offset of a read at an offset from a read that is already shifted."""
         if isinstance(offset, int) or isinstance(current, int):
             if current is not None:
@@ -376,7 +364,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return offset
         return tuple(a + b for a, b in zip(current or (0,) * len(offset), offset, strict=True))
 
-    def _boundaries(self, expression: Expression) -> list[tuple[str, object]]:
+    def _get_boundaries(self, expression: Expression) -> list[tuple[str, object]]:
         """Return the boundary conditions of the field states an expression reads.
 
         The states read through derived values count too.
@@ -387,23 +375,23 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 found.append(self.solution_boundaries_[item])
                 continue
             if item in self.derived_:
-                found += self._boundaries(self.derived_[item][1].operand)
+                found += self._get_boundaries(self.derived_[item][1].operand)
                 continue
             base = self.shifted_.get(item, (item, None))[0]
-            reference = self._reference_of(base, self.spec)
+            reference = self._get_reference_of(base, self.spec)
             if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
                 continue
-            place = self._field_of(base)
+            place = self._get_field_of(base)
             if place is not None:
                 found.append(place._get_boundary(reference.entry.name.rpartition('.')[2], reference.column))
         return found
 
-    def _boundary(self, expression: Expression, place: FieldElement) -> tuple[str, object]:
+    def _get_boundary(self, expression: Expression, place: FieldElement) -> tuple[str, object]:
         """Return the one boundary condition of the field states an expression reads.
 
         Without one, it is the edges of the space.
         """
-        found = set(self._boundaries(expression))
+        found = set(self._get_boundaries(expression))
         if len(found) > 1:
             error_msg = (
                 f'A law of {self.spec.owner} applies a nonlocal operator to {expression}, whose states have different '
@@ -413,14 +401,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return found.pop() if found else place._get_boundary('')
 
-    def _neighbor_table(self, place: FieldElement, kind: str, value: object, offset: IntTuple | int) -> Indices:
+    def _get_neighbor_table(self, place: FieldElement, kind: str, value: object, offset: IntTuple | int) -> Indices:
         """Return the neighbour of every site at an offset.
 
         Reads beyond fixed edges get the number of sites.
         """
         space = place.space
         if isinstance(space, NetworkSpace) and isinstance(offset, int):
-            table = space._index_table(AdjacencyNeighborhood())
+            table = space._get_index_table(AdjacencyNeighborhood())
             sites = np.arange(table.shape[0])[:, None]
             return np.asarray(np.where(table == table.shape[0], sites, table)[:, offset], dtype=np.intp)
         if not isinstance(space, LatticeSpace) or isinstance(offset, int) or not isinstance(value, float):
@@ -429,10 +417,10 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 'or a network with a number outside fixed edges.'
             )
             raise ValidationError(error_msg)
-        lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
-        return np.asarray(lattice._index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
+        lattice = space._copy_with_edges(LATTICE_BOUNDARIES[kind], value)
+        return np.asarray(lattice._get_index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
 
-    def _shifted_derived(self, base: Expression, total: IntTuple | int) -> Expression:
+    def _get_shifted_derived(self, base: Expression, total: IntTuple | int) -> Expression:
         """Return the symbol of a derived value read at a neighbouring site.
 
         Its values are indexed by the neighbour table.
@@ -454,8 +442,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if target in self.derived_:
             return target
         place = self.derived_[base][0]
-        kind, value = self._boundary(base, place)
-        table = self._neighbor_table(place, kind, value, total)
+        kind, value = self._get_boundary(base, place)
+        table = self._get_neighbor_table(place, kind, value, total)
         size = table.shape[0]
         inside = table < size
         matrix = csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
@@ -466,9 +454,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         read = FieldOperatorKernel(operand=base, symbols=[base], apply=apply, matrix=matrix).prepare()
         self.shifted_[target] = (base, total)
-        return self._derived(place, read, target)
+        return self._get_derived(place, read, target)
 
-    def _places(self, expression: Expression) -> dict[int, FieldElement]:
+    def _get_places(self, expression: Expression) -> dict[int, FieldElement]:
         """Return the fields an expression reads.
 
         The fields are read through member symbols, neighbour reads, and derived values.
@@ -480,14 +468,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 place = self.derived_[item][0]
             else:
                 base = self.shifted_.get(item, (item, None))[0]
-                place = self._field_of(base) if self._reference_of(base, self.spec) is not None else None
+                place = self._get_field_of(base) if self._get_reference_of(base, self.spec) is not None else None
             if place is not None:
                 places[id(place)] = place
         return places
 
     def _place(self, expression: Expression) -> FieldElement:
         """Return the one field an expression reads, or raise an error."""
-        places = self._places(expression)
+        places = self._get_places(expression)
         discretizations = {place.discretization for place in places.values()}
         spaces = {id(place.space) for place in places.values()}
         if len(spaces) != 1 or len(discretizations) != 1:
@@ -498,9 +486,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return next(iter(places.values()))
 
-    def _space(self, expression: Expression) -> LatticeSpace | NetworkSpace:
+    def _get_space(self, expression: Expression) -> LatticeSpace | NetworkSpace:
         """Return the space of the fields an expression reads."""
-        spaces = {id(place.space): place.space for place in self._places(expression).values()}
+        spaces = {id(place.space): place.space for place in self._get_places(expression).values()}
         if len(spaces) != 1:
             error_msg = (
                 f'A law of {self.spec.owner} applies an operator to {expression}, which reads {len(spaces)} fields. An '
@@ -516,11 +504,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return space
 
-    def _laplacian(self, expression: Expression) -> Expression:
+    def _get_laplacian(self, expression: Expression) -> Expression:
         """Return the stencil of the Laplacian of an expression."""
-        space = self._space(expression)
+        space = self._get_space(expression)
         if isinstance(space, NetworkSpace):
-            width = space._index_table(AdjacencyNeighborhood()).shape[1]
+            width = space._get_index_table(AdjacencyNeighborhood()).shape[1]
             return sum((self._shift(expression, slot) - expression for slot in range(width)), SR(0))
         total = SR(0)
         for axis in range(space.n_dim_):
@@ -531,9 +519,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
         return total
 
-    def _lattice(self, expression: Expression, axis: int, name: str) -> tuple[LatticeSpace, IntTuple, IntTuple]:
+    def _get_lattice(self, expression: Expression, axis: int, name: str) -> tuple[LatticeSpace, IntTuple, IntTuple]:
         """Return the lattice of an expression and the unit offsets along an axis."""
-        space = self._space(expression)
+        space = self._get_space(expression)
         if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
             error_msg = (
                 f'A law of {self.spec.owner} takes the {name} of {expression} along axis {axis}, which needs a lattice.'
@@ -563,37 +551,37 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         name = getattr(operator, 'name', lambda: '')()
         if name not in OPERATOR_NAMES:
             return operator(*operands)
-        key = (name, *operands, id(self.cross_section_))
+        key = (name, *operands)
         if key not in self.applied_:
-            self.applied_[key] = self._lowered_call(name, operands)
+            self.applied_[key] = self._get_lowered_call(name, operands)
         return self.applied_[key]
 
-    def _lowered_call(self, name: str, operands: list[object]) -> Expression:
+    def _get_lowered_call(self, name: str, operands: list[object]) -> Expression:
         """Return the value of one operator whose operands are lowered."""
         if name == 'shifted':
-            return self._shifted(SR(operands[0]), [SR(item) for item in operands[1:]])
+            return self._get_shifted(SR(operands[0]), [SR(item) for item in operands[1:]])
         if name in {'laplacian', 'partial', 'upwind'} and not SR(operands[0]).variables():
             return SR(0)
         place = self._place(SR(operands[0]))
         if name in PHASE_OPERATOR_NAMES:
-            return self._phase_operator(name, [SR(item) for item in operands], place)
+            return self._get_phase_operator(name, [SR(item) for item in operands], place)
         if name == 'convolve':
             return self._convolve(SR(operands[0]), SR(operands[1]), SR(operands[2]), place)
         if name == 'cumulative_integral':
-            return self._cumulative(SR(operands[0]), int(SR(operands[1])), bool(SR(operands[2])), place)
-        return self._discretized(name, operands, place)
+            return self._get_cumulative(SR(operands[0]), int(SR(operands[1])), bool(SR(operands[2])), place)
+        return self._get_discretized(name, operands, place)
 
-    def _phase_operator(self, name: str, operands: list[Expression], place: FieldElement) -> Expression:
+    def _get_phase_operator(self, name: str, operands: list[Expression], place: FieldElement) -> Expression:
         """Return the value of an operator over the class axes of a phase space."""
         if name == 'reduce_axes':
-            return self._reduced(operands[0], operands[1:], place)
+            return self._get_reduced(operands[0], operands[1:], place)
         if name == 'maximum_entropy':
-            return self._equilibrium(operands[0], int(operands[1]), operands[2:], place)
+            return self._get_equilibrium(operands[0], int(operands[1]), operands[2:], place)
         if name == 'integral_transform':
-            return self._transformed(operands[0], operands[1], operands[2:], place)
-        return self._collision(operands[0], place)
+            return self._get_transformed(operands[0], operands[1], operands[2:], place)
+        return self._get_collision(operands[0], operands[1], place)
 
-    def _phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
+    def _get_phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
         """Return the phase space of a field whose class axes an operator reads.
 
         Another space raises an error.
@@ -606,7 +594,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return place.space
 
-    def _axes_of(self, coordinates: list[Expression], space: PhaseSpace) -> tuple[int, ...]:
+    def _get_axes_of(self, coordinates: list[Expression], space: PhaseSpace) -> tuple[int, ...]:
         """Return the indices of the class axes of their coordinates.
 
         An axis the space lacks raises an error.
@@ -621,28 +609,28 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return tuple(space.class_axes_[name] for name in names)
 
-    def _reduced(self, operand: Expression, coordinates: list[Expression], place: FieldElement) -> Expression:
+    def _get_reduced(self, operand: Expression, coordinates: list[Expression], place: FieldElement) -> Expression:
         """Return the symbol of the integral of an expression over class axes.
 
         The integral is broadcast back along the axes.
         """
-        space = self._phase_space(operand, place)
-        axes = self._axes_of(coordinates, space)
+        space = self._get_phase_space(operand, place)
+        axes = self._get_axes_of(coordinates, space)
         width = float(np.prod([space.spacings_[axis] for axis in axes]))
         dimensions = space.shape_
 
         over_positions = self.spec.rows == space.position_size_ != space.size_
 
-        volumes = self._volumes(space)
+        volumes = self._get_volumes(space)
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             reduced = (np.reshape(values, dimensions) * volumes).sum(axis=axes, keepdims=True) * width
             return reduced.ravel() if over_positions else np.broadcast_to(reduced, dimensions).ravel()
 
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.prepare())
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
+        return self._get_derived(place, read.prepare())
 
-    def _transformed(
+    def _get_transformed(
         self,
         operand: Expression,
         kernel: Expression,
@@ -653,18 +641,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         The integral runs over class axes.
         """
-        space = self._phase_space(operand, place)
-        axes = self._axes_of(coordinates, space)
+        space = self._get_phase_space(operand, place)
+        axes = self._get_axes_of(coordinates, space)
         names = [str(item).removeprefix(COORDINATE_PREFIX) for item in coordinates]
         sizes = [space.shape_[axis] for axis in axes]
         targets = np.meshgrid(*(space.coordinates_[name] for name in names), indexing='ij')
         points = [np.reshape(item, (-1, 1)) for item in targets]
         sources = [np.reshape(item, (1, -1)) for item in targets]
         symbols = [coordinate(name) for name in names] + [integration_variable(name) for name in names]
-        sampled = self._sampled_kernel(kernel, symbols, [*points, *sources], 'integrates against')
+        sampled = self._get_sampled_kernel(kernel, symbols, [*points, *sources], 'integrates against')
         width = float(np.prod([space.spacings_[axis] for axis in axes]))
         matrix = np.broadcast_to(sampled, (int(np.prod(sizes)),) * 2) * width
-        volumes = np.broadcast_to(self._volumes(space), space.shape_)
+        volumes = np.broadcast_to(self._get_volumes(space), space.shape_)
         dimensions = space.shape_
         ends = tuple(range(len(dimensions) - len(axes), len(dimensions)))
 
@@ -673,10 +661,10 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             flat = np.reshape(moved, (*moved.shape[: -len(axes)], -1)) @ matrix.T
             return np.moveaxis(np.reshape(flat, moved.shape), ends, axes).ravel()
 
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.prepare())
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
+        return self._get_derived(place, read.prepare())
 
-    def _cumulative(self, operand: Expression, axis: int, reverse: bool, place: FieldElement) -> Expression:
+    def _get_cumulative(self, operand: Expression, axis: int, reverse: bool, place: FieldElement) -> Expression:
         """Return the symbol of the integral of an expression along a lattice axis.
 
         The integral runs up to every site or beyond it.
@@ -689,7 +677,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         dimensions = space.shape_
-        volumes = self._volumes(space)
+        volumes = self._get_volumes(space)
         width = space.spacings_[axis]
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -698,10 +686,10 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             totals = np.cumsum(ordered, axis=axis) - ordered / 2
             return (np.flip(totals, axis) if reverse else totals).ravel()
 
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.prepare())
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
+        return self._get_derived(place, read.prepare())
 
-    def _equilibrium(
+    def _get_equilibrium(
         self,
         operand: Expression,
         order: int,
@@ -712,34 +700,51 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         The density keeps the moments of an expression.
         """
-        space = self._phase_space(operand, place)
-        apply = self._equilibrium_apply(space, self._axes_of(coordinates, space), order)
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.prepare())
+        space = self._get_phase_space(operand, place)
+        apply = self._get_equilibrium_apply(space, self._get_axes_of(coordinates, space), order)
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
+        return self._get_derived(place, read.prepare())
 
-    def _collision(self, operand: Expression, place: FieldElement) -> Expression:
-        """Return the symbol of the binary collision integral of a density.
+    def _get_collision_kernel(self, kernel: Expression) -> Callable[[Array, Array], Array]:
+        """Return the NumPy function of speeds and cosines that a collision kernel gives.
+
+        A kernel that reads a state or a parameter raises an error, since the weights are assembled once.
+        """
+        arguments = [COLLISION_SPEED, COLLISION_COSINE]
+        references = self.spec.references
+        read = sorted(
+            references[item].entry.name if item in references else str(item)
+            for item in kernel.variables()
+            if item not in arguments
+        )
+        if read:
+            error_msg = (
+                f'The collision integral of a law of {self.spec.owner} has a kernel that reads {", ".join(read)}, but '
+                'its weights are assembled once. Write the kernel with the speed, the cosine, and numbers.'
+            )
+            raise ValidationError(error_msg)
+        if kernel.is_numeric():
+            value = float(kernel)
+            return lambda speed, cosine: np.full(np.shape(speed), value)
+        return np.vectorize(fast_callable(kernel, vars=arguments, domain=float), otypes=[float])
+
+    def _get_collision(self, operand: Expression, kernel: Expression, place: FieldElement) -> Expression:
+        """Return the symbol of the binary collision integral of a density with a kernel.
 
         The integral runs over the class axes of its phase space.
         """
-        space = self._phase_space(operand, place)
-        if self.cross_section_ is None:
-            error_msg = (
-                f'A law of {self.spec.owner} reads a collision integral, which only a `RateLaw` with a cross-section '
-                'declares.'
-            )
-            raise ValidationError(error_msg)
+        space = self._get_phase_space(operand, place)
         spacings = (space.spacings_[-PLANE], space.spacings_[-1])
-        kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).prepare()
+        kernel = CollisionKernel(space.shape_, spacings, self._get_collision_kernel(kernel)).prepare()
         empty = np.zeros(0)
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             return kernel.run(RunStateSpec(0.0, values, empty)).values_
 
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.prepare())
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
+        return self._get_derived(place, read.prepare())
 
-    def _discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
+    def _get_discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or inversion lowered for its field's discretization."""
         if isinstance(place.space, SimplexSpace):
             error_msg = (
@@ -748,21 +753,21 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         if place.discretization == 'spectral':
-            return self._spectral(name, operands, place)
+            return self._get_spectral(name, operands, place)
         if name == 'inverse_helmholtz':
-            given = self._given_boundary(operands[2:])
-            return self._inverse(SR(operands[0]), self._screening(SR(operands[1])), place, given)
+            given = self._get_given_boundary(operands[2:])
+            return self._get_inverse(SR(operands[0]), self._get_screening(SR(operands[1])), place, given)
         if place.discretization == 'finite-element':
-            return self._finite_element(name, SR(operands[0]), place)
-        return self._stencil(name, operands)
+            return self._get_finite_element(name, SR(operands[0]), place)
+        return self._get_stencil(name, operands)
 
-    def _stencil(self, name: str, operands: list[object]) -> Expression:
+    def _get_stencil(self, name: str, operands: list[object]) -> Expression:
         """Return the finite-difference stencil of an operator on a lattice or a network."""
         if name == 'laplacian':
-            return self._laplacian(SR(operands[0]))
+            return self._get_laplacian(SR(operands[0]))
         axis = int(SR(operands[1]))
         value = SR(operands[0])
-        space, step, back = self._lattice(value, axis, 'derivative' if name == 'partial' else 'advection')
+        space, step, back = self._get_lattice(value, axis, 'derivative' if name == 'partial' else 'advection')
         if name == 'partial':
             return (self._shift(value, step) - self._shift(value, back)) / (2 * space.spacings_[axis])
         velocity = SR(operands[2])
@@ -770,13 +775,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         ahead = (self._shift(value, step) - value) / space.spacings_[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
-    def _derived(self, place: FieldElement, read: FieldOperatorKernel, target: Expression | None = None) -> Expression:
+    def _get_derived(
+        self,
+        place: FieldElement,
+        read: FieldOperatorKernel,
+        target: Expression | None = None,
+    ) -> Expression:
         """Return a symbol that stands for a derived value of a field, with its read.
 
         The symbol is a new one by default.
         """
         target = symbol(f'_derived_{place.label}_{len(self.derived_)}') if target is None else target
-        references = [self._known_reference(item) for item in read.symbols]
+        references = [self._get_known_reference(item) for item in read.symbols]
         entry = next(
             reference.entry
             for reference in references
@@ -786,7 +796,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.derived_[target] = (place, read)
         return target
 
-    def _spectral(self, name: str, operands: list[object], place: FieldElement) -> Expression:
+    def _get_spectral(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return the symbol of a spectral operator applied to an expression.
 
         Chains of operators are composed.
@@ -797,8 +807,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         if name == 'upwind':
             velocity = SR(operands[2])
-            return velocity * self._spectral('partial', [operands[0], operands[1]], place)
-        if name == 'inverse_helmholtz' and self._given_boundary(operands[2:]) not in {None, ('periodic', 0.0)}:
+            return velocity * self._get_spectral('partial', [operands[0], operands[1]], place)
+        if name == 'inverse_helmholtz' and self._get_given_boundary(operands[2:]) not in {None, ('periodic', 0.0)}:
             error_msg = (
                 f'A law of {self.spec.owner} inverts on a spectral field with a boundary that is not periodic. Give '
                 'the inversion no boundary, or use the finite-difference discretization.'
@@ -808,24 +818,24 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if name == 'partial' and not 0 <= axis < space.n_dim_:
             error_msg = f'A law of {self.spec.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
-        screening = self._screening(SR(operands[1])) if name == 'inverse_helmholtz' else 0.0
-        if isinstance(space, PhaseSpace) and name == 'partial' and space._axis_boundary(axis) != 'periodic':
+        screening = self._get_screening(SR(operands[1])) if name == 'inverse_helmholtz' else 0.0
+        if isinstance(space, PhaseSpace) and name == 'partial' and space._get_axis_boundary(axis) != 'periodic':
             error_msg = (
                 f'A law of {self.spec.owner} takes a spectral derivative along axis {axis}, which is an interval. Use '
                 'a periodic class axis or the finite-volume discretization.'
             )
             raise ValidationError(error_msg)
-        multiplier = self._spectral_multiplier(
+        multiplier = self._get_spectral_multiplier(
             name,
             axis,
             space.shape_,
             space.spacings_,
             screening,
-            axes=self._transported_axes(space, name),
+            axes=self._get_transported_axes(space, name),
         )
-        return self._multiplied(SR(operands[0]), multiplier, place)
+        return self._get_multiplied(SR(operands[0]), multiplier, place)
 
-    def _multiplied(
+    def _get_multiplied(
         self,
         operand: Expression,
         multiplier: npt.NDArray[np.complex128],
@@ -840,26 +850,26 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if inner is not None and inner[1].multiplier is not None:
             operand, multiplier = inner[1].operand, multiplier * inner[1].multiplier
         symbols = sorted(
-            (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
+            (item for item in operand.variables() if self._get_reference_of(item, self.spec) is not None),
             key=str,
         )
         read = FieldOperatorKernel(
             operand=operand,
             symbols=symbols,
-            apply=self._spectral_apply(multiplier, dimensions),
+            apply=self._get_spectral_apply(multiplier, dimensions),
             multiplier=multiplier,
             dimensions=dimensions,
         ).prepare()
-        return self._derived(place, read)
+        return self._get_derived(place, read)
 
-    def _symbols(self, expression: Expression) -> list[Expression]:
+    def _get_symbols(self, expression: Expression) -> list[Expression]:
         """Return the symbols of an expression that the spec reads, sorted by name."""
         return sorted(
-            (item for item in SR(expression).variables() if self._reference_of(item, self.spec) is not None),
+            (item for item in SR(expression).variables() if self._get_reference_of(item, self.spec) is not None),
             key=str,
         )
 
-    def _screening(self, screening: Expression) -> float:
+    def _get_screening(self, screening: Expression) -> float:
         """Return the value of a screening at the current parameters.
 
         A value that is not a real number raises an error.
@@ -873,7 +883,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return float(value)
 
-    def _given_boundary(self, operands: list[object]) -> tuple[str, float] | None:
+    def _get_given_boundary(self, operands: list[object]) -> tuple[str, float] | None:
         """Return the boundary condition given to an inversion by its code and value.
 
         It is `None` when none is given.
@@ -889,7 +899,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return INVERSION_BOUNDARIES[int(code)], float(value)
 
-    def _inverse(
+    def _get_inverse(
         self,
         operand: Expression,
         screening: float,
@@ -922,46 +932,46 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 The field's space or the boundary has no inversion, such as a boundary given on a network.
         """
         space = place.space
-        kind, value = self._boundary(operand, place) if given is None else given
+        kind, value = self._get_boundary(operand, place) if given is None else given
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
         if isinstance(space, NetworkSpace) and given is not None:
             error_msg = f'A law of {self.spec.owner} inverts on a network with a boundary. Give the inversion none.'
             raise ValidationError(error_msg)
         if isinstance(space, MeshSpace):
-            apply = self._mesh_inverse(space, screening, kind, value)
+            apply = self._get_mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
-            apply = self._network_inverse(space, screening)
+            apply = self._get_network_inverse(space, screening)
         elif isinstance(space, PhaseSpace) and (kind != 'fixed' or isinstance(value, float)):
             fill = float(value) if isinstance(value, float) else 0.0
-            apply = self._over_positions(space, self._lattice_inverse(space.position, screening, kind, fill))
+            apply = self._get_over_positions(space, self._get_lattice_inverse(space.position, screening, kind, fill))
         elif isinstance(space, LatticeSpace) and (kind != 'fixed' or isinstance(value, float)):
-            apply = self._lattice_inverse(space, screening, kind, float(value) if isinstance(value, float) else 0.0)
+            apply = self._get_lattice_inverse(space, screening, kind, float(value) if isinstance(value, float) else 0.0)
         else:
             error_msg = (
                 f'A law of {self.spec.owner} inverts {operand} on a {type(space).__name__} with the boundary {kind}, '
                 'which needs a lattice, a network, or a mesh, with a number outside fixed lattice edges.'
             )
             raise ValidationError(error_msg)
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply).prepare()
-        solution = self._derived(place, read)
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply).prepare()
+        solution = self._get_derived(place, read)
         if given is not None:
             self.solution_boundaries_[solution] = (kind, value)
         return solution
 
-    def _parameter_values(self) -> dict[Expression, float]:
+    def _get_parameter_values(self) -> dict[Expression, float]:
         """Return the initial value of every parameter the spec reads."""
         return {
             key: item
             for key, item in self.initial_.items()
-            if not getattr(self._reference_of(key, self.spec), 'is_state', True)
+            if not getattr(self._get_reference_of(key, self.spec), 'is_state', True)
         }
 
-    def _sampled_kernel(
+    def _get_sampled_kernel(
         self,
         kernel: Expression,
         symbols: list[Expression],
         grids: Sequence[npt.NDArray[np.float64]],
-        verb: str,
+        action: str,
     ) -> npt.NDArray[np.float64]:
         """Return a kernel of some symbols and the parameters evaluated on their grids.
 
@@ -975,8 +985,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             grids:
                 The values of every symbol, arrays that broadcast together.
 
-            verb:
-                The verb of the operator in an error message, such as `'convolves with'`.
+            action:
+                What the operator does with the kernel in an error message, such as `'convolves with'`.
 
         Returns:
             sampled:
@@ -986,21 +996,21 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             ValidationError:
                 The kernel reads a symbol that is neither one of the symbols nor a parameter.
         """
-        parameters = {key: item for key, item in self._parameter_values().items() if key not in symbols}
+        parameters = {key: item for key, item in self._get_parameter_values().items() if key not in symbols}
         value = SR(kernel).subs(parameters)
         unknown = sorted(set(value.variables()) - set(symbols), key=str)
         if unknown:
             error_msg = (
-                f'A law of {self.spec.owner} {verb} the kernel {kernel}, which reads {", ".join(map(str, unknown))}. '
+                f'A law of {self.spec.owner} {action} the kernel {kernel}, which reads {", ".join(map(str, unknown))}. '
                 f'Write the kernel in {", ".join(map(str, symbols))} and the parameters.'
             )
             raise ValidationError(error_msg)
         printer = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols)
-        function = ExpressionPrinter._function_of(printer.run([value]).code_)
-        computed = ExpressionPrinter._values_of(function(0.0, *grids))[0]
+        function = ExpressionPrinter._get_function_of(printer.run([value]).code_)
+        computed = ExpressionPrinter._get_values_of(function(0.0, *grids))[0]
         return np.asarray(computed, dtype=float)
 
-    def _kernel_weights(
+    def _get_kernel_weights(
         self,
         kernel: Expression,
         space: LatticeSpace,
@@ -1034,7 +1044,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 The kernel reads a symbol that is not a displacement or a parameter.
         """
         axes = [displacement(axis) for axis in range(space.n_dim_)]
-        distance = float('inf') if SR(radius).is_infinity() else float(SR(radius).subs(self._parameter_values()))
+        distance = float('inf') if SR(radius).is_infinity() else float(SR(radius).subs(self._get_parameter_values()))
         if wrapped:
             steps = [np.fft.fftfreq(size, d=1.0 / size) for size in space.shape_]
         else:
@@ -1044,7 +1054,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             ]
             steps = [np.arange(-item, item + 1, dtype=float) for item in reach]
         grids = np.meshgrid(*[item * step for item, step in zip(steps, space.spacings_, strict=True)], indexing='ij')
-        sampled = np.broadcast_to(self._sampled_kernel(kernel, axes, grids, 'convolves with'), grids[0].shape)
+        sampled = np.broadcast_to(self._get_sampled_kernel(kernel, axes, grids, 'convolves with'), grids[0].shape)
         inside = np.sqrt(sum((grid**2 for grid in grids), np.zeros(grids[0].shape))) <= distance * (1 + WHOLE_SITE)
         return np.where(inside, sampled, 0.0) * float(np.prod(space.spacings_))
 
@@ -1062,26 +1072,31 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         phase = isinstance(space, PhaseSpace)
         if place.discretization == 'spectral' and not phase:
-            weights = self._kernel_weights(kernel, space, radius, wrapped=True)
-            return self._multiplied(operand, np.fft.rfftn(weights).astype(complex), place)
-        kind, value = self._boundary(operand, place)
+            weights = self._get_kernel_weights(kernel, space, radius, wrapped=True)
+            return self._get_multiplied(operand, np.fft.rfftn(weights).astype(complex), place)
+        kind, value = self._get_boundary(operand, place)
         if kind == 'fixed' and not isinstance(value, float):
             error_msg = f'A law of {self.spec.owner} convolves {operand}, which needs a number outside fixed edges.'
             raise ValidationError(error_msg)
         lattice = space.position if isinstance(space, PhaseSpace) else space
-        window = self._kernel_weights(kernel, lattice, radius, wrapped=False)
+        window = self._get_kernel_weights(kernel, lattice, radius, wrapped=False)
         window = np.reshape(window, window.shape + (1,) * (space.n_dim_ - window.ndim))
         if kind == 'periodic' and max(window.shape) > SMALL_KERNEL:
-            modes = np.fft.rfftn(self._kernel_weights(kernel, lattice, radius, wrapped=True))
+            modes = np.fft.rfftn(self._get_kernel_weights(kernel, lattice, radius, wrapped=True))
             multiplier = np.reshape(modes, modes.shape + (1,) * (space.n_dim_ - modes.ndim))
-            apply = self._spectral_apply(multiplier, space.shape_, tuple(range(lattice.n_dim_)))
+            apply = self._get_spectral_apply(multiplier, space.shape_, tuple(range(lattice.n_dim_)))
         else:
-            apply = self._window_apply(window, space.shape_, kind, float(value) if isinstance(value, float) else 0.0)
-        matrix = None if SR(radius).is_infinity() else self._window_matrix(window, place, kind, value)
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply, matrix=matrix)
-        return self._derived(place, read.prepare())
+            apply = self._get_window_apply(
+                window,
+                space.shape_,
+                kind,
+                float(value) if isinstance(value, float) else 0.0,
+            )
+        matrix = None if SR(radius).is_infinity() else self._get_window_matrix(window, place, kind, value)
+        read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply, matrix=matrix)
+        return self._get_derived(place, read.prepare())
 
-    def _window_matrix(
+    def _get_window_matrix(
         self,
         window: npt.NDArray[np.float64],
         place: FieldElement,
@@ -1097,13 +1112,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         centre = np.asarray(window.shape) // 2
         for index in zip(*np.nonzero(window), strict=True):
             offset = tuple(int(item) for item in centre - np.asarray(index))
-            table = self._neighbor_table(place, kind, value, offset)
+            table = self._get_neighbor_table(place, kind, value, offset)
             inside = table < size
             selection = (np.full(inside.sum(), window[index]), (np.flatnonzero(inside), table[inside]))
             total = total + csr_matrix(selection, shape=(size, size))
         return csr_matrix(total)
 
-    def _shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
+    def _get_shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
         """Return an expression read at a physical displacement.
 
         A displacement of whole sites is a neighbour read, and others are interpolated.
@@ -1134,15 +1149,15 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 'space and one displacement per axis. Give the field a lattice space.'
             )
             raise ValidationError(error_msg)
-        sites = self._whole_sites(offset, space.spacings_)
+        sites = self._get_whole_sites(offset, space.spacings_)
         if sites is not None:
             return self._shift(operand, sites)
-        kind, value = self._boundary(operand, place)
+        kind, value = self._get_boundary(operand, place)
         if kind == 'fixed' and not isinstance(value, float):
             error_msg = f'A law of {self.spec.owner} reads {operand} beyond fixed edges, which needs a number there.'
             raise ValidationError(error_msg)
-        symbols = sorted(set(self._symbols(operand)).union(*[self._symbols(item) for item in offset]), key=str)
-        apply = self._interpolated_apply(
+        symbols = sorted(set(self._get_symbols(operand)).union(*[self._get_symbols(item) for item in offset]), key=str)
+        apply = self._get_interpolated_apply(
             space.shape_,
             space.spacings_,
             kind,
@@ -1155,9 +1170,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply=apply,
             displacement=offset,
         )
-        return self._derived(place, read.prepare())
+        return self._get_derived(place, read.prepare())
 
-    def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
+    def _get_finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
         """Return the symbol of the finite element Laplacian of an expression."""
         if name != 'laplacian':
             error_msg = (
@@ -1167,9 +1182,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if not isinstance(place.space, MeshSpace):
             error_msg = f'A law of {self.spec.owner} uses a finite element field, which needs a mesh.'
             raise ValidationError(error_msg)
-        matrix = self._mesh_laplacian(place.space)
+        matrix = self._get_mesh_laplacian(place.space)
         symbols = sorted(
-            (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
+            (item for item in operand.variables() if self._get_reference_of(item, self.spec) is not None),
             key=str,
         )
         read = FieldOperatorKernel(
@@ -1178,7 +1193,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply=lambda values: matrix @ values,
             matrix=matrix,
         ).prepare()
-        return self._derived(place, read)
+        return self._get_derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
         """Record the diffusive step limit of a finite-volume field.
@@ -1186,7 +1201,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         The limit is a function of the parameters it reads.
         """
         symbols = sorted(set(coefficient.variables()) - {TIME}, key=str)
-        found = [self._reference_of(item, self.spec) for item in symbols]
+        found = [self._get_reference_of(item, self.spec) for item in symbols]
         references = [reference for reference in found if reference is not None]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
@@ -1208,7 +1223,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         if not isinstance(value, Expression):
             return
-        for call in self._operator_calls(value, 'laplacian'):
+        for call in self._get_operator_calls(value, 'laplacian'):
             place = self._place(call.operands()[0])
             if place.discretization not in {'finite-difference', 'finite-volume'}:
                 continue
@@ -1235,7 +1250,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             self.limits_.append(1 / (stiffness * magnitude))
 
     @staticmethod
-    def _basis(space: PhaseSpace, axes: tuple[int, ...], order: int) -> npt.NDArray[np.float64]:
+    def _get_basis(space: PhaseSpace, axes: tuple[int, ...], order: int) -> npt.NDArray[np.float64]:
         """Return the functions whose moments an equilibrium keeps at every class.
 
         There is one column per function.
@@ -1265,7 +1280,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return np.column_stack(columns)
 
     @staticmethod
-    def _newton(
+    def _get_newton(
         basis: npt.NDArray[np.float64],
         moments: npt.NDArray[np.float64],
         width: float,
@@ -1306,7 +1321,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return exponents
 
     @staticmethod
-    def _equilibrium_apply(
+    def _get_equilibrium_apply(
         space: PhaseSpace,
         axes: tuple[int, ...],
         order: int,
@@ -1329,7 +1344,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply:
                 The function of the values at every site.
         """
-        basis = FieldLowering._basis(space, axes, order)
+        basis = FieldLowering._get_basis(space, axes, order)
         width = float(np.prod([space.spacings_[axis] for axis in axes]))
         moved = tuple(range(space.n_dim_ - len(axes), space.n_dim_))
         dimension = len(axes)
@@ -1343,15 +1358,15 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             filled = total > 0
             result = np.zeros(rows.shape)
             if filled.any():
-                guess = FieldLowering._equilibrium_guess(moments[filled], width, basis.shape[0], dimension)
-                exponents = FieldLowering._newton(basis, moments[filled], width, guess)
+                guess = FieldLowering._get_equilibrium_guess(moments[filled], width, basis.shape[0], dimension)
+                exponents = FieldLowering._get_newton(basis, moments[filled], width, guess)
                 result[filled] = np.exp(exponents @ basis.T)
             return np.moveaxis(result.reshape(shape), moved, axes).ravel()
 
         return apply
 
     @staticmethod
-    def _equilibrium_guess(
+    def _get_equilibrium_guess(
         moments: npt.NDArray[np.float64],
         width: float,
         classes: int,
@@ -1375,22 +1390,22 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return guess
 
     @staticmethod
-    def _components(law: FluxLaw) -> list[object]:
+    def _get_components(law: FluxLaw) -> list[object]:
         """Return the flux of every dimension of a flux law."""
         return list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
 
     @staticmethod
-    def _law_has_operators(law: BaseLaw) -> bool:
+    def _get_law_has_operators(law: BaseLaw) -> bool:
         """Check whether the value of a law applies a differential operator.
 
         The flux of a flux law counts as its value.
         """
         if isinstance(law, FluxLaw):
-            return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._components(law))
+            return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._get_components(law))
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
-    def _volumes(space: object) -> npt.NDArray[np.float64] | float:
+    def _get_volumes(space: object) -> npt.NDArray[np.float64] | float:
         """Return the fraction of the volume of every cell inside a simplex domain.
 
         Outside a simplex space, the fraction is one.
@@ -1398,7 +1413,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
 
     @staticmethod
-    def _over_positions(
+    def _get_over_positions(
         space: PhaseSpace,
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
@@ -1414,7 +1429,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return over
 
     @staticmethod
-    def _transported_axes(space: LatticeSpace, name: str) -> tuple[int, ...] | None:
+    def _get_transported_axes(space: LatticeSpace, name: str) -> tuple[int, ...] | None:
         """Return the axes a spectral operator of a phase space acts along.
 
         It is `None` for all of them on a lattice.
@@ -1423,7 +1438,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return None
         if name == 'inverse_helmholtz':
             return space.position_axes_
-        return tuple(axis for axis in range(space.n_dim_) if space._axis_boundary(axis) == 'periodic')
+        return tuple(axis for axis in range(space.n_dim_) if space._get_axis_boundary(axis) == 'periodic')
 
     @staticmethod
     def _tag(offset: IntTuple | int) -> str:
@@ -1433,7 +1448,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
 
     @staticmethod
-    def _operator_calls(expression: Expression, name: str) -> list[Expression]:
+    def _get_operator_calls(expression: Expression, name: str) -> list[Expression]:
         """Return the calls of an operator by name inside an expression."""
         found, stack = [], [SR(expression)]
         while stack:
@@ -1446,7 +1461,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return found
 
     @staticmethod
-    def _spectral_apply(
+    def _get_spectral_apply(
         multiplier: npt.NDArray[np.complex128],
         dimensions: tuple[int, ...],
         axes: tuple[int, ...] | None = None,
@@ -1479,7 +1494,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _whole_sites(offset: list[Expression], spacings: tuple[float, ...]) -> IntTuple | None:
+    def _get_whole_sites(offset: list[Expression], spacings: tuple[float, ...]) -> IntTuple | None:
         """Return a displacement in whole sites, or `None`.
 
         It is `None` unless every component is a number of whole spacings.
@@ -1495,7 +1510,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return tuple(sites)
 
     @staticmethod
-    def _window_apply(
+    def _get_window_apply(
         window: npt.NDArray[np.float64],
         dimensions: tuple[int, ...],
         kind: str,
@@ -1539,7 +1554,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _interpolated_apply(
+    def _get_interpolated_apply(
         dimensions: tuple[int, ...],
         spacings: tuple[float, ...],
         kind: str,
@@ -1581,7 +1596,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _lattice_inverse(
+    def _get_lattice_inverse(
         space: LatticeSpace,
         screening: float,
         kind: str,
@@ -1612,7 +1627,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         dimensions, spacings = space.shape_, space.spacings_
         if kind == 'periodic':
-            waves = FieldLowering._wavenumbers(dimensions, spacings)
+            waves = FieldLowering._get_wavenumbers(dimensions, spacings)
             eigenvalues = sum(
                 ((2 * np.cos(wave * step) - 2) / step**2 for wave, step in zip(waves, spacings, strict=True)),
                 np.zeros(waves[0].shape),
@@ -1620,7 +1635,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             denominator = eigenvalues - screening**2
             nonzero = np.abs(denominator) > 0
             multiplier = np.where(nonzero, 1.0 / np.where(nonzero, denominator, 1.0), 0.0).astype(complex)
-            return FieldLowering._spectral_apply(multiplier, dimensions)
+            return FieldLowering._get_spectral_apply(multiplier, dimensions)
         if kind == 'fixed':
             modes = [np.arange(1, size + 1) / (size + 1) for size in dimensions]
         else:
@@ -1648,7 +1663,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _grounded_solver(
+    def _get_grounded_solver(
         matrix: csr_matrix,
         free: npt.NDArray[np.intp],
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
@@ -1667,7 +1682,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _network_inverse(
+    def _get_network_inverse(
         space: NetworkSpace,
         screening: float,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
@@ -1686,7 +1701,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply:
                 The function of the right-hand side at every node.
         """
-        table = space._index_table(AdjacencyNeighborhood())
+        table = space._get_index_table(AdjacencyNeighborhood())
         size = table.shape[0]
         rows = np.repeat(np.arange(size), table.shape[1])
         columns = table.ravel()
@@ -1695,8 +1710,8 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         degrees = np.asarray(adjacency.sum(axis=1)).ravel()
         matrix = csr_matrix(adjacency - diags(degrees) - screening**2 * identity(size))
         if screening > 0:
-            return FieldLowering._grounded_solver(matrix, np.arange(size))
-        solve = FieldLowering._grounded_solver(matrix, np.arange(1, size))
+            return FieldLowering._get_grounded_solver(matrix, np.arange(size))
+        solve = FieldLowering._get_grounded_solver(matrix, np.arange(1, size))
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             right = np.asarray(values, dtype=float)
@@ -1706,7 +1721,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return apply
 
     @staticmethod
-    def _mesh_inverse(
+    def _get_mesh_inverse(
         space: MeshSpace,
         screening: float,
         kind: str,
@@ -1735,7 +1750,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             apply:
                 The function of the right-hand side at every node.
         """
-        stiffness, lumped = FieldLowering._mesh_matrices(space)
+        stiffness, lumped = FieldLowering._get_mesh_matrices(space)
         size = lumped.size
         matrix = csr_matrix(stiffness + screening**2 * diags(lumped))
         if kind == 'fixed':
@@ -1744,7 +1759,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             fixed = np.zeros(size)
             fixed[nodes] = np.broadcast_to(fill(*coordinates.T) if callable(fill) else float(str(fill)), nodes.shape)
             free = np.setdiff1d(np.arange(size), nodes)
-            solve = FieldLowering._grounded_solver(matrix, free)
+            solve = FieldLowering._get_grounded_solver(matrix, free)
             carried = matrix @ fixed
 
             def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -1752,9 +1767,9 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
             return apply
         if screening > 0:
-            solve = FieldLowering._grounded_solver(matrix, np.arange(size))
+            solve = FieldLowering._get_grounded_solver(matrix, np.arange(size))
             return lambda values: solve(-lumped * np.asarray(values, dtype=float))
-        solve = FieldLowering._grounded_solver(matrix, np.arange(1, size))
+        solve = FieldLowering._get_grounded_solver(matrix, np.arange(1, size))
 
         def apply_mean(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             right = np.asarray(values, dtype=float)
@@ -1782,7 +1797,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     @staticmethod
     @functools.cache
-    def _cached_mesh_matrices(
+    def _get_cached_mesh_matrices(
         points: bytes,
         cells: bytes,
         shape: tuple[int, int],
@@ -1801,7 +1816,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return stiffness, lumped
 
     @staticmethod
-    def _mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
+    def _get_mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and lumped mass of the linear elements of a mesh.
 
         Args:
@@ -1814,10 +1829,10 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         points = np.ascontiguousarray(np.asarray(space.points, dtype=float))
         cells = np.ascontiguousarray(np.asarray(space.cells, dtype=np.int64))
-        return FieldLowering._cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
+        return FieldLowering._get_cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
     @staticmethod
-    def _mesh_laplacian(space: MeshSpace) -> csr_matrix:
+    def _get_mesh_laplacian(space: MeshSpace) -> csr_matrix:
         """Return the discrete Laplacian of linear elements with lumped mass.
 
         It is `-M^-1 K`, as a sparse matrix.
@@ -1830,12 +1845,15 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             laplacian:
                 The sparse matrix that maps nodal values to the nodal Laplacian.
         """
-        stiffness, lumped = FieldLowering._mesh_matrices(space)
+        stiffness, lumped = FieldLowering._get_mesh_matrices(space)
         return -diags(1.0 / lumped) @ stiffness
 
     @staticmethod
     @functools.cache
-    def _wavenumbers(dimensions: tuple[int, ...], spacings: tuple[float, ...]) -> tuple[npt.NDArray[np.float64], ...]:
+    def _get_wavenumbers(
+        dimensions: tuple[int, ...],
+        spacings: tuple[float, ...],
+    ) -> tuple[npt.NDArray[np.float64], ...]:
         """Return the angular wavenumbers of the real Fourier modes of a periodic lattice.
 
         They are broadcast along each axis.
@@ -1846,7 +1864,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     @staticmethod
     @functools.cache
-    def _dealiasing_mask(dimensions: tuple[int, ...]) -> npt.NDArray[np.bool_]:
+    def _get_dealiasing_mask(dimensions: tuple[int, ...]) -> npt.NDArray[np.bool_]:
         """Return the Fourier modes the two-thirds rule keeps.
 
         They are below two thirds of the largest along every axis.
@@ -1857,7 +1875,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return np.logical_and.reduce(grids)
 
     @staticmethod
-    def _spectral_multiplier(
+    def _get_spectral_multiplier(
         name: str,
         axis: int,
         dimensions: tuple[int, ...],
@@ -1895,7 +1913,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             multiplier:
                 The factor of every real Fourier mode.
         """
-        waves = FieldLowering._wavenumbers(dimensions, spacings)
+        waves = FieldLowering._get_wavenumbers(dimensions, spacings)
         squared = np.sum([waves[item] ** 2 for item in (range(len(waves)) if axes is None else axes)], axis=0)
         if name == 'laplacian':
             return -squared.astype(complex)
@@ -1907,5 +1925,5 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
             factor = np.where(nyquist, 0.0, factor)
         if axes is None:
-            return np.where(FieldLowering._dealiasing_mask(dimensions), factor, 0.0)
+            return np.where(FieldLowering._get_dealiasing_mask(dimensions), factor, 0.0)
         return np.where(np.abs(waves[axis]) * spacings[axis] < 2 * np.pi / 3, factor, 0.0)

@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import HeunSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -115,7 +115,7 @@ class OnOffIntermittencySystem(BaseSystem):
         self.D = D
         self.x = x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         variables = GroupElement(
             'variables',
@@ -131,4 +131,4 @@ class OnOffIntermittencySystem(BaseSystem):
             noise=lambda s: sqrt(2 * s.target.D) * s.target.x,
             convention='stratonovich',
         )
-        return System(self.label, elements=[variables], interactions=[drift])
+        return CompositeSystem(self.label, elements=[variables], interactions=[drift])

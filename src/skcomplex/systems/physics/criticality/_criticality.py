@@ -14,21 +14,28 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
+    BallNeighborhood,
     BaseNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
-    TriangularNeighborhood,
-    VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..common import SandpileCellElement
+from ..common.avalanches import SandpileCellElement, TopplingInteraction
+
+NEAREST = BallNeighborhood(metric='manhattan', center='first')
+BURNING = 2
+SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
+    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
+    'graph': AdjacencyNeighborhood(center=True),
+}
+MANNA_THRESHOLD = 2
 
 
 class ForestElement(Element):
@@ -76,7 +83,7 @@ class ForestElement(Element):
         self.lightning = lightning
 
 
-class AvalancheInteraction(CascadeInteraction):
+class AvalancheInteraction(TopplingInteraction):
     """Slowly driven sandpile.
 
     Every step drops one grain on a random site, and the full sites topple in avalanches.
@@ -135,12 +142,6 @@ class AvalancheInteraction(CascadeInteraction):
         return following
 
 
-NEAREST = VonNeumannNeighborhood(center=True)
-
-
-BURNING = 2
-
-
 class FireInteraction(LocalRuleInteraction):
     """Stochastic rule of the Drossel-Schwabl forest fire.
 
@@ -192,15 +193,6 @@ class FireInteraction(LocalRuleInteraction):
         return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
-SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    'triangular': TriangularNeighborhood(center=True),
-    'graph': AdjacencyNeighborhood(center=True),
-}
-
-
-MANNA_THRESHOLD = 2
-
-
 class SandpileSystem(BaseSystem):
     """The Bak-Tang-Wiesenfeld sandpile on a lattice with open edges.
 
@@ -242,16 +234,18 @@ class SandpileSystem(BaseSystem):
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Bak-Tang-Wiesenfeld sandpile on a lattice with open edges.
 
         The pile starts from random stable heights.
         """
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[AvalancheInteraction('avalanche', target='pile')],
         )
 
@@ -297,7 +291,7 @@ class MannaSandpileSystem(BaseSystem):
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Manna sandpile.
 
         It is a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
@@ -306,9 +300,11 @@ class MannaSandpileSystem(BaseSystem):
             np.random.default_rng(self.random_state).integers(0, MANNA_THRESHOLD, size=tuple(self.shape)).astype(float)
         )
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            elements=[
+                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
+            ],
             interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
         )
 
@@ -368,21 +364,22 @@ class ForestFireSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Drossel-Schwabl forest fire.
 
         Slow growth and rare lightning give fires of every size.
         """
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'forest',
                     element=ForestElement,
                     space=space,
                     values={'cover': cover, 'growth': self.growth, 'lightning': self.lightning},
+                    on='sites',
                 ),
             ],
             interactions=[FireInteraction('fire', target='forest')],
@@ -459,7 +456,7 @@ class HexagonalForestFireSystem(BaseSystem):
         self.cover = cover
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = (
             LatticeSpace(tuple(self.shape), geometry='triangular') if self.graph is None else NetworkSpace(self.graph)
@@ -470,14 +467,15 @@ class HexagonalForestFireSystem(BaseSystem):
             if self.cover is None
             else np.ravel(np.asarray(self.cover, dtype=float))
         )
-        forest = LatticeElement(
+        forest = GroupElement(
             'forest',
             element=ForestElement,
             space=space,
             values={'cover': initial, 'growth': self.growth, 'lightning': self.lightning},
+            on='sites',
         )
         neighborhood = SITE_NEIGHBORHOODS['triangular' if self.graph is None else 'graph']
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[forest],
             interactions=[FireInteraction('fire', target='forest', neighborhood=neighborhood)],

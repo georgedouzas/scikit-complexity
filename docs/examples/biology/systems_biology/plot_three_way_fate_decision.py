@@ -7,8 +7,8 @@ disappear and their cells switch to the one that remains.
 """
 
 # %%
-# The system is built from its class with thirty cells near the centre and no signal, and the observer saves every
-# frame with the default blueprint, whose primary view is the time series of the cell states.
+# The example builds `ThreeWayFateDecisionSystem` with thirty cells near the centre and no signal, and the observer
+# saves every frame with the default blueprint, whose primary view is the time series of the cell states.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,9 +33,21 @@ potential = x**4 + y**4 + x**3 - 2 * x * y**2 - 0.2 * (x**2 + y**2)
 drifted = simulate(ThreeWayFateDecisionSystem(v1=0.05))
 fig, ax = plt.subplots(figsize=(6.5, 5.5))
 ax.contour(x, y, potential, levels=30, cmap='Greys')
-ax.plot(trajectory.values('cells.x'), trajectory.values('cells.y'), color='tab:blue', lw=0.5)
-ax.plot(trajectory.values('cells.x')[-1], trajectory.values('cells.y')[-1], 'o', color='tab:blue', label='no signal')
-ax.plot(drifted.values('cells.x')[-1], drifted.values('cells.y')[-1], 's', color='tab:red', label='drifting signal')
+ax.plot(trajectory.get_values('cells.x'), trajectory.get_values('cells.y'), color='tab:blue', lw=0.5)
+ax.plot(
+    trajectory.get_values('cells.x')[-1],
+    trajectory.get_values('cells.y')[-1],
+    'o',
+    color='tab:blue',
+    label='no signal',
+)
+ax.plot(
+    drifted.get_values('cells.x')[-1],
+    drifted.get_values('cells.y')[-1],
+    's',
+    color='tab:red',
+    label='drifting signal',
+)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_title('Three fates, and one left after the signal')

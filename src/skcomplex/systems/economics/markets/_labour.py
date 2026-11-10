@@ -14,20 +14,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction, TransitionInteraction
+from ....core.components.interactions import MapInteraction, TransitionInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    StableMatchingSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
 
 
 class EmployerView(AgentView):
@@ -305,7 +297,7 @@ def hire(trade: MatchSpec, system: SystemView) -> None:
     worker.hired, worker.offer = system.time, firm.posted
 
 
-def _unemployment(employers: object) -> float:
+def _get_unemployment(employers: object) -> float:
     """Return the share of unemployed workers, whose employer is negative."""
     return float(np.mean(np.asarray(employers, dtype=float) < 0))
 
@@ -369,7 +361,7 @@ class LabourMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 7',)
     until = 200
     observables = (
-        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
+        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_get_unemployment),
         ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
     )
 
@@ -400,7 +392,7 @@ class LabourMarketSystem(BaseSystem):
         self.unemployment = unemployment
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         employed = rng.random(self.n_workers) >= self.unemployment
@@ -460,13 +452,13 @@ class LabourMarketSystem(BaseSystem):
             'labour',
             requesters='firms',
             providers='workers',
-            rule=StableMatchingSpec(clearing='requester'),
-            limit=('bid', 'ask'),
+            rule=StableMatchingSpec(value='requester'),
+            reserve=('bid', 'ask'),
             quantity=('demand', 'supply'),
             phase='matching',
             on_match=hire,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[firms, workers],
             interactions=[

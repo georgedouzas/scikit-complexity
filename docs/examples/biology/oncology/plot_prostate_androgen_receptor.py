@@ -6,9 +6,9 @@ tissue and the serum rises with them.
 """
 
 # %%
-# The system is built from its class: a 60 year old man with 1.5 billion normal epithelial cells and one billion
-# cancer cells, at receptor activations of 40 nM, simulated for three years in hours. The observer saves every frame
-# with the default blueprint, whose primary view is the time series of the cells and the PSA.
+# The example builds `ProstateAndrogenReceptorSystem`: a 60 year old man with 1.5 billion normal epithelial cells and
+# one billion cancer cells, at receptor activations of 40 nM, simulated for three years in hours. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the cells and the PSA.
 
 import matplotlib.pyplot as plt
 
@@ -33,15 +33,15 @@ ablated = simulate(ProstateAndrogenReceptorSystem(UT=5.0, UD=5.0), solver=ScipyO
 ablation = ablated
 years = trajectory.times / 8760
 fig, (cells, psa) = plt.subplots(1, 2, figsize=(10, 4))
-cells.plot(years, trajectory.values('prostate.AD'), label='dependent, normal activation')
-cells.plot(years, ablation.values('prostate.AD'), label='dependent, ablation')
-cells.plot(years, trajectory.values('prostate.N'), label='normal epithelium')
+cells.plot(years, trajectory.get_values('prostate.AD'), label='dependent, normal activation')
+cells.plot(years, ablation.get_values('prostate.AD'), label='dependent, ablation')
+cells.plot(years, trajectory.get_values('prostate.N'), label='normal epithelium')
 cells.set_xlabel('time (years)')
 cells.set_ylabel('cells (billions)')
 cells.set_title('Ablation shrinks the cancer')
 cells.legend()
-psa.plot(years, trajectory.values('prostate.UP'), label='normal activation')
-psa.plot(years, ablation.values('prostate.UP'), label='ablation')
+psa.plot(years, trajectory.get_values('prostate.UP'), label='normal activation')
+psa.plot(years, ablation.get_values('prostate.UP'), label='ablation')
 psa.set_xlabel('time (years)')
 psa.set_ylabel('serum PSA (ng/mL)')
 psa.set_title('Serum PSA follows the cancer')

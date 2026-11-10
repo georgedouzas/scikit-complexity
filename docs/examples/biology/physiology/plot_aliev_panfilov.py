@@ -2,13 +2,13 @@
 # Aliev-Panfilov
 
 A broken wave of excitation in cardiac tissue curls around its free end into a rotating spiral. The spiral keeps
-re-exciting the tissue it has just left once it has recovered, a re-entrant arrhythmia that drives the heart far
+re-exciting the tissue it has left once it has recovered, a re-entrant arrhythmia that drives the heart far
 faster than its pacemaker, a tachycardia.
 """
 
 # %%
-# The system is built from its class on a lattice of 100 by 100 sites, with the upper half excited and its left half
-# refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# The example builds `AlievPanfilovSystem` on a lattice of 100 by 100 sites, with the upper half excited and its left
+# half refractory, and integrates it with Runge-Kutta steps of 0.05. The observer saves every frame with the default
 # blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ trajectory = simulate(AlievPanfilovSystem(shape=(100, 100)), solver=RK4Solver(dt
 # A rotating spiral excites every site once per turn, so the potential at a fixed probe should spike periodically with
 # the rotation period of the spiral, and the last snapshot should show the spiral arm.
 
-potential = trajectory.lattice('tissue.u')
+potential = trajectory.get_lattice('tissue.u')
 probe = potential[:, 75, 75]
 peaks, _ = find_peaks(probe, height=0.5)
 fig, (snapshot, series) = plt.subplots(1, 2, figsize=(11, 4.5))

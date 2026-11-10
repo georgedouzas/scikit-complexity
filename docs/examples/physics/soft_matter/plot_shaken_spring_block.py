@@ -7,9 +7,9 @@ stick one after the other, until the whole chain is frozen in a blocked configur
 """
 
 # %%
-# The system is built from its class with 60 blocks of unit weight joined by unit springs, with static and
+# The example builds `ShakenSpringBlockSystem` with 60 blocks of unit weight joined by unit springs, with static and
 # dynamic friction coefficients 1 and 0.8, shaken for 2 time units with a random force of amplitude 2 and relaxed for
-# 20 time units in every cycle, and simulated for 13 cycles. The observer saves every frame with the default
+# 20 time units in every cycle, and simulates it for 13 cycles. The observer saves every frame with the default
 # blueprint, whose primary view is the space-time image of the positions.
 
 import matplotlib.pyplot as plt
@@ -43,7 +43,7 @@ trajectory = simulate(
 # above should fall to zero before the end of every cycle, and the correlation lengths of chains of 100 blocks shaken
 # with amplitudes `A` from 0.75 to 3 should lie close to a line through the origin against their energies.
 
-moving = np.mean(np.abs(trajectory.values('chain.v')) > 0.02, axis=1)
+moving = np.mean(np.abs(trajectory.get_values('chain.v')) > 0.02, axis=1)
 
 
 def blocked_statistics(amplitude, relax_time):
@@ -55,7 +55,7 @@ def blocked_statistics(amplitude, relax_time):
         solver=EulerMaruyamaSolver(dt=0.01),
         random_state=1,
     )
-    elongations = np.diff(run.values('chain.x')[1:], axis=1)
+    elongations = np.diff(run.get_values('chain.x')[1:], axis=1)
     correlations = np.array([np.mean(elongations[:, : 99 - lag] * elongations[:, lag:]) for lag in range(40)])
     correlations /= correlations[0]
     positive = correlations[: np.argmax(correlations < 0)] if np.any(correlations < 0) else correlations

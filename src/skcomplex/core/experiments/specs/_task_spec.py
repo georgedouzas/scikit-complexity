@@ -1,4 +1,4 @@
-"""Define the task spec."""
+"""Define the spec of one run of an experiment, sent to a worker process."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

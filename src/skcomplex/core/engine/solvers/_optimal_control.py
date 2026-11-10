@@ -1,7 +1,4 @@
-"""Read optimal control problems from compiled systems.
-
-Their solutions are followed over the horizon of a run.
-"""
+"""Read optimal control problems from compiled systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,12 +26,12 @@ from ..types import Cost, GridFunction
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9
-_SENSES = ('min', 'max')
-_NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
+SENSES = ('min', 'max')
+NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
 
 
 class OptimalControlSolver(Solver):
-    """Base class of solvers that compute the optimal controls of a run of a system.
+    """An abstract solver that computes the optimal controls of a run.
 
     The controls minimise or maximise an objective over the run. The solver reads the bounded adaptive parameters of the
     system as its controls. Its objective is the running cost `objective` integrated over the run plus the terminal cost
@@ -90,7 +87,7 @@ class OptimalControlSolver(Solver):
                 states[k + 1] = self.problem_.boundary(times[k + 1], full, p)[control_problem.indices]
         return states
 
-    def _cost(self, times: Array, states: Array, controls: Array, p: Array) -> float:
+    def _get_cost(self, times: Array, states: Array, controls: Array, p: Array) -> float:
         """Return the value of the objective, in its own sense.
 
         It is taken for states and controls on a grid of times.
@@ -99,7 +96,7 @@ class OptimalControlSolver(Solver):
         terminal = self.terminal_(times[-1], states[-1], controls[-1], p)[0]
         return float(self.control_problem_.sign * (np.trapezoid(running, times) + terminal))
 
-    def _solution(
+    def _get_solution(
         self,
         x0: Array,
         times: Array,
@@ -115,7 +112,7 @@ class OptimalControlSolver(Solver):
         full = np.tile(x0, (times.size, 1))
         full[:, control_problem.indices] = states
         full[:, control_problem.control_indices] = controls
-        cost = self._cost(times, states, controls, p)
+        cost = self._get_cost(times, states, controls, p)
         return ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
@@ -141,23 +138,23 @@ class OptimalControlSolver(Solver):
                 'namespace of the system such as `lambda s: s.plant.x**2`.'
             )
             raise SolverError(error_msg)
-        if self.sense not in _SENSES:
-            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(_SENSES)}.'
+        if self.sense not in SENSES:
+            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(SENSES)}.'
             raise ValidationError(error_msg)
         super()._prepare(context)
         problem = self.problem_
-        control_problem = self._control_problem(problem)
+        control_problem = self._get_control_problem(problem)
         if not math.isfinite(self.until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
             raise SolverError(error_msg)
         self.control_problem_ = control_problem
         self.horizon_ = float(self.until)
-        self.rates_ = self._function(control_problem, control_problem.rates)
-        self.running_ = self._function(control_problem, [control_problem.running])
-        self.terminal_ = self._function(control_problem, [control_problem.terminal])
+        self.rates_ = self._get_function(control_problem, control_problem.rates)
+        self.running_ = self._get_function(control_problem, [control_problem.running])
+        self.terminal_ = self._get_function(control_problem, [control_problem.terminal])
         self._set_up_control(control_problem)
         self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
-        self.initial_state_ = self.solution_.state_at(0.0)
+        self.initial_state_ = self.solution_.get_state_at(0.0)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Return the state of the optimal solution at a time of the run.
@@ -190,7 +187,7 @@ class OptimalControlSolver(Solver):
                 ' Run a new simulation with a later horizon.'
             )
             raise SolverError(error_msg)
-        return self.solution_.state_at(until)
+        return self.solution_.get_state_at(until)
 
     def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
         """Derive what the solver needs from the optimal control problem.
@@ -204,7 +201,7 @@ class OptimalControlSolver(Solver):
         del control_problem
 
     @staticmethod
-    def _function(
+    def _get_function(
         control_problem: _ControlProblemSpec,
         expressions: Sequence[Expression],
         extra: Sequence[Expression] = (),
@@ -263,7 +260,7 @@ class OptimalControlSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def _control_problem(self, problem: ProblemSpec) -> _ControlProblemSpec:
+    def _get_control_problem(self, problem: ProblemSpec) -> _ControlProblemSpec:
         """Return the optimal control problem of a compiled problem.
 
         It holds its bounded controls and the objective.
@@ -273,14 +270,14 @@ class OptimalControlSolver(Solver):
         if objective is None:
             error_msg = f'{type(self).__name__} needs an objective. Pass `objective`, a function or a number.'
             raise SolverError(error_msg)
-        symbols = self._single_symbols(problem)
+        symbols = self._get_single_symbols(problem)
         controls = self._controls(problem, symbols)
         rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
         names = [name for entry in problem.states.entries for name in entry.component_names]
         sign = 1.0 if self.sense == 'min' else -1.0
-        namespace = ObservableEvaluator._namespace_of(problem)
+        namespace = ObservableEvaluator._get_namespace_of(problem)
         control_problem = _ControlProblemSpec(
             problem=problem,
             names=tuple(names[index] for index in indices),
@@ -289,8 +286,8 @@ class OptimalControlSolver(Solver):
             controls=controls,
             parameters=tuple(problem.parameter_symbols),
             rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
-            running=sign * self._cost_value(objective, namespace),
-            terminal=sign * self._cost_value(self.terminal, namespace),
+            running=sign * self._get_cost_value(objective, namespace),
+            terminal=sign * self._get_cost_value(self.terminal, namespace),
             sign=sign,
             lower=self._lower_bounds(problem, indices),
         )
@@ -298,7 +295,7 @@ class OptimalControlSolver(Solver):
         return control_problem
 
     @staticmethod
-    def _cost_value(cost: Cost, namespace: SimpleNamespace) -> Expression:
+    def _get_cost_value(cost: Cost, namespace: SimpleNamespace) -> Expression:
         """Return the expression of a cost.
 
         The cost is a function of the namespace of the system or a number.
@@ -306,7 +303,7 @@ class OptimalControlSolver(Solver):
         return SR(cost(namespace) if callable(cost) else cost)
 
     @staticmethod
-    def _single_symbols(problem: ProblemSpec) -> list[Expression]:
+    def _get_single_symbols(problem: ProblemSpec) -> list[Expression]:
         """Return the state symbols in state vector order.
 
         Every state is checked to be a real element scalar.
@@ -346,7 +343,7 @@ class OptimalControlSolver(Solver):
         """
         lower = np.full(problem.states.size, -np.inf)
         for entry in problem.states.entries:
-            if entry.domain in _NONNEGATIVE_DOMAINS:
+            if entry.domain in NONNEGATIVE_DOMAINS:
                 lower[entry.indices] = 0.0
         return lower[list(indices)]
 
@@ -357,7 +354,7 @@ class OptimalControlSolver(Solver):
         for name, declaration in problem.adaptive_parameters.items():
             if declaration.bounds is None:
                 continue
-            entry = problem.states.entry(name)
+            entry = problem.states.get_entry(name)
             if entry.size != 1:
                 error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
                 raise SolverError(error_msg)

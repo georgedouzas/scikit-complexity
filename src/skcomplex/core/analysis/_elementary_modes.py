@@ -1,7 +1,4 @@
-"""Enumerate the elementary modes and extreme pathways of a steady-state cone.
-
-The cone is the steady-state cone of a linear program.
-"""
+"""Enumerate the elementary modes and extreme pathways of a steady-state cone."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +14,7 @@ from cysignals.alarm import AlarmInterrupt, alarm, cancel_alarm
 from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
 from ..engine.problems._linear_program_kernel import LinearProgramKernel
@@ -31,7 +28,6 @@ from .types import Source
 KINDS = ('modes', 'pathways')
 MAXIMUM_DENOMINATOR = 10**6
 ROUNDING_LIMIT = 1e-9
-
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -52,7 +48,7 @@ class _ConeSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class ElementaryModesResult:
-    """Generators of the steady-state cone of a linear program.
+    """A result of `elementary_modes`, the generators of a steady-state cone.
 
     They are the elementary modes or the extreme pathways.
 
@@ -97,6 +93,9 @@ def elementary_modes(
       column, of either sign when it is reversible (Schilling et al. 2000), and without any generator that is a
       non-negative combination of the others (Raman 2021, Section 9.8). The generators that run in both directions leave
       `modes` for `lines`.
+
+    It appears in systems biology, where it lists the pathways of a metabolic network, and in chemical engineering,
+    where it lists the routes of a reaction network.
 
     Args:
         source:
@@ -151,7 +150,7 @@ def elementary_modes(
     if not timeout > 0:
         error_msg = f'The time limit must be positive, but it is {timeout!r}.'
         raise AnalysisError(error_msg)
-    if isinstance(source, System):
+    if isinstance(source, CompositeSystem):
         cone = _system_cone(source, exchanges)
     elif isinstance(source, np.ndarray):
         cone = _matrix_cone(np.asarray(source, dtype=float), exchanges, labels, irreversible)
@@ -183,7 +182,7 @@ def _kernel_of(problem: ProblemSpec) -> LinearProgramKernel:
     return problem.programs[0].prepare(state)
 
 
-def _system_cone(system: System, exchanges: Sequence[str] | None) -> _ConeSpec:
+def _system_cone(system: CompositeSystem, exchanges: Sequence[str] | None) -> _ConeSpec:
     """Return the cone of the program of a system at its initial values."""
     problem = PassCompiler().prepare(system).run().problem_
     if not isinstance(problem, ProblemSpec):

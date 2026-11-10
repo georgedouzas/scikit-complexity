@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
@@ -20,12 +20,12 @@ def _amplitude(r):
     field = FieldElement('cells', element=PhaseFieldElement, space=space, values=values, discretization='spectral')
     energy = SwiftHohenbergEnergyInteraction('energy', target='cells', state='phi', r=r)
     trajectory = simulate(
-        System(elements=[field], interactions=[energy]),
+        CompositeSystem(elements=[field], interactions=[energy]),
         until=60.0,
         dt=1.0,
         solver=ETDRK4Solver(dt=0.1),
     )
-    return np.abs(trajectory.values('cells.phi')[-1]).max()
+    return np.abs(trajectory.get_values('cells.phi')[-1]).max()
 
 
 def test_rolls_grow_above_onset_and_decay_below():

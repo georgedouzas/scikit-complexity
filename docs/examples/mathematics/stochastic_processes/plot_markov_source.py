@@ -40,12 +40,12 @@ trajectory = simulate(MarkovSourceSystem(transition=TRANSITION), until=299, obse
 # symbol of the past holds all the memory of the source.
 
 symbols = simulate(MarkovSourceSystem(transition=TRANSITION), until=100000, random_state=1)
-blocks = entropy(symbols.values('source.symbol').astype(int), kind='block', dimension=8)
+blocks = entropy(symbols.get_values('source.symbol').astype(int), kind='block', dimension=8)
 entropies = blocks.entropy[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
 fig, (sequence, rates) = plt.subplots(1, 2, figsize=(10, 4))
-sequence.step(trajectory.times, trajectory.values('source.symbol'), where='post')
+sequence.step(trajectory.times, trajectory.get_values('source.symbol'), where='post')
 sequence.set_xlabel('step')
 sequence.set_ylabel('symbol')
 sequence.set_title('Long stretches of symbol 0')
@@ -65,7 +65,7 @@ plt.show()
 # so the ε-machine should have two causal states, one per symbol, visited 80 and 20 percent of the time. Its
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
-source = symbols.values('source.symbol').astype(int)
+source = symbols.get_values('source.symbol').astype(int)
 machine = epsilon_machine(source, max_length=3)
 labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
 fig, occupancy = plt.subplots(figsize=(5, 4))

@@ -6,8 +6,8 @@ waits and stay put, so the cloud spreads slower and slower and keeps a sharp pea
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose waiting times have the tail
-# `tau^(-3/2)`, and simulated to time 1000. Every walker renews on its own clock and jumps at its renewals, with no
+# The example builds `ContinuousTimeRandomWalkSystem` with 500 walkers in the plane, whose waiting times have the tail
+# `tau^(-3/2)`, and simulates it to time 1000. Every walker renews on its own clock and jumps at its renewals, with no
 # time grid. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
 
 import matplotlib.pyplot as plt
@@ -31,8 +31,8 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # dashed lines of slope 0.5 on log-log axes, well below the slope 1 of Brownian motion.
 
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
-jumps = trajectory.values('jumps.renewals')[1:] / 500
+squared = np.mean(np.sum(trajectory.get_values('walkers.x')[1:] ** 2, axis=-1), axis=1)
+jumps = trajectory.get_values('jumps.renewals')[1:] / 500
 slope = np.polyfit(np.log(times), np.log(squared), 1)[0]
 fig, (displacement, counts) = plt.subplots(1, 2, figsize=(10, 4))
 displacement.loglog(times, squared, label=f'trajectory, slope {slope:.2f}')

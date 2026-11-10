@@ -7,10 +7,10 @@ ages.
 """
 
 # %%
-# The system is built from its class with 500 walkers at the temperature `T = 0.5`, with trap depths of
-# density `exp(-E)` and escape times of mean `exp(E / T)`, and simulated to time 10000. Every walker renews on its own
-# clock, with no time grid. The observer saves every frame with the default blueprint, whose primary view shows the
-# walkers in their traps.
+# The example builds `TrapSystem` with 500 walkers at the temperature `T = 0.5`, with trap depths of density `exp(-E)`
+# and escape times of mean `exp(E / T)`, and simulates it to time 10000. Every walker renews on its own clock, with no
+# time grid. The observer saves every frame with the default blueprint, whose primary view shows the walkers in their
+# traps.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,8 +33,8 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # traps should keep growing as `T ln t` instead of settling at the mean depth 1 of the landscape.
 
 times = trajectory.times[1:]
-escapes = trajectory.values('escapes.renewals')[1:] / 500
-depth = np.mean(trajectory.values('walkers.E')[1:], axis=1)
+escapes = trajectory.get_values('escapes.renewals')[1:] / 500
+depth = np.mean(trajectory.get_values('walkers.E')[1:], axis=1)
 late = times > 500
 slope = np.polyfit(np.log(times[late]), np.log(escapes[late]), 1)[0]
 fig, (counts, aging) = plt.subplots(1, 2, figsize=(10, 4))

@@ -12,7 +12,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class HyperedgeReductionSpec(BaseSpec):
-    """Reduction over the hyperedges around every member found in an expression.
+    """A spec of a reduction over the hyperedges around every member.
 
     It holds its kind, argument, size, and the neighbourhood whose neighbours form the hyperedges.
 

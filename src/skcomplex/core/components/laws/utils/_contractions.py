@@ -1,19 +1,16 @@
-"""Define the contraction of a coupling tensor with expressions of the members.
-
-There is one expression of the members per index after the first.
-"""
+"""Define the contraction of a coupling tensor with expressions of the members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
+from ._operators import _OperatorFunction
 from ._reductions import _calls_in
 
 MIN_FACTORS = 1
-
-CONTRACTION = function('contraction')
+CONTRACTION = _OperatorFunction('contraction')
 
 
 def contraction(tensor: object, *expressions: object) -> Expression:
@@ -41,7 +38,8 @@ def contraction(tensor: object, *expressions: object) -> Expression:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import contraction, contractions_in
+        >>> from skcomplex.core.components.laws.utils import contraction
+        >>> from skcomplex.core.components.laws.utils._contractions import contractions_in
         >>> T, x = var('T x')
         >>> contraction(T, x, x)
         contraction(T, x, x)
@@ -72,7 +70,8 @@ def contractions_in(expression: object) -> list[Expression]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import contraction, contractions_in
+        >>> from skcomplex.core.components.laws.utils import contraction
+        >>> from skcomplex.core.components.laws.utils._contractions import contractions_in
         >>> T, x = var('T x')
         >>> len(contractions_in(1 + contraction(T, x)))
         1

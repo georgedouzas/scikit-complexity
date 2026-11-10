@@ -12,7 +12,7 @@ from skcomplex.systems.mathematics.networks import MotterLaiOverloadSystem
 def _giant(seed, **arguments):
     """Return the share of the nodes in the largest component after the cascade."""
     trajectory = simulate(MotterLaiOverloadSystem(random_state=seed, **arguments), until=20)
-    graph = trajectory.network(-1).graph()
+    graph = trajectory.get_network(-1).get_graph()
     return max(len(component) for component in nx.connected_components(graph)) / 300
 
 
@@ -36,8 +36,8 @@ def test_failed_nodes_carried_a_load_above_their_capacity():
     trajectory = simulate(system, until=6)
     capacity = system.elements[0].values['capacity']
     for frame in range(1, 5):
-        before, after = trajectory.network(frame), trajectory.network(frame + 1)
-        loads = nx.betweenness_centrality(before.graph(), normalized=False)
+        before, after = trajectory.get_network(frame), trajectory.get_network(frame + 1)
+        loads = nx.betweenness_centrality(before.get_graph(), normalized=False)
         failed = set(before.nodes.tolist()) - set(after.nodes.tolist())
         assert failed == {node for node in before.nodes.tolist() if loads[node] > capacity[node]}
 

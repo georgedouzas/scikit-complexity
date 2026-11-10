@@ -22,7 +22,7 @@ def _sensitivity_and_precision(links=None) -> tuple[float, float]:
         else EnzymeAdaptationCircuitSystem(links).prepare().system_
     )
     trajectory = simulate(system, dt=0.1, until=800)
-    output, times = trajectory.values('C.X'), trajectory.times
+    output, times = trajectory.get_values('C.X'), trajectory.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]
     sensitivity = abs(peak - before) / before / 0.2

@@ -12,7 +12,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from skcomplex.core.components.system import BaseSystem
+from skcomplex.core.components.systems import BaseSystem
 from skcomplex.core.errors import SkcomplexError
 from skcomplex.core.specs import DOMAINS, LAWS, SPACES, TIMES
 from skcomplex.systems import all_systems

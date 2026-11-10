@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(SkewTentMapSystem(n_points=100, a=0.3, random_state=0), until=40, observers=[observer])
-occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.values('points.x')[:30]]
+occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in trajectory.get_values('points.x')[:30]]
 image = np.where(np.array(occupied).T[::-1, :, None], [255, 170, 40], [20, 20, 30]).astype(np.uint8)
 observer.recording_.log('spreading', rr.Image(image.repeat(12, axis=0).repeat(12, axis=1)), static=True)
 observer.recording_.flush()
@@ -53,7 +53,7 @@ observer.recording_.flush()
 # values of the last 30 steps, pooled over the ensemble, should give a flat histogram at the density 1 that Bertin
 # derives from the Perron-Frobenius equation `p(x) = a p(ax) + (1 - a) p(1 - (1 - a) x)`.
 
-values = trajectory.values('points.x')
+values = trajectory.get_values('points.x')
 fig, (branches, density) = plt.subplots(1, 2, figsize=(10, 4))
 branches.plot(values[:-1].ravel(), values[1:].ravel(), '.', markersize=1, alpha=0.3)
 branches.set_xlabel('$x_t$')

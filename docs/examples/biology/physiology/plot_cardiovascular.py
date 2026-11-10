@@ -7,8 +7,8 @@ volume pulses with the heartbeat and the total volume of blood stays constant.
 """
 
 # %%
-# The system is built from its class at 75 beats per minute and run for about six beats. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the three volumes.
+# The example builds `CardiovascularSystem` at 75 beats per minute and runs it for about six beats. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,9 +30,9 @@ trajectory = simulate(CardiovascularSystem(heart_rate=75.0), observers=[observer
 # of the solver.
 
 ventricle, arteries, veins = (
-    trajectory.values('ventricle.V'),
-    trajectory.values('arteries.V'),
-    trajectory.values('veins.V'),
+    trajectory.get_values('ventricle.V'),
+    trajectory.get_values('arteries.V'),
+    trajectory.get_values('veins.V'),
 )
 total = ventricle + arteries + veins
 fig, (volumes, conservation) = plt.subplots(1, 2, figsize=(10, 4))

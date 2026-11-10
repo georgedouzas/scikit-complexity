@@ -58,11 +58,11 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # far below the line of equality.
 
 times = trajectory.times
-inequality = trajectory.values('gini')
-wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])
+inequality = trajectory.get_values('gini')
+wealth = np.sort(trajectory.get_agents('foragers', len(times) - 1).values['sugar'])
 lorenz = np.r_[0.0, np.cumsum(wealth) / wealth.sum()]
 fig, (population, gini_axis, lorenz_axis) = plt.subplots(1, 3, figsize=(13, 4))
-population.plot(times, trajectory.values('population'))
+population.plot(times, trajectory.get_values('population'))
 population.set_xlabel('step')
 population.set_ylabel('foragers')
 population.set_title('The population falls to a carrying capacity')

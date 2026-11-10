@@ -13,7 +13,7 @@ from ._base import BaseObserver
 
 
 class ConservationObserver(BaseObserver):
-    """Observer that checks the conservation of every quantity at every frame.
+    """An observer that checks the conservation of every quantity at every frame.
 
     Each quantity may change only by its flows with the environment. The total of a quantity is the sum of the states
     that hold it. The monitor compares its change since the first frame with the accumulated net inflow from the
@@ -56,7 +56,7 @@ class ConservationObserver(BaseObserver):
         self.rtol = rtol
         self.atol = atol
 
-    def _totals(self, state: Array) -> dict[str, float]:
+    def _get_totals(self, state: Array) -> dict[str, float]:
         """Return the total of every quantity minus its accumulated inflow.
 
         The inflow is the one from the environment.
@@ -114,7 +114,7 @@ class ConservationObserver(BaseObserver):
         """
         if frame is None:
             return
-        balances = self._totals(frame.state)
+        balances = self._get_totals(frame.state)
         if self.initial_ is None:
             self.initial_ = balances
         for quantity, balance in balances.items():

@@ -8,7 +8,7 @@ irregular clusters that keep splitting, merging, and dying out. The view shows a
 """
 
 # %%
-# The system is built from its class with half of the sites infected at the start and a time slice
+# The example builds `ContactProcessSystem` with half of the sites infected at the start and a time slice
 # `tau = 0.1` per step. The observer saves every second step with the default blueprint, whose primary view is the
 # image of the infections.
 
@@ -37,7 +37,7 @@ rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
     run = simulate(ContactProcessSystem(shape=(64, 64), rate=rate, random_state=1), until=1500, random_state=1)
-    densities.append(run.values('lattice.infected')[1000:].mean())
+    densities.append(run.get_values('lattice.infected')[1000:].mean())
 grid = np.linspace(1.0, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, densities, 'o-', label='simulation, 64 x 64')

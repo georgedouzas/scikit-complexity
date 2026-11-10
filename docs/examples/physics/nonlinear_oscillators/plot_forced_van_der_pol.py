@@ -35,7 +35,7 @@ trajectory = simulate(system, until=60, observers=[observer])
 def response_frequency(omega):
     """Return the mean angular frequency of the response after a transient."""
     run = simulate(ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), until=400, dt=0.025)
-    times, x = np.asarray(run.times), np.ravel(run.values('oscillator.x'))
+    times, x = np.asarray(run.times), np.ravel(run.get_values('oscillator.x'))
     late = times > 150
     crossings = times[late][1:][(x[late][:-1] < 0) & (x[late][1:] >= 0)]
     return 2 * np.pi * (len(crossings) - 1) / (crossings[-1] - crossings[0])

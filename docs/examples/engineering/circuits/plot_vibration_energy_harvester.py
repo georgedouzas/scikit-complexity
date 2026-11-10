@@ -7,8 +7,8 @@ its two natural frequencies.
 """
 
 # %%
-# The system is built from its class with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1 cm
-# driving at 9.42 rad/s, and runs for 10 seconds. The default blueprint shows the displacements of both masses with
+# The example builds `VibrationEnergyHarvesterSystem` with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1
+# cm driving at 9.42 rad/s, and runs for 10 seconds. The default blueprint shows the displacements of both masses with
 # their rates and the voltage of the bar.
 
 import matplotlib.pyplot as plt
@@ -38,7 +38,7 @@ amplitudes = []
 for omega in frequencies:
     system_system = VibrationEnergyHarvesterSystem(omega=omega)
     run = simulate(system_system)
-    amplitudes.append(np.abs(run.values('voltage')[-300:]).max())
+    amplitudes.append(np.abs(run.get_values('voltage')[-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')
 for value in natural:

@@ -20,12 +20,16 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..common.fields import WilsonSamplingInteraction
+
+DYNAMICS = ('monte-carlo', 'hamiltonian')
+SOLVER_TOLERANCE = 1e-15
+NEUTRAL_TOTAL = 1e-12
 
 
 class GaugeLinkElement(Element):
@@ -139,63 +143,6 @@ class StaticChargeElement(Element):
         self.q = q
 
 
-DYNAMICS = ('monte-carlo', 'hamiltonian')
-SOLVER_TOLERANCE = 1e-15
-NEUTRAL_TOTAL = 1e-12
-
-
-def _mean_plaquette(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean cosine of the oriented link angle sums around the plaquettes."""
-    del t
-    return float(np.cos(faces @ np.ravel(np.asarray(values['links.theta'], dtype=float))).mean())
-
-
-def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the Gauss residual of the electric field.
-
-    The residual is the largest absolute difference of the codifferential of the field and the site charge.
-    """
-    del t
-    electric = -np.ravel(np.asarray(values['links.A_d1'], dtype=float))
-    charges = np.ravel(np.asarray(values['charges.q'], dtype=float))
-    return float(np.abs(-(edges.T @ electric) - charges).max())
-
-
-def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the energy of the electric and magnetic fields.
-
-    The electric field lives on the links and the magnetic field on the plaquettes.
-    """
-    del t
-    velocity = np.ravel(np.asarray(values['links.A_d1'], dtype=float))
-    magnetic = faces @ np.ravel(np.asarray(values['links.A'], dtype=float))
-    return float((velocity @ velocity + magnetic @ magnetic) / 2)
-
-
-def _electric_field(space: CellComplexSpace, charges: Array) -> Array:
-    """Return the electric field of least norm whose codifferential is the charge.
-
-    The codifferential matches the charge of every site.
-    """
-    field = scipy.sparse.linalg.lsqr(
-        -space.incidences_[0].T,
-        charges,
-        atol=SOLVER_TOLERANCE,
-        btol=SOLVER_TOLERANCE,
-        conlim=0.0,
-        iter_lim=100 * charges.size,
-    )[0]
-    return np.asarray(field, dtype=float)
-
-
-def _curl_of_curl(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the velocity of the potential.
-
-    The rate is minus the codifferential of its exterior derivative.
-    """
-    return -codifferential(exterior_derivative(namespace.target.A))
-
-
 class LatticeGaugeFieldsSystem(BaseSystem):
     """Link variables on the cell complex of a periodic lattice.
 
@@ -256,6 +203,58 @@ class LatticeGaugeFieldsSystem(BaseSystem):
     until = 5000
     dt = 1
 
+    @staticmethod
+    def _get_mean_plaquette(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the mean cosine of the oriented link angle sums around the plaquettes."""
+        del t
+        return float(np.cos(faces @ np.ravel(np.asarray(values['links.theta'], dtype=float))).mean())
+
+    @staticmethod
+    def _get_gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the Gauss residual of the electric field.
+
+        The residual is the largest absolute difference of the codifferential of the field and the site charge.
+        """
+        del t
+        electric = -np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+        charges = np.ravel(np.asarray(values['charges.q'], dtype=float))
+        return float(np.abs(-(edges.T @ electric) - charges).max())
+
+    @staticmethod
+    def _get_field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the energy of the electric and magnetic fields.
+
+        The electric field lives on the links and the magnetic field on the plaquettes.
+        """
+        del t
+        velocity = np.ravel(np.asarray(values['links.A_d1'], dtype=float))
+        magnetic = faces @ np.ravel(np.asarray(values['links.A'], dtype=float))
+        return float((velocity @ velocity + magnetic @ magnetic) / 2)
+
+    @staticmethod
+    def _get_electric_field(space: CellComplexSpace, charges: Array) -> Array:
+        """Return the electric field of least norm whose codifferential is the charge.
+
+        The codifferential matches the charge of every site.
+        """
+        field = scipy.sparse.linalg.lsqr(
+            -space.incidences_[0].T,
+            charges,
+            atol=SOLVER_TOLERANCE,
+            btol=SOLVER_TOLERANCE,
+            conlim=0.0,
+            iter_lim=100 * charges.size,
+        )[0]
+        return np.asarray(field, dtype=float)
+
+    @staticmethod
+    def _get_curl_of_curl(namespace: SimpleNamespace) -> Expression:
+        """Return the rate of the velocity of the potential.
+
+        The rate is minus the codifferential of its exterior derivative.
+        """
+        return -codifferential(exterior_derivative(namespace.target.A))
+
     def __init__(
         self,
         size: int = 32,
@@ -281,7 +280,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.amplitude = amplitude
         self.seed = seed
 
-    def _maxwell_system(self, space: CellComplexSpace) -> System:
+    def _get_maxwell_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return a lattice Maxwell field on the links.
 
         The field comes from static charges and a transverse wave.
@@ -303,14 +302,14 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             element=MaxwellLinkElement,
             space=space,
             on='edges',
-            values={'A': wave, 'A_d1': -_electric_field(space, density)},
+            values={'A': wave, 'A_d1': -LatticeGaugeFieldsSystem._get_electric_field(space, density)},
             visual=VisualSpec('cell', {'state': 'A'}),
         )
         sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
-        rate = RateInteraction('maxwell', target='links', state='A', rate=_curl_of_curl)
-        return System(self.label, elements=[links, sites], interactions=[rate])
+        rate = RateInteraction('maxwell', target='links', state='A', rate=LatticeGaugeFieldsSystem._get_curl_of_curl)
+        return CompositeSystem(self.label, elements=[links, sites], interactions=[rate])
 
-    def _monte_carlo_system(self, space: CellComplexSpace) -> System:
+    def _get_monte_carlo_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
         rng = np.random.default_rng(self.seed)
         size = space.incidences_[0].shape[0]
@@ -326,10 +325,10 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         )
         move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
         sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
-        return System(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
-    def _gauge_observables(system: System) -> list[ObservableSpec]:
+    def _get_gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
@@ -345,10 +344,21 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
         if links.element is GaugeLinkElement:
-            return [ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space.incidences_[1]))]
+            return [
+                ObservableSpec(
+                    'mean_plaquette',
+                    function=partial(LatticeGaugeFieldsSystem._get_mean_plaquette, space.incidences_[1]),
+                ),
+            ]
         return [
-            ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
-            ObservableSpec('field_energy', function=partial(_field_energy, space.incidences_[1])),
+            ObservableSpec(
+                'gauss_residual',
+                function=partial(LatticeGaugeFieldsSystem._get_gauss_residual, space.incidences_[0]),
+            ),
+            ObservableSpec(
+                'field_energy',
+                function=partial(LatticeGaugeFieldsSystem._get_field_energy, space.incidences_[1]),
+            ),
         ]
 
     def get_run_settings(self) -> RunSettings:
@@ -357,14 +367,14 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The settings have the observables of the dynamics, and velocity Verlet for Maxwell.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._gauge_observables(self._build_system()))
+        settings['observables'] = tuple(self._get_gauge_observables(self._build_system()))
         if self.dynamics == 'hamiltonian':
             settings['until'] = 50.0
             settings['dt'] = 0.5
             settings['solver'] = VelocityVerletSolver(dt=0.02)
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return link variables on the cell complex of a periodic lattice.
 
         The variables are sampled or evolved in real time.
@@ -374,5 +384,5 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             raise ValidationError(error_msg)
         space = CellComplexSpace(LatticeSpace((self.size,) * self.dimension)).prepare()
         if self.dynamics == 'hamiltonian':
-            return self._maxwell_system(space)
-        return self._monte_carlo_system(space)
+            return self._get_maxwell_system(space)
+        return self._get_monte_carlo_system(space)

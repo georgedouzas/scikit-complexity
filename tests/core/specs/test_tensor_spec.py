@@ -34,7 +34,7 @@ def test_check_rejects_one_dimension():
 def test_array_of_gives_a_traceless_tensor():
     """The tensors of random components are symmetric and traceless, on the last two axes."""
     components = np.random.default_rng(0).normal(size=(4, 5))
-    tensors = TensorSpec('traceless', 3).array_of(components)
+    tensors = TensorSpec('traceless', 3).get_array_of(components)
     assert tensors.shape == (4, 3, 3)
     assert np.allclose(np.trace(tensors, axis1=1, axis2=2), 0.0)
     assert np.allclose(tensors, np.swapaxes(tensors, 1, 2))
@@ -43,4 +43,4 @@ def test_array_of_gives_a_traceless_tensor():
 def test_components_of_rejects_a_matrix_of_another_symmetry():
     """An asymmetric matrix has no components of a symmetric tensor."""
     with pytest.raises(ValidationError, match='symmetry'):
-        TensorSpec('symmetric', 2).components_of([[0.0, 1.0], [2.0, 0.0]])
+        TensorSpec('symmetric', 2).get_components_of([[0.0, 1.0], [2.0, 0.0]])

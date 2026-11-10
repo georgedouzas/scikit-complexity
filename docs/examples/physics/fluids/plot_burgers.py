@@ -9,7 +9,7 @@ smooth sine turning into a sharp moving jump.
 """
 
 # %%
-# The system is built from its class with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
+# The example builds `BurgersSystem` with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
 # catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps the shock free of
 # new extrema, so it is passed explicitly. The observer saves every frame of 0.01 with the default blueprint, whose
 # primary view is the space-time image of the field.
@@ -35,7 +35,7 @@ trajectory = simulate(system, until=2.99, dt=0.01, observers=[observer])
 # total of `u`, which should stay at its initial value through the shock.
 
 times = trajectory.times
-values = trajectory.values('line.u')
+values = trajectory.get_values('line.u')
 spacing = 2 * np.pi / values.shape[1]
 slope = np.abs(np.diff(values, axis=1, append=values[:, :1])).max(axis=1) / spacing
 drift = np.abs(values.sum(axis=1) - values[0].sum()) / values[0].sum()

@@ -15,49 +15,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, DiffusionInteraction, MovementInteraction
+from ....core.components.interactions import CouplingInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class NodeContentElement(Element):
-    """Content of a node of a network.
-
-    The content diffuses along the links with the coefficient `D`.
-
-    Args:
-        label:
-            The label of the node or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial content.
-
-        D:
-            The diffusion coefficient of every link.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.networks import NodeContentElement
-        >>> NodeContentElement('node', D=0.5).D
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.D = D
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import MovementInteraction
+from ...general.dynamics import NetworkDynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class NodeRankElement(Element):
@@ -155,11 +122,6 @@ class NetworkWalkerElement(Element):
         return NetworkWalkerView
 
 
-def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:
-    """Return the graph, or Zachary's karate club when none is given."""
-    return nx.karate_club_graph() if graph is None else graph
-
-
 class NetworkRandomWalkSystem(BaseSystem):
     """Random walkers on a network.
 
@@ -189,6 +151,11 @@ class NetworkRandomWalkSystem(BaseSystem):
     references = ('Thurner et al. 2018', 'Jensen 2023')
     until = 100
 
+    @staticmethod
+    def _get_graph_or_default(graph: nx.Graph | None) -> nx.Graph:
+        """Return the graph, or Zachary's karate club when none is given."""
+        return nx.karate_club_graph() if graph is None else graph
+
     def __init__(
         self,
         graph: nx.Graph | None = None,
@@ -206,11 +173,11 @@ class NetworkRandomWalkSystem(BaseSystem):
         if isinstance(agent, NetworkWalkerView):
             agent.steps += 1
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        graph = _graph_or_default(self.graph)
+        graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[GroupElement('walkers', element=NetworkWalkerElement, size=self.n_walkers)],
             interactions=[walk],
@@ -218,7 +185,7 @@ class NetworkRandomWalkSystem(BaseSystem):
         )
 
 
-class NetworkDiffusionSystem(BaseSystem):
+class NetworkDiffusionSystem(NetworkDynamicalSystem):
     """Diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`.
 
     The diffusion spreads a unit mass to every node.
@@ -260,24 +227,27 @@ class NetworkDiffusionSystem(BaseSystem):
         source: int = 0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.graph = graph
         self.D = D
         self.source = source
 
-    def _build_system(self) -> System:
-        """Return the parts of the system, built from its model parameters."""
-        graph = _graph_or_default(self.graph)
-        initial = np.zeros(graph.number_of_nodes())
+    def _get_graph(self) -> nx.Graph:
+        """Return the graph, Zachary's karate club by default."""
+        return NetworkRandomWalkSystem._get_graph_or_default(self.graph)
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the content, one at the source and zero elsewhere, and the diffusion constant."""
+        initial = np.zeros(self._get_graph().number_of_nodes())
         initial[self.source] = 1.0
-        nodes = FieldElement(
-            'nodes',
-            element=NodeContentElement,
-            space=NetworkSpace(graph),
-            values={'u': initial, 'D': self.D},
-        )
-        diffusion = DiffusionInteraction('diffusion', target='nodes', state='u', coefficient=lambda s: s.target.D)
-        return System(self.label, elements=[nodes], interactions=[diffusion])
+        return {
+            'u': DeclaredVariableSpec(initial, StateSpec()),
+            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the diffusion `D L u` of the content by the graph Laplacian."""
+        return {'u': lambda s: s.target.D * laplacian(s.target.u)}
 
 
 class PagerankSystem(BaseSystem):
@@ -331,12 +301,12 @@ class PagerankSystem(BaseSystem):
         member, other = s.member, s.other
         return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j`.
 
         The network is undirected.
         """
-        graph = _graph_or_default(self.graph)
+        graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         size = graph.number_of_nodes()
         degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
         values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': self.damping}
@@ -349,4 +319,4 @@ class PagerankSystem(BaseSystem):
             function=self._get_link_term,
             form='map',
         )
-        return System(self.label, elements=[pages], interactions=[links])
+        return CompositeSystem(self.label, elements=[pages], interactions=[links])

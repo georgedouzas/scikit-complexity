@@ -11,52 +11,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import DiffusionInteraction
+from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import ReactionDiffusionSystem
 from ..common.excitable import FitzHughNagumoInteraction
-
-
-class FitzHughNagumoElement(Element):
-    """Cell of an excitable medium, with a potential `u` and a recovery `v`.
-
-    The cell has no laws of its own. FitzHugh-Nagumo kinetics and a diffusion of the potential change it.
-
-    Args:
-        label:
-            The label of the cell.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial potential.
-
-        v:
-            The initial recovery.
-
-    Examples:
-        >>> from skcomplex.systems.biology.physiology import FitzHughNagumoElement
-        >>> FitzHughNagumoElement('cell', u=1.5).u
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
 
 
 class MackeyGlassElement(Element):
@@ -129,7 +92,7 @@ class MackeyGlassElement(Element):
         return [RateLaw(s.x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * s.x)]
 
 
-class FitzhughNagumoSystem(BaseSystem):
+class FitzhughNagumoSystem(ReactionDiffusionSystem):
     """The FitzHugh-Nagumo excitable medium, started from a broken wave.
 
     The broken wave curls into a spiral.
@@ -179,32 +142,47 @@ class FitzhughNagumoSystem(BaseSystem):
         epsilon: float = 0.02,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
-        self.shape = shape
+        super().__init__(label=label)
+        self.shape: Sequence[int] = shape
         self.D = D
         self.a = a
         self.b = b
         self.epsilon = epsilon
 
-    def _build_system(self) -> System:
-        """Return the parts of the FitzHugh-Nagumo excitable medium."""
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the sites."""
+        return 'medium'
+
+    def _get_space(self) -> LatticeSpace:
+        """Return the reflecting lattice of the shape."""
+        rows, columns = self.shape
+        return LatticeSpace((rows, columns), boundary='reflecting')
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the potential excited on the upper half and the recovery refractory on the left half."""
         rows, columns = self.shape
         u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
         u[: rows // 2, :] = 1.5
         v[:, : columns // 2] = 1.0
-        space = LatticeSpace((rows, columns), boundary='reflecting')
-        medium = FieldElement('medium', element=FitzHughNagumoElement, space=space, values={'u': u, 'v': v})
-        kinetics = FitzHughNagumoInteraction(
-            'kinetics',
-            target='medium',
-            fast='u',
-            slow='v',
-            a=self.a,
-            b=self.b,
-            epsilon=self.epsilon,
-        )
-        diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=self.D)
-        return System(self.label, elements=[medium], interactions=[kinetics, diffusion])
+        return {'u': DeclaredVariableSpec(u, StateSpec()), 'v': DeclaredVariableSpec(v, StateSpec())}
+
+    def _get_equation_interactions(self) -> list[FitzHughNagumoInteraction]:
+        """Return the FitzHugh-Nagumo kinetics of the potential and the recovery."""
+        return [
+            FitzHughNagumoInteraction(
+                'kinetics',
+                target='medium',
+                fast='u',
+                slow='v',
+                a=self.a,
+                b=self.b,
+                epsilon=self.epsilon,
+            ),
+        ]
+
+    def _get_diffusivities(self) -> dict[str, float]:
+        """Return the diffusion coefficient of the potential."""
+        return {'u': self.D}
 
 
 class MackeyGlassSystem(BaseSystem):
@@ -263,9 +241,9 @@ class MackeyGlassSystem(BaseSystem):
         self.n = n
         self.tau = tau
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],
         )

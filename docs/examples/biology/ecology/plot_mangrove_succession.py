@@ -7,8 +7,8 @@ succession.
 """
 
 # %%
-# The system is built from its class from a bare clear cut and run for 300 years. The observer saves every year with
-# the default blueprint, whose primary view is the time series of the three volumes.
+# The example builds `MangroveSuccessionSystem` from a bare clear cut and runs it for 300 years. The observer saves
+# every year with the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +29,7 @@ trajectory = simulate(MangroveSuccessionSystem(), observers=[observer], until=29
 # peak later, and Sundari should hold most of the mature forest.
 
 groups = ['keora', 'gewa', 'sundari']
-volumes = np.column_stack([trajectory.values(f'{group}.volume') for group in groups])
+volumes = np.column_stack([trajectory.get_values(f'{group}.volume') for group in groups])
 shares = volumes / np.maximum(volumes.sum(axis=1, keepdims=True), 1e-12)
 peaks = trajectory.times[np.argmax(volumes, axis=0)]
 fig, ax = plt.subplots(figsize=(8, 4))

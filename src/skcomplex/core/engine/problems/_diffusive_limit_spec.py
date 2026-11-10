@@ -17,7 +17,7 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True, eq=False)
 class DiffusiveLimitSpec(BaseSpec):
-    """Stability limit of explicit steps for the diffusion of a finite-volume field.
+    """A spec of the stability limit of explicit steps of diffusion on a field.
 
     The limit holds at the current parameters.
 
@@ -49,6 +49,6 @@ class DiffusiveLimitSpec(BaseSpec):
             step:
                 The step `1 / (stiffness * max |D|)`, infinite without diffusion.
         """
-        values = [reference.column_of(np.zeros(0), p) for reference in self.parameters]
-        magnitude = float(np.max(np.abs(ExpressionPrinter._values_of(self.coefficient(0.0, *values))[0])))
+        values = [reference.get_column_of(np.zeros(0), p) for reference in self.parameters]
+        magnitude = float(np.max(np.abs(ExpressionPrinter._get_values_of(self.coefficient(0.0, *values))[0])))
         return math.inf if magnitude == 0 else 1 / (self.stiffness * magnitude)

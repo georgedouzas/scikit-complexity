@@ -32,7 +32,7 @@ trajectory = simulate(WeakeningOrnsteinUhlenbeckSystem(n_particles=4), until=200
 # Ornstein-Uhlenbeck process with the same stiffness near the origin, of variance `D / k = 0.25`.
 
 ensemble = simulate(WeakeningOrnsteinUhlenbeckSystem(n_particles=500), until=200, random_state=1)
-positions = np.abs(ensemble.values('particles.x')[2000:].ravel())
+positions = np.abs(ensemble.get_values('particles.x')[2000:].ravel())
 edges = np.geomspace(0.05, 30, 40)
 density, _ = np.histogram(positions, bins=edges, density=True)
 centers = np.sqrt(edges[1:] * edges[:-1])

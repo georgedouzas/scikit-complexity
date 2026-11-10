@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendWarning, ValidationError
@@ -52,7 +52,7 @@ class BallElement(Element):
 
 def _trajectory(law, backend=None):
     """Return the trajectory of a ball whose crossing has the given form."""
-    system = System(elements=[BallElement('ball', law=law)])
+    system = CompositeSystem(elements=[BallElement('ball', law=law)])
     return simulate(system, until=1.0, dt=0.001, backend=backend or NumpyBackend())
 
 
@@ -61,7 +61,7 @@ def test_crossing_with_functions_equals_the_symbolic_crossing(law):
     """Test that a crossing with a function fires where the symbolic crossing fires and applies the same reset."""
     reference, trajectory = _trajectory('symbols'), _trajectory(law)
     assert [event.time for event in trajectory.events] == pytest.approx([event.time for event in reference.events])
-    assert trajectory.values('ball.y') == pytest.approx(reference.values('ball.y'), abs=1e-9)
+    assert trajectory.get_values('ball.y') == pytest.approx(reference.get_values('ball.y'), abs=1e-9)
 
 
 def test_crossing_with_functions_on_numba_runs_in_python():
@@ -69,7 +69,7 @@ def test_crossing_with_functions_on_numba_runs_in_python():
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', BackendWarning)
         trajectory = _trajectory('functions', NumbaBackend())
-    assert trajectory.values('ball.y') == pytest.approx(_trajectory('symbols').values('ball.y'), abs=1e-9)
+    assert trajectory.get_values('ball.y') == pytest.approx(_trajectory('symbols').get_values('ball.y'), abs=1e-9)
 
 
 def test_crossing_with_a_function_reads_every_member_of_a_group():
@@ -94,12 +94,12 @@ def test_crossing_with_a_function_reads_every_member_of_a_group():
             return [RateLaw(s.y, -1.0), CrossingLaw(guard, {s.y: lambda t, values: 5.0}, -1)]
 
     group = GroupElement('herd', element=FallingElement, size=2, values={'y': [1.0, 2.0]})
-    trajectory = simulate(System(elements=[group]), until=1.5, dt=0.01)
-    assert np.asarray(trajectory.values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
+    trajectory = simulate(CompositeSystem(elements=[group]), until=1.5, dt=0.01)
+    assert np.asarray(trajectory.get_values('herd.y'))[-1] == pytest.approx([4.5, 0.5], abs=1e-6)
 
 
 def test_crossing_rejects_a_call_with_arguments():
     """Test that a crossing names the forms of a function it takes."""
-    system = System(elements=[BallElement('ball', law='arguments')])
+    system = CompositeSystem(elements=[BallElement('ball', law='arguments')])
     with pytest.raises(ValidationError, match='An event takes'):
         simulate(system, until=0, dt=0.01)

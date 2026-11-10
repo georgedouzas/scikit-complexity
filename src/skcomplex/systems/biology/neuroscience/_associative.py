@@ -19,11 +19,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 UNIT = RealSet.closed(0, 1)
-
 CLIQUES = ((0, 1), (0, 6), (3, 6), (1, 2, 3), (4, 5, 6), (1, 2, 4, 5))
 
 
@@ -184,12 +183,15 @@ class CliqueCompetitionInteraction(Interaction):
         excitatory = np.asarray(self.w, dtype=float)
         inhibitory = np.where(excitatory > 0, 0.0, -1.0)
         np.fill_diagonal(inhibitory, 0.0)
-        excitation = self._reservoir(site.phi, s.phi_w, s.f_w_min, s.width) * total(site.x, weights=excitatory)
-        inhibition = s.z * total(self._reservoir(site.phi, s.phi_z, s.f_z_min, s.width) * site.x, weights=inhibitory)
+        excitation = self._get_reservoir(site.phi, s.phi_w, s.f_w_min, s.width) * total(site.x, weights=excitatory)
+        inhibition = s.z * total(
+            self._get_reservoir(site.phi, s.phi_z, s.f_z_min, s.width) * site.x,
+            weights=inhibitory,
+        )
         r = excitation + inhibition
         return [RateLaw(site.x, where(r > 0, (1 - site.x) * r, site.x * r))]
 
-    def _reservoir(self, phi: Expression, center: Expression, floor: Expression, width: Expression) -> Expression:
+    def _get_reservoir(self, phi: Expression, center: Expression, floor: Expression, width: Expression) -> Expression:
         """Return the sigmoidal reservoir function of a reservoir level."""
         lowest = atan(-center / width)
         return floor + (1 - floor) * (atan((phi - center) / width) - lowest) / (atan((1 - center) / width) - lowest)
@@ -266,7 +268,7 @@ class AssociativeThoughtProcessSystem(BaseSystem):
         self.gamma_minus = gamma_minus
         self.start = start
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the dense homogeneous associative network of Gros."""
         size = 1 + max(max(clique) for clique in self.cliques)
         links = np.zeros((size, size))
@@ -293,4 +295,4 @@ class AssociativeThoughtProcessSystem(BaseSystem):
             w=tuple(map(tuple, links.tolist())),
             z=self.z,
         )
-        return System(self.label, elements=[sites], interactions=[competition])
+        return CompositeSystem(self.label, elements=[sites], interactions=[competition])

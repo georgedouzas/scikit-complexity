@@ -30,7 +30,7 @@ def test_gimballed_gyroscope_precesses_at_torque_over_angular_momentum():
     """Test that the mean precession rate is `-torque / (C spin cos beta)`, shrinking as the rotor spins faster."""
     for spin in (25.0, 50.0, 100.0):
         trajectory = _run(GimballedGyroscopeSystem(spin=spin), 10.0, 0.01)
-        mean_rate = trajectory.values('gyroscope.alpha')[-1] / 10.0
+        mean_rate = trajectory.get_values('gyroscope.alpha')[-1] / 10.0
         assert mean_rate == pytest.approx(-1.0 / (2.0 * spin * np.cos(0.3)), rel=0.01)
 
 

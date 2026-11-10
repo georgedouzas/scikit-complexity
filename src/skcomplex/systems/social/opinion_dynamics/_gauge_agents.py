@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -141,51 +141,6 @@ class ConnectionElement(Element):
         self.A = A
 
 
-def _differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
-    """Return the differences of the phases along the edges minus the connection.
-
-    They are wrapped into one period around 0.
-    """
-    phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
-    connection = np.ravel(np.asarray(values['links.A'], dtype=float))
-    return np.angle(np.exp(1j * (edges @ phases - connection)))
-
-
-def _energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the sum over the edges of one minus the cosine of the difference.
-
-    The difference is the transported one.
-    """
-    del t
-    return float((1.0 - np.cos(_differences(edges, values))).sum())
-
-
-def _twist(
-    edges: scipy.sparse.csr_array,
-    faces: scipy.sparse.csr_array,
-    t: float,
-    values: Mapping[str, object],
-) -> float:
-    """Return the largest absolute oriented sum of the transported differences.
-
-    The sums run around the faces.
-    """
-    del t
-    return float(np.abs(faces @ _differences(edges, values)).max(initial=0.0))
-
-
-def _agent_observables(system: System) -> list[ObservableSpec]:
-    """Return the energy of the transported differences and their twist.
-
-    The twist is around the faces.
-    """
-    space = system.elements[0].space.prepare()
-    return [
-        ObservableSpec('energy', function=partial(_energy, space.incidences_[0])),
-        ObservableSpec('twist', function=partial(_twist, *space.incidences_[:2])),
-    ]
-
-
 class GaugeNetworkAgentsSystem(BaseSystem):
     """Agent phases on the nodes of a network.
 
@@ -236,6 +191,51 @@ class GaugeNetworkAgentsSystem(BaseSystem):
     until = 100.0
     dt = 0.5
 
+    @staticmethod
+    def _get_differences(edges: scipy.sparse.csr_array, values: Mapping[str, object]) -> Array:
+        """Return the differences of the phases along the edges minus the connection.
+
+        They are wrapped into one period around 0.
+        """
+        phases = np.ravel(np.asarray(values['agents.theta'], dtype=float))
+        connection = np.ravel(np.asarray(values['links.A'], dtype=float))
+        return np.angle(np.exp(1j * (edges @ phases - connection)))
+
+    @staticmethod
+    def _get_energy(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the sum over the edges of one minus the cosine of the difference.
+
+        The difference is the transported one.
+        """
+        del t
+        return float((1.0 - np.cos(GaugeNetworkAgentsSystem._get_differences(edges, values))).sum())
+
+    @staticmethod
+    def _get_twist(
+        edges: scipy.sparse.csr_array,
+        faces: scipy.sparse.csr_array,
+        t: float,
+        values: Mapping[str, object],
+    ) -> float:
+        """Return the largest absolute oriented sum of the transported differences.
+
+        The sums run around the faces.
+        """
+        del t
+        return float(np.abs(faces @ GaugeNetworkAgentsSystem._get_differences(edges, values)).max(initial=0.0))
+
+    @staticmethod
+    def _get_agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the energy of the transported differences and their twist.
+
+        The twist is around the faces.
+        """
+        space = system.elements[0].space.prepare()
+        return [
+            ObservableSpec('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
+            ObservableSpec('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
+        ]
+
     def __init__(
         self,
         n_agents: int = 12,
@@ -257,7 +257,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         self.graph = graph
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         network = nx.cycle_graph(self.n_agents) if self.graph is None else self.graph
         space = CellComplexSpace(NetworkSpace(network)).prepare()
@@ -284,7 +284,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
             values={'A': connection},
         )
         coupling = TransportedCouplingInteraction('coupling', target='agents', links='links', K=self.K)
-        return System(self.label, elements=[agents, links], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[agents, links], interactions=[coupling])
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
@@ -292,5 +292,5 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _agent_observables(self._pass_parameters())
+        settings['observables'] = GaugeNetworkAgentsSystem._get_agent_observables(self._get_pass_parameters())
         return settings

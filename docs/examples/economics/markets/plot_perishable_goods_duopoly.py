@@ -7,7 +7,7 @@ more customers.
 """
 
 # %%
-# The system is built from its class with half a product per customer in each shop and products that age
+# The example builds `PerishableGoodsDuopolySystem` with half a product per customer in each shop and products that age
 # over one unit of time, so the control parameter is `R = 1` and the critical temperature `T_c = R / (1 + R)^2 = 0.25`.
 # The customers choose at the temperature 0.1. The two shops are the isolated nodes of a network, so the customers are
 # not drawn in space: the blueprint shows the time series of `m` and, below it, the shares of customers at each shop,
@@ -26,9 +26,9 @@ from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
 SYSTEM = 'perishable_goods_duopoly'
 CONTROL = 1.0
 CRITICAL = CONTROL / (1 + CONTROL) ** 2
-
 SHOPS = (0, 1)
 COLORS = ((31, 119, 180), (255, 127, 14))
+
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
 system = PerishableGoodsDuopolySystem(customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 trajectory = simulate(system, observers=[observer], random_state=0)
-shops = np.array([trajectory.agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
+shops = np.array([trajectory.get_agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
 for shop, color in zip(SHOPS, COLORS, strict=True):
     observer.recording_.log(
         f'shares/shop_{shop + 1}',
@@ -64,7 +64,7 @@ observer.recording_.flush()
 # freshness `h_j = 1 / (1 + R / (1 +- m))`, has the stable root `m = 0` above `T_c` and a pair of roots `+-m*` below
 # it, which grow continuously from zero since `R > sqrt(3) - 1`. The stationary asymmetry of runs of 100 customers at a
 # range of temperatures should follow `m*`, slightly below it from the noise of the finite number of customers, and
-# further below it just under `T_c`, where the slow growth of `m` has not ended within a run.
+# further below it slightly under `T_c`, where the slow growth of `m` has not ended within a run.
 
 
 def mean_field_asymmetry(temperature):
@@ -83,11 +83,11 @@ asymmetries = []
 for temperature in temperatures:
     system_system = PerishableGoodsDuopolySystem(customers=100, T=temperature, random_state=1)
     run = simulate(system_system, random_state=1)
-    asymmetries.append(np.abs(run.values('m')[-100:]).mean())
+    asymmetries.append(np.abs(run.get_values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('m'))
+series.plot(trajectory.times, trajectory.get_values('m'))
 series.axhline(mean_field_asymmetry(0.1), color='black', linestyle='--', label='+-m* of mean field')
 series.axhline(-mean_field_asymmetry(0.1), color='black', linestyle='--')
 series.set_xlabel('time')

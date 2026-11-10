@@ -47,7 +47,7 @@ trajectory = simulate(
 # stationary distribution `(0.8, 0.2)` of the hidden chain.
 
 long = simulate(HiddenMarkovSourceSystem(transition=TRANSITION, emission=EMISSION), until=100000, random_state=1)
-hidden, symbol = long.values('source.hidden')[1:], long.values('source.symbol')[1:]
+hidden, symbol = long.get_values('source.hidden')[1:], long.get_values('source.symbol')[1:]
 measured = np.array([[np.mean(symbol[hidden == i] == j) for j in (0, 1)] for i in (0, 1)])
 fig, ax = plt.subplots(figsize=(6, 4))
 positions = np.arange(4)

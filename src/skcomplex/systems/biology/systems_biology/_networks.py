@@ -13,12 +13,13 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import DeclaredElement, Element
-from ....core.components.interactions import BaseInteraction, Interaction, ReactionInteraction
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
 CONCENTRATIONS = MappingProxyType(
@@ -40,7 +41,6 @@ CONCENTRATIONS = MappingProxyType(
         'P': 0.0,
     },
 )
-
 CONSTANTS = MappingProxyType(
     {
         'V1': 0.5,
@@ -70,25 +70,15 @@ CONSTANTS = MappingProxyType(
         'flow': 0.011,
     },
 )
-
 FEEDS = MappingProxyType({'ATP': 3.5, 'ADP': 1.1, 'NADH': 0.24, 'NAD': 4.0, 'GLC': 50.0})
-
 RAMAN = 'Raman 2021'
-
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)
-
 PATHWAY_BETA = (1.0, 1.0, 1.0)
-
 PATHWAY_G = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0))
-
 PATHWAY_H = ((0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
-
 PATHWAY_STOICHIOMETRY = ((1.0, -1.0, 0.0, 0.0), (0.0, 1.0, -1.0, 0.0), (0.0, 0.0, 1.0, -1.0))
-
 PATHWAY_GAMMA = (2.0, 1.0, 1.0, 1.0)
-
 PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
-
 MIN_GOODWIN_STAGES = 2
 
 
@@ -588,7 +578,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         self.kd3 = kd3
         self.K = K
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of three proteins."""
         loop = PhosphorylationLoopElement(
             'loop',
@@ -658,7 +648,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
                 km=lambda s: s.target.K3,
             ),
         ]
-        return System(self.label, elements=[loop], interactions=reactions)
+        return CompositeSystem(self.label, elements=[loop], interactions=reactions)
 
 
 class BiochemicalSystemsTheorySystem(BaseSystem):
@@ -746,7 +736,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         self.gamma = gamma
         self.orders = orders
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a biochemical system of power-law rates."""
         species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
         paths = [item.label for item in species]
@@ -770,7 +760,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         else:
             error_msg = f'Unknown form {self.form!r}. Use s-system or gma.'
             raise ValidationError(error_msg)
-        return System(self.label, elements=species, interactions=[rates])
+        return CompositeSystem(self.label, elements=species, interactions=[rates])
 
 
 class GoodwinOscillatorSystem(BaseSystem):
@@ -848,7 +838,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         self.n = n
         self.k = k
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Goodwin oscillator."""
         initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
         if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
@@ -879,7 +869,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         degradations = [
             ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=self.b) for label in labels
         ]
-        return System(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
+        return CompositeSystem(self.label, elements=stages, interactions=[repression, *syntheses, *degradations])
 
 
 class GlycolysisOscillationsSystem(BaseSystem):
@@ -926,10 +916,10 @@ class GlycolysisOscillationsSystem(BaseSystem):
         self.flow = flow
         self.V4 = V4
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the glycolysis of a yeast extract in a flow reactor."""
         variables = {
             'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
             'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
         }
-        return System(self.label, elements=[GlycolysisElement('extract', variables=variables)])
+        return CompositeSystem(self.label, elements=[GlycolysisElement('extract', variables=variables)])

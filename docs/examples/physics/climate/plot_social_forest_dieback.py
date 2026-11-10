@@ -36,8 +36,8 @@ for tc in (0.25, 1.0, 2.0):
     covers, shares = [], []
     for t in temperatures:
         run = simulate(SocialForestDiebackSystem(Tv=t, Tc=tc), dt=1.0)
-        covers.append(np.ravel(run.values('forest.v'))[-1])
-        shares.append(np.ravel(run.values('people.x'))[-1])
+        covers.append(np.ravel(run.get_values('forest.v'))[-1])
+        shares.append(np.ravel(run.get_values('people.x'))[-1])
     axes[0].plot(temperatures, covers, 'o-', label=f'Tc = {tc}')
     axes[1].plot(temperatures, shares, 'o-', label=f'Tc = {tc}')
 axes[0].set_ylabel('final value')

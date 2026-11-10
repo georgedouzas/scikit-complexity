@@ -18,7 +18,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import GradientInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -134,7 +134,7 @@ class BenardMarangoniSystem(BaseSystem):
         potential = -(layer.r - 1) * u**2 / 2 - layer.g * u**3 / 3 + u**4 / 4
         return potential + u * laplacian(u) + laplacian(u) ** 2 / 2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the order-parameter equation of Bénard-Marangoni convection.
 
         The convection forms hexagonal cells.
@@ -143,7 +143,7 @@ class BenardMarangoniSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': self.r, 'g': self.g}
         space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 FieldElement(

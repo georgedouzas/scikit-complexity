@@ -34,7 +34,7 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint,
 trajectory = simulate(BitStringEvolutionSystem(random_state=0), until=200, dt=1, observers=[observer], random_state=0)
 landscape = np.random.default_rng(0)
 zero_values, one_values = landscape.random(8), landscape.random(8)
-snapshots = [trajectory.agents('genomes', frame) for frame in range(len(trajectory.times))]
+snapshots = [trajectory.get_agents('genomes', frame) for frame in range(len(trajectory.times))]
 bits = np.array([(snapshot.values['genome'].astype(int)[:, None] >> np.arange(8)) & 1 for snapshot in snapshots])
 better = np.where(one_values > zero_values, bits.mean(axis=1), 1 - bits.mean(axis=1)).T
 order = np.argsort(np.abs(one_values - zero_values))[::-1]

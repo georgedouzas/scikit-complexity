@@ -14,10 +14,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._car import CarElement
-from ..common._optimal_velocity import OptimalVelocityInteraction
+from ..common.traffic import CarElement, OptimalVelocityInteraction
 
 
 class LeadCarElement(Element):
@@ -173,18 +172,8 @@ class IntelligentDriverInteraction(RateInteraction):
         return s.a * (
             1
             - (cars.v / s.v0) ** s.delta
-            - (gap / (OptimalVelocityInteraction._headway(cars.x, s.road_length) - s.length)) ** 2
+            - (gap / (OptimalVelocityInteraction._get_headway(cars.x, s.road_length) - s.length)) ** 2
         )
-
-
-def _ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:
-    """Return evenly spaced positions on a ring.
-
-    The first car is moved forward by a perturbation.
-    """
-    positions = np.arange(n_cars) * length / n_cars
-    positions[0] += perturbation
-    return [float(position) for position in positions]
 
 
 class OptimalVelocitySystem(BaseSystem):
@@ -231,6 +220,16 @@ class OptimalVelocitySystem(BaseSystem):
     until = 200.0
     dt = 1.0
 
+    @staticmethod
+    def _get_ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:
+        """Return evenly spaced positions on a ring.
+
+        The first car is moved forward by a perturbation.
+        """
+        positions = np.arange(n_cars) * length / n_cars
+        positions[0] += perturbation
+        return [float(position) for position in positions]
+
     def __init__(
         self,
         n_cars: int = 20,
@@ -250,7 +249,7 @@ class OptimalVelocitySystem(BaseSystem):
         self.hc = hc
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         headway = self.length / self.n_cars
         speed = self.V0 * (np.tanh(headway - self.hc) + np.tanh(self.hc))
@@ -258,7 +257,10 @@ class OptimalVelocitySystem(BaseSystem):
             'cars',
             element=CarElement,
             size=self.n_cars,
-            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': float(speed)},
+            values={
+                'x': OptimalVelocitySystem._get_ring_positions(self.n_cars, self.length, self.perturbation),
+                'v': float(speed),
+            },
         )
         following = OptimalVelocityInteraction(
             'follow',
@@ -268,7 +270,7 @@ class OptimalVelocitySystem(BaseSystem):
             hc=self.hc,
             road_length=self.length,
         )
-        return System(self.label, elements=[cars], interactions=[following])
+        return CompositeSystem(self.label, elements=[cars], interactions=[following])
 
 
 class IntelligentDriverSystem(BaseSystem):
@@ -352,13 +354,16 @@ class IntelligentDriverSystem(BaseSystem):
         self.car_length = car_length
         self.perturbation = perturbation
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         cars = GroupElement(
             'cars',
             element=CarElement,
             size=self.n_cars,
-            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': 0.0},
+            values={
+                'x': OptimalVelocitySystem._get_ring_positions(self.n_cars, self.length, self.perturbation),
+                'v': 0.0,
+            },
         )
         following = IntelligentDriverInteraction(
             'follow',
@@ -372,7 +377,7 @@ class IntelligentDriverSystem(BaseSystem):
             length=self.car_length,
             road_length=self.length,
         )
-        return System(self.label, elements=[cars], interactions=[following])
+        return CompositeSystem(self.label, elements=[cars], interactions=[following])
 
 
 class DelayedCarFollowingSystem(BaseSystem):
@@ -447,7 +452,7 @@ class DelayedCarFollowingSystem(BaseSystem):
         self.T = T
         self.power = power
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         lead = LeadCarElement('car_0', x=0.0, v=self.u, u=self.u, amplitude=self.amplitude, omega=self.omega)
         followers = [CarElement(f'car_{index}', x=-index * self.spacing, v=self.u) for index in range(1, self.n_cars)]
@@ -462,4 +467,4 @@ class DelayedCarFollowingSystem(BaseSystem):
             )
             for index in range(1, self.n_cars)
         ]
-        return System(self.label, elements=[lead, *followers], interactions=interactions)
+        return CompositeSystem(self.label, elements=[lead, *followers], interactions=interactions)

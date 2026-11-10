@@ -7,7 +7,7 @@ biomass and the glucose, until the glucose runs out and growth stops.
 """
 
 # %%
-# The system is built from its class, which needs the extra `metabolism`, with a program in a discrete partition that
+# The example builds `DynamicFBASystem`, which needs the extra `metabolism`, with a program in a discrete partition that
 # solves at every synchronisation point. The primary view is the series of the biomass and the glucose.
 
 import matplotlib.pyplot as plt
@@ -35,8 +35,8 @@ trajectory = simulate(DynamicFBASystem(), solver=solver, dt=FRAME, observers=[ob
 # optimum, 0.874 per hour. After depletion the biomass should stay at the yield of the glucose.
 
 times = trajectory.times
-biomass = trajectory.values('culture/biomass.x')
-glucose = trajectory.values('culture/glucose.c')
+biomass = trajectory.get_values('culture/biomass.x')
+glucose = trajectory.get_values('culture/glucose.c')
 plenty = glucose > 10 * KM
 slope, intercept = np.polyfit(times[plenty], np.log(biomass[plenty]), 1)
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)

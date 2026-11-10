@@ -64,8 +64,8 @@ trajectory = simulate(
 
 times = trajectory.times
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(times, trajectory.values('sheep.count'), label='sheep')
-ax.plot(times, trajectory.values('wolves.count'), label='wolves', color='tab:red')
+ax.plot(times, trajectory.get_values('sheep.count'), label='sheep')
+ax.plot(times, trajectory.get_values('wolves.count'), label='wolves', color='tab:red')
 ax.set_xlabel('step')
 ax.set_ylabel('number of agents')
 ax.set_title('Sheep and wolves oscillate in turn')

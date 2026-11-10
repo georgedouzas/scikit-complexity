@@ -1,19 +1,17 @@
-"""Define the exterior calculus of cell complexes.
-
-It is written as Sage symbolic functions the compiler lowers.
-"""
+"""Define the exterior calculus of the states on the cells of a cell complex."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
+from ._operators import _OperatorFunction
 from ._reductions import _calls_in
 
-EXTERIOR_DERIVATIVE = function('exterior_derivative', nargs=1, latex_name=r'\mathrm{d}')
-CODIFFERENTIAL = function('codifferential', nargs=1, latex_name=r'\delta')
-HODGE_STAR = function('hodge_star', nargs=1, latex_name=r'\star')
 CELL_OPERATIONS = ('exterior_derivative', 'codifferential', 'hodge_star')
+EXTERIOR_DERIVATIVE = _OperatorFunction('exterior_derivative', nargs=1, latex_name=r'\mathrm{d}')
+CODIFFERENTIAL = _OperatorFunction('codifferential', nargs=1, latex_name=r'\delta')
+HODGE_STAR = _OperatorFunction('hodge_star', nargs=1, latex_name=r'\star')
 
 
 def exterior_derivative(expression: object) -> Expression:
@@ -106,7 +104,8 @@ def cell_operations_in(expression: object) -> list[Expression]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import cell_operations_in, codifferential, exterior_derivative
+        >>> from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
+        >>> from skcomplex.core.components.laws.utils._cells import cell_operations_in
         >>> cell_operations_in(1 + codifferential(exterior_derivative(var('flow'))))
         [codifferential(exterior_derivative(flow))]
     """

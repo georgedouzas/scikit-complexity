@@ -16,16 +16,13 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 KINDS = ('substitutable', 'essential')
-
 SUPPLIES = ('logistic', 'chemostat')
-
 UPTAKE = ((0.5, 0.3), (0.4, 0.6))
-
 CAPACITIES = (4.8, 2.85)
 
 
@@ -207,7 +204,7 @@ class ConsumptionInteraction(Interaction):
             error_msg = f'The exponent of essential resources must be below -1, not {self.n}.'
             raise ValidationError(error_msg)
 
-    def _essential_growth(self, R: Expression) -> Expression:
+    def _get_essential_growth(self, R: Expression) -> Expression:
         """Return the growth of a consumer on essential resources.
 
         The growth is `(sum_b (c_ib R_b)^n)^(1/n)`.
@@ -262,7 +259,7 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
         """
         consumers, resources = s.consumers, s.resources
         if self.kind == 'essential':
-            growth = self._essential_growth(resources.R) - consumers.m
+            growth = self._get_essential_growth(resources.R) - consumers.m
         else:
             intake = total(resources.w * resources.R, weights=np.asarray(self.c, dtype=float))
             growth = consumers.e * (intake - consumers.m)
@@ -366,7 +363,7 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
             renewal = resources.kappa - resources.omega * R
         if self.kind == 'essential':
             stoichiometry = np.asarray(self.c if self.v is None else self.v, dtype=float)
-            depletion = total(consumers.N * self._essential_growth(R), weights=stoichiometry.T)
+            depletion = total(consumers.N * self._get_essential_growth(R), weights=stoichiometry.T)
         else:
             depletion = R * total(consumers.N, weights=np.asarray(self.c, dtype=float).T)
         return [RateLaw(R, renewal - depletion)]
@@ -487,7 +484,7 @@ class ConsumerResourceSystem(BaseSystem):
         self.n = n
         self.v = v
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of consumer species that compete only through resources.
 
         They compete only through the resources they take up.
@@ -544,4 +541,4 @@ class ConsumerResourceSystem(BaseSystem):
             supply=self.supply,
             v=self.v,
         )
-        return System(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])
+        return CompositeSystem(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])

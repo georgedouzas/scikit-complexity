@@ -5,12 +5,14 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import Expression, exp, tanh, var
+from sage.all__sagemath_symbolics import Expression, exp, oo, tanh, var
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.laws.utils import (
     coordinate,
@@ -19,40 +21,54 @@ from skcomplex.core.components.laws.utils import (
     integration_variable,
 )
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec
+from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def product_integral(s: SimpleNamespace) -> object:
     """Return the integral of the density against the kernel `z u`."""
-    return integral_transform(s.f, coordinate('z') * integration_variable('z'), ('z',))
+    return integral_transform(s.x, coordinate('z') * integration_variable('z'), ('z',))
 
 
 def tail_integral(s: SimpleNamespace) -> object:
     """Return the integral of the density from every cell to the end of its class axis."""
-    return cumulative_integral(s.f, 1, reverse=True)
+    return cumulative_integral(s.x, 1, reverse=True)
 
 
 def head_integral(s: SimpleNamespace) -> object:
     """Return the integral of the density from the start of its class axis to every cell."""
-    return cumulative_integral(s.f, 1)
+    return cumulative_integral(s.x, 1)
 
 
 def light(s: SimpleNamespace) -> object:
     """Return the Beer-Lambert light under the canopy of the density weighted by the squared height."""
-    return exp(-cumulative_integral(s.f * coordinate('h') ** 2, 1, reverse=True))
+    return exp(-cumulative_integral(s.x * coordinate('h') ** 2, 1, reverse=True))
 
 
 def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleNamespace], object]) -> np.ndarray:
     """Return an observable of a constant density on one class axis at every cell."""
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
-    field = FieldElement('g', element=DensityElement, space=space, values={'f': values})
+    field = FieldElement('g', element=AmountElement, space=space, values={'x': values})
     observables = [ObservableSpec('value', function, group='g', reduce=np.asarray)]
-    trajectory = simulate(System(elements=[field]), until=0.1, dt=0.1, observables=observables)
-    return np.asarray(trajectory.values('value'), dtype=float)[-1].ravel()
+    trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    return np.asarray(trajectory.get_values('value'), dtype=float)[-1].ravel()
 
 
 def test_integration_variable_rejects_a_name_that_is_no_identifier() -> None:
@@ -65,7 +81,7 @@ def test_cumulative_integral_rejects_an_axis_that_is_no_integer() -> None:
     """Raise a named error for an axis that is not a nonnegative integer."""
     for axis in (-1, 1.5, True):
         with pytest.raises(ValidationError, match='nonnegative integer'):
-            cumulative_integral(var('f'), axis)
+            cumulative_integral(var('x'), axis)
 
 
 def test_integral_transform_samples_a_kernel_of_both_coordinates() -> None:
@@ -84,14 +100,14 @@ def test_integral_transform_with_an_antisymmetric_kernel_conserves_the_total() -
         return (1 + tanh(2 * ((first - second) + (first**2 - second**2)))) / 2
 
     def rate(s: SimpleNamespace) -> object:
-        return s.target.f * integral_transform(s.target.f, victory(z, u) - victory(u, z), ('z',))
+        return s.target.x * integral_transform(s.target.x, victory(z, u) - victory(u, z), ('z',))
 
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)]).prepare()
     start = 1.0 + np.sin(3 * space.coordinates_['z'])[None, :]
-    field = FieldElement('g', element=DensityElement, space=space, values={'f': start})
-    system = System(elements=[field], interactions=[RateInteraction('r', target='g', state='f', rate=rate)])
+    field = FieldElement('g', element=AmountElement, space=space, values={'x': start})
+    system = CompositeSystem(elements=[field], interactions=[RateInteraction('r', target='g', state='x', rate=rate)])
     final = simulate(system, until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
-    values = final.values('g.f')
+    values = final.get_values('g.x')
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10
     assert not np.allclose(values[-1], values[0])
 

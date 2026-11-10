@@ -5,7 +5,7 @@
 
 import math
 
-from ...components.laws import BoundaryLaw, EmissionLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
+from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind
@@ -15,7 +15,7 @@ from ._solver import Solver
 
 
 class IterationSolver(Solver):
-    """Iteration of a discrete map, one application per unit of time.
+    """A solver that iterates a discrete map, one application per unit of time.
 
     A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
     recorder of a run that records or replays its draws.
@@ -23,11 +23,11 @@ class IterationSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[MarketElement('m', price=1)],
         ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ... )
@@ -43,7 +43,7 @@ class IterationSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={UpdateLaw, TransitionLaw, LinearProgramLaw, EmissionLaw, BoundaryLaw, TransferLaw},
+            laws={UpdateLaw, TransitionLaw, LinearProgramLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -103,5 +103,5 @@ class IterationSolver(Solver):
             if topology is not None:
                 fired = topology._decide(float(step), state, p, self.rng_)
                 following = topology._apply(fired, float(step), following, p, self.rng_)
-            state = self._bounded(float(step + 1), following, p)
+            state = self._get_bounded(float(step + 1), following, p)
         return state

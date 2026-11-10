@@ -11,9 +11,10 @@ from dataclasses import replace
 import numpy as np
 
 from ....core.components.elements import FieldElement, GroupElement
-from ....core.components.interactions import DiffusionInteraction
+from ....core.components.interactions import RateInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import VisualSpec
 from ..common.metabolism import (
@@ -141,7 +142,7 @@ class CometsSystem(BaseSystem):
         self.km = km
         self.interval = interval
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of an expanding colony of the E. coli core system on a lattice."""
         source = load_network('textbook', 'cell', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
@@ -150,14 +151,14 @@ class CometsSystem(BaseSystem):
         initial = np.zeros(self.shape)
         initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
         space = LatticeSpace(self.shape, spacing=self.box)
-        images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
+        images = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
         cells = {
             'name': 'ColonyCell',
             'reactions': plain,
             'default_objective': source.default_objective,
             'infeasible': 'zero',
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
@@ -189,17 +190,17 @@ class CometsSystem(BaseSystem):
                     threshold=0.0,
                 ),
                 GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-                DiffusionInteraction(
+                RateInteraction(
                     'biomass_spread',
                     target='biomass',
                     state='x',
-                    coefficient=self.biomass_diffusion * SECONDS_PER_HOUR,
+                    rate=lambda s: self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x),
                 ),
-                DiffusionInteraction(
+                RateInteraction(
                     'glucose_spread',
                     target='glucose',
                     state='c',
-                    coefficient=self.glucose_diffusion * SECONDS_PER_HOUR,
+                    rate=lambda s: self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c),
                 ),
             ],
             space=space,

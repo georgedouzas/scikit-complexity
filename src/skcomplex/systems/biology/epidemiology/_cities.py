@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 
@@ -154,7 +154,7 @@ class ColocationInteraction(Interaction):
             system:
                 The system.
         """
-        people = system.agents(self.people, CommuterView)
+        people = system.get_agents(self.people, CommuterView)
         at_work = round(system.time) % 2 == 1 and not self.closed
         places = np.array([int(person.work if at_work else person.home) for person in people])
         health = np.array([person.health for person in people])
@@ -244,7 +244,7 @@ class EpisimsCitySystem(BaseSystem):
         self.closed = closed
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a synthetic city in the spirit of EpiSims."""
         rng = np.random.default_rng(self.seed)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
@@ -263,7 +263,7 @@ class EpisimsCitySystem(BaseSystem):
             location=homes.tolist(),
         )
         contacts = ColocationInteraction('contacts', people='people', p=self.p, gamma=self.gamma, closed=self.closed)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[group],
             interactions=[contacts],

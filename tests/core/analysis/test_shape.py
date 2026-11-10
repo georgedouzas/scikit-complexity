@@ -7,11 +7,11 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 from skcomplex.core.analysis import chain_shape
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import DriveLaw
+from skcomplex.core.components.laws import ArrayUpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec
@@ -102,13 +102,17 @@ class StretchInteraction(Interaction):
             """Return points on a line, spaced by the time."""
             return np.outer(np.arange(values.shape[0]), [time, 0.0, 0.0])
 
-        return [DriveLaw(self._get_member(namespace, 'target').x, stretch)]
+        return [ArrayUpdateLaw(self._get_member(namespace, 'target').x, stretch)]
 
 
 def test_shape_reads_a_lattice_state_of_a_trajectory():
     """Test that a lattice state whose last axis holds coordinates is read as frames by points by dimensions."""
-    chain = LatticeElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'))
-    system = System(elements=[chain], interactions=[StretchInteraction('s', target='chain')], time=DiscreteTime())
+    chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
+    system = CompositeSystem(
+        elements=[chain],
+        interactions=[StretchInteraction('s', target='chain')],
+        time=DiscreteTime(),
+    )
     trajectory = simulate(system, until=2, random_state=0)
     values = chain_shape(trajectory, kind='end-to-end', group='chain.x').values
     assert values.tolist() == [0.0, 3.0, 6.0]
@@ -116,7 +120,7 @@ def test_shape_reads_a_lattice_state_of_a_trajectory():
 
 def test_shape_reports_a_group_it_cannot_find():
     """Test that a trajectory without the group raises an error."""
-    chain = LatticeElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'))
-    trajectory = simulate(System(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
+    chain = GroupElement('chain', element=CoordinateElement, space=LatticeSpace((4, 3), boundary='fixed'), on='sites')
+    trajectory = simulate(CompositeSystem(elements=[chain], time=DiscreteTime()), until=1, random_state=0)
     with pytest.raises(AnalysisError):
         chain_shape(trajectory, group='nothing')

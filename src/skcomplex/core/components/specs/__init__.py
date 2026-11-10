@@ -1,6 +1,7 @@
-"""Specs that name classes of the core.
+"""Define the specs that describe the parts of a system as the compiler reads them.
 
-They describe the parts of a system as a compilation reads them.
+They name classes of the core, such as an element with the dotted names of its variables, so they live beside the parts
+rather than in `skcomplex.core.specs`.
 """
 
 from ._census_record_spec import CensusRecordSpec
@@ -13,6 +14,7 @@ from ._lattice_state_spec import LatticeStateSpec
 from ._node_spec import NodeSpec
 from ._operator_view_spec import OperatorViewSpec
 from ._scenario_spec import ScenarioSpec
+from ._subsystem_spec import SubsystemSpec
 
 __all__: list[str] = [
     'CensusRecordSpec',
@@ -25,4 +27,5 @@ __all__: list[str] = [
     'NodeSpec',
     'OperatorViewSpec',
     'ScenarioSpec',
+    'SubsystemSpec',
 ]

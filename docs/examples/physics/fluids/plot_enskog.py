@@ -9,7 +9,7 @@ as a sound wave.
 """
 
 # %%
-# The system is built from its class with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
+# The example builds `EnskogSystem` with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
 # 16 positions, and 16 points on each velocity axis. The stepper is the registered Strang splitting of semi-Lagrangian
 # streaming and of collisions advanced by RK4. The observable `density_wave` is the component of wave number 1 of the
 # density over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables
@@ -32,7 +32,7 @@ KNUDSEN = 0.2
 
 def density_wave(_, values):
     """Return the component of wave number 1 of the density over position."""
-    density = np.reshape(values['gas.f'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
+    density = np.reshape(values['gas.x'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
     return 2 * density @ np.sin(2 * np.pi * np.arange(POSITIONS) / POSITIONS) / POSITIONS
 
 
@@ -54,7 +54,7 @@ trajectory = simulate(system, until=5.5, solver=solver, observers=[observer], ob
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
     run = simulate(gas, until=5.5, solver=solver, dt=0.1, observables=observables)
-    wave = run.values('density_wave')
+    wave = run.get_values('density_wave')
     return run.times, wave / wave[0]
 
 

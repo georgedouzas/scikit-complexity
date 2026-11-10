@@ -7,7 +7,7 @@ scale, because `c` lies inside the Mandelbrot set.
 """
 
 # %%
-# The system is built from its class on a lattice of 240 by 320 starting points. The map runs for 100
+# The example builds `JuliaSystem` on a lattice of 240 by 320 starting points. The map runs for 100
 # steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image of the
 # escape counts.
 
@@ -32,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 # itself turned by half a turn. The histogram shows most points escape within a few steps, and a slowly decaying tail
 # of points near the boundary takes many more.
 
-counts = trajectory.lattice('plane.n')[-1]
+counts = trajectory.get_lattice('plane.n')[-1]
 mismatch = np.mean(counts != counts[::-1, ::-1])
 fig, (image, histogram) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(np.log1p(counts), extent=WINDOW, cmap='magma')

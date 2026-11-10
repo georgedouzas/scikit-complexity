@@ -1,7 +1,4 @@
-"""Pass that checks the conserved quantities and lowers flows and delays.
-
-It lowers them into the laws of every spec, in place.
-"""
+"""Pass that checks the conserved quantities and lowers flows and delays."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._flows import TransferLowering
 
 
 class LowerFlowsPass(BasePass):
-    """Pass that checks the conserved quantities and lowers flows and delays.
+    """A pass that checks the conserved quantities and lowers flows and delays.
 
     It lowers them into the laws of every spec, in place.
     """
@@ -30,5 +27,5 @@ class LowerFlowsPass(BasePass):
         """Lower the flows and their delays."""
         compilation = self.compilation_
         flows = TransferLowering().prepare(compilation)
-        lowered = Compilation._required(compilation.lowered, 'lowered')
+        lowered = Compilation._get_required(compilation.lowered, 'lowered')
         compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

@@ -9,9 +9,9 @@ bright spots, and new bands leave every meeting point in the opposite directions
 """
 
 # %%
-# The system is built from its class on a periodic line of length 100 with 128 sites, with the mean total densities
-# 200 of MinD and 120 of MinE and 1% noise on membrane MinD. The class tunes the implicit `BDF` method with the
-# exact Jacobian, since the fast cytosolic diffusion makes the system stiff. The default blueprint shows every state
+# The example builds `MinProteinSkeletonSystem` on a periodic line of length 100 with 128 sites, with the mean total
+# densities 200 of MinD and 120 of MinE and 1% noise on membrane MinD. The class tunes the implicit `BDF` method with
+# the exact Jacobian, since the fast cytosolic diffusion makes the system stiff. The default blueprint shows every state
 # as a space-time image, with membrane MinD first.
 
 import matplotlib.pyplot as plt
@@ -42,8 +42,8 @@ simulation = simulate(
 # relation of the linearised laws should show positive growth rates with nonzero frequencies.
 
 trajectory = simulation
-mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
-mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
+mind_total = sum(trajectory.get_values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
+mine_total = sum(trajectory.get_values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
 relation = stability(MinProteinSkeletonSystem(n_sites=512, length=400.0).prepare().system_, kind='dispersion')
 order = np.argsort(relation.magnitudes)
 

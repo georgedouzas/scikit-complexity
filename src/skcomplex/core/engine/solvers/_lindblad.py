@@ -1,7 +1,4 @@
-"""Solver of the Lindblad master equation with QuTiP's `MESolver`.
-
-Pure closed systems are solved with `SESolver`.
-"""
+"""Solver of the Lindblad master equation with QuTiP's `MESolver`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,11 +12,14 @@ from ._operator import OperatorSolver
 
 
 class LindbladSolver(OperatorSolver):
-    """Solver of the Lindblad master equation with QuTiP's `MESolver`.
+    """A solver of the Lindblad master equation with the `MESolver` of QuTiP.
 
     Pure closed systems are solved with `SESolver`. It is the default solver of the operator form. A system without
     dissipators that starts in a pure state follows the linear evolution `dx/dt = -i H x`, which is the master equation
     without dissipators.
+
+    Choose it for open quantum systems small enough to hold the density matrix. It appears in quantum optics and in the
+    decoherence of qubits.
 
     Args:
         atol:
@@ -39,7 +39,7 @@ class LindbladSolver(OperatorSolver):
         >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import LindbladSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
@@ -54,8 +54,8 @@ class LindbladSolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[TwoLevelElement('q')])
-        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).values('q.z')
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
+        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).get_values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
@@ -66,8 +66,8 @@ class LindbladSolver(OperatorSolver):
         A pure closed problem gets its Schrödinger solver.
         """
         problem = self.operator_
-        generator = self._operator(problem.generator, p)
+        generator = self._get_operator(problem.generator, p)
         if problem.pure:
             return qutip.SESolver(generator, options=self._options)
-        collapses = [self._operator(terms, p) for terms in problem.dissipators]
+        collapses = [self._get_operator(terms, p) for terms in problem.dissipators]
         return qutip.MESolver(generator, c_ops=collapses, options=self._options)

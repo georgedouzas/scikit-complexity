@@ -7,10 +7,10 @@ velocity, and an agent surrounded by three neighbours aligns with all three, eac
 """
 
 # %%
-# The system is built from its class with forty agents near a lattice in a periodic box, at the preferred speed with
-# random headings. Its defaults switch on the 3-body flanking term, `kappa_v = 2`, and the 4-body encirclement term,
-# `kappa_4 = 4`.
-# The observer saves every frame with the default blueprint, whose primary view shows the agents in the plane.
+# The example builds `ManyBodyAlignmentSwarmSystem` with forty agents near a lattice in a periodic box, at the preferred
+# speed with random headings. Its defaults switch on the 3-body flanking term, `kappa_v = 2`, and the 4-body
+# encirclement term, `kappa_4 = 4`. The observer saves every frame with the default blueprint, whose primary view shows
+# the agents in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -54,7 +54,7 @@ order.set_xlabel('time')
 order.set_ylabel('polar order')
 order.set_title('Alignment of the three collectives')
 order.legend()
-positions, velocities = trajectory.values('agents.x')[-1], trajectory.values('agents.x_d1')[-1]
+positions, velocities = trajectory.get_values('agents.x')[-1], trajectory.get_values('agents.x_d1')[-1]
 path.quiver(positions[:, 0], positions[:, 1], velocities[:, 0], velocities[:, 1])
 path.set_aspect('equal')
 path.set_xlabel('x')
@@ -68,5 +68,5 @@ plt.show()
 # -----
 # The self-propulsion holds every agent near the speed `sqrt(alpha / beta) = 1` in every collective.
 
-speeds = {name: np.linalg.norm(run.values('agents.x_d1'), axis=2) for name, run in collectives.items()}
+speeds = {name: np.linalg.norm(run.get_values('agents.x_d1'), axis=2) for name, run in collectives.items()}
 {name: (round(float(value.min()), 2), round(float(value.max()), 2)) for name, value in speeds.items()}

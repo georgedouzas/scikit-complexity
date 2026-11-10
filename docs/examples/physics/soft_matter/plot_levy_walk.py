@@ -6,9 +6,9 @@ few walkers make very long flights and the cloud spreads faster than diffusion, 
 """
 
 # %%
-# The system is built from its class with 500 walkers in the plane, whose flight times have the tail
-# `tau^(-5/2)`, and simulated to time 500. Rate laws move the walkers between turns, and the solver stops every walker
-# at its own turns. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
+# The example builds `LevyWalkSystem` with 500 walkers in the plane, whose flight times have the tail `tau^(-5/2)`, and
+# simulates it to time 500. Rate laws move the walkers between turns, and the solver stops every walker at its own
+# turns. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
 
 import itertools
 
@@ -34,7 +34,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # turn plus the velocity times the flight time, which the renewal records confirm to rounding error.
 
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
+squared = np.mean(np.sum(trajectory.get_values('walkers.x')[1:] ** 2, axis=-1), axis=1)
 late = times > 50
 slope = np.polyfit(np.log(times[late]), np.log(squared[late]), 1)[0]
 turns = [
@@ -55,7 +55,7 @@ displacement.set_xlabel('time t')
 displacement.set_ylabel('ensemble mean squared displacement')
 displacement.set_title('Superdiffusion, <x^2> ~ t^(3 - sigma)')
 displacement.legend()
-path.plot(trajectory.values('walkers.x')[:, 0, 0], trajectory.values('walkers.x')[:, 0, 1])
+path.plot(trajectory.get_values('walkers.x')[:, 0, 0], trajectory.get_values('walkers.x')[:, 0, 1])
 path.plot([0.0], [0.0], 'o', color='black')
 path.set_xlabel('x')
 path.set_ylabel('y')

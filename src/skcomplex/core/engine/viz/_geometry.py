@@ -16,13 +16,13 @@ from ._base import BaseVisual
 
 MARGIN = 0.03
 SPACE_DIMENSION = 3
-_RESOLUTION = 512
-_FILL = np.array([94, 201, 98], dtype=np.uint8)
-_BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
+RESOLUTION = 512
+FILL = np.array([94, 201, 98], dtype=np.uint8)
+BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
 
 
 class GeometryVisual(BaseVisual):
-    """Visual that logs the structure of a rewritten element at every frame.
+    """A visual that logs the structure of a rewritten element at every frame.
 
     The frame of the drawing is fixed across generations. Word segments, segment tiles, and polygon outlines are one
     batch of line strips, colored by branch depth or by prototile. A filled patch is an image of its raster instead. The
@@ -50,7 +50,7 @@ class GeometryVisual(BaseVisual):
     def __init__(
         self,
         filled: bool | None = None,
-        resolution: int = _RESOLUTION,
+        resolution: int = RESOLUTION,
         *,
         path: str | None = None,
         recording: rr.RecordingStream | None = None,
@@ -78,22 +78,22 @@ class GeometryVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
+            BaseVisual._log_scalars(recording, f'{element.path}/counts/{state}', frame.get_value(name))
         structure = frame.structures.get(element.path)
         if not isinstance(structure, BaseStructureSpec):
             return
         if isinstance(structure, PatchStructureSpec) and self._is_filled(element):
-            grid = structure.raster(self.resolution, self._bounds_of(element))
-            pixels = np.where(grid[..., None], _FILL, _BACKGROUND).astype(np.uint8)
+            grid = structure.get_raster(self.resolution, self._get_bounds_of(element))
+            pixels = np.where(grid[..., None], FILL, BACKGROUND).astype(np.uint8)
             recording.log(element.path, rr.Image(pixels))
             return
         strips, values = self._strips(structure)
-        colors = BaseVisual._colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
+        colors = BaseVisual._get_colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
         archetype = rr.LineStrips3D if dimension == SPACE_DIMENSION else rr.LineStrips2D
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the view of the geometry and a time series view of the counts.
 
         The view of the geometry has the bounds of the element.
@@ -115,14 +115,14 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.specs import GeometrySpec
-            >>> from skcomplex.core.components.system import System
+            >>> from skcomplex.core.components.systems import CompositeSystem
             >>> from skcomplex.core.engine.viz import GeometryVisual
             >>> class KochElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
             >>> from skcomplex.core.engine.runtime import simulate
-            >>> problem = simulate(System(elements=[koch], time=DiscreteTime()), until=0).problem
+            >>> problem = simulate(CompositeSystem(elements=[koch], time=DiscreteTime()), until=0).problem
             >>> views = GeometryVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial2DView', 'TimeSeriesView']
@@ -136,7 +136,7 @@ class GeometryVisual(BaseVisual):
             return [rrb.Spatial3DView(origin=path, name=path), series]
         if not isinstance(element, CompiledElementSpec):
             return [rrb.Spatial2DView(origin=path, name=path), series]
-        bounds = self._bounds_of(element)
+        bounds = self._get_bounds_of(element)
         if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
@@ -144,7 +144,7 @@ class GeometryVisual(BaseVisual):
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=visual_bounds), series]
 
     @staticmethod
-    def _bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
+    def _get_bounds_of(element: CompiledElementSpec) -> tuple[float, float, float, float] | None:
         """Return the box an element's geometry is drawn in.
 
         It is its declared bounds or the box of a patch's first tiles.
@@ -159,16 +159,16 @@ class GeometryVisual(BaseVisual):
         tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
         names = [prototile.name for prototile in component.prototiles]
         try:
-            matrices = [np.eye(3) if placement is None else placement.matrix_at({}) for _, placement in tiles]
+            matrices = [np.eye(3) if placement is None else placement.get_matrix_at({}) for _, placement in tiles]
             codes = [names.index(name) for name, _ in tiles]
         except (TypeError, ValueError):
             return None
         xmin, ymin, xmax, ymax = PatchStructureSpec(
             tuple(component.prototiles),
-            BaseStructureSpec._frozen(codes, np.int64),
-            BaseStructureSpec._frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
+            BaseStructureSpec._get_frozen(codes, np.int64),
+            BaseStructureSpec._get_frozen(np.reshape(matrices, (-1, 3, 3)), np.float64),
             0,
-        ).bounds()
+        ).get_bounds()
         pad = MARGIN * max(xmax - xmin, ymax - ymin, 1e-12)
         return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
 
@@ -178,7 +178,7 @@ class GeometryVisual(BaseVisual):
 
         The y axis is flipped for Rerun's downward axis.
         """
-        segments = structure.segments()
+        segments = structure.get_segments()
         if isinstance(structure, WordStructureSpec):
             values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
         elif isinstance(structure, PatchStructureSpec):
@@ -189,7 +189,7 @@ class GeometryVisual(BaseVisual):
         else:
             values = np.zeros(len(segments))
         strips = list(segments.copy())
-        for index, polygons in enumerate(structure.polygons()):
+        for index, polygons in enumerate(structure.get_polygons()):
             strips += [np.concatenate([polygon, polygon[:1]]) for polygon in polygons]
             values = np.concatenate([values, np.full(len(polygons), float(index))])
         for strip in strips:

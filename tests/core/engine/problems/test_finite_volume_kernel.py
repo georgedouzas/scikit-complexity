@@ -6,12 +6,14 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import DensityElement, Element, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.interactions import ConservationInteraction
 from skcomplex.core.components.laws import FluxLaw
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
@@ -21,6 +23,20 @@ from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class CyclicElement(Element):
@@ -64,9 +80,9 @@ def test_max_speed_matches_numerical_eigenvalues():
     x = problem.initial_state.copy()
     x[depth : depth + 200] = rng.uniform(0.5, 2.0, 200)
     x[discharge : discharge + 200] = rng.uniform(-1.0, 1.0, 200)
-    closed = volume.max_speed(x, problem.initial_parameters)
+    closed = volume.get_max_speed(x, problem.initial_parameters)
     assert volume.closed_form is True
-    numerical = volume.set_params(speeds=()).max_speed(x, problem.initial_parameters)
+    numerical = volume.set_params(speeds=()).get_max_speed(x, problem.initial_parameters)
     assert volume.closed_form is False
     assert closed == pytest.approx(numerical, rel=1e-12)
 
@@ -116,13 +132,13 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
         values=values,
         discretization='finite-volume',
     )
-    system = System(elements=[field])
+    system = CompositeSystem(elements=[field])
     _, volume = _volume(system)
     trajectory = simulate(system, until=0.5, dt=0.5, solver=SSPRKSolver())
     assert volume.closed_form is False
     for index in range(N_STATES):
         total = values[f'u{index}'].sum()
-        assert trajectory.values(f'line.u{index}')[-1].sum() == pytest.approx(total, rel=1e-12)
+        assert trajectory.get_values(f'line.u{index}')[-1].sum() == pytest.approx(total, rel=1e-12)
 
 
 def test_max_speed_rejects_states_outside_the_hyperbolic_region():
@@ -131,15 +147,20 @@ def test_max_speed_rejects_states_outside_the_hyperbolic_region():
     x = problem.initial_state.copy()
     x[volume.starts[0] : volume.starts[0] + 20] = -1.0
     with pytest.raises(SolverError, match='channel'):
-        volume.max_speed(x, problem.initial_parameters)
+        volume.get_max_speed(x, problem.initial_parameters)
 
 
 @pytest.mark.parametrize('space_type', [PhaseSpace, SimplexSpace])
 def test_max_speed_divides_by_the_smallest_cell_volume(space_type):
     """Test that the wave speed of a field on a simplex is doubled by its half cells, and kept on a phase space."""
     space = space_type(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
-    groups = FieldElement('groups', element=DensityElement, space=space, discretization='finite-volume')
-    flow = AdvectionInteraction('flow', target='groups', state='f', drift=lambda _: [0, 0.5, -0.25])
-    problem, volume = _volume(System(elements=[groups], interactions=[flow]))
-    speed = volume.max_speed(problem.initial_state, problem.initial_parameters)
+    groups = FieldElement('groups', element=AmountElement, space=space, discretization='finite-volume')
+    flow = ConservationInteraction(
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [0, 0.5 * s.target.x, -0.25 * s.target.x],
+    )
+    problem, volume = _volume(CompositeSystem(elements=[groups], interactions=[flow]))
+    speed = volume.get_max_speed(problem.initial_state, problem.initial_parameters)
     assert speed == pytest.approx(1.0 if space_type is SimplexSpace else 0.5)

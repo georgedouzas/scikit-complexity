@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import RateLaw
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 NEIGHBOURS = 10
@@ -398,7 +398,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         self.R = R
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the agents and their interactions of every body order.
 
         The agents start near the sites of a square or cubic lattice in a periodic box, whose spacing gives each about
@@ -438,7 +438,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
             kappa_4=self.kappa_4,
             l_3=self.l_3,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[agents],
             interactions=[pairs, flanking, encirclement],

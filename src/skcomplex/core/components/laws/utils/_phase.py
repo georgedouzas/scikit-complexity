@@ -1,20 +1,18 @@
-"""Define what the laws of a phase space read.
-
-They read the class coordinates and the reductions over class axes.
-"""
+"""Define the coordinates and reductions over the class axes of a phase space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Sequence
 
-from sage.all__sagemath_symbolics import SR, Expression, function
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ....errors import ValidationError
+from ._operators import _OperatorFunction
 
 COORDINATE_PREFIX = '_coordinate_'
-REDUCE_AXES = function('reduce_axes')
-MAXIMUM_ENTROPY = function('maximum_entropy')
+REDUCE_AXES = _OperatorFunction('reduce_axes')
+MAXIMUM_ENTROPY = _OperatorFunction('maximum_entropy')
 
 
 def coordinate(name: str) -> Expression:
@@ -61,7 +59,7 @@ def coordinates_of(axes: Sequence[str]) -> list[Expression]:
             No axis is named, or an axis is named by a value that is no identifier.
 
     Examples:
-        >>> from skcomplex.core.components.laws.utils import coordinates_of
+        >>> from skcomplex.core.components.laws.utils._phase import coordinates_of
         >>> coordinates_of(('v', 'w'))
         [_coordinate_v, _coordinate_w]
     """

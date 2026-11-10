@@ -30,7 +30,7 @@ trajectory = simulate(PowerSeriesAutomatonSystem(size=31, order=8), observers=[o
 # should give back the configuration one step earlier, exactly, since the truncation keeps every coefficient below the
 # order.
 
-values = trajectory.values('cells.value')
+values = trajectory.get_values('cells.value')
 steps = values.shape[0] - 1
 last, before = values[-1], values[-2]
 recovered = np.zeros_like(last)

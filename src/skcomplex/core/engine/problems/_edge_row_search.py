@@ -1,7 +1,4 @@
-"""Neighbours of the nodes of a network layer whose edges change.
-
-They are read from the rows of its variable edge group.
-"""
+"""Neighbours of the nodes of a network layer whose edges change."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from ._base import BaseSearch
 
 
 class EdgeRowSearch(BaseSearch):
-    """Neighbours of the nodes of a network layer whose edges change.
+    """A search of the neighbours of the nodes of a layer whose edges change.
 
     They are read from the rows of its variable edge group.
 
@@ -64,12 +61,12 @@ class EdgeRowSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the neighbours of every node along the active edges."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         q = state.p
-        keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
+        keep = self.active.get_view(q)[:, 0] > ACTIVE_THRESHOLD
         edges = np.flatnonzero(keep).astype(np.intp)
-        sources = self.source.view(q)[keep, 0].astype(np.intp)
-        targets = self.target.view(q)[keep, 0].astype(np.intp)
+        sources = self.source.get_view(q)[keep, 0].astype(np.intp)
+        targets = self.target.get_view(q)[keep, 0].astype(np.intp)
         readers = sources if self.directed else np.concatenate([sources, targets])
         others = targets if self.directed else np.concatenate([targets, sources])
         ids = edges if self.directed else np.concatenate([edges, edges])

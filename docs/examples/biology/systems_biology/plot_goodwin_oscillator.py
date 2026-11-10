@@ -6,7 +6,7 @@ a Hill coefficient of 12.
 """
 
 # %%
-# The system is built from its class with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a Hill
+# The example builds `GoodwinOscillatorSystem` with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a Hill
 # coefficient of 12. The observer saves every third frame of the 60 time units with the default blueprint, whose
 # primary view is the time series of the three concentrations.
 
@@ -33,11 +33,11 @@ coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
     late = simulate(GoodwinOscillatorSystem(n=float(n)), until=200)
-    product = late.values('x3.x')[late.times >= 150.0]
+    product = late.get_values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 fig, (series, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('x1', 'x2', 'x3'):
-    series.plot(trajectory.times, trajectory.values(f'{name}.x'), label=name)
+    series.plot(trajectory.times, trajectory.get_values(f'{name}.x'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('concentration')
 series.set_title('Sustained oscillations for n = 12')

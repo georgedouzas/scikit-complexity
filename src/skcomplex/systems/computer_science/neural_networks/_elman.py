@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TrainingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import (
     DatasetSpec,
     ObservableSpec,
@@ -27,6 +27,10 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
+
+TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
+WEIGHT_SCALE = 0.5
+PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
 
 
 class HiddenUnitElement(Element):
@@ -188,7 +192,7 @@ class InputCouplingInteraction(CouplingInteraction):
             source=source,
             read='x',
             write='u',
-            function=self._input,
+            function=self._get_input,
             mode='group',
             weights='D',
             form='map',
@@ -196,7 +200,7 @@ class InputCouplingInteraction(CouplingInteraction):
         )
         self.D = D
 
-    def _input(self, namespace: SimpleNamespace) -> object:
+    def _get_input(self, namespace: SimpleNamespace) -> object:
         """Return the input of the other unit."""
         return namespace.other.x
 
@@ -240,7 +244,7 @@ class ReadoutCouplingInteraction(CouplingInteraction):
             source=source,
             read='s',
             write='y',
-            function=self._activity,
+            function=self._get_activity,
             mode='group',
             weights='W',
             form='map',
@@ -249,7 +253,7 @@ class ReadoutCouplingInteraction(CouplingInteraction):
         )
         self.W = W
 
-    def _activity(self, namespace: SimpleNamespace) -> object:
+    def _get_activity(self, namespace: SimpleNamespace) -> object:
         """Return the activity of the hidden unit."""
         return namespace.other.s
 
@@ -294,7 +298,7 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
             target=target,
             read='s',
             write='s',
-            function=self._activity,
+            function=self._get_activity,
             mode='group',
             weights='A',
             include_self=True,
@@ -304,18 +308,13 @@ class RecurrenceCouplingInteraction(CouplingInteraction):
         )
         self.A = A
 
-    def _activity(self, namespace: SimpleNamespace) -> object:
+    def _get_activity(self, namespace: SimpleNamespace) -> object:
         """Return the activity of the other unit."""
         return namespace.other.s
 
     def _activate(self, namespace: SimpleNamespace, reduction: object) -> object:
         """Return the sigmoid of the recurrent input, the drive, and the bias of the unit."""
         return 1 / (1 + exp(-(reduction + namespace.member.u + namespace.member.b)))
-
-
-TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
-WEIGHT_SCALE = 0.5
-PHASES = (PhaseSpec('drive'), PhaseSpec('hidden'), PhaseSpec('readout'))
 
 
 class ElmanNetworkSystem(BaseSystem):
@@ -391,12 +390,12 @@ class ElmanNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _squared_error(member: SimpleNamespace) -> object:
+    def _get_squared_error(member: SimpleNamespace) -> object:
         """Return the squared error of the prediction of an output unit."""
         return (member.y - member.target) ** 2
 
     @staticmethod
-    def _temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
+    def _get_temporal_xor(n_bits: int, rng: np.random.Generator) -> Array:
         """Return a stream of bits with a temporal XOR.
 
         Every third bit is the exclusive or of the two bits before it.
@@ -407,7 +406,7 @@ class ElmanNetworkSystem(BaseSystem):
         return bits
 
     @staticmethod
-    def _dataset(bits: Array, window: int) -> DatasetSpec:
+    def _get_dataset(bits: Array, window: int) -> DatasetSpec:
         """Return the windows of a stream, the next bits as targets, and the metric masks.
 
         The windows start at every third bit. The prediction of a step reads the input of that step, so the target of
@@ -422,14 +421,14 @@ class ElmanNetworkSystem(BaseSystem):
             weights={'xor_error': xor, 'random_error': 1.0 - xor},
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Elman's simple recurrent network.
 
         It learns to predict the next bit of a temporal XOR stream.
         """
         rng = np.random.default_rng(self.random_state)
-        data = self._dataset(self._temporal_xor(self.n_bits, rng), self.window)
-        net = System(
+        data = self._get_dataset(self._get_temporal_xor(self.n_bits, rng), self.window)
+        net = CompositeSystem(
             'net',
             elements=[
                 GroupElement('inputs', element=InputUnitElement, size=1),
@@ -461,14 +460,14 @@ class ElmanNetworkSystem(BaseSystem):
             'training',
             system='net',
             trained=TRAINED,
-            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._squared_error),
+            loss=ObservableSpec('error', group='outputs', reduce='sum', expression=self._get_squared_error),
             data=data,
             learning_rate=self.learning_rate,
             batch_size=self.batch_size,
             truncation=self.truncation,
             metrics=(
-                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._squared_error),
-                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._squared_error),
+                ObservableSpec('xor_error', group='outputs', reduce='sum', expression=self._get_squared_error),
+                ObservableSpec('random_error', group='outputs', reduce='sum', expression=self._get_squared_error),
             ),
         )
-        return System(self.label, systems=[net], interactions=[training], time=DiscreteTime())
+        return CompositeSystem(self.label, systems=[net], interactions=[training], time=DiscreteTime())

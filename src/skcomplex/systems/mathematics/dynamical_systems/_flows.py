@@ -15,271 +15,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, derivative
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..common.flows import LorenzElement
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
+from ...general.flows import LorenzElement
 from ..common.flows._rossler import RosslerElement
-
-
-class BlowUpElement(Element):
-    """Hyperbolic growth `x' = a x^p`.
-
-    The growth diverges in finite time for `p > 1`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value.
-
-        a:
-            The growth coefficient.
-
-        p:
-            The growth exponent.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import BlowUpElement
-        >>> BlowUpElement('growth', p=3.0).p
-        3.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        a: Annotated[object, ParameterSpec()] = 1.0,
-        p: Annotated[object, ParameterSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.a = a
-        self.p = p
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the value.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [RateLaw(s.x, s.a * s.x**s.p)]
-
-
-class HyperchaoticRosslerElement(Element):
-    """Rössler's four-dimensional flow.
-
-    The flow is `x' = -(y + z)`, `y' = x + a y + w`, `z' = b + x z`, `w' = c w - d z`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
-
-        w:
-            The initial fourth coordinate.
-
-        a:
-            The feedback of the second coordinate on itself.
-
-        b:
-            The constant drive of the third coordinate.
-
-        c:
-            The growth of the fourth coordinate.
-
-        d:
-            The damping of the fourth coordinate by the third.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import HyperchaoticRosslerElement
-        >>> HyperchaoticRosslerElement('rossler', b=2.0).b
-        2.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = -10.0,
-        y: Annotated[object, StateSpec()] = -6.0,
-        z: Annotated[object, StateSpec()] = 0.0,
-        w: Annotated[object, StateSpec()] = 10.0,
-        a: Annotated[object, ParameterSpec()] = 0.25,
-        b: Annotated[object, ParameterSpec()] = 3.0,
-        c: Annotated[object, ParameterSpec()] = 0.05,
-        d: Annotated[object, ParameterSpec()] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.w = w
-        self.a = a
-        self.b = b
-        self.c = c
-        self.d = d
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the four coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            RateLaw(s.x, -(s.y + s.z)),
-            RateLaw(s.y, s.x + s.a * s.y + s.w),
-            RateLaw(s.z, s.b + s.x * s.z),
-            RateLaw(s.w, s.c * s.w - s.d * s.z),
-        ]
-
-
-class IkedaElement(Element):
-    """Ikeda delay equation `x' = a sin x(t - tau)`.
-
-    The equation oscillates about its stable rest point once `a tau > π / 2`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, also its history.
-
-        a:
-            The gain of the delayed feedback.
-
-        tau:
-            The delay.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import IkedaElement
-        >>> IkedaElement('ikeda', tau=2.0).tau
-        2.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 2.0,
-        a: Annotated[float, ParameterSpec()] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.a = a
-        self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed feedback of the state.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [RateLaw(s.x, s.a * sin(delayed(s.x, s.tau)))]
-
-
-class JerkElement(Element):
-    """Sprott's jerk flow `x''' = -A x'' - x' + |x| - 1` of a state of order 3.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        x_d2:
-            The initial second derivative.
-
-        x_d1:
-            The initial first derivative.
-
-        A:
-            The damping of the second derivative.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import JerkElement
-        >>> JerkElement('jerk', A=0.5).A
-        0.5
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
-        x_d2: float = 1.0,
-        x_d1: float = 0.0,
-        A: Annotated[object, ParameterSpec()] = 0.6,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d2 = x_d2
-        self.x_d1 = x_d1
-        self.A = A
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the third derivative of the position.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
 
 
 class LangfordElement(Element):
@@ -495,72 +236,6 @@ class NoseHooverElement(Element):
         return [RateLaw(s.x, s.y), RateLaw(s.y, s.y * s.z - s.x), RateLaw(s.z, 1 - s.y**2)]
 
 
-class ThomasElement(Element):
-    """Thomas flow, cyclically symmetric and damped.
-
-    The flow is `x' = -a x + sin y`, `y' = -a y + sin z`, `z' = -a z + sin x`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
-
-        a:
-            The damping of every coordinate.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import ThomasElement
-        >>> ThomasElement('thomas', a=0.2).a
-        0.2
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.0,
-        z: Annotated[object, StateSpec()] = 0.0,
-        a: Annotated[object, ParameterSpec()] = 0.18,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.a = a
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the three coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            RateLaw(s.x, -s.a * s.x + sin(s.y)),
-            RateLaw(s.y, -s.a * s.y + sin(s.z)),
-            RateLaw(s.z, -s.a * s.z + sin(s.x)),
-        ]
-
-
 class LorenzSystem(BaseSystem):
     """The Lorenz-63 system of convection.
 
@@ -621,9 +296,9 @@ class LorenzSystem(BaseSystem):
         self.rho = rho
         self.beta = beta
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 LorenzElement('lorenz', x=self.x, y=self.y, z=self.z, sigma=self.sigma, rho=self.rho, beta=self.beta),
@@ -691,18 +366,18 @@ class RosslerSystem(BaseSystem):
         self.b = b
         self.c = c
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Rössler system.
 
         It is a chaotic flow with one folded band for its standard parameters.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[RosslerElement('rossler', x=self.x, y=self.y, z=self.z, a=self.a, b=self.b, c=self.c)],
         )
 
 
-class SprottJerkSystem(BaseSystem):
+class SprottJerkSystem(DynamicalSystem):
     """Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1`, chaotic near A = 0.6.
 
     The system has the state `jerk.x` of order 3 and its derivatives `jerk.x_d1` and `jerk.x_d2`.
@@ -725,7 +400,7 @@ class SprottJerkSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SprottJerkSystem
-        >>> SprottJerkSystem(A=0.5).prepare().system_.elements[0].A
+        >>> SprottJerkSystem(A=0.5).prepare().system_.elements[0].get_value('A')
         0.5
     """
 
@@ -744,24 +419,33 @@ class SprottJerkSystem(BaseSystem):
         A: float = 0.6,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.velocity = velocity
         self.acceleration = acceleration
         self.A = A
 
-    def _build_system(self) -> System:
-        """Return Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'jerk'
 
-        The equation is chaotic near A = 0.6.
-        """
-        return System(
-            self.label,
-            elements=[JerkElement('jerk', x=self.x, x_d1=self.velocity, x_d2=self.acceleration, A=self.A)],
-        )
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec(order=3, initial=(self.velocity, self.acceleration))),
+            'A': DeclaredVariableSpec(self.A, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the third derivative of the position."""
+        return {
+            'x': lambda s: (
+                -s.target.A * derivative(s.target.x, 2) - derivative(s.target.x, 1) + abs_symbolic(s.target.x) - 1
+            ),
+        }
 
 
-class FiniteTimeBlowUpSystem(BaseSystem):
+class FiniteTimeBlowUpSystem(DynamicalSystem):
     """Hyperbolic growth `x' = a x^p`.
 
     For p > 1 the growth diverges at the finite time `x0^(1 - p) / (a (p - 1))`.
@@ -783,7 +467,7 @@ class FiniteTimeBlowUpSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import FiniteTimeBlowUpSystem
-        >>> FiniteTimeBlowUpSystem(p=3.0).prepare().system_.elements[0].p
+        >>> FiniteTimeBlowUpSystem(p=3.0).prepare().system_.elements[0].get_value('p')
         3.0
     """
 
@@ -801,17 +485,36 @@ class FiniteTimeBlowUpSystem(BaseSystem):
         p: float = 2.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.a = a
         self.p = p
 
-    def _build_system(self) -> System:
-        """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[BlowUpElement('growth', x=self.x, a=self.a, p=self.p)])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'growth'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+            'p': self.p,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rate of the value."""
+        return {
+            'x': lambda s: s.target.a * s.target.x**s.target.p,
+        }
 
 
-class HyperchaoticRosslerSystem(BaseSystem):
+class HyperchaoticRosslerSystem(DynamicalSystem):
     """Rössler's four-dimensional flow.
 
     The flow is hyperchaotic with two positive Lyapunov exponents for its defaults.
@@ -850,7 +553,7 @@ class HyperchaoticRosslerSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import HyperchaoticRosslerSystem
-        >>> HyperchaoticRosslerSystem(c=0.1).prepare().system_.elements[0].c
+        >>> HyperchaoticRosslerSystem(c=0.1).prepare().system_.elements[0].get_value('c')
         0.1
     """
 
@@ -873,7 +576,7 @@ class HyperchaoticRosslerSystem(BaseSystem):
         d: float = 0.5,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.z = z
@@ -883,24 +586,36 @@ class HyperchaoticRosslerSystem(BaseSystem):
         self.c = c
         self.d = d
 
-    def _build_system(self) -> System:
-        """Return the parts of the system, built from its model parameters."""
-        return System(
-            self.label,
-            elements=[
-                HyperchaoticRosslerElement(
-                    'rossler',
-                    x=self.x,
-                    y=self.y,
-                    z=self.z,
-                    w=self.w,
-                    a=self.a,
-                    b=self.b,
-                    c=self.c,
-                    d=self.d,
-                ),
-            ],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'rossler'
+
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+            'z': self.z,
+            'w': self.w,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+            'b': self.b,
+            'c': self.c,
+            'd': self.d,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the four coordinates."""
+        return {
+            'x': lambda s: -(s.target.y + s.target.z),
+            'y': lambda s: s.target.x + s.target.a * s.target.y + s.target.w,
+            'z': lambda s: s.target.b + s.target.x * s.target.z,
+            'w': lambda s: s.target.c * s.target.w - s.target.d * s.target.z,
+        }
 
 
 class NoseHooverSystem(BaseSystem):
@@ -951,9 +666,9 @@ class NoseHooverSystem(BaseSystem):
         self.y = y
         self.z = z
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[NoseHooverElement('oscillator', x=self.x, y=self.y, z=self.z)])
+        return CompositeSystem(self.label, elements=[NoseHooverElement('oscillator', x=self.x, y=self.y, z=self.z)])
 
 
 class SprottMixedFlowSystem(BaseSystem):
@@ -1006,12 +721,12 @@ class SprottMixedFlowSystem(BaseSystem):
         self.y = y
         self.z = z
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Sprott's flow with a conservative torus and a dissipative attractor.
 
         The torus and the attractor lie side by side.
         """
-        return System(self.label, elements=[MixedFlowElement('flow', x=self.x, y=self.y, z=self.z)])
+        return CompositeSystem(self.label, elements=[MixedFlowElement('flow', x=self.x, y=self.y, z=self.z)])
 
 
 class LangfordSystem(BaseSystem):
@@ -1093,9 +808,9 @@ class LangfordSystem(BaseSystem):
         self.e = e
         self.f = f
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 LangfordElement(
@@ -1114,7 +829,7 @@ class LangfordSystem(BaseSystem):
         )
 
 
-class ThomasSystem(BaseSystem):
+class ThomasSystem(DynamicalSystem):
     """The Thomas flow `x' = -a x + sin y` with its cyclic permutations.
 
     The flow is chaotic for `a = 0.18`.
@@ -1141,7 +856,7 @@ class ThomasSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import ThomasSystem
-        >>> ThomasSystem(a=0.2).prepare().system_.elements[0].a
+        >>> ThomasSystem(a=0.2).prepare().system_.elements[0].get_value('a')
         0.2
     """
 
@@ -1160,21 +875,40 @@ class ThomasSystem(BaseSystem):
         a: float = 0.18,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.z = z
         self.a = a
 
-    def _build_system(self) -> System:
-        """Return the Thomas flow `x' = -a x + sin y` with its cyclic permutations.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'thomas'
 
-        The flow is chaotic for `a = 0.18`.
-        """
-        return System(self.label, elements=[ThomasElement('thomas', x=self.x, y=self.y, z=self.z, a=self.a)])
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+            'z': self.z,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'a': self.a,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the three coordinates."""
+        return {
+            'x': lambda s: -s.target.a * s.target.x + sin(s.target.y),
+            'y': lambda s: -s.target.a * s.target.y + sin(s.target.z),
+            'z': lambda s: -s.target.a * s.target.z + sin(s.target.x),
+        }
 
 
-class IkedaSystem(BaseSystem):
+class IkedaSystem(DynamicalSystem):
     """The Ikeda delay equation `x' = a sin x(t - tau)`.
 
     The equation is in the form of Dilão (2023, Exercise 6.4).
@@ -1198,7 +932,7 @@ class IkedaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import IkedaSystem
-        >>> IkedaSystem(tau=1.0).prepare().system_.elements[0].tau
+        >>> IkedaSystem(tau=1.0).prepare().system_.elements[0].get_value('tau')
         1.0
     """
 
@@ -1216,14 +950,25 @@ class IkedaSystem(BaseSystem):
         tau: float = 2.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.a = a
         self.tau = tau
 
-    def _build_system(self) -> System:
-        """Return the Ikeda delay equation `x' = a sin x(t - tau)`.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'ikeda'
 
-        The equation is in the form of Dilão (2023, Exercise 6.4).
-        """
-        return System(self.label, elements=[IkedaElement('ikeda', x=self.x, a=self.a, tau=self.tau)])
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec()),
+            'a': DeclaredVariableSpec(self.a, ParameterSpec()),
+            'tau': DeclaredVariableSpec(self.tau, ParameterSpec(domain=RealSet.open(0, oo))),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the delayed feedback of the state."""
+        return {
+            'x': lambda s: s.target.a * sin(delayed(s.target.x, s.target.tau)),
+        }

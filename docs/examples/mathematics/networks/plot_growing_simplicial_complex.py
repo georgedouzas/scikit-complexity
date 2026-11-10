@@ -45,7 +45,7 @@ trajectory = simulate(GrowingSimplicialComplexSystem(), dt=2.0, observers=[obser
 # The degrees should follow `P(k) ~ k^-3`, so the share of nodes of degree at least `k` should fall as `k^-2`.
 
 run = simulate(GrowingSimplicialComplexSystem(n_nodes=3003), until=3000, dt=3000.0, random_state=0)
-snapshot = run.network(-1)
+snapshot = run.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 ccdf = distribution(degrees, kind='ccdf')
 values, shares = ccdf.support, ccdf.survival

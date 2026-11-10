@@ -1,6 +1,9 @@
 """Vicsek flocks in discrete time.
 
 The module covers polar alignment, cohesive flocks, and polar particles with nematic alignment.
+
+`MEMORY` holds the number of past headings a particle keeps, the largest delay of the alignment. `FIT_POINTS` holds the
+fewest past headings a predicted alignment fits a line through.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -21,22 +24,25 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, neighbors, uniform, where
 from ....core.components.spaces import (
     BaseNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     DiscreteTime,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
-
-
 REPULSION = 1e3
+MEMORY = 25
+FIT_POINTS = 2
+HEADINGS = VisualSpec(
+    'points',
+    {'position': 'x', 'radius': 0.15, 'color_by': 'theta', 'color_range': (-math.pi, math.pi)},
+)
 
 
 class CohesiveParticleElement(Element):
@@ -118,7 +124,7 @@ class CohesiveParticleElement(Element):
         self.r_e = r_e
         self.r_a = r_a
 
-    def _attraction(self, distance: Expression, namespace: SimpleNamespace) -> Expression:
+    def _get_attraction(self, distance: Expression, namespace: SimpleNamespace) -> Expression:
         """Return the cohesion force, repulsive below `r_c` and towards `r_e` beyond it."""
         s = namespace
         return where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
@@ -138,7 +144,7 @@ class CohesiveParticleElement(Element):
         near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
         dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
         distance = sqrt(dx**2 + dy**2)
-        force = self._attraction(distance, s)
+        force = self._get_attraction(distance, s)
         count = neighbors(1, over=near)
         angle = uniform('noise', -math.pi, math.pi)
         along_x = (
@@ -152,10 +158,6 @@ class CohesiveParticleElement(Element):
             + s.eta * count * sin(angle)
         )
         return [UpdateLaw(s.theta, atan2(along_y, along_x))]
-
-
-MEMORY = 25
-"""The number of past headings a particle keeps, the largest delay of the alignment."""
 
 
 class DelayedVicsekParticleElement(Element):
@@ -409,16 +411,20 @@ class HeadingAlignmentInteraction(CouplingInteraction):
         return reduction + uniform('noise', -eta * math.pi, eta * math.pi)
 
 
-FIT_POINTS = 2
-"""The fewest past headings a predicted alignment fits a line through."""
+def _get_orders(group: str) -> list[ObservableSpec]:
+    """Return the mean heading and axis of a group of flockers and their moduli.
 
-HEADINGS = VisualSpec(
-    'points',
-    {'position': 'x', 'radius': 0.15, 'color_by': 'theta', 'color_range': (-math.pi, math.pi)},
-)
+    The moduli are the polar and nematic orders.
+    """
+    return [
+        ObservableSpec('mean_heading', _get_member_heading, group=group),
+        ObservableSpec('polarization', _get_polarization),
+        ObservableSpec('mean_axis', _get_axis, group=group),
+        ObservableSpec('nematic_order', _get_nematic_order),
+    ]
 
 
-def _heading(member: SimpleNamespace) -> Expression:
+def _get_member_heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading.
 
     The vector lies in the complex plane.
@@ -426,71 +432,19 @@ def _heading(member: SimpleNamespace) -> Expression:
     return exp(I * member.theta)
 
 
-def _axis(member: SimpleNamespace) -> Expression:
+def _get_polarization(s: SimpleNamespace) -> Expression:
+    """Return the modulus of the mean heading, the polar order parameter."""
+    return VicsekSystem._get_modulus('mean_heading', s)
+
+
+def _get_axis(member: SimpleNamespace) -> Expression:
     """Return `exp(2 i theta)`, the heading of a member as an axis without direction."""
     return exp(2 * I * member.theta)
 
 
-def _modulus(name: str, s: SimpleNamespace) -> Expression:
-    """Return the modulus of an observable of a system."""
-    return abs(getattr(s, name))
-
-
-def _polarization(s: SimpleNamespace) -> Expression:
-    """Return the modulus of the mean heading, the polar order parameter."""
-    return _modulus('mean_heading', s)
-
-
-def _nematic_order(s: SimpleNamespace) -> Expression:
+def _get_nematic_order(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean axis, the nematic order parameter."""
-    return _modulus('mean_axis', s)
-
-
-def _orders(group: str) -> list[ObservableSpec]:
-    """Return the mean heading and axis of a group of flockers and their moduli.
-
-    The moduli are the polar and nematic orders.
-    """
-    return [
-        ObservableSpec('mean_heading', _heading, group=group),
-        ObservableSpec('polarization', _polarization),
-        ObservableSpec('mean_axis', _axis, group=group),
-        ObservableSpec('nematic_order', _nematic_order),
-    ]
-
-
-def _flock(
-    label: str,
-    element: type[Element],
-    n_particles: int,
-    size: float,
-    seed: int,
-    *,
-    v0: float,
-    alignment: BaseInteraction | None = None,
-    **values: float,
-) -> System:
-    """Return a system of flockers of a type in a periodic box.
-
-    The system has a label, and the flockers have uniform positions and headings.
-    """
-    rng = np.random.default_rng(seed)
-    initial: dict[str, object] = {
-        'x': rng.uniform(0.0, size, (n_particles, 2)),
-        'theta': rng.uniform(-math.pi, math.pi, n_particles),
-        **values,
-    }
-    flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
-    return System(
-        label,
-        elements=[flock],
-        interactions=[
-            PropulsionStepInteraction('propulsion', target='flock', speed=v0),
-            *([] if alignment is None else [alignment]),
-        ],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-        time=DiscreteTime(),
-    )
+    return VicsekSystem._get_modulus('mean_axis', s)
 
 
 class VicsekSystem(BaseSystem):
@@ -568,7 +522,46 @@ class VicsekSystem(BaseSystem):
     references = ('Vicsek et al. 1995', 'Argun et al. 2021', 'Jensen 2023', 'Vicsek and Zafeiris 2012')
     until = 200.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_get_orders('flock'))
+
+    @staticmethod
+    def _get_modulus(name: str, s: SimpleNamespace) -> Expression:
+        """Return the modulus of an observable of a system."""
+        return abs(getattr(s, name))
+
+    @staticmethod
+    def _get_flock(
+        label: str,
+        element: type[Element],
+        n_particles: int,
+        size: float,
+        seed: int,
+        *,
+        v0: float,
+        alignment: BaseInteraction | None = None,
+        **values: float,
+    ) -> CompositeSystem:
+        """Return a system of flockers of a type in a periodic box.
+
+        The system has a label, and the flockers have uniform positions and headings.
+        """
+        rng = np.random.default_rng(seed)
+        initial: dict[str, object] = {
+            'x': rng.uniform(0.0, size, (n_particles, 2)),
+            'theta': rng.uniform(-math.pi, math.pi, n_particles),
+            **values,
+        }
+        flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+        return CompositeSystem(
+            label,
+            elements=[flock],
+            interactions=[
+                PropulsionStepInteraction('propulsion', target='flock', speed=v0),
+                *([] if alignment is None else [alignment]),
+            ],
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+            time=DiscreteTime(),
+        )
 
     def __init__(
         self,
@@ -595,7 +588,7 @@ class VicsekSystem(BaseSystem):
         self.delay = delay
         self.memory = memory
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.neighbors is not None and self.vision is not None:
             error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
@@ -610,7 +603,7 @@ class VicsekSystem(BaseSystem):
         if self.neighbors is not None:
             neighborhood = NearestNeighborhood(self.neighbors, center=True)
         if self.vision is not None:
-            neighborhood = ConeNeighborhood(1.0, self.vision, direction='theta', center=True)
+            neighborhood = RadiusNeighborhood(1.0, angle=self.vision, direction='theta', center=True)
         alignment = HeadingAlignmentInteraction(
             'alignment',
             target='flock',
@@ -619,7 +612,7 @@ class VicsekSystem(BaseSystem):
             memory=self.memory,
         )
         element = VicsekParticleElement if self.delay == 0 else DelayedVicsekParticleElement
-        return _flock(
+        return VicsekSystem._get_flock(
             self.label,
             element,
             self.n_particles,
@@ -680,7 +673,7 @@ class GregoireChateSystem(BaseSystem):
     references = ('Grégoire and Chaté 2004', 'Vicsek and Zafeiris 2012')
     until = 300.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_get_orders('flock'))
 
     def __init__(
         self,
@@ -703,12 +696,12 @@ class GregoireChateSystem(BaseSystem):
         self.beta = beta
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Grégoire-Chaté system.
 
         Aligning particles also attract and repel, forming cohesive flocks.
         """
-        return _flock(
+        return VicsekSystem._get_flock(
             self.label,
             CohesiveParticleElement,
             self.n_particles,
@@ -763,7 +756,7 @@ class GinelliNematicsSystem(BaseSystem):
     references = ('Ginelli et al. 2010', 'Chaté 2020')
     until = 300.0
     dt = 1.0
-    observables = tuple(_orders('flock'))
+    observables = tuple(_get_orders('flock'))
 
     def __init__(
         self,
@@ -782,10 +775,10 @@ class GinelliNematicsSystem(BaseSystem):
         self.eta = eta
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
-        return _flock(
+        return VicsekSystem._get_flock(
             self.label,
             NematicParticleElement,
             self.n_particles,

@@ -6,7 +6,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
@@ -35,32 +35,32 @@ class LogisticMapElement(Element):
 
 def last_value(trajectory):
     """Return the last infected count."""
-    return float(trajectory.values('I.n')[-1])
+    return float(trajectory.get_values('I.x')[-1])
 
 
 def test_sweep_of_one_parameter_gives_one_row_per_value():
     """Test that a sweep over one model parameter gives one tidy row per value with its output."""
-    result = sweep(LogisticGrowthSystem(), {'K': [50.0, 100.0]}, until=40, outputs=['population.n'])
-    assert result.column('K').tolist() == [50.0, 100.0]
-    np.testing.assert_allclose(result.column('population.n'), [50.0, 100.0], rtol=1e-3)
-    assert list(result.to_frame().columns[:4]) == ['K', 'scenario', 'replicate', 'seed']
+    result = sweep(LogisticGrowthSystem(), {'K': [50.0, 100.0]}, until=40, outputs=['population.x'])
+    assert result.get_column('K').tolist() == [50.0, 100.0]
+    np.testing.assert_allclose(result.get_column('population.x'), [50.0, 100.0], rtol=1e-3)
+    assert list(result.convert_to_frame().columns[:4]) == ['K', 'scenario', 'replicate', 'seed']
 
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = System(elements=[LogisticMapElement('map')])
+    system = CompositeSystem(elements=[LogisticMapElement('map')])
     rates = np.linspace(2.8, 4.0, 200)
     result = sweep(system, {'map.r': rates}, until=400, warmup=301, outputs=['map.x'])
     assert len(result.rows) == 200
-    assert result.column('map.r').tolist() == rates.tolist()
-    assert result.series('map.x').shape == (200, 100)
+    assert result.get_column('map.r').tolist() == rates.tolist()
+    assert result.get_series('map.x').shape == (200, 100)
 
 
 def test_sampled_sweep_stays_within_bounds():
     """Test that a sampled sweep runs `n` rows within the bounds."""
     result = sweep(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, design='sobol', n=4, until=1, random_state=0)
     assert len(result.rows) == 4
-    assert all(0.5 <= value <= 1.0 for value in result.column('r'))
+    assert all(0.5 <= value <= 1.0 for value in result.get_column('r'))
 
 
 def test_summary_across_replicates():
@@ -73,11 +73,11 @@ def test_summary_across_replicates():
         outputs=[last_value],
         random_state=1,
     )
-    summary = result.summary()
+    summary = result.get_summary()
     assert len(summary) == 2
     for row in summary:
         assert row['runs'] == 5
         assert {'last_value.mean', 'last_value.std', 'last_value.q0.05', 'last_value.q0.5', 'last_value.q0.95'} <= set(
             row,
         )
-    assert result.to_frame().shape[0] == 10
+    assert result.convert_to_frame().shape[0] == 10

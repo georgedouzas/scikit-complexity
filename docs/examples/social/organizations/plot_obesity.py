@@ -7,7 +7,7 @@ growing share of them crosses the obesity line at a body mass index of 30.
 """
 
 # %%
-# The system is built from its class with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
+# The example builds `ObesitySystem` with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
 # kinds on a square of side 280, and runs for one year, one step per day. A person eats at a random restaurant within
 # reach, or at the nearest one, and spends 1.55 times the basal metabolic rate a day. The default blueprint shows the
 # people at home, colored by body mass index from 18.5 (dark) to 35 (bright), next to the larger restaurants: the colors
@@ -38,8 +38,8 @@ trajectory = simulate(system, until=364, dt=1, observers=[observer], random_stat
 
 frames = range(0, len(trajectory.times), 7)
 days = trajectory.times[list(frames)]
-habits = np.asarray(trajectory.agents('people', 0).values['habit'])
-bmi = np.array([np.asarray(trajectory.agents('people', frame).values['bmi']) for frame in frames])
+habits = np.asarray(trajectory.get_agents('people', 0).values['habit'])
+bmi = np.array([np.asarray(trajectory.get_agents('people', frame).values['bmi']) for frame in frames])
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4.5))
 for habit, name in enumerate(('low', 'medium', 'high')):
     group = bmi[:, habits == habit]

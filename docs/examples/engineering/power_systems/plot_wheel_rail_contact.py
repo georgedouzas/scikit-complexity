@@ -6,7 +6,7 @@ its pad, and comes back to rest before the next bogie arrives, so the deflection
 """
 
 # %%
-# The system is built from its class with wheel loads of 1000 N, one bogie every 10 time units with its
+# The example builds `WheelRailContactSystem` with wheel loads of 1000 N, one bogie every 10 time units with its
 # wheels 3 apart, and a linear ballast, and runs for 60 time units. The default blueprint shows the deflections of the
 # rail and the sleeper with their rates.
 
@@ -33,14 +33,14 @@ trajectory = simulate(system, observers=[observer])
 loads = np.linspace(250.0, 2000.0, 8)
 peaks = [
     np.abs(
-        simulate(WheelRailContactSystem(F=load), until=10).values('rail.z'),
+        simulate(WheelRailContactSystem(F=load), until=10).get_values('rail.z'),
     ).max()
     for load in loads
 ]
 fig, (bogie, linear) = plt.subplots(1, 2, figsize=(10, 4))
 window = (trajectory.times >= 10) & (trajectory.times < 20)
-bogie.plot(trajectory.times[window], trajectory.values('rail.z')[window], label='rail')
-bogie.plot(trajectory.times[window], trajectory.values('rail.zs')[window], label='sleeper')
+bogie.plot(trajectory.times[window], trajectory.get_values('rail.z')[window], label='rail')
+bogie.plot(trajectory.times[window], trajectory.get_values('rail.zs')[window], label='sleeper')
 bogie.set_xlabel('time')
 bogie.set_ylabel('deflection')
 bogie.set_title('One bogie: one dip per wheel')

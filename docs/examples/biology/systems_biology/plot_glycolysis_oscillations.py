@@ -6,8 +6,8 @@ and fall with a period of minutes, driven by the feedback of ATP and AMP on phos
 """
 
 # %%
-# The system is built from its class with the parameters of Nielsen et al. (1998), and the observer saves every third
-# frame with the default blueprint, whose primary view is the time series of the metabolites.
+# The example builds `GlycolysisOscillationsSystem` with the parameters of Nielsen et al. (1998), and the observer saves
+# every third frame with the default blueprint, whose primary view is the time series of the metabolites.
 
 import matplotlib.pyplot as plt
 
@@ -29,8 +29,8 @@ trajectory = simulate(GlycolysisOscillationsSystem(), observers=[observer])
 fig, (nadh, pool) = plt.subplots(1, 2, figsize=(11, 4.5))
 for v4 in (5.0, 10.0, 15.0):
     run = simulate(GlycolysisOscillationsSystem(V4=v4))
-    nadh.plot(run.times, run.values('extract.NADH'), label=f'V4 = {v4}')
-    pool.plot(run.times, run.values('extract.NAD') + run.values('extract.NADH'), label=f'V4 = {v4}')
+    nadh.plot(run.times, run.get_values('extract.NADH'), label=f'V4 = {v4}')
+    pool.plot(run.times, run.get_values('extract.NAD') + run.get_values('extract.NADH'), label=f'V4 = {v4}')
 nadh.set_xlabel('time (min)')
 nadh.set_ylabel('NADH (mM)')
 nadh.set_title('NADH oscillations')

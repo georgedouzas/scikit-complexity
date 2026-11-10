@@ -4,9 +4,8 @@
 # License: MIT
 
 
-from ....core.components.system import BaseSystem, System
-from ..common._asset import AssetElement
-from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ..common.assets import AssetElement, GeometricBrownianMotionInteraction
 
 
 class GeometricBrownianMotionSystem(BaseSystem):
@@ -52,9 +51,9 @@ class GeometricBrownianMotionSystem(BaseSystem):
         self.mu = mu
         self.sigma = sigma
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[AssetElement('asset', price=self.price)],
             interactions=[GeometricBrownianMotionInteraction('gbm', target='asset', mu=self.mu, sigma=self.sigma)],

@@ -11,6 +11,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, _get_spin_space
 
 
 def test_quantum_heisenberg_ground_state_of_the_ring():
@@ -23,20 +24,20 @@ def test_quantum_heisenberg_ground_state_of_the_ring():
 def test_quantum_heisenberg_single_magnon_follows_bessel_functions():
     """Test that one flipped spin of the XX ring spreads as J_d(J t)² with a conserved magnetisation."""
     trajectory = simulate(QuantumHeisenbergSystem(delta=0.0), until=2.0, dt=0.1)
-    sz = trajectory.values('sz')
+    sz = trajectory.get_values('sz')
     for distance in range(-5, 6):
         expected = jv(abs(distance), trajectory.times) ** 2
         assert np.allclose(0.5 - sz[:, 6 + distance], expected, atol=1e-5)
-    assert np.ptp(trajectory.values('magnetization')) < 1e-8
+    assert np.ptp(trajectory.get_values('magnetization')) < 1e-8
 
 
 def test_quantum_heisenberg_run_by_name_records_states_and_observables():
     """Test that a run records 21 complex states and the local magnetisation of every site."""
     trajectory = simulate(QuantumHeisenbergSystem(), until=2.0, dt=0.1)
     assert len(trajectory.times) == 21
-    assert trajectory.values('system.state').shape == (21, 4096)
-    assert np.iscomplexobj(trajectory.values('system.state'))
-    assert trajectory.values('sz').shape == (21, 12)
+    assert trajectory.get_values('system.state').shape == (21, 4096)
+    assert np.iscomplexobj(trajectory.get_values('system.state'))
+    assert trajectory.get_values('sz').shape == (21, 12)
 
 
 def test_quantum_heisenberg_dephasing_destroys_coherence():
@@ -45,7 +46,7 @@ def test_quantum_heisenberg_dephasing_destroys_coherence():
     values = operator_measures(trajectory, kind='purity').purity
     assert np.all(np.diff(values) <= 1e-10)
     assert values[-1] < 1
-    assert np.ptp(trajectory.values('magnetization')) < 1e-8
+    assert np.ptp(trajectory.get_values('magnetization')) < 1e-8
 
 
 @pytest.mark.parametrize(('values', 'message'), [({'boundary': 'twisted'}, 'boundary'), ({'initial': 'x'}, 'x')])
@@ -66,3 +67,16 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     simulate(system, until=2.0, dt=0.5, observers=[observer])
     assert observer.logged_frames_ == 5
     assert repr(ExpectationVisual()) == 'ExpectationVisual()'
+
+
+def test_spin_space_has_two_j_plus_one_states():
+    """Test that the space of a spin one has three states and a spin element takes it."""
+    space = _get_spin_space(1)
+    assert space.dimension == 3
+    assert SpinElement('s', hilbert=space).hilbert.dimension == 3
+
+
+def test_spin_space_refuses_a_quantum_number_off_the_half_integers():
+    """Test that a quantum number that is not a positive multiple of one half is refused."""
+    with pytest.raises(ValidationError, match='multiple of one half'):
+        _get_spin_space(0.3)

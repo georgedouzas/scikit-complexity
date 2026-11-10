@@ -3,7 +3,7 @@
 
 A ball on a staircase of states jumps down to a random lower state and, wherever it lands, multiplies into `mu` balls,
 each of which keeps falling. The cascade ends when every ball reaches the bottom, and the visits of the states follow
-the power law `i^(-mu)`, whatever the multiplication factor, not just the Zipf exponent 1.
+the power law `i^(-mu)`, whatever the multiplication factor, not only the Zipf exponent 1.
 """
 
 # %%
@@ -24,7 +24,7 @@ SYSTEM = 'cascading_sample_space_reducing'
 def visits(trajectory, n_states):
     """Return the number of visits of every state from 1 to `n_states`, the levels of the balls of every frame."""
     levels = np.concatenate(
-        [trajectory.agents('balls', frame).values['level'] for frame in range(len(trajectory.times))],
+        [trajectory.get_agents('balls', frame).values['level'] for frame in range(len(trajectory.times))],
     )
     return np.bincount(levels.astype(int), minlength=n_states + 1)[1:]
 

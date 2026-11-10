@@ -24,7 +24,7 @@ from ....core.components.laws.utils import (
     advection,
     antisymmetric_part,
     gradient,
-    inverse_laplacian,
+    inverse_helmholtz,
     laplacian,
     leray_projection,
     symmetric_part,
@@ -32,11 +32,18 @@ from ....core.components.laws.utils import (
     vector_gradient,
 )
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+GEL_ORDERS = ('nematic', 'polar')
+NEMATIC_BOX = 10.0
+NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
+NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
+NEMATIC_ACTIVITY = 3.0
+NEMATIC_XI = 0.1
 
 
 class NematicDensitySiteElement(Element):
@@ -111,9 +118,10 @@ class PolarGelSiteElement(Element):
 
     A polarisation `p` is carried by an overdamped Stokes flow.
 
-    The polarisation follows `p_t = -corotational(p, u, xi) + h / gamma`, with the molecular field
-    `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`,
-    `div(u) = 0`, with the stress `sigma = -xi (p h + h p) / 2 + (p h - h p) / 2 - zeta p p`, as in Kruse et al.
+    The polarisation follows `p_t = -C(p, u, xi) + h / gamma`, with the corotational transport `C` of Beris and
+    Edwards and the molecular field `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves
+    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
+    `sigma = -xi (p h + h p) / 2 + (p h - h p) / 2 - zeta p p`, as in Kruse et al.
 
     Args:
         label:
@@ -181,22 +189,80 @@ class PolarGelSiteElement(Element):
         self.zeta = zeta
 
     @staticmethod
-    def _molecular_field(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_molecular_field(s: SimpleNamespace) -> FreeModuleElement:
         """Return the molecular field of the polarisation at a site."""
         return -s.a * s.p - s.c * s.p.dot_product(s.p) * s.p + s.K * s.p.apply_map(laplacian)
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
         """Return the velocity of the Stokes flow of the stresses at a site.
 
         The stresses are the elastic and active ones.
         """
-        field = PolarGelSiteElement._molecular_field(s)
+        field = PolarGelSiteElement._get_molecular_field(s)
         outer = s.p.outer_product(field)
         stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
         stress -= s.zeta * s.p.outer_product(s.p)
         force = tensor_divergence(stress)
-        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+        return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
+
+    @staticmethod
+    def _check_matrix(utility: str, value: object) -> Matrix:
+        """Return a square matrix, or raise an error that names the utility and the value."""
+        if not isinstance(value, Matrix) or not value.is_square():
+            error_msg = f'{utility} needs a square matrix, but got {value}, which has another shape.'
+            raise TensorShapeError(error_msg)
+        return value
+
+    @staticmethod
+    def _check_vector(utility: str, value: object) -> FreeModuleElement:
+        """Return a vector, or a sequence as a vector.
+
+        Any other value raises an error that names the utility and the value.
+        """
+        if isinstance(value, list | tuple):
+            return vector(SR, [SR(item) for item in value])
+        if not isinstance(value, FreeModuleElement):
+            error_msg = f'{utility} needs a vector, but got {value}, which has another shape.'
+            raise TensorShapeError(error_msg)
+        return value
+
+    @staticmethod
+    def _get_advection(expression: Expression, velocity: FreeModuleElement) -> Expression:
+        """Return the advection of an entry of a matrix.
+
+        The advection is 0 for a number, whose derivatives are 0.
+        """
+        return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
+
+    @staticmethod
+    def _get_corotational_transport(
+        value: Matrix | FreeModuleElement,
+        velocity: Sequence[object] | FreeModuleElement,
+        xi: object = 0,
+    ) -> Matrix | FreeModuleElement:
+        """Return the corotational transport of a symmetric tensor or a vector.
+
+        The flow rotates and aligns the value. A symmetric tensor `T` gets the Beris-Edwards transport `u.grad(T) - S`,
+        where `S = (xi E + W)(T + I/d) + (T + I/d)(xi E - W) - 2 xi (T + I/d) tr(T grad(u))`, with the strain rate `E`,
+        the vorticity tensor `W`, the antisymmetric part of `vector_gradient(u)`, and the dimension `d`. A vector `p`
+        gets `u.grad(p) - W p - xi E p`, so both turn with the flow. The value is a symmetric square matrix or a vector,
+        the velocity holds one component per dimension, and `xi` is the flow-alignment parameter. The result is the
+        matrix or the vector to subtract from the rate of the value. Any other value raises a `TensorShapeError`.
+        """
+        flow = PolarGelSiteElement._check_vector('the corotational transport', velocity)
+        size = len(flow)
+        gradients = vector_gradient(flow)
+        strain, vorticity = symmetric_part(gradients), antisymmetric_part(gradients)
+        if isinstance(value, FreeModuleElement):
+            advected = vector(SR, [PolarGelSiteElement._get_advection(item, flow) for item in value])
+            return advected - vorticity * value - SR(xi) * (strain * value)
+        tensor = PolarGelSiteElement._check_matrix('the corotational transport', value)
+        advected_tensor = tensor.apply_map(lambda item: PolarGelSiteElement._get_advection(item, flow))
+        shifted_tensor = tensor + identity_matrix(SR, size) / size
+        aligned = (SR(xi) * strain + vorticity) * shifted_tensor + shifted_tensor * (SR(xi) * strain - vorticity)
+        stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
+        return advected_tensor - aligned + stretching
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the polarisation.
@@ -212,7 +278,13 @@ class PolarGelSiteElement(Element):
                 The rate of `p`.
         """
         s = namespace
-        return [RateLaw(s.p, -corotational(s.p, self._velocity(s), s.xi) + self._molecular_field(s) / s.gamma)]
+        return [
+            RateLaw(
+                s.p,
+                -self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
+                + self._get_molecular_field(s) / s.gamma,
+            ),
+        ]
 
 
 class NematicGelSiteElement(Element):
@@ -220,9 +292,10 @@ class NematicGelSiteElement(Element):
 
     A symmetric traceless tensor `Q` is carried by an overdamped Stokes flow.
 
-    The tensor follows `Q_t = -corotational(Q, u, xi) + H / gamma`, with the molecular field `H` of the Landau-de Gennes
-    energy. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
-    `sigma = -xi H + Q H - H Q - zeta Q`. An activity `zeta > 0` is extensile and an activity `zeta < 0` contractile.
+    The tensor follows `Q_t = -C(Q, u, xi) + H / gamma`, with the corotational transport `C` of Beris and Edwards
+    and the molecular field `H` of the Landau-de Gennes energy. The velocity solves
+    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress `sigma = -xi H + Q H - H Q - zeta Q`.
+    An activity `zeta > 0` is extensile and an activity `zeta < 0` contractile.
 
     Args:
         label:
@@ -292,15 +365,15 @@ class NematicGelSiteElement(Element):
         self.zeta = zeta
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
         """Return the velocity of the Stokes flow of the stresses at a site.
 
         The stresses are the elastic and active ones.
         """
-        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
+        field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
         stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
         force = tensor_divergence(stress)
-        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+        return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the tensor, its transport in the flow and its relaxation.
@@ -314,8 +387,13 @@ class NematicGelSiteElement(Element):
                 The rate of `Q`.
         """
         s = namespace
-        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
-        return [RateLaw(s.Q, -corotational(s.Q, self._velocity(s), s.xi) + field / s.gamma)]
+        field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
+        return [
+            RateLaw(
+                s.Q,
+                -PolarGelSiteElement._get_corotational_transport(s.Q, self._get_velocity(s), s.xi) + field / s.gamma,
+            ),
+        ]
 
 
 class LandauDeGennesEnergyInteraction(GradientInteraction):
@@ -353,12 +431,9 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
             expression of a density, or `None` for `a`.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import SR, matrix, var
         >>> from skcomplex.systems.physics.active_matter import LandauDeGennesEnergyInteraction
-        >>> q, a, c = var('q, a, c')
-        >>> tensor = matrix(SR, [[q, 0], [0, -q]])
-        >>> LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0].factor()
-        -(2*c*q^2 + a)*q
+        >>> LandauDeGennesEnergyInteraction('energy', target='nematic', a=-1.0).a
+        -1.0
     """
 
     def __init__(
@@ -382,19 +457,19 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         self.quadratic = quadratic
 
     @staticmethod
-    def _density(tensor: Matrix, a: object, c: object, K: object) -> Expression:
+    def _get_density(tensor: Matrix, a: object, c: object, K: object) -> Expression:
         """Return the density of the free energy, with the gradient term by parts."""
         square = (tensor * tensor).trace()
         return a * square / 2 + c * square**2 / 4 - K * (tensor * tensor.apply_map(laplacian)).trace() / 2
 
     @classmethod
-    def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
+    def _get_molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
         """Return the molecular field of a tensor.
 
         The field is the negative functional derivative of the free energy.
         """
         energy = cls('energy', target='field')
-        return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
+        return -energy._get_matrix_derivative(cls._get_density(tensor, a, c, K), tensor)
 
     def _get_potential(self, namespace: SimpleNamespace) -> Expression:
         """Return the density of the free energy over the rotational viscosity.
@@ -411,154 +486,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         """
         quadratic = namespace.a if self.quadratic is None else self.quadratic(namespace)
         tensor = getattr(namespace.target, self.state)
-        return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
-
-
-GEL_ORDERS = ('nematic', 'polar')
-NEMATIC_BOX = 10.0
-NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
-NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
-NEMATIC_ACTIVITY = 3.0
-NEMATIC_XI = 0.1
-
-
-def _check_matrix(utility: str, value: object) -> Matrix:
-    """Return a square matrix, or raise an error that names the utility and the value."""
-    if not isinstance(value, Matrix) or not value.is_square():
-        error_msg = f'{utility} needs a square matrix, but got {value}, which has another shape.'
-        raise TensorShapeError(error_msg)
-    return value
-
-
-def _check_vector(utility: str, value: object) -> FreeModuleElement:
-    """Return a vector, or a sequence as a vector.
-
-    Any other value raises an error that names the utility and the value.
-    """
-    if isinstance(value, list | tuple):
-        return vector(SR, [SR(item) for item in value])
-    if not isinstance(value, FreeModuleElement):
-        error_msg = f'{utility} needs a vector, but got {value}, which has another shape.'
-        raise TensorShapeError(error_msg)
-    return value
-
-
-def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
-    """Return the advection of an entry of a matrix.
-
-    The advection is 0 for a number, whose derivatives are 0.
-    """
-    return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
-
-
-def corotational(
-    value: Matrix | FreeModuleElement,
-    velocity: Sequence[object] | FreeModuleElement,
-    xi: object = 0,
-) -> Matrix | FreeModuleElement:
-    """Return the transport of a symmetric tensor or a vector by a flow.
-
-    The flow rotates and aligns it.
-
-    A symmetric tensor `T` gets the Beris-Edwards transport `u.grad(T) - S`, where
-    `S = (xi E + W)(T + I/d) + (T + I/d)(xi E - W) - 2 xi (T + I/d) tr(T grad(u))`, with the strain rate `E`, the
-    vorticity tensor `W`, the antisymmetric part of `vector_gradient(u)`, and the dimension `d`. A vector `p` gets
-    `u.grad(p) - W p - xi E p`, so both turn with the flow.
-
-    Args:
-        value:
-            A symmetric square matrix, or a vector.
-
-        velocity:
-            One velocity component per dimension.
-
-        xi:
-            The flow-alignment parameter.
-
-    Returns:
-        transport:
-            The matrix or the vector to subtract from the rate of the value.
-
-    Raises:
-        TensorShapeError:
-            The value is neither a square matrix nor a vector.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import SR, matrix, var
-        >>> from skcomplex.systems.physics.active_matter._nematics import corotational
-        >>> a, b = var('a, b')
-        >>> corotational(matrix(SR, [[a, b], [b, -a]]), [var('u'), 0]).dimensions()
-        (2, 2)
-    """
-    flow = _check_vector('corotational', velocity)
-    size = len(flow)
-    gradients = vector_gradient(flow)
-    strain, vorticity = symmetric_part(gradients), antisymmetric_part(gradients)
-    if isinstance(value, FreeModuleElement):
-        advected = vector(SR, [_advected(item, flow) for item in value])
-        return advected - vorticity * value - SR(xi) * (strain * value)
-    tensor = _check_matrix('corotational', value)
-    advected_tensor = tensor.apply_map(lambda item: _advected(item, flow))
-    shifted_tensor = tensor + identity_matrix(SR, size) / size
-    aligned = (SR(xi) * strain + vorticity) * shifted_tensor + shifted_tensor * (SR(xi) * strain - vorticity)
-    stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
-    return advected_tensor - aligned + stretching
-
-
-def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleElement) -> Matrix:
-    """Return the upper-convected transport of a rank-2 tensor.
-
-    The transport is `u.grad(T) - grad(u)^T T - T grad(u)`.
-
-    Args:
-        tensor:
-            A square matrix of expressions.
-
-        velocity:
-            One velocity component per dimension.
-
-    Returns:
-        transport:
-            The matrix to subtract from the rate of the tensor.
-
-    Raises:
-        TensorShapeError:
-            The tensor is not a square matrix or the velocity is not a vector.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import SR, identity_matrix, var
-        >>> from skcomplex.systems.physics.active_matter._nematics import upper_convected
-        >>> upper_convected(identity_matrix(SR, 2), [var('u'), var('v')])[0, 0]
-        -2*partial(u, 0)
-    """
-    checked = _check_matrix('upper_convected', tensor)
-    flow = _check_vector('upper_convected', velocity)
-    gradients = vector_gradient(flow)
-    advected = checked.apply_map(lambda item: _advected(item, flow))
-    return advected - gradients.transpose() * checked - checked * gradients
-
-
-def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
-    """Return the velocity of the flow of a gel at a site.
-
-    The velocity depends on the order the namespace holds.
-    """
-    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
-
-
-def _velocity_x(s: SimpleNamespace) -> Expression:
-    """Return the velocity along the first axis at a site."""
-    return _gel_velocity(s)[0]
-
-
-def _velocity_y(s: SimpleNamespace) -> Expression:
-    """Return the velocity along the second axis at a site."""
-    return _gel_velocity(s)[1]
-
-
-def _sites(values: np.ndarray) -> np.ndarray:
-    """Return the values of every site, the observed field itself."""
-    return np.array(values)
+        return self._get_density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
 
 
 class DryActiveNematicsSystem(BaseSystem):
@@ -660,7 +588,7 @@ class DryActiveNematicsSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a dry active nematic.
 
         A conserved density is coupled to a symmetric traceless alignment tensor.
@@ -700,7 +628,30 @@ class DryActiveNematicsSystem(BaseSystem):
             limiter=None,
             riemann=None,
         )
-        return System(self.label, elements=[nematic], interactions=[energy, transport])
+        return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
+
+
+def _get_velocity_x(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the first axis at a site."""
+    return _get_gel_velocity(s)[0]
+
+
+def _get_velocity_y(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the second axis at a site."""
+    return _get_gel_velocity(s)[1]
+
+
+def _get_sites(values: np.ndarray) -> np.ndarray:
+    """Return the values of every site, the observed field itself."""
+    return np.array(values)
+
+
+def _get_gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
+    """Return the velocity of the flow of a gel at a site.
+
+    The velocity depends on the order the namespace holds.
+    """
+    return PolarGelSiteElement._get_velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._get_velocity(s)
 
 
 class ActiveGelsSystem(BaseSystem):
@@ -799,8 +750,8 @@ class ActiveGelsSystem(BaseSystem):
     dt = 0.025
     solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
-        ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
+        ObservableSpec('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
+        ObservableSpec('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
     )
 
     def __init__(
@@ -848,7 +799,7 @@ class ActiveGelsSystem(BaseSystem):
             settings['solver'] = RK4Solver(dt=0.05)
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.order not in GEL_ORDERS:
             error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
@@ -888,4 +839,4 @@ class ActiveGelsSystem(BaseSystem):
             discretization='spectral',
             symmetry=symmetry,
         )
-        return System(self.label, elements=[gel])
+        return CompositeSystem(self.label, elements=[gel])

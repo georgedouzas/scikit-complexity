@@ -8,9 +8,9 @@ shows the eight concentrations converging onto one line.
 """
 
 # %%
-# The system is built from its class with 8 cells, the logistic parameter `r = 2.5`, the coupling `c = 0.1`, and the
-# affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and the blueprint shows
-# the concentrations of all cells over the whole run.
+# The example builds `ClosedContourCellExchangeSystem` with 8 cells, the logistic parameter `r = 2.5`, the coupling
+# `c = 0.1`, and the affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and the
+# blueprint shows the concentrations of all cells over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,7 +49,7 @@ rates = np.linspace(2.0, 4.0, 41)
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(10, 4))
 spreads = []
 for rate in rates:
-    late = simulate(ClosedContourCellExchangeSystem(r=rate)).values('cells.x')[-30:]
+    late = simulate(ClosedContourCellExchangeSystem(r=rate)).get_values('cells.x')[-30:]
     diagram.plot(np.full(late.size, rate), late.ravel(), '.', markersize=2, color='tab:blue')
     spreads.append(np.ptp(late, axis=1).max())
 diagram.fill_between(rates, (rates - 1) / (2 * rates), (rates + 1) / (2 * rates), color='tab:green', alpha=0.2)

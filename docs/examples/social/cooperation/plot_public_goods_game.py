@@ -39,7 +39,7 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 def cooperators(synergy):
     """Return the share of cooperators after every round."""
     run = simulate(PublicGoodsGameSystem(synergy=synergy, noise=0.5, random_state=0), until=ROUNDS, random_state=0)
-    return run.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
+    return run.get_values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
 
 
 synergies = np.linspace(3.0, 6.5, 8)

@@ -1,7 +1,4 @@
-"""Define phase spaces.
-
-A phase space is the product of a position lattice and class axes such as velocity or orientation.
-"""
+"""Define the space of positions combined with extra axes, such as velocity."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,12 +18,18 @@ DEFAULT_LIMIT = 2**26
 
 
 class PhaseSpace(LatticeSpace):
-    """Product of a position lattice and class axes.
+    """A space of positions combined with extra axes, such as velocity.
 
-    It is a lattice whose sites are the points of the product. The position axes come first and sites are in row-major
-    order, so the sites at one position are contiguous. A class axis has its own cells, of width `(high - low) / size`,
-    and its own edges, without flux for an interval and joined for a periodic axis. The position axes keep the boundary
-    of the position lattice.
+    Each site is one position paired with one value on every extra axis, called a class axis. A class axis is a range
+    cut into equal cells, such as velocities from -6 to 6, and its edges are closed for an interval or joined for a
+    periodic axis. The position axes come first, so the sites of one position come one after the other, and they keep
+    the boundary of the position lattice.
+
+    Unlike `LatticeSpace`, whose sites are positions alone, it adds axes of a trait, so a density can vary over position
+    and trait together. Choose it when a kinetic equation follows a distribution over position and a trait.
+
+    It appears in many fields. Kinetic theory follows gas molecules over position and velocity, bacteria are counted
+    over position and swimming direction, and cell populations over position and age.
 
     Args:
         position:
@@ -39,7 +42,7 @@ class PhaseSpace(LatticeSpace):
             The largest number of sites of the space.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         coordinates_:
@@ -132,11 +135,11 @@ class PhaseSpace(LatticeSpace):
             for axis, width in zip(self.axes, widths, strict=True)
         }
         self.positions_ = np.indices(self.shape_).reshape(self.n_dim_, -1).T * np.asarray(self.spacings_)
-        self.axes_periodic_ = tuple(self._axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
+        self.axes_periodic_ = tuple(self._get_axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
         self.periodic_ = all(self.axes_periodic_)
         self.default_visual_ = 'image'
 
-    def _axis_boundary(self, axis: int) -> str:
+    def _get_axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis.
 
         They are those of the position lattice or those of the class axis.
@@ -145,7 +148,7 @@ class PhaseSpace(LatticeSpace):
             return self.boundary
         return 'periodic' if self.axes[axis - self.position.n_dim_].periodic else 'reflecting'
 
-    def _with_edges(self, boundary: str, fill: float) -> PhaseSpace:
+    def _copy_with_edges(self, boundary: str, fill: float) -> PhaseSpace:
         """Return the sites of the space with other edges of its position axes.
 
         The class axes keep theirs.

@@ -9,7 +9,7 @@ to the left and the bore moving to the right.
 """
 
 # %%
-# The system is built from its class with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
+# The example builds `ShallowWaterSystem` with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
 # and `g = 9.81`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps
 # the bore free of oscillations, so it is passed explicitly. The observer saves every frame of 0.005 with the default
 # blueprint, whose primary view is the space-time image of the depth.
@@ -49,7 +49,7 @@ middle = brentq(bore_mismatch, downstream, upstream)
 velocity = 2 * (np.sqrt(g * upstream) - np.sqrt(g * middle))
 bore = middle * velocity / (middle - downstream)
 time = trajectory.times[-1]
-depth = trajectory.values('channel.h')[-1]
+depth = trajectory.get_values('channel.h')[-1]
 x = (np.arange(depth.size) + 0.5) * length / depth.size - length / 2
 speed = x / time
 exact = np.where(speed < -np.sqrt(g * upstream), upstream, (2 * np.sqrt(g * upstream) - speed) ** 2 / (9 * g))

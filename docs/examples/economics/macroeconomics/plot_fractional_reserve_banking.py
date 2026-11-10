@@ -46,11 +46,11 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # so the broad money should approach `B / r`, Hamill and Gilbert (2016 ch. 9): 10000 with `r = 0.1` and 5000 after
 # the regulator raises it to 0.2.
 
-ratio = trajectory.values('banks.reserve_ratio')
+ratio = trajectory.get_values('banks.reserve_ratio')
 fig, (money, policy) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-money.plot(trajectory.times, trajectory.values('broad_money'), label='broad money')
+money.plot(trajectory.times, trajectory.get_values('broad_money'), label='broad money')
 money.plot(trajectory.times, BASE / ratio, '--', color='black', label='base money / reserve ratio')
-money.plot(trajectory.times, trajectory.values('loans'), label='loans')
+money.plot(trajectory.times, trajectory.get_values('loans'), label='loans')
 money.set_ylabel('money')
 money.set_title('Lending multiplies the base money')
 money.legend()

@@ -13,7 +13,7 @@ from ._draw_spec import DrawSpec
 
 @dataclass(frozen=True)
 class NamedDrawSpec(BaseSpec):
-    """Draw of a component that a stochastic map takes, as runs record and replay it.
+    """A spec of a named draw of a stochastic map, as runs record and replay it.
 
     Args:
         label:

@@ -8,7 +8,7 @@ thermal cloud of the trap.
 """
 
 # %%
-# The system is built from its class with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
+# The example builds `OpticalTrapSystem` with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
 # energy `kT = 1`. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.1 with the
 # default blueprint, whose primary view shows the beads.
 
@@ -36,7 +36,7 @@ trajectory = simulate(system, until=25, solver=solver, observers=[observer], ran
 # `gamma / k = 4` of the soft axis, the positions along each axis should follow these Gaussians, twice as wide along
 # the soft axis.
 
-positions = trajectory.values('beads.x')[150:]
+positions = trajectory.get_values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()

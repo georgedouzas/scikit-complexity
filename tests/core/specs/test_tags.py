@@ -28,19 +28,19 @@ def test_missing_names_every_unsupported_field():
         space=frozenset({'lattice'}),
         laws=frozenset({'rate', 'jump'}),
     )
-    assert supported.missing(system) == {'space': ['lattice'], 'laws': ['jump']}
+    assert supported.get_missing(system) == {'space': ['lattice'], 'laws': ['jump']}
 
 
 def test_missing_rejects_a_time_it_does_not_share():
     """Test that a system none of whose times is supported is reported."""
     supported = Tags(time=frozenset({'discrete'}))
-    assert supported.missing(Tags(time=frozenset({'continuous'}))) == {'time': ['continuous']}
+    assert supported.get_missing(Tags(time=frozenset({'continuous'}))) == {'time': ['continuous']}
 
 
 def test_empty_fields_support_anything_and_unknown_laws_are_not_checked():
     """Test that empty supported fields support any value, and that unknown law kinds of a system pass."""
-    assert Tags().missing(Tags(space=frozenset({'network'}), laws=frozenset({'noise'}))) == {}
-    assert Tags(laws=frozenset({'rate'})).missing(Tags(laws=None)) == {}
+    assert Tags().get_missing(Tags(space=frozenset({'network'}), laws=frozenset({'noise'}))) == {}
+    assert Tags(laws=frozenset({'rate'})).get_missing(Tags(laws=None)) == {}
 
 
 def test_tags_accept_every_value_of_the_public_vocabularies():

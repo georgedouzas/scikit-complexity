@@ -15,12 +15,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, oo, pi, sin, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.excitable import ThetaNeuronElement
 
@@ -489,12 +489,12 @@ class STDPNetworkSystem(BaseSystem):
         self.kappa = kappa
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of theta neurons on a random directed network."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
-        neurons = LatticeElement(
+        neurons = GroupElement(
             'neurons',
             element=TracedThetaNeuronElement,
             space=space,
@@ -504,6 +504,7 @@ class STDPNetworkSystem(BaseSystem):
                 'tau_plus': self.tau,
                 'tau_minus': self.tau,
             },
+            on='sites',
         )
         synapses = GroupElement(
             'synapses',
@@ -521,7 +522,7 @@ class STDPNetworkSystem(BaseSystem):
             A_plus=self.A_plus,
             A_minus=self.A_minus,
         )
-        return System(self.label, elements=[neurons, synapses], interactions=[plasticity])
+        return CompositeSystem(self.label, elements=[neurons, synapses], interactions=[plasticity])
 
 
 class AdaptiveDelayNetworkSystem(BaseSystem):
@@ -598,7 +599,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.tau0 = tau0
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of phase units coupled all to all through adaptive delays.
 
         The conduction delays adapt to the activity of the units.
@@ -623,4 +624,4 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
             )
             for source, target in pairs
         ]
-        return System(self.label, elements=[*units, *axons], interactions=adaptations)
+        return CompositeSystem(self.label, elements=[*units, *axons], interactions=adaptations)

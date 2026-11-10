@@ -6,13 +6,14 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import maximum, mean, minimum, total, variance
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+from skcomplex.core.engine.compile.passes._hyperedges import HyperedgeTables
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -49,11 +50,11 @@ class ReducedInteraction(HyperedgeInteraction):
         return [RateLaw(s.member.x, REDUCTIONS[self.reduce][0](s))]
 
 
-def _system(reduce: str, values: np.ndarray) -> System:
+def _system(reduce: str, values: np.ndarray) -> CompositeSystem:
     """Return the nodes of a hypergraph whose rates are a reduction over their hyperedges."""
     space = NetworkSpace(nx.complete_graph(5), hyperedges=HYPEREDGES)
-    return System(
-        elements=[LatticeElement('nodes', element=NodeElement, space=space, values={'x': values})],
+    return CompositeSystem(
+        elements=[GroupElement('nodes', element=NodeElement, space=space, values={'x': values}, on='sites')],
         interactions=[ReducedInteraction('reduced', nodes='nodes', reduce=reduce)],
     )
 
@@ -74,3 +75,13 @@ def test_variance_over_the_members_is_rejected():
     """Test that a reduction kind a hyperedge does not write out raises an error naming the kinds it takes."""
     with pytest.raises(ValidationError, match='total, mean, count, maximum, or minimum'):
         PassCompiler().prepare(_system('variance', np.zeros(5))).run()
+
+
+def test_hyperedge_tables_get_incidences():
+    """Test `HyperedgeTables._get_incidences` on a small case."""
+    space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).prepare()
+    indptr, others = HyperedgeTables._get_incidences(space, 3)
+    assert (indptr.tolist(), [item.tolist() for item in others]) == (
+        [0, 1, 3, 5, 6],
+        [[1, 2, 0, 1, 0, 1], [2, 3, 2, 3, 1, 2]],
+    )

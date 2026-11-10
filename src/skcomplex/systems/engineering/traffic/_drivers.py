@@ -17,10 +17,12 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+ROAD_WIDTH = 1.0
 
 
 class MotoristView(AgentView):
@@ -136,7 +138,7 @@ class MotoristElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(agent.group, MotoristView)
+        cars = system.get_agents(agent.group, MotoristView)
         ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
         if ahead is None:
             behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
@@ -259,14 +261,14 @@ class DriverElement(Element):
             system:
                 The system.
         """
-        cars = system.agents(agent.group, DriverView)
+        cars = system.get_agents(agent.group, DriverView)
         if system.dimensions is None:
             error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
             raise SimulationError(error_msg)
         length = system.dimensions[0]
-        ahead = DriverElement._car_ahead(agent, system, len(cars))
-        x, y = DriverElement._position(agent)
-        distance = (DriverElement._position(ahead)[0] - x) % length if ahead is not None else length
+        ahead = DriverElement._get_car_ahead(agent, system, len(cars))
+        x, y = DriverElement._get_position(agent)
+        distance = (DriverElement._get_position(ahead)[0] - x) % length if ahead is not None else length
         acceleration = min(max(agent.acceleration, agent.min_acc), agent.max_acc)
         speed = (agent.speed + acceleration) * system.rng.uniform(1 - agent.eps, 1 + agent.eps)
         speed = min(max(speed, 0.0), agent.speed_limit)
@@ -274,20 +276,20 @@ class DriverElement(Element):
         agent.move_to(((x + agent.speed) % length, y))
 
     @staticmethod
-    def _position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentView) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
 
     @staticmethod
-    def _car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
+    def _get_car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
         """Return the car whose rank follows the agent's rank on a road of `n_cars` cars.
 
         It is `None` for the last car.
         """
         rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
         return next(
-            (car for car in system.agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
+            (car for car in system.get_agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
             None,
         )
 
@@ -354,20 +356,17 @@ class CarelessBrakingInteraction(Interaction):
             system:
                 The system.
         """
-        cars = sorted(system.agents('cars', MotoristView), key=lambda car: car.rank)
+        cars = sorted(system.get_agents('cars', MotoristView), key=lambda car: car.rank)
         if not cars:
             return
-        if system.rng.random() < system.parameter('probability'):
+        if system.rng.random() < system.get_parameter('probability'):
             careless = cars[int(system.rng.integers(len(cars)))]
             careless.v = max(careless.v - careless.braking, 0.0)
-        gap = system.parameter('gap')
+        gap = system.get_parameter('gap')
         positions = [car.x for car in cars]
         for index, car in enumerate(cars):
             moved = car.x + car.v
             car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
-
-
-ROAD_WIDTH = 1.0
 
 
 class CharbonneauTrafficSystem(BaseSystem):
@@ -425,7 +424,7 @@ class CharbonneauTrafficSystem(BaseSystem):
         self.speed_limit = speed_limit
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         positions = np.cumsum(rng.uniform(3.0, 17.0, self.n_cars))
@@ -441,7 +440,7 @@ class CharbonneauTrafficSystem(BaseSystem):
                 'speed_limit': self.speed_limit,
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cars],
             interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=self.probability)],
@@ -498,7 +497,7 @@ class RingRoadDriversSystem(BaseSystem):
         self.eps = eps
         self.speed_limit = speed_limit
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         positions = np.linspace(0.0, self.length, self.n_cars, endpoint=False)
         drivers = GroupElement(
@@ -508,7 +507,7 @@ class RingRoadDriversSystem(BaseSystem):
             values={'rank': np.arange(self.n_cars, dtype=float), 'eps': self.eps, 'speed_limit': self.speed_limit},
             location=[(float(position), ROAD_WIDTH / 2) for position in positions],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[drivers],
             space=ContinuousSpace(extent=(self.length, ROAD_WIDTH), boundary='periodic'),

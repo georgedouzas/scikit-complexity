@@ -14,10 +14,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.signals import PulseInteraction
+
+IMPULSE_PERIOD = 4.0
 
 
 class LevitatedBallElement(Element):
@@ -77,9 +79,6 @@ class LevitatedBallElement(Element):
         return [RateLaw(s.v, -s.b * s.v)]
 
 
-IMPULSE_PERIOD = 4.0
-
-
 class MagneticLevitationSystem(BaseSystem):
     """A conductive ball levitated in a vacuum by a field.
 
@@ -129,16 +128,16 @@ class MagneticLevitationSystem(BaseSystem):
         self.b = b
         self.m = m
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         start = self.m / (2 * math.cosh(self.b)) if self.v is None else self.v
         push = {'v': lambda s: s.target.v + s.target.m}
         pull = {'v': lambda s: s.target.v - s.target.m}
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[LevitatedBallElement('ball', v=start, b=self.b, m=self.m)],
             interactions=[
-                ImpulseInteraction('push', target='ball', reset=push, period=IMPULSE_PERIOD, start=3.0),
-                ImpulseInteraction('pull', target='ball', reset=pull, period=IMPULSE_PERIOD, start=1.0),
+                PulseInteraction('push', target='ball', reset=push, period=IMPULSE_PERIOD, start=3.0),
+                PulseInteraction('pull', target='ball', reset=pull, period=IMPULSE_PERIOD, start=1.0),
             ],
         )

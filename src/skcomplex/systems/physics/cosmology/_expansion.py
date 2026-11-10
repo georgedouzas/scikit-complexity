@@ -15,7 +15,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import GradientInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -143,7 +143,7 @@ class FriedmannExpansionSystem(BaseSystem):
             - universe.omega_lambda * universe.H0**2 * universe.a**2 / 2
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the scale factor of a homogeneous universe of matter and dark energy.
 
         The system follows Friedmann and Lemaître.
@@ -171,4 +171,4 @@ class FriedmannExpansionSystem(BaseSystem):
             states='a',
             potential=self._get_expansion_potential,
         )
-        return System(self.label, elements=[universe], interactions=[acceleration])
+        return CompositeSystem(self.label, elements=[universe], interactions=[acceleration])

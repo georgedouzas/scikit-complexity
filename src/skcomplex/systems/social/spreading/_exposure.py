@@ -16,11 +16,11 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, uniform, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -211,7 +211,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.share = share
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
         hypergraph = xgi.Hypergraph()
@@ -220,12 +220,13 @@ class HypergraphExposureSisSystem(BaseSystem):
             number = round(self.n_nodes * self.hyperdegree / (len(self.sizes) * size))
             hypergraph.add_edges_from(rng.choice(self.n_nodes, size, replace=False).tolist() for _ in range(number))
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
-        participants = LatticeElement(
+        participants = GroupElement(
             'participants',
             element=ParticipantElement,
             space=NetworkSpace(xgi.to_graph(hypergraph), hyperedges=hypergraph),
             values={'infected': infected, 'recovery': self.recovery},
             visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         exposure = ExposureInteraction('exposure', target='participants', rate=self.rate, exponent=self.exponent)
-        return System(self.label, elements=[participants], interactions=[exposure])
+        return CompositeSystem(self.label, elements=[participants], interactions=[exposure])

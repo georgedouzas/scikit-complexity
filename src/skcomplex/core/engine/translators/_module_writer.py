@@ -1,7 +1,4 @@
-"""Write the source of a system module from the sorted parts of a system.
-
-The system is a stock-and-flow system.
-"""
+"""Write the source of a system module from the sorted parts of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,8 +23,8 @@ BASE_IMPORTS = frozenset(
     {
         (SAGE_MODULE, 'Expression'),
         (ELEMENTS_MODULE, 'Element'),
-        ('skcomplex.core.components.system', 'BaseSystem'),
-        ('skcomplex.core.components.system', 'System'),
+        ('skcomplex.core.components.systems', 'BaseSystem'),
+        ('skcomplex.core.components.systems', 'CompositeSystem'),
         (SPECS_MODULE, 'ObservableSpec'),
         (SPECS_MODULE, 'StateSpec'),
         (SPECS_MODULE, 'VisualSpec'),
@@ -65,13 +62,6 @@ TRANSFER = """                TransferInteraction(
                     amount=_amount__{name},
                     flow={name!r},
                 ),"""
-RELAXATION = """                RelaxationInteraction(
-                    {name!r},
-                    target={label!r},
-                    state={stock!r},
-                    goal=_goal__{stock},
-                    time=_time__{stock},
-                ),"""
 RATE = """                RateInteraction(
                     {name!r},
                     target={label!r},
@@ -106,9 +96,9 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
         super().__init__(label)
 {assignments}
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the element of the stocks and the constants, and the interactions of the flows and the rates."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
 {element}
@@ -117,6 +107,48 @@ SYSTEM_CLASS = '''class {name}(BaseSystem):
 {interactions}
             ],
         )'''
+STOCK_FLOW_CLASS = '''class {name}(StockFlowSystem):
+    """Run the stock-and-flow system translated from the file `{stem}`.
+
+    Args:
+{arguments}
+    """
+
+    until = UNTIL
+    dt = SAVE_EVERY
+    observables = ({observables})
+
+    def __init__(
+        self,
+        *,
+{declarations}
+    ) -> None:
+        """Store the constants and the label."""
+        super().__init__(label=label)
+{assignments}
+
+    def _get_element_label(self) -> str:
+        """Return the label of the element of the stocks and the constants."""
+        return {label!r}
+
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock."""
+        return {{
+{stocks}
+        }}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the constants of the file."""
+        return {{
+{parameters}
+        }}
+
+    def _get_flows(self) -> FlowTable:
+        """Return the stock every flow leaves and enters, and the function of its amount."""
+        return {{
+{flows}
+        }}'''
+STOCK_FLOW_MODULE = 'skcomplex.systems.general.dynamics'
 
 
 class _ModuleWriter:
@@ -218,15 +250,15 @@ class _ModuleWriter:
         parts, expressions = self.parts, self.expressions
         helpers = []
         for name, table in sorted(parts.lookups.items()):
-            lookup = expressions.add_import(UTILITIES_MODULE, 'lookup')
+            series = expressions.add_import(UTILITIES_MODULE, 'series')
             helpers.append(
                 self._write_function(
                     f'_{name}(x: Expression) -> Expression',
                     f'Return the lookup `{self._get_original(name)}`.',
-                    self._write_return(f'{lookup}(x, {expressions.write_points(table)})'),
+                    self._write_return(f'{series}(x, {expressions.write_points(table)})'),
                 ),
             )
-        for name in parts.order_auxiliaries(expressions.problems):
+        for name in parts.get_order_auxiliaries(expressions.problems):
             helpers.append(
                 self._write_function(
                     f'_{name}(s: SimpleNamespace, t: Expression) -> Expression',
@@ -286,10 +318,13 @@ class _ModuleWriter:
         return functions, interactions
 
     def _write_relaxation(self, stock: str, form: _GoalSeekingSpec) -> tuple[list[str], str, str]:
-        """Return the functions, relaxation source, and rate label of a goal-seeking stock."""
+        """Return the functions, rate source, and rate label of a goal-seeking stock.
+
+        The rate is `(goal - stock) / time` of the functions of the goal and the time.
+        """
         expressions = self.expressions
         original = self.parts.originals[stock]
-        expressions.imports.add((INTERACTIONS_MODULE, 'RelaxationInteraction'))
+        expressions.imports.add((INTERACTIONS_MODULE, 'RateInteraction'))
         goal = expressions.write(form.goal, original)
         scale = expressions.write(form.scale, original)
         time = scale if form.is_time else f'1 / ({scale})'
@@ -308,13 +343,20 @@ class _ModuleWriter:
                 self._write_return(time),
             ),
             self._write_function(
+                f'_rate__{stock}(namespace: SimpleNamespace) -> Expression',
+                f'Return the rate that brings the stock `{self._get_original(stock)}` to its goal.',
+                self._write_return(
+                    f'(_goal__{stock}(namespace) - namespace.target.{stock}) / _time__{stock}(namespace)',
+                ),
+            ),
+            self._write_function(
                 f'_observed__{name}(s: SimpleNamespace) -> Expression',
                 f'Return the rate that brings the stock `{self._get_original(stock)}` to its goal.',
                 *([f'{INDENT}t = s.t'] if re.search(r'\bt\b', f'{goal} {time}') else []),
                 self._write_return(f'(({goal}) - s.{stock}) / ({time})'),
             ),
         ]
-        return functions, RELAXATION.format(name=name, label=self.label, stock=stock), name
+        return functions, RATE.format(name=name, label=self.label, stock=stock), name
 
     def _write_rate(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[str, str]:
         """Return the function of the rest of the net rate of a stock, and its interaction.
@@ -421,6 +463,40 @@ class _ModuleWriter:
             interactions='\n'.join(interactions),
         )
 
+    def _write_stock_flow_system(self, flows: dict[str, tuple[str | None, str | None]], observables: str) -> str:
+        """Return the source of a subclass of `StockFlowSystem`.
+
+        Its parameters are the constants of the file, and its flows read the functions of their amounts.
+        """
+        parts = self.parts
+        documented = [
+            f'{INDENT * 2}{key}:\n{INDENT * 3}The constant `{self._get_original(key)}`.'
+            for key in sorted(parts.constants)
+        ]
+        label = 'The label of the system, which names it when it is nested in another one.'
+        documented.append(f'{INDENT * 2}label:\n{INDENT * 3}{label}')
+        declarations = [f'{INDENT * 2}{key}: float = {value[0]!r},' for key, value in sorted(parts.constants.items())]
+        declarations.append(f"{INDENT * 2}label: str = 'system',")
+        stocks = '\n'.join(
+            f'{INDENT * 3}{name!r}: {self._get_stock_values(name)[0]!r},' for name in sorted(parts.stocks)
+        )
+        rows = [
+            f'{INDENT * 3}{name!r}: ({leaving!r}, {entering!r}, _amount__{name}),'
+            for name, (leaving, entering) in flows.items()
+        ]
+        return STOCK_FLOW_CLASS.format(
+            name=self._get_system_name(),
+            stem=self.stem,
+            arguments='\n\n'.join(documented),
+            observables=observables,
+            declarations='\n'.join(declarations),
+            assignments='\n'.join(f'{INDENT * 2}self.{key} = {key}' for key in sorted(parts.constants)),
+            label=self.label,
+            stocks=stocks,
+            parameters='\n'.join(f'{INDENT * 3}{key!r}: self.{key},' for key in sorted(parts.constants)),
+            flows='\n'.join(rows),
+        )
+
     @staticmethod
     def _write_import(module: str, names: Sequence[str]) -> str:
         """Return the import of names of a module.
@@ -443,9 +519,9 @@ class _ModuleWriter:
             modules.setdefault(module, []).append(name)
         sage = ', '.join(sorted(modules.pop(SAGE_MODULE)))
         library = '\n'.join(self._write_import(module, sorted(names)) for module, names in sorted(modules.items()))
+        typing = 'from typing import Annotated\n' if (ELEMENTS_MODULE, 'Element') in self.expressions.imports else ''
         return (
-            'from types import SimpleNamespace\nfrom typing import Annotated\n\n'
-            f'from sage.all__sagemath_symbolics import {sage}\n\n{library}'
+            f'from types import SimpleNamespace\n{typing}\nfrom sage.all__sagemath_symbolics import {sage}\n\n{library}'
         )
 
     def write(self) -> str:
@@ -469,14 +545,21 @@ class _ModuleWriter:
                 rates.append(function)
                 interactions.append(interaction)
         observed, observables = self._write_observables(flows, relaxations)
-        blocks = [
-            *helpers,
-            self._write_element(),
-            *amounts,
-            *rates,
-            *observed,
-            self._write_system(interactions, observables),
-        ]
+        if flows and not rates and not parts.members:
+            imports = self.expressions.imports
+            imports -= BASE_IMPORTS - {(SAGE_MODULE, 'Expression'), (SPECS_MODULE, 'ObservableSpec')}
+            imports -= {(INTERACTIONS_MODULE, 'TransferInteraction'), (LAWS_MODULE, 'Source'), (LAWS_MODULE, 'Sink')}
+            imports |= {(STOCK_FLOW_MODULE, 'StockFlowSystem'), (f'{STOCK_FLOW_MODULE}.types', 'FlowTable')}
+            blocks = [*helpers, *amounts, *observed, self._write_stock_flow_system(flows, observables)]
+        else:
+            blocks = [
+                *helpers,
+                self._write_element(),
+                *amounts,
+                *rates,
+                *observed,
+                self._write_system(interactions, observables),
+            ]
         constants = (
             f'START = {settings.start!r}\nUNTIL = {settings.until!r}\n'
             f'DT = {settings.dt!r}\nSAVE_EVERY = {settings.save_every!r}'

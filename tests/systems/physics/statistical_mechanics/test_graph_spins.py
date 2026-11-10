@@ -21,6 +21,6 @@ def test_graph_ising_orders_at_low_temperature():
         outputs=[magnetization],
         random_state=0,
     )
-    means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
+    means = {row['temperature']: row['magnetization.mean'] for row in result.get_summary()}
     assert means[1.0] > 0.9
     assert means[6.0] < 0.1

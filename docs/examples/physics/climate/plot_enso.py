@@ -6,7 +6,7 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 """
 
 # %%
-# The system is built from its class with the delayed feedback `alpha = 0.75` and the delay of six time
+# The example builds `ENSOSystem` with the delayed feedback `alpha = 0.75` and the delay of six time
 # units, starting from a small warm anomaly. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 # its power spectrum should have a sharp peak at the period of the oscillation, nearly three times the delay, with
 # harmonics at its multiples.
 
-anomaly = trajectory.values('pacific.T')
+anomaly = trajectory.get_values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
 power = spectrum(anomaly[settled], dt=0.5)

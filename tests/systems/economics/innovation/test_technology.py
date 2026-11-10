@@ -21,12 +21,12 @@ def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
         NkTechnologySystem(10, 1).prepare().system_,
         2000,
         observables=NkTechnologySystem().get_run_settings()['observables'],
-    ).values('total_cost')
+    ).get_values('total_cost')
     coupled = _run(
         NkTechnologySystem(10, 4).prepare().system_,
         2000,
         observables=NkTechnologySystem().get_run_settings()['observables'],
-    ).values('total_cost')
+    ).get_values('total_cost')
     for costs in (modular, coupled):
         assert np.all(np.diff(costs) <= 1e-12)
     assert modular[-1] < coupled[-1]
@@ -62,4 +62,4 @@ def test_arthur_polak_invents_only_wanted_functions():
     inventions = set(zip(pool['arity'][3:].astype(int).tolist(), pool['table'][3:].astype(int).tolist(), strict=True))
     assert len(inventions) == len(pool['arity']) - 3 > 0
     assert inventions <= wanted
-    assert np.all(np.diff(trajectory.values('technologies.count')) >= 0)
+    assert np.all(np.diff(trajectory.get_values('technologies.count')) >= 0)

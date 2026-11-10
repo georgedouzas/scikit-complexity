@@ -40,7 +40,7 @@ def _charge_pair():
 
 def test_plaquette_of_the_defaults_is_the_exact_result():
     """Test that the default run after its transient is within 0.01 of `I_1(2) / I_0(2)`."""
-    series = simulate(LatticeGaugeFieldsSystem(), random_state=0).values('mean_plaquette')
+    series = simulate(LatticeGaugeFieldsSystem(), random_state=0).get_values('mean_plaquette')
     assert abs(series[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
 
 
@@ -51,24 +51,24 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
     series = []
     for initial in (angles, _gauge_transform(angles, space)):
         trajectory = simulate(LatticeGaugeFieldsSystem(16, angles=initial), until=200, dt=1, random_state=2)
-        series.append(trajectory.values('mean_plaquette'))
+        series.append(trajectory.get_values('mean_plaquette'))
     assert np.abs(series[0] - series[1]).max() < 1e-12
 
 
 def test_z_n_links_stay_on_the_angles_of_the_group():
     """Test that Z_3 links sampled by heat bath keep the angles of the group."""
     system = LatticeGaugeFieldsSystem(6, n=3)
-    states = simulate(system, until=5, dt=1, random_state=0).values('links.theta')
+    states = simulate(system, until=5, dt=1, random_state=0).get_values('links.theta')
     assert set(np.round(np.mod(states[-1], 2 * np.pi) / (2 * np.pi / 3), 6)) <= {0.0, 1.0, 2.0}
 
 
 def test_maxwell_dynamics_conserve_the_gauss_law_and_the_energy():
     """Test the Gauss residual below 1e-10 at every frame and the energy within 1e-3 from a static charge pair."""
     trajectory = simulate(LatticeGaugeFieldsSystem(dynamics='hamiltonian', charges=_charge_pair()), random_state=0)
-    assert trajectory.values('gauss_residual').max() < 1e-10
-    energy = trajectory.values('field_energy')
+    assert trajectory.get_values('gauss_residual').max() < 1e-10
+    energy = trajectory.get_values('field_energy')
     assert np.abs(energy - energy[0]).max() / energy[0] < 1e-3
-    assert np.ptp(trajectory.values('links.A')[-1]) > 0
+    assert np.ptp(trajectory.get_values('links.A')[-1]) > 0
 
 
 @pytest.mark.parametrize('charges', [np.ones(16), np.zeros(5)])

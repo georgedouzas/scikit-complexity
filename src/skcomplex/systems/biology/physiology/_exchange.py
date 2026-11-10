@@ -20,7 +20,7 @@ from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill
 from ....core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -166,13 +166,13 @@ class ContourUptakeInteraction(CouplingInteraction):
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.physiology import ContourCellElement, ContourUptakeInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> cells = GroupElement('cells', element=ContourCellElement, size=2, values={'x': [0.25, 1.0], 'c': 0.5})
         >>> uptake = ContourUptakeInteraction('uptake', target='cells')
-        >>> system = System(elements=[cells], interactions=[uptake], time=DiscreteTime())
-        >>> simulate(system, until=1).values('cells.x')[-1].round(4).tolist()
+        >>> system = CompositeSystem(elements=[cells], interactions=[uptake], time=DiscreteTime())
+        >>> simulate(system, until=1).get_values('cells.x')[-1].round(4).tolist()
         [0.7344, 0.25]
     """
 
@@ -198,15 +198,6 @@ class ContourUptakeInteraction(CouplingInteraction):
         """Return the logistic map of the cell mixed with the uptake from the next cell."""
         member = namespace.member
         return (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * reduction
-
-
-def _exchange(s: SimpleNamespace) -> Expression:
-    """Return the exchange of a cell with a neighbour.
-
-    It runs through their gap junction and the nanotube between them.
-    """
-    exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
-    return exchange
 
 
 class ClosedContourCellExchangeSystem(BaseSystem):
@@ -269,7 +260,7 @@ class ClosedContourCellExchangeSystem(BaseSystem):
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         rng = np.random.default_rng(self.random_state)
         cells = GroupElement(
@@ -284,7 +275,7 @@ class ClosedContourCellExchangeSystem(BaseSystem):
             },
         )
         uptake = ContourUptakeInteraction('uptake', target='cells')
-        return System(self.label, elements=[cells], interactions=[uptake], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[cells], interactions=[uptake], time=DiscreteTime())
 
 
 class NanotubeGapJunctionExchangeSystem(BaseSystem):
@@ -339,6 +330,15 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
     until = 100.0
     dt = 0.5
 
+    @staticmethod
+    def _exchange(s: SimpleNamespace) -> Expression:
+        """Return the exchange of a cell with a neighbour.
+
+        It runs through their gap junction and the nanotube between them.
+        """
+        exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
+        return exchange
+
     def __init__(
         self,
         graph: nx.Graph | None = None,
@@ -360,7 +360,7 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         self.x = x
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -380,5 +380,11 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
             'xi': self.xi,
         }
         cells = FieldElement('cells', element=ExchangingCellElement, space=NetworkSpace(graph), values=values)
-        exchange = CouplingInteraction('exchange', target='cells', read='x', write='x', function=_exchange)
-        return System(self.label, elements=[cells], interactions=[exchange], time=ContinuousTime())
+        exchange = CouplingInteraction(
+            'exchange',
+            target='cells',
+            read='x',
+            write='x',
+            function=NanotubeGapJunctionExchangeSystem._exchange,
+        )
+        return CompositeSystem(self.label, elements=[cells], interactions=[exchange], time=ContinuousTime())

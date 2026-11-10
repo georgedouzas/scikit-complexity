@@ -16,7 +16,7 @@ MATRIX_RANK = 2
 
 
 class MatrixVisual(BaseVisual):
-    """Visual that logs a matrix-valued state or parameter as an image.
+    """A visual that logs a matrix-valued state or parameter as an image.
 
     The image is colored by value. It logs one image per frame. The visual draws the variable `variable` of the element
     at `path`, or the state or parameter named `<path>.<variable>` of a problem without such an element, such as a
@@ -102,21 +102,21 @@ class MatrixVisual(BaseVisual):
             self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
             self.views_ = [rrb.Spatial2DView(origin=f'{self.path}/{self.variable}', name=self.name_)]
         layouts = [layout for layout in (context.states, context.parameters) if layout.has(self.name_)]
-        if not layouts or len(layouts[0].entry(self.name_).shape) != MATRIX_RANK:
+        if not layouts or len(layouts[0].get_entry(self.name_).shape) != MATRIX_RANK:
             error_msg = f'The problem has no matrix named {self.name_!r}. Name a state or parameter of two dimensions.'
             raise ValidationError(error_msg)
-        self.shape_ = layouts[0].entry(self.name_).shape
+        self.shape_ = layouts[0].get_entry(self.name_).shape
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""
         del problem
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.variable}', name=f'{element.path}.{self.variable}')]
 
     def _log_matrix(self, recording: rr.RecordingStream, frame: FrameSpec) -> None:
         """Log the matrix at a frame as an image colored by value."""
-        values = np.reshape(np.asarray(frame.value(self.name_), dtype=float), self.shape_)
+        values = np.reshape(np.asarray(frame.get_value(self.name_), dtype=float), self.shape_)
         low, high = self.color_range if self.color_range is not None else (float(values.min()), float(values.max()))
-        colors = BaseVisual._palette_colors(values, low, high)
+        colors = BaseVisual._get_palette_colors(values, low, high)
         height, width = values.shape
         image = rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8')
         recording.log(f'{self.path}/{self.variable}', image)

@@ -8,7 +8,7 @@ of position and velocity. The image shows the density in that plane, with positi
 """
 
 # %%
-# The system is built from its class in its two-stream set-up, with beams of temperature 0.25 at the
+# The example builds `VlasovEquationSystem` in its two-stream set-up, with beams of temperature 0.25 at the
 # velocities -1.5 and 1.5, a density wave of relative amplitude 1e-4, a periodic position axis of 64 cells, and a
 # velocity axis of 128. The catalog registers the semi-Lagrangian stepper for this system, which shifts the density
 # along its characteristics. The observer saves every frame of 0.25 up to `t = 50`, with the default blueprint and the
@@ -28,7 +28,7 @@ SYSTEM = 'vlasov_equation'
 WAVE_NUMBER = 0.5
 
 system = VlasovEquationSystem(positions=64, velocities=128, setup='two-stream', amplitude=1e-4)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='gas/f', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='gas/x', interval=1)
 solver = SemiLagrangianSolver(0.25)
 simulation = simulate(system, until=50, solver=solver, observers=[observer])
 
@@ -53,7 +53,7 @@ def dispersion(rate):
 
 def wave_amplitude(trajectory, positions, velocities):
     """Return the amplitude of the density wave of every frame."""
-    density = np.asarray(trajectory.values('gas.f')).reshape(-1, positions, velocities).sum(axis=2)
+    density = np.asarray(trajectory.get_values('gas.x')).reshape(-1, positions, velocities).sum(axis=2)
     return np.abs(np.fft.rfft(density, axis=1)[:, 1])
 
 

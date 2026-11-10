@@ -33,17 +33,13 @@ from ....components.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ....components.laws.utils import (
-    distribute_operators,
-    hyperedges_in,
-    laplacian,
-    neighborhoods_in,
-    reductions_in,
-    shifted,
-)
+from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils._operators import _OperatorFunction
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._tensors import distribute_operators
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ....components.system import System
+from ....components.systems import CompositeSystem
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind
@@ -73,7 +69,7 @@ SYMMETRY_TRIALS = 3
 
 
 class CensusPass(BasePass):
-    """Pass that takes the census of the laws of the system.
+    """A pass that takes the census of the laws of the system.
 
     It keeps going past failing components.
     """
@@ -89,10 +85,13 @@ class CensusPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Take the census of the laws of the nodes."""
         compilation = self.compilation_
-        compilation.census = self._census_of(compilation.system, Compilation._required(compilation.nodes, 'nodes'))
+        compilation.census = self._get_census_of(
+            compilation.system,
+            Compilation._get_required(compilation.nodes, 'nodes'),
+        )
 
     @staticmethod
-    def _state_reads(spec: KernelSpec, value: object) -> frozenset[tuple[str, int]]:
+    def _get_state_reads(spec: KernelSpec, value: object) -> frozenset[tuple[str, int]]:
         """Return the state components that a law value depends on."""
         if not isinstance(value, Expression):
             return frozenset()
@@ -103,7 +102,7 @@ class CensusPass(BasePass):
         )
 
     @staticmethod
-    def _noise_census(
+    def _get_noise_census(
         spec: KernelSpec,
         law: object,
         declarations: DeclarationsSpec,
@@ -122,9 +121,9 @@ class CensusPass(BasePass):
         )
         references = [spec.references.get(item) for item in targets]
         return (
-            tuple(NoisePass._process_keys(spec, law, declarations)),
+            tuple(NoisePass._get_process_keys(spec, law, declarations)),
             tuple((item.entry.name, item.column) for item in references if item is not None),
-            tuple(CensusPass._state_reads(spec, value) for value in values),
+            tuple(CensusPass._get_state_reads(spec, value) for value in values),
         )
 
     @staticmethod
@@ -148,7 +147,7 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _component_kind(node: NodeSpec) -> ElementKind:
+    def _get_component_kind(node: NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
         if isinstance(node.component, GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
@@ -159,7 +158,7 @@ class CensusPass(BasePass):
         return ElementKind.ELEMENT
 
     @staticmethod
-    def _equation_targets(spec: KernelSpec, law: BaseLaw) -> tuple[EntrySpec, ...]:
+    def _get_equation_targets(spec: KernelSpec, law: BaseLaw) -> tuple[EntrySpec, ...]:
         """Return the entry of the state an equation names as its target.
 
         It is none for any other law or target.
@@ -169,7 +168,7 @@ class CensusPass(BasePass):
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
     @staticmethod
-    def _cell_degrees(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[str, int]:
+    def _get_cell_degrees(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[str, int]:
         """Return the cell degree of every symbol of a spec reading a cell complex group.
 
         The spec reads the group by member. A law that runs once per edge reads both ends and the edge, so it holds no
@@ -186,7 +185,7 @@ class CensusPass(BasePass):
         return degrees
 
     @staticmethod
-    def _records_of(
+    def _get_records_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
         observer: Observer,
@@ -195,18 +194,18 @@ class CensusPass(BasePass):
     ) -> list[CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
-        specs, _ = SpecsPass._specs_of(block, elements, declarations, observer)
+        specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
         for spec in specs:
-            component = CensusPass._component_of(block.node)
-            for law in CensusPass._declared_laws(spec, component):
+            component = CensusPass._get_component_of(block.node)
+            for law in CensusPass._get_declared_laws(spec, component):
                 items = [item for target in law._get_targets() for item in components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
                 targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
-                targets = targets or CensusPass._equation_targets(spec, law)
-                owner = CensusPass._law_owner(spec, law, agents)
+                targets = targets or CensusPass._get_equation_targets(spec, law)
+                owner = CensusPass._get_law_owner(spec, law, agents)
                 vectors = frozenset(entry.name for entry in targets if CensusPass._is_vector(entry, elements))
-                kind = CensusPass._component_kind(elements.get(owner, block).node)
-                processes, driven, reads = CensusPass._noise_census(spec, law, declarations)
+                kind = CensusPass._get_component_kind(elements.get(owner, block).node)
+                processes, driven, reads = CensusPass._get_noise_census(spec, law, declarations)
                 records.append(
                     CensusRecordSpec(
                         block.node.path,
@@ -215,10 +214,10 @@ class CensusPass(BasePass):
                         targets,
                         vectors,
                         kind,
-                        SpecsPass._group_space(elements.get(owner, block)),
+                        SpecsPass._get_group_space(elements.get(owner, block)),
                         members=spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
-                        degrees=CensusPass._cell_degrees(spec, declarations),
+                        degrees=CensusPass._get_cell_degrees(spec, declarations),
                         processes=processes,
                         driven=driven,
                         reads=reads,
@@ -227,7 +226,7 @@ class CensusPass(BasePass):
         return records
 
     @staticmethod
-    def _census_of(system: System, nodes: list[NodeSpec]) -> CensusSpec:
+    def _get_census_of(system: CompositeSystem, nodes: list[NodeSpec]) -> CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -248,7 +247,7 @@ class CensusPass(BasePass):
         declarations = DeclarationsSpec(time=symbol('t'))
         errors: list[tuple[str, SkcomplexError]] = []
         blocks = []
-        groups = LayoutPass._group_sizes(nodes)
+        groups = LayoutPass._get_group_sizes(nodes)
         for node in nodes:
             try:
                 declarations, block = LayoutPass._declare_component(declarations, node, groups)
@@ -258,19 +257,19 @@ class CensusPass(BasePass):
             blocks.append(block)
         elements = {block.node.path: block for block in blocks if not block.node.interaction}
         elements.update(declarations.processes)
-        live = ObservableEvaluator._lowerable_observables(system, nodes)
+        live = ObservableEvaluator._get_lowerable_observables(system, nodes)
         observer = Observer(declarations, live).prepare()
         agents = {block.node.path for block in blocks if block.node.is_agent}
         records = []
         for block in blocks:
             try:
-                records += CensusPass._records_of(block, elements, observer, declarations, agents)
+                records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
         return CensusSpec(system, records, errors, declarations.agents)
 
     @staticmethod
-    def _renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
+    def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
         """Return the path of the element or group whose states a renewal law resets.
 
         Without one, it is the component of the law.
@@ -280,15 +279,15 @@ class CensusPass(BasePass):
         return spec.owner if reference is None else reference.entry.name.rpartition('.')[0]
 
     @staticmethod
-    def _special_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
+    def _get_special_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
         """Return the owner of a renewal, a rule, a matching, or a topology request.
 
         It is `None` for another law.
         """
         if isinstance(law, JumpLaw) and law.waiting is not None:
-            return CensusPass._renewal_group(spec, RenewalLaw(law.waiting, law.reset))
+            return CensusPass._get_renewal_group(spec, RenewalLaw(law.waiting, law.reset))
         if isinstance(law, RenewalLaw):
-            return CensusPass._renewal_group(spec, law)
+            return CensusPass._get_renewal_group(spec, law)
         if isinstance(law, RuleLaw | MatchLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
@@ -297,7 +296,7 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
-    def _changed_target(spec: KernelSpec, law: BaseLaw) -> object:
+    def _get_changed_target(spec: KernelSpec, law: BaseLaw) -> object:
         """Return the target of a law, or the first state a jump changes."""
         if isinstance(law, JumpLaw):
             return next(iter(law.changes or {}))
@@ -307,7 +306,7 @@ class CensusPass(BasePass):
         return law._get_targets()[0]
 
     @staticmethod
-    def _law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
+    def _get_law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
         """Return the path of the element or group a law belongs to.
 
         A renewal belongs to the group whose states it resets, a rule or a matching to the first agent group among its
@@ -333,7 +332,7 @@ class CensusPass(BasePass):
             ValidationError:
                 The law changes no state of its component, or targets a symbol that is not a state.
         """
-        owner = CensusPass._special_owner(spec, law, agents)
+        owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
         if isinstance(law, TransferLaw | EquationLaw | CrossingLaw) or (
@@ -341,11 +340,11 @@ class CensusPass(BasePass):
         ):
             return spec.owner
         lattice = isinstance(law, CascadeLaw | LocalRuleLaw | ExtremalLaw | SampleLaw)
-        target = law._get_targets()[0] if lattice else CensusPass._changed_target(spec, law)
-        return spec._target_references(target)[0].entry.name.rpartition('.')[0]
+        target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
+        return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 
     @staticmethod
-    def _expressions_of(law: BaseLaw) -> list[Expression]:
+    def _get_expressions_of(law: BaseLaw) -> list[Expression]:
         """Return the symbolic components of the targets and values of a law.
 
         The laws it holds are included.
@@ -353,13 +352,13 @@ class CensusPass(BasePass):
         found: list[Expression] = []
         for value in (*law._get_targets(), *law._get_values()):
             if isinstance(value, BaseLaw):
-                found += CensusPass._expressions_of(value)
+                found += CensusPass._get_expressions_of(value)
             elif isinstance(value, Expression | FreeModuleElement):
                 found += [SR(item) for item in components_of(value)]
         return found
 
     @staticmethod
-    def _outside_reductions(expression: Expression) -> Expression:
+    def _get_outside_reductions(expression: Expression) -> Expression:
         """Return an expression with every reduction replaced by one placeholder.
 
         Neighbourhood reductions are replaced too.
@@ -372,7 +371,7 @@ class CensusPass(BasePass):
         return SR(expression).subs(dict.fromkeys(calls, placeholder))
 
     @staticmethod
-    def _end_of(edges: KernelSpec, law: BaseLaw) -> str | None:
+    def _get_end_of(edges: KernelSpec, law: BaseLaw) -> str | None:
         """Return the end of an edge whose member alone a law reads.
 
         It is `None` for a law of the edge. A law of one end reads no member of the edge group and, outside its
@@ -395,13 +394,13 @@ class CensusPass(BasePass):
             return None
         if request is None and not all(isinstance(item, Expression | FreeModuleElement) for item in law._get_targets()):
             return None
-        expressions = CensusPass._expressions_of(law)
+        expressions = CensusPass._get_expressions_of(law)
         references = edges.references
         reads = [references.get(item) for item in symbols_of(expressions)]
         if any(reference is not None and reference.source is ReadKind.MEMBER for reference in reads):
             return None
         sides = {ReadKind.FIRST: 'source', ReadKind.SECOND: 'target'}
-        outside = symbols_of(CensusPass._outside_reductions(item) for item in expressions)
+        outside = symbols_of(CensusPass._get_outside_reductions(item) for item in expressions)
         ends = {
             sides[reference.source]
             for item in outside
@@ -412,44 +411,47 @@ class CensusPass(BasePass):
         return next(iter(ends)) if len(ends) == 1 else None
 
     @staticmethod
-    def _substituted_items(
+    def _get_substituted_items(
         value: Mapping[object, object] | list[object] | tuple[object, ...] | CallSpec,
         mapping: Mapping[Expression, Expression],
     ) -> object:
         """Return a mapping, sequence, or call of a law with its item symbols replaced."""
         if isinstance(value, Mapping):
             return {
-                CensusPass._substituted(key, mapping): CensusPass._substituted(item, mapping)
+                CensusPass._get_substituted(key, mapping): CensusPass._get_substituted(item, mapping)
                 for key, item in value.items()
             }
         if isinstance(value, CallSpec):
             if value.arguments is None:
                 return value
-            return replace(value, arguments=tuple(CensusPass._substituted(item, mapping) for item in value.arguments))
-        return type(value)(CensusPass._substituted(item, mapping) for item in value)
+            return replace(
+                value,
+                arguments=tuple(CensusPass._get_substituted(item, mapping) for item in value.arguments),
+            )
+        return type(value)(CensusPass._get_substituted(item, mapping) for item in value)
 
     @staticmethod
-    def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
+    def _get_substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
         """Return a value of a law with symbols replaced.
 
         The replacement goes through vectors, mappings, sequences, calls, and laws.
         """
         if isinstance(value, BaseLaw):
             parameters = value.get_params(deep=False)
-            return BasePass._replaced(
+            return BasePass._get_replaced(
                 value,
-                **{name: CensusPass._substituted(item, mapping) for name, item in parameters.items()},
+                **{name: CensusPass._get_substituted(item, mapping) for name, item in parameters.items()},
             )
         if isinstance(value, FreeModuleElement):
             return vector(SR(item).subs(mapping) for item in value)
         if isinstance(value, Expression):
             return value.subs(mapping)
         if isinstance(value, Mapping | list | tuple | CallSpec):
-            return CensusPass._substituted_items(value, mapping)
+            return CensusPass._get_substituted_items(value, mapping)
         return value
 
     @staticmethod
-    def _end_law(edges: KernelSpec, law: BaseLaw, end: str) -> BaseLaw:
+    def _get_end_law(edges: KernelSpec, law: BaseLaw, end: str) -> BaseLaw:
         """Return a law of one end of an edge written for the member.
 
         The other end stands for other members.
@@ -472,16 +474,16 @@ class CensusPass(BasePass):
         mapping = {}
         for item, reference in edges.references.items():
             if reference.source in {ReadKind.FIRST, ReadKind.SECOND}:
-                member, other = SpecsPass._end_symbols(item)
+                member, other = SpecsPass._get_end_symbols(item)
                 mapping[item] = member if reference.source is own else other
-        substituted = CensusPass._substituted(law, mapping)
+        substituted = CensusPass._get_substituted(law, mapping)
         if not isinstance(substituted, BaseLaw):
             error_msg = f'The law {law!r} of {edges.owner} is not a law once written for the member.'
             raise TypeError(error_msg)
         return substituted.prepare(edges.owner)
 
     @staticmethod
-    def _own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
+    def _get_own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
         """Return the end of an edge whose state a rate law per edge targets.
 
         It is `None` for another law.
@@ -495,7 +497,7 @@ class CensusPass(BasePass):
         return {ReadKind.FIRST: 'source', ReadKind.SECOND: 'target'}.get(reference.source)
 
     @staticmethod
-    def _ends_of(edges: KernelSpec) -> dict[Expression, tuple[Expression, bool]]:
+    def _get_ends_of(edges: KernelSpec) -> dict[Expression, tuple[Expression, bool]]:
         """Return the symbol of the member and whether it is a state.
 
         They are given by the symbol of the other member.
@@ -503,12 +505,12 @@ class CensusPass(BasePass):
         found = {}
         for item, reference in edges.references.items():
             if reference.source in {ReadKind.FIRST, ReadKind.SECOND}:
-                member, other = SpecsPass._end_symbols(item)
+                member, other = SpecsPass._get_end_symbols(item)
                 found[other] = (member, reference.is_state)
         return found
 
     @staticmethod
-    def _difference(edges: KernelSpec, value: Expression) -> tuple[Expression, Expression] | None:
+    def _get_difference(edges: KernelSpec, value: Expression) -> tuple[Expression, Expression] | None:
         """Return the coefficient and state of a rate that scales the ends' difference.
 
         The rate is a constant times the difference. The coefficient reads no state and nothing of the other member.
@@ -524,7 +526,7 @@ class CensusPass(BasePass):
             difference:
                 The coefficient and the symbol of the state of the member, or `None`.
         """
-        ends = CensusPass._ends_of(edges)
+        ends = CensusPass._get_ends_of(edges)
         states = {member for member, is_state in ends.values() if is_state}
         found = [item for item in value.variables() if item in ends]
         if len(found) != 1 or not ends[found[0]][1]:
@@ -538,7 +540,7 @@ class CensusPass(BasePass):
         return coefficient, member
 
     @staticmethod
-    def _squared_spacing(place: FieldElement) -> float | None:
+    def _get_squared_spacing(place: FieldElement) -> float | None:
         """Return the factor that turns a field Laplacian into a sum over neighbours.
 
         The sum is of the differences over its neighbours. It is the squared spacing of a lattice with one spacing,
@@ -551,7 +553,7 @@ class CensusPass(BasePass):
         return spacings.pop() ** 2 if len(spacings) == 1 else None
 
     @staticmethod
-    def _shifted_law(edges: KernelSpec, law: RateLaw, end: str, space: LatticeSpace) -> RateLaw:
+    def _get_shifted_law(edges: KernelSpec, law: RateLaw, end: str, space: LatticeSpace) -> RateLaw:
         """Return a rate per edge of a lattice field as a sum of shifted reads.
 
         The sum runs over the axes, and the reads are of the other end. The target of an edge is one site ahead of its
@@ -577,7 +579,7 @@ class CensusPass(BasePass):
         """
         value = SR(law.value)
         ends = {
-            other: member for other, (member, _) in CensusPass._ends_of(edges).items() if other in value.variables()
+            other: member for other, (member, _) in CensusPass._get_ends_of(edges).items() if other in value.variables()
         }
         sign = 1 if end == 'source' else -1
         dimensions = space.prepare().n_dim_
@@ -585,10 +587,10 @@ class CensusPass(BasePass):
         for axis, step in enumerate(space.spacings_):
             offset = [sign * step if index == axis else 0 for index in range(dimensions)]
             total += value.subs({other: shifted(member, offset) for other, member in ends.items()})
-        return BasePass._replaced(law, value=total).prepare(edges.owner)
+        return BasePass._get_replaced(law, value=total).prepare(edges.owner)
 
     @staticmethod
-    def _field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
+    def _get_field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
         """Return the rates per edge of a field lowered to member laws, and the rest.
 
         The rest are the laws that stay per edge. Two rates of both ends that are the same constant times the difference
@@ -611,11 +613,11 @@ class CensusPass(BasePass):
             return [], laws
         written: dict[int, tuple[str, RateLaw]] = {}
         for index, law in enumerate(laws):
-            end = CensusPass._own_end(edges, law)
-            item = CensusPass._end_law(edges, law, end) if end is not None else None
+            end = CensusPass._get_own_end(edges, law)
+            item = CensusPass._get_end_law(edges, law, end) if end is not None else None
             if end is not None and isinstance(item, RateLaw):
                 written[index] = (end, item)
-        scale = CensusPass._squared_spacing(place)
+        scale = CensusPass._get_squared_spacing(place)
         lowered: list[BaseLaw] = []
         taken: set[int] = set()
         for index, (end, law) in written.items():
@@ -630,15 +632,17 @@ class CensusPass(BasePass):
                 ),
                 None,
             )
-            difference = CensusPass._difference(edges, SR(law.value))
+            difference = CensusPass._get_difference(edges, SR(law.value))
             if index in taken or partner is None or difference is None or scale is None:
                 continue
             coefficient, member = difference
-            lowered.append(BasePass._replaced(law, value=coefficient * scale * laplacian(member)).prepare(edges.owner))
+            lowered.append(
+                BasePass._get_replaced(law, value=coefficient * scale * laplacian(member)).prepare(edges.owner),
+            )
             taken |= {index, partner}
         if isinstance(place.space, LatticeSpace):
             lowered += [
-                CensusPass._shifted_law(edges, law, end, place.space)
+                CensusPass._get_shifted_law(edges, law, end, place.space)
                 for index, (end, law) in written.items()
                 if index not in taken
             ]
@@ -646,7 +650,7 @@ class CensusPass(BasePass):
         return lowered, [law for index, law in enumerate(laws) if index not in taken]
 
     @staticmethod
-    def _targets_second(spec: KernelSpec, law: BaseLaw) -> bool:
+    def _get_targets_second(spec: KernelSpec, law: BaseLaw) -> bool:
         """Check whether a hyperedge interaction law targets the member of its group.
 
         The group is on hyperedges or edges.
@@ -656,11 +660,11 @@ class CensusPass(BasePass):
         return any(
             reference.entry.name.rpartition('.')[0] == path
             for target in targets
-            for reference in spec._target_references(target)
+            for reference in spec._get_target_references(target)
         )
 
     @staticmethod
-    def _hyperedge_laws(spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
+    def _get_hyperedge_laws(spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of one kind of a hyperedge interaction.
 
         Their reductions over the members are written out. The spec of the focal member keeps the laws of the nodes, and
@@ -683,27 +687,27 @@ class CensusPass(BasePass):
         """
         kept = []
         for law in laws:
-            if CensusPass._targets_second(spec, law) != (spec.hyperedge == HYPEREDGE_LAWS):
+            if CensusPass._get_targets_second(spec, law) != (spec.hyperedge == HYPEREDGE_LAWS):
                 continue
-            expansions = HyperedgeTables._expansions(spec, CensusPass._expressions_of(law))
-            expanded = CensusPass._substituted(law, expansions) if expansions else law
+            expansions = HyperedgeTables._get_expansions(spec, CensusPass._get_expressions_of(law))
+            expanded = CensusPass._get_substituted(law, expansions) if expansions else law
             if not isinstance(expanded, BaseLaw):
                 error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
                 raise TypeError(error_msg)
-            kept.append(HyperedgeTables._masked(spec, expanded.prepare(spec.owner)))
+            kept.append(HyperedgeTables._get_masked(spec, expanded.prepare(spec.owner)))
         return kept
 
     @staticmethod
-    def _opaque_calls(expression: Expression) -> dict[Expression, Expression]:
-        """Return a symbol for every outermost call of a symbolic function.
+    def _get_opaque_calls(expression: Expression) -> dict[Expression, Expression]:
+        """Return a symbol per outermost call of an unknown function or library operator.
 
         Such a call has no value at numbers.
         """
-        if isinstance(expression.operator(), SymbolicFunction):
+        if isinstance(expression.operator(), SymbolicFunction | _OperatorFunction):
             return {expression: SR.symbol(f'_call_{abs(hash(str(expression)))}')}
         found: dict[Expression, Expression] = {}
         for operand in expression.operands():
-            found.update(CensusPass._opaque_calls(operand))
+            found.update(CensusPass._get_opaque_calls(operand))
         return found
 
     @staticmethod
@@ -712,7 +716,7 @@ class CensusPass(BasePass):
 
         It is evaluated at random values of its symbols.
         """
-        opaque = residual.subs(CensusPass._opaque_calls(residual))
+        opaque = residual.subs(CensusPass._get_opaque_calls(residual))
         symbols = opaque.variables()
         generator = np.random.default_rng(len(symbols))
         for _ in range(SYMMETRY_TRIALS):
@@ -728,7 +732,7 @@ class CensusPass(BasePass):
 
         Its dependent entries are not the ones its independent entries give.
         """
-        expected = tensor.matrix_of(value[row, column] for row, column in tensor.indices)
+        expected = tensor.get_matrix_of(value[row, column] for row, column in tensor.indices)
         size = tensor.n_dim
         for row in range(size):
             for column in range(size):
@@ -747,7 +751,7 @@ class CensusPass(BasePass):
                 raise TensorSymmetryError(error_msg)
 
     @staticmethod
-    def _component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
+    def _get_component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
         """Return a rate law on a tensor or vector state as one rate per component.
 
         The vector rate is a field operator rate.
@@ -799,7 +803,7 @@ class CensusPass(BasePass):
         return [RateLaw(target, rate, law.order, label=law.label) for target, rate in zip(targets, rates, strict=True)]
 
     @staticmethod
-    def _role_of(namespace: SimpleNamespace, holder: SimpleNamespace) -> str | None:
+    def _get_role_of(namespace: SimpleNamespace, holder: SimpleNamespace) -> str | None:
         """Return the name in a namespace that holds a namespace or a copy of it.
 
         It holds it directly or inside, and the result is `None` otherwise.
@@ -808,12 +812,12 @@ class CensusPass(BasePass):
             for item in value if isinstance(value, tuple) else (value,):
                 if not isinstance(item, SimpleNamespace):
                     continue
-                if item is holder or vars(item).keys() == vars(holder).keys() or CensusPass._role_of(item, holder):
+                if item is holder or vars(item).keys() == vars(holder).keys() or CensusPass._get_role_of(item, holder):
                     return name
         return None
 
     @staticmethod
-    def _returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
+    def _get_returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
         """Return the laws a component returns.
 
         A read of a state a role does not have raises an error of the role.
@@ -839,7 +843,7 @@ class CensusPass(BasePass):
             holder = error.obj
             if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):
                 raise
-            role = CensusPass._role_of(spec.namespace, holder)
+            role = CensusPass._get_role_of(spec.namespace, holder)
             if role is None:
                 raise
             names = [name for name, value in vars(holder).items() if not isinstance(value, SimpleNamespace | tuple)]
@@ -851,7 +855,7 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
+    def _get_declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -871,15 +875,15 @@ class CensusPass(BasePass):
             ValidationError:
                 `laws` returns something other than declarable laws, or laws its binding does not take.
         """
-        returned = CensusPass._returned_laws(spec, component)
+        returned = CensusPass._get_returned_laws(spec, component)
         laws = [law for law in returned if isinstance(law, BaseLaw)]
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        split = [item for law in laws for item in CensusPass._component_rates(spec, law)]
+        split = [item for law in laws for item in CensusPass._get_component_rates(spec, law)]
         declared = [law.prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
-            declared = CensusPass._hyperedge_laws(spec, declared)
+            declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
         alone = spec.edges is not None and spec.edges.pairs is None
         rules = [law for law in declared if (searched or alone) and isinstance(law, RuleLaw)]
@@ -890,14 +894,15 @@ class CensusPass(BasePass):
             )
             raise ValidationError(error_msg)
         if isinstance(spec.pairs, EdgeSearch):
-            declared = CensusPass._field_laws(spec, [law for law in declared if CensusPass._end_of(spec, law) is None])[
-                1
-            ]
+            declared = CensusPass._get_field_laws(
+                spec,
+                [law for law in declared if CensusPass._get_end_of(spec, law) is None],
+            )[1]
         if spec.edges is not None:
             edges = spec.edges
-            lowered, kept = CensusPass._field_laws(
+            lowered, kept = CensusPass._get_field_laws(
                 edges,
-                [law for law in declared if CensusPass._end_of(edges, law) is None],
+                [law for law in declared if CensusPass._get_end_of(edges, law) is None],
             )
             if edges.pairs is None and kept:
                 error_msg = (
@@ -908,9 +913,9 @@ class CensusPass(BasePass):
                 raise ValidationError(error_msg)
             declared = [
                 *(
-                    CensusPass._end_law(edges, law, end)
+                    CensusPass._get_end_law(edges, law, end)
                     for law in declared
-                    if (end := CensusPass._end_of(edges, law)) is not None
+                    if (end := CensusPass._get_end_of(edges, law)) is not None
                 ),
                 *lowered,
             ]
@@ -932,7 +937,7 @@ class CensusPass(BasePass):
         return [*rules, *checked]
 
     @staticmethod
-    def _component_of(node: NodeSpec) -> BasePart:
+    def _get_component_of(node: NodeSpec) -> BasePart:
         """Return the part whose laws describe a node, a representative member for a group."""
         if isinstance(node.component, GroupElement):
             group = node.component

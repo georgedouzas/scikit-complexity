@@ -9,7 +9,7 @@ between about 80 and 150, above the births and the starvations of every step.
 """
 
 # %%
-# The system is built from its class with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is
+# The example builds `MetaphoriaSystem` with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is
 # drawn up to 15 and whose resistance up to 5. Every adult brings 5 units of labour and eats 2 units of food per step.
 # The blueprint shows the observable `population` above the reporters `census.births` and `census.starvations`.
 
@@ -56,19 +56,19 @@ monetary = MetaphoriaSystem(n_people=100, mode='monetary', random_state=0)
 scarce = simulate(monetary, until=150, random_state=0)
 rich = MetaphoriaSystem(n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
 abundant = simulate(rich, until=150, random_state=0)
-holders = [abundant.agents(group, 150).values for group in ('people', 'businesses', 'bank')]
+holders = [abundant.get_agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 
 fig, (populations, money) = plt.subplots(1, 2, figsize=(11, 4))
-populations.plot(trajectory.times[:151], trajectory.values('population')[:151], label='hunter-gatherers')
-populations.plot(scarce.times, scarce.values('population'), label='monetary')
-populations.plot(abundant.times, abundant.values('population'), label='monetary, abundant food')
+populations.plot(trajectory.times[:151], trajectory.get_values('population')[:151], label='hunter-gatherers')
+populations.plot(scarce.times, scarce.get_values('population'), label='monetary')
+populations.plot(abundant.times, abundant.get_values('population'), label='monetary, abundant food')
 populations.set_xlabel('step')
 populations.set_ylabel('population')
 populations.set_title('Money dwindles where gatherers thrive')
 populations.legend()
-money.plot(abundant.times, abundant.values('money_gini'), label='Gini coefficient of money')
-starved = np.nan_to_num(abundant.values('census.starvations')) / np.maximum(abundant.values('population'), 1)
+money.plot(abundant.times, abundant.get_values('money_gini'), label='Gini coefficient of money')
+starved = np.nan_to_num(abundant.get_values('census.starvations')) / np.maximum(abundant.get_values('population'), 1)
 money.plot(abundant.times, starved, label='starvations per person')
 money.axhline(0.5, color='gray', linestyle='--', linewidth=0.8, label='Gini of 0.5 (Gooding)')
 money.set_xlabel('step')

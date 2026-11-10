@@ -38,14 +38,14 @@ cases = {
     'vacuum': ({'omega_matter': 0.0, 'omega_lambda': 1.0}, lambda t: 0.5 * np.exp(t)),
 }
 fig, (mixture, single) = plt.subplots(1, 2, figsize=(10, 4))
-mixture.plot(trajectory.times, np.ravel(trajectory.values('universe.a')))
+mixture.plot(trajectory.times, np.ravel(trajectory.get_values('universe.a')))
 mixture.set_xlabel('time')
 mixture.set_ylabel('scale factor a')
 mixture.set_title('Matter, then dark energy')
 for name, (densities, exact) in cases.items():
     run = simulate(FLRWCosmologySystem(a=0.5, **densities), until=1.5, dt=0.05, solver=solver)
     times = np.asarray(run.times)
-    single.plot(times, np.ravel(run.values('universe.a')), label=name)
+    single.plot(times, np.ravel(run.get_values('universe.a')), label=name)
     single.plot(times, exact(times), '--', color='black')
 single.set_xlabel('time')
 single.set_title('Exact solutions (dashed)')

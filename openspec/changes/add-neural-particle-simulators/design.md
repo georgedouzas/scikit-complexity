@@ -2,9 +2,10 @@
 
 ## Context
 
-Particle groups hold vector states of order 2 for positions and run with pair laws such as `PairCouplingInteraction`
-(`core/components/interactions/_pair_coupling.py`), whose `potential(namespace, r)` is a symbolic function of the
-distance. `LennardJonesFluidSystem` is in `systems/physics/statistical_mechanics/_gases.py`. `VelocityVerletSolver` and
+Particle groups hold vector states of order 2 for positions and run with pair laws such as `PairInteraction` with a
+potential (`core/components/interactions/_pair.py`), into which `move-recipes-to-systems` merges the former
+`PairCouplingInteraction`. Its `potential(namespace, r)` is a symbolic function of the distance.
+`LennardJonesFluidSystem` is in `systems/physics/statistical_mechanics/_gases.py`. `VelocityVerletSolver` and
 `Yoshida4Solver` integrate states of order 2 symplectically. At run time the Numba backend finds pairs with cell lists
 (`core/engine/backends/_numba_neighbours.py`), private to the compiled kernels. In the analysis layer `_read_snapshots`
 (`core/analysis/_base.py`) gives the positions, velocities, and box of a particle or agent group at every frame, and
@@ -67,7 +68,7 @@ fitted Python map through `UpdateLaw` with a `CallSpec`. jax and optax are runti
   the forces of the particles of a bead. With `kind='linear'` the bead potential is `Σ_k c_k exp(-(r - r_k)² / (2 w²))`
   on `size` centres up to `cutoff`, and the coefficients solve the linear least squares of the mapped forces with
   `scipy.linalg.lstsq`, which is the method of Izvekov and Voth. The `system` is the beads with a
-  `PairCouplingInteraction` whose potential is that symbolic sum, so it runs on every backend. With `kind='network'` the
+  `PairInteraction` whose potential is that symbolic sum, so it runs on every backend. With `kind='network'` the
   potential is an equinox MLP of the distance plus a repulsive prior `(σ / r)^12`, trained by optax as in 2310.18278,
   and the `system` uses a vectorised `CallSpec` as the Hamiltonian network does. `forces` is an array of frames by
   particles by dimensions.
@@ -83,8 +84,8 @@ fitted Python map through `UpdateLaw` with a `CallSpec`. jax and optax are runti
 - **System.** `SphDamBreakSystem` goes in `systems/physics/fluids/_sph_dam_break.py`, with `height`, `spacing`,
   `sound_speed` (ten times the largest velocity `sqrt(2 g H)`), `viscosity`, `gravity`, and `rest_density`. Fluid
   particles fill a column `2 H` wide and `H` high in a tank `5.366 H` wide, wall particles form three layers of fixed
-  position, velocity zero, and rest density. One `PairCouplingInteraction` with the Wendland C2 kernel writes the
-  density rate and the acceleration jointly, with the Tait pressure and Monaghan's artificial viscosity, and gravity is
+  position, velocity zero, and rest density. One `PairInteraction` with the Wendland C2 kernel in its `function`
+  writes the density rate and the acceleration jointly, with the Tait pressure and Monaghan's artificial viscosity, and gravity is
   a rate law of the fluid group. The generalized wall conditions of Adami are replaced by fixed dummy particles, which
   the docstring states.
 - **Dependency.** `equinox>=0.13.8` joins the runtime dependencies. Its last release is 0.13.8 on 2026-05-05. If an

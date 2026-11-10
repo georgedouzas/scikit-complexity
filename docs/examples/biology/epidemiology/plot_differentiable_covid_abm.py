@@ -33,8 +33,8 @@ trajectory = simulate(DifferentiableCovidAbmSystem(), observers=[observer], rand
 # and fall as the town recovers. The counts of a day appear the day after.
 
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(trajectory.times, trajectory.values('cases.children'), color='tab:orange', label='children')
-ax.plot(trajectory.times, trajectory.values('cases.adults'), color='tab:blue', label='adults')
+ax.plot(trajectory.times, trajectory.get_values('cases.children'), color='tab:orange', label='children')
+ax.plot(trajectory.times, trajectory.get_values('cases.adults'), color='tab:blue', label='adults')
 ax.set_xlabel('time (days)')
 ax.set_ylabel('daily infections')
 ax.set_title('An epidemic in households, schools, and companies')
@@ -52,7 +52,7 @@ plt.show()
 times = np.arange(31.0)
 runs = [simulate(DifferentiableCovidAbmSystem(), random_state=seed) for seed in range(20)]
 paths = ('cases.children', 'cases.adults')
-data = {path: (times, np.mean([run.values(path) for run in runs], axis=0)) for path in paths}
+data = {path: (times, np.mean([run.get_values(path) for run in runs], axis=0)) for path in paths}
 posterior = calibrate(
     DifferentiableCovidAbmSystem(),
     data,

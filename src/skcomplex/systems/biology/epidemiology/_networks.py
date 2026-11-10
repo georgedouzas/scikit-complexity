@@ -14,13 +14,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import NetworkDynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class DegreeClassElement(Element):
@@ -74,87 +74,6 @@ class DegreeClassElement(Element):
         self.lam = lam
         self.k = k
         self.P = P
-
-
-class SubpopulationElement(Element):
-    """Well-mixed SIR population at a node of a network.
-
-    Its individuals hop along each edge at the rate `D`.
-
-    Inside the node, `beta S I / N` individuals are infected and `gamma I` recover per unit time, with
-    `N = S + I + R`. Hopping along every edge adds `D` times the graph Laplacian to every compartment.
-
-    Args:
-        label:
-            The label of the subpopulation or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        S:
-            The initial number of susceptible individuals.
-
-        I:
-            The initial number of infected individuals.
-
-        R:
-            The initial number of recovered individuals.
-
-        beta:
-            The infection rate.
-
-        gamma:
-            The recovery rate.
-
-        D:
-            The rate at which an individual hops along one edge.
-
-    Examples:
-        >>> from skcomplex.systems.biology.epidemiology import SubpopulationElement
-        >>> SubpopulationElement('city', S=1000.0).beta
-        0.3
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.S = S
-        self.I = I
-        self.R = R
-        self.beta = beta
-        self.gamma = gamma
-        self.D = D
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infections, recoveries, and hops of the node.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        infections = s.beta * s.S * s.I / (s.S + s.I + s.R)
-        recoveries = s.gamma * s.I
-        return [
-            RateLaw(s.S, -infections + s.D * laplacian(s.S)),
-            RateLaw(s.I, infections - recoveries + s.D * laplacian(s.I)),
-            RateLaw(s.R, recoveries + s.D * laplacian(s.R)),
-        ]
 
 
 class HeterogeneousMeanFieldSISSystem(BaseSystem):
@@ -214,17 +133,17 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         self.rho = rho
 
     @staticmethod
-    def _recovery(namespace: SimpleNamespace) -> Expression:
+    def _get_recovery(namespace: SimpleNamespace) -> Expression:
         """Return the recovery `-rho_k` of a degree class at rate 1."""
         return -namespace.target.rho
 
     @staticmethod
-    def _edge_weight(namespace: SimpleNamespace) -> Expression:
+    def _get_edge_weight(namespace: SimpleNamespace) -> Expression:
         """Return the share `k P(k)` of the ends of edges that another degree class holds."""
         return namespace.other.k * namespace.other.P
 
     @staticmethod
-    def _infection(namespace: SimpleNamespace) -> Expression:
+    def _get_infection(namespace: SimpleNamespace) -> Expression:
         """Return the infection `lam k (1 - rho_k) rho_k'` of a degree class.
 
         The infection is by the nodes of another class.
@@ -232,7 +151,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a network with power-law degrees."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
@@ -243,23 +162,23 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
             values={'rho': self.rho, 'lam': self.lam, 'k': degrees, 'P': weights},
         )
         interactions = [
-            RateInteraction('recovery', target='network', state='rho', rate=self._recovery),
+            RateInteraction('recovery', target='network', state='rho', rate=self._get_recovery),
             CouplingInteraction(
                 'infection',
                 target='network',
                 read='rho',
                 write='rho',
-                function=self._infection,
+                function=self._get_infection,
                 reduce='normalized-mean',
                 mode='group',
-                weights=self._edge_weight,
+                weights=self._get_edge_weight,
                 include_self=True,
             ),
         ]
-        return System(self.label, elements=[classes], interactions=interactions)
+        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
 
 
-class MetapopulationSystem(BaseSystem):
+class MetapopulationSystem(NetworkDynamicalSystem):
     """SIR epidemics in subpopulations at the nodes of a network.
 
     Individuals who travel link the subpopulations.
@@ -314,7 +233,7 @@ class MetapopulationSystem(BaseSystem):
         D: float = 0.01,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.graph = graph
         self.population = population
         self.infected = infected
@@ -322,22 +241,40 @@ class MetapopulationSystem(BaseSystem):
         self.gamma = gamma
         self.D = D
 
-    def _build_system(self) -> System:
-        """Return the parts of SIR epidemics in subpopulations at the nodes of a network."""
-        graph = self.graph
-        graph = nx.barabasi_albert_graph(30, 2, seed=0) if graph is None else graph
-        size = nx.number_of_nodes(graph)
+    def _get_graph(self) -> nx.Graph:
+        """Return the graph, a Barabási-Albert graph of 30 nodes by default."""
+        return nx.barabasi_albert_graph(30, 2, seed=0) if self.graph is None else self.graph
+
+    def _get_element_label(self) -> str:
+        """Return the label of the field of the nodes."""
+        return 'cities'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the compartments, the infected ones in the first node, and the rates."""
+        size = nx.number_of_nodes(self._get_graph())
         sick = np.zeros(size)
         sick[0] = self.infected
-        values = {
-            'S': np.full(size, self.population) - sick,
-            'I': sick,
-            'R': np.zeros(size),
-            'beta': self.beta,
-            'gamma': self.gamma,
-            'D': self.D,
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'S': DeclaredVariableSpec(np.full(size, self.population) - sick, StateSpec(domain=nonnegative)),
+            'I': DeclaredVariableSpec(sick, StateSpec(domain=nonnegative)),
+            'R': DeclaredVariableSpec(np.zeros(size), StateSpec(domain=nonnegative)),
+            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=nonnegative)),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=nonnegative)),
+            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=nonnegative)),
         }
-        return System(
-            self.label,
-            elements=[FieldElement('cities', element=SubpopulationElement, space=NetworkSpace(graph), values=values)],
-        )
+
+    def _get_equations(self) -> Equations:
+        """Return the infections, recoveries, and hops of every node."""
+        return {
+            'S': lambda s: -self._get_infections(s.target) + s.target.D * laplacian(s.target.S),
+            'I': lambda s: (
+                self._get_infections(s.target) - s.target.gamma * s.target.I + s.target.D * laplacian(s.target.I)
+            ),
+            'R': lambda s: s.target.gamma * s.target.I + s.target.D * laplacian(s.target.R),
+        }
+
+    @staticmethod
+    def _get_infections(cities: SimpleNamespace) -> Expression:
+        """Return the new infections per unit time of a node."""
+        return cities.beta * cities.S * cities.I / (cities.S + cities.I + cities.R)

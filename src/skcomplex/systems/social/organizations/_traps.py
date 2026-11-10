@@ -15,9 +15,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
-from ....core.components.laws.utils import distributed_delay, lookup, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.laws.utils import distributed_delay, series, where
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+
+ACTORS = ('a', 'b', 'c')
+ALLOCATION_TABLE = ((0.0, 0.2, 0.5, 0.8, 1.0), (0.0, 0.05, 0.5, 0.95, 1.0))
 
 
 class ArmsRaceElement(Element):
@@ -150,66 +153,14 @@ class StandoffElement(Element):
         self.intensification_time = intensification_time
 
 
-ACTORS = ('a', 'b', 'c')
-
-ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
-
-
-def _success(s: SimpleNamespace) -> Expression:
+def _get_success(s: SimpleNamespace) -> Expression:
     """Return the past success of the first competitor, its fraction of all resources."""
     return s.a / (s.a + s.b)
 
 
-def _allocation(s: SimpleNamespace) -> Expression:
+def _get_allocation(s: SimpleNamespace) -> Expression:
     """Return the share of the budget the first competitor gets."""
-    return lookup(_success(s), ALLOCATION_TABLE)
-
-
-def _symptom(s: SimpleNamespace) -> Expression:
-    """Return the symptom.
-
-    It is the gap between the desired and the current state of the problem.
-    """
-    return s.desired - s.capability - s.intervention
-
-
-def _desired_a(s: SimpleNamespace) -> Expression:
-    """Return the stock the first party desires.
-
-    It is a margin above its delayed view of the second's.
-    """
-    return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
-
-
-def _desired_b(s: SimpleNamespace) -> Expression:
-    """Return the stock the second party desires.
-
-    It is a margin above its delayed view of the first's.
-    """
-    return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
-
-
-def _pull(s: SimpleNamespace, actor: str) -> Expression:
-    """Return the corrective pull of an actor.
-
-    It is its strength times the gap from its goal to the stock.
-    """
-    return getattr(s, f'strength_{actor}') * (getattr(s, f'goal_{actor}') - s.stock)
-
-
-def _compromise(s: SimpleNamespace) -> Expression:
-    """Return the goal the stock settles at.
-
-    It is the mean of the goals weighted by the strengths of the actors.
-    """
-    strengths = [getattr(s, f'strength_{actor}') for actor in ACTORS]
-    goals = [getattr(s, f'goal_{actor}') for actor in ACTORS]
-    return sum(strength * goal for strength, goal in zip(strengths, goals, strict=True)) / sum(strengths)
-
-
-def _discrepancy(s: SimpleNamespace) -> Expression:
-    """Return the discrepancy between the desired state and the perceived state."""
-    return s.desired - s.perceived
+    return series(_get_success(s), *ALLOCATION_TABLE)
 
 
 class SuccessToTheSuccessfulSystem(BaseSystem):
@@ -254,8 +205,8 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('success', _success, element='contest'),
-        ObservableSpec('allocation', _allocation, element='contest'),
+        ObservableSpec('success', _get_success, element='contest'),
+        ObservableSpec('allocation', _get_allocation, element='contest'),
     )
 
     def __init__(
@@ -274,17 +225,17 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         self.lifetime = lifetime
 
     @staticmethod
-    def _allocation_a(s: SimpleNamespace) -> Expression:
+    def _get_allocation_a(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the first competitor."""
-        return s.source.budget * _allocation(s.source)
+        return s.source.budget * _get_allocation(s.source)
 
     @staticmethod
-    def _allocation_b(s: SimpleNamespace) -> Expression:
+    def _get_allocation_b(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the second competitor."""
-        return s.source.budget * (1 - _allocation(s.source))
+        return s.source.budget * (1 - _get_allocation(s.source))
 
     @staticmethod
-    def _depreciation_a(s: SimpleNamespace) -> Expression:
+    def _get_depreciation_a(s: SimpleNamespace) -> Expression:
         """Return the depreciation of the resources of the first competitor.
 
         The resources depreciate over their lifetime.
@@ -292,14 +243,14 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         return s.source.a / s.source.lifetime
 
     @staticmethod
-    def _depreciation_b(s: SimpleNamespace) -> Expression:
+    def _get_depreciation_b(s: SimpleNamespace) -> Expression:
         """Return the depreciation of the resources of the second competitor.
 
         The resources depreciate over their lifetime.
         """
         return s.source.b / s.source.lifetime
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         allocation = TransferInteraction(
             'allocation',
@@ -307,19 +258,27 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
             target='contest',
             state=Source('budget'),
             into='a',
-            amount=self._allocation_a,
+            amount=self._get_allocation_a,
             flow='allocation_a',
             legs=[
-                (Source('budget'), 'b', self._allocation_b, 'allocation_b'),
-                ('a', Sink('depreciation'), self._depreciation_a, 'depreciation_a'),
-                ('b', Sink('depreciation'), self._depreciation_b, 'depreciation_b'),
+                (Source('budget'), 'b', self._get_allocation_b, 'allocation_b'),
+                ('a', Sink('depreciation'), self._get_depreciation_a, 'depreciation_a'),
+                ('b', Sink('depreciation'), self._get_depreciation_b, 'depreciation_b'),
             ],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[ContestElement('contest', a=self.a, b=self.b, budget=self.budget, lifetime=self.lifetime)],
             interactions=[allocation],
         )
+
+
+def _get_symptom(s: SimpleNamespace) -> Expression:
+    """Return the symptom.
+
+    It is the gap between the desired and the current state of the problem.
+    """
+    return s.desired - s.capability - s.intervention
 
 
 class ShiftingTheBurdenSystem(BaseSystem):
@@ -371,7 +330,7 @@ class ShiftingTheBurdenSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 60.0
     dt = 0.5
-    observables = (ObservableSpec('symptom', _symptom, element='burden'),)
+    observables = (ObservableSpec('symptom', _get_symptom, element='burden'),)
 
     def __init__(
         self,
@@ -395,22 +354,22 @@ class ShiftingTheBurdenSystem(BaseSystem):
         self.erosion = erosion
 
     @staticmethod
-    def _fixing(s: SimpleNamespace) -> Expression:
+    def _get_fixing(s: SimpleNamespace) -> Expression:
         """Return the quick fix, in proportion to the symptom."""
-        return s.source.fix_rate * _symptom(s.source)
+        return s.source.fix_rate * _get_symptom(s.source)
 
     @staticmethod
-    def _building(s: SimpleNamespace) -> Expression:
+    def _get_building(s: SimpleNamespace) -> Expression:
         """Return the building of capability, the delayed symptom over the build time."""
         burden = s.source
-        return distributed_delay(_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
+        return distributed_delay(_get_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
 
     @staticmethod
-    def _erosion(s: SimpleNamespace) -> Expression:
+    def _get_erosion(s: SimpleNamespace) -> Expression:
         """Return the erosion of capability by the intervention."""
         return s.source.erosion * s.source.intervention * s.source.capability
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         burden = BurdenElement(
             'burden',
@@ -428,14 +387,30 @@ class ShiftingTheBurdenSystem(BaseSystem):
             target='burden',
             state=Source('intervener'),
             into='intervention',
-            amount=self._fixing,
+            amount=self._get_fixing,
             flow='fixing',
             legs=[
-                (Source('learning'), 'capability', self._building, 'building'),
-                ('capability', Sink('atrophy'), self._erosion, 'erosion'),
+                (Source('learning'), 'capability', self._get_building, 'building'),
+                ('capability', Sink('atrophy'), self._get_erosion, 'erosion'),
             ],
         )
-        return System(self.label, elements=[burden], interactions=[flows])
+        return CompositeSystem(self.label, elements=[burden], interactions=[flows])
+
+
+def _get_desired_a(s: SimpleNamespace) -> Expression:
+    """Return the stock the first party desires.
+
+    It is a margin above its delayed view of the second's.
+    """
+    return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
+
+
+def _get_desired_b(s: SimpleNamespace) -> Expression:
+    """Return the stock the second party desires.
+
+    It is a margin above its delayed view of the first's.
+    """
+    return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
 
 
 class EscalationSystem(BaseSystem):
@@ -481,8 +456,8 @@ class EscalationSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('desired_a', _desired_a, element='race'),
-        ObservableSpec('desired_b', _desired_b, element='race'),
+        ObservableSpec('desired_a', _get_desired_a, element='race'),
+        ObservableSpec('desired_b', _get_desired_b, element='race'),
     )
 
     def __init__(
@@ -506,17 +481,17 @@ class EscalationSystem(BaseSystem):
     def _build_a(s: SimpleNamespace) -> Expression:
         """Return the build-up of the first party toward its desired stock."""
         race = s.source
-        desired = _desired_a(race)
+        desired = _get_desired_a(race)
         return where(desired > race.a, desired - race.a, 0) / race.adjustment_time
 
     @staticmethod
     def _build_b(s: SimpleNamespace) -> Expression:
         """Return the build-up of the second party toward its desired stock."""
         race = s.source
-        desired = _desired_b(race)
+        desired = _get_desired_b(race)
         return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         race = ArmsRaceElement(
             'race',
@@ -536,7 +511,17 @@ class EscalationSystem(BaseSystem):
             flow='build_a',
             legs=[(Source('production'), 'b', self._build_b, 'build_b')],
         )
-        return System(self.label, elements=[race], interactions=[build])
+        return CompositeSystem(self.label, elements=[race], interactions=[build])
+
+
+def _get_compromise(s: SimpleNamespace) -> Expression:
+    """Return the goal the stock settles at.
+
+    It is the mean of the goals weighted by the strengths of the actors.
+    """
+    strengths = [getattr(s, f'strength_{actor}') for actor in ACTORS]
+    goals = [getattr(s, f'goal_{actor}') for actor in ACTORS]
+    return sum(strength * goal for strength, goal in zip(strengths, goals, strict=True)) / sum(strengths)
 
 
 class PolicyResistanceSystem(BaseSystem):
@@ -582,7 +567,15 @@ class PolicyResistanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('compromise', _compromise, element='standoff'),)
+    observables = (ObservableSpec('compromise', _get_compromise, element='standoff'),)
+
+    @staticmethod
+    def _pull(s: SimpleNamespace, actor: str) -> Expression:
+        """Return the corrective pull of an actor.
+
+        It is its strength times the gap from its goal to the stock.
+        """
+        return getattr(s, f'strength_{actor}') * (getattr(s, f'goal_{actor}') - s.stock)
 
     def __init__(
         self,
@@ -606,7 +599,9 @@ class PolicyResistanceSystem(BaseSystem):
         It is the corrective pulls and the efforts of all three actors.
         """
         standoff = s.source
-        return sum(_pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS)
+        return sum(
+            PolicyResistanceSystem._pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS
+        )
 
     @staticmethod
     def _intensify_a(s: SimpleNamespace) -> Expression:
@@ -614,7 +609,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return _pull(s.source, 'a') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.source, 'a') / s.source.intensification_time
 
     @staticmethod
     def _intensify_b(s: SimpleNamespace) -> Expression:
@@ -622,7 +617,7 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return _pull(s.source, 'b') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.source, 'b') / s.source.intensification_time
 
     @staticmethod
     def _intensify_c(s: SimpleNamespace) -> Expression:
@@ -630,9 +625,9 @@ class PolicyResistanceSystem(BaseSystem):
 
         The effort intensifies while the stock misses its goal.
         """
-        return _pull(s.source, 'c') / s.source.intensification_time
+        return PolicyResistanceSystem._pull(s.source, 'c') / s.source.intensification_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         standoff = StandoffElement(
             'standoff',
@@ -659,7 +654,12 @@ class PolicyResistanceSystem(BaseSystem):
                 (Source('actors'), 'effort_c', self._intensify_c, 'intensify_c'),
             ],
         )
-        return System(self.label, elements=[standoff], interactions=[actions])
+        return CompositeSystem(self.label, elements=[standoff], interactions=[actions])
+
+
+def _get_discrepancy(s: SimpleNamespace) -> Expression:
+    """Return the discrepancy between the desired state and the perceived state."""
+    return s.desired - s.perceived
 
 
 class DriftToLowPerformanceSystem(BaseSystem):
@@ -711,7 +711,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
     references = ('Meadows 2008',)
     until = 100.0
     dt = 0.5
-    observables = (ObservableSpec('discrepancy', _discrepancy, element='performance'),)
+    observables = (ObservableSpec('discrepancy', _get_discrepancy, element='performance'),)
 
     def __init__(
         self,
@@ -733,7 +733,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         self.absolute = absolute
 
     @staticmethod
-    def _correction(s: SimpleNamespace) -> Expression:
+    def _get_correction(s: SimpleNamespace) -> Expression:
         """Return the corrective action.
 
         It is the gap from the performance to the desired state over the correction time.
@@ -741,7 +741,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return (s.source.desired - s.source.performance) / s.source.correction_time
 
     @staticmethod
-    def _perception(s: SimpleNamespace) -> Expression:
+    def _get_perception(s: SimpleNamespace) -> Expression:
         """Return the update of the perceived state toward the biased performance.
 
         The performance is lowered by the negative bias.
@@ -750,7 +750,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
 
     @staticmethod
-    def _goal_erosion(s: SimpleNamespace) -> Expression:
+    def _get_goal_erosion(s: SimpleNamespace) -> Expression:
         """Return the slip of the desired state toward the perceived state.
 
         It is zero for absolute standards.
@@ -758,7 +758,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         performance = s.source
         return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         element = PerformanceElement(
             'performance',
@@ -777,11 +777,11 @@ class DriftToLowPerformanceSystem(BaseSystem):
             target='performance',
             state=Source('effort'),
             into='performance',
-            amount=self._correction,
+            amount=self._get_correction,
             flow='correction',
             legs=[
-                (Source('information'), 'perceived', self._perception, 'perception'),
-                (Source('standards'), 'desired', self._goal_erosion, 'goal_erosion'),
+                (Source('information'), 'perceived', self._get_perception, 'perception'),
+                (Source('standards'), 'desired', self._get_goal_erosion, 'goal_erosion'),
             ],
         )
-        return System(self.label, elements=[element], interactions=[flows])
+        return CompositeSystem(self.label, elements=[element], interactions=[flows])

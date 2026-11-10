@@ -6,8 +6,8 @@ which then collapse until the prey recover, and the cycle repeats with the same 
 """
 
 # %%
-# The system is built from its class, with initial populations away from the equilibrium of four prey and 2.75
-# predators, and simulated for five cycles. The observer saves every second frame of the run with the default
+# The example builds `LotkaVolterraSystem`, with initial populations away from the equilibrium of four prey and 2.75
+# predators, and simulates it for five cycles. The observer saves every second frame of the run with the default
 # blueprint, whose primary view is one time series view of both populations.
 
 import matplotlib.pyplot as plt
@@ -29,7 +29,7 @@ trajectory = simulate(LotkaVolterraSystem(prey=10.0, predators=5.0), observers=[
 # should be one closed orbit around the equilibrium `(d / b, r / a)`, and `V` should stay constant up to the error
 # of the solver.
 
-prey, predators = trajectory.values('prey.n'), trajectory.values('predators.n')
+prey, predators = trajectory.get_values('prey.x'), trajectory.get_values('predators.x')
 r, a, b, d = 1.1, 0.4, 0.1, 0.4
 conserved = b * prey - d * np.log(prey) + a * predators - r * np.log(predators)
 fig, (orbit, drift) = plt.subplots(1, 2, figsize=(10, 4))

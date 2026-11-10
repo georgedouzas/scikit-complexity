@@ -11,20 +11,21 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, PointElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import (
     BaseInteraction,
     GradientInteraction,
-    PairCouplingInteraction,
-    RelaxationInteraction,
+    PairInteraction,
+    RateInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
+from ...general.elements import PointElement
 
 
-class MotivationInteraction(RelaxationInteraction):
+class MotivationInteraction(RateInteraction):
     """Driving force of the social force system.
 
     It relaxes a walker's velocity to its desired velocity. The force per unit mass is
@@ -66,16 +67,22 @@ class MotivationInteraction(RelaxationInteraction):
         self.direction = direction
         self.tau = tau
 
-    def _get_goal(self, namespace: SimpleNamespace) -> object:
-        """Return the desired velocity."""
-        return namespace.speed * namespace.direction
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation `(speed * direction - x_d1) / tau` of the velocity.
 
-    def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time."""
-        return namespace.tau
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The force per unit mass towards the desired velocity.
+        """
+        velocity = getattr(self._get_member(namespace, 'target'), self.state)
+        return (namespace.speed * namespace.direction - velocity) / namespace.tau
 
 
-class SocialRepulsionInteraction(PairCouplingInteraction):
+class SocialRepulsionInteraction(PairInteraction):
     """Repulsion between two walkers of the social force system.
 
     Its force is `strength * exp((2 * radius - r) / falloff)`. It derives from the pair energy
@@ -250,7 +257,7 @@ class SocialForceSystem(BaseSystem):
         self.speed = speed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         cutoff = 2.0
@@ -280,7 +287,7 @@ class SocialForceSystem(BaseSystem):
             )
             for first, second in pairs
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=walkers,
             interactions=interactions,

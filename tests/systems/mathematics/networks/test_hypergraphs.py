@@ -43,7 +43,7 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     """Test that the probability keeps its sum and settles on the weights of the hyperedges of every node."""
     system = HypergraphRandomWalkSystem(seed=0).prepare().system_
     trajectory = simulate(system, until=60.0, dt=1.0)
-    probabilities = np.asarray(trajectory.values('nodes.p'))
+    probabilities = np.asarray(trajectory.get_values('nodes.p'))
     weights = np.asarray(system.elements[0].values['D'])
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-9)
     assert np.allclose(probabilities[-1], weights / weights.sum(), atol=1e-6)
@@ -59,13 +59,13 @@ def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
         random_state=0,
     )
     trajectory = simulation
-    network = trajectory.network(-1)
-    graph = network.graph()
+    network = trajectory.get_network(-1)
+    graph = network.get_graph()
     assert network.hyperedges.shape == (51, 3)
     assert (graph.number_of_nodes(), graph.number_of_edges()) == (53, 3 + 2 * 50)
     assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())
     assert all(graph.has_edge(*pair) for row in network.hyperedges for pair in itertools.combinations(row, 2))
-    ages = np.asarray(trajectory.values('triangles.age')[-1])
+    ages = np.asarray(trajectory.get_values('triangles.age')[-1])
     assert sorted(ages[~np.isnan(ages)].tolist()) == list(range(51))
 
 

@@ -55,7 +55,9 @@ def heaps(adjacency, rho, nu, steps):
 frames = range(len(trajectory.times))
 novelties = np.asarray(
     [
-        trajectory.agents('urns', frame).values['novelties'][np.argsort(trajectory.agents('urns', frame).locations)]
+        trajectory.get_agents('urns', frame).values['novelties'][
+            np.argsort(trajectory.get_agents('urns', frame).locations)
+        ]
         for frame in frames
     ],
 )

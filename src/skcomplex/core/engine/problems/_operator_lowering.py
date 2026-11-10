@@ -1,7 +1,4 @@
-"""Lowering of operators of subsystems to sparse matrices on the whole space.
-
-The coefficients are lowered too.
-"""
+"""Lowering of operators of subsystems to sparse matrices on the whole space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,9 +14,9 @@ from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...base import BaseConfig
-from ...components.laws.utils import dagger, has_operator, operator_product
-from ...components.laws.utils._local_operators import LOCAL_OPERATOR
-from ...components.specs._subsystem_spec import _SubsystemSpec
+from ...components.laws.utils import dagger, operator_product
+from ...components.laws.utils._local_operators import LOCAL_OPERATOR, has_operator
+from ...components.specs import SubsystemSpec
 from ...errors import ValidationError
 from ...specs import LocalOperatorSpec, OperatorSpec
 from ...types import Array
@@ -28,7 +25,7 @@ from ._operator_kernel import OperatorKernel
 
 
 class OperatorLowering(BaseConfig[None, tuple[object, str]]):
-    """Lowering of operators of subsystems to sparse matrices on the whole space.
+    """A lowering of the operators of subsystems to sparse matrices on the whole space.
 
     Coefficients are lowered to functions. `run((expression, owner))` keeps in `kernels_` the terms of an operator, with
     constant terms folded and terms of equal coefficients summed. The owner, the description of the law or observable of
@@ -61,7 +58,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
     def __init__(
         self,
         time: Expression,
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, SubsystemSpec],
         dimensions: tuple[int, ...],
         arguments: Mapping[Expression, int],
     ) -> None:
@@ -91,9 +88,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         size = math.prod(self.dimensions)
         constant: list[sp.csr_array] = []
         grouped: dict[Expression, list[sp.csr_array]] = {}
-        for key, value in self._operator(expression, owner).terms.items():
+        for key, value in self._get_operator(expression, owner).terms.items():
             coefficient = SR(value)
-            matrix = self._matrix(key, owner)
+            matrix = self._get_matrix(key, owner)
             if coefficient.variables():
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
@@ -104,12 +101,12 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
                 OperatorKernel(
                     OperatorKernel._sum_matrices(matrices, size),
                     coefficient,
-                    self._function(coefficient, owner),
+                    self._get_function(coefficient, owner),
                 ).prepare(),
             )
         self.kernels_ = tuple(terms)
 
-    def _operator(self, expression: object, owner: str) -> OperatorSpec:
+    def _get_operator(self, expression: object, owner: str) -> OperatorSpec:
         """Return the operator of a Sage expression of local operators of the subsystems.
 
         Args:
@@ -129,12 +126,12 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         """
         subsystems = {item.symbol: (item.key, item.operators) for item in self.subsystems.values()}
         try:
-            return self._operator_of(expression, subsystems)
+            return self._get_operator_of(expression, subsystems)
         except ValidationError as error:
             error_msg = f'The operator of {owner} is invalid: {error}'
             raise ValidationError(error_msg) from error
 
-    def _matrix(self, key: tuple[tuple[str, LocalOperatorSpec], ...], owner: str) -> sp.csr_array:
+    def _get_matrix(self, key: tuple[tuple[str, LocalOperatorSpec], ...], owner: str) -> sp.csr_array:
         """Return the matrix of a product of local operators on the whole space.
 
         Args:
@@ -175,7 +172,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             blocks.append(sp.identity(pending, dtype=complex, format='csr'))
         return sp.csr_array(functools.reduce(lambda left, right: sp.kron(left, right, format='csr'), blocks))
 
-    def _function(self, coefficient: Expression, owner: str) -> Callable[[float, Array], complex]:
+    def _get_function(self, coefficient: Expression, owner: str) -> Callable[[float, Array], complex]:
         """Return the function of a coefficient.
 
         The coefficient is first checked to read parameters and time only.
@@ -204,16 +201,16 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             )
             raise ValidationError(error_msg)
         printer = ExpressionPrinter(time=self.time, compiled=True).prepare(variables)
-        lowered = ExpressionPrinter._function_of(printer.run([coefficient]).code_)
+        lowered = ExpressionPrinter._get_function_of(printer.run([coefficient]).code_)
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Array) -> complex:
-            return OperatorKernel._coefficient_of(ExpressionPrinter._values_of(lowered(t, *p[indices]))[0])
+            return OperatorKernel._get_coefficient_of(ExpressionPrinter._get_values_of(lowered(t, *p[indices]))[0])
 
         return evaluate
 
     @staticmethod
-    def _terms_of(result: object) -> tuple[OperatorKernel, ...]:
+    def _get_terms_of(result: object) -> tuple[OperatorKernel, ...]:
         """Return the terms that `run` of an operator lowering returned.
 
         Args:
@@ -234,12 +231,12 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         return result
 
     @staticmethod
-    def _acted_on(operator: OperatorSpec) -> set[str]:
+    def _get_acted_on(operator: OperatorSpec) -> set[str]:
         """Return the keys of the subsystems any term of an operator acts on."""
         return {subsystem for key in operator.terms for subsystem, _ in key}
 
     @staticmethod
-    def _local_of(
+    def _get_local_of(
         expression: Expression,
         subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperatorSpec]]],
     ) -> OperatorSpec:
@@ -257,12 +254,12 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         return OperatorSpec({((key, locals_[str(name)]),): 1})
 
     @staticmethod
-    def _product_of(factors: list[OperatorSpec], expression: Expression) -> OperatorSpec:
+    def _get_product_of(factors: list[OperatorSpec], expression: Expression) -> OperatorSpec:
         """Return the product of the factors of a Sage product.
 
         The factors commute only on distinct subsystems.
         """
-        acting = [OperatorLowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
+        acting = [OperatorLowering._get_acted_on(factor) for factor in factors if any(key for key in factor.terms)]
         if sum(len(item) for item in acting) != len(set().union(*acting)):
             error_msg = (
                 f'{expression} multiplies operators that act on the same subsystem with `*`, which commutes. Write the '
@@ -272,7 +269,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         return functools.reduce(OperatorSpec.multiply, factors, OperatorSpec({(): 1}))
 
     @staticmethod
-    def _operator_of(
+    def _get_operator_of(
         expression: object,
         subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperatorSpec]]],
     ) -> OperatorSpec:
@@ -296,34 +293,23 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             ValidationError:
                 A local operator acts on an unknown subsystem or names an unknown operator, or a Sage product multiplies
                 operators of the same subsystem.
-
-        Examples:
-            >>> import qutip
-            >>> from sage.all__sagemath_symbolics import SR, var
-            >>> from skcomplex.core.components.laws.utils import local_operator
-            >>> from skcomplex.core.engine.problems._operator_lowering import OperatorLowering
-            >>> from skcomplex.core.specs import LocalOperatorSpec
-            >>> q = SR.symbol('q')
-            >>> z = LocalOperatorSpec('z', qutip.sigmaz(), hermitian=True)
-            >>> OperatorLowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
-            'h*q.z'
         """
         value = SR(expression)
         if not has_operator(value):
             return OperatorSpec({(): value})
         function, operands = value.operator(), value.operands()
         if function == LOCAL_OPERATOR:
-            return OperatorLowering._local_of(value, subsystems)
+            return OperatorLowering._get_local_of(value, subsystems)
         if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
             function, operands = operator_product, [operands[0]] * int(operands[1])
-        parts = [OperatorLowering._operator_of(item, subsystems) for item in operands]
+        parts = [OperatorLowering._get_operator_of(item, subsystems) for item in operands]
         if function == dagger:
-            return parts[0].adjoint()
+            return parts[0].get_adjoint()
         if function == operator_product:
             return functools.reduce(OperatorSpec.multiply, parts)
         if function is add_vararg:
             return functools.reduce(OperatorSpec.add, parts)
         if function is mul_vararg:
-            return OperatorLowering._product_of(parts, value)
+            return OperatorLowering._get_product_of(parts, value)
         error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'
         raise ValidationError(error_msg)

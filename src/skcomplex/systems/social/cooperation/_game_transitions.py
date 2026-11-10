@@ -19,11 +19,14 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import BaseSpace, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
+
+UPDATES = ('death-birth', 'pairwise')
+MUTUAL_COOPERATION = 2
 
 
 class DonorView(AgentView):
@@ -31,10 +34,6 @@ class DonorView(AgentView):
 
     strategy: float
     payoff: float
-
-
-UPDATES = ('death-birth', 'pairwise')
-MUTUAL_COOPERATION = 2
 
 
 class DonorElement(Element):
@@ -201,7 +200,7 @@ class GameTransitionsInteraction(Interaction):
             {
                 (min(index[player.id], index[other.id]), max(index[player.id], index[other.id]))
                 for player in players
-                for other in player.neighbors()
+                for other in player.get_neighbors()
                 if isinstance(other, DonorView)
             },
         )
@@ -242,7 +241,7 @@ class GameTransitionsInteraction(Interaction):
             system:
                 The system.
         """
-        players = system.agents(self.target, DonorView)
+        players = system.get_agents(self.target, DonorView)
         storage = system.storage
         if 'first' not in storage:
             sources, targets = self._get_edges(players)
@@ -373,7 +372,7 @@ class GameTransitionsSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_players, seed=int(rng.integers(2**31)))
@@ -395,4 +394,4 @@ class GameTransitionsSystem(BaseSystem):
             transitions=self.transitions,
             update=self.update,
         )
-        return System(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))
+        return CompositeSystem(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))

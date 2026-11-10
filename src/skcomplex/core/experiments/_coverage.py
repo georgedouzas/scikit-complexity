@@ -5,7 +5,7 @@
 
 import functools
 from collections.abc import Sequence
-from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,7 +16,8 @@ from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ..types import Array
 from ._calibration import LOSSES, CalibrationResult, Summary, _check_priors, _series_of, calibrate
-from ._runs import EXECUTORS, _build, _check_count, _check_source
+from ._runs import EXECUTORS, _check_count, _check_source, _map_calls
+from ._utils import build_system
 from .types import Bounds, Source
 
 POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
@@ -24,7 +25,9 @@ POSTERIOR_METHODS = ('abc_smc', 'mcmc', 'variational')
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """Empirical coverage of the credible intervals of calibration on data simulated from prior draws.
+    """A result of `posterior_coverage`, how often credible intervals hold the truth.
+
+    The data are simulated from prior draws.
 
     A calibrated posterior covers the true value with its central interval of level `q` in a share `q` of the data
     sets, and the ranks of the true values among their samples are uniform, as simulation-based calibration checks.
@@ -70,8 +73,7 @@ def _interval(values: Array, weights: Array, level: float) -> tuple[float, float
 
 
 def _calibrate_truth(
-    truth: dict[str, float],
-    seed: int,
+    draw: tuple[dict[str, float], int],
     *,
     source: Source,
     bounds: Bounds,
@@ -87,13 +89,17 @@ def _calibrate_truth(
     dt: float | None,
     solver: BaseSolver | None,
 ) -> CalibrationResult:
-    """Return the calibration of data simulated at one true parameter vector, with Gaussian noise."""
+    """Return the calibration of data simulated at one true parameter vector.
+
+    The draw is the true parameter vector and the seed of its data, which carry Gaussian noise.
+    """
+    truth, seed = draw
     rng = np.random.default_rng(seed)
-    trajectory = simulate(_build(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
+    trajectory = simulate(build_system(source, truth), until=float(times.max()), dt=dt, solver=solver, random_state=rng)
     names = list(paths) if paths is not None else list(_series_of(trajectory))
     data = {}
     for path in names:
-        values = np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
+        values = np.interp(times, trajectory.times, np.asarray(trajectory.get_values(path), dtype=float))
         data[path] = (times, values + noise * rng.standard_normal(times.size))
     return calibrate(
         source,
@@ -131,12 +137,15 @@ def posterior_coverage(
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> CoverageResult:
-    """Return the empirical coverage of the credible intervals of a posterior method over prior draws.
+    """Return the empirical coverage of the credible intervals of a posterior method.
 
     It draws `n` true parameter vectors from the priors the bounds give, simulates data at each at the given times with
     Gaussian noise of a standard deviation, calibrates every data set with the posterior method, and counts how often
     the central credible interval of every level holds the true value. It also gives the rank of every true value among
     its samples, the check of simulation-based calibration (Talts et al. 2018).
+
+    It appears in every Bayesian calibration that needs to check its intervals, such as of the rates of an epidemic, of
+    the parameters of a climate model, or of the constants of a reaction, before trusting them on real data.
 
     Args:
         system:
@@ -262,16 +271,7 @@ def posterior_coverage(
         dt=dt,
         solver=solver,
     )
-    if executor == 'serial':
-        results = tuple(task(truth, seed) for truth, seed in zip(truths, seeds, strict=True))
-    else:
-        pool = executor if isinstance(executor, Executor) else None
-        pool = pool or (ThreadPoolExecutor() if executor == 'thread' else ProcessPoolExecutor())
-        try:
-            results = tuple(pool.map(task, truths, seeds))
-        finally:
-            if isinstance(executor, str):
-                pool.shutdown()
+    results = tuple(_map_calls(task, list(zip(truths, seeds, strict=True)), executor))
     coverage: dict[float, dict[str, float]] = {level: {} for level in checked}
     ranks: dict[str, Array] = {}
     for name in priors:

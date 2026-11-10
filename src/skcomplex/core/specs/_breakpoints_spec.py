@@ -17,7 +17,7 @@ class _BreakpointsSpec(BaseSpec):
     periodic: tuple[tuple[float, float], ...] = field(default=())
     unresolved: bool = False
 
-    def next_after(self, time: float) -> float | None:
+    def get_next_after(self, time: float) -> float | None:
         """Return the first breakpoint strictly after a time, or `None` when none follows.
 
         Args:
@@ -36,7 +36,7 @@ class _BreakpointsSpec(BaseSpec):
             candidates.append(following)
         return min(candidates, default=None)
 
-    def between(self, start: float, end: float) -> list[float]:
+    def get_between(self, start: float, end: float) -> list[float]:
         """Return the breakpoints strictly between two times, in order.
 
         Args:

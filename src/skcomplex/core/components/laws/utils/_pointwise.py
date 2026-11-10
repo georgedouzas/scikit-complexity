@@ -1,8 +1,4 @@
-"""Define the pointwise functions of laws.
-
-They are written with Sage arithmetic and `where`, or are functions that every printer lowers, so every backend lowers
-them.
-"""
+"""Define the pointwise functions of laws, such as the Hill and logistic functions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +9,7 @@ from sage.symbolic.function import BuiltinFunction
 from ._conditions import where
 
 
-class _StopGradient(BuiltinFunction):
+class _StopGradientFunction(BuiltinFunction):
     """Identity whose gradient is zero, `stop_gradient(x)`."""
 
     def __init__(self) -> None:
@@ -27,6 +23,9 @@ class _StopGradient(BuiltinFunction):
     def _tderivative_(self, x: Expression, diff_param: Expression) -> Expression:
         """Return the derivative, which is zero."""
         return SR(0)
+
+
+STOP_GRADIENT = _StopGradientFunction()
 
 
 def _smallest(values: tuple[object, ...]) -> Expression:
@@ -212,7 +211,4 @@ def stop_gradient(x: object) -> Expression:
         >>> (x * stop_gradient(x)).diff(x)
         stop_gradient(x)
     """
-    return _STOP_GRADIENT(SR(x))
-
-
-_STOP_GRADIENT = _StopGradient()
+    return STOP_GRADIENT(SR(x))

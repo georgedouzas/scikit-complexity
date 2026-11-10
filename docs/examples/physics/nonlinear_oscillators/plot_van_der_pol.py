@@ -31,8 +31,8 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for x, v in [(0.1, 0.0), (4.0, 6.0), (-3.0, -8.0)]:
     run = simulate(VanDerPolSystem(x=x, v=v, mu=3.0), until=30, dt=0.02)
     ax.plot(
-        run.values('oscillator.x'),
-        run.values('oscillator.x_d1'),
+        run.get_values('oscillator.x'),
+        run.get_values('oscillator.x_d1'),
         linewidth=1,
         label=f'x0 = {x}',
     )

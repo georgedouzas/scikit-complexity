@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -203,7 +203,7 @@ class CardiovascularSystem(BaseSystem):
         self.C_venous = C_venous
         self.volume = volume
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         period = 60.0 / self.heart_rate
         systole = 0.375 * period
@@ -239,4 +239,4 @@ class CardiovascularSystem(BaseSystem):
             ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=self.R_systemic),
             ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
         ]
-        return System(self.label, elements=[ventricle, arteries, veins], interactions=flows)
+        return CompositeSystem(self.label, elements=[ventricle, arteries, veins], interactions=flows)

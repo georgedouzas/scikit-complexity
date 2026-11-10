@@ -7,7 +7,7 @@ returning near forty, although every step can be undone. The view shows the coun
 """
 
 # %%
-# The system is built from its class with 40 balls, all in the first box. One step moves one ball, and the
+# The example builds `EhrenfestUrnSystem` with 40 balls, all in the first box. One step moves one ball, and the
 # blueprint shows the count over the whole run.
 
 import math
@@ -45,10 +45,13 @@ trajectory = simulate(EhrenfestUrnSystem(n_balls=BALLS), until=250, observers=[o
 
 steps = np.arange(301)
 urns = np.array(
-    [simulate(EhrenfestUrnSystem(n_balls=BALLS), until=300, random_state=seed).values('urn.n') for seed in range(200)],
+    [
+        simulate(EhrenfestUrnSystem(n_balls=BALLS), until=300, random_state=seed).get_values('urn.n')
+        for seed in range(200)
+    ],
 )
 counts = np.asarray(
-    simulate(EhrenfestUrnSystem(n_balls=BALLS), until=20000, random_state=1).values('urn.n'),
+    simulate(EhrenfestUrnSystem(n_balls=BALLS), until=20000, random_state=1).get_values('urn.n'),
 )
 relaxed = counts[400:].astype(int)
 values = np.arange(BALLS + 1)

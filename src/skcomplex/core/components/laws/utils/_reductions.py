@@ -1,9 +1,4 @@
-"""Define the reductions and reads across the members of a group.
-
-They are Sage symbolic functions the compiler lowers. Sage has no reduction over the members of a group, so each
-reduction is a Sage function made by `function`, kept unevaluated in expressions. Arguments that are not symbolic, such
-as a constant weight matrix or a neighbourhood, ride in the expression as a symbol named after a digest of their value.
-"""
+"""Define the reductions and reads across the members of a group."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,18 +10,15 @@ from types import SimpleNamespace
 
 import numpy as np
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, function, sin, var, vector
+from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
-from sage.symbolic.function import Function
 
 from ....errors import ValidationError
 from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
-from ....specs._draw_spec import draws_in
 from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
-    ConeNeighborhood,
     LatticeNeighborhood,
     MemoryNeighborhood,
     NearestNeighborhood,
@@ -34,6 +26,8 @@ from ...spaces import (
 )
 from ...spaces._lattice import BOUNDARIES
 from ._conditions import both
+from ._draws import draws_in
+from ._operators import _OperatorFunction
 from ._pointwise import _largest, _smallest
 
 KINDS = {
@@ -54,122 +48,152 @@ PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
+NEIGHBOR = _OperatorFunction('neighbor', nargs=2)
 
 
-def _is_placeholder(item: Expression, value: int) -> bool:
-    """Check whether an operand is the number that stands for an absent operand.
+class _ReductionFunction(_OperatorFunction):
+    """Reduction of a kind over the members of a group, printed with its keywords."""
 
-    The absent operand is a condition, weights, a group, or a neighbourhood.
+    @staticmethod
+    def _is_placeholder(item: Expression, value: int) -> bool:
+        """Check whether an operand is the number that stands for an absent operand.
+
+        The absent operand is a condition, weights, a group, or a neighbourhood.
+        """
+        item = SR(item)
+        return bool(item.is_numeric() and item == value)
+
+    def _print_(
+        self,
+        argument: Expression,
+        condition: Expression,
+        weights: Expression,
+        over: Expression,
+    ) -> str:
+        """Return a reduction call with its keywords.
+
+        It leaves out the absent condition, weights, and group.
+        """
+        name = self.name()
+        parts = [] if name == 'count' else [str(argument)]
+        if not _ReductionFunction._is_placeholder(over, 0):
+            parts.append(f'over={over}')
+        if not _ReductionFunction._is_placeholder(condition, 1):
+            parts.append(f'where={condition}')
+        if not _ReductionFunction._is_placeholder(weights, 0):
+            parts.append(f'weights={weights}')
+        return f'{name}({", ".join(parts)})'
+
+
+REDUCTIONS = {name: _ReductionFunction(name, nargs=4) for name in KINDS}
+
+
+class _NeighborsFunction(_OperatorFunction):
+    """Reduction over the neighbourhood of every member, printed with its keywords."""
+
+    def _print_(self, argument: Expression, weight: Expression, over: Expression, kind: Expression) -> str:
+        """Return a neighbourhood reduction call with its keywords.
+
+        It leaves out the own neighbourhood and unit weight.
+        """
+        parts = [str(argument)]
+        if not _ReductionFunction._is_placeholder(over, 0):
+            parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+        parts.append(f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}')
+        if not _ReductionFunction._is_placeholder(weight, 1):
+            parts.append(f'weight={weight}')
+        return f'neighbors({", ".join(parts)})'
+
+
+NEIGHBORS = _NeighborsFunction('neighbors', nargs=4)
+
+
+class _HyperedgesFunction(_OperatorFunction):
+    """Reduction over the hyperedges of every member, printed with its keywords."""
+
+    def _print_(self, *operands: Expression) -> str:
+        """Return a hyperedge reduction call with its keywords.
+
+        The operands are the argument, the weight, the size, the kind, and the neighbourhood. It leaves out every size,
+        unit weight, and the hyperedges of the network.
+        """
+        argument, weight, size, kind, over = operands
+        parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
+        if not _ReductionFunction._is_placeholder(size, 0):
+            parts.append(f'size={int(SR(size))}')
+        if not _ReductionFunction._is_placeholder(weight, 1):
+            parts.append(f'weight={weight}')
+        if not _ReductionFunction._is_placeholder(over, 0):
+            parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+        return f'hyperedges({", ".join(parts)})'
+
+
+HYPEREDGES = _HyperedgesFunction('hyperedges', nargs=5)
+
+
+class _ComponentsFunction(_OperatorFunction):
+    """Reduction over the connected components of the active members.
+
+    It prints with its keywords.
     """
-    item = SR(item)
-    return bool(item.is_numeric() and item == value)
+
+    def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
+        """Return a components reduction call with its keywords.
+
+        It leaves out the own neighbourhood.
+        """
+        parts = [str(active)]
+        if not _ReductionFunction._is_placeholder(over, 0):
+            parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+        parts.append(f'reduce={COMPONENT_REDUCTIONS[int(SR(kind))]!r}')
+        return f'components({", ".join(parts)})'
 
 
-def _print_reduction(
-    self: Function,
-    argument: Expression,
-    condition: Expression,
-    weights: Expression,
-    over: Expression,
-) -> str:
-    """Return a reduction call with its keywords.
+COMPONENTS = _ComponentsFunction('components', nargs=3)
 
-    It leaves out the absent condition, weights, and group.
+
+class _ShortestPathsFunction(_OperatorFunction):
+    """Reduction over the shortest paths between the active members.
+
+    It prints with its keywords.
     """
-    name = self.name()
-    parts = [] if name == 'count' else [str(argument)]
-    if not _is_placeholder(over, 0):
-        parts.append(f'over={over}')
-    if not _is_placeholder(condition, 1):
-        parts.append(f'where={condition}')
-    if not _is_placeholder(weights, 0):
-        parts.append(f'weights={weights}')
-    return f'{name}({", ".join(parts)})'
+
+    def _print_(self, active: Expression, over: Expression, kind: Expression) -> str:
+        """Return a shortest paths reduction call with its keywords.
+
+        It leaves out the own neighbourhood.
+        """
+        parts = [str(active)]
+        if not _ReductionFunction._is_placeholder(over, 0):
+            parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+        parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
+        return f'shortest_paths({", ".join(parts)})'
 
 
-def _print_neighbors(self: object, argument: Expression, weight: Expression, over: Expression, kind: Expression) -> str:
-    """Return a neighbourhood reduction call with its keywords.
-
-    It leaves out the own neighbourhood and unit weight.
-    """
-    del self
-    parts = [str(argument)]
-    if not _is_placeholder(over, 0):
-        parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-    parts.append(f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}')
-    if not _is_placeholder(weight, 1):
-        parts.append(f'weight={weight}')
-    return f'neighbors({", ".join(parts)})'
+SHORTEST_PATHS = _ShortestPathsFunction('shortest_paths', nargs=3)
 
 
-def _print_hyperedges(self: object, *operands: Expression) -> str:
-    """Return a hyperedge reduction call with its keywords.
+class _ShiftMemberFunction(_OperatorFunction):
+    """Value of an expression at the member a lattice offset away."""
 
-    The operands are the argument, the weight, the size, the kind, and the neighbourhood. It leaves out every size, unit
-    weight, and the hyperedges of the network.
-    """
-    del self
-    argument, weight, size, kind, over = operands
-    parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
-    if not _is_placeholder(size, 0):
-        parts.append(f'size={int(SR(size))}')
-    if not _is_placeholder(weight, 1):
-        parts.append(f'weight={weight}')
-    if not _is_placeholder(over, 0):
-        parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-    return f'hyperedges({", ".join(parts)})'
+    def _eval_(
+        self,
+        expression: Expression,
+        offset: Expression,
+        boundary: Expression,
+        fill: Expression,
+    ) -> Expression | None:
+        """Return the expression itself for a trivial shift, or `None`.
 
-
-def _print_components(self: object, active: Expression, over: Expression, kind: Expression) -> str:
-    """Return a components reduction call with its keywords.
-
-    It leaves out the own neighbourhood.
-    """
-    del self
-    parts = [str(active)]
-    if not _is_placeholder(over, 0):
-        parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-    parts.append(f'reduce={COMPONENT_REDUCTIONS[int(SR(kind))]!r}')
-    return f'components({", ".join(parts)})'
+        A shift is trivial for an offset of 0 or an expression without symbols or draws.
+        """
+        del boundary, fill
+        if _ReductionFunction._is_placeholder(offset, 0) or not (SR(expression).variables() or draws_in(expression)):
+            return expression
+        return None
 
 
-def _print_paths(self: object, active: Expression, over: Expression, kind: Expression) -> str:
-    """Return a shortest paths reduction call with its keywords.
-
-    It leaves out the own neighbourhood.
-    """
-    del self
-    parts = [str(active)]
-    if not _is_placeholder(over, 0):
-        parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-    parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
-    return f'shortest_paths({", ".join(parts)})'
-
-
-def _eval_shift(
-    self: object,
-    expression: Expression,
-    offset: Expression,
-    boundary: Expression,
-    fill: Expression,
-) -> Expression | None:
-    """Return the expression itself for a trivial shift, or `None`.
-
-    A shift is trivial for an offset of 0 or an expression without symbols or draws.
-    """
-    del self, boundary, fill
-    if _is_placeholder(offset, 0) or not (SR(expression).variables() or draws_in(expression)):
-        return expression
-    return None
-
-
-REDUCTIONS = {name: function(name, nargs=4, print_func=_print_reduction) for name in KINDS}
-NEIGHBORS = function('neighbors', nargs=4, print_func=_print_neighbors)
-NEIGHBOR = function('neighbor', nargs=2)
-HYPEREDGES = function('hyperedges', nargs=5, print_func=_print_hyperedges)
-COMPONENTS = function('components', nargs=3, print_func=_print_components)
-SHORTEST_PATHS = function('shortest_paths', nargs=3, print_func=_print_paths)
-SHIFT_MEMBER = function('shift_member', nargs=4, eval_func=_eval_shift)
+SHIFT_MEMBER = _ShiftMemberFunction('shift_member', nargs=4)
 
 
 def _over_symbol(over: object) -> Expression:
@@ -290,7 +314,8 @@ def reduction(
     Examples:
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import reduction, reductions_in
+        >>> from skcomplex.core.components.laws.utils import reduction
+        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
         >>> x = var('x')
         >>> [item.kind for item in reductions_in(reduction(np.median, x))]
         ['function']
@@ -675,8 +700,8 @@ def neighbors(
     graph of a network space by default, `AdjacencyNeighborhood()`, a layer of the network,
     `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a lattice neighbourhood, or in a continuous space
     the members within a distance, `RadiusNeighborhood(r)`, the nearest members, `NearestNeighborhood(k)`, or the
-    members within a distance inside a cone around a direction, `ConeNeighborhood(r, angle)`. A reduction over no
-    neighbours is 0.
+    members within a distance inside a cone around a direction, `RadiusNeighborhood(r, angle=angle)`. A reduction over
+    no neighbours is 0.
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
     `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
@@ -714,12 +739,12 @@ def neighbors(
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood, VonNeumannNeighborhood
+        >>> from skcomplex.core.components.spaces import BallNeighborhood, RadiusNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
         >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
         neighbors(strategy_other, reduce='argmax', weight=payoff_other)
-        >>> values = neighbors(var('spin'), VonNeumannNeighborhood(), reduce='each')
+        >>> values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
         >>> len(values), values[0]
         (4, neighbor(spin, 0))
     """
@@ -766,7 +791,7 @@ def hyperedges(
     triangles around a member. A reduction over no hyperedges is 0.
 
     The hyperedges are those of the network space of the group by default. In a continuous space, `over` is a
-    neighbourhood, `RadiusNeighborhood(r)`, `NearestNeighborhood(k)`, or `ConeNeighborhood(r, angle)`, and the
+    neighbourhood, `RadiusNeighborhood(r)` with an optional `angle`, or `NearestNeighborhood(k)`, and the
     hyperedges around a member are the member with every set of `size - 1` of its current neighbours, the other members
     in increasing member order, for a size of at most 5. The sets follow the motion of the members, found again at
     every evaluation, and their number grows as `d^(size - 1)` for `d` neighbours.
@@ -820,16 +845,14 @@ def hyperedges(
     ):
         error_msg = f'A hyperedge reduction takes a size of 2 or more, or None for every size, not {size!r}.'
         raise ValidationError(error_msg)
-    if over is not None and not isinstance(over, RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood):
+    if over is not None and not isinstance(over, RadiusNeighborhood | NearestNeighborhood):
         error_msg = (
-            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Reduce over Radius, '
-            'Nearest, or Cone.'
+            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Reduce over '
+            'Radius or Nearest.'
         )
         raise ValidationError(error_msg)
     if over is not None and size is None:
-        error_msg = (
-            f'A hyperedge reduction over {over!r} forms hyperedges of one size. Give it a size of 2 or more.'
-        )
+        error_msg = f'A hyperedge reduction over {over!r} forms hyperedges of one size. Give it a size of 2 or more.'
         raise ValidationError(error_msg)
     if reduce == 'circular-mean':
         sines = hyperedges(sin(SR(expression)), 'sum', size, weight, over)
@@ -931,7 +954,8 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import mean, reductions_in, total
+        >>> from skcomplex.core.components.laws.utils import mean, total
+        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
         >>> x = var('x')
         >>> [item.kind for item in reductions_in(total(x * mean(x)))]
         ['sum']
@@ -944,13 +968,13 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
                 call=call,
                 kind=KINDS[call.operator().name()],
                 argument=argument,
-                condition=None if _is_placeholder(condition, 1) else condition,
+                condition=None if _ReductionFunction._is_placeholder(condition, 1) else condition,
                 weights=(
                     None
-                    if _is_placeholder(weights, 0) or str(weights) in FUNCTIONS
+                    if _ReductionFunction._is_placeholder(weights, 0) or str(weights) in FUNCTIONS
                     else WEIGHTS.get(str(weights), weights)
                 ),
-                over=None if _is_placeholder(over, 0) else over,
+                over=None if _ReductionFunction._is_placeholder(over, 0) else over,
                 function=FUNCTIONS.get(str(weights)),
             ),
         )
@@ -968,7 +992,7 @@ def _component_reduction(call: Expression) -> NeighborReductionSpec:
         kind=f'component-{COMPONENT_REDUCTIONS[int(SR(kind))]}',
         argument=active,
         weight=None,
-        over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+        over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
@@ -983,7 +1007,7 @@ def _path_reduction(call: Expression) -> NeighborReductionSpec:
         kind=f'path-{PATH_REDUCTIONS[int(SR(kind))]}',
         argument=active,
         weight=None,
-        over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+        over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
@@ -1004,7 +1028,8 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import neighbors, neighborhoods_in
+        >>> from skcomplex.core.components.laws.utils import neighbors
+        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
         >>> [item.kind for item in neighborhoods_in(neighbors(var('x'), reduce='mean'))]
         ['mean']
     """
@@ -1022,8 +1047,8 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,
-                weight=None if _is_placeholder(weight, 1) else weight,
-                over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+                weight=None if _ReductionFunction._is_placeholder(weight, 1) else weight,
+                over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
             ),
         )
     return reductions
@@ -1042,7 +1067,8 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import hyperedges, hyperedges_in
+        >>> from skcomplex.core.components.laws.utils import hyperedges
+        >>> from skcomplex.core.components.laws.utils._reductions import hyperedges_in
         >>> [(item.kind, item.size) for item in hyperedges_in(hyperedges(var('x'), reduce='mean', size=3))]
         [('mean', 3)]
     """
@@ -1054,9 +1080,9 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,
-                weight=None if _is_placeholder(weight, 1) else weight,
-                size=None if _is_placeholder(size, 0) else int(SR(size)),
-                over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+                weight=None if _ReductionFunction._is_placeholder(weight, 1) else weight,
+                size=None if _ReductionFunction._is_placeholder(size, 0) else int(SR(size)),
+                over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
             ),
         )
     return reductions

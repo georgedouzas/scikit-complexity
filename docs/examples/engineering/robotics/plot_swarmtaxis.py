@@ -6,7 +6,7 @@ robots on its side can see: the illuminated robots keep a wider berth, which pus
 """
 
 # %%
-# The system is built from its class with 20 robots starting in a cluster near the left edge of an arena of
+# The example builds `SwarmtaxisSystem` with 20 robots starting in a cluster near the left edge of an arena of
 # size 100, with the beacon at the middle of the right edge, and runs for 3000 steps. The blueprint shows the robots in
 # the left half of the arena, drawn larger than the system's visual so they read in the thumbnail.
 
@@ -44,9 +44,9 @@ trajectory = simulate(system, until=3000, dt=15, observers=[observer])
 # the robots keep radio contact, and at any time only part of the swarm should see the beacon.
 
 frames = range(len(trajectory.times))
-centres = np.array([trajectory.agents('robots', frame).locations.mean(axis=0) for frame in frames])
-spreads = [trajectory.agents('robots', frame).locations.std(axis=0).mean() for frame in frames]
-lit = [trajectory.agents('robots', frame).values['illuminated'].mean() for frame in frames]
+centres = np.array([trajectory.get_agents('robots', frame).locations.mean(axis=0) for frame in frames])
+spreads = [trajectory.get_agents('robots', frame).locations.std(axis=0).mean() for frame in frames]
+lit = [trajectory.get_agents('robots', frame).values['illuminated'].mean() for frame in frames]
 fig, (drift, shares) = plt.subplots(1, 2, figsize=(10, 4))
 drift.plot(trajectory.times, centres[:, 0], label='x of the centre')
 drift.plot(trajectory.times, spreads, label='spread of the swarm')

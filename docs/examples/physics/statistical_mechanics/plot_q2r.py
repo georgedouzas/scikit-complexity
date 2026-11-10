@@ -9,7 +9,7 @@ majority as ragged clusters. The view shows the spins of a 128 x 128 torus.
 """
 
 # %%
-# The system is built from its class with an initial fraction `up = 0.1` of spins up. One step updates one
+# The example builds `Q2rSystem` with an initial fraction `up = 0.1` of spins up. One step updates one
 # sublattice. The observer saves every step with the default blueprint, whose primary view is the image of the spins.
 
 import matplotlib.pyplot as plt
@@ -38,7 +38,7 @@ trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 def energy_and_magnetization(up):
     """Return the energy per site and the late mean absolute magnetization of a run of the automaton."""
     run = simulate(Q2rSystem(shape=(64, 64), up=up, random_state=1), until=3000)
-    spins = run.values('spins.spin').reshape(-1, 64, 64)
+    spins = run.get_values('spins.spin').reshape(-1, 64, 64)
     bonds = spins * np.roll(spins, 1, axis=1) + spins * np.roll(spins, 1, axis=2)
     return -bonds.mean(axis=(1, 2))[-1], np.abs(spins[1000:].mean(axis=(1, 2))).mean()
 

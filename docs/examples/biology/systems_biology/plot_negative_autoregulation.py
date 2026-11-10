@@ -31,11 +31,11 @@ trajectory = simulate(NegativeAutoregulationSystem(), observers=[observer], rand
 fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
     trajectory = simulate(NegativeAutoregulationSystem(K=K), random_state=1, until=1000)
-    protein = trajectory.values('gene.p')[trajectory.times > 100]
+    protein = trajectory.get_values('gene.p')[trajectory.times > 100]
     fano = distribution(protein, kind='dispersion-index').index[0]
     ax.plot(
         trajectory.times,
-        trajectory.values('gene.p'),
+        trajectory.get_values('gene.p'),
         label=f'{label}: mean {protein.mean():.0f}, Fano {fano:.1f}',
     )
 ax.set_xlabel('time')

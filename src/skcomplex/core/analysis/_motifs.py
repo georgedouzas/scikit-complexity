@@ -1,7 +1,4 @@
-"""Count network motifs of three and four nodes and score them.
-
-The scores are against degree-preserving null ensembles.
-"""
+"""Count network motifs of three and four nodes and score them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,11 +14,11 @@ import numpy.typing as npt
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
 from ..types import DataKind
-from ._base import _check_choice, _check_settings, _check_tags, _import, _read_networks
+from ._base import _check_choice, _check_settings, _check_tags, _read_networks
+from ._utils import load_module
 from .types import Source
 
 TRIAD_SIZE = 3
-
 KINDS = ('counts', 'z-scores')
 NULLS = ('switch', 'configuration')
 SIZES = (3, 4)
@@ -29,8 +26,6 @@ SETTINGS = {
     'counts': {'size'},
     'z-scores': {'size', 'null', 'samples', 'random_state'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 SWAPS_PER_EDGE = 3
 UNDIRECTED_THREE = {2: 'path', 3: 'triangle'}
 UNDIRECTED_FOUR = {
@@ -42,16 +37,13 @@ UNDIRECTED_FOUR = {
     (6, (3, 3, 3, 3)): 'clique',
 }
 ISOCLASSES = {(3, False): 4, (3, True): 16, (4, False): 11, (4, True): 218}
-"""The number of isomorphism classes of igraph of every size, undirected and directed."""
-
 PERMUTATIONS = tuple(itertools.permutations(range(4)))
-
 TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
 class MotifsResult:
-    """Motifs of three or four nodes of a graph or of the network of every frame.
+    """A result of `motifs`, the counts and scores of small subgraphs.
 
     The networks are those of a trajectory.
 
@@ -99,6 +91,9 @@ def motifs(
       directed motifs of four nodes by their smallest adjacency code.
     - `'z-scores'`: the counts against random graphs that keep the degrees, `(count - null_mean) / null_std` of every
       motif, `nan` where the null count never varies.
+
+    It appears in many fields. It counts the feedforward loops of a gene network, the triangles of a social network, and
+    the circuits of a food web.
 
     Args:
         source:
@@ -207,7 +202,7 @@ def _motif_names(size: int, directed: bool) -> tuple[str | None, ...]:
 
     The classes not connected get `None`.
     """
-    graph = _import('igraph').Graph
+    graph = load_module('igraph').Graph
     names: list[str | None] = []
     for isoclass in range(ISOCLASSES[(size, directed)]):
         motif = graph.Isoclass(size, isoclass, directed=directed)
@@ -223,7 +218,7 @@ def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
     occur.
     """
     names = _motif_names(size, graph.is_directed())
-    counts = _import('igraph').Graph.from_networkx(graph).motifs_randesu(size=size)
+    counts = load_module('igraph').Graph.from_networkx(graph).motifs_randesu(size=size)
     return {
         name: int(count)
         for name, count in zip(names, counts, strict=True)

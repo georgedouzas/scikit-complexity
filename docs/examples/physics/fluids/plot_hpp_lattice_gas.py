@@ -29,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 # Averaged over three steps, the excess particles of the disc should run outwards as a sound wave and leave a depleted
 # centre behind them, while the total number of particles stays fixed.
 
-density = np.asarray(trajectory.values('gas.density'), dtype=float).reshape(-1, 64, 64)
+density = np.asarray(trajectory.get_values('gas.density'), dtype=float).reshape(-1, 64, 64)
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, step in zip(axes, (0, 10, 20), strict=True):
     ax.imshow(density[step : step + 3].mean(axis=0), cmap='viridis', vmin=0, vmax=2.4)

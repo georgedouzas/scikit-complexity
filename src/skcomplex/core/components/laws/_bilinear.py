@@ -1,7 +1,4 @@
-"""Define bilinear laws.
-
-They are gains and losses of a density at the rate of the product of two densities.
-"""
+"""Define the law where members of two distributions meet."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,18 +8,31 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
+from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime, LatticeSpace
 from ._base import BaseLaw
 
 
 class BilinearLaw(BaseLaw):
-    """Gain or loss of a target density at a signed rate of a product of densities.
+    """A law where members of two distributions meet and change class.
 
-    The product is of two densities. The amount of the first density `f` in class `h` that meets the amount of the
-    second density `g` in class `k` adds to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`,
-    so the law adds `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a gain
-    that leaves the first density in place, and a negative rate with the first density as the target gives a loss.
+    A distribution is a group of elements, one per class of a trait, that holds how much of a population sits in each
+    class. When an amount of the first distribution `f` in class `h` meets an amount of the second distribution `g` in
+    class `k`, at the rate `rate[h, k]`, it adds to class `i` of the target with the probability `outcomes[h, k, i]`.
+    The law adds `sum_hk rate[h, k] outcomes[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a
+    gain that leaves the first distribution in place, and a negative rate with the first distribution as target gives a
+    loss.
+
+    A conserved law also takes the matching amount from class `h` of the first distribution, so the total stays the
+    same: `df_i/dt = sum_hk rate[h, k] outcomes[h, k, i] f_h g_k - f_i sum_k rate[i, k] g_k`. A second distribution that
+    no law changes is a fixed input, and a conserved law without one is a linear redistribution between classes.
+
+    Unlike `RateLaw`, which gives the rate of one state by an expression, it sums a product of two distributions over
+    every pair of classes. Choose it when the change of a population comes from binary meetings of its members.
+
+    It appears in many fields. Traders exchange wealth when they meet, people shift their opinion after a conversation,
+    immune cells destroy tumour cells they meet, and gas molecules change velocity when they collide.
 
     Args:
         target:
@@ -32,14 +42,18 @@ class BilinearLaw(BaseLaw):
             The symbol of the first density.
 
         second:
-            The symbol of the second density.
+            The symbol of the second density, or `None` for a linear redistribution of a conserved law.
 
         rate:
             The signed rate, a number or a parameter expression, or an array `r[h, k]` of them.
 
         outcomes:
-            The array `B[h, k, i]` of the probabilities of the class in the target, or `None` for the class of the first
-            density, which needs a target of its size.
+            The array `B[h, k, i]` of the probabilities of the class in the target, numbers or parameter expressions
+            that sum to one over `i`, or `None` for the class of the first density, which needs a target of its size. A
+            conserved law needs the array, since the identity makes its gain and loss cancel.
+
+        conserved:
+            Whether the law also takes the matching loss from the first density, so the total is conserved.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -50,6 +64,10 @@ class BilinearLaw(BaseLaw):
         >>> f, g = var('f'), var('g')
         >>> BilinearLaw(f, f, g, -0.5).prepare().run({}).value_
         (-0.5, None)
+        >>> import numpy as np
+        >>> rate, outcomes = BilinearLaw(f, f, g, 1.0, np.full((2, 2, 2), 0.5), conserved=True).prepare().run({}).value_
+        >>> rate, np.shape(outcomes)
+        (1.0, (2, 2, 2))
     """
 
     law_tag: ClassVar[str] = 'rate'
@@ -58,10 +76,11 @@ class BilinearLaw(BaseLaw):
         self,
         target: Expression,
         first: Expression,
-        second: Expression,
+        second: Expression | None,
         rate: object,
         outcomes: object = None,
         *,
+        conserved: bool = False,
         label: str = '',
     ) -> None:
         super().__init__(label)
@@ -70,6 +89,7 @@ class BilinearLaw(BaseLaw):
         self.second = second
         self.rate = rate
         self.outcomes = outcomes
+        self.conserved = conserved
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the densities the encounter changes, the first density and the target."""
@@ -83,13 +103,27 @@ class BilinearLaw(BaseLaw):
     def _prepare(self, context: str | None = None) -> None:
         """Raise an error for a rate or outcome table of the wrong dimensions.
 
-        It also raises it when their class counts disagree.
+        It also raises it for a conserved law without outcomes.
+
+        It also raises it when their class counts disagree, or for a law without a second density that is not conserved.
 
         Args:
             context:
                 The path of the element or interaction that returns the law, or `None`.
         """
         super()._prepare(context)
+        if self.conserved and self.outcomes is None:
+            error_msg = (
+                f'The conserved bilinear law of {self.target} has no outcome table, but without one its gain and loss '
+                'cancel. Give the outcome probabilities `B[h, k, i]`.'
+            )
+            raise ValidationError(error_msg)
+        if self.second is None and not self.conserved:
+            error_msg = (
+                f'The bilinear law of {self.target} has no second density, which only a conserved law takes. Give the '
+                'second density, or set `conserved=True`.'
+            )
+            raise ValidationError(error_msg)
         self._check_table('rate', (0, 2))
         if self.outcomes is not None:
             self._check_table('outcomes', (3,))

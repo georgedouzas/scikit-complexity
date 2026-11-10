@@ -1,7 +1,4 @@
-"""Define match laws.
-
-They are the pairings of the members of agent groups that the rules of a step read.
-"""
+"""Define the law that pairs the members of agent groups at every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,16 +14,20 @@ from ..spaces import DiscreteTime
 from ..types import AgentViewProtocol, Feasibility, Pairing, SystemViewProtocol
 from ._base import BaseLaw
 from ._rule import RuleLaw
-from .utils import random_pairing
 
 
 class MatchLaw(BaseLaw):
-    """Pairing of the members of one agent group, or of two, every step.
+    """A law that pairs the members of one or two agent groups at every step.
 
-    The rules of the step read the pairs. The members are paired uniformly at random by default. Any other pairing, such
-    as stable matching, an order book, or an auction, is a function given as `pairing`, and a selection of partners
-    within reach or among neighbours is a `PartnerSpec`. Rules read the pairs of the step with `matches(system, label)`.
-    Transfers, matchings, and groupings read their pairs from `get_pairs`.
+    The members are paired uniformly at random by default. Any other pairing, such as a stable matching, an order book,
+    or an auction, is a function given as `pairing`, and a choice of partners within reach or among neighbours is a
+    `PartnerSpec`. The rules of the step read the pairs with `matches(system, label)`.
+
+    Unlike `RuleLaw`, which acts on members, it forms the pairs that rules then act on. Choose it when who meets whom is
+    itself part of the model.
+
+    It appears in many fields. Workers match with firms in a labour market, students match with schools, buyers meet
+    sellers in an order book, and partners pair in models of mating.
 
     Args:
         left:
@@ -150,15 +151,15 @@ class MatchLaw(BaseLaw):
         if spec.candidates == 'all':
             return [target for target in targets if target is not agent]
         if spec.candidates == 'local':
-            around = {agent.location_key, *agent.neighbor_cells()}
+            around = {agent.location_key, *agent.get_neighbor_cells()}
             return [target for target in targets if target is not agent and target.location_key in around]
         if spec.candidates in ('cell', 'neighbors'):
-            keys = [agent.location_key] if spec.candidates == 'cell' else agent.neighbor_cells()
+            keys = [agent.location_key] if spec.candidates == 'cell' else agent.get_neighbor_cells()
             return [target for key in keys for target in located.get(key, []) if target is not agent]
         radius = spec.candidates
         if isinstance(radius, str):
             radius = MatchLaw._read_state(agent, radius, 'radius')
-        return [target for target in targets if target is not agent and agent.distance_to(target) <= radius]
+        return [target for target in targets if target is not agent and agent.get_distance_to(target) <= radius]
 
     @staticmethod
     def _choose(
@@ -176,7 +177,7 @@ class MatchLaw(BaseLaw):
         if spec.choice == 'uniform':
             return [free[int(rng.integers(len(free)))]]
         if spec.choice == 'nearest':
-            return [min(free, key=agent.distance_to)]
+            return [min(free, key=agent.get_distance_to)]
         if spec.score is None:
             error_msg = 'The choice `score` of partners has no score. Give a function of the agent and the candidate.'
             raise ValidationError(error_msg)
@@ -234,7 +235,7 @@ class MatchLaw(BaseLaw):
         if free or spec.fallback != 'nearest':
             return free
         others = [item for item in right if item is not agent and self._is_free(spec, agent, item, taken, feasible)]
-        return [min(others, key=agent.distance_to)] if others else []
+        return [min(others, key=agent.get_distance_to)] if others else []
 
     def _get_partners(
         self,
@@ -265,6 +266,50 @@ class MatchLaw(BaseLaw):
                     taken[agent.id] = taken.get(agent.id, 0) + 1
                 yield agent, target
 
+    def _get_random_pairs(
+        self,
+        left: Sequence[AgentViewProtocol],
+        right: Sequence[AgentViewProtocol],
+        rng: np.random.Generator,
+    ) -> list[tuple[object, object]]:
+        """Return pairs drawn uniformly at random.
+
+        Each member is in at most `capacity` pairs and never paired with itself.
+
+        Args:
+            left:
+                The members of the first group.
+
+            right:
+                The members of the second group, the same sequence as `left` for pairs within one group.
+
+            rng:
+                The random generator.
+
+        Returns:
+            pairs:
+                The pairs of members.
+        """
+        capacity = self.capacity
+        pairs: list[tuple[object, object]] = []
+        seen: set[tuple[int, int]] = set()
+        if left is right:
+            for _ in range(capacity):
+                order = rng.permutation(len(left))
+                for first, second in zip(order[::2], order[1::2], strict=False):
+                    key = (min(first, second), max(first, second))
+                    if key not in seen:
+                        seen.add(key)
+                        pairs.append((left[first], right[second]))
+            return pairs
+        firsts = rng.permutation(np.repeat(np.arange(len(left)), capacity))
+        seconds = rng.permutation(np.repeat(np.arange(len(right)), capacity))
+        for first, second in zip(firsts, seconds, strict=False):
+            if (first, second) not in seen:
+                seen.add((first, second))
+                pairs.append((left[first], right[second]))
+        return pairs
+
     def _run(self, inputs: object) -> None:
         """Store the pairs of the step in the storage of the system under `match:<label>`.
 
@@ -279,8 +324,8 @@ class MatchLaw(BaseLaw):
         if not isinstance(inputs, SystemViewProtocol):
             error_msg = f'The match {self.label!r} runs on the system view of a step, but got {inputs!r}.'
             raise ValidationError(error_msg)
-        left = inputs.agents(self.left)
-        right = left if self.right is None else inputs.agents(self.right)
+        left = inputs.get_agents(self.left)
+        right = left if self.right is None else inputs.get_agents(self.right)
         pairs = self.get_pairs(left, right, inputs.rng)
         inputs.storage[f'match:{self.label}'] = pairs
         self.value_ = pairs
@@ -313,7 +358,9 @@ class MatchLaw(BaseLaw):
         """
         spec = self.pairing
         if not isinstance(spec, PartnerSpec):
-            return (spec or random_pairing)(left, right, rng, self.capacity)
+            if spec is None:
+                return self._get_random_pairs(left, right, rng)
+            return spec(left, right, rng, self.capacity)
         if (spec.candidates, spec.choice, spec.capacity, spec.fallback) == ('all', 'uniform', 1, None):
             return self._get_disjoint_pairs(left, right, rng)
         return list(self._get_partners(spec, left, right, rng))

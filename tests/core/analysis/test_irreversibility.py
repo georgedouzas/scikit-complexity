@@ -9,7 +9,7 @@ import pytest
 from skcomplex.core.analysis import IrreversibilityResult, correlation, irreversibility
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
@@ -147,11 +147,11 @@ def _walker_currents(forward, backward, duration, paths, seed):
             """Return the laws of the walker element."""
             return [JumpLaw(forward, {s.ahead: 1}), JumpLaw(backward, {s.behind: 1})]
 
-    system = System(elements=[WalkerElement('walker')])
+    system = CompositeSystem(elements=[WalkerElement('walker')])
     currents = []
     for index in range(paths):
         trajectory = simulate(system, until=duration, dt=duration, random_state=seed + index)
-        currents.append(trajectory.values('walker.ahead')[-1] - trajectory.values('walker.behind')[-1])
+        currents.append(trajectory.get_values('walker.ahead')[-1] - trajectory.get_values('walker.behind')[-1])
     return np.asarray(currents)
 
 

@@ -13,10 +13,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import ReactionInteraction
 from .....core.components.laws.utils import hill
 from .....core.specs import ParameterSpec, RoleSpec
-from .....core.types import Stoichiometry
+from ....general.reactions import ReactionInteraction
+from ....general.reactions.types import Stoichiometry
 
 
 class RepressionInteraction(ReactionInteraction):
@@ -62,15 +62,15 @@ class RepressionInteraction(ReactionInteraction):
             and a state name with a positive coefficient.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import RepressionInteraction, SpeciesElement
         >>> repression = RepressionInteraction(
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = simulate(System(elements=species, interactions=[repression]), until=1.0, dt=0.1)
-        >>> round(float(trajectory.values('mRNA.x')[-1]), 3)
+        >>> trajectory = simulate(CompositeSystem(elements=species, interactions=[repression]), until=1.0, dt=0.1)
+        >>> round(float(trajectory.get_values('mRNA.x')[-1]), 3)
         1.0
     """
 

@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from ..errors import ValidationError
 from ..types import Preference
 from ._base_spec import BaseSpec
-from ._random_search_spec import CLEARINGS
 
 CHOICES = ('uniform', 'score', 'nearest', 'all')
 FALLBACKS = (None, 'nearest')
@@ -16,7 +15,7 @@ FALLBACKS = (None, 'nearest')
 
 @dataclass(frozen=True)
 class PartnerSpec(BaseSpec):
-    """Selection of partners.
+    """A spec of how members choose partners, by reach, score, and fallback.
 
     It holds the candidates of every agent, a choice among them, a fallback, and a capacity. Every agent of one side
     considers its candidates among the agents of the other side and picks among those that still have room. With a
@@ -46,12 +45,9 @@ class PartnerSpec(BaseSpec):
             The function `score(agent, candidate)` of their agent views the choice `'score'` reads, higher for preferred
             candidates, or `None`.
 
-        clearing:
-            The value of a pair that a matching settles, `'midpoint'` of both limits, `'provider'`, or `'requester'`.
-
     Raises:
         ValidationError:
-            The choice, the fallback, or the clearing is unknown, the distance or the capacity is not positive, or the
+            The choice or the fallback is unknown, the distance or the capacity is not positive, or the
             score does not fit the choice, raised when its owner checks it.
 
     Examples:
@@ -65,21 +61,17 @@ class PartnerSpec(BaseSpec):
     fallback: str | None = None
     capacity: str | float | None = None
     score: Preference | None = None
-    clearing: str = 'midpoint'
 
     def _check(self) -> None:
         """Raise an error for an unknown or invalid setting of the selection.
 
-        The setting is an unknown choice, fallback, or clearing, a bad distance or capacity, or a bad score.
+        The setting is an unknown choice or fallback, a bad distance or capacity, or a bad score.
 
         Raises:
             ValidationError:
-                The choice, the fallback, or the clearing is unknown, the distance or the capacity is not positive, or
+                The choice or the fallback is unknown, the distance or the capacity is not positive, or
                 the score does not fit the choice.
         """
-        if self.clearing not in CLEARINGS:
-            error_msg = f'Unknown clearing {self.clearing!r}. Use one of {CLEARINGS}.'
-            raise ValidationError(error_msg)
         if self.choice not in CHOICES:
             error_msg = f'Unknown choice {self.choice!r} of partners. Use one of {CHOICES}.'
             raise ValidationError(error_msg)

@@ -31,7 +31,7 @@ trajectory = simulate(TangledNatureSystem(random_state=0), observers=[observer],
 # single type of the start should give way to a coexisting set in which the most common type holds about a third.
 
 frames = range(len(trajectory.times))
-genomes = [trajectory.agents('organisms', frame).values['trait'] for frame in frames]
+genomes = [trajectory.get_agents('organisms', frame).values['trait'] for frame in frames]
 sizes = np.array([len(genome) for genome in genomes])
 dominant = np.array([np.unique(genome, return_counts=True)[1].max() / len(genome) for genome in genomes])
 fig, (population, share) = plt.subplots(1, 2, figsize=(11, 4))

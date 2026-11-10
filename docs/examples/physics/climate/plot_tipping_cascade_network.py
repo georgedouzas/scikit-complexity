@@ -9,7 +9,7 @@ their lower states dark at the far end.
 """
 
 # %%
-# The system is built from its class on a Watts-Strogatz ring of 40 elements, each linked to its four
+# The example builds `TippingCascadeNetworkSystem` on a Watts-Strogatz ring of 40 elements, each linked to its four
 # nearest neighbours, with a few shortcuts. Every control is 0 except the first, at 1.2, past the critical value 1. The
 # coupling `d = 0.2` raises the effective control of an element by `2 d / sqrt(4/27) = 1.04` for each tipped neighbour.
 # The run stops at time 18, midway through the cascade, and the observer saves every step with the default blueprint,
@@ -41,7 +41,7 @@ simulation = simulate(system, until=18, observers=[observer])
 # below 1, since the neighbours that the first element lifts slightly out of their lower states lift it in return.
 
 trajectory = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=0.2))
-states = trajectory.values('elements.x')
+states = trajectory.get_values('elements.x')
 tipped_at = trajectory.times[np.argmax(states > 0, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in graph.nodes])
@@ -53,7 +53,7 @@ for d in (0.0, 0.2):
     for first in sweep:
         controls[0] = first
         final = simulate(TippingCascadeNetworkSystem(graph=graph, c=controls, d=d), until=200, dt=1.0)
-        counts[d].append(int((final.values('elements.x')[-1] > 0).sum()))
+        counts[d].append(int((final.get_values('elements.x')[-1] > 0).sum()))
 
 fig, (order, cascade) = plt.subplots(1, 2, figsize=(10, 4))
 order.plot(hops, tipped_at, 'o')

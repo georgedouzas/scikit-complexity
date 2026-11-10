@@ -1,7 +1,4 @@
-"""Hold the state of one compilation.
-
-Its passes produce the fields of the state in order, from the system to the problem.
-"""
+"""Hold the state of one compilation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...components.specs import CensusSpec, NodeSpec
-from ...components.system import System
+from ...components.systems import CompositeSystem
 from ...errors import PipelineError
 from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec
@@ -49,7 +46,7 @@ type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
-    """State of one compilation of a system.
+    """A state of one compilation of a system, which passes read and write.
 
     Its passes read and write its fields in order. The constructor stores the inputs of the compilation, and the passes
     set every other field, from `nodes` to `problem` in the order they are listed. A field that no pass has set yet is
@@ -263,7 +260,7 @@ class Compilation:
 
     def __init__(
         self,
-        system: System,
+        system: CompositeSystem,
         backend: BaseBackend | None = None,
         solver: object = None,
         owners: frozenset[str] | None = None,
@@ -316,7 +313,7 @@ class Compilation:
             for key, (spec, request) in self.request_jumps.items():
                 self.request_jumps[key] = (replaced.get(id(spec), spec), request)
         if self.transfer is not None:
-            self.transfer = self.transfer.replaced(replaced)
+            self.transfer = self.transfer.get_replaced(replaced)
 
     @staticmethod
     def _replace_in[*Rest](items: list[tuple[KernelSpec, *Rest]], replaced: Mapping[int, KernelSpec]) -> None:
@@ -334,7 +331,7 @@ class Compilation:
             items[index] = (replaced.get(id(spec), spec), *item[1:])
 
     @staticmethod
-    def _required[T](value: T | None, name: str) -> T:
+    def _get_required[T](value: T | None, name: str) -> T:
         """Return the value of a field that a pass has set.
 
         A field that no pass has set yet raises an error.

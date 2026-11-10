@@ -43,7 +43,7 @@ trajectory = simulate(
 
 def shares(trajectory, frame):
     """Return the share of people at each level of caring at a frame."""
-    caring = trajectory.agents('people', frame).values['caring'].astype(int)
+    caring = trajectory.get_agents('people', frame).values['caring'].astype(int)
     return np.bincount(caring, minlength=len(LEVELS)) / len(caring)
 
 

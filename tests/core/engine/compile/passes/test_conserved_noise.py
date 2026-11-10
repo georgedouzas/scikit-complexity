@@ -9,7 +9,7 @@ import pytest
 from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
@@ -41,7 +41,9 @@ class ConservedElement(Element):
 def _field(shape, boundary='periodic', spacing=1.0):
     """Return a system of one field with conserved noise on a lattice."""
     space = LatticeSpace(shape, spacing=spacing)
-    return System(elements=[FieldElement('f', element=ConservedElement, space=space, boundary={'rho': boundary})])
+    return CompositeSystem(
+        elements=[FieldElement('f', element=ConservedElement, space=space, boundary={'rho': boundary})],
+    )
 
 
 def _noise_matrix(problem):
@@ -98,14 +100,14 @@ def test_compiler_rejects_conserved_amplitude_of_state():
             """Return the laws of the multiplicative element."""
             return [NoiseLaw(s.rho, s.rho, conserved=True)]
 
-    system = System(elements=[FieldElement('f', element=MultiplicativeElement, space=LatticeSpace((4,)))])
+    system = CompositeSystem(elements=[FieldElement('f', element=MultiplicativeElement, space=LatticeSpace((4,)))])
     with pytest.raises(ValidationError, match='reads the states'):
         PassCompiler().prepare(system).run()
 
 
 def test_validate_reports_conserved_noise_off_lattice():
     """Test that conserved noise on an element that is not a field reports `noise-unsupported` naming lattices."""
-    (issue,) = PassCompiler().prepare(System(elements=[ConservedElement('c')])).report_.issues
+    (issue,) = PassCompiler().prepare(CompositeSystem(elements=[ConservedElement('c')])).report_.issues
     assert issue.code == 'noise-unsupported'
     assert 'c.rho' in issue.message
     assert 'LatticeSpace' in issue.fix
@@ -114,7 +116,7 @@ def test_validate_reports_conserved_noise_off_lattice():
 def test_validate_reports_conserved_noise_on_network():
     """Test that conserved noise on a field of a network reports `noise-unsupported`."""
     space = NetworkSpace(nx.cycle_graph(5))
-    system = System(elements=[FieldElement('f', element=ConservedElement, space=space)])
+    system = CompositeSystem(elements=[FieldElement('f', element=ConservedElement, space=space)])
     report = PassCompiler().prepare(system).report_
     issues = report.issues
     assert [issue.code for issue in issues] == ['noise-unsupported']

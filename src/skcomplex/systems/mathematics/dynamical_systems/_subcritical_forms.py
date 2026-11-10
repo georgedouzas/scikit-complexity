@@ -6,107 +6,17 @@ The form has bistability and hysteresis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
-class SubcriticalHopfElement(Element):
-    """Subcritical Hopf normal form.
-
-    The form is `z' = (alpha + i omega) z + (1 + i q) |z|^2 z - (gamma + i s) |z|^4 z`.
-
-    The complex amplitude is `z = x + i y`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial real part of `z`.
-
-        y:
-            The initial imaginary part of `z`.
-
-        alpha:
-            The bifurcation parameter, the linear growth rate.
-
-        omega:
-            The angular frequency at small amplitude.
-
-        q:
-            The nonlinear frequency shift of the cubic term.
-
-        gamma:
-            The stabilizing quintic coefficient, positive.
-
-        s:
-            The nonlinear frequency shift of the quintic term.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import SubcriticalHopfElement
-        >>> SubcriticalHopfElement('form', alpha=0.1).alpha
-        0.1
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec()] = -0.1,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-        q: Annotated[object, ParameterSpec()] = 0.0,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        s: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.alpha = alpha
-        self.omega = omega
-        self.q = q
-        self.gamma = gamma
-        self.s = s
-
-    def _get_rates(self, s: SimpleNamespace) -> tuple[Expression, Expression]:
-        """Return the rates of the real and the imaginary part of the amplitude."""
-        radius = s.x**2 + s.y**2
-        real = s.alpha + radius - s.gamma * radius**2
-        imaginary = s.omega + s.q * radius - s.s * radius**2
-        return real * s.x - imaginary * s.y, imaginary * s.x + real * s.y
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the real and the imaginary part of the amplitude.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        real, imaginary = self._get_rates(s)
-        return [RateLaw(s.x, real), RateLaw(s.y, imaginary)]
-
-
-class SubcriticalHopfFormSystem(BaseSystem):
+class SubcriticalHopfFormSystem(DynamicalSystem):
     """The subcritical Hopf normal form.
 
     A stable focus coexists with a stable limit cycle.
@@ -145,7 +55,7 @@ class SubcriticalHopfFormSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SubcriticalHopfFormSystem
-        >>> SubcriticalHopfFormSystem(alpha=0.1).prepare().system_.elements[0].alpha
+        >>> SubcriticalHopfFormSystem(alpha=0.1).prepare().system_.elements[0].get_value('alpha')
         0.1
     """
 
@@ -167,7 +77,7 @@ class SubcriticalHopfFormSystem(BaseSystem):
         s: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.alpha = alpha
@@ -176,23 +86,30 @@ class SubcriticalHopfFormSystem(BaseSystem):
         self.gamma = gamma
         self.s = s
 
-    def _build_system(self) -> System:
-        """Return the subcritical Hopf normal form.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'form'
 
-        A stable focus coexists with a stable limit cycle.
-        """
-        return System(
-            self.label,
-            elements=[
-                SubcriticalHopfElement(
-                    'form',
-                    x=self.x,
-                    y=self.y,
-                    alpha=self.alpha,
-                    omega=self.omega,
-                    q=self.q,
-                    gamma=self.gamma,
-                    s=self.s,
-                ),
-            ],
-        )
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'x': DeclaredVariableSpec(self.x, StateSpec()),
+            'y': DeclaredVariableSpec(self.y, StateSpec()),
+            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec()),
+            'omega': DeclaredVariableSpec(self.omega, ParameterSpec()),
+            'q': DeclaredVariableSpec(self.q, ParameterSpec()),
+            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.open(0, oo))),
+            's': DeclaredVariableSpec(self.s, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the rates of the real and the imaginary part of the amplitude."""
+        return {'x': lambda s: self._get_rates(s.target)[0], 'y': lambda s: self._get_rates(s.target)[1]}
+
+    @staticmethod
+    def _get_rates(form: SimpleNamespace) -> tuple[Expression, Expression]:
+        """Return the rates of the real and the imaginary part of the amplitude."""
+        radius = form.x**2 + form.y**2
+        real = form.alpha + radius - form.gamma * radius**2
+        imaginary = form.omega + form.q * radius - form.s * radius**2
+        return real * form.x - imaginary * form.y, imaginary * form.x + real * form.y

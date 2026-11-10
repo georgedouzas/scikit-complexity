@@ -19,7 +19,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -157,12 +157,12 @@ class BinaryCollisionsInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.agents(self.target, FlockerView)
+        agents = system.get_agents(self.target, FlockerView)
         size = np.asarray(system.dimensions, dtype=float)
         positions = np.array([agent.location for agent in agents], dtype=float)
         headings = np.array([agent.theta for agent in agents], dtype=float)
-        speed, lam, sigma, d0 = (system.parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
-        substeps = max(1, round(system.parameter('substeps')))
+        speed, lam, sigma, d0 = (system.get_parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
+        substeps = max(1, round(system.get_parameter('substeps')))
         tau, rng = 1.0 / substeps, system.rng
         touching = KDTree(positions, boxsize=size).query_pairs(d0)
         for _ in range(substeps):
@@ -191,17 +191,17 @@ class BinaryCollisionsInteraction(Interaction):
             headings[first], headings[second] = mean + rng.normal(0.0, sigma, 2)
 
 
-def _cosine(agent: FlockerView) -> float:
+def _get_cosine(agent: FlockerView) -> float:
     """Return the first component of an agent's heading."""
     return math.cos(agent.theta)
 
 
-def _sine(agent: FlockerView) -> float:
+def _get_sine(agent: FlockerView) -> float:
     """Return the second component of an agent's heading."""
     return math.sin(agent.theta)
 
 
-def _polarization(s: SimpleNamespace) -> Expression:
+def _get_polarization(s: SimpleNamespace) -> Expression:
     """Return the length of the mean heading, the polarization."""
     return (s.mean_cos**2 + s.mean_sin**2) ** 0.5
 
@@ -258,9 +258,9 @@ class BinaryCollisionFlockingSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('mean_cos', _cosine, group='birds'),
-        ObservableSpec('mean_sin', _sine, group='birds'),
-        ObservableSpec('polarization', _polarization),
+        ObservableSpec('mean_cos', _get_cosine, group='birds'),
+        ObservableSpec('mean_sin', _get_sine, group='birds'),
+        ObservableSpec('polarization', _get_polarization),
     )
 
     def __init__(
@@ -286,7 +286,7 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         self.substeps = substeps
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         birds = GroupElement(
@@ -305,7 +305,7 @@ class BinaryCollisionFlockingSystem(BaseSystem):
             d0=self.d0,
             substeps=float(self.substeps),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[birds],
             interactions=[collisions],

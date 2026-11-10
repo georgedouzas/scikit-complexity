@@ -15,172 +15,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-
-class CarbonCycleElement(Element):
-    """Ocean of Rothman's excitable carbon cycle.
-
-    The ocean holds its carbonate ion concentration and dissolved inorganic carbon.
-
-    The carbonate ion concentration `c` and the dissolved inorganic carbon `w`, in μmol kg⁻¹, follow
-    `dc/dt = f(c) (mu (1 - b s(c, c_p) - theta (1 - s(c, c_x)) - nu) + w - w0)` and
-    `dw/dt = mu (1 - b s(c, c_p) + theta (1 - s(c, c_x)) + nu) - w + w0`, with the Hill functions
-    `s(c, c*) = c^gamma / (c^gamma + c*^gamma)` of burial and respiration and the buffer
-    `f(c) = f0 c^beta / (c^beta + c_f^beta)`.
-
-    Args:
-        label:
-            The label of the ocean.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        c:
-            The initial carbonate ion concentration.
-
-        w:
-            The initial dissolved inorganic carbon.
-
-        mu:
-            The characteristic rate of the carbon fluxes.
-
-        b:
-            The maximal burial of organic carbon.
-
-        theta:
-            The maximal respiration of organic carbon.
-
-        c_x:
-            The crossover carbonate concentration of respiration, which sets the excitability.
-
-        c_p:
-            The crossover carbonate concentration of burial.
-
-        nu:
-            The rate of external carbon injection.
-
-        w0:
-            The input of dissolved inorganic carbon by weathering and volcanism.
-
-        gamma:
-            The Hill coefficient of burial and respiration.
-
-        f0:
-            The maximal buffer of the carbonate ion concentration.
-
-        c_f:
-            The carbonate concentration where the buffer is half its maximum.
-
-        beta:
-            The Hill coefficient of the buffer.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import CarbonCycleElement
-        >>> CarbonCycleElement('ocean').c_x
-        55.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        c: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 83.58,
-        w: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 2050.0,
-        mu: Annotated[float, ParameterSpec()] = 250.0,
-        b: Annotated[float, ParameterSpec()] = 4.0,
-        theta: Annotated[float, ParameterSpec()] = 5.0,
-        c_x: Annotated[float, ParameterSpec()] = 55.0,
-        c_p: Annotated[float, ParameterSpec()] = 110.0,
-        nu: Annotated[float, ParameterSpec()] = 0.0,
-        w0: Annotated[float, ParameterSpec()] = 2000.0,
-        gamma: Annotated[float, ParameterSpec()] = 4.0,
-        f0: Annotated[float, ParameterSpec()] = 0.694,
-        c_f: Annotated[float, ParameterSpec()] = 43.9,
-        beta: Annotated[float, ParameterSpec()] = 1.7,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.c = c
-        self.w = w
-        self.mu = mu
-        self.b = b
-        self.theta = theta
-        self.c_x = c_x
-        self.c_p = c_p
-        self.nu = nu
-        self.w0 = w0
-        self.gamma = gamma
-        self.f0 = f0
-        self.c_f = c_f
-        self.beta = beta
-
-    def _get_burial(self, s: SimpleNamespace) -> Expression:
-        """Return the burial of organic carbon.
-
-        The burial is a Hill function of the carbonate ion concentration.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            burial:
-                The burial, relative to the characteristic rate.
-        """
-        return s.b * hill(s.c, s.c_p, s.gamma)
-
-    def _get_respiration(self, s: SimpleNamespace) -> Expression:
-        """Return the respiration of organic carbon.
-
-        The respiration is a decreasing Hill function of the carbonate ion concentration.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            respiration:
-                The respiration, relative to the characteristic rate.
-        """
-        return s.theta * (1 - hill(s.c, s.c_x, s.gamma))
-
-    def _get_buffer(self, s: SimpleNamespace) -> Expression:
-        """Return the buffer factor of the carbonate ion concentration.
-
-        The factor is a Hill function of the concentration.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            buffer:
-                The buffer factor.
-        """
-        return s.f0 * hill(s.c, s.c_f, s.beta)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return Rothman's balance of carbonate ion and dissolved inorganic carbon.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the carbonate ion concentration and the dissolved inorganic carbon.
-        """
-        burial = self._get_burial(s)
-        respiration = self._get_respiration(s)
-        buffer = self._get_buffer(s)
-        return [
-            RateLaw(s.c, buffer * (s.mu * (1 - burial - respiration - s.nu) + s.w - s.w0)),
-            RateLaw(s.w, s.mu * (1 - burial + respiration + s.nu) - s.w + s.w0),
-        ]
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import DynamicalSystem
+from ...general.dynamics.types import Equations
 
 
 class SaltzmanMaaschElement(Element):
@@ -301,100 +139,6 @@ class SaltzmanMaaschElement(Element):
         ]
 
 
-class VanDerPolIceAgesElement(Element):
-    """Climate of glacial cycles as a Van der Pol relaxation oscillator.
-
-    The oscillator has a slow ice volume and a fast climate state.
-
-    With time in thousands of years, `tau x' = -(y + beta + gamma F(t))` and `tau y' = -alpha (y^3/3 - y - x)`, where
-    `F(t) = cos(2 pi t/23) + cos(2 pi t/41)` stands for precession and obliquity.
-
-    Args:
-        label:
-            The label of the climate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial ice volume.
-
-        y:
-            The initial climate state.
-
-        alpha:
-            The time-scale separation of the fast climate state.
-
-        beta:
-            The asymmetry of the cycle, between build-up and termination.
-
-        gamma:
-            The strength of the orbital forcing.
-
-        tau:
-            The time scale, in thousands of years.
-
-    Examples:
-        >>> from skcomplex.systems.physics.climate import VanDerPolIceAgesElement
-        >>> VanDerPolIceAgesElement('climate').alpha
-        30.0
-    """
-
-    law_classes = (RateLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 30.0,
-        beta: Annotated[float, ParameterSpec()] = 0.75,
-        gamma: Annotated[float, ParameterSpec()] = 0.0,
-        tau: Annotated[float, ParameterSpec()] = 35.09,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-        self.tau = tau
-
-    def _get_orbital_forcing(self, s: SimpleNamespace) -> Expression:
-        """Return the orbital forcing, the sum of the cycles of precession and obliquity.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            forcing:
-                The orbital forcing.
-        """
-        return cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the slow ice volume and the fast climate of the relaxation oscillator.
-
-        The oscillator is under orbital forcing.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the ice volume and the climate state.
-        """
-        forcing = self._get_orbital_forcing(s)
-        return [
-            RateLaw(s.x, -(s.y + s.beta + s.gamma * forcing) / s.tau),
-            RateLaw(s.y, -s.alpha * (s.y**3 / 3 - s.y - s.x) / s.tau),
-        ]
-
-
 class SaltzmanGlaciationSystem(BaseSystem):
     """The glacial cycles of Saltzman and Maasch.
 
@@ -474,12 +218,12 @@ class SaltzmanGlaciationSystem(BaseSystem):
         self.u = u
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the glacial cycles of Saltzman and Maasch.
 
         The cycles are a self-sustained oscillation of ice, carbon, and ocean.
         """
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 SaltzmanMaaschElement(
@@ -498,7 +242,7 @@ class SaltzmanGlaciationSystem(BaseSystem):
         )
 
 
-class CarbonCycleSystem(BaseSystem):
+class CarbonCycleSystem(DynamicalSystem):
     """Rothman's excitable carbon cycle.
 
     A large enough perturbation of the ocean sets off an excursion.
@@ -528,7 +272,7 @@ class CarbonCycleSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import CarbonCycleSystem
-        >>> CarbonCycleSystem(nu=0.1).prepare().system_.elements[0].nu
+        >>> CarbonCycleSystem(nu=0.1).prepare().system_.elements[0].get_value('nu')
         0.1
     """
 
@@ -547,18 +291,99 @@ class CarbonCycleSystem(BaseSystem):
         nu: float = 0.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.c = c
         self.w = w
         self.c_x = c_x
         self.nu = nu
 
-    def _build_system(self) -> System:
-        """Return the parts of the system, built from its model parameters."""
-        return System(self.label, elements=[CarbonCycleElement('ocean', c=self.c, w=self.w, c_x=self.c_x, nu=self.nu)])
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'ocean'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the states and the parameters with their specs."""
+        return {
+            'c': DeclaredVariableSpec(self.c, StateSpec(domain=RealSet.open(0, oo))),
+            'w': DeclaredVariableSpec(self.w, StateSpec(domain=RealSet.open(0, oo))),
+            'mu': DeclaredVariableSpec(250.0, ParameterSpec()),
+            'b': DeclaredVariableSpec(4.0, ParameterSpec()),
+            'theta': DeclaredVariableSpec(5.0, ParameterSpec()),
+            'c_x': DeclaredVariableSpec(self.c_x, ParameterSpec()),
+            'c_p': DeclaredVariableSpec(110.0, ParameterSpec()),
+            'nu': DeclaredVariableSpec(self.nu, ParameterSpec()),
+            'w0': DeclaredVariableSpec(2000.0, ParameterSpec()),
+            'gamma': DeclaredVariableSpec(4.0, ParameterSpec()),
+            'f0': DeclaredVariableSpec(0.694, ParameterSpec()),
+            'c_f': DeclaredVariableSpec(43.9, ParameterSpec()),
+            'beta': DeclaredVariableSpec(1.7, ParameterSpec()),
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return Rothman's balance of carbonate ion and dissolved inorganic carbon."""
+        return {
+            'c': lambda s: (
+                self._get_buffer(s)
+                * (
+                    s.target.mu * (1 - self._get_burial(s) - self._get_respiration(s) - s.target.nu)
+                    + s.target.w
+                    - s.target.w0
+                )
+            ),
+            'w': lambda s: (
+                s.target.mu * (1 - self._get_burial(s) + self._get_respiration(s) + s.target.nu)
+                - s.target.w
+                + s.target.w0
+            ),
+        }
+
+    def _get_burial(self, s: SimpleNamespace) -> Expression:
+        """Return the burial of organic carbon.
+
+        The burial is a Hill function of the carbonate ion concentration.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            burial:
+                The burial, relative to the characteristic rate.
+        """
+        return s.target.b * hill(s.target.c, s.target.c_p, s.target.gamma)
+
+    def _get_respiration(self, s: SimpleNamespace) -> Expression:
+        """Return the respiration of organic carbon.
+
+        The respiration is a decreasing Hill function of the carbonate ion concentration.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            respiration:
+                The respiration, relative to the characteristic rate.
+        """
+        return s.target.theta * (1 - hill(s.target.c, s.target.c_x, s.target.gamma))
+
+    def _get_buffer(self, s: SimpleNamespace) -> Expression:
+        """Return the buffer factor of the carbonate ion concentration.
+
+        The factor is a Hill function of the concentration.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            buffer:
+                The buffer factor.
+        """
+        return s.target.f0 * hill(s.target.c, s.target.c_f, s.target.beta)
 
 
-class VanDerPolIceAgesSystem(BaseSystem):
+class VanDerPolIceAgesSystem(DynamicalSystem):
     """Glacial cycles as a Van der Pol relaxation oscillator.
 
     The oscillator is optionally paced by orbital forcing.
@@ -593,7 +418,7 @@ class VanDerPolIceAgesSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.climate import VanDerPolIceAgesSystem
-        >>> VanDerPolIceAgesSystem(gamma=0.4).prepare().system_.elements[0].gamma
+        >>> VanDerPolIceAgesSystem(gamma=0.4).prepare().system_.elements[0].get_value('gamma')
         0.4
     """
 
@@ -614,7 +439,7 @@ class VanDerPolIceAgesSystem(BaseSystem):
         tau: float = 35.09,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.x = x
         self.y = y
         self.alpha = alpha
@@ -622,22 +447,46 @@ class VanDerPolIceAgesSystem(BaseSystem):
         self.gamma = gamma
         self.tau = tau
 
-    def _build_system(self) -> System:
-        """Return glacial cycles as a Van der Pol relaxation oscillator.
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the states."""
+        return 'climate'
 
-        The oscillator is optionally paced by orbital forcing.
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state."""
+        return {
+            'x': self.x,
+            'y': self.y,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the parameters of the equations."""
+        return {
+            'alpha': self.alpha,
+            'beta': self.beta,
+            'gamma': self.gamma,
+            'tau': self.tau,
+        }
+
+    def _get_equations(self) -> Equations:
+        """Return the slow ice volume and the fast climate of the relaxation oscillator."""
+        return {
+            'x': lambda s: -(s.target.y + s.target.beta + s.target.gamma * self._get_forcing(s)) / s.target.tau,
+            'y': lambda s: -s.target.alpha * (s.target.y**3 / 3 - s.target.y - s.target.x) / s.target.tau,
+        }
+
+    def _get_forcing(self, s: SimpleNamespace) -> Expression:
+        """Return `forcing` from the namespace of an equation."""
+        return self._get_orbital_forcing(s)
+
+    def _get_orbital_forcing(self, s: SimpleNamespace) -> Expression:
+        """Return the orbital forcing, the sum of the cycles of precession and obliquity.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            forcing:
+                The orbital forcing.
         """
-        return System(
-            self.label,
-            elements=[
-                VanDerPolIceAgesElement(
-                    'climate',
-                    x=self.x,
-                    y=self.y,
-                    alpha=self.alpha,
-                    beta=self.beta,
-                    gamma=self.gamma,
-                    tau=self.tau,
-                ),
-            ],
-        )
+        return cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)

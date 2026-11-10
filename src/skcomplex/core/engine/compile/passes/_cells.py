@@ -1,7 +1,4 @@
-"""Read the degree of the groups on a cell complex and its sparse matrices.
-
-The matrices are those of its exterior calculus.
-"""
+"""Read the degree of the groups on a cell complex and its sparse matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,10 +18,10 @@ STAR_PARAMETER = 'weight'
 
 
 class CellTables:
-    """Degrees of the groups on a cell complex, and their exterior calculus matrices."""
+    """A table of the degrees of the groups on a cell complex and their matrices."""
 
     @staticmethod
-    def _star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
+    def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
         """Return the diagonal of the Hodge star of a degree.
 
         On a network complex, it holds the weights of the group.
@@ -45,12 +42,12 @@ class CellTables:
         return space.stars_[degree]
 
     @staticmethod
-    def _diagonal(values: Array) -> scipy.sparse.csr_array:
+    def _get_diagonal(values: Array) -> scipy.sparse.csr_array:
         """Return the sparse diagonal of some values."""
         return scipy.sparse.diags_array(values, format='csr')
 
     @staticmethod
-    def exterior_derivative_of(space: CellComplexSpace, degree: int) -> scipy.sparse.csr_array:
+    def get_exterior_derivative_of(space: CellComplexSpace, degree: int) -> scipy.sparse.csr_array:
         """Return the matrix of the exterior derivative of a degree.
 
         Args:
@@ -76,7 +73,7 @@ class CellTables:
         return space.incidences_[degree]
 
     @staticmethod
-    def codifferential_of(
+    def get_codifferential_of(
         space: CellComplexSpace,
         degree: int,
         declarations: DeclarationsSpec,
@@ -104,13 +101,17 @@ class CellTables:
         if degree == 0:
             error_msg = 'The codifferential of a site state has no degree below the sites to map to.'
             raise SpaceError(error_msg)
-        inverse = CellTables._diagonal(1.0 / CellTables._star(space, degree - 1, declarations))
-        star = CellTables._diagonal(CellTables._star(space, degree, declarations))
+        inverse = CellTables._get_diagonal(1.0 / CellTables._get_star(space, degree - 1, declarations))
+        star = CellTables._get_diagonal(CellTables._get_star(space, degree, declarations))
         matrix = (-1.0) ** degree * inverse @ space.incidences_[degree - 1].T @ star
         return scipy.sparse.csr_array(matrix)
 
     @staticmethod
-    def hodge_star_of(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> scipy.sparse.csr_array:
+    def get_hodge_star_of(
+        space: CellComplexSpace,
+        degree: int,
+        declarations: DeclarationsSpec,
+    ) -> scipy.sparse.csr_array:
         """Return the diagonal matrix of the Hodge star of a degree.
 
         Args:
@@ -127,10 +128,10 @@ class CellTables:
             matrix:
                 One row and one column per cell of the degree.
         """
-        return CellTables._diagonal(CellTables._star(space, degree, declarations))
+        return CellTables._get_diagonal(CellTables._get_star(space, degree, declarations))
 
     @staticmethod
-    def group_at(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> str:
+    def get_group_at(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> str:
         """Return the path of a group on the cells of a degree.
 
         It is an empty path without one.

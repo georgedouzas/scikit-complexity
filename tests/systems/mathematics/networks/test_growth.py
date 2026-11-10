@@ -26,7 +26,7 @@ def test_barabasi_albert_grows_a_scale_free_network():
     degrees = np.array([degree for _, degree in graph.degree])
     fit = fit_law(degrees, minimum=8, discrete=True, bootstrap=0)
     assert abs(fit.exponent - 3) < 0.4
-    assert np.nanmax(trajectory.values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
+    assert np.nanmax(trajectory.get_values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
 
 
 def test_holme_kim_keeps_clustering_that_barabasi_albert_loses():
@@ -63,7 +63,7 @@ def _similarity_trajectory(n_nodes: int, seed: int, **settings: float) -> Trajec
 
 def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered():
     """Test that 2000 nodes of exponent 2.5 fit a mean over seeds within 0.07 of 2.69, and are clustered."""
-    graphs = [_similarity_trajectory(2000, seed, exponent=2.5).network(-1).graph() for seed in range(4)]
+    graphs = [_similarity_trajectory(2000, seed, exponent=2.5).get_network(-1).get_graph() for seed in range(4)]
     fitted = [float(network_measures(graph, kind='degrees').exponent[0]) for graph in graphs]
     assert np.mean(fitted) == pytest.approx(2.69, abs=0.07)
     assert min(nx.average_clustering(graph) for graph in graphs) > 0.3
@@ -89,8 +89,8 @@ def test_popularity_similarity_network_renormalizes_geometrically_with_its_expon
 def test_popularity_similarity_network_new_nodes_join_at_close_angles():
     """Test that a low temperature joins a new node mostly to the angles near it, which a uniform draw would not."""
     trajectory = _similarity_trajectory(400, 0, temperature=0.1)
-    network = trajectory.network(-1)
-    angles = np.asarray(trajectory.values('nodes.angle')[-1])
+    network = trajectory.get_network(-1)
+    angles = np.asarray(trajectory.get_values('nodes.angle')[-1])
     gaps = np.abs(angles[network.sources] - angles[network.targets])
     gaps = np.minimum(gaps, 2 * np.pi - gaps)
     assert np.median(gaps) < np.pi / 4
@@ -98,8 +98,8 @@ def test_popularity_similarity_network_new_nodes_join_at_close_angles():
 
 def test_popularity_similarity_network_clustering_falls_with_the_temperature():
     """Test that a higher temperature lowers the clustering."""
-    low = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.1).network(-1).graph())
-    high = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.9).network(-1).graph())
+    low = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.1).get_network(-1).get_graph())
+    high = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.9).get_network(-1).get_graph())
     assert low > high + 0.1
 
 
@@ -121,7 +121,7 @@ def test_bianconi_barabasi_fitness_lets_fit_nodes_win_edges():
     """Test that with fitness the degree of the older nodes rises with their fitness, and every step adds two edges."""
     graph, trajectory = _final_graph(BarabasiAlbertSystem(1003, fitness=True), 1000)
     assert graph.number_of_edges() == 3 + 2 * 1000
-    fitness, age, degree = (trajectory.values(f'nodes.{state}')[-1] for state in ('fitness', 'age', 'degree'))
+    fitness, age, degree = (trajectory.get_values(f'nodes.{state}')[-1] for state in ('fitness', 'age', 'degree'))
     old = age > 500
     assert np.corrcoef(np.argsort(np.argsort(fitness[old])), np.argsort(np.argsort(degree[old])))[0, 1] > 0.4
     assert fitness.min() >= 0

@@ -8,7 +8,7 @@ fluctuating at its warm level and then falling abruptly to the cold state.
 """
 
 # %%
-# The system is built from its class for noise-induced tipping: the controls of Table 1 of Fang et al.
+# The example builds `SuteraFraedrichTippingSystem` for noise-induced tipping: the controls of Table 1 of Fang et al.
 # held fixed and noise of variance 1 K^2 per year. The run lasts 300 years with steps of 0.05 years, and the observer
 # saves every second year. The blueprint shows the temperature over the whole run.
 
@@ -45,7 +45,7 @@ simulation = simulate(system, solver=solver, observers=[observer], random_state=
 bifurcation = simulate(SuteraFraedrichTippingSystem(tipping='bifurcation'), until=720, dt=1.0, solver=solver)
 fold = 4 * 0.2 / (9.7137e9 * 1.04e-5**2)
 fig, (ramped, rates) = plt.subplots(1, 2, figsize=(10, 4))
-ramped.plot(bifurcation.values('earth.mu'), bifurcation.values('earth.T'))
+ramped.plot(bifurcation.get_values('earth.mu'), bifurcation.get_values('earth.T'))
 ramped.axvline(fold, color='black', linestyle=':', label=f'fold at mu = {fold:.3f}')
 ramped.set_xlim(1.0, 0.7)
 ramped.set_ylim(150, 300)
@@ -55,7 +55,7 @@ ramped.set_title('B-tipping past the fold')
 ramped.legend()
 for rho in (0.16, 0.2):
     trajectory = simulate(SuteraFraedrichTippingSystem(tipping='rate', rho=rho), until=150, solver=solver)
-    rates.plot(trajectory.times, trajectory.values('earth.T'), label=f'rho = {rho}')
+    rates.plot(trajectory.times, trajectory.get_values('earth.T'), label=f'rho = {rho}')
 rates.set_ylim(240, 310)
 rates.set_xlabel('time (years)')
 rates.set_ylabel('temperature (K)')

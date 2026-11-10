@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
@@ -99,7 +99,7 @@ class NamingGamesInteraction(RandomPairsInteraction):
         The new word is the first slot of the lexicon that no agent knows.
         """
         known = np.zeros_like(words)
-        for agent in system.agents('target'):
+        for agent in system.get_agents('target'):
             if isinstance(agent, NamerView):
                 known += np.asarray(agent.words, dtype=np.float64)
         words[int(np.flatnonzero(known == 0)[0])] = 1.0
@@ -163,7 +163,7 @@ class NamingGameSystem(BaseSystem):
         super().__init__(label)
         self.n_agents = n_agents
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         namers = GroupElement(
             'namers',
@@ -171,4 +171,8 @@ class NamingGameSystem(BaseSystem):
             size=self.n_agents,
             values={'words': np.zeros((self.n_agents, self.n_agents))},
         )
-        return System(self.label, elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])
+        return CompositeSystem(
+            self.label,
+            elements=[namers],
+            interactions=[NamingGamesInteraction('games', target='namers')],
+        )

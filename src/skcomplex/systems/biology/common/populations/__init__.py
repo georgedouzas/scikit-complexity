@@ -1,6 +1,6 @@
 """Population realizations shared by the biology packages.
 
-They cover growth, mortality, predation, and replicators.
+They cover populations, structured population densities, growth, mortality, predation, and replicators.
 """
 
 from ._exponential_growth import ExponentialGrowthInteraction
@@ -8,6 +8,7 @@ from ._growth import GrowthInteraction
 from ._logistic_growth import LogisticGrowthInteraction
 from ._mortality import MortalityInteraction
 from ._population import PopulationElement
+from ._population_density import PopulationDensityElement
 from ._predation import PredationInteraction
 from ._replicator import ReplicatorInteraction
 
@@ -16,6 +17,7 @@ __all__: list[str] = [
     'GrowthInteraction',
     'LogisticGrowthInteraction',
     'MortalityInteraction',
+    'PopulationDensityElement',
     'PopulationElement',
     'PredationInteraction',
     'ReplicatorInteraction',

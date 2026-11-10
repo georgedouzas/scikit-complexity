@@ -1,7 +1,4 @@
-"""Pass that makes the requests of update laws vanish on free rows.
-
-The free rows are those of capacity layouts.
-"""
+"""Pass that makes the requests of update laws vanish on free rows."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +9,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, UpdateLaw
 from ..._utils import vector
-from ...problems._declarations_spec import _ACTIVE, DeclarationsSpec
+from ...problems._declarations_spec import ACTIVE, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
@@ -21,7 +18,7 @@ from .._compilation import Compilation
 
 
 class MaskRequestsPass(BasePass):
-    """Pass that makes the requests of update laws vanish on free rows.
+    """A pass that makes the requests of update laws vanish on free rows.
 
     The free rows are those of capacity layouts.
     """
@@ -37,14 +34,14 @@ class MaskRequestsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mask the requests of the update laws set apart."""
         compilation = self.compilation_
-        declarations = Compilation._required(compilation.layout, 'layout')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
         compilation.drawn_apart = [
-            (spec, self._masked_requests(spec, laws, declarations))
-            for spec, laws in Compilation._required(compilation.drawn_apart, 'drawn_apart')
+            (spec, self._get_masked_requests(spec, laws, declarations))
+            for spec, laws in Compilation._get_required(compilation.drawn_apart, 'drawn_apart')
         ]
 
     @staticmethod
-    def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _get_masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
         """Return update laws that request topology changes, masked on free rows.
 
         Their probabilities vanish on free rows.
@@ -54,7 +51,7 @@ class MaskRequestsPass(BasePass):
             return laws
         return [
             (
-                UpdateLaw(law._get_targets()[0], MaskRequestsPass._masked_value(law.value, mask))
+                UpdateLaw(law._get_targets()[0], MaskRequestsPass._get_masked_value(law.value, mask))
                 if isinstance(law, UpdateLaw)
                 else law
             )
@@ -62,7 +59,7 @@ class MaskRequestsPass(BasePass):
         ]
 
     @staticmethod
-    def _activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
+    def _get_activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
         """Return the symbol of the activity of the rows of a capacity group.
 
         The spec reads it per member, and it is `None` otherwise.
@@ -78,7 +75,7 @@ class MaskRequestsPass(BasePass):
             activity:
                 The symbol, or `None`.
         """
-        name = f'{group}.{_ACTIVE}'
+        name = f'{group}.{ACTIVE}'
         return next(
             (
                 item
@@ -107,13 +104,13 @@ class MaskRequestsPass(BasePass):
         """
         if isinstance(spec.pairs, EdgeSearch) and spec.pairs.source is not None:
             name = spec.pairs.source.name.rpartition('.')[0]
-            return MaskRequestsPass._activity_symbol(spec, name)
+            return MaskRequestsPass._get_activity_symbol(spec, name)
         if spec.group in declarations.capacity:
-            return MaskRequestsPass._activity_symbol(spec, spec.group)
+            return MaskRequestsPass._get_activity_symbol(spec, spec.group)
         return None
 
     @staticmethod
-    def _masked_value(value: object, mask: Expression) -> object:
+    def _get_masked_value(value: object, mask: Expression) -> object:
         """Return a law value that vanishes on the free rows of a capacity layout.
 
         Args:

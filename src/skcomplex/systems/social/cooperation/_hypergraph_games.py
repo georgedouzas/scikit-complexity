@@ -18,13 +18,18 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import CouplingInteraction, ImitationInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import count, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
+
+PAIR = 2
+CLIQUE = 5
+PHASES = ('play', 'imitate')
 
 
 class DilemmaElement(Element):
@@ -113,9 +118,6 @@ class HyperedgeGoodsInteraction(CouplingInteraction):
         """
         pot = hyperedge.member.synergy * total(hyperedge.members.strategy, over=hyperedge.members)
         return pot / count(over=hyperedge.members) - hyperedge.member.strategy
-
-
-PAIR = 2
 
 
 class SimplicialDilemmaInteraction(CouplingInteraction):
@@ -226,12 +228,6 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
         return games / (PAIR * player.member.triangles)
 
 
-CLIQUE = 5
-
-
-PHASES = ('play', 'imitate')
-
-
 class HypergraphPublicGoodsSystem(BaseSystem):
     """The public goods game on a hypergraph, played in every hyperedge.
 
@@ -303,7 +299,12 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _hypergraph(n_nodes: int, sizes: Sequence[int], hyperdegree: float, rng: np.random.Generator) -> xgi.Hypergraph:
+    def _get_hypergraph(
+        n_nodes: int,
+        sizes: Sequence[int],
+        hyperdegree: float,
+        rng: np.random.Generator,
+    ) -> xgi.Hypergraph:
         """Return a hypergraph of hyperedges of random members.
 
         On average a node has `hyperdegree` hyperedges of every size around it.
@@ -315,18 +316,19 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             hypergraph.add_edges_from(rng.choice(n_nodes, size, replace=False).tolist() for _ in range(number))
         return hypergraph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
-        hypergraph = self._hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
+        hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=ContributorElement,
             space=NetworkSpace(graph, hyperedges=hypergraph),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
             visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
@@ -337,7 +339,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             intensity=1 / self.noise,
             phase='imitate',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[HyperedgeGoodsInteraction('play', target='players', phase='play'), imitation],
@@ -441,7 +443,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
+    def _get_triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
         """Return a network grown from a complete graph on five nodes.
 
         Each new node joins both ends of a link.
@@ -456,21 +458,22 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             triangles.append((min(first, second), max(first, second), node))
         return graph, triangles
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
-        graph, triangles = self._triangle_attachment(self.n_nodes, rng)
+        graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices
         hyperedges: list[tuple[int, ...]] = []
         for triangle, simplex in zip(triangles, filled, strict=True):
             hyperedges.extend([triangle] if simplex else itertools.combinations(triangle, PAIR))
         held = np.bincount(np.asarray(triangles).ravel(), minlength=self.n_nodes).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=DilemmaElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
             visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         play = SimplicialDilemmaInteraction(
             'play',
@@ -493,4 +496,4 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             phase='imitate',
         )
         time = DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES)))
-        return System(self.label, elements=[players], interactions=[play, imitation], time=time)
+        return CompositeSystem(self.label, elements=[players], interactions=[play, imitation], time=time)

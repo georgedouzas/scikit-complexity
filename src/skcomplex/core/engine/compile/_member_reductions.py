@@ -1,7 +1,4 @@
-"""Reductions in the member expression of an observable.
-
-They are compiled with the reduction lowering of laws.
-"""
+"""Reductions in the member expression of an observable."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...base import BaseConfig
-from ...components.laws.utils import reductions_in
+from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
 from ...specs import EntrySpec, ReadSpec, ReductionSpec
 from .._utils import symbol, symbols_of
@@ -94,9 +91,9 @@ class _MemberReductions(BaseConfig[None, object]):
             inputs:
                 The expression, or any other value, which is kept unchanged.
         """
-        self.expression_ = self._lowered(inputs)
+        self.expression_ = self._get_lowered(inputs)
 
-    def _lowered(self, expression: object) -> object:
+    def _get_lowered(self, expression: object) -> object:
         """Return an expression with every reduction replaced by its value placeholder.
 
         Args:
@@ -109,7 +106,7 @@ class _MemberReductions(BaseConfig[None, object]):
         """
         if not isinstance(expression, Expression):
             return expression
-        placeholders = {item.call: self._placeholder(item) for item in reductions_in(expression)}
+        placeholders = {item.call: self._get_placeholder(item) for item in reductions_in(expression)}
         lowered = expression
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
@@ -143,7 +140,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return self.reads_[item]
 
-    def _weights(self, reduction: ReductionSpec) -> scipy.sparse.csr_array | None:
+    def _get_weights(self, reduction: ReductionSpec) -> scipy.sparse.csr_array | None:
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
@@ -164,7 +161,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(source, dtype=float)
 
-    def _placeholder(self, reduction: ReductionSpec) -> Expression:
+    def _get_placeholder(self, reduction: ReductionSpec) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""
         key = str(reduction.call)
         if key in self.found_:
@@ -176,10 +173,10 @@ class _MemberReductions(BaseConfig[None, object]):
             )
             raise ValidationError(error_msg)
         self._check_over(reduction)
-        argument = SR(self._lowered(reduction.argument))
-        condition = None if reduction.condition is None else SR(self._lowered(reduction.condition))
+        argument = SR(self._get_lowered(reduction.argument))
+        condition = None if reduction.condition is None else SR(self._get_lowered(reduction.condition))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.time}
-        weights = self._weights(reduction)
+        weights = self._get_weights(reduction)
         index = len(self.found_)
         shape = (self.size,) if weights is not None else ()
         members = self.size if weights is not None else None

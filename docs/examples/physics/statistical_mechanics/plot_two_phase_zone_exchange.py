@@ -8,7 +8,7 @@ ten zones rising from zero and then jumping up and down around the mean.
 """
 
 # %%
-# The system is built from its class with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
+# The example builds `TwoPhaseZoneExchangeSystem` with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
 # exchange rate `k = 1`. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # time series of the numbers in the zones.
 
@@ -35,7 +35,7 @@ trajectory = simulate(system, dt=0.1, observers=[observer], random_state=0)
 # distribution.
 
 run = simulate(TwoPhaseZoneExchangeSystem(n_zones=2000), dt=1.0, random_state=1)
-numbers = run.values('zones.N')[10:].ravel()
+numbers = run.get_values('zones.N')[10:].ravel()
 counts = np.arange(numbers.max() + 2)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(numbers, bins=counts - 0.5, density=True, alpha=0.5, label=f'simulation, variance {numbers.var():.2f}')

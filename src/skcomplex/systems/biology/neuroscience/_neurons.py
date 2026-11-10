@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.excitable import SpikeResetInteraction
 
@@ -225,7 +225,7 @@ class IntegrateAndFireSystem(BaseSystem):
         self.tau = tau
         self.I = I
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the leaky integrate-and-fire neuron."""
         neuron = LeakyIntegrateAndFireElement(
             'neuron',
@@ -236,7 +236,7 @@ class IntegrateAndFireSystem(BaseSystem):
             I=self.I,
         )
         spike = SpikeResetInteraction('spike', target='neuron', threshold=self.threshold, after=self.reset)
-        return System(self.label, elements=[neuron], interactions=[spike])
+        return CompositeSystem(self.label, elements=[neuron], interactions=[spike])
 
 
 class IzhikevichSystem(BaseSystem):
@@ -306,7 +306,7 @@ class IzhikevichSystem(BaseSystem):
         self.d = d
         self.I = I
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Izhikevich neuron."""
         neuron = IzhikevichElement(
             'neuron',
@@ -317,4 +317,4 @@ class IzhikevichSystem(BaseSystem):
             I=self.I,
         )
         spike = SpikeResetInteraction('spike', target='neuron', threshold=PEAK, after=self.c, kicked='u', kick=self.d)
-        return System(self.label, elements=[neuron], interactions=[spike])
+        return CompositeSystem(self.label, elements=[neuron], interactions=[spike])

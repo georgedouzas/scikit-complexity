@@ -1,10 +1,10 @@
 """
 # Food security
 
-Rice self-sufficiency of a country whose population grows by two percent a year while its rice land is developed and
-then lost to housing and industry. Input subsidies alone cannot hold self-sufficiency, which falls to about a fifth in
-fifty years. Research, extension, bio-fertiliser, and a second crop each year raise the productivity enough to keep
-the country near self-sufficiency for decades.
+A country aims to grow all the rice it eats, self-sufficiency, while its population grows by two percent a year and its
+rice land is developed and then lost to housing and industry. Input subsidies alone cannot hold self-sufficiency, which
+falls to about a fifth in fifty years. Research, extension, bio-fertiliser, and a second crop each year raise the
+productivity enough to keep the country near self-sufficiency for decades.
 """
 
 # %%
@@ -60,9 +60,9 @@ policies = {
 }
 for name, changes in policies.items():
     scenario = trajectory if not changes else simulate(FoodSecuritySystem(**changes))
-    ax.plot(np.asarray(scenario.times), scenario.values('rice.self_sufficiency'), label=name)
+    ax.plot(np.asarray(scenario.times), scenario.get_values('rice.self_sufficiency'), label=name)
 times = np.asarray(trajectory.times)
-start = trajectory.values('rice.self_sufficiency')[0]
+start = trajectory.get_values('rice.self_sufficiency')[0]
 ax.plot(times, start * np.exp(-0.03 * times), 'k:', label='exp(-0.03 t)')
 ax.axhline(1.0, color='grey', lw=0.8)
 ax.set_xlabel('years')

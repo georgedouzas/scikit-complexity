@@ -18,10 +18,14 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+NAND = (2, 0b0111)
+FALSE = (0, 0)
+TRUE = (0, 1)
 
 
 class TechnologyView(AgentView):
@@ -167,9 +171,9 @@ class InventionInteraction(Interaction):
         The circuit wires technologies of the pool.
         """
         rng = system.rng
-        n_inputs = int(rng.integers(1, int(system.parameter('max_inputs')) + 1))
-        n_parts = int(rng.integers(2, int(system.parameter('max_components')) + 1))
-        signals, cost = InventionInteraction._input_signals(n_inputs), 0
+        n_inputs = int(rng.integers(1, int(system.get_parameter('max_inputs')) + 1))
+        n_parts = int(rng.integers(2, int(system.get_parameter('max_components')) + 1))
+        signals, cost = InventionInteraction._get_input_signals(n_inputs), 0
         for _ in range(n_parts):
             part = pool[int(rng.integers(len(pool)))]
             pins = [signals[int(rng.integers(len(signals)))] for _ in range(int(part.arity))]
@@ -199,7 +203,7 @@ class InventionInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.agents('technologies', TechnologyView)
+        pool = system.get_agents('technologies', TechnologyView)
         arity, table, cost = self._wire(pool, system)
         if (arity, table) not in GOALS:
             return
@@ -210,7 +214,7 @@ class InventionInteraction(Interaction):
             known[0].cost = cost
 
     @staticmethod
-    def _input_signals(n_inputs: int) -> list[int]:
+    def _get_input_signals(n_inputs: int) -> list[int]:
         """Return the truth tables of the primary inputs of a circuit."""
         rows = range(2**n_inputs)
         return [sum(1 << row for row in rows if row >> pin & 1) for pin in range(n_inputs)]
@@ -288,9 +292,9 @@ class RedesignInteraction(Interaction):
             system:
                 The system.
         """
-        components = sorted(system.agents('components', PartView), key=lambda component: component.id)
+        components = sorted(system.get_agents('components', PartView), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
-        proposal, changed = RedesignInteraction._components(
+        proposal, changed = RedesignInteraction._get_components(
             cost,
             np.asarray(self.dependencies, dtype=float),
             system.rng,
@@ -301,7 +305,11 @@ class RedesignInteraction(Interaction):
             components[index].cost = float(proposal[index])
 
     @staticmethod
-    def _components(cost: Array, dependencies: Array, rng: np.random.Generator) -> tuple[Array, npt.NDArray[np.intp]]:
+    def _get_components(
+        cost: Array,
+        dependencies: Array,
+        rng: np.random.Generator,
+    ) -> tuple[Array, npt.NDArray[np.intp]]:
         """Return the proposed costs of a redesign of a random component.
 
         They include the components that depend on it.
@@ -310,15 +318,6 @@ class RedesignInteraction(Interaction):
         proposal = cost.copy()
         proposal[changed] = rng.random(len(changed))
         return proposal, changed
-
-
-NAND = (2, 0b0111)
-
-
-FALSE = (0, 0)
-
-
-TRUE = (0, 1)
 
 
 class TechnologyElement(Element):
@@ -433,7 +432,7 @@ class NkTechnologySystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
+    def _get_design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
         """Return a design structure matrix.
 
         A change of a component changes it and `d - 1` other ones.
@@ -444,17 +443,17 @@ class NkTechnologySystem(BaseSystem):
             matrix[others, column] = 1.0
         return matrix
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        dependencies = self._design_structure(self.n_components, self.d, rng)
+        dependencies = self._get_design_structure(self.n_components, self.d, rng)
         components = GroupElement(
             'components',
             element=PartElement,
             size=self.n_components,
             values={'cost': rng.random(self.n_components)},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[components],
             interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
@@ -502,7 +501,7 @@ class ArthurPolakSystem(BaseSystem):
         self.max_components = max_components
         self.max_inputs = max_inputs
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         primitives = (NAND, FALSE, TRUE)
         technologies = GroupElement(
@@ -522,4 +521,4 @@ class ArthurPolakSystem(BaseSystem):
             max_components=float(self.max_components),
             max_inputs=float(self.max_inputs),
         )
-        return System(self.label, elements=[technologies], interactions=[invention])
+        return CompositeSystem(self.label, elements=[technologies], interactions=[invention])

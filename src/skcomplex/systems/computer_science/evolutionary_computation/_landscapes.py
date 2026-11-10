@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import EvolutionInteraction
 
 
 class BitStringView(AgentView):
@@ -145,7 +145,7 @@ class ReproductionInteraction(EvolutionInteraction):
             fitness:
                 The fitness of every genome.
         """
-        return ReproductionInteraction._fitness_of(
+        return ReproductionInteraction._get_fitness_of(
             np.ravel(strategies),
             np.asarray(self.zero_values),
             np.asarray(self.one_values),
@@ -178,14 +178,14 @@ class ReproductionInteraction(EvolutionInteraction):
         return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
     @staticmethod
-    def _bits_of(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:
+    def _get_bits(genomes: Array, n_bits: int) -> npt.NDArray[np.int64]:
         """Return the bits of integer genomes, one row per genome."""
         return (genomes.astype(np.int64)[:, None] >> np.arange(n_bits)) & 1
 
     @staticmethod
-    def _fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
+    def _get_fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
         """Return the mean over the loci of the value of each genome's allele."""
-        bits = ReproductionInteraction._bits_of(genomes, zero_values.size)
+        bits = ReproductionInteraction._get_bits(genomes, zero_values.size)
         return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 
@@ -243,7 +243,7 @@ class BitStringEvolutionSystem(BaseSystem):
         self.mutation = mutation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a population of bit strings on a random additive fitness landscape.
 
         The population evolves on the landscape.
@@ -251,7 +251,7 @@ class BitStringEvolutionSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         zero_values, one_values = rng.random(self.n_bits), rng.random(self.n_bits)
         genomes = rng.integers(0, 2**self.n_bits, size=self.n_agents).astype(float)
-        fitness = ReproductionInteraction._fitness_of(genomes, zero_values, one_values)
+        fitness = ReproductionInteraction._get_fitness_of(genomes, zero_values, one_values)
         reproduction = ReproductionInteraction(
             'reproduction',
             target='genomes',
@@ -260,7 +260,7 @@ class BitStringEvolutionSystem(BaseSystem):
             zero_values=tuple(zero_values.tolist()),
             one_values=tuple(one_values.tolist()),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

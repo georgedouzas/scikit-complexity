@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class WienerProcessSpec(BaseSpec):
-    """Spec of a set of Wiener processes of correlated increments.
+    """A spec of a set of Wiener processes with correlated increments.
 
     Their increments over a step `h` have the covariance `h C`. An interaction binds the processes through a role
     declared with `RoleSpec(noise=True)`, and its noise laws name them through the handle `namespace.<role>.dW`, a

@@ -9,7 +9,7 @@ or explode.
 
 # %%
 # With the propensity to consume `c = 0.8`, the accelerator `v = 0.9`, and government spending `G = 20`, income starts
-# just above its equilibrium of 100 and swings around it in damped cycles, which the blueprint shows.
+# slightly above its equilibrium of 100 and swings around it in damped cycles, which the blueprint shows.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +38,7 @@ cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
     trajectory = simulate(MultiplierAcceleratorSystem(income=110.0, previous=100.0, c=c, v=v, G=G), until=25)
-    deviation = trajectory.values('economy.Y') - G / (1 - c)
+    deviation = trajectory.get_values('economy.Y') - G / (1 - c)
     root = np.roots([1, -c * (1 + v), c * v])[0]
     label = f'{name}, period {2 * np.pi / abs(np.angle(root)):.1f}' if np.iscomplex(root) else name
     paths.plot(trajectory.times, deviation, 'o-', ms=3, color=f'C{index}', label=label)

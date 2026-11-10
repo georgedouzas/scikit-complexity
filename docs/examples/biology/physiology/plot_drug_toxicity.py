@@ -6,7 +6,7 @@ doses stop the metabolism lowers it.
 """
 
 # %%
-# The system is built from its class: a one-day infusion every week, a drug eliminated at the rate 0.5 a day, and a
+# The example builds `DrugToxicitySystem`: a one-day infusion every week, a drug eliminated at the rate 0.5 a day, and a
 # toxicity cleared at the rate 0.05 a day. The observer saves every second frame with the default blueprint, whose
 # primary view is the time series of the concentration and the toxicity.
 
@@ -31,12 +31,17 @@ trajectory = simulate(DrugToxicitySystem(), observers=[observer])
 times = trajectory.times
 cumulative = simulate(DrugToxicitySystem(eta=0.0))
 exposure = np.concatenate(
-    ([0.0], np.cumsum(np.diff(times) * (cumulative.values('patient.c')[1:] + cumulative.values('patient.c')[:-1]) / 2)),
+    (
+        [0.0],
+        np.cumsum(
+            np.diff(times) * (cumulative.get_values('patient.c')[1:] + cumulative.get_values('patient.c')[:-1]) / 2,
+        ),
+    ),
 )
-toxicity = trajectory.values('patient.T')
+toxicity = trajectory.get_values('patient.T')
 late = times >= 50.0
 fig, (accumulation, decay) = plt.subplots(1, 2, figsize=(10, 4))
-accumulation.plot(times, cumulative.values('patient.T'), label='toxicity, eta = 0')
+accumulation.plot(times, cumulative.get_values('patient.T'), label='toxicity, eta = 0')
 accumulation.plot(times, exposure, '--', color='black', label='integral of c')
 accumulation.plot(times, toxicity, label='toxicity, eta = 0.05')
 accumulation.set_xlabel('time (days)')

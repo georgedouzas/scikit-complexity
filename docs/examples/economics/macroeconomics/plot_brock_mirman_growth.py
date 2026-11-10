@@ -31,14 +31,14 @@ long_run = simulate(BrockMirmanGrowthSystem(), until=5000)
 # `(ln(alpha beta) + E ln z) / (1 - alpha)` over a long run, between the steady states of the two productivities.
 
 fig, (rule, stationary) = plt.subplots(1, 2, figsize=(10, 4))
-rule.plot(trajectory.values('economy.output'), trajectory.values('economy.consumption'), 'o', ms=3)
-outputs = np.linspace(0, trajectory.values('economy.output').max(), 2)
+rule.plot(trajectory.get_values('economy.output'), trajectory.get_values('economy.consumption'), 'o', ms=3)
+outputs = np.linspace(0, trajectory.get_values('economy.output').max(), 2)
 rule.plot(outputs, (1 - ALPHA * BETA) * outputs, 'k--', lw=0.8, label='C = (1 - alpha beta) Y')
 rule.set_xlabel('output Y')
 rule.set_ylabel('consumption C')
 rule.set_title('The optimal consumption rule')
 rule.legend()
-logs = np.log(long_run.values('economy.K')[100:])
+logs = np.log(long_run.get_values('economy.K')[100:])
 stationary.hist(logs, bins=40, density=True)
 for z in (0.9, 1.1):
     stationary.axvline(np.log(ALPHA * BETA * z) / (1 - ALPHA), color='black', linestyle=':', lw=0.8)

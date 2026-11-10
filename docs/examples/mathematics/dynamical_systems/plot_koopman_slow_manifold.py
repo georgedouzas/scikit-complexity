@@ -7,7 +7,7 @@ parabola that bend sharply onto it and run together toward the origin.
 """
 
 # %%
-# The system is built from its class with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
+# The example builds `KoopmanSlowManifoldSystem` with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
 # runs from other starting points share the phase plane. After the runs, every orbit is logged once as a line in the
 # phase plane together with the parabola `x2 = b x1^2`, `b = lam / (lam - 2 mu)`, in dark blue, and the blueprint puts
 # this view first, as the primary view. The vertical axis of the plane points up.
@@ -49,7 +49,9 @@ starts = [(-1.0, -1.0), (1.5, 0.0), (-1.5, 0.0), (0.5, 1.5), (-0.5, 1.5), (1.2, 
 orbits = [trajectory] + [simulate(KoopmanSlowManifoldSystem(x1=x1, x2=x2)) for x1, x2 in starts]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)
-strips = [np.column_stack([SCALE * orbit.values('flow.x1'), -SCALE * orbit.values('flow.x2')]) for orbit in orbits]
+strips = [
+    np.column_stack([SCALE * orbit.get_values('flow.x1'), -SCALE * orbit.get_values('flow.x2')]) for orbit in orbits
+]
 observer.recording_.log('phase_plane/orbits', rr.LineStrips2D(strips, radii=1.0, colors=[255, 170, 40]), static=True)
 observer.recording_.log(
     'phase_plane/manifold',
@@ -68,17 +70,17 @@ observer.recording_.flush()
 times = trajectory.times
 fig, (plane, eigen) = plt.subplots(1, 2, figsize=(10, 4))
 for orbit in orbits:
-    plane.plot(orbit.values('flow.x1'), orbit.values('flow.x2'), color='tab:orange', linewidth=1)
+    plane.plot(orbit.get_values('flow.x1'), orbit.get_values('flow.x2'), color='tab:orange', linewidth=1)
 plane.plot(parabola, b * parabola**2, color='tab:blue', label=f'slow manifold x2 = {b:.3f} x1^2')
 plane.set_xlabel('x1')
 plane.set_ylabel('x2')
 plane.set_title('Fast collapse onto the slow manifold')
 plane.legend()
 for orbit in orbits[:3]:
-    eigen.semilogy(times, np.abs(orbit.values('flow.x1')), color='tab:orange', linewidth=1)
+    eigen.semilogy(times, np.abs(orbit.get_values('flow.x1')), color='tab:orange', linewidth=1)
     eigen.semilogy(
         times,
-        np.abs(orbit.values('flow.x2') - b * orbit.values('flow.x1') ** 2),
+        np.abs(orbit.get_values('flow.x2') - b * orbit.get_values('flow.x1') ** 2),
         color='tab:green',
         linewidth=1,
     )

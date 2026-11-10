@@ -6,10 +6,10 @@ tumour of more than 20 million cells.
 """
 
 # %%
-# The system is built from its class with the non-small cell lung cancer clones of Piretto et al.: a sensitive clone
-# of 90,000 cells and a resistant clone of 40,000 cells. The drug kills the sensitive clone ten times faster than the
-# resistant one, and this run gives no vaccine. The observer saves every second frame with the default blueprint,
-# whose primary view is the time series of the clones and the immune cells.
+# The example builds `ClonalChemoimmunotherapySystem` with the non-small cell lung cancer clones of Piretto et al.: a
+# sensitive clone of 90,000 cells and a resistant clone of 40,000 cells. The drug kills the sensitive clone ten times
+# faster than the resistant one, and this run gives no vaccine. The observer saves every second frame with the default
+# blueprint, whose primary view is the time series of the clones and the immune cells.
 
 import matplotlib.pyplot as plt
 
@@ -35,8 +35,8 @@ for axes, trajectory, title in (
     (chemo, alone, 'Chemotherapy alone selects the resistant clone'),
     (both, combined, 'The vaccine clears both clones'),
 ):
-    axes.semilogy(trajectory.times, trajectory.values('tumour.A1').clip(1e-2), label='sensitive clone')
-    axes.semilogy(trajectory.times, trajectory.values('tumour.A2').clip(1e-2), label='resistant clone')
+    axes.semilogy(trajectory.times, trajectory.get_values('tumour.A1').clip(1e-2), label='sensitive clone')
+    axes.semilogy(trajectory.times, trajectory.get_values('tumour.A2').clip(1e-2), label='resistant clone')
     axes.set_xlabel('time (days)')
     axes.set_title(title)
     axes.legend()

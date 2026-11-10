@@ -60,7 +60,7 @@ rates = []
 for k in couplings:
     system_system = HeterogeneousGlobalCouplingSystem(n_systems=50, k=k)
     run = simulate(system_system, until=100, dt=0.5)
-    times, amplitude = np.asarray(run.times), np.asarray(run.values('amplitude'))
+    times, amplitude = np.asarray(run.times), np.asarray(run.get_values('amplitude'))
     late = (times >= 10.0) & (amplitude > 1e-8)
     rates.append(np.polyfit(times[late], np.log(amplitude[late]), 1)[0])
 fig, ax = plt.subplots(figsize=(7, 4))

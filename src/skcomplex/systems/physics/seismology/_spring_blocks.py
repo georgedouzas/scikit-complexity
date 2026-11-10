@@ -12,7 +12,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import both, laplacian, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -185,7 +185,7 @@ class BurridgeKnopoffSystem(BaseSystem):
         self.v_c = v_c
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the Burridge-Knopoff fault.
 
         A chain of blocks pulled by a moving plate sticks and slips.
@@ -205,4 +205,4 @@ class BurridgeKnopoffSystem(BaseSystem):
                 'v_c': self.v_c,
             },
         )
-        return System(self.label, elements=[fault])
+        return CompositeSystem(self.label, elements=[fault])

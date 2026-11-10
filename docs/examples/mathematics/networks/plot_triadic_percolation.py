@@ -36,7 +36,7 @@ def giant_fraction(mean_degree):
 def giant(p):
     """Return the fraction of nodes in the giant component after every time step of Millán et al."""
     run = simulate(TriadicPercolationSystem(p=p), until=40, random_state=0)
-    return run.values('nodes.active').mean(axis=1)
+    return run.get_values('nodes.active').mean(axis=1)
 
 
 # %%

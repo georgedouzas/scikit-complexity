@@ -33,13 +33,13 @@ def step(values):
     return simulate(RealQuadraticAutomatonSystem(size=values.size, initial=values), until=1)
 
 
-zero = step(np.zeros(8)).values('cells.value')[-1]
-one = step(np.ones(8)).values('cells.value')[-1]
-start = trajectory.values('cells.value')[0]
+zero = step(np.zeros(8)).get_values('cells.value')[-1]
+one = step(np.ones(8)).get_values('cells.value')[-1]
+start = trajectory.get_values('cells.value')[0]
 changed = start.copy()
 changed[20] += 0.1
-moved = np.flatnonzero(step(changed).values('cells.value')[-1] != step(start).values('cells.value')[-1])
-values = trajectory.values('cells.value')
+moved = np.flatnonzero(step(changed).get_values('cells.value')[-1] != step(start).get_values('cells.value')[-1])
+values = trajectory.get_values('cells.value')
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trajectory.times, values.mean(axis=1), 'o-', label='mean of the cells')
 ax.plot(trajectory.times, np.median(values, axis=1), 's-', label='median of the cells')

@@ -64,16 +64,16 @@ class ReflectionInteraction(CrossingInteraction):
             The positions and the velocities have different numbers of names, or a function is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import PointElement
+        >>> from skcomplex.systems.general.elements import PointElement
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.mechanics import ReflectionInteraction
         >>> from skcomplex.core.engine.runtime import simulate
         >>> wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x[0] - 1, direction=1)
         >>> ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 1.0])
-        >>> system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
+        >>> system = CompositeSystem(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
         >>> trajectory = simulate(system, until=2.0, dt=0.5)
-        >>> trajectory.values('ball.x')[-1].tolist()
+        >>> trajectory.get_values('ball.x')[-1].tolist()
         [0.0, 2.0]
     """
 

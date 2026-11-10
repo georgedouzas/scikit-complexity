@@ -14,7 +14,7 @@ MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
 
 @dataclass(frozen=True)
 class SamplerSpec(BaseSpec):
-    """Spec of the acceptance of Monte Carlo moves at an intensity.
+    """A spec of the acceptance of Monte Carlo moves at an intensity.
 
     It makes one sweep of the lattice per unit of time.
 

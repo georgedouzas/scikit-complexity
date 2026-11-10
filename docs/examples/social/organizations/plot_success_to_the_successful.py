@@ -50,15 +50,15 @@ summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing
 
 times = np.asarray(trajectory.times)
 fig, (stocks, splits) = plt.subplots(1, 2, figsize=(10, 4))
-stocks.plot(times, trajectory.values('contest.a'), label='first competitor')
-stocks.plot(times, trajectory.values('contest.b'), label='second competitor')
+stocks.plot(times, trajectory.get_values('contest.a'), label='first competitor')
+stocks.plot(times, trajectory.get_values('contest.b'), label='second competitor')
 stocks.set_xlabel('years')
 stocks.set_ylabel('resources')
 stocks.set_title('The resources of the competitors')
 stocks.legend()
 for a in (30.0, 45.0, 49.0, 51.0, 55.0, 70.0):
     scenario = simulate(SuccessToTheSuccessfulSystem(a=a, b=100.0 - a), dt=1.0)
-    splits.plot(times, scenario.values('contest.success'), label=f'a starts at {a:.0f}')
+    splits.plot(times, scenario.get_values('contest.success'), label=f'a starts at {a:.0f}')
 splits.set_xlabel('years')
 splits.set_ylabel('share of the first competitor')
 splits.set_title('The share of the first competitor')

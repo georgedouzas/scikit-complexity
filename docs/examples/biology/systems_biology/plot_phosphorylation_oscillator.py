@@ -6,10 +6,10 @@ loop keeps oscillating with a period of about 4.2.
 """
 
 # %%
-# The system is built from its class and run for 40 time units from A unphosphorylated and B and C phosphorylated. The
-# Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a sharp switch. The
-# observer saves every fourth frame with the default blueprint, whose primary view is the time series of the three
-# amounts.
+# The example builds `PhosphorylationOscillatorSystem` and runs it for 40 time units from A unphosphorylated and B and C
+# phosphorylated. The Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a sharp
+# switch. The observer saves every fourth frame with the default blueprint, whose primary view is the time series of the
+# three amounts.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,14 +33,14 @@ trajectory = simulate(PhosphorylationOscillatorSystem(), observers=[observer])
 times = trajectory.times
 fig, (series, orbit) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A', 'B', 'C'):
-    series.plot(times, trajectory.values(f'loop.{name}'), label=name)
+    series.plot(times, trajectory.get_values(f'loop.{name}'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('unphosphorylated fraction')
 series.set_title('The proteins switch in turn')
 series.legend()
 late = times >= 10.0
-orbit.plot(trajectory.values('loop.A')[late], trajectory.values('loop.B')[late])
-crossings = times[1:][(trajectory.values('loop.A')[1:] > 0.5) & (trajectory.values('loop.A')[:-1] <= 0.5)]
+orbit.plot(trajectory.get_values('loop.A')[late], trajectory.get_values('loop.B')[late])
+crossings = times[1:][(trajectory.get_values('loop.A')[1:] > 0.5) & (trajectory.get_values('loop.A')[:-1] <= 0.5)]
 orbit.set_xlabel('A')
 orbit.set_ylabel('B')
 orbit.set_title(f'Limit cycle, period {np.mean(np.diff(crossings)):.2f}')

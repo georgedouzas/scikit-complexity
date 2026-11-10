@@ -12,12 +12,11 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
-
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
 
 
@@ -103,7 +102,7 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
             target=target,
             read=state,
             write=state,
-            function=self._product,
+            function=self._get_product,
             mode='group',
             weights='a',
             include_self=True,
@@ -111,7 +110,7 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
         self.a = a
         self.state = state
 
-    def _product(self, namespace: SimpleNamespace) -> object:
+    def _get_product(self, namespace: SimpleNamespace) -> object:
         """Return the product `x_i x_j` of the abundances of two species.
 
         The species are the member `i` and the other species `j`.
@@ -174,11 +173,11 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         self.a = a
 
     @staticmethod
-    def _growth(namespace: SimpleNamespace) -> object:
+    def _get_growth(namespace: SimpleNamespace) -> object:
         """Return the intrinsic growth `b x` of a species."""
         return namespace.target.b * namespace.target.x
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the generalized Lotka-Volterra microbial community."""
         size = len(self.b)
         abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
@@ -194,11 +193,11 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
             values={'x': abundances, 'b': [float(value) for value in self.b]},
         )
         matrix = tuple(tuple(float(value) for value in row) for row in self.a)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[species],
             interactions=[
-                RateInteraction('growth', target='species', rate=self._growth),
+                RateInteraction('growth', target='species', rate=self._get_growth),
                 GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
             ],
         )

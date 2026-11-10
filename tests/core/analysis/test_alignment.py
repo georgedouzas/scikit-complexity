@@ -133,10 +133,10 @@ def test_alignment_on_three_domains():
     for analysis, trajectory in runs:
         assert analysis.order.shape == (len(trajectory.times),)
         assert np.all((analysis.order >= 0) & (analysis.order <= 1 + 1e-12))
-    assert runs[0][0].order == pytest.approx(flock.values('polarization'), abs=1e-9)
-    angles = spins.lattice('spins.theta')
+    assert runs[0][0].order == pytest.approx(flock.get_values('polarization'), abs=1e-9)
+    angles = spins.get_lattice('spins.theta')
     assert runs[1][0].order == pytest.approx(np.abs(np.exp(1j * angles).mean(axis=(1, 2))), abs=1e-12)
-    phases = oscillators.values('oscillators.theta')
+    phases = oscillators.get_values('oscillators.theta')
     assert runs[2][0].order == pytest.approx(np.abs(np.exp(1j * phases).mean(axis=1)), abs=1e-12)
 
 
@@ -151,7 +151,7 @@ def test_alignment_of_a_field_of_vectors():
 def test_alignment_of_velocities_along_a_line():
     """Test that agents moving along a line align by the sign of their velocities, per frame and per member."""
     trajectory = simulate(RandomWalkWithMemorySystem(n_walkers=200), until=5.0, random_state=0)
-    signs = np.sign(trajectory.values('walkers.v'))
+    signs = np.sign(trajectory.get_values('walkers.v'))
     expected = np.abs(np.where(signs == 0, 0.0, signs).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
     assert _alignment('mean-phase', simulate(OptimalVelocitySystem(), until=1.0, random_state=0)).order[-1] == 1.0
@@ -164,7 +164,7 @@ def test_alignment_of_velocities_along_a_line():
 def test_alignment_reads_phases(system, state):
     """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
     trajectory = simulate(system(), until=1.0, random_state=0)
-    expected = np.abs(np.exp(1j * trajectory.values(state)).mean(axis=1))
+    expected = np.abs(np.exp(1j * trajectory.get_values(state)).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
 
 

@@ -8,7 +8,7 @@ position and velocity, and the chart shows the density over position.
 """
 
 # %%
-# The system is built from its class with its default Knudsen number of 0.01, 100 positions, and 32
+# The example builds `BGKEquationSystem` with its default Knudsen number of 0.01, 100 positions, and 32
 # velocities. The registered stepper splits the streaming, advanced by a strong-stability-preserving Runge-Kutta method,
 # from the relaxation, and the observer saves every frame of 0.005 up to `t = 0.2`, with the default blueprint.
 
@@ -70,7 +70,7 @@ for knudsen, step in ((1.0, 2e-3), (1e-2, 2e-3), (1e-4, 2e-4)):
     fine = BGKEquationSystem(positions=positions, velocities=velocities, knudsen=knudsen)
     stepper = StrangSplittingSolver(SSPRKSolver(dt=0.001), RK4Solver(dt=step), dt=0.001)
     trajectory = simulate(fine, solver=stepper, dt=0.2)
-    density = trajectory.values('gas.f')[-1].reshape(positions, velocities).sum(axis=1) * 12.0 / velocities
+    density = trajectory.get_values('gas.x')[-1].reshape(positions, velocities).sum(axis=1) * 12.0 / velocities
     axis.plot(centres, density, label=f'Knudsen {knudsen:g}')
 axis.plot(centres, euler_density(centres - 0.5, 0.2, gamma=3.0), 'k--', label='exact Euler solution')
 axis.set_xlabel('position')

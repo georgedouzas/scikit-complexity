@@ -4,25 +4,42 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import DensityElement, FieldElement
-from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
-from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
+from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.interactions import ConservationInteraction
+from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_helmholtz, moment
 from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import AxisSpec
+from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 def poisson_drift(namespace: SimpleNamespace) -> list[object]:
     """Return the drift of a Vlasov-Poisson field."""
-    density = moment(namespace.target.f, 0, axes=('v',))
-    return [coordinate('v'), -gradient(inverse_laplacian(1 - density), 1)[0]]
+    density = moment(namespace.target.x, 0, axes=('v',))
+    return [coordinate('v'), -gradient(inverse_helmholtz(1 - density), 1)[0]]
 
 
 def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
@@ -31,12 +48,18 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     spacing = length / size
     space = PhaseSpace(LatticeSpace((size,), spacing=spacing), [AxisSpec('v', 8, 0.5, 1.5)]).prepare()
     start = np.outer(2.0 + np.sin(np.arange(size) * spacing), np.ones(8))
-    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
-    stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
+    gas = FieldElement(
+        'gas',
+        element=AmountElement,
+        space=space,
+        values={'x': start},
+        discretization='finite-volume',
+    )
+    stream = ConservationInteraction('s', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
     solver = SemiLagrangianSolver(dt=5 * spacing)
-    system = System(elements=[gas], interactions=[stream])
+    system = CompositeSystem(elements=[gas], interactions=[stream])
     trajectory = simulate(system, until=4.0, dt=5 * spacing, solver=solver)
-    final = trajectory.values('gas.f')[-1].reshape(size, 8)
+    final = trajectory.get_values('gas.x')[-1].reshape(size, 8)
     assert np.abs(final).max() < 1.01 * start.max()
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
     exact = np.stack(
@@ -49,21 +72,40 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
 def test_nonlinear_flux_raises_a_named_error() -> None:
     """Raise a named error saying that the flux of Burgers' equation is not a linear drift."""
     space = LatticeSpace((16,), spacing=0.1)
-    values = {'f': 1.0 + np.sin(2 * np.pi * np.arange(16) / 16)}
-    wave = FieldElement('wave', element=DensityElement, space=space, values=values, discretization='finite-volume')
-    burgers = ConservationInteraction('b', target='wave', state='f', flux=lambda s: s.target.f**2 / 2)
+    values = {'x': 1.0 + np.sin(2 * np.pi * np.arange(16) / 16)}
+    wave = FieldElement('wave', element=AmountElement, space=space, values=values, discretization='finite-volume')
+    burgers = ConservationInteraction('b', target='wave', state='x', flux=lambda s: s.target.x**2 / 2)
     with pytest.raises(SolverError, match='not a linear drift'):
-        simulate(System(elements=[wave], interactions=[burgers]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
+        simulate(
+            CompositeSystem(elements=[wave], interactions=[burgers]),
+            until=0.1,
+            solver=SemiLagrangianSolver(dt=0.1),
+        )
 
 
 def test_partial_cells_raise_a_named_error() -> None:
     """Raise a named error saying that a field on a simplex has partial cells that whole slices cannot shift."""
     space = SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
-    values = {'f': 2.0 * (space.prepare().volumes_ > 0)}
-    groups = FieldElement('groups', element=DensityElement, space=space, values=values, discretization='finite-volume')
-    flow = AdvectionInteraction('flow', target='groups', state='f', drift=lambda _: [0, 1.0, -1.0])
+    values = {'x': 2.0 * (space.prepare().volumes_ > 0)}
+    groups = FieldElement(
+        'groups',
+        element=AmountElement,
+        space=space,
+        values=values,
+        discretization='finite-volume',
+    )
+    flow = ConservationInteraction(
+        'flow',
+        target='groups',
+        state='x',
+        flux=lambda s: [0, 1.0 * s.target.x, -1.0 * s.target.x],
+    )
     with pytest.raises(SolverError, match='partial cells'):
-        simulate(System(elements=[groups], interactions=[flow]), until=0.1, solver=SemiLagrangianSolver(dt=0.1))
+        simulate(
+            CompositeSystem(elements=[groups], interactions=[flow]),
+            until=0.1,
+            solver=SemiLagrangianSolver(dt=0.1),
+        )
 
 
 def test_landau_damping_with_large_steps() -> None:
@@ -74,12 +116,23 @@ def test_landau_damping_with_large_steps() -> None:
     v = space.coordinates_['v']
     x = np.arange(positions) * length / positions
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
-    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
-    drift = AdvectionInteraction('vlasov', target='gas', state='f', drift=poisson_drift)
-    system = System(elements=[gas], interactions=[drift])
+    gas = FieldElement(
+        'gas',
+        element=AmountElement,
+        space=space,
+        values={'x': start},
+        discretization='finite-volume',
+    )
+    drift = ConservationInteraction(
+        'vlasov',
+        target='gas',
+        state='x',
+        flux=lambda s: [component * s.target.x for component in poisson_drift(s)],
+    )
+    system = CompositeSystem(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
     trajectory = simulate(system, until=30.0, dt=0.25, solver=solver)
-    values = np.asarray(trajectory.values('gas.f')).reshape(-1, positions, velocities)
+    values = np.asarray(trajectory.get_values('gas.x')).reshape(-1, positions, velocities)
     density = values.sum(axis=2) * space.spacings_[1]
     field = np.fft.ifft(np.fft.fft(density - density.mean(axis=1, keepdims=True), axis=1), axis=1).real
     amplitude = np.abs(np.fft.rfft(field, axis=1)[:, 1])

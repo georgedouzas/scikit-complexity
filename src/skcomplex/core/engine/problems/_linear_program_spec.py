@@ -1,7 +1,4 @@
-"""Define the spec of a linear program lowered from laws.
-
-The laws share the variables of the program.
-"""
+"""Define the spec of a linear program lowered from laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ from ._reference_spec import ReferenceSpec
 
 @dataclass(frozen=True)
 class LinearProgramSideSpec(BaseSpec):
-    """Bound of a column or a row that a compiled value gives at every solve.
+    """A spec of a bound of a column or a row that a compiled value gives.
 
     Args:
         kind:
@@ -44,7 +41,7 @@ class LinearProgramSideSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class LinearProgramEntrySpec(BaseSpec):
-    """Coefficient of the matrix or of an objective.
+    """A spec of a coefficient of the matrix or of an objective of a linear program.
 
     A compiled value gives it at every solve.
 
@@ -66,7 +63,7 @@ class LinearProgramEntrySpec(BaseSpec):
 
 @dataclass(frozen=True)
 class LinearProgramDualSpec(BaseSpec):
-    """Place where the dual of one constraint of a law is recorded.
+    """A spec of where the dual of one constraint of a law is recorded.
 
     Args:
         indices:
@@ -98,7 +95,7 @@ class LinearProgramDualSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class LinearProgramSpec(BaseSpec):
-    """Linear program lowered from the laws that share its variables.
+    """A spec of a linear program lowered from the laws that share its variables.
 
     Args:
         path:

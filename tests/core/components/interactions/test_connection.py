@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import ConnectionInteraction
 from skcomplex.core.components.laws import EquationLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -73,7 +73,7 @@ def _run(system):
 
 def test_connection_balances_the_currents_of_three_resistors():
     """Test Kirchhoff's current law at a node where three resistors meet."""
-    system = System(
+    system = CompositeSystem(
         elements=[
             SourceResistorElement('r1', R=1.0, e=3.0),
             SourceResistorElement('r2', R=2.0, e=0.0),
@@ -82,25 +82,25 @@ def test_connection_balances_the_currents_of_three_resistors():
         interactions=[ConnectionInteraction('node', members=['r1', 'r2', 'r3'], ports=['a', 'a', 'a'])],
     )
     trajectory = _run(system)
-    currents = [trajectory.values(f'{name}.a_i').ravel() for name in ('r1', 'r2', 'r3')]
+    currents = [trajectory.get_values(f'{name}.a_i').ravel() for name in ('r1', 'r2', 'r3')]
     voltage = (3.0 / 1.0 - 1.0 / 4.0) / (1 / 1.0 + 1 / 2.0 + 1 / 4.0)
     assert np.allclose(sum(currents), 0.0, atol=1e-12)
-    assert np.allclose(trajectory.values('r1.a_v').ravel(), voltage)
-    assert np.allclose(trajectory.values('r3.a_v').ravel(), voltage)
+    assert np.allclose(trajectory.get_values('r1.a_v').ravel(), voltage)
+    assert np.allclose(trajectory.get_values('r3.a_v').ravel(), voltage)
     assert np.allclose(currents[0], voltage - 3.0)
 
 
 def test_connection_reads_a_connector_the_user_defines():
     """Test that a connection reads the potential and the flow of a connector the user defines."""
-    system = System(
+    system = CompositeSystem(
         elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
         interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
     )
     trajectory = _run(system)
-    assert np.allclose(trajectory.values('first.a_mu').ravel(), 2.0)
-    assert np.allclose(trajectory.values('second.a_mu').ravel(), 2.0)
-    assert np.allclose(trajectory.values('first.a_n').ravel(), 1.0)
-    assert np.allclose(trajectory.values('second.a_n').ravel(), -1.0)
+    assert np.allclose(trajectory.get_values('first.a_mu').ravel(), 2.0)
+    assert np.allclose(trajectory.get_values('second.a_mu').ravel(), 2.0)
+    assert np.allclose(trajectory.get_values('first.a_n').ravel(), 1.0)
+    assert np.allclose(trajectory.get_values('second.a_n').ravel(), -1.0)
 
 
 def test_connection_rejects_members_and_ports_of_different_lengths():

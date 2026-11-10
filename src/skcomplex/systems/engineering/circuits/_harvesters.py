@@ -11,15 +11,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.mechanics import SpringDamperInteraction
-
-
-def _piezo_voltage(s: SimpleNamespace) -> Expression:
-    """Return the voltage of the piezoelectric bar, `n d k2 (y2 - y1) / C`."""
-    harvester = s.harvester
-    return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
 
 
 class PiezoHarvesterElement(Element):
@@ -73,6 +67,12 @@ class PiezoHarvesterElement(Element):
         It leaves the suspension apart.
         """
         return [RateLaw(s.y1, -s.k1 * (s.y1 - s.A * sin(s.omega * s.t)) / s.m1)]
+
+
+def _get_piezo_voltage(s: SimpleNamespace) -> Expression:
+    """Return the voltage of the piezoelectric bar, `n d k2 (y2 - y1) / C`."""
+    harvester = s.harvester
+    return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
 
 
 class VibrationEnergyHarvesterSystem(BaseSystem):
@@ -130,7 +130,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 10.0
     dt = 0.01
-    observables = (ObservableSpec('voltage', _piezo_voltage),)
+    observables = (ObservableSpec('voltage', _get_piezo_voltage),)
 
     def __init__(
         self,
@@ -159,7 +159,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         self.d = d
         self.C = C
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         harvester = PiezoHarvesterElement(
             'harvester',
@@ -182,4 +182,4 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
             damping='b',
             divisor={'y1': 'm1', 'y2': 'm2'},
         )
-        return System(self.label, elements=[harvester], interactions=[suspension])
+        return CompositeSystem(self.label, elements=[harvester], interactions=[suspension])

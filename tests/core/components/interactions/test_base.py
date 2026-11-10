@@ -8,34 +8,22 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components import interactions
-from skcomplex.core.components.elements import GroupElement, LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import (
     BaseInteraction,
-    CascadeInteraction,
-    ChoiceInteraction,
     CouplingInteraction,
     CrossingInteraction,
-    EvolutionInteraction,
     GradientInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
-    ImitationInteraction,
-    ImpulseInteraction,
     Interaction,
     JumpInteraction,
-    LifeCycleInteraction,
     LocalRuleInteraction,
     MapInteraction,
-    MatchingInteraction,
-    MovementInteraction,
     NeighborInteraction,
     PairInteraction,
     RateInteraction,
-    ReactionInteraction,
-    ReinforcementInteraction,
-    RelaxationInteraction,
     SamplingInteraction,
-    SignAdjustmentInteraction,
     TopologyInteraction,
     TransferInteraction,
     TransitionInteraction,
@@ -43,44 +31,47 @@ from skcomplex.core.components.interactions import (
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import (
+    BallNeighborhood,
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
 from skcomplex.core.types import ElementKind
+from skcomplex.systems.general.agents import (
+    BirthDeathInteraction,
+    ChoiceInteraction,
+    EvolutionInteraction,
+    ImitationInteraction,
+    MovementInteraction,
+)
+from skcomplex.systems.general.matching import MatchingInteraction
+from skcomplex.systems.general.reactions import ReactionInteraction
+from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
 from ....conftest import NodeElement
 
 RENAMED = {
     'rate': (RateInteraction, lambda role: {'rate': lambda n: -getattr(n, role).x}, False),
-    'relaxation': (RelaxationInteraction, lambda role: {'goal': 2.0}, False),
     'jump': (JumpInteraction, lambda role: {'changes': {'x': 1.0}, 'rate': lambda n: getattr(n, role).x + 1}, False),
     'crossing': (
         CrossingInteraction,
         lambda role: {'guard': lambda n: n.t - 0.5, 'reset': {'x': lambda n: getattr(n, role).x + 2}},
         False,
     ),
-    'impulse': (
-        ImpulseInteraction,
-        lambda role: {'reset': {'x': lambda n: getattr(n, role).x + 1}, 'times': (0.5,)},
-        False,
-    ),
     'map': (MapInteraction, lambda role: {'state': 'x', 'function': lambda n: getattr(n, role).x / 2 + 1}, True),
-    'sign_adjustment': (
-        SignAdjustmentInteraction,
-        lambda role: {'state': 'x', 'signal': lambda n: 1.0, 'mode': 'additive'},
-        True,
-    ),
     'transition': (TransitionInteraction, lambda role: {'state': 'x', 'rate': lambda n: 1.0}, False),
     'local_rule': (
         LocalRuleInteraction,
-        lambda role: {'state': 'x', 'rule': lambda *values: 1.0 - values[0], 'neighborhood': VonNeumannNeighborhood()},
+        lambda role: {
+            'state': 'x',
+            'rule': lambda *values: 1.0 - values[0],
+            'neighborhood': BallNeighborhood(metric='manhattan'),
+        },
         True,
     ),
     'choice': (
@@ -93,32 +84,53 @@ RENAMED = {
         lambda role: {'state': 'x', 'objective': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
         True,
     ),
-    'reinforcement': (ReinforcementInteraction, lambda role: {'scores': ('x',), 'payoff': lambda n, index: 1.0}, True),
 }
 AGENTS = {
     'choice': (
         ChoiceInteraction,
         {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda agent, system, option: option},
     ),
-    'reinforcement': (ReinforcementInteraction, {'scores': ('x',), 'payoff': lambda agent, system, index: 1.0}),
     'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
     'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
-
 AGENT_ALIASES = {
     'choice-intensity': ('choice', 'intensity', 2.0),
     'choice-activity': ('choice', 'activity', 0.5),
-    'reinforcement-rate': ('reinforcement', 'rate', 0.3),
     'reaction-k': ('reaction', 'k', 0.4),
     'imitation-probability': ('imitation', 'probability', 0.5),
 }
 SYMBOLIC_ALIASES = {
     'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
     'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
-    'reinforcement-rate': (ReinforcementInteraction, 'rate', 0.3, RENAMED['reinforcement'][1]('target'), True),
     'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
     'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
     'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
+}
+GRID_ONLY = {
+    'transfer': (
+        TransferInteraction(
+            'trade',
+            source='agents',
+            target='agents',
+            state='x',
+            amount=1.0,
+            pairing='cell',
+            form='agent',
+        ),
+        'pairing',
+    ),
+    'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
+    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
+    'life cycle': (BirthDeathInteraction('life', target='agents', placement='neighbor'), 'placement'),
+    'matching': (
+        MatchingInteraction(
+            'market',
+            requesters='agents',
+            providers='agents',
+            rule=PartnerSpec('neighbors'),
+        ),
+        'candidates',
+    ),
 }
 
 
@@ -182,8 +194,13 @@ def _run_agents(interaction):
         location=[(0, 0), (0, 1), (1, 0), (1, 1)],
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
     )
-    system = System(elements=[agents], interactions=[interaction], space=LatticeSpace((2, 2)), time=DiscreteTime())
-    return simulate(system, until=5, random_state=0).agents('nodes', 5).values['x']
+    system = CompositeSystem(
+        elements=[agents],
+        interactions=[interaction],
+        space=LatticeSpace((2, 2)),
+        time=DiscreteTime(),
+    )
+    return simulate(system, until=5, random_state=0).get_agents('nodes', 5).values['x']
 
 
 def _get_renamed(interaction):
@@ -205,14 +222,17 @@ def _get_renamed(interaction):
 
 def _run_nodes(interaction, discrete):
     """Return the trajectory of the state `x` of four lattice nodes driven by an interaction."""
-    nodes = LatticeElement(
+    nodes = GroupElement(
         'nodes',
         element=NodeElement,
         space=LatticeSpace((2, 2)),
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
+        on='sites',
     )
-    system = System(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
-    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).values('nodes.x')
+    system = CompositeSystem(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
+    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).get_values(
+        'nodes.x',
+    )
 
 
 class WeightedInteraction(BaseInteraction):
@@ -304,34 +324,6 @@ def test_get_parameter_symbol_reads_a_renamed_parameter_in_the_symbolic_form(cas
     np.testing.assert_allclose(_run_nodes(aliased, discrete), plain)
 
 
-GRID_ONLY = {
-    'transfer': (
-        TransferInteraction(
-            'trade',
-            source='agents',
-            target='agents',
-            state='x',
-            amount=1.0,
-            pairing='cell',
-            form='agent',
-        ),
-        'pairing',
-    ),
-    'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
-    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
-    'life cycle': (LifeCycleInteraction('life', target='agents', placement='neighbor'), 'placement'),
-    'matching': (
-        MatchingInteraction(
-            'market',
-            requesters='agents',
-            providers='agents',
-            rule=PartnerSpec('neighbors'),
-        ),
-        'candidates',
-    ),
-}
-
-
 @pytest.mark.parametrize('case', list(GRID_ONLY))
 def test_prepare_rejects_grid_variants_in_a_continuous_space(case):
     """Test that a variant of cells or nodes raises an error naming its alternative in a continuous space."""
@@ -372,7 +364,7 @@ SPEC_VARIANTS = {
     'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
     'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
     'topology action': lambda spec: PruningInteraction('change', target='nodes', action=spec),
-    'cascade mode': lambda spec: CascadeInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
+    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
     'coupling mode': lambda spec: CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=spec),
     'map mode': lambda spec: MapInteraction('map', target='nodes', state='x', function=lambda s: 1, mode=spec),
 }
@@ -382,8 +374,17 @@ SPEC_VARIANTS = {
 def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
     """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
     assert SPEC_VARIANTS[case](FixedSpec()).prepare() is not None
-    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*BaseSpec'):
+    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*, or a spec that the part handles\.') as error:
         SPEC_VARIANTS[case]('unknown').prepare()
+    assert 'BaseSpec' not in str(error.value)
+
+
+def test_unknown_mode_of_a_map_names_only_the_accepted_values():
+    """Test that an unknown mode of a map names the value given and the accepted names, and no base class."""
+    with pytest.raises(ValidationError) as error:
+        MapInteraction('m', target='a', state='x', function=lambda s: s.target.x, mode='add').prepare()
+    message = str(error.value)
+    assert message == "Unknown mode 'add' of 'm'. Use one of 'replace', 'increment', or a spec that the part handles."
 
 
 class FixedChoiceInteraction(ChoiceInteraction):
@@ -408,15 +409,15 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         rule=FixedSpec(2.0),
         form='agent',
     )
-    system = System(elements=[group], interactions=[choice], time=DiscreteTime())
+    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
+    assert trajectory.get_agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
 
 
 def _run_variant(*interactions, space=None, time=None):
     """Run three members under interactions, on a lattice of three sites when a space is not given."""
     group = GroupElement('nodes', element=NodeElement, size=3)
-    system = System(
+    system = CompositeSystem(
         elements=[group],
         interactions=list(interactions),
         space=LatticeSpace((3,)) if space is None else space,
@@ -499,7 +500,7 @@ UNHANDLED_VARIANTS = {
         '_get_requests',
     ),
     'cascade': (
-        lambda: _run_variant(CascadeInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
+        lambda: _run_variant(TopplingInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
         '_relax',
     ),
     'coupling': (
@@ -581,7 +582,7 @@ def test_get_requirements_accepts_any_space_when_a_law_does():
 def test_every_core_interaction_declares_its_roles():
     """Test that every role of every interaction of the core names the kinds of element it accepts."""
     found = _interaction_classes()
-    assert len(found) == 44
+    assert {kind.__name__ for kind in found} == set(interactions.__all__) - {'OPTIMIZERS', 'SCHEDULES'}
     for kind in found:
         for name, spec in kind._get_specs().items():
             if isinstance(spec, RoleSpec) and not spec.noise:

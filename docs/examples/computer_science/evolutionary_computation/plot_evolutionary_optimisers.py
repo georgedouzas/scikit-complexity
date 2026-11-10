@@ -34,12 +34,12 @@ bounds = {'algorithm': ['differential-evolution', 'particle-swarm'], 'random_sta
 result = sweep(EvolutionaryOptimisersSystem(), bounds, until=100, outputs=['search.best'])
 for name, best in zip(
     bounds['algorithm'],
-    result.series('search.best'),
+    result.get_series('search.best'),
     strict=True,
 ):
     ax.semilogy(best[1:] + 1e-12, label=name)
 annealing = simulate(EvolutionaryOptimisersSystem(algorithm='annealing', random_state=1), until=100)
-ax.semilogy(annealing.values('tracker/record.best')[1:] + 1e-12, label='annealing')
+ax.semilogy(annealing.get_values('tracker/record.best')[1:] + 1e-12, label='annealing')
 ax.set_xlabel('generation')
 ax.set_ylabel('best value')
 ax.set_title('Search on the Rastrigin function')

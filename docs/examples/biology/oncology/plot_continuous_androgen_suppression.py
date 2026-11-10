@@ -6,9 +6,9 @@ the androgen-independent cells grow throughout and cause the relapse.
 """
 
 # %%
-# The system is built from its class: ten dependent cells and 0.14 independent cells under a suppression of efficacy
-# 0.9. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells
-# and the androgen.
+# The example builds `ContinuousAndrogenSuppressionSystem`: ten dependent cells and 0.14 independent cells under a
+# suppression of efficacy 0.9. The observer saves every frame with the default blueprint, whose primary view is the time
+# series of the cells and the androgen.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,14 +30,14 @@ trajectory = simulate(ContinuousAndrogenSuppressionSystem(), observers=[observer
 
 times = trajectory.times
 fig, (androgen, cells) = plt.subplots(1, 2, figsize=(10, 4))
-androgen.plot(times, trajectory.values('tumour.U'), label='simulated')
+androgen.plot(times, trajectory.get_values('tumour.U'), label='simulated')
 androgen.plot(times, 20.0 * 0.1 + 20.0 * 0.9 * np.exp(-0.08 * times), '--', color='black', label='closed form')
 androgen.set_xlabel('time (days)')
 androgen.set_ylabel('serum androgen (ng/mL)')
 androgen.set_title('The suppression lowers the androgen')
 androgen.legend()
-cells.semilogy(times, trajectory.values('tumour.AD'), label='androgen-dependent')
-cells.semilogy(times, trajectory.values('tumour.AI'), label='androgen-independent')
+cells.semilogy(times, trajectory.get_values('tumour.AD'), label='androgen-dependent')
+cells.semilogy(times, trajectory.get_values('tumour.AI'), label='androgen-independent')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('cells')
 cells.set_title('Independent cells take over')

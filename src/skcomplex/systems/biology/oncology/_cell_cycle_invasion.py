@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
@@ -272,7 +272,7 @@ class CellCycleInvasionSystem(BaseSystem):
         self.scratch = scratch
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the sites of the lattice with the initial monolayer and its scratch."""
         width, height = self.width, self.height
         rows, columns = np.divmod(np.arange(width * height), width)
@@ -298,4 +298,4 @@ class CellCycleInvasionSystem(BaseSystem):
         offsets = tuple(row * width + column for row, column in steps)
         cells = GroupElement('cells', element=CellSiteElement, size=width * height, values=values)
         cycle = CellCycleInvasionInteraction('cycle', target='cells', offsets=offsets)
-        return System(self.label, elements=[cells], interactions=[cycle])
+        return CompositeSystem(self.label, elements=[cells], interactions=[cycle])

@@ -1,7 +1,4 @@
-"""Define crossings.
-
-A crossing is an event at the crossing of zero by a guard that resets states or ends the run.
-"""
+"""Define the interaction that fires an event when a guard crosses zero."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,17 +20,22 @@ DIRECTIONS = (-1, 0, 1)
 
 
 class CrossingInteraction(Interaction):
-    """Event at the crossing of zero by a guard.
+    """An interaction that resets states or ends the run when a guard crosses zero.
 
-    The event sets states of the target to new values or ends the run. The guard and the new values are functions of the
-    namespace, which holds `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A
-    guard that reads the members of a group gives every member its own event, which sets the states of that member
-    alone. Solvers locate the crossing within their tolerance, and the trajectory records every crossing among its
-    events, under the label of the interaction and with the member.
+    The guard is a function of the states and the time whose sign change marks an event, such as the height of a falling
+    ball. At the crossing the event sets states of the target to new values or ends the run. A guard that reads the
+    members of a group gives each member its own event. Solvers locate the crossing within their tolerance, and the
+    trajectory records every crossing among its events, under the label of the interaction and with the member.
+
+    Unlike `JumpInteraction`, which fires at random times, it fires at the exact time a condition on the states becomes
+    true. Choose it when a continuous run has discrete events, such as an impact, a threshold, or a stop.
+
+    It appears in many fields. A bouncing ball reverses its velocity at the floor, a neuron fires and resets when its
+    potential reaches a threshold, and a thermostat switches the heater at a set temperature.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'bounce'`.
 
         target:
             The path of the element or group whose states the guard reads and the event sets.
@@ -60,7 +62,7 @@ class CrossingInteraction(Interaction):
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.interactions import CrossingInteraction
         >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.engine.runtime import simulate
         >>> class ClockElement(Element):
@@ -73,7 +75,7 @@ class CrossingInteraction(Interaction):
         >>> wrap = CrossingInteraction(
         ...     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
         ... )
-        >>> system = System(elements=[ClockElement('clock')], interactions=[wrap])
+        >>> system = CompositeSystem(elements=[ClockElement('clock')], interactions=[wrap])
         >>> trajectory = simulate(system, until=2.2, dt=0.5)
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]

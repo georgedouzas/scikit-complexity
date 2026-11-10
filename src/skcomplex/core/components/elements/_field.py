@@ -1,7 +1,4 @@
-"""Define fields.
-
-A field is a group of elements on the sites of a lattice, the nodes of a network, or the nodes of a mesh.
-"""
+"""Define the element that holds a field, with one value per site of a space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,59 +13,74 @@ from ...errors import ValidationError
 from ...specs import StateSpec, TensorSpec, VisualSpec
 from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
 from ._base import BaseElement
-from ._lattice import LatticeElement
+from ._group import GroupElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 MATRIX_RANK = 2
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
 
 
-class FieldElement(LatticeElement):
-    """Group of members of an element type at the sites of a lattice, network, or mesh.
+class FieldElement(GroupElement):
+    """An element that holds a field, with one value per site of a space.
 
-    The states of the members are fields, with one value per site, and the laws of the element type are written for
-    one site, with `laplacian`, `gradient`, `divergence`, and `advection` reading the neighbouring sites. Every state
-    takes a boundary condition at the edges of a lattice: `'periodic'`, `'zero-flux'`, or `('fixed', value)`, where
-    the value can be a function of the node coordinates on a mesh.
+    A field is a quantity spread over space, such as the temperature of a plate. Its members sit on the sites of a
+    lattice, the nodes of a network, or the nodes of a mesh, and the laws of the element class are written for one site.
+    The operators `laplacian`, `gradient`, `divergence`, and `advection` of `skcomplex.core.components.laws.utils` read
+    the neighbouring sites, and `discretization` says how they become numbers. Each state takes a boundary condition at
+    the edges of a lattice.
 
-    The discretization turns the operators into numbers. `'finite-difference'` uses stencils on lattices and the graph
-    Laplacian on networks. `'spectral'` multiplies Fourier modes on periodic lattices, with the two-thirds rule
-    removing aliasing. `'finite-volume'` updates cell averages by the differences of the `FluxLaw`s of the states.
-    `'finite-element'` assembles stiffness and mass matrices on a `MeshSpace`.
+    Unlike `GroupElement`, it places one member at every site and gives its states spatial operators and boundary
+    conditions. Choose it when a model is a partial differential equation, a law for how a quantity changes in both time
+    and space, solved on a grid, a network, or a mesh.
+
+    It appears in many fields. Heat flowing through a metal plate, chemicals that react and diffuse in a gel, a
+    pollutant carried along a river, and the vorticity of an ocean gyre are fields.
 
     Args:
         label:
-            The label of the field.
+            The name of the field, such as `'plate'`.
 
         element:
-            The element type of the members.
+            The element class of one site, with the states of the field and their laws.
 
         space:
-            The lattice, the network, or the mesh.
+            The lattice, network, or mesh whose sites hold the field, such as `LatticeSpace((10, 20))`.
 
         boundary:
-            A mapping from state name to its boundary condition, which overrides the edges of the lattice. The value of
-            `('fixed', value)` for a tensor state may be a matrix of the symmetry of the state.
+            The boundary condition of each state by name, which replaces the edges of the lattice. A state without one
+            takes the edges of the space.
+
+            - `'periodic'`: the field wraps around, as on a ring or a torus.
+            - `'zero-flux'`: nothing flows through the edge, as at an insulated wall.
+            - `('fixed', value)`: the edge holds a value, a number or, on a mesh, a function of the node coordinates.
+              For a tensor state the value may be a matrix with the symmetry of the state.
 
         values:
-            Arrays of the lattice shape, or with one value per network node in node order, or shared values.
+            The initial value of each state or parameter by name, as an array of the lattice shape, one value per node
+            of a network in node order, or one value for all sites, such as `{'u': [9.0, 0.0, 0.0]}`.
 
         visual:
-            How the field is drawn, or `None` for `default_visual_`.
+            How the field is drawn, such as `VisualSpec('image')`, or `None` for `default_visual_`.
 
         discretization:
-            `'finite-difference'`, `'spectral'`, `'finite-volume'`, or `'finite-element'`.
+            How the operators of space become numbers.
+
+            - `'finite-difference'`: stencils on a lattice and the graph Laplacian on a network.
+            - `'spectral'`: products of Fourier modes on a periodic lattice, with the two-thirds rule, which drops the
+              highest modes so that their products create no false ones.
+            - `'finite-volume'`: averages over cells that change by the differences of the `FluxLaw`s of the states.
+            - `'finite-element'`: stiffness and mass matrices assembled on a `MeshSpace`.
 
         symmetry:
-            A mapping from state name to its parity along every axis of a periodic lattice, `'odd'`, `'even'`, or
-            `None`, which the rates keep exactly. A lattice twice as long as a domain along an axis, with states odd
-            or even about its middle, represents walls there, such as the free-slip walls of convection. A vector or a
-            tensor state takes one such sequence for its first component, or one sequence per component.
+            The parity of each state by name along every axis of a periodic lattice, `'odd'`, `'even'`, or `None`, which
+            the rates keep exactly. A lattice twice as long as a domain along an axis, with states odd or even about its
+            middle, stands for walls there, such as the free-slip walls of convection. A vector or tensor state takes
+            one such sequence for its first component, or one sequence per component.
 
     Attributes:
         default_visual_:
-            An image on a lattice, a colored mesh on a mesh, and on a network the visual of a member, or the sites of
-            the network when the member sets none.
+            An image on a lattice and a coloured mesh on a mesh. On a network it is the visual of a member, or the sites
+            of the network when the member sets none.
 
         size_:
             The number of sites of the space.
@@ -77,14 +89,15 @@ class FieldElement(LatticeElement):
             The values with one row per site, or one value shared by every site.
 
     Examples:
+        Heat spreads through a plate of 10 by 20 sites with insulated edges.
+
         >>> from typing import Annotated
-        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.elements import Element, FieldElement
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.components.laws.utils import laplacian
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> class HeatElement(Element):
+        >>> class DiffusionElement(Element):
         ...     def __init__(
         ...         self, label, u: Annotated[float, StateSpec()] = 0.0, D: Annotated[float, ParameterSpec()] = 1.0
         ...     ):
@@ -94,10 +107,21 @@ class FieldElement(LatticeElement):
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
-        >>> space = LatticeSpace((10, 20))
-        >>> plate = FieldElement('plate', element=HeatElement, space=space, boundary={'u': 'zero-flux'})
+        >>> walls = {'u': 'zero-flux'}
+        >>> plate = FieldElement('plate', element=DiffusionElement, space=LatticeSpace((10, 20)), boundary=walls)
         >>> plate.prepare().size_, plate.default_visual_.kind
         (200, 'image')
+
+        The same law spreads a pollutant along a channel of three reaches, until each reach holds the same amount.
+
+        >>> import networkx as nx
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> channel = NetworkSpace(nx.path_graph(3))
+        >>> river = FieldElement('river', element=DiffusionElement, space=channel, values={'u': [9.0, 0.0, 0.0]})
+        >>> simulate(CompositeSystem(elements=[river]), until=10, dt=10.0).get_values('river.u').round(2).tolist()
+        [[9.0, 0.0, 0.0], [3.0, 3.0, 3.0]]
     """
 
     def __init__(
@@ -112,12 +136,12 @@ class FieldElement(LatticeElement):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
-        super().__init__(label, element=element, space=space, values=values, visual=visual)
+        super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
         self.symmetry = symmetry
 
-    def _tensor_of(self, state: str) -> TensorSpec | None:
+    def _get_tensor_of(self, state: str) -> TensorSpec | None:
         """Return the independent components of a tensor state of the element.
 
         The result is `None` for any other state.
@@ -155,9 +179,9 @@ class FieldElement(LatticeElement):
         edges = 'reflecting' if isinstance(self.space, MeshSpace) else getattr(self.space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
-            tensor = self._tensor_of(state)
+            tensor = self._get_tensor_of(state)
             if tensor is not None and (isinstance(condition[1], Matrix) or np.ndim(condition[1]) == MATRIX_RANK):
-                return str(condition[0]), float(tensor.components_of(condition[1])[column])
+                return str(condition[0]), float(tensor.get_components_of(condition[1])[column])
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])
         return str(condition), 0.0
 

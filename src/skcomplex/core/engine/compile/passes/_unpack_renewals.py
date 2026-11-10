@@ -1,7 +1,4 @@
-"""Pass that replaces every jump on a clock of waiting times by its renewal.
-
-The steppers run the renewal for the jump.
-"""
+"""Pass that replaces every jump on a clock of waiting times by its renewal."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +11,7 @@ from .._renewal_law import RenewalLaw
 
 
 class UnpackRenewalsPass(BasePass):
-    """Pass that replaces every jump on a clock of waiting times by its renewal.
+    """A pass that replaces every jump on a clock of waiting times by its renewal.
 
     The steppers run the renewal for the jump.
     """
@@ -43,5 +40,5 @@ class UnpackRenewalsPass(BasePass):
                 ],
                 block,
             )
-            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
+            for spec, laws, block in Compilation._get_required(compilation.collected, 'collected')
         ]

@@ -19,10 +19,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..common._vertex import DEGREE_VISUAL, VertexElement
+from ..common.networks import VertexElement
+from ..common.networks._vertex import DEGREE_VISUAL
+
+SMALLEST_TOTAL = 1e-12
+SMALLEST_DEGREE = 1e-9
+JOINING_AGE = 0.5
+SMALLEST_ANGLE = 1e-12
+MIN_EXPONENT = 2.0
 
 
 class CopyingVertexElement(VertexElement):
@@ -202,76 +209,6 @@ class TriadVertexElement(VertexElement):
         self.extra = extra
 
 
-SMALLEST_TOTAL = 1e-12
-
-
-SMALLEST_DEGREE = 1e-9
-
-
-JOINING_AGE = 0.5
-
-
-SMALLEST_ANGLE = 1e-12
-
-
-MIN_EXPONENT = 2.0
-
-
-def _degree(node: SimpleNamespace) -> object:
-    """Return the degree of a candidate node, its weight under preferential attachment."""
-    return neighbors(1)
-
-
-def _get_bookkeeping() -> list[MapInteraction]:
-    """Return the maps that age every node and read its degree from the edges.
-
-    The maps run at the start of a step.
-    """
-    return [
-        MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
-        MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
-    ]
-
-
-def _nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:
-    """Return the variable group on the nodes of a growing network.
-
-    Its seed nodes start at age 1.
-    """
-    return GroupElement(
-        'nodes',
-        element=element,
-        on='sites',
-        variable=True,
-        capacity=capacity,
-        values={'age': 1.0, **values},
-        visual=DEGREE_VISUAL,
-    )
-
-
-def _grown(
-    nodes: GroupElement,
-    growth: TopologyInteraction,
-    space: NetworkSpace,
-    capacity: int,
-    interactions: Sequence[BaseInteraction] = (),
-    *,
-    label: str,
-) -> System:
-    """Return a growing network of a group on its nodes.
-
-    The network has a variable edge group, the arrival of nodes, and its maps.
-    """
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-    return System(
-        label,
-        elements=[nodes, links],
-        interactions=[growth, *_get_bookkeeping(), *interactions],
-        space=space,
-        time=DiscreteTime(),
-    )
-
-
 class BarabasiAlbertSystem(BaseSystem):
     """Barabási-Albert growth.
 
@@ -309,7 +246,7 @@ class BarabasiAlbertSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
         >>> trajectory = simulate(BarabasiAlbertSystem(13), until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 
@@ -324,6 +261,61 @@ class BarabasiAlbertSystem(BaseSystem):
         'Raman 2021',
     )
     until = 300
+
+    @staticmethod
+    def _get_degree(node: SimpleNamespace) -> object:
+        """Return the degree of a candidate node, its weight under preferential attachment."""
+        return neighbors(1)
+
+    @staticmethod
+    def _get_bookkeeping() -> list[MapInteraction]:
+        """Return the maps that age every node and read its degree from the edges.
+
+        The maps run at the start of a step.
+        """
+        return [
+            MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
+            MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
+        ]
+
+    @staticmethod
+    def _get_nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:
+        """Return the variable group on the nodes of a growing network.
+
+        Its seed nodes start at age 1.
+        """
+        return GroupElement(
+            'nodes',
+            element=element,
+            on='sites',
+            variable=True,
+            capacity=capacity,
+            values={'age': 1.0, **values},
+            visual=DEGREE_VISUAL,
+        )
+
+    @staticmethod
+    def _get_grown(
+        nodes: GroupElement,
+        growth: TopologyInteraction,
+        space: NetworkSpace,
+        capacity: int,
+        interactions: Sequence[BaseInteraction] = (),
+        *,
+        label: str,
+    ) -> CompositeSystem:
+        """Return a growing network of a group on its nodes.
+
+        The network has a variable edge group, the arrival of nodes, and its maps.
+        """
+        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
+        return CompositeSystem(
+            label,
+            elements=[nodes, links],
+            interactions=[growth, *BarabasiAlbertSystem._get_bookkeeping(), *interactions],
+            space=space,
+            time=DiscreteTime(),
+        )
 
     def __init__(
         self,
@@ -342,7 +334,7 @@ class BarabasiAlbertSystem(BaseSystem):
         self.fitness = fitness
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Barabási-Albert growth.
 
         By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
@@ -350,11 +342,16 @@ class BarabasiAlbertSystem(BaseSystem):
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         capacity = self.edges * self.n_nodes + self.seed_nodes**2
         if not self.fitness:
-            nodes = _nodes(VertexElement, self.n_nodes)
-            growth = TopologyInteraction('growth', action='add-node', edges=self.edges, toward=_degree)
-            return _grown(nodes, growth, space, capacity, label=self.label)
+            nodes = BarabasiAlbertSystem._get_nodes(VertexElement, self.n_nodes)
+            growth = TopologyInteraction(
+                'growth',
+                action='add-node',
+                edges=self.edges,
+                toward=BarabasiAlbertSystem._get_degree,
+            )
+            return BarabasiAlbertSystem._get_grown(nodes, growth, space, capacity, label=self.label)
         seed_fitness = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.seed_nodes)
-        nodes = _nodes(FitnessVertexElement, self.n_nodes, fitness=seed_fitness.tolist())
+        nodes = BarabasiAlbertSystem._get_nodes(FitnessVertexElement, self.n_nodes, fitness=seed_fitness.tolist())
         growth = TopologyInteraction(
             'growth',
             action='add-node',
@@ -362,7 +359,7 @@ class BarabasiAlbertSystem(BaseSystem):
             values={'fitness': lambda rng: rng.uniform(0.0, 1.0)},
             toward=lambda node: node.fitness * neighbors(1),
         )
-        return _grown(nodes, growth, space, capacity, label=self.label)
+        return BarabasiAlbertSystem._get_grown(nodes, growth, space, capacity, label=self.label)
 
 
 class HolmeKimSystem(BaseSystem):
@@ -428,13 +425,18 @@ class HolmeKimSystem(BaseSystem):
             attaching,
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Holme-Kim growth.
 
         The network is scale-free like Barabási-Albert growth but with clustering that stays high.
         """
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
-        nodes = _nodes(TriadVertexElement, self.n_nodes, triad=self.triad, extra=self.edges - 1)
+        nodes = BarabasiAlbertSystem._get_nodes(
+            TriadVertexElement,
+            self.n_nodes,
+            triad=self.triad,
+            extra=self.edges - 1,
+        )
         near = MapInteraction(
             'near',
             target='nodes',
@@ -449,9 +451,9 @@ class HolmeKimSystem(BaseSystem):
             toward=self._get_triad_weight,
             edges=self.edges - 1,
         )
-        growth = TopologyInteraction('growth', action='add-node', toward=_degree)
+        growth = TopologyInteraction('growth', action='add-node', toward=BarabasiAlbertSystem._get_degree)
         capacity = self.edges * self.n_nodes + self.seed_nodes**2
-        return _grown(nodes, growth, space, capacity, [near, closure], label=self.label)
+        return BarabasiAlbertSystem._get_grown(nodes, growth, space, capacity, [near, closure], label=self.label)
 
 
 class VertexCopyingSystem(BaseSystem):
@@ -505,10 +507,10 @@ class VertexCopyingSystem(BaseSystem):
         self.randomness = randomness
         self.seed_nodes = seed_nodes
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
-        nodes = _nodes(CopyingVertexElement, self.n_nodes)
+        nodes = BarabasiAlbertSystem._get_nodes(CopyingVertexElement, self.n_nodes)
         growth = TopologyInteraction(
             'growth',
             action='add-node',
@@ -521,7 +523,14 @@ class VertexCopyingSystem(BaseSystem):
             state='inverse',
             function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
         )
-        return _grown(nodes, growth, space, self.edges * self.n_nodes + self.seed_nodes**2, [inverse], label=self.label)
+        return BarabasiAlbertSystem._get_grown(
+            nodes,
+            growth,
+            space,
+            self.edges * self.n_nodes + self.seed_nodes**2,
+            [inverse],
+            label=self.label,
+        )
 
 
 class PopularitySimilarityNetworkSystem(BaseSystem):
@@ -564,7 +573,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import PopularitySimilarityNetworkSystem
         >>> system = PopularitySimilarityNetworkSystem(13).prepare().system_
         >>> trajectory = simulate(system, until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 
@@ -616,7 +625,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return popularity-similarity growth, scale-free and clustered.
 
         Its nodes attach by hyperbolic distance.
@@ -633,7 +642,12 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         fading = 1 / (self.exponent - 1)
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, seed_nodes)
         ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
-        nodes = _nodes(SimilarityVertexElement, self.n_nodes, age=ages.tolist(), angle=angles.tolist())
+        nodes = BarabasiAlbertSystem._get_nodes(
+            SimilarityVertexElement,
+            self.n_nodes,
+            age=ages.tolist(),
+            angle=angles.tolist(),
+        )
         growth = TopologyInteraction(
             'growth',
             action='add-node',
@@ -647,7 +661,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
                 temperature=self.temperature,
             ),
         )
-        return _grown(
+        return BarabasiAlbertSystem._get_grown(
             nodes,
             growth,
             NetworkSpace(nx.complete_graph(seed_nodes)),
@@ -683,7 +697,7 @@ class GraphletArrivalSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import GraphletArrivalSystem
         >>> trajectory = simulate(GraphletArrivalSystem(22), until=10, random_state=0)
-        >>> int(trajectory.network(-1).nodes.size), int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).nodes.size), int(trajectory.get_network(-1).sources.size)
         (22, 21)
     """
 
@@ -703,13 +717,13 @@ class GraphletArrivalSystem(BaseSystem):
         self.n_nodes = n_nodes
         self.alpha = alpha
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return growth by the arrival of three-node graphlets.
 
         The tree has a degree exponent that rises with `alpha`.
         """
-        nodes = _nodes(VertexElement, self.n_nodes)
-        growth = TopologyInteraction('growth', action='add-node', toward=_degree)
+        nodes = BarabasiAlbertSystem._get_nodes(VertexElement, self.n_nodes)
+        growth = TopologyInteraction('growth', action='add-node', toward=BarabasiAlbertSystem._get_degree)
         graphlet = TopologyInteraction(
             'graphlet',
             action='add-node',
@@ -719,4 +733,11 @@ class GraphletArrivalSystem(BaseSystem):
             * where(node.age > JOINING_AGE, 1, 0)
             * neighbors(where(node.other.age < JOINING_AGE, 1, 0)),
         )
-        return _grown(nodes, growth, NetworkSpace(nx.path_graph(2)), self.n_nodes, [graphlet], label=self.label)
+        return BarabasiAlbertSystem._get_grown(
+            nodes,
+            growth,
+            NetworkSpace(nx.path_graph(2)),
+            self.n_nodes,
+            [graphlet],
+            label=self.label,
+        )

@@ -9,7 +9,7 @@ from skcomplex.systems.economics.econophysics import (
 def _volatility(memory, n_agents=51, **options):
     """Return `sigma^2 / N` of the attendance of a minority game after a transient."""
     system = MinorityGameSystem(n_agents, memory=memory, random_state=0, **options).prepare().system_
-    attendance = simulate(system, until=400, random_state=0).values('game.attendance')
+    attendance = simulate(system, until=400, random_state=0).get_values('game.attendance')
     return attendance[100:].var() / n_agents
 
 

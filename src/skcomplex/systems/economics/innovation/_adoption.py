@@ -17,10 +17,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+UPPER = 0
+MIDDLE = 1
+LOWER = 2
+INCOME_SIGMA = 0.6
+MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
 
 class HouseholdView(AgentView):
@@ -35,13 +41,6 @@ class HouseholdView(AgentView):
     social_class: float
     growth: float
     threshold: float
-
-
-UPPER = 0
-MIDDLE = 1
-LOWER = 2
-INCOME_SIGMA = 0.6
-MOORE = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
 
 class HouseholdElement(Element):
@@ -136,7 +135,7 @@ class HouseholdElement(Element):
         """
         if agent.phone or agent.income < agent.threshold:
             return float(agent.phone)
-        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.neighbors()))
+        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.get_neighbors()))
 
 
 class PhoneAdoptionSystem(BaseSystem):
@@ -205,7 +204,7 @@ class PhoneAdoptionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _social_classes(width: int, height: int) -> Array:
+    def _get_social_classes(width: int, height: int) -> Array:
         """Return the class of every cell.
 
         It is upper in the top left quadrant, lower in the bottom left, else middle.
@@ -233,12 +232,12 @@ class PhoneAdoptionSystem(BaseSystem):
             queue.extend(((column + dx) % width) * height + (row + dy) % height for dx, dy in MOORE)
         return owners
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         growth = self.growth
         width, height = (int(side) for side in self.shape)
         rng = np.random.default_rng(self.random_state)
-        classes = self._social_classes(width, height)
+        classes = self._get_social_classes(width, height)
         scales = np.asarray(self.class_incomes, dtype=float)[classes.astype(int)]
         incomes = scales * rng.lognormal(0.0, INCOME_SIGMA, len(classes))
         incomes /= incomes.mean()
@@ -272,7 +271,7 @@ class PhoneAdoptionSystem(BaseSystem):
             schedule='random-sequential',
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[households],
             interactions=[growth, adoption],

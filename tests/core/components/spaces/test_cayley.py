@@ -9,10 +9,10 @@ from sage.all__sagemath_symbolics import ZZ, matrix
 from sage.groups.matrix_gps.finitely_generated import MatrixGroup
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import LocalRuleLaw
-from skcomplex.core.components.spaces import BoxNeighborhood, CayleySpace, MemoryNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.spaces import BallNeighborhood, CayleySpace, MemoryNeighborhood
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import SpaceTooLargeError, ValidationError
 from skcomplex.core.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec
@@ -98,7 +98,7 @@ def test_cayley_space_numbers_sites_by_word_length():
 def test_cayley_space_index_table_reads_outside_as_size():
     """Test that the identity reads itself, its generators the sites one letter away, and the boundary the fill."""
     space = CayleySpace(libgap.FreeGroup(['a']), ball=1).prepare()
-    table = space._index_table(MemoryNeighborhood(('1', 'a')))
+    table = space._get_index_table(MemoryNeighborhood(('1', 'a')))
     a = space.words_.index('a')
     assert table[:, 0].tolist() == list(range(space.size_))
     assert table[0, 1] == a
@@ -111,9 +111,9 @@ def test_cayley_space_index_table_needs_a_memory_set():
     """Test that a neighbourhood of offsets and a word of unknown generators are rejected on a Cayley space."""
     space = CayleySpace(PermutationGroup([[(1, 2)]])).prepare()
     with pytest.raises(ValidationError, match='memory set'):
-        space._index_table(BoxNeighborhood())
+        space._get_index_table(BallNeighborhood(n_dim=1, center='inline'))
     with pytest.raises(ValidationError, match='not a generator'):
-        space._index_table(MemoryNeighborhood(('z',)))
+        space._get_index_table(MemoryNeighborhood(('z',)))
 
 
 def test_cayley_space_positions_lie_on_rings():
@@ -126,7 +126,7 @@ def test_cayley_space_edges_join_sites_by_generators():
     """Test that the edges of a cyclic group of order 4 form a cycle of one generator."""
     space = CayleySpace(PermutationGroup([[(1, 2, 3, 4)]])).prepare()
     assert sorted((first, second) for first, second, _ in space.edges_) == [(0, 1), (1, 3), (2, 0), (3, 2)]
-    assert len(space._neighbor_pairs()) == 4
+    assert len(space._get_neighbor_pairs()) == 4
     assert (space.periodic_, space.default_visual_) == (True, 'cayley')
 
 
@@ -164,16 +164,18 @@ def test_cayley_space_refuses_more_sites_than_its_limit():
 def test_cayley_space_ball_is_the_memory_of_the_words_within_a_radius():
     """Test that the ball of a radius is the memory set of the words of the sites within it, the identity first."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2).prepare()
-    assert space._ball(1).prepare().elements_ == tuple(space.words_[:5])
+    assert space._get_ball(1).prepare().elements_ == tuple(space.words_[:5])
 
 
 def test_local_rule_free_group_majority():
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
-    system = System(elements=[LatticeElement('cells', element=CellElement, space=space, values={'alive': cells})])
-    alive = _run(system, 1).values('cells.alive')
-    table = space._index_table(FREE_MEMORY)
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=CellElement, space=space, values={'alive': cells}, on='sites')],
+    )
+    alive = _run(system, 1).get_values('cells.alive')
+    table = space._get_index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)
     expected = cells[table[interior]].sum(axis=1) >= 3
     np.testing.assert_array_equal(alive[1][interior], expected)
@@ -186,8 +188,10 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     sites = {word: site for site, word in enumerate(space.words_)}
     cells = np.zeros(space.size_)
     cells[sites['b']] = 1.0
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
-    alive = _run(system, 1).values('cells.alive')[1]
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
+    alive = _run(system, 1).get_values('cells.alive')[1]
     assert alive[sites['b*a^-1']] == 1
     assert alive[sites['a^-1*b']] == 0
 
@@ -196,16 +200,20 @@ def test_local_rule_runs_on_a_ball_of_an_automaton_group():
     """Test that a rule on a ball of the Grigorchuk group of radius 4 steps on its 40 sites."""
     space = CayleySpace(_grigorchuk(), ball=4).prepare()
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
     assert space.level_ > 0
-    assert _run(system, 50).values('cells.alive').shape == (51, 40)
+    assert _run(system, 50).get_values('cells.alive').shape == (51, 40)
 
 
 def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
     space = CayleySpace(_grigorchuk().PermGroupOnLevel(2)).prepare()
     cells = np.arange(space.size_) % 2.0
-    system = System(elements=[LatticeElement('cells', element=CopyElement, space=space, values={'alive': cells})])
-    alive = _run(system, 3).values('cells.alive')
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=CopyElement, space=space, values={'alive': cells}, on='sites')],
+    )
+    alive = _run(system, 3).get_values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()

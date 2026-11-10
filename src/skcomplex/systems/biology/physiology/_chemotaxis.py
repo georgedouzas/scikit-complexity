@@ -14,7 +14,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -217,7 +217,7 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         self.n0 = n0
         self.width = width
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of cells and a chemical moving with finite speed."""
         spacing = 0.8 / self.sites
         axis = -0.4 + spacing * (np.arange(self.sites) + 0.5)
@@ -236,7 +236,7 @@ class HyperbolicChemotaxisSystem(BaseSystem):
             'alpha': self.alpha,
         }
         space = LatticeSpace((self.sites, self.sites), boundary='periodic', spacing=spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('tissue', element=ChemotacticTissueElement, space=space, values=values)],
         )

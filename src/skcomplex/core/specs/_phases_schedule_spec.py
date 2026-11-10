@@ -16,7 +16,7 @@ DEFAULT_PHASE = 'default'
 
 @dataclass(frozen=True)
 class PhasesScheduleSpec(ScheduleSpec):
-    """Spec of a schedule of discrete time that runs named phases in every step.
+    """A spec of a schedule of discrete time that runs named phases each step.
 
     The phases run in order.
 

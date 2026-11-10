@@ -9,11 +9,20 @@ from scipy import stats
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import delay1, delay3, distributed_delay, smooth, step
-from skcomplex.core.components.system import System
+from skcomplex.core.components.laws.utils import distributed_delay, step
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+
+STEP_RESPONSES = {
+    'material1': (lambda value, time: distributed_delay(value, time, 1), lambda t: 1 - np.exp(-t / 2)),
+    'material3': (lambda value, time: distributed_delay(value, time, 3), lambda t: stats.gamma(3, scale=2 / 3).cdf(t)),
+    'smoothing1': (
+        lambda value, time: distributed_delay(value, time, conserved=False),
+        lambda t: 1 - np.exp(-t / 2),
+    ),
+}
 
 
 class DelayedElement(Element):
@@ -41,9 +50,9 @@ class DelayedElement(Element):
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = simulate(System(elements=[DelayedElement('d', kind='material_delay3')]), until=14, dt=0.01)
+    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d', kind='material_delay3')]), until=14, dt=0.01)
     times = np.asarray(trajectory.times)
-    output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
+    output = trajectory.get_values('d.material_delay3_0')[:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
     assert stats.gamma(3, scale=2).median() == pytest.approx(5.35, abs=0.01)
 
@@ -51,8 +60,8 @@ def test_third_order_delay_follows_the_erlang_step_response():
 @pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden state per stage that tends to the step."""
-    trajectory = simulate(System(elements=[DelayedElement('d', kind=kind)]), until=80, dt=1)
-    hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
+    trajectory = simulate(CompositeSystem(elements=[DelayedElement('d', kind=kind)]), until=80, dt=1)
+    hidden = np.atleast_2d(trajectory.get_values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'material_delay1' else 1.0
     assert hidden[-1, -1] == pytest.approx(level, rel=1e-3)
@@ -78,30 +87,23 @@ class StepResponseElement(Element):
         return [RateLaw(s.out, self.delay(step(s.t, 1.0), 2.0))]
 
 
-STEP_RESPONSES = {
-    'delay1': (delay1, lambda t: 1 - np.exp(-t / 2)),
-    'delay3': (delay3, lambda t: stats.gamma(3, scale=2 / 3).cdf(t)),
-    'smooth': (smooth, lambda t: 1 - np.exp(-t / 2)),
-}
-
-
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 @pytest.mark.parametrize('name', list(STEP_RESPONSES))
 def test_stock_and_flow_delays_follow_their_step_responses(name, backend):
     """Test that the delays of a step rise as their step responses in NumPy and SciPy."""
     delay, response = STEP_RESPONSES[name]
-    system = System(elements=[StepResponseElement('d', delay=delay)])
+    system = CompositeSystem(elements=[StepResponseElement('d', delay=delay)])
     trajectory = simulate(system, until=9, dt=0.001, backend=backend)
     times = np.asarray(trajectory.times)
-    rates = np.gradient(trajectory.values('d.out'), times)
+    rates = np.gradient(trajectory.get_values('d.out'), times)
     later = times > 1.5
     np.testing.assert_allclose(rates[later], response(times[later] - 1.0), atol=2e-3)
 
 
 @pytest.mark.parametrize(
-    ('delay', 'expected'),
-    [(delay1, 'material_delay1(x, 4)'), (delay3, 'material_delay3(x, 4)'), (smooth, 'smoothing_delay1(x, 4)')],
+    ('order', 'conserved', 'expected'),
+    [(1, True, 'material_delay1(x, 4)'), (3, True, 'material_delay3(x, 4)'), (1, False, 'smoothing_delay1(x, 4)')],
 )
-def test_stock_and_flow_delays_are_distributed_delays(delay, expected):
+def test_stock_and_flow_delays_are_distributed_delays(order, conserved, expected):
     """Test that the stock-and-flow delays are distributed delays of their order and kind."""
-    assert str(delay(var('x'), 4)) == expected
+    assert str(distributed_delay(var('x'), 4, order, conserved=conserved)) == expected

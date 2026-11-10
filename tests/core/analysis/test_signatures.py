@@ -27,7 +27,7 @@ def test_signature_analysis_of_a_series():
     assert signature.kind == 'series'
     assert signature.title == 'Power spectrum'
     assert (signature.xscale, signature.yscale) == ('log', 'log')
-    assert set(signature.curves) == {'prey.n', 'predators.n'}
+    assert set(signature.curves) == {'prey.x', 'predators.x'}
     assert any(name.startswith('autocorrelation time') for name in signature.values)
 
 
@@ -90,7 +90,7 @@ def test_signature_analysis_of_phases_of_particles():
     """Test that particles with a phase and no velocity give the order of their phases over time."""
     trajectory = simulate(SwarmalatorsSystem(), until=1.0, random_state=0)
     (signature,) = _signatures(trajectory)
-    expected = np.abs(np.exp(1j * trajectory.values('units.theta')).mean(axis=1))
+    expected = np.abs(np.exp(1j * trajectory.get_values('units.theta')).mean(axis=1))
     assert signature.curves['polar order'][1] == pytest.approx(expected)
 
 

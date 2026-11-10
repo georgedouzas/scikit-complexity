@@ -14,7 +14,7 @@ def test_benard_marangoni_forms_hexagons_with_a_free_surface():
     patterns = {}
     for g in (1.0, 0.0):
         system = BenardMarangoniSystem((32, 32), length=8 * np.pi, g=g)
-        field = simulate(system, until=200, dt=10.0).lattice('layer.u')
+        field = simulate(system, until=200, dt=10.0).get_lattice('layer.u')
         pattern = domains(field[-1], kind='wavelength', spacing=np.pi / 4)
         patterns[g] = (pattern, skew(field[-1].ravel()))
     (hexagons, hexagons_skew), (rolls, rolls_skew) = patterns[1.0], patterns[0.0]

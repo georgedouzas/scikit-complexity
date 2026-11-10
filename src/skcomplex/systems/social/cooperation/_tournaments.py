@@ -14,12 +14,17 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction, GroupingInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.interactions import GroupingInteraction
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.agents import EvolutionInteraction
+
+PAIR = 2
+PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (1.0, 1.0)}
+GENES = 7
 
 
 class StrategistView(AgentView):
@@ -78,12 +83,6 @@ class StrategistElement(Element):
         Their attributes are the states and parameters.
         """
         return StrategistView
-
-
-PAIR = 2
-
-
-PAYOFFS = {(1, 1): (3.0, 3.0), (1, 0): (0.0, 5.0), (0, 1): (5.0, 0.0), (0, 0): (1.0, 1.0)}
 
 
 def _gene(history: list[int]) -> int:
@@ -175,7 +174,7 @@ class TournamentInteraction(GroupingInteraction):
 
     def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return every agent of a random ring followed by its two neighbours in the ring."""
-        agents = [agent for agent in system.agents('target') if agent.alive]
+        agents = [agent for agent in system.get_agents('target') if agent.alive]
         if len(agents) < PAIR:
             return []
         ring = [agents[int(index)] for index in system.rng.permutation(len(agents))]
@@ -196,9 +195,6 @@ class TournamentInteraction(GroupingInteraction):
         agent, *opponents = [member for member in members if isinstance(member, StrategistView)]
         total = sum(play(agent.genome, opponent.genome, self.rounds)[0] for opponent in opponents)
         agent.fitness = total / (PAIR * self.rounds)
-
-
-GENES = 7
 
 
 class PrisonersDilemmaTournamentSystem(BaseSystem):
@@ -254,7 +250,7 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
         self.mutation = mutation
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2, (self.n_agents, GENES)).astype(float)
         visual = VisualSpec('histograms', {'color_by': 'fitness'})
@@ -265,7 +261,7 @@ class PrisonersDilemmaTournamentSystem(BaseSystem):
             values={'genome': genomes},
             visual=visual,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[agents],
             interactions=[

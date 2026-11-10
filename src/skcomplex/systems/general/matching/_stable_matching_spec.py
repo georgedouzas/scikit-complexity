@@ -1,0 +1,66 @@
+"""Define the spec of the stable matching of Gale and Shapley."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from dataclasses import dataclass
+
+from ....core.errors import ValidationError
+from ....core.specs import BaseSpec
+from ....core.types import Preference
+from ._random_search_spec import CLEARINGS
+
+
+@dataclass(frozen=True)
+class StableMatchingSpec(BaseSpec):
+    """A spec of the stable matching of Gale and Shapley, by mutual preferences.
+
+    Requesters propose to providers, which take as many as they offer units. Requesters rank the providers by
+    `requester_preference(requester, provider)`, by default the lower reserve, and providers rank the requesters by
+    `provider_preference(provider, requester)`, by default the higher reserve. The stable matching that favours the
+    requesters, from the hospital and resident solver of the `matching` library, pairs every requester with at most one
+    provider, and each pair matches one unit at the value of `value`. No requester and provider then prefer each other
+    to their partners.
+
+    Unlike `BatchMatchingSpec`, which pairs by price alone, it pairs by preferences on both sides. Choose it when both
+    sides rank each other and stability matters.
+
+    It appears in many fields. Medical residents match with hospitals, students match with schools, and donors match
+    with patients in kidney exchange.
+
+    Args:
+        requester_preference:
+            The score of a provider for a requester, a function of their agent views, higher for preferred providers,
+            or `None` for the lower reserve.
+
+        provider_preference:
+            The score of a requester for a provider, a function of their agent views, higher for preferred
+            requesters, or `None` for the higher reserve.
+
+        value:
+            The value of a match, `'provider'`, `'requester'`, or `'midpoint'`.
+
+    Raises:
+        ValidationError:
+            The value rule is unknown, raised when its owner checks it.
+
+    Examples:
+        >>> from skcomplex.systems.general.matching import StableMatchingSpec
+        >>> StableMatchingSpec(value='requester').value
+        'requester'
+    """
+
+    requester_preference: Preference | None = None
+    provider_preference: Preference | None = None
+    value: str = 'provider'
+
+    def _check(self) -> None:
+        """Raise an error for an unknown value rule.
+
+        Raises:
+            ValidationError:
+                The value rule is unknown.
+        """
+        if self.value not in CLEARINGS:
+            error_msg = f'Unknown value rule {self.value!r}. Use one of {CLEARINGS}.'
+            raise ValidationError(error_msg)

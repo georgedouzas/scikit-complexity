@@ -15,7 +15,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 
@@ -80,7 +80,7 @@ class HoldingElement(Element):
         self.n = n
 
 
-def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
+def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> CompositeSystem:
     """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
     elements = [
         NodeElement('a', x=1.0),
@@ -90,15 +90,15 @@ def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0)
         NodeElement('target'),
         GroupElement('nodes', element=NodeElement, size=10, values={'x': np.arange(10.0)}),
     ]
-    return System(
+    return CompositeSystem(
         elements=elements,
         interactions=[WeightedSumInteraction('sum', target='target', inputs=inputs, weights=weights)],
     )
 
 
-def _correlated(covariance: npt.ArrayLike | None) -> System:
+def _correlated(covariance: npt.ArrayLike | None) -> CompositeSystem:
     """Return two holdings driven by a `WienerProcessSpec` of a covariance."""
-    return System(
+    return CompositeSystem(
         elements=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             DriveInteraction(
@@ -219,10 +219,10 @@ def _weighted(
     source: str = 'inputs',
     reduce: str = 'sum',
     interaction: type[WeightedInputInteraction] = WeightedInputInteraction,
-) -> System:
+) -> CompositeSystem:
     """Return a hidden group whose rates read a source group through a matrix parameter."""
     matrix, values = np.asarray(weights, dtype=float), np.asarray(inputs, dtype=float)
-    return System(
+    return CompositeSystem(
         'net',
         elements=[
             GroupElement('hidden', element=NodeElement, size=matrix.shape[0]),

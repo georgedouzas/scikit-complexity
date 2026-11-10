@@ -9,7 +9,7 @@ vanishes, and returns as a sound wave.
 """
 
 # %%
-# The system is built from its class with 16 positions, 16 points on each of the two velocity axes, and the
+# The example builds `BoltzmannEquationSystem` with 16 positions, 16 points on each of the two velocity axes, and the
 # Knudsen number 0.02. The catalog registers a Strang splitting of semi-Lagrangian streaming and of collisions by the
 # fast spectral method, advanced by RK4. The observable `density_wave` is the component of wave number 1 of the density
 # over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables first.
@@ -30,7 +30,7 @@ SPACING = 12.0 / VELOCITIES
 
 def density_wave(_, values):
     """Return the component of wave number 1 of the density over position."""
-    density = np.reshape(values['gas.f'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
+    density = np.reshape(values['gas.x'], (POSITIONS, -1)).sum(axis=1) * SPACING**2
     return 2 * density @ np.sin(2 * np.pi * np.arange(POSITIONS) / POSITIONS) / POSITIONS
 
 
@@ -58,7 +58,7 @@ fig, axis = plt.subplots(figsize=(7, 4))
 for knudsen, step in ((1000.0, 0.05), (1.0, 0.05), (0.2, 0.05), (0.02, 0.02)):
     gas = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=knudsen)
     run = simulate(gas, until=5.5, solver=solver_of(step), observables=observables)
-    wave = run.values('density_wave')
+    wave = run.get_values('density_wave')
     axis.plot(run.times, wave / wave[0], label=f'Knudsen {knudsen:g}')
 axis.plot(times, np.exp(-(times**2) / 2), 'k--', label='free streaming')
 axis.plot(times, (1 + np.cos(np.sqrt(2) * times)) / 2, 'k:', label='Euler fluid')

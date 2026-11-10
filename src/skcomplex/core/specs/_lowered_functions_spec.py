@@ -17,7 +17,7 @@ from ._wiener_block_spec import WienerBlockSpec
 
 @dataclass(frozen=True)
 class LoweredFunctionsSpec(BaseSpec):
-    """Numeric functions of a form produced by a backend.
+    """A spec of the numeric functions that a backend produces from a problem.
 
     Args:
         drift:

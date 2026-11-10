@@ -1,7 +1,4 @@
-"""Linearise a system into state-space matrices.
-
-The module also gives its controllability, observability, and optimal gain.
-"""
+"""Linearise a system into state-space matrices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,8 +15,9 @@ from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
 from ..specs import AnalysisTags
 from ..types import Array, DataKind, FormKind
-from ._base import _compiled_problem, _composite, _read_system
-from ._stability import _dynamics_of
+from ._base import _composite, _read_system
+from ._stability import StabilityResult
+from ._utils import compile_problem
 from .types import Source
 
 TAGS = AnalysisTags(DataKind.SYSTEM)
@@ -27,7 +25,7 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 
 @dataclass(frozen=True)
 class LinearizationResult:
-    """Linear state-space system of a system near an operating point.
+    """A result of `linearization`, a linear state-space system.
 
     It comes with its ranks and optimal gain.
 
@@ -97,6 +95,9 @@ def linearization(
     weights of the states and the controls, the gain `K` of the linear-quadratic regulator `u = -K x` minimises `∫ (x' Q
     x + u' R u) dt` over an infinite horizon, from the continuous algebraic Riccati equation that SciPy solves.
 
+    It appears in many fields. It gives the linear model of an aircraft near trim, of a power grid near its operating
+    point, and of an economy near its steady state, for control.
+
     Args:
         source:
             The system, its compiled problem, or a trajectory of it.
@@ -135,7 +136,7 @@ def linearization(
         >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.laws import RateLaw
         >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> class CartElement(Element):
         ...     def __init__(
         ...         self,
@@ -151,7 +152,7 @@ def linearization(
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
-        >>> result = linearization(System(elements=[CartElement('cart')]))
+        >>> result = linearization(CompositeSystem(elements=[CartElement('cart')]))
         >>> result.B.tolist(), result.controllability
         ([[0.0], [1.0]], 2)
     """
@@ -161,14 +162,14 @@ def linearization(
             'linearization computes the regulator from both state_weights and control_weights. Give both, or neither.'
         )
         raise AnalysisError(error_msg)
-    problem = _compiled_problem(_read_system(source), 'Linearization')
+    problem = compile_problem(_read_system(source), 'Linearization')
     if problem.form != FormKind.ODE:
         error_msg = f'linearization takes systems under continuous time, but the system is a {problem.form}.'
         raise ValidationError(error_msg)
     adaptive = problem.adaptive_parameters
     chosen = [name for name, item in adaptive.items() if item.bounds is not None] if controls is None else controls
     inputs = _checked_names(chosen, list(adaptive), 'adaptive parameters')
-    dynamics = _dynamics_of(problem)
+    dynamics = StabilityResult._get_dynamics_of(problem)
     states = [name for name in dynamics.names if name not in inputs]
     observed = _checked_names(states if outputs is None else outputs, [*states, *inputs], 'states or controls')
     values = _initial_values(problem)

@@ -14,10 +14,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import step, where
-from ....core.components.system import BaseSystem, System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.dynamics import StockFlowSystem
+from ...general.dynamics.types import FlowTable
+
+INFLOW_START = 5.0
 
 
 class StageElement(Element):
@@ -42,40 +46,7 @@ class StageElement(Element):
         return [RateLaw(s.m, s.feed)]
 
 
-INFLOW_START = 5.0
-
-
-class TubElement(Element):
-    """Tub of water, a stock filled by a faucet and emptied by a drain.
-
-    The faucet opens after five minutes.
-    """
-
-    law_classes = (TransferLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        water: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
-        inflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        outflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.water = water
-        self.inflow = inflow
-        self.outflow = outflow
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the faucet and drain flows of the tub."""
-        return [
-            TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
-            TransferLaw(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
-        ]
-
-
-class BathtubSystem(BaseSystem):
+class BathtubSystem(StockFlowSystem):
     """A bathtub, one stock of water with an inflow and an outflow.
 
     The inflow is from the faucet and the outflow is through the drain. The drain empties the tub at `outflow` gallons
@@ -98,7 +69,7 @@ class BathtubSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.engineering.processes import BathtubSystem
-        >>> BathtubSystem(water=20.0).prepare().system_.elements[0].water
+        >>> BathtubSystem(water=20.0).prepare().system_.elements[0].get_value('water')
         20.0
     """
 
@@ -116,17 +87,29 @@ class BathtubSystem(BaseSystem):
         outflow: float = 5.0,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.water = water
         self.inflow = inflow
         self.outflow = outflow
 
-    def _build_system(self) -> System:
-        """Return the parts of the system built from its model parameters."""
-        return System(
-            self.label,
-            elements=[TubElement('tub', water=self.water, inflow=self.inflow, outflow=self.outflow)],
-        )
+    def _get_element_label(self) -> str:
+        """Return the label of the element that holds the stocks."""
+        return 'tub'
+
+    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+        """Return the stocks and the parameters with their specs."""
+        return {
+            'water': DeclaredVariableSpec(self.water, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')),
+            'inflow': DeclaredVariableSpec(self.inflow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'outflow': DeclaredVariableSpec(self.outflow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        }
+
+    def _get_flows(self) -> FlowTable:
+        """Return the faucet and drain flows of the tub."""
+        return {
+            'faucet': (None, 'water', lambda s: s.source.inflow * step(s.t, INFLOW_START)),
+            'drain': ('water', None, lambda s: where(s.source.water > 0, s.source.outflow, 0)),
+        }
 
 
 class CascadeClassifierSystem(BaseSystem):
@@ -185,7 +168,7 @@ class CascadeClassifierSystem(BaseSystem):
         self.feed_stage = feed_stage
         self.feed = feed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         entry = (self.n_stages + 1) // 2 if self.feed_stage is None else self.feed_stage
         stages = [
@@ -212,7 +195,7 @@ class CascadeClassifierSystem(BaseSystem):
             )
             for index in range(1, self.n_stages + 1)
         ]
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[StageElement('fine'), *stages, StageElement('coarse')],
             interactions=interactions,

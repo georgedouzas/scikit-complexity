@@ -15,13 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import Target
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
+
+NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
 
 class LogisticNodeElement(Element):
@@ -137,20 +139,21 @@ class LogisticCouplingInteraction(CouplingInteraction):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components.elements import LatticeElement
+        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> maps = LatticeElement(
+        >>> maps = GroupElement(
         ...     'maps',
         ...     element=LogisticNodeElement,
         ...     space=NetworkSpace(nx.path_graph(2)),
         ...     values={'x': [0.25, 0.5], 'epsilon': 0.5},
+        ...     on='sites',
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
-        >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> simulate(system, until=1).values('maps.x')[-1].tolist()
+        >>> system = CompositeSystem(elements=[maps], interactions=[coupling], time=DiscreteTime())
+        >>> simulate(system, until=1).get_values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 
@@ -168,35 +171,19 @@ class LogisticCouplingInteraction(CouplingInteraction):
         self.state = state
 
     @staticmethod
-    def _logistic(r: Expression, x: Expression) -> Expression:
+    def _get_logistic(r: Expression, x: Expression) -> Expression:
         """Return the logistic map `r x (1 - x)`."""
         return r * x * (1 - x)
 
     def _get_map(self, namespace: SimpleNamespace) -> Expression:
         """Return the map of the neighbour, with the growth rate of the node."""
-        return self._logistic(namespace.member.r, getattr(namespace.other, self.state))
+        return self._get_logistic(namespace.member.r, getattr(namespace.other, self.state))
 
     def _get_mix(self, namespace: SimpleNamespace, reduction: Target) -> Target:
         """Return the map of the node mixed with the mean map of its neighbours."""
         member = namespace.member
-        own = self._logistic(member.r, getattr(member, self.state))
+        own = self._get_logistic(member.r, getattr(member, self.state))
         return (1 - member.epsilon) * own + member.epsilon * reduction
-
-
-NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
-
-
-def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
-    """Return a network of a generator with a mean degree near `degree`."""
-    rng = np.random.default_rng(seed)
-    if name == 'watts_strogatz':
-        return NetworkSpace(nx.watts_strogatz_graph(n_nodes, degree, rewiring, seed=rng))
-    if name == 'erdos_renyi':
-        return NetworkSpace(nx.gnp_random_graph(n_nodes, degree / (n_nodes - 1), seed=rng))
-    if name == 'barabasi_albert':
-        return NetworkSpace(nx.barabasi_albert_graph(n_nodes, max(degree // 2, 1), seed=rng))
-    error_msg = f'Unknown network {name!r}. Use one of {", ".join(NETWORKS)}.'
-    raise ValueError(error_msg)
 
 
 class KuramotoOnNetworksSystem(BaseSystem):
@@ -254,6 +241,19 @@ class KuramotoOnNetworksSystem(BaseSystem):
     dt = 0.2
     observables = tuple(order_parameter('order', 'oscillators'))
 
+    @staticmethod
+    def _get_network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
+        """Return a network of a generator with a mean degree near `degree`."""
+        rng = np.random.default_rng(seed)
+        if name == 'watts_strogatz':
+            return NetworkSpace(nx.watts_strogatz_graph(n_nodes, degree, rewiring, seed=rng))
+        if name == 'erdos_renyi':
+            return NetworkSpace(nx.gnp_random_graph(n_nodes, degree / (n_nodes - 1), seed=rng))
+        if name == 'barabasi_albert':
+            return NetworkSpace(nx.barabasi_albert_graph(n_nodes, max(degree // 2, 1), seed=rng))
+        error_msg = f'Unknown network {name!r}. Use one of {", ".join(NETWORKS)}.'
+        raise ValueError(error_msg)
+
     def __init__(
         self,
         n_oscillators: int = 200,
@@ -275,12 +275,18 @@ class KuramotoOnNetworksSystem(BaseSystem):
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        space = _network(self.network, self.n_oscillators, self.degree, self.rewiring, self.seed)
+        space = KuramotoOnNetworksSystem._get_network(
+            self.network,
+            self.n_oscillators,
+            self.degree,
+            self.rewiring,
+            self.seed,
+        )
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
-        oscillators = LatticeElement(
+        oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,
             space=space,
@@ -289,10 +295,11 @@ class KuramotoOnNetworksSystem(BaseSystem):
                 'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
             },
             visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
         links = GroupElement('links', element=LinkElement, space=space, on='edges')
         coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
-        return System(self.label, elements=[oscillators, links], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[oscillators, links], interactions=[coupling])
 
 
 class CoupledMapLatticesOnNetworksSystem(BaseSystem):
@@ -369,19 +376,20 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         self.epsilon = epsilon
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return chaotic logistic maps on the nodes of a network.
 
         Each map is pulled towards the mean of its neighbours.
         """
-        space = _network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
+        space = KuramotoOnNetworksSystem._get_network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
-        maps = LatticeElement(
+        maps = GroupElement(
             'maps',
             element=LogisticNodeElement,
             space=space,
             values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
             visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         coupling = LogisticCouplingInteraction('coupling', target='maps')
-        return System(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())

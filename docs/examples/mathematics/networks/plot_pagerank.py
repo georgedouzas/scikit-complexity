@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = simulate(PagerankSystem(graph=graph), until=40, observers=[observer])
-ranks = trajectory.values('pages.rank')
+ranks = trajectory.get_values('pages.rank')
 layout = nx.spring_layout(graph, seed=1)
 positions = np.array([layout[node] for node in graph.nodes]) * 300
 observer.recording_.log('club', rr.GraphEdges(list(graph.edges), graph_type='undirected'), static=True)

@@ -1,7 +1,4 @@
-"""Solver of the linear evolution `dx/dt = -i H x` of a pure state.
-
-It uses QuTiP's `SESolver`.
-"""
+"""Solver of the linear evolution `dx/dt = -i H x` of a pure state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,9 +13,11 @@ from ._operator import OperatorSolver
 
 
 class UnitarySolver(OperatorSolver):
-    """Solver of the linear evolution `dx/dt = -i H x` of a pure state.
+    """A solver of the linear evolution `dx/dt = -i H x` of a pure state.
 
     It uses QuTiP's `SESolver`.
+
+    Choose it for closed quantum systems. It appears in quantum mechanics, such as spin chains and quantum walks.
 
     Args:
         atol:
@@ -38,7 +37,7 @@ class UnitarySolver(OperatorSolver):
         >>> from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import UnitarySolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
@@ -53,13 +52,13 @@ class UnitarySolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[TwoLevelElement('q')])
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> trajectory = simulate(system, until=np.pi, solver=UnitarySolver(), dt=np.pi, observables=z)
-        >>> float(round(trajectory.values('q.z')[-1], 6))
+        >>> float(round(trajectory.get_values('q.z')[-1], 6))
         -1.0
     """
 
-    def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
+    def _get_unsupported(self, problem: OperatorProblemSpec) -> list[str]:
         """Return the dissipators or the density matrix of a problem.
 
         Unitary evolution does not run them.
@@ -70,4 +69,4 @@ class UnitarySolver(OperatorSolver):
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Schrödinger solver at fixed parameters."""
-        return qutip.SESolver(self._operator(self.operator_.generator, p), options=self._options)
+        return qutip.SESolver(self._get_operator(self.operator_.generator, p), options=self._options)

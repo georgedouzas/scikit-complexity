@@ -7,8 +7,8 @@ as in the abundances of tropical trees.
 """
 
 # %%
-# The system is built from its class with a hundred species of ten individuals each. The observer saves every frame
-# with the default blueprint, whose primary view is the time series of the abundances.
+# The example builds `NeutralMacroecologySystem` with a hundred species of ten individuals each. The observer saves
+# every frame with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +30,7 @@ trajectory = simulate(NeutralMacroecologySystem(species=100, n=10.0), observers=
 # `b1 / d1` as its success ratio, of mean `b0 / (d1 - b1) = 10`. Pooling the abundances of the last half of the run,
 # the histogram should follow it.
 
-abundances = trajectory.values('species.n')[50:].ravel()
+abundances = trajectory.get_values('species.x')[50:].ravel()
 b0, b1, d1 = 1.0, 0.9, 1.0
 counts = np.arange(abundances.max() + 1)
 law = nbinom.pmf(counts, b0 / b1, 1 - b1 / d1)

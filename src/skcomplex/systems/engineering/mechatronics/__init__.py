@@ -12,7 +12,7 @@ from ._mechatronics import (
     QuarterCarElement,
     QuarterCarSystem,
 )
-from ._vibrating_table import VibratingTableElement, VibratingTableSystem
+from ._vibrating_table import VibratingTableSystem
 
 __all__: list[str] = [
     'ArmatureElement',
@@ -23,6 +23,5 @@ __all__: list[str] = [
     'MotorCouplingInteraction',
     'QuarterCarElement',
     'QuarterCarSystem',
-    'VibratingTableElement',
     'VibratingTableSystem',
 ]

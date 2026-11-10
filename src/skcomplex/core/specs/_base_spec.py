@@ -1,7 +1,4 @@
-"""Define the base of every spec.
-
-A spec is a frozen value whose fields are what it is.
-"""
+"""Define the abstract base of every spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class BaseSpec:
-    """Base of every spec.
+    """An abstract spec, a frozen value that a class reads, records, or builds.
 
     A spec is a frozen dataclass whose fields are what it is. A spec declares what a class reads, records what a run
     produced, or holds what a compiler built. It never changes and holds only its fields, the hook `_check`, and readers

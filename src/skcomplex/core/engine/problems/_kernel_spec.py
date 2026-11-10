@@ -22,7 +22,7 @@ from ._set_symbol_spec import SetSymbolSpec
 
 @dataclass(frozen=True)
 class KernelSpec(BaseSpec):
-    """Namespace, references, and evaluation indices of the laws of one component.
+    """A spec of the namespace, references, and indices of the laws of one part.
 
     The laws of the component are lowered with them.
 
@@ -97,9 +97,9 @@ class KernelSpec(BaseSpec):
     counts: Indices | None = field(default=None, compare=False, repr=False)
     place: FieldElement | None = field(default=None, compare=False, repr=False)
 
-    def _target_references(self, target: object) -> list[ReferenceSpec]:
+    def _get_target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""
-        components = ProblemSpec._real_components_of(target)
+        components = ProblemSpec._get_real_components_of(target)
         found = [self.references.get(component) for component in components]
         references = [reference for reference in found if reference is not None and reference.is_state]
         if len(references) != len(components):
@@ -107,7 +107,7 @@ class KernelSpec(BaseSpec):
             raise ValidationError(error_msg)
         return references
 
-    def _relative_names(self, names: Iterable[str]) -> dict[str, str]:
+    def _get_relative_names(self, names: Iterable[str]) -> dict[str, str]:
         """Return the dotted name of every variable by its name in the component.
 
         A variable of the component takes its own name, and a variable of the element bound to a role, or of its
@@ -126,7 +126,7 @@ class KernelSpec(BaseSpec):
             if name.startswith(f'{path}.')
         }
 
-    def _state_name(self, target: Expression) -> str:
+    def _get_state_name(self, target: Expression) -> str:
         """Return the dotted name of the state a target symbol of the namespace stands for.
 
         Other symbols return themselves.

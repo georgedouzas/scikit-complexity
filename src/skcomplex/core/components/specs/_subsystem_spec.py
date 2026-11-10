@@ -1,4 +1,4 @@
-"""Define the subsystem spec."""
+"""Define the spec of a subsystem of a tensor product."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,10 +14,26 @@ from ._operator_view_spec import OperatorViewSpec
 
 
 @dataclass(frozen=True)
-class _SubsystemSpec(BaseSpec):
-    """Subsystem of a tensor product.
+class SubsystemSpec(BaseSpec):
+    """A spec of a subsystem of a tensor product, such as one qubit of a register.
 
-    It holds its key, its element, its index in the tensor product, its state symbol, and operators.
+    The compiler of operators builds one per operator element, and the lowering of operators reads them.
+
+    Args:
+        key:
+            The key of the subsystem, the path of its element.
+
+        element:
+            The operator view of the element.
+
+        index:
+            The index of the subsystem in the tensor product.
+
+        symbol:
+            The state symbol of the subsystem.
+
+        operators:
+            The local operators of the element, by name.
     """
 
     key: str

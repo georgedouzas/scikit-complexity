@@ -16,12 +16,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ..common.policy import PolicyRuleInteraction
+
+PRICE, QUANTITY, TRADER = 0, 1, 2
+TINY = 1e-12
+HOLDINGS = ('cash', 'stocks')
 
 
 class GuruTraderView(AgentView):
@@ -124,13 +128,7 @@ class GuruTraderElement(Element):
         return []
 
 
-PRICE, QUANTITY, TRADER = 0, 1, 2
-
-
-TINY = 1e-12
-
-
-class GuruMarketInteraction(FeedbackInteraction[SystemView]):
+class GuruMarketInteraction(PolicyRuleInteraction[SystemView]):
     """Order-driven market of noise traders who imitate the expectation of a guru.
 
     The network is rewired every day. Every step is a trading day. First every trader picks a random trader `j` and
@@ -198,7 +196,7 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         self.opening = opening
 
     @staticmethod
-    def _stored(system: SystemView, name: str, default: float) -> float:
+    def _get_stored(system: SystemView, name: str, default: float) -> float:
         """Return a number the market stored in an earlier step.
 
         Before it is stored, it is the default.
@@ -276,7 +274,7 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
 
         It returns the closing price and the volume.
         """
-        rng, tau = system.rng, int(system.parameter('tau'))
+        rng, tau = system.rng, int(system.get_parameter('tau'))
         reference, volume = price, 0.0
         bids: list[list[float]] = []
         asks: list[list[float]] = []
@@ -331,16 +329,16 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the market.
         """
-        traders = sorted(system.agents('traders', GuruTraderView), key=lambda trader: trader.id)
+        traders = sorted(system.get_agents('traders', GuruTraderView), key=lambda trader: trader.id)
         rng, store = system.rng, system.storage
-        price = self._stored(system, 'price', system.parameter('opening'))
-        beta = self._stored(system, 'beta', 1.0)
+        price = self._get_stored(system, 'price', system.get_parameter('opening'))
+        beta = self._get_stored(system, 'beta', 1.0)
         cash = np.array([trader.cash for trader in traders])
         stocks = np.array([trader.stocks for trader in traders])
         follows = np.array([int(trader.follows) for trader in traders])
         sigma = np.array([trader.sigma for trader in traders])
         guru = int(np.argmax(np.bincount(follows, minlength=len(traders))))
-        beta = beta + system.parameter('beta_step') if guru == self._stored(system, 'guru', -1.0) else 1.0
+        beta = beta + system.get_parameter('beta_step') if guru == self._get_stored(system, 'guru', -1.0) else 1.0
         wealth = cash + price * stocks
         follows = self._rewire(follows, wealth / wealth.max(), beta, rng)
         own = sigma * rng.normal(size=len(traders))
@@ -366,9 +364,6 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         system.report('guru', float(guru))
         system.report('beta', beta)
         system.report('guru_followers', float(followers.max()))
-
-
-HOLDINGS = ('cash', 'stocks')
 
 
 class GuruOrderBookSystem(BaseSystem):
@@ -455,7 +450,7 @@ class GuruOrderBookSystem(BaseSystem):
         self.opening = opening
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         links = rng.integers(self.n_traders - 1, size=self.n_traders)
@@ -479,4 +474,4 @@ class GuruOrderBookSystem(BaseSystem):
             beta_step=self.beta_step,
             opening=self.opening,
         )
-        return System(self.label, elements=[traders], interactions=[market])
+        return CompositeSystem(self.label, elements=[traders], interactions=[market])

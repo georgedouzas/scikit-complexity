@@ -1,11 +1,4 @@
-"""Hold the Numba stepper loops of every form.
-
-The loops call the step count.
-"""
-
-# Author: Georgios Douzas <gdouzas@icloud.com>
-# License: MIT
-
+"""Hold the Numba stepper loops of every form."""
 
 NO_BOUNDARY = """
 HAS_BOUNDARY = False
@@ -164,3 +157,7 @@ def iterate_random(t, x, p, L, until, rng, offset, normal):
     return y
 """,
 }
+
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT

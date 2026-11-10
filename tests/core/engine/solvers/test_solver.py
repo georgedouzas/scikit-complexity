@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._steps import step_count
@@ -66,8 +66,8 @@ class WalkerElement(Element):
 
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
-    system = System(
-        elements=[PopulationElement('a', n=1)],
+    system = CompositeSystem(
+        elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     return PassCompiler().prepare(system).run().problem_
@@ -91,12 +91,14 @@ def test_step_count_rounds_up_beyond_rounding(t, until, dt, count):
 def _system(kind):
     """Return a nonlinear system of the oscillator, noise, or map kind."""
     if kind == 'ode':
-        return System(elements=[GroupElement('beads', element=BeadElement, size=3, values={'x': [1.0, 0.5, -0.2]})])
+        return CompositeSystem(
+            elements=[GroupElement('beads', element=BeadElement, size=3, values={'x': [1.0, 0.5, -0.2]})],
+        )
     if kind == 'sde':
-        return System(
+        return CompositeSystem(
             elements=[GroupElement('walkers', element=WalkerElement, size=3, values={'x': [1.0, 0.5, -0.2]})],
         )
-    return System(
+    return CompositeSystem(
         elements=[MarketElement('m', price=1.0)],
         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
     )

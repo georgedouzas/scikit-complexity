@@ -6,8 +6,8 @@ reusing the newest polymer, a simple model of selection, builds ever longer chai
 """
 
 # %%
-# The system is built from its class with undirected joining, and the observer saves every step with the default
-# blueprint, whose primary view is the count of polymers.
+# The example builds `PolymerAssemblyPoolSystem` with undirected joining, and the observer saves every step with the
+# default blueprint, whose primary view is the count of polymers.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,7 @@ for mode in ('undirected', 'directed'):
     runs = []
     for seed in range(10):
         run = simulate(PolymerAssemblyPoolSystem(mode=mode), random_state=seed, until=100)
-        runs.append([np.log2(run.agents('pool', frame).values['length'].max()) for frame in range(101)])
+        runs.append([np.log2(run.get_agents('pool', frame).values['length'].max()) for frame in range(101)])
     ax.plot(np.mean(runs, axis=0), label=mode)
 ax.set_xlabel('step')
 ax.set_ylabel('mean largest assembly index')

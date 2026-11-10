@@ -7,9 +7,9 @@ drift.
 """
 
 # %%
-# The system is built from its class with the speciation probability `nu = 0.01` per birth. One unit of time holds 200
-# deaths, each replaced by the offspring of another individual. The observer saves every fourth frame with the default
-# blueprint, whose primary view is the time series of the number of species.
+# The example builds `NeutralBiodiversitySystem` with the speciation probability `nu = 0.01` per birth. One unit of time
+# holds 200 deaths, each replaced by the offspring of another individual. The observer saves every fourth frame with the
+# default blueprint, whose primary view is the time series of the number of species.
 
 import itertools
 
@@ -46,13 +46,13 @@ phi = theta / abundances * np.cumprod((SIZE - abundances + 1) / (SIZE - abundanc
 times = trajectory.times
 counts = np.zeros(SIZE + 1)
 for frame in np.flatnonzero(times >= 200):
-    _, sizes = np.unique(trajectory.agents('community', int(frame)).values['species'], return_counts=True)
+    _, sizes = np.unique(trajectory.get_agents('community', int(frame)).values['species'], return_counts=True)
     counts += np.bincount(sizes, minlength=SIZE + 1)
 counts /= np.sum(times >= 200)
 bins = list(itertools.pairwise(2 ** np.arange(9)))
 
 fig, (richness, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-richness.plot(times, trajectory.values('richness'), label='simulated')
+richness.plot(times, trajectory.get_values('richness'), label='simulated')
 richness.axhline(expected_richness, color='black', linestyle='--', label='S_N')
 richness.set_xlabel('time')
 richness.set_ylabel('number of species')

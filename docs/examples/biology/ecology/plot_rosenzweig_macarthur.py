@@ -7,10 +7,10 @@ collapse by thirty orders of magnitude before they return, a rate-induced tippin
 """
 
 # %%
-# The system is built from its class with the crowding rising at the rate 0.002, above the critical rate of about
-# 0.0004, and integrated with its registered solver, which controls only the relative error so that the collapsed prey
-# keep their sign. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# both populations.
+# The example builds `RosenzweigMacarthurSystem` with the crowding rising at the rate 0.002, above the critical rate of
+# about 0.0004, and integrates it with its registered solver, which controls only the relative error so that the
+# collapsed prey keep their sign. The observer saves every frame with the default blueprint, whose primary view is the
+# time series of both populations.
 
 import matplotlib.pyplot as plt
 
@@ -32,11 +32,13 @@ trajectory = simulate(RosenzweigMacarthurSystem(rate=0.002), observers=[observer
 fast = trajectory
 slow = simulate(RosenzweigMacarthurSystem(rate=0.0002), until=149)
 fig, ax = plt.subplots(figsize=(8, 4))
-ax.semilogy(slow.times, slow.values('prey.n'), label='rate 0.0002: tracks the point')
-ax.semilogy(fast.times, fast.values('prey.n'), label='rate 0.002: tips')
+ax.semilogy(slow.times, slow.get_values('prey.x'), label='rate 0.0002: tracks the point')
+ax.semilogy(fast.times, fast.get_values('prey.x'), label='rate 0.002: tips')
 ax.set_xlim(0, 40)
 ax.set_xlabel('time')
 ax.set_ylabel('prey (log scale)')
-ax.set_title(f'Lowest prey: {slow.values("prey.n").min():.2g} when slow, {fast.values("prey.n").min():.2g} when fast')
+ax.set_title(
+    f'Lowest prey: {slow.get_values("prey.x").min():.2g} when slow, {fast.get_values("prey.x").min():.2g} when fast',
+)
 ax.legend()
 plt.show()

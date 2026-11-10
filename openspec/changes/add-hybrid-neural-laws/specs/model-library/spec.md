@@ -36,3 +36,24 @@ neural map, after 2310.09167, with a gallery example and an inventory entry.
 - **WHEN** the neural form runs with the weights of its last layer at zero
 - **THEN** every compound has the typical rates of the system, and its concentrations equal those of the reference form
   for a compound whose descriptors map to the typical rates, within 1e-8
+
+### Requirement: Growing neural cellular automaton
+The library SHALL provide `growing_neural_cellular_automaton` in `computer_science/automata`, the growing neural
+cellular automaton of Mordvintsev et al. (2020) that Hartl, Levin, and Pio-Lopez (2025, arXiv 2509.11131) review: 16
+channels per cell updated by a neural function of the identity and Sobel convolutions of every channel, a random mask
+of cells, and an alive mask, trained through the unrolled run to grow a target from one seed, with a gallery example and
+an inventory entry.
+
+#### Scenario: Untrained network leaves the seed
+- **WHEN** the system runs 50 steps from one seed cell with the last layer at zero
+- **THEN** every frame equals the seed frame
+
+#### Scenario: Dead cells stay empty
+- **WHEN** the system runs with random weights from one seed cell
+- **THEN** every cell farther than the number of steps from the seed holds zero in every channel
+
+#### Scenario: Training grows the target
+- **WHEN** the system is trained on JAX for 200 epochs to grow a synthetic ring of 24 by 24 cells in 48 steps
+- **THEN** the squared error of the colour and alpha channels at the last step falls below a quarter of its value with
+  the untrained network
+

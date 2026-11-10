@@ -9,10 +9,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -132,20 +132,21 @@ class NagelSchreckenbergSystem(BaseSystem):
             following = np.where(velocity == distance, velocity, following)
         return following
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         velocity = np.full(self.length, -1.0)
         velocity[rng.choice(self.length, size=round(self.density * self.length), replace=False)] = 0.0
-        road = LatticeElement(
+        road = GroupElement(
             'road',
             element=RoadElement,
             space=LatticeSpace(self.length),
             values={'velocity': velocity, 'slowdown': self.slowdown},
+            on='sites',
         )
         ahead = LatticeNeighborhood(tuple((distance,) for distance in range(self.vmax + 1)))
         behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[road],
             interactions=[

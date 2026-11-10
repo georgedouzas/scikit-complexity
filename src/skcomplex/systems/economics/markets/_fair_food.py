@@ -15,11 +15,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import ChoiceInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import ChoiceInteraction
 
 
 class ConsumerView(AgentView):
@@ -206,7 +206,7 @@ class FairFoodSystem(BaseSystem):
             return 0.0
         if agent.budget < 1 + agent.premium:
             return -math.inf
-        neighbors = [neighbor for neighbor in agent.neighbors() if isinstance(neighbor, ConsumerView)]
+        neighbors = [neighbor for neighbor in agent.get_neighbors() if isinstance(neighbor, ConsumerView)]
         share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
         return float(
             agent.ethics_weight * agent.ethics
@@ -214,7 +214,7 @@ class FairFoodSystem(BaseSystem):
             + agent.social_weight * share,
         )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -241,7 +241,7 @@ class FairFoodSystem(BaseSystem):
             intensity=self.intensity,
             form='agent',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[consumers],
             interactions=[choice],

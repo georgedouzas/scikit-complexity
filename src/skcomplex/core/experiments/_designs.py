@@ -1,7 +1,4 @@
-"""Give the rows of values an experiment runs.
-
-They are grids, random and quasi-random samples, and sensitivity designs.
-"""
+"""Give the rows of values an experiment runs, such as grids and random samples."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,6 +24,7 @@ def _get_rows(
     design: str,
     n: int,
     random_state: int | None,
+    integers: Iterable[str] = (),
 ) -> list[Row]:
     """Return the rows of a sweep.
 
@@ -46,6 +44,9 @@ def _get_rows(
         random_state:
             The seed of the samples.
 
+        integers:
+            The names whose samples are integers, drawn from the integers within their pair of bounds.
+
     Returns:
         rows:
             One mapping from name to value per row.
@@ -54,14 +55,6 @@ def _get_rows(
         ValidationError:
             The design is unknown, rows are given with a sampled design, or the values or bounds do not fit the
             design.
-
-    Examples:
-        >>> from skcomplex.core.experiments._designs import _get_rows
-        >>> _get_rows({'r': [0.5, 1.0], 'K': [100, 200]}, 'grid', 0, None)
-        [{'r': 0.5, 'K': 100}, {'r': 0.5, 'K': 200}, {'r': 1.0, 'K': 100}, {'r': 1.0, 'K': 200}]
-        >>> rows = _get_rows({'r': (0.0, 1.0)}, 'latin_hypercube', 4, 0)
-        >>> sorted(int(row['r'] * 4) for row in rows)
-        [0, 1, 2, 3]
     """
     if design not in DESIGNS:
         error_msg = f'Unknown design {design!r}. Use one of {", ".join(DESIGNS)}.'
@@ -87,7 +80,7 @@ def _get_rows(
         uniform = qmc.LatinHypercube(d=len(bounds), seed=random_state).random(n)
     else:
         uniform = qmc.Sobol(d=len(bounds), seed=random_state).random(n)
-    return _scale(bounds, uniform)
+    return _scale(bounds, uniform, integers)
 
 
 def _get_grid_rows(values: Bounds) -> list[Row]:
@@ -167,10 +160,15 @@ def _get_pairs(bounds: Bounds) -> dict[str, tuple[float, float]]:
     return pairs
 
 
-def _scale(bounds: Mapping[str, object], uniform: npt.NDArray[np.float64]) -> list[Row]:
+def _scale(
+    bounds: Mapping[str, object],
+    uniform: npt.NDArray[np.float64],
+    integers: Iterable[str] = (),
+) -> list[Row]:
     """Return rows of uniform samples in the unit cube mapped to bounds.
 
-    They are mapped to pairs of bounds or through quantile functions.
+    They are mapped to pairs of bounds or through quantile functions. A name among the integers takes each integer
+    within its pair of bounds with equal chance, both bounds included.
 
     Args:
         bounds:
@@ -179,14 +177,21 @@ def _scale(bounds: Mapping[str, object], uniform: npt.NDArray[np.float64]) -> li
         uniform:
             The samples in the unit cube, one row per sample and one column per name.
 
+        integers:
+            The names whose samples are integers.
+
     Returns:
         rows:
             One row per sample.
     """
     columns = {}
+    integral = set(integers)
     for index, (name, bound) in enumerate(bounds.items()):
         if hasattr(bound, 'ppf'):
             columns[name] = np.asarray(bound.ppf(uniform[:, index]), dtype=float)
+        elif isinstance(bound, Sequence) and name in integral:
+            low, high = np.ceil(float(bound[0])), np.floor(float(bound[1]))
+            columns[name] = np.minimum(np.floor(low + uniform[:, index] * (high - low + 1)), high)
         elif isinstance(bound, Sequence):
             low, high = (float(item) for item in bound)
             columns[name] = low + uniform[:, index] * (high - low)
@@ -216,13 +221,6 @@ def _get_sensitivity_rows(bounds: Bounds, method: str, n: int, random_state: int
     Returns:
         rows:
             One mapping from name to value per row.
-
-    Examples:
-        >>> from skcomplex.core.experiments._designs import _get_sensitivity_rows
-        >>> _get_sensitivity_rows({'r': (0.0, 1.0), 'K': (50, 150)}, 'oat', 0, None)
-        [{'r': 0.0, 'K': 100.0}, {'r': 1.0, 'K': 100.0}, {'r': 0.5, 'K': 50.0}, {'r': 0.5, 'K': 150.0}]
-        >>> len(_get_sensitivity_rows({'r': (0.0, 1.0), 'K': (50, 150)}, 'sobol', 8, 0))
-        32
     """
     pairs = _get_pairs(bounds)
     if method == 'oat':

@@ -1,7 +1,4 @@
-"""Pass that adds the transfer network to the problem.
-
-It adds the quantities, flows, and records of the network.
-"""
+"""Pass that adds the transfer network to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from .._compilation import Compilation
 
 
 class FlowsProblemPass(BasePass):
-    """Pass that adds the transfer network to the problem.
+    """A pass that adds the transfer network to the problem.
 
     It adds the quantities, flows, and records of the network.
     """
@@ -30,6 +27,6 @@ class FlowsProblemPass(BasePass):
         """Add the transfer network to the problem."""
         compilation = self.compilation_
         compilation.problem = replace(
-            Compilation._required(compilation.problem, 'problem'),
-            transfer_network=Compilation._required(compilation.transfer_network, 'transfer_network'),
+            Compilation._get_required(compilation.problem, 'problem'),
+            transfer_network=Compilation._get_required(compilation.transfer_network, 'transfer_network'),
         )

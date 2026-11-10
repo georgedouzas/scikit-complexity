@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
@@ -133,7 +133,7 @@ class WillingMajorityInteraction(Interaction):
             system:
                 The system.
         """
-        voters = system.agents(self.target, WillingVoterView)
+        voters = system.get_agents(self.target, WillingVoterView)
         size = len(voters)
         group_size = int(self.group_size)
         if size <= group_size:
@@ -212,7 +212,7 @@ class WillingMajoritySystem(BaseSystem):
         self.willingness = willingness
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         opinions = rng.integers(2, size=self.n_agents).astype(float)
@@ -226,4 +226,4 @@ class WillingMajoritySystem(BaseSystem):
             values={'opinion': opinions, 'willingness': np.where(stubborn, 0.0, self.willingness)},
         )
         majority = WillingMajorityInteraction('majority', target='voters', group_size=self.group_size)
-        return System(self.label, elements=[voters], interactions=[majority])
+        return CompositeSystem(self.label, elements=[voters], interactions=[majority])

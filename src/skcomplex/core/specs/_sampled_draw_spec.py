@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SampledDrawSpec(BaseSpec):
-    """Draw from a `scipy.stats` distribution that a stochastic map takes.
+    """A spec of a draw from a distribution of SciPy that a stochastic map takes.
 
     It is taken for every member at every step.
 

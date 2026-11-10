@@ -17,11 +17,11 @@ import xgi
 from sage.all__sagemath_symbolics import sin
 from scipy import stats
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
@@ -157,16 +157,16 @@ class HypergraphKuramotoSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
+    def _get_simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
         """Return a random hypergraph over the oscillators.
 
         The hypergraph has the given densities of links and of triangles.
         """
         return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        hypergraph = self._simplices(self.n_oscillators, self.links, self.triangles, self.seed)
+        hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
         mean_links = max(PAIR * sizes.count(PAIR) / self.n_oscillators, 1.0)
@@ -178,12 +178,13 @@ class HypergraphKuramotoSystem(BaseSystem):
             if self.phases is None
             else np.asarray(self.phases, dtype=float)
         )
-        oscillators = LatticeElement(
+        oscillators = GroupElement(
             'oscillators',
             element=PhaseOscillatorElement,
             space=space,
             values={'theta': theta, 'omega': omega},
             visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+            on='sites',
         )
         coupling = SimplexCouplingInteraction(
             'coupling',
@@ -191,4 +192,4 @@ class HypergraphKuramotoSystem(BaseSystem):
             K1=self.K1 / mean_links,
             K2=self.K2 / mean_triangles,
         )
-        return System(self.label, elements=[oscillators], interactions=[coupling])
+        return CompositeSystem(self.label, elements=[oscillators], interactions=[coupling])

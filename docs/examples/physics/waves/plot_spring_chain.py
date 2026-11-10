@@ -31,7 +31,7 @@ trajectory = simulate(system, until=4, dt=0.02, observers=[observer])
 # own amplitude and oscillates at `2 sqrt(k / m) sin(n π / (2 (N + 1)))`. The projections of the heights on the first
 # three odd modes, which the symmetric pluck excites, should follow cosines at those frequencies.
 
-heights = np.stack([np.asarray(trajectory.values(f'mass_{index}.x'))[:, 1] for index in range(N_MASSES)], axis=1)
+heights = np.stack([np.asarray(trajectory.get_values(f'mass_{index}.x'))[:, 1] for index in range(N_MASSES)], axis=1)
 sites = np.arange(1, N_MASSES + 1)
 times = np.asarray(trajectory.times)
 fig, ax = plt.subplots(figsize=(7, 4))

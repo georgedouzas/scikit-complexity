@@ -17,19 +17,13 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ..common._exchange import cobb_douglas
-from ..common._exchange_interaction import ExchangeInteraction
+from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 EDGEWORTH_BARTERERS = 2
-
-
-def _utility(agent: object) -> float:
-    """Return the logarithm of the Cobb-Douglas utility of a barterer."""
-    return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
 def contract_curve(
@@ -137,6 +131,11 @@ class BartererElement(Element):
         return []
 
 
+def _get_utility(agent: object) -> float:
+    """Return the logarithm of the Cobb-Douglas utility of a barterer."""
+    return cobb_douglas(agent, GOODS, WEIGHTS)
+
+
 class BarterSystem(BaseSystem):
     """Barter of chocolate and cigarettes.
 
@@ -190,7 +189,7 @@ class BarterSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 5', 'Radford 1945')
     until = 20
     observables = (
-        ObservableSpec('utility', _utility, group='barterers', reduce='mean'),
+        ObservableSpec('utility', _get_utility, group='barterers', reduce='mean'),
         *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     )
 
@@ -213,7 +212,7 @@ class BarterSystem(BaseSystem):
         self.quantity = quantity
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.n_barterers < EDGEWORTH_BARTERERS:
             error_msg = f'Barter needs at least two barterers, but got {self.n_barterers}.'
@@ -238,7 +237,7 @@ class BarterSystem(BaseSystem):
             values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
             variable=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[barterers],
             interactions=[

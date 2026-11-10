@@ -13,41 +13,26 @@ import qutip
 from sage.all__sagemath_symbolics import CC, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 MIN_SPIN_DIMENSION = 2
+INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
+BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
 
 
-def spin_space(j: float = 0.5) -> HilbertSpec:
+def _get_spin_space(j: float) -> HilbertSpec:
     """Return the Hilbert space of a spin of quantum number `j`.
 
-    The basis runs from `m = j` down to `m = -j`.
-
-    Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
-
-    Args:
-        j:
-            The spin quantum number, a positive multiple of one half.
-
-    Returns:
-        space:
-            The Hilbert space, of dimension `2 j + 1`.
-
-    Raises:
-        ValidationError:
-            The quantum number is not a positive multiple of one half.
-
-    Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import spin_space
-        >>> spin_space(1).dimension
-        3
+    The quantum number is a positive multiple of one half. The basis runs from `m = j` down to `m = -j`, and the
+    operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`. Another quantum number
+    raises a `ValidationError`.
     """
     size = 2 * j + 1
     if not float(size).is_integer() or size < MIN_SPIN_DIMENSION:
@@ -63,7 +48,7 @@ def spin_space(j: float = 0.5) -> HilbertSpec:
     return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
 
 
-SPIN_HALF = spin_space()
+SPIN_HALF = _get_spin_space(0.5)
 
 
 class SpinElement(Element):
@@ -82,15 +67,16 @@ class SpinElement(Element):
             The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
         hilbert:
-            The Hilbert space, `spin_space(j)`, by default that of a spin one half.
+            The Hilbert space of the spin, with the spin components `x`, `y`, `z` and the ladder operators `plus` and
+            `minus` as its operators, by default that of a spin one half.
 
         visual:
             How the spin is drawn.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, spin_space
-        >>> SpinElement('s', hilbert=spin_space(1)).hilbert.dimension
-        3
+        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
+        >>> SpinElement('s').hilbert.dimension
+        2
     """
 
     def __init__(
@@ -257,17 +243,6 @@ class ZeemanFieldInteraction(Interaction):
         return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
 
 
-INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
-
-
-BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
-
-
-def _sites(values: object) -> object:
-    """Return the values of every site, without reducing them."""
-    return values
-
-
 def local_magnetization(member: SimpleNamespace) -> Expression:
     """Return the `z` component of one spin.
 
@@ -294,6 +269,11 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
             The total magnetisation.
     """
     return sum(local_operator(member.psi, 'z') for member in s.chain)
+
+
+def _get_sites(values: object) -> object:
+    """Return the values of every site, without reducing them."""
+    return values
 
 
 class QuantumHeisenbergSystem(BaseSystem):
@@ -350,7 +330,7 @@ class QuantumHeisenbergSystem(BaseSystem):
     until = 8.0
     dt = 0.05
     observables = (
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
+        ObservableSpec('sz', local_magnetization, group='chain', reduce=_get_sites),
         ObservableSpec('magnetization', total_magnetization),
     )
 
@@ -376,7 +356,7 @@ class QuantumHeisenbergSystem(BaseSystem):
         self.initial = initial
 
     @staticmethod
-    def _initial_labels(n_sites: int, initial: str) -> list[str]:
+    def _get_initial_labels(n_sites: int, initial: str) -> list[str]:
         """Return the basis label of every spin of a product initial state."""
         if initial == 'neel':
             return ['up' if site % 2 == 0 else 'down' for site in range(n_sites)]
@@ -394,7 +374,7 @@ class QuantumHeisenbergSystem(BaseSystem):
             settings['initial_state'] = {f'{self.label}.state': 'ground'}
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a chain of spins one half with the XXZ Hamiltonian.
 
         The chain has a field and optional dephasing.
@@ -406,12 +386,12 @@ class QuantumHeisenbergSystem(BaseSystem):
             )
             raise ValidationError(error_msg)
         space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
-        labels = self._initial_labels(self.n_sites, self.initial)
-        chain = LatticeElement('chain', element=SpinElement, space=space, values={'psi': labels})
+        labels = self._get_initial_labels(self.n_sites, self.initial)
+        chain = GroupElement('chain', element=SpinElement, space=space, values={'psi': labels}, on='sites')
         interactions: list[BaseInteraction] = [
             XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),
             ZeemanFieldInteraction('field', target='chain', h=self.h),
         ]
         if self.gamma > 0:
             interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
-        return System(self.label, elements=[chain], interactions=interactions)
+        return CompositeSystem(self.label, elements=[chain], interactions=interactions)

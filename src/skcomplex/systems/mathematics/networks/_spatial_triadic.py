@@ -15,12 +15,12 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 CHUNK = 500
@@ -273,7 +273,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
         >>> system = SpatialTriadicPercolationSystem(1.0).prepare().system_
         >>> trajectory = simulate(system, until=2, random_state=0)
-        >>> giant = trajectory.values('nodes.active').mean(axis=1)
+        >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[0] == 1.0 and giant[1] < 0.1)
         True
     """
@@ -311,7 +311,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _torus_distances(first: np.ndarray, second: np.ndarray, side: float) -> np.ndarray:
+    def _get_torus_distances(first: np.ndarray, second: np.ndarray, side: float) -> np.ndarray:
         """Return the distances on a square torus between two arrays of points.
 
         Every point of the first array is paired with every point of the second.
@@ -321,7 +321,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         return np.hypot(offsets[..., 0], offsets[..., 1])
 
     @staticmethod
-    def _waxman_torus(n_nodes: int, side: float, c: float, scale: float, rng: np.random.Generator) -> nx.Graph:
+    def _get_waxman_torus(n_nodes: int, side: float, c: float, scale: float, rng: np.random.Generator) -> nx.Graph:
         """Return nodes placed uniformly on a square torus.
 
         Each pair is linked with probability `c exp(-d / scale)`.
@@ -331,7 +331,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         graph.add_nodes_from((node, {'pos': tuple(positions[node])}) for node in range(n_nodes))
         for start in range(0, n_nodes, CHUNK):
             rows = np.arange(start, min(start + CHUNK, n_nodes))
-            distances = SpatialTriadicPercolationSystem._torus_distances(positions[rows], positions, side)
+            distances = SpatialTriadicPercolationSystem._get_torus_distances(positions[rows], positions, side)
             linked = (rng.uniform(size=distances.shape) < c * np.exp(-distances / scale)) & (
                 np.arange(n_nodes)[None, :] > rows[:, None]
             )
@@ -339,7 +339,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         return graph
 
     @staticmethod
-    def _spatial_regulators(
+    def _get_spatial_regulators(
         graph: nx.Graph,
         side: float,
         chances: tuple[float, float],
@@ -363,7 +363,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         negatives, positives = [], []
         for start in range(0, len(ends), CHUNK):
             decay = np.exp(
-                -SpatialTriadicPercolationSystem._torus_distances(midpoints[start : start + CHUNK], positions, side)
+                -SpatialTriadicPercolationSystem._get_torus_distances(midpoints[start : start + CHUNK], positions, side)
                 / scale,
             )
             draws = rng.uniform(size=decay.shape)
@@ -377,11 +377,17 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         hyperedges = [item + (item[0],) * (width - len(item)) for item in regulators]
         return hyperedges, np.asarray(negatives), np.asarray(positives)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        graph = self._waxman_torus(round(self.density * self.side**2), self.side, self.c, self.structural_range, rng)
-        hyperedges, negatives, positives = self._spatial_regulators(
+        graph = self._get_waxman_torus(
+            round(self.density * self.side**2),
+            self.side,
+            self.c,
+            self.structural_range,
+            rng,
+        )
+        hyperedges, negatives, positives = self._get_spatial_regulators(
             graph,
             self.side,
             (self.positive, self.negative),
@@ -389,7 +395,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
             rng,
         )
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = LatticeElement('nodes', element=PercolatingNodeElement, space=space)
+        nodes = GroupElement('nodes', element=PercolatingNodeElement, space=space, on='sites')
         values = {'negatives': negatives, 'positives': positives}
         links = GroupElement('links', element=SignedLinkElement, space=space, on='edges', values=values)
         interactions = [
@@ -397,4 +403,4 @@ class SpatialTriadicPercolationSystem(BaseSystem):
             PercolationInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return System(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)

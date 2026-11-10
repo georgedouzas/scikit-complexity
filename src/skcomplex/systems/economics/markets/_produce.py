@@ -13,10 +13,14 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
+MAX_LIST_LENGTH = 8
+MAX_MARKUP = 30
 
 
 class ShopperView(AgentView):
@@ -42,7 +46,9 @@ class StallView(AgentView):
     markup: float
 
 
-WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
+def _items_of(mask: int) -> list[int]:
+    """Return the indices of the items in a bit mask."""
+    return [item for item in range(len(WHOLESALE_PRICES)) if mask >> item & 1]
 
 
 class ShopperElement(Element):
@@ -128,20 +134,17 @@ class ShopperElement(Element):
         wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in system.agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1]
+        unvisited = [
+            stall for stall in system.get_agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1
+        ]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
             return
         stall = unvisited[int(system.rng.integers(len(unvisited)))]
         bought = wanted & int(stall.stock)
         agent.visited = visited | 1 << int(stall.stall)
-        agent.spent += (1 + stall.markup) * sum(WHOLESALE_PRICES[item] for item in ShopperElement._items_of(bought))
+        agent.spent += (1 + stall.markup) * sum(WHOLESALE_PRICES[item] for item in _items_of(bought))
         agent.wanted = wanted & ~bought
-
-    @staticmethod
-    def _items_of(mask: int) -> list[int]:
-        """Return the indices of the items in a bit mask."""
-        return [item for item in range(len(WHOLESALE_PRICES)) if mask >> item & 1]
 
 
 class StallElement(Element):
@@ -207,15 +210,9 @@ class StallElement(Element):
         return []
 
 
-MAX_LIST_LENGTH = 8
-
-
-MAX_MARKUP = 30
-
-
-def _items_left(wanted: object) -> float:
+def _get_items_left(wanted: object) -> float:
     """Return the mean number of items left on the shoppers' lists, given as bit masks."""
-    return float(np.mean([len(ShopperElement._items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
+    return float(np.mean([len(_items_of(int(mask))) for mask in np.asarray(wanted, dtype=float)]))
 
 
 class ProduceMarketSystem(BaseSystem):
@@ -253,7 +250,7 @@ class ProduceMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_items_left),
+        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
         ObservableSpec('spent', group='shoppers', variable='spent'),
     )
 
@@ -273,7 +270,7 @@ class ProduceMarketSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
+    def _get_random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Array:
         """Return one bit mask per size.
 
         Each mask has that many distinct items chosen at random.
@@ -282,12 +279,12 @@ class ProduceMarketSystem(BaseSystem):
         masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
         return np.array(masks, dtype=float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        stocks = self._random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
+        stocks = self._get_random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
         markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100
-        lists = self._random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
+        lists = self._get_random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
         stalls = GroupElement(
             'stalls',
             element=StallElement,
@@ -295,7 +292,7 @@ class ProduceMarketSystem(BaseSystem):
             values={'stall': np.arange(self.n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
         )
         shoppers = GroupElement('shoppers', element=ShopperElement, size=self.n_shoppers, values={'wanted': lists})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[stalls, shoppers],
         )

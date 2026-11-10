@@ -18,7 +18,7 @@ from ._record_spec import _RecordSpec
 
 @dataclass(frozen=True)
 class TransferStateSpec(BaseSpec):
-    """State of the lowering of flows.
+    """A spec of the state of the lowering of flows.
 
     It is the state between the pass that expands flows and the pass that lowers them.
 
@@ -49,7 +49,7 @@ class TransferStateSpec(BaseSpec):
     delays: tuple[_CompiledDelaySpec, ...]
     terms: tuple[_FlowTermSpec, ...]
 
-    def replaced(self, specs: Mapping[int, KernelSpec]) -> TransferStateSpec:
+    def get_replaced(self, specs: Mapping[int, KernelSpec]) -> TransferStateSpec:
         """Return the state with replaced kernel specs.
 
         An example is specs whose rows are settled.

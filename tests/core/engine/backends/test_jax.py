@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical
 from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -23,11 +23,13 @@ from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated, _weighted
 
+KEY = jax.random.PRNGKey(0)
+
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
     trajectory = simulate(system, until=until, backend=backend, random_state=0)
-    return np.array([trajectory.values(name)[-1] for name in trajectory.names])
+    return np.array([trajectory.get_values(name)[-1] for name in trajectory.names])
 
 
 @pytest.mark.parametrize(('factory', 'until'), [(LogisticMapSystem, 50), (LotkaVolterraSystem, 20.0)])
@@ -56,12 +58,12 @@ def test_jax_rejects_noise():
 
 def test_jax_rejects_a_callable_law():
     """Test that a law given as a Python callable, which has no JAX form, raises an error."""
-    system = System(elements=[HoldingElement('a', n=1.0)], interactions=[CallableGrowthInteraction('g', target='a')])
+    system = CompositeSystem(
+        elements=[HoldingElement('a', n=1.0)],
+        interactions=[CallableGrowthInteraction('g', target='a')],
+    )
     with pytest.raises(BackendError, match='Python function'):
         PassCompiler(backend=JaxBackend()).prepare(system).run()
-
-
-KEY = jax.random.PRNGKey(0)
 
 
 def _relaxed_run(size, temperature=None, hard=False, kind='bernoulli', key=KEY):
@@ -87,7 +89,7 @@ def _relaxed_run(size, temperature=None, hard=False, kind='bernoulli', key=KEY):
                 return [UpdateLaw(s.b, bernoulli('b', s.p, temperature=temperature, hard=hard))]
             return [UpdateLaw(s.b, categorical('b', [1 - s.p, s.p], temperature=temperature, hard=hard))]
 
-    system = System(elements=[GroupElement('g', element=DrawnElement, size=size)], time=DiscreteTime())
+    system = CompositeSystem(elements=[GroupElement('g', element=DrawnElement, size=size)], time=DiscreteTime())
     backend = JaxBackend()
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     run = JaxBackend.unroll(backend.traced_, FormKind.DISCRETE, np.array([1.0]), draws=problem.draws)
@@ -152,7 +154,7 @@ def test_jax_reports_discrete_draws_without_a_temperature():
             """Return the drawn update."""
             return [UpdateLaw(s.b, bernoulli('flip', 0.4))]
 
-    system = System(elements=[FlipElement('a')], time=DiscreteTime())
+    system = CompositeSystem(elements=[FlipElement('a')], time=DiscreteTime())
     (issue,) = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
     assert issue.code == 'not-differentiable'
     assert "'flip'" in issue.message

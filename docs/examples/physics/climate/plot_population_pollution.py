@@ -22,15 +22,15 @@ observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default',
 trajectory = simulate(PopulationPollutionSystem(), until=50, observers=[observer], random_state=0)
 
 # %%
-# The four curves of the book
-# ---------------------------
-# As in Fig. 4.33 of the book, the pollution should climb towards 90 million, the population double, the food per
-# capita fall towards the subsistence level of 180, and the quality of life fall below 1.
+# The four curves of Bala et al.
+# ------------------------------
+# As in Fig. 4.33 of Bala et al. (2017), the pollution should climb towards 90 million, the population double, the food
+# per capita fall towards the subsistence level of 180, and the quality of life fall below 1.
 
 times = np.asarray(trajectory.times)
 fig, axes = plt.subplots(2, 2, figsize=(9, 6), sharex=True)
 for ax, name in zip(axes.ravel(), ['pollution', 'population', 'food_per_capita', 'quality_of_life'], strict=True):
-    ax.plot(times, np.ravel(trajectory.values(f'region.{name}')))
+    ax.plot(times, np.ravel(trajectory.get_values(f'region.{name}')))
     ax.set_title(name.replace('_', ' '))
 for ax in axes[1]:
     ax.set_xlabel('years')

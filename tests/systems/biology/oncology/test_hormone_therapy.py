@@ -22,8 +22,8 @@ def test_continuous_androgen_suppression_relapses_through_independent_cells():
     trajectory = _run_seeded(ContinuousAndrogenSuppressionSystem(), until=1500.0, dt=5.0)
     times = trajectory.times
     exact = 20.0 * (1 - 0.9) + 20.0 * 0.9 * np.exp(-0.08 * times)
-    assert np.allclose(trajectory.values('tumour.U'), exact, rtol=1e-6)
-    dependent, independent = trajectory.values('tumour.AD'), trajectory.values('tumour.AI')
+    assert np.allclose(trajectory.get_values('tumour.U'), exact, rtol=1e-6)
+    dependent, independent = trajectory.get_values('tumour.AD'), trajectory.get_values('tumour.AI')
     assert np.all(np.diff(dependent[times >= 100.0]) < 0)
     assert independent[-1] > 1e3 * dependent[-1]
 
@@ -33,7 +33,7 @@ def test_ideta_intermittent_androgen_switches_at_thresholds():
     h0, h1 = 10.0, 15.0
     trajectory = _run_seeded(IdetaIntermittentAndrogenSystem(h0=h0, h1=h1), until=600.0, dt=1.0)
     names = list(trajectory.problem.states.names)
-    psa = trajectory.values('tumour.AD') + trajectory.values('tumour.AI')
+    psa = trajectory.get_values('tumour.AD') + trajectory.get_values('tumour.AI')
     labels = [event.label for event in trajectory.events]
     assert len(labels) >= 8
     assert labels == ['on', 'off'] * (len(labels) // 2) + ['on'] * (len(labels) % 2)
@@ -47,7 +47,7 @@ def test_ideta_intermittent_androgen_switches_at_thresholds():
     assert cycling.min() > h0 - 1.0
     assert cycling.max() < h1 + 3.0
     for on, off in zip(trajectory.events[::2], trajectory.events[1::2], strict=False):
-        assert np.all(trajectory.values('tumour.u')[(times > on.time) & (times < off.time)] == 1.0)
+        assert np.all(trajectory.get_values('tumour.u')[(times > on.time) & (times < off.time)] == 1.0)
 
 
 def test_prostate_cell_quota_reaches_the_quota_equilibrium():
@@ -56,7 +56,7 @@ def test_prostate_cell_quota_reaches_the_quota_equilibrium():
     uptake = 0.275 * 15.0 / (15.0 + 4.0)
     for name, q in (('tumour.Q1', 0.3), ('tumour.Q2', 0.15)):
         equilibrium = (uptake * 5.0 / (5.0 - q) + 0.025 * q) / (uptake / (5.0 - q) + 0.025 + 0.09)
-        assert abs(trajectory.values(name)[-1] / equilibrium - 1) < 1e-6
+        assert abs(trajectory.get_values(name)[-1] / equilibrium - 1) < 1e-6
 
 
 def test_prostate_androgen_receptor_normal_cells_fill_their_capacity():
@@ -72,7 +72,7 @@ def test_prostate_androgen_receptor_normal_cells_fill_their_capacity():
     capacity = (18.397 * age**12 / (63.753**12 + age**12) + 28.4) / 5.56
     growth = 1.202e-4 * UD**2 / (12.355**2 + UD**2) + 1.281e-4 * UT**2 / (49.587**2 + UT**2)
     death = 0.008 / (62.162 + UD + UT)
-    assert abs(trajectory.values('prostate.N')[-1] / (capacity * (1 - death / growth)) - 1) < 1e-3
+    assert abs(trajectory.get_values('prostate.N')[-1] / (capacity * (1 - death / growth)) - 1) < 1e-3
 
 
 def test_piecewise_linear_ias_decays_exponentially_on_therapy():
@@ -82,15 +82,15 @@ def test_piecewise_linear_ias_decays_exponentially_on_therapy():
     first_off = trajectory.events[0]
     assert first_off.label == 'off'
     on = times <= first_off.time
-    assert np.allclose(trajectory.values('tumour.AD')[on], 17.84 * np.exp((0.956156 - 1) * times[on]), rtol=1e-6)
+    assert np.allclose(trajectory.get_values('tumour.AD')[on], 17.84 * np.exp((0.956156 - 1) * times[on]), rtol=1e-6)
     assert len(trajectory.events) > 20
 
 
 def test_tamoxifen_cell_cycle_keeps_lymphocytes_at_their_influx_balance():
     """Test that without the drug the lymphocytes settle at `s / d1` and that tamoxifen shrinks the tumour."""
     untreated = _run_seeded(TamoxifenCellCycleSystem(u=0.0), until=2400.0, dt=24.0, solver=STIFF)
-    assert abs(untreated.values('tumour.E')[-1] / (0.121 / 0.012) - 1) < 1e-6
+    assert abs(untreated.get_values('tumour.E')[-1] / (0.121 / 0.012) - 1) < 1e-6
     treated = _run_seeded(TamoxifenCellCycleSystem(), until=2400.0, dt=24.0, solver=STIFF)
-    volume = treated.values('tumour.Ag') + treated.values('tumour.As') + treated.values('tumour.Am')
+    volume = treated.get_values('tumour.Ag') + treated.get_values('tumour.As') + treated.get_values('tumour.Am')
     assert volume[-1] < 0.2 * volume[0]
-    assert treated.values('tumour.E')[-1] < untreated.values('tumour.E')[-1]
+    assert treated.get_values('tumour.E')[-1] < untreated.get_values('tumour.E')[-1]

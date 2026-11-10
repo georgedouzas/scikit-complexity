@@ -14,17 +14,17 @@ from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 def test_barter_reaches_the_contract_curve(chocolate, cigarettes, weights):
     """Test that Edgeworth barter ends on the contract curve within 2% of the total endowment."""
     simulation = simulate(BarterSystem(chocolate=chocolate, cigarettes=cigarettes, weights=weights), until=5)
-    final = simulation.agents('barterers', 5).values
+    final = simulation.get_agents('barterers', 5).values
     expected = contract_curve(final['chocolate'][0], *weights, sum(chocolate), sum(cigarettes))
     assert abs(final['cigarettes'][0] - expected) < 0.02 * sum(cigarettes)
     assert final['chocolate'].sum() == pytest.approx(sum(chocolate))
-    assert simulation.values('exchange.volume')[-1] == 0
+    assert simulation.get_values('exchange.volume')[-1] == 0
 
 
 def test_red_cross_barter_settles_on_one_price():
     """Test that the prices of the barter among many prisoners converge."""
     trajectory = simulate(BarterSystem(n_barterers=100), until=20)
-    dispersion = trajectory.values('exchange.dispersion')
+    dispersion = trajectory.get_values('exchange.dispersion')
     assert np.nanmean(dispersion[-5:]) < 0.1 * dispersion[1]
 
 

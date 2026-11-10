@@ -24,10 +24,17 @@ nav:
       - Select a ready-made system: overview/user_guide/select_a_ready_made_system.md
       - Change it: overview/user_guide/change_it.md
       - System classes: overview/user_guide/system_classes.md
+      - Core components:
+        - overview/user_guide/core_components/index.md
+        - Elements: overview/user_guide/core_components/elements.md
+        - Interactions: overview/user_guide/core_components/interactions.md
+        - Laws: overview/user_guide/core_components/laws.md
+        - Spaces, neighbourhoods, and times: overview/user_guide/core_components/spaces.md
+        - Systems: overview/user_guide/core_components/systems.md
+        - General realizations: overview/user_guide/core_components/general.md
+        - Choosing parts: overview/user_guide/core_components/choosing_parts.md
       - Build a custom system:
         - overview/user_guide/build_a_custom_system/index.md
-        - Concepts: overview/user_guide/build_a_custom_system/concepts.md
-        - Choosing compatible components: overview/user_guide/build_a_custom_system/choosing_compatible_components.md
         - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
         - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
         - General interactions: overview/user_guide/build_a_custom_system/general_interactions.md
@@ -52,17 +59,29 @@ nav:
         - Constraints and search: overview/user_guide/build_a_custom_system/constraints_and_search.md
         - Control: overview/user_guide/build_a_custom_system/control.md
         - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
+      - Check: overview/user_guide/check.md
       - Simulate: overview/user_guide/simulate.md
-      - Observe: overview/user_guide/observe.md
       - Analyse: overview/user_guide/analyse.md
+      - Evaluate: overview/user_guide/evaluate.md
+      - Calibrate: overview/user_guide/calibrate.md
       - Run experiments: overview/user_guide/run_experiments.md
+      - Visualise: overview/user_guide/observe.md
+      - Share: overview/user_guide/share.md
       - Extend the library: overview/user_guide/extend_the_library.md
+      - Case studies:
+        - overview/user_guide/case_studies/index.md
+        - An epidemic calibrated to case data: overview/user_guide/case_studies/epidemic_calibration.md
+        - An opinion model swept and analysed: overview/user_guide/case_studies/opinion_sweep.md
+        - A lattice phase transition: overview/user_guide/case_studies/ising_transition.md
+      - Glossary: overview/user_guide/glossary.md
+      - Troubleshooting: overview/user_guide/troubleshooting.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
   - Parts:
     - Elements: parts/elements.md
     - Interactions: parts/interactions.md
     - Laws: parts/laws.md
+    - Spaces: parts/spaces.md
     - Systems: parts/systems.md
     - Solvers: parts/solvers.md
     - Backends: parts/backends.md
@@ -112,6 +131,10 @@ markdown_extensions:
       check_paths: true
   - pymdownx.superfences:
       relaxed_headers: true
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist

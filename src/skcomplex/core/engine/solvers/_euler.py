@@ -1,7 +1,4 @@
-"""Explicit Euler integrator of ordinary differential equations.
-
-It takes a fixed internal step.
-"""
+"""Explicit Euler integrator of ordinary differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,10 +20,13 @@ from ._solver import Solver
 
 
 class EulerSolver(Solver):
-    """Explicit Euler integrator of ordinary differential equations.
+    """A solver that steps ordinary differential equations by the explicit Euler rule.
 
     It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
     a run with the time step of a system file reproduces the run of those tools step by step.
+
+    Choose it for teaching and for quick checks with a small step. It appears in every field, as the simplest
+    integrator.
 
     Args:
         dt:
@@ -40,12 +40,12 @@ class EulerSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> problem = simulate(system, until=0).problem
@@ -87,13 +87,13 @@ class EulerSolver(Solver):
         Every step is interpolated for delays, and events are located in it.
         """
         problem = self.problem_
-        drift = self._drift()
+        drift = self._get_drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
             """Return the state after one step and its straight line over the step."""
             start = min(time, ceiling)
-            slope = drift(start, state, History._with_delays(problem, history, start, state, p))
+            slope = drift(start, state, History._copy_with_delays(problem, history, start, state, p))
             following = state + step * slope
 
             def interpolant(moment: float) -> Array:
@@ -110,7 +110,7 @@ class EulerSolver(Solver):
             dt=self.dt,
             locator=self.locator_,
             history=history,
-            bounded=self._bounded,
+            bounded=self._get_bounded,
             take=take,
         )
 
@@ -147,11 +147,11 @@ class EulerSolver(Solver):
             return x
         if BaseSolver._is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
-        drift = self._drift()
+        drift = self._get_drift()
         n_steps = step_count(t, until, self.dt)
         step = (until - t) / n_steps
         state = x.copy()
         for index in range(n_steps):
             time = t + index * step
-            state = self._bounded(time + step, state + step * drift(time, state, p), p)
+            state = self._get_bounded(time + step, state + step * drift(time, state, p), p)
         return state

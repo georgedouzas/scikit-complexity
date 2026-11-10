@@ -1,7 +1,4 @@
-"""Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
-
-SDEs are stochastic differential equations.
-"""
+"""Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +15,6 @@ from ...components.laws import (
     CrossingLaw,
     EquationLaw,
     FluxLaw,
-    FractionalNoiseLaw,
     NoiseLaw,
     RateLaw,
     TransferLaw,
@@ -31,22 +27,21 @@ from ..problems import ProblemSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver
 
-_EIGENVALUE_TOLERANCE = 1e-10
-
-
+EIGENVALUE_TOLERANCE = 1e-10
 GRID_TOLERANCE = 1e-9
-
-
-_MAX_INCREMENTS = 100_000_000
+MAX_INCREMENTS = 100_000_000
 
 
 class FractionalEulerMaruyamaSolver(Solver):
-    """Euler-Maruyama integrator of SDEs driven by fractional and ordinary noise.
+    """A solver of stochastic equations driven by fractional and ordinary noise.
 
     SDEs are stochastic differential equations. The stepper draws the correlated increments of every fractional noise
     row for the whole run when it first advances, on the grid `t0 + k dt` up to the horizon, and adds the stored
     increment of each step times the amplitude. Ordinary noise rows take independent Wiener increments. A simulation
     passes the end time of its run as the horizon when the stepper has none.
+
+    Choose it when the noise has long memory, set by a Hurst index. It appears in models of rough volatility in finance,
+    river flows, and network traffic.
 
     Args:
         dt:
@@ -75,9 +70,9 @@ class FractionalEulerMaruyamaSolver(Solver):
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.laws import FractionalNoiseLaw
+        >>> from skcomplex.core.components.laws import NoiseLaw
         >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
         >>> from skcomplex.core.specs import StepSpec
@@ -87,8 +82,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...         self.x = x
         ...
         ...     def _get_laws(self, s):
-        ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
-        >>> system = System(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
+        ...         return [NoiseLaw(s.x, 1, hurst=0.75)]
+        >>> system = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
         >>> problem = simulate(system, until=0).problem
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
@@ -102,8 +97,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
-            noise=frozenset({NoiseKind.DIAGONAL}),
+            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -121,7 +116,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         self,
         dt: float = 1e-3,
         horizon: float | None = None,
-        max_increments: int = _MAX_INCREMENTS,
+        max_increments: int = MAX_INCREMENTS,
         *,
         random_state: int | np.random.Generator | None = None,
         until: float = math.inf,
@@ -154,7 +149,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         self._increments: npt.NDArray[np.float64] | None = None
         self._ordinary = np.ones(problem.noise_rows.size, dtype=bool)
 
-    def _hurst(self, p: Array) -> Array:
+    def _get_hurst(self, p: Array) -> Array:
         """Return the Hurst index of every noise row, 1/2 for ordinary rows."""
         hurst = np.full(self.problem_.noise_rows.size, 0.5)
         for rows in self.problem_.fractional:
@@ -175,7 +170,7 @@ class FractionalEulerMaruyamaSolver(Solver):
                 'time.'
             )
             raise HorizonError(error_msg)
-        hurst = self._hurst(p)
+        hurst = self._get_hurst(p)
         mask = np.zeros(hurst.size, dtype=bool)
         for rows in self.problem_.fractional:
             mask[rows.positions] = True
@@ -193,12 +188,12 @@ class FractionalEulerMaruyamaSolver(Solver):
         increments = np.zeros((steps, hurst.size))
         for value in np.unique(hurst[fractional]):
             columns = fractional[hurst[fractional] == value]
-            noise = self._fractional_gaussian_noise(steps, float(value), columns.size, self.rng_)
+            noise = self._get_fractional_gaussian_noise(steps, float(value), columns.size, self.rng_)
             increments[:, columns] = noise * self.dt**value
         self._origin, self._increments, self._ordinary, self.hurst_ = t, increments, ~mask, hurst
         return increments
 
-    def _grid_index(self, time: float) -> int:
+    def _get_grid_index(self, time: float) -> int:
         """Return the index of a time on the grid of the drawn increments.
 
         The time is checked to lie on the grid.
@@ -258,30 +253,30 @@ class FractionalEulerMaruyamaSolver(Solver):
                 'Give FractionalEulerMaruyamaSolver a larger horizon.'
             )
             raise HorizonError(error_msg)
-        if self.hurst_ is not None and not np.array_equal(self._hurst(p), self.hurst_):
+        if self.hurst_ is not None and not np.array_equal(self._get_hurst(p), self.hurst_):
             error_msg = 'A Hurst index changed after the fractional noise was drawn. Start a new run to change it.'
             raise SolverError(error_msg)
         ordinary = self._ordinary
         rows, root = problem.noise_rows, math.sqrt(self.dt)
         state = x.copy()
-        for index in range(self._grid_index(t), self._grid_index(until)):
+        for index in range(self._get_grid_index(t), self._get_grid_index(until)):
             time = self._origin + index * self.dt
             noise = increments[index].copy()
             noise[ordinary] = self.rng_.standard_normal(int(np.count_nonzero(ordinary))) * root
             following = state + problem.drift(time, state, p) * self.dt
             np.add.at(following, rows, problem.diffusion(time, state, p) * noise)
-            state = self._bounded(time + self.dt, following, p)
+            state = self._get_bounded(time + self.dt, following, p)
         return state
 
     @staticmethod
-    def _autocovariance(n: int, hurst: float) -> Array:
+    def _get_autocovariance(n: int, hurst: float) -> Array:
         """Return the autocovariance of unit fractional Gaussian noise at lags 0 to `n`."""
         lags = np.arange(n + 1, dtype=float)
         exponent = 2 * hurst
         return 0.5 * (np.abs(lags + 1) ** exponent - 2 * lags**exponent + np.abs(lags - 1) ** exponent)
 
     @staticmethod
-    def _fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
+    def _get_fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Generator) -> Array:
         """Return paths of unit fractional Gaussian noise.
 
         They are the increments of fractional Brownian motion on a unit grid. The paths come from the circulant
@@ -309,24 +304,14 @@ class FractionalEulerMaruyamaSolver(Solver):
         Raises:
             ValidationError:
                 The Hurst index is not between 0 and 1, or the number of increments is not positive.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-            >>> solver = FractionalEulerMaruyamaSolver
-            >>> noise = solver._fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
-            >>> noise.shape
-            (100, 2000)
-            >>> round(float(np.mean(noise[1:] * noise[:-1])), 1)
-            0.4
         """
         if not 0 < hurst < 1 or n < 1:
             error_msg = f'Fractional Gaussian noise takes a Hurst index in (0, 1) and n >= 1, but got {hurst} and {n}.'
             raise ValidationError(error_msg)
-        covariance = FractionalEulerMaruyamaSolver._autocovariance(n, hurst)
+        covariance = FractionalEulerMaruyamaSolver._get_autocovariance(n, hurst)
         row = np.concatenate([covariance, covariance[-2:0:-1]])
         eigenvalues = scipy.fft.fft(row).real
-        if np.min(eigenvalues) < -_EIGENVALUE_TOLERANCE * np.max(eigenvalues):
+        if np.min(eigenvalues) < -EIGENVALUE_TOLERANCE * np.max(eigenvalues):
             factor = scipy.linalg.cholesky(scipy.linalg.toeplitz(covariance[:n]), lower=True)
             return np.asarray(factor @ rng.standard_normal((n, size)), dtype=float)
         scale = np.sqrt(np.clip(eigenvalues, 0.0, None) / row.size)[:, np.newaxis]

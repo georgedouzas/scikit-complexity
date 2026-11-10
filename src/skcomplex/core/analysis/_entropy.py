@@ -1,7 +1,4 @@
-"""Measure the entropy of series, symbols, and fields.
-
-The entropies are of distributions, blocks, ordinal patterns, and regularity.
-"""
+"""Measure the entropy of series, symbols, and fields."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,8 @@ from scipy import stats
 from ..errors import AnalysisError
 from ..specs import AnalysisTags, BaseSpec
 from ..types import Array, DataKind
-from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _import, _read_fields, _read_series
+from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _read_fields, _read_series
+from ._utils import load_module
 from .types import Source
 
 KINDS = (
@@ -53,10 +51,7 @@ SETTINGS = {
     'spectral': {'dt', 'normalize'},
     'ensemble': {'reference'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 TIES = ('order', 'random')
-
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'ensemble': AnalysisTags(DataKind.ENSEMBLE),
@@ -65,7 +60,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EntropyResult:
-    """Entropy of the series of a source, or of the frames of a field or an ensemble.
+    """A result of `entropy`, the entropy of series or of the frames of a field.
 
     It covers every series and every frame.
 
@@ -135,7 +130,10 @@ def entropy(
     - `'spectral'`: the Shannon entropy of the normalized periodogram.
     - `'ensemble'`: the Shannon entropy in bits of the outcomes of an ensemble at every frame, and their
       Kullback-Leibler divergence from the `reference` law, as in the H-theorem. The ensemble has one row per run and
-      one column per frame of integer outcomes, such as `ExperimentResult.ensemble` returns.
+      one column per frame of integer outcomes, such as `ExperimentResult.get_ensemble` returns.
+
+    It appears in many fields. It measures the disorder of a heart rate, of a written text, and of the configurations of
+    a lattice.
 
     Args:
         source:
@@ -323,7 +321,7 @@ def _compute(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float |
         return _compute_blocks(values, settings)
     if kind == 'lempel-ziv':
         _, codes = np.unique(np.asarray(values).ravel(), return_inverse=True)
-        return float(_import('antropy').lziv_complexity(codes.astype(np.int64), normalize=settings.normalize))
+        return float(load_module('antropy').lziv_complexity(codes.astype(np.int64), normalize=settings.normalize))
     if kind == 'permutation':
         return _compute_permutation(values, settings)
     return _compute_regularity(np.ascontiguousarray(values, dtype=float), settings)
@@ -378,7 +376,7 @@ def _compute_regularity(array: Array, settings: _EntropySpec) -> float | Array:
 
     The series is real.
     """
-    antropy = _import('antropy')
+    antropy = load_module('antropy')
     dimension = _get_length(settings)
     if settings.kind == 'sample':
         return _sample(array, dimension, settings.tolerance)
@@ -518,4 +516,4 @@ def _sample(values: npt.ArrayLike, dimension: int, tolerance: float) -> float:
     """
     array = np.ascontiguousarray(values, dtype=float)
     radius = _tolerance(array, tolerance)
-    return float(_import('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0
+    return float(load_module('antropy').sample_entropy(array, order=dimension, tolerance=radius)) + 0.0

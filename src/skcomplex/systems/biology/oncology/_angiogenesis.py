@@ -15,31 +15,21 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    DiffusionInteraction,
-    LifeCycleInteraction,
-    MapInteraction,
-    MovementInteraction,
-    RateInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 OXYGEN = 'tissue/tissue.oxygen'
-
 VEGF = 'tissue/tissue.vegf'
-
 VESSELS = 'cells/vessels'
-
 TUMOUR = 'cells/tumour'
-
 SPROUTS = 'cells/sprouts'
-
 TISSUE = 'tissue/tissue'
 
 
@@ -400,14 +390,14 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView):
             return 0.0
-        return -min(cell.consumption, system.field('target.oxygen', site))
+        return -min(cell.consumption, system.get_field('target.oxygen', site))
 
     @staticmethod
     def _get_hypoxic(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return whether the oxygen at the site of a tumour cell is below `hypoxia`."""
         if not isinstance(cell, TumourCellView):
             return 0.0
-        return float(system.field(OXYGEN, cell.location) < cell.hypoxia)
+        return float(system.get_field(OXYGEN, cell.location) < cell.hypoxia)
 
     @staticmethod
     def _secretes(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> bool:
@@ -417,7 +407,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView):
             return False
-        return bool(cell.hypoxic) and system.field(OXYGEN, site) >= cell.necrosis
+        return bool(cell.hypoxic) and system.get_field(OXYGEN, site) >= cell.necrosis
 
     @staticmethod
     def _get_secretion(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> float:
@@ -431,7 +421,7 @@ class TumourAngiogenesisSystem(BaseSystem):
 
         Below it the cell dies.
         """
-        return isinstance(cell, TumourCellView) and system.field(OXYGEN, cell.location) < cell.necrosis
+        return isinstance(cell, TumourCellView) and system.get_field(OXYGEN, cell.location) < cell.necrosis
 
     @staticmethod
     def _get_division(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -441,7 +431,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(cell, TumourCellView) or cell.hypoxic:
             return 0.0
-        return float(cell.division) if system.field(OXYGEN, cell.location) > cell.proliferation else 0.0
+        return float(cell.division) if system.get_field(OXYGEN, cell.location) > cell.proliferation else 0.0
 
     @staticmethod
     def _get_supply(vessel: AgentViewProtocol, site: object, system: SystemViewProtocol) -> float:
@@ -450,23 +440,23 @@ class TumourAngiogenesisSystem(BaseSystem):
         return float(vessel.supply) if isinstance(vessel, VesselView) else 0.0
 
     @staticmethod
-    def _active(tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _is_active(tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether the VEGF at a tip reaches `activation`.
 
         An activated tip moves.
         """
-        return isinstance(tip, SproutView) and system.field(VEGF, tip.location) >= tip.activation
+        return isinstance(tip, SproutView) and system.get_field(VEGF, tip.location) >= tip.activation
 
     def _lays(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether an active tip stands where there is no vessel segment.
 
         There the tip leaves one.
         """
-        return self._active(tip, system) and not tip.agents_here(VESSELS)
+        return self._is_active(tip, system) and not tip.get_agents_here(VESSELS)
 
     def _get_branching(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the probability `branching` that an active tip splits in two."""
-        return float(tip.branching) if isinstance(tip, SproutView) and self._active(tip, system) else 0.0
+        return float(tip.branching) if isinstance(tip, SproutView) and self._is_active(tip, system) else 0.0
 
     @staticmethod
     def _get_chemotaxis(tip: AgentViewProtocol, system: SystemViewProtocol) -> object:
@@ -476,27 +466,32 @@ class TumourAngiogenesisSystem(BaseSystem):
         """
         if not isinstance(tip, SproutView):
             return None
-        level = system.field(VEGF, tip.location)
-        cells = cast('list[tuple[int, int]]', list(tip.neighbor_cells()))
-        levels = np.array([system.field(VEGF, cell) for cell in cells])
+        level = system.get_field(VEGF, tip.location)
+        cells = cast('list[tuple[int, int]]', list(tip.get_neighbor_cells()))
+        levels = np.array([system.get_field(VEGF, cell) for cell in cells])
         weights = np.exp(tip.chemotaxis * (levels - levels.max()) / level)
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 
-    def _get_tissue(self) -> list[DiffusionInteraction | RateInteraction]:
+    def _get_tissue(self) -> list[RateInteraction]:
         """Return the diffusion and the decay of oxygen and VEGF in the tissue."""
         return [
-            DiffusionInteraction(
+            RateInteraction(
                 'oxygen_diffusion',
                 target='tissue',
                 state='oxygen',
-                coefficient=self._get_oxygen_diffusion,
+                rate=lambda s: self._get_oxygen_diffusion(s) * laplacian(s.target.oxygen),
             ),
             RateInteraction('oxygen_decay', target='tissue', state='oxygen', rate=self._get_oxygen_decay),
-            DiffusionInteraction('vegf_diffusion', target='tissue', state='vegf', coefficient=self._get_vegf_diffusion),
+            RateInteraction(
+                'vegf_diffusion',
+                target='tissue',
+                state='vegf',
+                rate=lambda s: self._get_vegf_diffusion(s) * laplacian(s.target.vegf),
+            ),
             RateInteraction('vegf_decay', target='tissue', state='vegf', rate=self._get_vegf_decay),
         ]
 
-    def _get_cells(self) -> list[TransferInteraction | MapInteraction | LifeCycleInteraction | MovementInteraction]:
+    def _get_cells(self) -> list[TransferInteraction | MapInteraction | BirthDeathInteraction | MovementInteraction]:
         """Return the member interactions of the tumour cells, vessel segments, and tips."""
         return [
             TransferInteraction(
@@ -530,7 +525,7 @@ class TumourAngiogenesisSystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'tumour_life',
                 target=TUMOUR,
                 death=self._dies,
@@ -549,24 +544,24 @@ class TumourAngiogenesisSystem(BaseSystem):
                 form='agent',
                 schedule='member',
             ),
-            LifeCycleInteraction(
+            BirthDeathInteraction(
                 'laying',
                 target=SPROUTS,
                 group=VESSELS,
                 birth=self._lays,
                 schedule='member',
             ),
-            LifeCycleInteraction('branching', target=SPROUTS, birth=self._get_branching, schedule='member'),
+            BirthDeathInteraction('branching', target=SPROUTS, birth=self._get_branching, schedule='member'),
             MovementInteraction(
                 'chemotaxis',
                 target=SPROUTS,
                 step=self._get_chemotaxis,
-                condition=self._active,
+                condition=self._is_active,
                 schedule='member',
             ),
         ]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a tumour."""
         rng = np.random.default_rng(self.random_state)
         center = (3 * self.width // 4, self.height // 2)
@@ -600,11 +595,15 @@ class TumourAngiogenesisSystem(BaseSystem):
             element=TissueElement,
             space=LatticeSpace((self.width, self.height), boundary='reflecting'),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('cells', elements=groups, space=LatticeSpace((self.width, self.height), boundary='fixed')),
-                System('tissue', elements=[tissue], interactions=self._get_tissue()),
+                CompositeSystem(
+                    'cells',
+                    elements=groups,
+                    space=LatticeSpace((self.width, self.height), boundary='fixed'),
+                ),
+                CompositeSystem('tissue', elements=[tissue], interactions=self._get_tissue()),
             ],
             interactions=self._get_cells(),
         )

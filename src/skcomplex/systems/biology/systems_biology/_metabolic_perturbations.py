@@ -9,7 +9,7 @@ COBRApy and StrainDesign run their analyses.
 from collections.abc import Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..common.metabolism import load_network
 
 
@@ -37,7 +37,7 @@ class MetabolicPerturbationsSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
         >>> trajectory = simulate(MetabolicPerturbationsSystem(genes=('b4025',)), until=0.0)
-        >>> round(float(trajectory.values('cell.objective_0')[0]), 3)
+        >>> round(float(trajectory.get_values('cell.objective_0')[0]), 3)
         0.863
     """
 
@@ -55,8 +55,8 @@ class MetabolicPerturbationsSystem(BaseSystem):
         super().__init__(label)
         self.genes = genes
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the E. coli core system with some genes knocked out."""
         element = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
-        element.set_params(**{element.gene_name(gene): 0.0 for gene in self.genes})
-        return System(self.label, elements=[element], time=StaticTime())
+        element.set_params(**{element.get_gene_name(gene): 0.0 for gene in self.genes})
+        return CompositeSystem(self.label, elements=[element], time=StaticTime())

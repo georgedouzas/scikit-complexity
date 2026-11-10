@@ -1,18 +1,16 @@
-"""Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
-
-They are found at every evaluation.
-"""
+"""Define the search of neighbours in a continuous space by their positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
+import math
 
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
 from ...components.spaces import (
-    ConeNeighborhood,
     DelaunayNeighborhood,
     NearestNeighborhood,
     RadiusNeighborhood,
@@ -24,7 +22,9 @@ from ._base import BaseSearch
 
 
 class MetricSearch(BaseSearch):
-    """Neighbours in a continuous space found from the positions with a k-d tree or a Delaunay triangulation.
+    """A search of the neighbours in a continuous space, from member positions.
+
+    The search uses a k-d tree or a Delaunay triangulation.
 
     They are found at every evaluation.
 
@@ -50,7 +50,7 @@ class MetricSearch(BaseSearch):
 
     def __init__(
         self,
-        neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood | DelaunayNeighborhood,
+        neighbourhood: RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood,
         positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
         direction: DirectionSpec | None = None,
@@ -60,7 +60,7 @@ class MetricSearch(BaseSearch):
         self.periods = periods
         self.direction = direction
 
-    def wrapped(self, x: Array) -> Array:
+    def get_wrapped(self, x: Array) -> Array:
         """Return the positions of the members, wrapped into a periodic box.
 
         Args:
@@ -71,14 +71,14 @@ class MetricSearch(BaseSearch):
             positions:
                 One row of position components per member.
         """
-        positions = self.positions.view(x)
+        positions = self.positions.get_view(x)
         if self.periods is None:
             return positions
         periods = np.asarray(self.periods)
         wrapped = np.mod(positions, periods)
         return np.where(wrapped >= periods, wrapped - periods, wrapped)
 
-    def differences(self, x: Array, readers: Indices, others: Indices) -> Array:
+    def get_differences(self, x: Array, readers: Indices, others: Indices) -> Array:
         """Return the displacement from every reader to its neighbour.
 
         In a periodic box, it is the minimum image.
@@ -97,7 +97,7 @@ class MetricSearch(BaseSearch):
             differences:
                 One row of components per pair, `x_reader - x_other` wrapped.
         """
-        positions = self.positions.view(x)
+        positions = self.positions.get_view(x)
         difference = positions[readers] - positions[others]
         if self.periods is None:
             return difference
@@ -106,30 +106,30 @@ class MetricSearch(BaseSearch):
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the neighbours of every member at the current positions."""
-        state = self._state_of(inputs)
+        state = self._get_state_of(inputs)
         x, q = state.x, state.p
         del q
-        positions = self.wrapped(x)
+        positions = self.get_wrapped(x)
         size = positions.shape[0]
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
         neighbourhood = self.neighbourhood
         if isinstance(neighbourhood, DelaunayNeighborhood):
-            readers, others = self._delaunay(positions, self.periods)
+            readers, others = self._get_delaunay(positions, self.periods)
         elif isinstance(neighbourhood, NearestNeighborhood):
-            readers, others = self._nearest(tree, positions, neighbourhood.k)
+            readers, others = self._get_nearest(tree, positions, neighbourhood.k)
         else:
             pairs = tree.query_pairs(neighbourhood.radius, output_type='ndarray').astype(np.intp)
             readers = np.concatenate([pairs[:, 0], pairs[:, 1]])
             others = np.concatenate([pairs[:, 1], pairs[:, 0]])
-            if isinstance(neighbourhood, ConeNeighborhood):
-                keep = self._inside(x, readers, others, neighbourhood)
+            if isinstance(neighbourhood, RadiusNeighborhood) and float(neighbourhood.angle) < math.pi:
+                keep = self._get_inside(x, readers, others, neighbourhood)
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
-            readers, others = self._with_center(readers, others, size)
-        self.pairs_ = (*self._rows(readers, others, size), None)
+            readers, others = self._copy_with_center(readers, others, size)
+        self.pairs_ = (*self._get_rows(readers, others, size), None)
 
     @staticmethod
-    def _nearest(tree: cKDTree, positions: Array, k: int) -> tuple[Indices, Indices]:
+    def _get_nearest(tree: cKDTree, positions: Array, k: int) -> tuple[Indices, Indices]:
         """Return the pairs of every member with its `k` nearest other members."""
         size = positions.shape[0]
         k = min(k, size - 1)
@@ -142,12 +142,12 @@ class MetricSearch(BaseSearch):
         return np.repeat(np.arange(size, dtype=np.intp), k), found[~own].astype(np.intp)
 
     @staticmethod
-    def _delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
-        """Return the pairs of members joined by an edge of the Delaunay triangulation of the positions.
+    def _get_delaunay(positions: Array, periods: tuple[float, ...] | None) -> tuple[Indices, Indices]:
+        """Return the pairs of members joined by an edge of the Delaunay triangulation.
 
-        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge
-        joins the members of its two ends. Too few members, or members in a degenerate position, give every member all
-        the others.
+        In a periodic box of the periods the positions are triangulated with their periodic images, and every edge joins
+        the members of its two ends. Too few members, or members in a degenerate position, give every member all the
+        others.
         """
         size, dimension = positions.shape
         if periods is None:
@@ -171,17 +171,23 @@ class MetricSearch(BaseSearch):
         pairs = np.unique(np.stack([readers[keep], others[keep]], axis=1), axis=0)
         return pairs[:, 0].astype(np.intp), pairs[:, 1].astype(np.intp)
 
-    def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
+    def _get_inside(
+        self,
+        x: Array,
+        readers: Indices,
+        others: Indices,
+        cone: RadiusNeighborhood,
+    ) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
-        separation = -self.differences(x, readers, others)
-        direction = self.direction.vectors(x)[readers]
+        separation = -self.get_differences(x, readers, others)
+        direction = self.direction.get_vectors(x)[readers]
         dot = np.sum(direction * separation, axis=1)
         norms = np.sqrt(np.sum(direction * direction, axis=1)) * np.sqrt(np.sum(separation * separation, axis=1))
         return dot >= np.cos(cone.angle) * norms
 
     @staticmethod
-    def _rows(readers: Indices, others: Indices, size: int) -> Pairs:
+    def _get_rows(readers: Indices, others: Indices, size: int) -> Pairs:
         """Return the row starts and the neighbours of a list of pairs.
 
         They are sorted by reader and then by neighbour.
@@ -192,7 +198,7 @@ class MetricSearch(BaseSearch):
         return indptr, others[order].astype(np.intp)
 
     @staticmethod
-    def _with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices, Indices]:
+    def _copy_with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices, Indices]:
         """Return pairs with every member paired with itself."""
         own = np.arange(size, dtype=np.intp)
         return np.concatenate([readers, own]), np.concatenate([others, own])

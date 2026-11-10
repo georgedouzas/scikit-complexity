@@ -50,7 +50,9 @@ def magnetization(contrarians, seed, steps=STEPS):
     """Return the magnetization after every step of a run."""
     system = VoterVariantsSystem(graph=graph, contrarians=contrarians, share=0.6, random_state=seed)
     trajectory = simulate(system, until=steps, random_state=seed)
-    return np.array([2 * trajectory.agents('voters', frame).values['opinion'].mean() - 1 for frame in range(steps + 1)])
+    return np.array(
+        [2 * trajectory.get_agents('voters', frame).values['opinion'].mean() - 1 for frame in range(steps + 1)],
+    )
 
 
 shares = np.linspace(0.0, 0.5, 11)

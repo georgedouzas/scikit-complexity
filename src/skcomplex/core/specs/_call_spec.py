@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class CallSpec(BaseSpec):
-    """Law value computed by a function of time and scalar arguments.
+    """A spec of a law value computed by a function of time and scalar arguments.
 
     The function is called once per member or pair. The Numba backend calls a Numba-compiled function inside its
     compiled kernels, and the NumPy backend calls any function from Python. The function returns a number for a scalar

@@ -20,27 +20,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform
 from ....core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..common.particles import PropulsionStepInteraction
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
-
-
-def _heading_a(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species A, doubled.
-
-    The doubling makes the mean over both species the mean over A.
-    """
-    return 2 * (1 - member.species) * exp(I * member.theta)
-
-
-def _heading_b(member: SimpleNamespace) -> Expression:
-    """Return the heading of a member of species B, doubled.
-
-    The doubling makes the mean over both species the mean over B.
-    """
-    return 2 * member.species * exp(I * member.theta)
 
 
 class NonreciprocalMoverElement(Element):
@@ -123,7 +107,7 @@ class NonreciprocalMoverElement(Element):
         self.J_bb = J_bb
         self.radius = radius
 
-    def _coupling(self, namespace: SimpleNamespace) -> Expression:
+    def _get_coupling(self, namespace: SimpleNamespace) -> Expression:
         """Return the alignment of a member with a neighbour, by the species of both."""
         s = namespace
         first, second = s.species, s.other.species
@@ -147,8 +131,24 @@ class NonreciprocalMoverElement(Element):
         """
         s = namespace
         over = RadiusNeighborhood(self.radius, center=True)
-        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._coupling(s))
+        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._get_coupling(s))
         return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
+
+
+def _get_heading_a(member: SimpleNamespace) -> Expression:
+    """Return the heading of a member of species A, doubled.
+
+    The doubling makes the mean over both species the mean over A.
+    """
+    return 2 * (1 - member.species) * exp(I * member.theta)
+
+
+def _get_heading_b(member: SimpleNamespace) -> Expression:
+    """Return the heading of a member of species B, doubled.
+
+    The doubling makes the mean over both species the mean over B.
+    """
+    return 2 * member.species * exp(I * member.theta)
 
 
 class NonreciprocalVicsekSystem(BaseSystem):
@@ -196,8 +196,8 @@ class NonreciprocalVicsekSystem(BaseSystem):
     until = 300.0
     dt = 1.0
     observables = (
-        ObservableSpec('heading_a', _heading_a, group='movers'),
-        ObservableSpec('heading_b', _heading_b, group='movers'),
+        ObservableSpec('heading_a', _get_heading_a, group='movers'),
+        ObservableSpec('heading_b', _get_heading_b, group='movers'),
     )
 
     def __init__(
@@ -219,7 +219,7 @@ class NonreciprocalVicsekSystem(BaseSystem):
         self.eta = eta
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return two species of Vicsek movers in a periodic box, aligning nonreciprocally.
 
         The alignment of each species with the other differs between the two.
@@ -239,7 +239,7 @@ class NonreciprocalVicsekSystem(BaseSystem):
                 'eta': self.eta,
             },
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[movers],
             interactions=[PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],

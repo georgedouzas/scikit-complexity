@@ -1,4 +1,4 @@
-"""Define the operator view spec."""
+"""Define the spec of an element whose state lies in a Hilbert space."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +21,10 @@ NORM_TOLERANCE = 1e-8
 
 @dataclass(frozen=True)
 class OperatorViewSpec(BaseSpec):
-    """View of an element with a state in a Hilbert space.
+    """A spec of an element whose state is a vector of a Hilbert space.
 
-    The operator compiler reads this view.
+    A Hilbert space is the space of the states of a quantum system. The compiler of operators reads this view to build
+    the matrices of the evolution.
 
     Args:
         element:
@@ -48,7 +49,7 @@ class OperatorViewSpec(BaseSpec):
         ...         super().__init__(label)
         ...         self.psi = psi
         ...         self.hilbert = hilbert
-        >>> OperatorViewSpec(TwoLevelElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
+        >>> OperatorViewSpec(TwoLevelElement('q', psi='down'), 'psi', QUBIT).get_initial_vector().tolist()
         [0j, (1+0j)]
     """
 
@@ -74,7 +75,7 @@ class OperatorViewSpec(BaseSpec):
         """
         return self.space.display
 
-    def local_operators(self) -> dict[str, LocalOperatorSpec]:
+    def get_local_operators(self) -> dict[str, LocalOperatorSpec]:
         """Return the local operators of the element by name.
 
         Returns:
@@ -82,11 +83,11 @@ class OperatorViewSpec(BaseSpec):
                 A mapping from name to local operator.
         """
         return {
-            name: LocalOperatorSpec(name, LocalOperatorSpec._sparse_matrix(matrix), hermitian=hermitian)
+            name: LocalOperatorSpec(name, LocalOperatorSpec._get_sparse_matrix(matrix), hermitian=hermitian)
             for name, (matrix, hermitian) in self.space.operators.items()
         }
 
-    def basis_index(self, label: object) -> int:
+    def get_basis_index(self, label: object) -> int:
         """Return the index of the basis state of a label or an index.
 
         Args:
@@ -113,7 +114,7 @@ class OperatorViewSpec(BaseSpec):
         )
         raise ValidationError(error_msg)
 
-    def initial_vector(self) -> npt.NDArray[np.complex128]:
+    def get_initial_vector(self) -> npt.NDArray[np.complex128]:
         """Return the initial state of the element as a normalised vector.
 
         Returns:
@@ -127,7 +128,7 @@ class OperatorViewSpec(BaseSpec):
         initial = getattr(self.element, self.state)
         if isinstance(initial, str | int | np.integer):
             vector = np.zeros(self.dimension, dtype=complex)
-            vector[self.basis_index(initial)] = 1.0
+            vector[self.get_basis_index(initial)] = 1.0
             return vector
         vector = np.asarray(initial, dtype=complex).ravel()
         norm = float(np.linalg.norm(vector))

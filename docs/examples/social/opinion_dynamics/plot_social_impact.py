@@ -7,7 +7,7 @@ clusters, where its members support each other, and the grid freezes into a stat
 """
 
 # %%
-# The system is built from its class on a 15 by 15 grid with half of the people of each opinion, random
+# The example builds `SocialImpactSystem` on a 15 by 15 grid with half of the people of each opinion, random
 # persuasiveness and supportiveness, the distance exponent 2, and no noise, and runs for 20 steps. The default
 # blueprint shows the grid, coloured by opinion.
 
@@ -37,7 +37,7 @@ for exponent, style in [(2.0, '-'), (3.0, '--')]:
         run = simulate(SocialImpactSystem(exponent=exponent, random_state=seed), random_state=0)
         trajectory = run
         shares = [
-            np.mean(np.asarray(trajectory.agents('people', frame).values['opinion']) > 0)
+            np.mean(np.asarray(trajectory.get_agents('people', frame).values['opinion']) > 0)
             for frame in range(len(trajectory.times))
         ]
         ax.plot(

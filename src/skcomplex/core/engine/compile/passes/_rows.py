@@ -1,7 +1,4 @@
-"""Settle the rows every kernel spec is evaluated over.
-
-It first checks where its laws draw random values.
-"""
+"""Settle the rows every kernel spec is evaluated over."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,10 +8,11 @@ from dataclasses import replace
 from sage.all__sagemath_symbolics import Expression
 
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import draws_in, hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._draws import draws_in
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs._matrix_law_spec import _RANDOM_FIELDS
+from ....specs._matrix_law_spec import RANDOM_FIELDS
 from ..._utils import components_of
 from ...problems._kernel_spec import KernelSpec
 from ...types import ReadKind
@@ -25,7 +23,7 @@ from .._renewal_law import RenewalLaw
 
 
 class RowsPass(BasePass):
-    """Pass that checks the draws of the laws and settles the rows of every spec.
+    """A pass that checks the draws of the laws and settles the rows of every spec.
 
     The specs are kernel specs, with their laws set apart.
     """
@@ -45,19 +43,19 @@ class RowsPass(BasePass):
         the laws, the laws set apart, and the flows, which later passes read.
         """
         compilation = self.compilation_
-        apart = Compilation._required(compilation.apart, 'apart')
-        lowered = Compilation._required(compilation.lowered, 'lowered')
-        stepped = self._stepped_flows(compilation, [laws for _, laws, _ in lowered])
+        apart = Compilation._get_required(compilation.apart, 'apart')
+        lowered = Compilation._get_required(compilation.lowered, 'lowered')
+        stepped = self._get_stepped_flows(compilation, [laws for _, laws, _ in lowered])
         settled: dict[int, KernelSpec] = {}
         for spec, laws, _ in lowered:
             self._check_draw_placement(spec.owner, [law for law in laws if id(law) not in stepped])
-            new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            new = self._get_settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
             if new is not spec:
                 settled[id(spec)] = new
         compilation._replace_specs(settled)
 
     @staticmethod
-    def _stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
+    def _get_stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
         """Return the identities of the rate laws of flows that move once per step.
 
         They move their amounts once per step and may draw. The flows of a system that declares discrete time, or that
@@ -89,7 +87,7 @@ class RowsPass(BasePass):
         raise RoleError(error_msg)
 
     @staticmethod
-    def _outside_reductions(value: object) -> set[Expression]:
+    def _get_outside_reductions(value: object) -> set[Expression]:
         """Return the symbols of a law value that occur outside its reductions."""
         expressions = [item for item in components_of(value) if isinstance(item, Expression)]
         found = [reduction.call for item in expressions for reduction in reductions_in(item)]
@@ -107,7 +105,7 @@ class RowsPass(BasePass):
         return symbols
 
     @staticmethod
-    def _settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
+    def _get_settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
         """Return a spec with the groups it is evaluated over.
 
         They are set from the member symbols its laws read. Only the symbols outside reductions count.
@@ -121,7 +119,7 @@ class RowsPass(BasePass):
             return spec
         read: set[Expression] = set()
         for law, value in zip(laws, values, strict=True):
-            read |= RowsPass._outside_reductions(value)
+            read |= RowsPass._get_outside_reductions(value)
             read |= {item for target in law._get_targets() for item in components_of(target)}
         owners = {
             reference.entry.name.rpartition('.')[0]
@@ -160,15 +158,15 @@ class RowsPass(BasePass):
                 RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
             ):
                 continue
-            values = [value for value in law._get_values(include=_RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
+            values = [value for value in law._get_values(include=RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (
                     f'The {type(law).__name__} of {owner} holds the random draw {found[0].call}, but only update and '
-                    'renewal laws take random draws. System randomness in continuous time with Noise laws for Wiener '
+                    'renewal laws take random draws. Express randomness in continuous time with Noise laws for Wiener '
                     'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
                 )
                 raise IncompatibleLawsError(error_msg)
             for item in found:
                 if item.kind == 'draw':
-                    DrawLowering._distribution_of(owner, f'{type(law).__name__}', item)
+                    DrawLowering._get_distribution_of(owner, f'{type(law).__name__}', item)

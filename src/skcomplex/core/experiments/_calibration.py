@@ -24,7 +24,7 @@ from numpyro.infer.autoguide import AutoMultivariateNormal
 from scipy import stats
 from scipy.optimize import least_squares, minimize
 
-from ..components.system import BaseSystem
+from ..components.systems import BaseSystem
 from ..engine.backends import JaxBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec
@@ -34,7 +34,8 @@ from ..engine.types import TracedArray, TracedFunction
 from ..errors import SkcomplexError, ValidationError
 from ..types import Array, FormKind
 from ._designs import _check_bounds
-from ._runs import _build, _check_count, _check_source
+from ._runs import _check_count, _check_source
+from ._utils import build_system
 from .types import Bounds, Source
 
 METHODS = ('local', 'global', 'abc_smc', 'mcmc', 'variational')
@@ -54,13 +55,14 @@ RHAT_LIMIT = 1.05
 LEARNING_RATE = 0.01
 SEED_LIMIT = 2**32
 
+
 type Series = dict[str, tuple[Array, Array]]
 type Summary = Callable[[Mapping[str, Array]], npt.ArrayLike]
 
 
 @dataclass(frozen=True)
 class CalibrationResult:
-    """Fit of the model parameters of a system to observed time series.
+    """A result of `calibrate`, the fitted parameters and system, with diagnostics.
 
     A point fit holds one estimate. A posterior method also holds the samples, their weights, the diagnostics of the
     method, and the posterior predictive check, and its estimates are the posterior medians.
@@ -213,7 +215,7 @@ class _CalibrationObjective:
 
     def build(self, values: Sequence[float]) -> BaseSystem:
         """Return the candidate system of a parameter vector."""
-        return _build(self.source, dict(zip(self.names, map(float, values), strict=True)))
+        return build_system(self.source, dict(zip(self.names, map(float, values), strict=True)))
 
     def simulate(
         self,
@@ -236,13 +238,13 @@ class _CalibrationObjective:
                 solver=self.solver,
                 random_state=np.random.default_rng(seed),
             )
-            runs.append(self._at_times(trajectory))
+            runs.append(self._get_at_times(trajectory))
         return {path: np.mean([run[path] for run in runs], axis=0) for path in self.series}
 
-    def _at_times(self, trajectory: Trajectory) -> dict[str, Array]:
+    def _get_at_times(self, trajectory: Trajectory) -> dict[str, Array]:
         """Return the values of a trajectory interpolated at the data times by path."""
         return {
-            path: np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
+            path: np.interp(times, trajectory.times, np.asarray(trajectory.get_values(path), dtype=float))
             for path, (times, _) in self.series.items()
         }
 
@@ -261,22 +263,25 @@ class _CalibrationObjective:
             replay=recorded,
         )
 
-    def replayed(self, values: Sequence[float]) -> dict[str, Array]:
+    def get_replayed(self, values: Sequence[float]) -> dict[str, Array]:
         """Return the replayed values at the data times by path."""
-        return self._at_times(self._replay(values))
+        return self._get_at_times(self._replay(values))
 
-    def residuals(self, values: Sequence[float]) -> Array:
+    def get_residuals(self, values: Sequence[float]) -> Array:
         """Return the simulated minus the observed values of every path, concatenated."""
         simulated = self.simulate(values)
         return np.concatenate([simulated[path] - observed for path, (_, observed) in self.series.items()])
 
     def log_likelihood(self, values: Sequence[float]) -> float:
-        """Return the Gaussian log-likelihood with the variance profiled out, up to a constant."""
-        residuals = self.residuals(values)
+        """Return the Gaussian log-likelihood with the variance profiled out.
+
+        It is exact up to a constant.
+        """
+        residuals = self.get_residuals(values)
         return float(-0.5 * residuals.size * np.log(np.sum(residuals**2)))
 
-    def event_log_likelihood(self, values: Sequence[float]) -> float:
-        """Return the log-probability of the recorded draws replayed under a parameter vector.
+    def get_event_log_likelihood(self, values: Sequence[float]) -> float:
+        """Return the log-probability of the recorded draws replayed under parameters.
 
         A replay whose draws do not match the recording, such as a group that grows otherwise, has probability 0.
         """
@@ -286,29 +291,25 @@ class _CalibrationObjective:
             return -np.inf
         return -np.inf if probability is None else float(probability)
 
-    def log_prior(self, values: Sequence[float]) -> float:
-        """Return the log density of the priors at a parameter vector."""
-        return float(sum(prior.logpdf(value) for prior, value in zip(self.priors.values(), values, strict=True)))
-
-    def loss(self, values: Sequence[float], loss: str) -> float:
+    def get_loss(self, values: Sequence[float], loss: str) -> float:
         """Return the loss of a parameter vector to minimise.
 
         It is half the sum of squares, the negative Gaussian log-likelihood, or the negative event log-likelihood.
         """
         if loss == 'squares':
-            return float(0.5 * np.sum(self.residuals(values) ** 2))
+            return float(0.5 * np.sum(self.get_residuals(values) ** 2))
         if loss == 'likelihood':
             return -self.log_likelihood(values)
-        return -self.event_log_likelihood(values)
+        return -self.get_event_log_likelihood(values)
 
-    def summaries(self, simulated: Mapping[str, Array]) -> Array:
+    def get_summaries(self, simulated: Mapping[str, Array]) -> Array:
         """Return the summary statistics of series by path."""
         if self.summary is None:
             return np.concatenate([np.asarray(simulated[path], dtype=float) for path in self.series])
         return np.atleast_1d(np.asarray(self.summary(simulated), dtype=float))
 
-    def _compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
-        """Return the problem of the candidate of a parameter vector compiled on JAX, and its pure function.
+    def _get_compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
+        """Return the JAX problem of the candidate of a parameter vector, and its function.
 
         Args:
             values:
@@ -339,8 +340,10 @@ class _CalibrationObjective:
             raise ValidationError(error_msg)
         return problem, backend.traced_
 
-    def traced(self) -> Callable[..., TracedArray]:
-        """Return the JAX function from a parameter vector to the simulated values at the data times, concatenated.
+    def get_traced(self) -> Callable[..., TracedArray]:
+        """Return the JAX function from a parameter vector to the simulated data values.
+
+        The values at the data times are concatenated.
 
         The function `predict(theta, key=None)` takes a JAX key when the system draws, which draws its uniform and
         normal values.
@@ -358,7 +361,7 @@ class _CalibrationObjective:
                 The problem changes its structure or is not affine in a model parameter, or a path is not a state.
         """
         center = np.asarray([float(prior.median()) for prior in self.priors.values()])
-        problem, function = self._compiled(center)
+        problem, function = self._get_compiled(center)
         columns = []
         for index, name in enumerate(self.names):
             step = 1e-3 * max(1.0, abs(center[index]))
@@ -366,7 +369,7 @@ class _CalibrationObjective:
             for factor in (1.0, 2.0):
                 shifted = center.copy()
                 shifted[index] += factor * step
-                other = self._compiled(shifted)[0]
+                other = self._get_compiled(shifted)[0]
                 if other.initial_state.size != problem.initial_state.size or (
                     other.initial_parameters.size != problem.initial_parameters.size
                 ):
@@ -399,17 +402,19 @@ class _CalibrationObjective:
 
         return predict
 
-    def predictive(
+    def get_predictive(
         self,
         samples: Array,
         weights: Array,
         loss: str,
         rng: np.random.Generator,
     ) -> dict[str, object]:
-        """Return the quantiles of the simulated series of posterior draws at the data times and their coverage.
+        """Return the quantiles of simulated series of posterior draws, and their coverage.
 
-        At most 200 draws are chosen by the weights and run with fresh streams. For the Gaussian likelihood every
-        draw also adds observation noise of the variance its residuals give.
+        The quantiles are taken at the data times.
+
+        At most 200 draws are chosen by the weights and run with fresh streams. For the Gaussian likelihood every draw
+        also adds observation noise of the variance its residuals give.
         """
         if not self.series:
             empty: dict[str, Array] = {}
@@ -433,7 +438,7 @@ class _CalibrationObjective:
         inside = (observed >= quantiles[0]) & (observed <= quantiles[2])
         return {**bands, 'coverage': float(np.mean(inside))}
 
-    def covariance(self, estimate: Array, loss: str) -> Array | None:
+    def get_covariance(self, estimate: Array, loss: str) -> Array | None:
         """Return the covariance of point estimates from the Jacobian of the residuals.
 
         It is `None` for the event likelihood, which has no residuals, and when the Jacobian is singular.
@@ -441,8 +446,8 @@ class _CalibrationObjective:
         if loss == 'events':
             return None
         low, high = self.box
-        fit = least_squares(self.residuals, np.clip(estimate, low, high), bounds=(low, high), max_nfev=1)
-        jacobian, final = fit.jac, self.residuals(estimate)
+        fit = least_squares(self.get_residuals, np.clip(estimate, low, high), bounds=(low, high), max_nfev=1)
+        jacobian, final = fit.jac, self.get_residuals(estimate)
         dof = max(final.size - len(self.names), 1)
         try:
             return np.asarray(np.linalg.inv(jacobian.T @ jacobian) * float(np.sum(final**2)) / dof)
@@ -481,7 +486,7 @@ def _check_priors(bounds: Bounds) -> dict[str, stats.rv_continuous]:
 
 
 def _check_settings(method: str, loss: str, data: object, bounds: Bounds, replicates: int) -> None:
-    """Raise an error for a method, a loss, data, replicates, or bounds that calibration cannot take."""
+    """Raise an error for an invalid method, loss, data, replicates, or bounds."""
     if method not in METHODS:
         error_msg = f'Unknown method {method!r}. Use one of {", ".join(METHODS)}.'
         raise ValidationError(error_msg)
@@ -514,9 +519,9 @@ def _series_of(data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]] | Traject
     if isinstance(data, Trajectory):
         states = data.problem.states
         return {
-            name: (np.asarray(data.times, dtype=float), np.asarray(data.values(name), dtype=float))
+            name: (np.asarray(data.times, dtype=float), np.asarray(data.get_values(name), dtype=float))
             for name in states.names
-            if states.entry(name).size == 1
+            if states.get_entry(name).size == 1
         }
     return {
         path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
@@ -525,21 +530,21 @@ def _series_of(data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]] | Traject
 
 
 def _fit_local(objective: _CalibrationObjective, loss: str, start: Array) -> tuple[Array, bool]:
-    """Return the local SciPy fit of a loss from a starting vector, and whether it converged."""
+    """Return the local SciPy fit of a loss from a start, and whether it converged."""
     low, high = objective.box
     if loss == 'squares':
-        fit = least_squares(objective.residuals, start, bounds=(low, high), x_scale='jac')
+        fit = least_squares(objective.get_residuals, start, bounds=(low, high), x_scale='jac')
         return np.asarray(fit.x, dtype=float), bool(fit.success)
     if loss == 'likelihood':
         count = objective.observed.size
         fit = minimize(
-            lambda values: 0.5 * count * np.log(np.sum(objective.residuals(values) ** 2)),
+            lambda values: 0.5 * count * np.log(np.sum(objective.get_residuals(values) ** 2)),
             start,
             bounds=list(zip(low, high, strict=True)),
         )
     else:
         fit = minimize(
-            lambda values: min(objective.loss(values, loss), np.finfo(float).max),
+            lambda values: min(objective.get_loss(values, loss), np.finfo(float).max),
             start,
             bounds=list(zip(low, high, strict=True)),
             method='Nelder-Mead',
@@ -548,13 +553,16 @@ def _fit_local(objective: _CalibrationObjective, loss: str, start: Array) -> tup
 
 
 def _fit_global(objective: _CalibrationObjective, loss: str, budget: int, random_state: int | None) -> Array:
-    """Return the best of `budget` evaluations of a loss chosen by a seeded tree-structured Parzen estimator."""
+    """Return the best of `budget` evaluations of a loss chosen by a Parzen estimator.
+
+    The estimator is a seeded tree-structured Parzen estimator.
+    """
     low, high = objective.box
     names = objective.names
 
     def evaluate(trial: optuna.Trial) -> float:
         values = [trial.suggest_float(name, lower, upper) for name, lower, upper in zip(names, low, high, strict=True)]
-        return min(objective.loss(values, loss), np.finfo(float).max)
+        return min(objective.get_loss(values, loss), np.finfo(float).max)
 
     verbosity = optuna.logging.get_verbosity()
     optuna.logging.set_verbosity(logging.WARNING)
@@ -636,7 +644,9 @@ def _fit_abc(
     budget: int,
     random_state: int | None,
 ) -> tuple[Array, Array, dict[str, object]]:
-    """Return the weighted samples of ABC-SMC with pyabc and the tolerance and acceptance of every generation.
+    """Return the weighted samples of ABC-SMC with pyabc and its generations.
+
+    Each generation gives its tolerance and acceptance.
 
     pyabc draws from the global NumPy random state, which is seeded from the random state and restored after, and its
     history lives in a temporary SQLite file.
@@ -649,10 +659,10 @@ def _fit_abc(
 
     def model(parameters: Mapping[str, float]) -> dict[str, float]:
         seed = np.random.SeedSequence(int(rng.integers(SEED_LIMIT)))
-        summaries = objective.summaries(objective.simulate([parameters[name] for name in names], [seed]))
+        summaries = objective.get_summaries(objective.simulate([parameters[name] for name in names], [seed]))
         return {f's{index}': float(value) for index, value in enumerate(summaries)}
 
-    observed = objective.summaries({path: values for path, (_, values) in objective.series.items()})
+    observed = objective.get_summaries({path: values for path, (_, values) in objective.series.items()})
     abc = pyabc.ABCSMC(
         model,
         priors,
@@ -687,7 +697,10 @@ def _fit_abc(
 
 
 def _chain_diagnostics(draws: Mapping[str, Array], names: list[str]) -> tuple[Array, dict[str, object], bool]:
-    """Return the samples of chains by row, the split R-hat and effective sample sizes, and their convergence."""
+    """Return the samples of chains by row, their R-hat, sample sizes, and convergence.
+
+    The R-hat is split and the sample sizes are effective.
+    """
     rhat = {name: float(split_gelman_rubin(np.asarray(draws[name]))) for name in names}
     ess = {name: float(effective_sample_size(np.asarray(draws[name]))) for name in names}
     samples = np.stack([np.asarray(draws[name], dtype=float).reshape(-1) for name in names], axis=1)
@@ -702,11 +715,12 @@ def _fit_mcmc(
     chains: int,
     random_state: int | None,
 ) -> tuple[Array, dict[str, object], bool]:
-    """Return the samples of MCMC with numpyro, their diagnostics, and whether the chains converged.
+    """Return the samples of MCMC with numpyro, their diagnostics, and convergence.
 
     A deterministic differentiable system with the Gaussian likelihood runs NUTS on its JAX run. Every other system runs
     the affine invariant ensemble sampler, with the log-likelihood evaluated on the host, and at least two walkers per
-    parameter and two more.
+    parameter and two more. The host returns the log-likelihood in single precision, since XLA may run the callback on a
+    thread of its own, where the double precision that `jax.enable_x64` sets for the calling thread does not hold.
     """
     names = objective.names
     priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
@@ -715,7 +729,7 @@ def _fit_mcmc(
     differentiable = loss == 'likelihood' and tags.differentiable and tags.randomness == 'deterministic'
     with jax.enable_x64(True):
         if differentiable:
-            predict, observed = objective.traced(), jnp.asarray(objective.observed)
+            predict, observed = objective.get_traced(), jnp.asarray(objective.observed)
 
             def model() -> None:
                 theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
@@ -724,14 +738,14 @@ def _fit_mcmc(
 
             sampler, walkers, method = NUTS(model), chains, 'sequential'
         else:
-            evaluate = objective.log_likelihood if loss == 'likelihood' else objective.event_log_likelihood
+            evaluate = objective.log_likelihood if loss == 'likelihood' else objective.get_event_log_likelihood
 
             def host(theta: Array) -> Array:
-                return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float64)
+                return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float32)
 
             def model() -> None:
                 theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
-                shape = jax.ShapeDtypeStruct((), jnp.float64)
+                shape = jax.ShapeDtypeStruct((), jnp.float32)
                 numpyro.factor('likelihood', jax.pure_callback(host, shape, theta, vmap_method='sequential'))
 
             sampler, walkers, method = AIES(model), max(chains, 2 * len(names) + 2), 'vectorized'
@@ -757,18 +771,20 @@ def _fit_variational(
     budget: int,
     random_state: int | None,
 ) -> tuple[Array, dict[str, object], bool]:
-    """Return draws of a variational posterior fitted by numpyro SVI through the JAX run, and its loss history.
+    """Return draws of a variational posterior fitted by numpyro SVI, and its losses.
+
+    The fit goes through the JAX run of the system.
 
     The guide is a multivariate normal on the unconstrained parameters, fitted by Adam. The model adds the negative
     loss, the Gaussian log-likelihood or the negative sum of squares, so the ELBO is the expected loss plus the
-    divergence from the prior. A system that draws runs with a fresh JAX key at every step of the fit, so the ELBO
-    also averages over the draws.
+    divergence from the prior. A system that draws runs with a fresh JAX key at every step of the fit, so the ELBO also
+    averages over the draws.
     """
     names = objective.names
     priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
     count = objective.observed.size
     with jax.enable_x64(True):
-        predict, observed = objective.traced(), jnp.asarray(objective.observed)
+        predict, observed = objective.get_traced(), jnp.asarray(objective.observed)
 
         def model() -> None:
             theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
@@ -787,7 +803,7 @@ def _fit_variational(
 
 
 def _check_differentiable(objective: _CalibrationObjective) -> None:
-    """Raise an error for variational calibration of a system without the tag `differentiable`."""
+    """Raise an error for variational calibration without the tag `differentiable`."""
     system = objective.build([float(prior.median()) for prior in objective.priors.values()])
     if not system.get_tags().differentiable:
         others = ', '.join(method for method in METHODS if method != 'variational')
@@ -808,10 +824,13 @@ def _posterior_result(
     success: bool,
     random_state: int | None,
 ) -> CalibrationResult:
-    """Return the result of a posterior method, with the medians, the covariance, and the predictive check."""
+    """Return the result of a posterior method with its medians and covariance.
+
+    It also holds the predictive check.
+    """
     estimate = np.asarray([_weighted_median(column, weights) for column in samples.T])
     covariance = np.atleast_2d(np.cov(samples.T, aweights=weights)) if len(samples) > 1 else None
-    predictive = objective.predictive(samples, weights, loss, np.random.default_rng(random_state))
+    predictive = objective.get_predictive(samples, weights, loss, np.random.default_rng(random_state))
     return _result(
         objective,
         estimate,
@@ -836,7 +855,7 @@ def _result(
     predictive: dict[str, object] | None = None,
 ) -> CalibrationResult:
     """Return the result of a calibration at an estimate, with its goodness of fit."""
-    simulated = objective.replayed(estimate) if objective.recorded is not None else objective.simulate(estimate)
+    simulated = objective.get_replayed(estimate) if objective.recorded is not None else objective.simulate(estimate)
     final = np.concatenate([simulated[path] - observed for path, (_, observed) in objective.series.items()] or [[]])
     observed = objective.observed if objective.series else np.zeros(0)
     nonzero = observed != 0
@@ -912,6 +931,9 @@ def calibrate(
     a trajectory recorded with `simulate(..., record_draws=True)`, given as `data`, replayed under every candidate with
     `random_state`, the seed of the recorded run.
 
+    It appears in many fields. It fits the rates of an epidemic to case counts, the rate constants of a reaction to
+    measured concentrations, and the parameters of a predator and prey model to pelt records.
+
     Args:
         system:
             The system, whose copies take the model parameters through `set_params`, or a factory of systems, such as
@@ -975,14 +997,14 @@ def calibrate(
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
         >>> bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
-        >>> fitted = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).system
+        >>> fitted = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds).system
         >>> round(fitted.r, 2), round(fitted.K)
         (0.5, 100)
-        >>> result = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds, method='global',
+        >>> result = calibrate(LogisticGrowthSystem(), {'population.x': (times, values)}, bounds, method='global',
         ...     budget=100, random_state=0)
         >>> bool(abs(result.estimates['r'] - 0.5) < 0.1)
         True
-        >>> noisy = {'population.n': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
+        >>> noisy = {'population.x': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
         >>> posterior = calibrate(LogisticGrowthSystem(), noisy, bounds, method='variational', loss='likelihood',
         ...     n_samples=200, random_state=0)
         >>> round(posterior.estimates['r'], 1), posterior.samples['r'].shape
@@ -1038,10 +1060,10 @@ def calibrate(
         )
     if method == 'global':
         estimate = _fit_global(objective, loss, budget, random_state)
-        return _result(objective, estimate, objective.covariance(estimate, loss), success=True)
+        return _result(objective, estimate, objective.get_covariance(estimate, loss), success=True)
     start = np.asarray(
         [(initial or {}).get(name, float(prior.median())) for name, prior in priors.items()],
         dtype=float,
     )
     estimate, success = _fit_local(objective, loss, start)
-    return _result(objective, estimate, objective.covariance(estimate, loss), success)
+    return _result(objective, estimate, objective.get_covariance(estimate, loss), success)

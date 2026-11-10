@@ -14,20 +14,15 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 ALONG_ROW = LatticeNeighborhood(((0, 0), (0, -1), (0, 1)))
 VISITED = VisualSpec('image', {'states': ['visited'], 'low': 0.0, 'high': 1.0})
-
-
-def _mean_position(s: SimpleNamespace) -> object:
-    """Return the mean distance travelled by the walkers."""
-    return s.visits / s.walkers - 1
 
 
 class TrapSiteElement(Element):
@@ -81,6 +76,11 @@ class TrapSiteElement(Element):
         self.tau = tau
 
 
+def _get_mean_position(s: SimpleNamespace) -> object:
+    """Return the mean distance travelled by the walkers."""
+    return s.visits / s.walkers - 1
+
+
 class BiasedTrapWalkSystem(BaseSystem):
     """Walkers that hop always to the right through quenched traps.
 
@@ -126,7 +126,7 @@ class BiasedTrapWalkSystem(BaseSystem):
     observables = (
         ObservableSpec('visits', group='traps', variable='visited', reduce='sum'),
         ObservableSpec('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableSpec('position', _mean_position),
+        ObservableSpec('position', _get_mean_position),
     )
 
     def __init__(
@@ -159,18 +159,19 @@ class BiasedTrapWalkSystem(BaseSystem):
         next_occupied = (stays | arrives).astype(float)
         return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = (self.n_walkers, self.n_sites)
         tau = np.ceil(self.tau0 * (1 - np.random.default_rng(self.random_state).random(shape)) ** (-1 / self.alpha))
         start = np.zeros(shape)
         start[:, 0] = 1.0
-        traps = LatticeElement(
+        traps = GroupElement(
             'traps',
             element=TrapSiteElement,
             space=LatticeSpace(shape, boundary='fixed', fill=-1.0),
             values={'occupied': start, 'visited': start, 'tau': tau},
             visual=VISITED,
+            on='sites',
         )
         hops = LocalRuleInteraction(
             'hops',
@@ -180,4 +181,4 @@ class BiasedTrapWalkSystem(BaseSystem):
             neighborhood=ALONG_ROW,
             reads=('occupied', 'visited', 'clock', 'tau'),
         )
-        return System(self.label, elements=[traps], interactions=[hops])
+        return CompositeSystem(self.label, elements=[traps], interactions=[hops])

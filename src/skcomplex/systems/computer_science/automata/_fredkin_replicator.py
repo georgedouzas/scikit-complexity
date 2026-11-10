@@ -11,13 +11,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
+    BallNeighborhood,
     LatticeSpace,
-    VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ._binary_cell import BinaryCellElement
 from ._codes import life
 
@@ -74,7 +74,7 @@ class FredkinReplicatorSystem(BaseSystem):
         self.initial = initial
         self.radius = radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Fredkin's parity automaton.
 
         Its local law copies any initial pattern into translated replicas.
@@ -86,16 +86,18 @@ class FredkinReplicatorSystem(BaseSystem):
         else:
             values = np.asarray(self.initial, dtype=float)
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life((1, 3), (1, 3)),
-                    neighborhood=VonNeumannNeighborhood(),
+                    neighborhood=BallNeighborhood(metric='manhattan'),
                 ),
             ],
         )

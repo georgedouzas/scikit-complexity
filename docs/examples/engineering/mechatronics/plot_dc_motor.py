@@ -29,8 +29,8 @@ trajectory = simulate(system, dt=0.05, observers=[observer])
 # form.
 
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(trajectory.times, trajectory.values('speed'), label='speed')
-ax.plot(trajectory.times, trajectory.values('current'), label='current')
+ax.plot(trajectory.times, trajectory.get_values('speed'), label='speed')
+ax.plot(trajectory.times, trajectory.get_values('current'), label='current')
 ax.axhline(k * V / (R * b + k**2), color='black', linestyle='--', label='closed form of the speed')
 ax.set_xlabel('time')
 ax.set_title('A motor starting from rest')

@@ -24,6 +24,9 @@ from skcomplex.systems.physics.active_matter import SzaboCellsSystem
 
 SYSTEM = 'szabo_cells'
 SIZE = float(np.sqrt(200.0))
+DENSITIES = (0.05, 0.25, 1.0)
+CELLS = 100
+
 
 box = rrb.Spatial2DView(
     origin='/cells',
@@ -45,7 +48,7 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # %%
 # Order against density
 # ---------------------
-# The order parameter is the mean velocity of the cells divided by `v0`, which we read from their displacements between
+# The order parameter is the mean velocity of the cells divided by `v0`, read from their displacements between
 # frames. It should grow from the disordered start and level off above 0.8 at the density 1, and it should stay lower in
 # a dilute box, where the cells meet too seldom to share a direction. The right panel runs 100 cells at three densities
 # and shows that the final order grows with the density.
@@ -53,13 +56,11 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 
 def order_of(trajectory, size):
     """Return the mean normalized velocity of the cells at every frame."""
-    moves = np.diff(trajectory.values('cells.x'), axis=0)
+    moves = np.diff(trajectory.get_values('cells.x'), axis=0)
     moves -= size * np.round(moves / size)
     return np.linalg.norm(moves.mean(axis=1) / np.diff(trajectory.times)[:, None], axis=-1)
 
 
-DENSITIES = (0.05, 0.25, 1.0)
-CELLS = 100
 curves = {}
 for density in DENSITIES:
     settings = {'until': 40.0, 'random_state': 1}

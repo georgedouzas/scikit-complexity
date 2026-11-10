@@ -18,7 +18,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import EquationLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory, simulate
 from skcomplex.core.errors import SolverError
@@ -195,20 +195,20 @@ class TermInteraction(Interaction):
         return [EquationLaw(0, s.gain, target=s.target.x)]
 
 
-def _simulated(system: System, **settings: object) -> Trajectory:
+def _simulated(system: CompositeSystem, **settings: object) -> Trajectory:
     """Return the trajectory of a static system."""
     return simulate(system, until=1.0, **settings)
 
 
-def _issues(system: System, code: str) -> list[IssueSpec]:
+def _issues(system: CompositeSystem, code: str) -> list[IssueSpec]:
     """Return the issues of a system with a code."""
     return [item for item in PassCompiler().prepare(system).report_.issues if item.code == code]
 
 
 def test_run_survival_at_dose() -> None:
     """Test that a closed form under static time gives one frame with its value."""
-    system = System(elements=[SurvivalElement('a')], time=StaticTime())
-    frames = _simulated(system).values('a.S')
+    system = CompositeSystem(elements=[SurvivalElement('a')], time=StaticTime())
+    frames = _simulated(system).get_values('a.S')
     assert PassCompiler().prepare(system).run().problem_.form == FormKind.STATIC
     assert frames.shape == (1,)
     assert abs(frames[0] - np.exp(-0.72)) < 1e-12
@@ -218,16 +218,16 @@ def test_run_without_equations() -> None:
     """Test that a static system without laws runs its observables in one frame on its initial states."""
     group = GroupElement('g', element=ValueElement, size=4, values={'x': np.arange(1.0, 5.0)})
     trajectory = _simulated(
-        System(elements=[group], time=StaticTime()),
+        CompositeSystem(elements=[group], time=StaticTime()),
         observables=[ObservableSpec('all', group='g', variable='x', reduce='sum')],
     )
-    assert trajectory.values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
-    assert trajectory.values('all').tolist() == [10.0]
+    assert trajectory.get_values('g.x').tolist() == [[1.0, 2.0, 3.0, 4.0]]
+    assert trajectory.get_values('all').tolist() == [10.0]
 
 
 def test_compiler_exact_linear_solution() -> None:
     """Test that linear best responses compile to the symbolic solution of Forrest (2018, equation 21.6)."""
-    problem = PassCompiler().prepare(System(elements=[CournotElement('a')], time=StaticTime())).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[CournotElement('a')], time=StaticTime())).run().problem_
     names = ('alpha', 'c_i', 'c_j', 'lambda_i', 'lambda_j')
     alpha, c_i, c_j, lambda_i, lambda_j = (problem.symbols[f'a.{name}'] for name in names)
     expected = (alpha - 2 * c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3
@@ -237,32 +237,32 @@ def test_compiler_exact_linear_solution() -> None:
 
 def test_run_cyclic_equations() -> None:
     """Test that two equations that give each other solve jointly."""
-    trajectory = _simulated(System(elements=[CyclicElement('a')], time=StaticTime()))
-    assert abs(trajectory.values('a.x')[0] - 2) < 1e-12
-    assert abs(trajectory.values('a.y')[0] - 2) < 1e-12
+    trajectory = _simulated(CompositeSystem(elements=[CyclicElement('a')], time=StaticTime()))
+    assert abs(trajectory.get_values('a.x')[0] - 2) < 1e-12
+    assert abs(trajectory.get_values('a.y')[0] - 2) < 1e-12
 
 
 def test_run_adds_equations_of_one_target() -> None:
     """Test that the equations of one target from an element and an interaction add."""
-    system = System(
+    system = CompositeSystem(
         elements=[TermElement('a')],
         interactions=[TermInteraction('i', target='a')],
         time=StaticTime(),
     )
-    assert abs(_simulated(system).values('a.x')[0] - 5.0) < 1e-12
+    assert abs(_simulated(system).get_values('a.x')[0] - 5.0) < 1e-12
 
 
 def test_run_numerical_solution() -> None:
     """Test that an equation without an explicit solution solves numerically."""
-    system = System(elements=[FixedPointElement('a')], time=StaticTime())
+    system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
     assert PassCompiler().prepare(system).run().problem_.unknowns.tolist() == [0]
-    assert abs(_simulated(system).values('a.x')[0] - 0.7390851332151607) < 1e-9
+    assert abs(_simulated(system).get_values('a.x')[0] - 0.7390851332151607) < 1e-9
 
 
 def test_run_group_coupled_through_total() -> None:
     """Test that a group target gives one unknown per member, coupled through a reduction."""
     group = GroupElement('g', element=MeanFieldElement, size=5, values={'b': np.arange(1.0, 6.0)})
-    frames = _simulated(System(elements=[group], time=StaticTime())).values('g.x')
+    frames = _simulated(CompositeSystem(elements=[group], time=StaticTime())).get_values('g.x')
     assert frames[0].tolist() == pytest.approx([4.0, 5.0, 6.0, 7.0, 8.0], abs=1e-8)
 
 
@@ -270,19 +270,19 @@ def test_run_group_coupled_through_log_sum_exp() -> None:
     """Test that the Jacobian of a log-sum-exp solves members that read it, from a guess far from the solution."""
     values = {'b': np.arange(1.0, 6.0), 'x': np.full(5, 10.0)}
     group = GroupElement('g', element=SoftmaxFieldElement, size=5, values=values)
-    x = _simulated(System(elements=[group], time=StaticTime())).values('g.x')[0]
+    x = _simulated(CompositeSystem(elements=[group], time=StaticTime())).get_values('g.x')[0]
     assert x == pytest.approx(np.arange(1.0, 6.0) - logsumexp(x), abs=1e-8)
 
 
 def test_run_no_solution() -> None:
     """Test that a solve that does not converge names the equation and the residual."""
     with pytest.raises(SolverError, match=r'x.*largest residual'):
-        simulate(System(elements=[NoSolutionElement('a')], time=StaticTime()), until=1.0)
+        simulate(CompositeSystem(elements=[NoSolutionElement('a')], time=StaticTime()), until=1.0)
 
 
 def test_prepare_compiler_target_not_a_state() -> None:
     """Test that a target that is not a state is reported with the law."""
-    found = _issues(System(elements=[StrayTargetElement('a')], time=StaticTime()), 'equation-target')
+    found = _issues(CompositeSystem(elements=[StrayTargetElement('a')], time=StaticTime()), 'equation-target')
     assert len(found) == 1
     assert 'z' in found[0].message
     assert found[0].path.startswith('a')
@@ -290,11 +290,11 @@ def test_prepare_compiler_target_not_a_state() -> None:
 
 def test_prepare_compiler_without_target() -> None:
     """Test that an equation without a target under static time is reported."""
-    assert len(_issues(System(elements=[NoTargetElement('a')], time=StaticTime()), 'equation-target')) == 1
+    assert len(_issues(CompositeSystem(elements=[NoTargetElement('a')], time=StaticTime()), 'equation-target')) == 1
 
 
 def test_prepare_compiler_rate_law_under_static_time() -> None:
     """Test that a rate law under static time keeps its time issue."""
-    found = _issues(System(elements=[RateElement('a')], time=StaticTime()), 'law-time')
+    found = _issues(CompositeSystem(elements=[RateElement('a')], time=StaticTime()), 'law-time')
     assert len(found) == 1
     assert 'RateLaw' in found[0].message

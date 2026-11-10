@@ -1,4 +1,4 @@
-"""Define jumps, random events that change states by signed amounts."""
+"""Define the interaction whose random events change states by signed amounts."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,19 +23,28 @@ CLOCKS = ('rate', 'probability', 'waiting')
 
 
 class JumpInteraction(Interaction):
-    """Random event that changes states of the target by signed amounts.
+    """An interaction whose random events change states by signed amounts.
 
-    The event fires at a rate, by a probability, or after a wait. With a `rate`, the event fires at the times of a
-    Poisson process of that propensity in continuous time. With a `probability`, it fires in a step of discrete time
-    with that probability. With a `waiting` time, usually a draw from a distribution with nonnegative support, it fires
-    after a time drawn anew at every firing, as in renewal processes, and every member of a bound group fires on its own
-    clock. When the event fires it adds the `changes` to the states and, with a waiting time, sets the states of `reset`
-    to their new values. Every function reads `namespace.target`, the states and parameters of the target, and the time
-    `namespace.t`.
+    When the event fires it adds `changes` to the states of the target, such as minus one infected and plus one
+    recovered. Exactly one clock says when it fires:
+
+    - `rate`: at the times of a Poisson process of that propensity, in continuous time.
+    - `probability`: with that probability in a step of discrete time.
+    - `waiting`: after a time drawn anew at every firing, as in a renewal process. Each member of a group then fires on
+      its own clock, and `reset` sets states to new values at each firing.
+
+    Every function reads `namespace.target`, the states and parameters of the target, and the time `namespace.t`.
+
+    Unlike `RateInteraction`, which changes a state continuously, it changes states by whole amounts at random times.
+    Choose it when the units are few enough that their randomness matters, as in the stochastic simulation algorithm of
+    Gillespie.
+
+    It appears in many fields. Births and deaths change a population one at a time, customers join and leave a queue,
+    molecules react in a small cell volume, and a machine fails and is repaired.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'births'`.
 
         target:
             The path of the element or group whose states the event changes.
@@ -62,13 +71,19 @@ class JumpInteraction(Interaction):
             function is not callable.
 
     Examples:
-        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
+        >>> class AmountElement(Element):
+        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.x = x
         >>> from skcomplex.core.components.interactions import JumpInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
-        >>> system = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
-        >>> counts = simulate(system, until=5, dt=1.0, random_state=0).values('queue.n')
+        >>> arrivals = JumpInteraction('arrivals', target='queue', changes={'x': 1}, rate=lambda s: 2.0)
+        >>> system = CompositeSystem(elements=[AmountElement('queue')], interactions=[arrivals])
+        >>> counts = simulate(system, until=5, dt=1.0, random_state=0).get_values('queue.x')
         >>> bool(all(count == round(count) for count in counts))
         True
     """

@@ -6,7 +6,7 @@ and become stiflers, so the rumour dies out before it reaches everyone: about a 
 """
 
 # %%
-# The system is built from its class with 1000 people, one of them a spreader, and equal rates of spreading
+# The example builds `MakiThompsonSystem` with 1000 people, one of them a spreader, and equal rates of spreading
 # and stifling, and runs for 20 time units. The default blueprint shows the ignorants, spreaders, and stiflers in one
 # time series view.
 
@@ -37,7 +37,7 @@ for n_people in (200, 1000, 5000):
     fractions = []
     for seed in range(20):
         run = simulate(MakiThompsonSystem(n_people=n_people), until=40, dt=1.0, random_state=seed)
-        fractions.append(run.values('ignorants.n')[-1] / n_people)
+        fractions.append(run.get_values('ignorants.n')[-1] / n_people)
     finals = np.array(fractions)
     spread_out = finals[finals < 0.9]
     ax.plot(np.full(len(spread_out), n_people), spread_out, 'o', alpha=0.5, label=f'{n_people} people')

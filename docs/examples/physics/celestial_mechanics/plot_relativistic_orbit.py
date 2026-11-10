@@ -33,7 +33,7 @@ fig, ax = plt.subplots(figsize=(6, 6))
 for epsilon in [0.0, 0.05]:
     run = simulate(RelativisticOrbitSystem(epsilon=epsilon))
     angle = np.asarray(run.times)
-    radius = 1 / np.ravel(run.values('planet.u'))
+    radius = 1 / np.ravel(run.get_values('planet.u'))
     ax.plot(radius * np.cos(angle), radius * np.sin(angle), label=f'epsilon = {epsilon}')
 ax.plot(0, 0, '*', color='orange', markersize=12)
 ax.set_aspect('equal')

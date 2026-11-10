@@ -8,9 +8,9 @@ shrink, and the capacity that climbs with every episode and decays a little betw
 """
 
 # %%
-# The system is built from its class with the adaptive strategy and episodes of height 1 and width 2 every 10 time
-# units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the excursion `e`
-# and the capacity `c` over the whole run.
+# The example builds `AdaptiveResponseCostsSystem` with the adaptive strategy and episodes of height 1 and width 2 every
+# 10 time units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the excursion
+# `e` and the capacity `c` over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,7 +50,7 @@ trajectory = simulate(AdaptiveResponseCostsSystem(strategy='adaptive'), observer
 totals = {}
 for strategy in STRATEGIES:
     trajectory = simulate(AdaptiveResponseCostsSystem(strategy=strategy))
-    totals[strategy] = [trajectory.values(f'organism.{kind}_cost')[-1] for kind in COSTS]
+    totals[strategy] = [trajectory.get_values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))
 for index, kind in enumerate(COSTS):
@@ -61,7 +61,7 @@ bars.set_ylabel('cost over 20 episodes')
 bars.set_title('Total cost falls with each level of adaptivity')
 bars.legend()
 times = trajectory.times
-excursion = trajectory.values('organism.e')
+excursion = trajectory.get_values('organism.e')
 episodes = np.arange(1.0, 200.0, 10.0)
 maxima = [excursion[(times >= start) & (times < start + 10)].max() for start in episodes]
 peaks.plot(np.arange(1, len(maxima) + 1), maxima, 'o-')

@@ -15,7 +15,7 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True, eq=False)
 class NeighborReadSpec(BaseSpec):
-    """How a symbol reads a field at a neighbouring site of every member.
+    """A spec of how a symbol reads a field at a neighbouring site of a member.
 
     Args:
         table:
@@ -50,7 +50,7 @@ class NeighborReadSpec(BaseSpec):
     entry: EntrySpec | None = None
     order: Indices | None = None
 
-    def members(self, p: Array) -> Indices:
+    def get_members(self, p: Array) -> Indices:
         """Return the member every row reads.
 
         It reads it from the table or the parameter entry at the table, through the order.
@@ -63,7 +63,7 @@ class NeighborReadSpec(BaseSpec):
             members:
                 The member index of every row.
         """
-        rows = self.table if self.entry is None else self.entry.view(p).ravel()[self.table].astype(np.intp)
+        rows = self.table if self.entry is None else self.entry.get_view(p).ravel()[self.table].astype(np.intp)
         return rows if self.order is None else self.order[rows]
 
     def read(self, column: npt.NDArray[np.float64], p: Array) -> npt.NDArray[np.float64]:
@@ -81,5 +81,5 @@ class NeighborReadSpec(BaseSpec):
                 The value at the neighbour of every member.
         """
         if self.ghost is None:
-            return column[self.members(p)]
+            return column[self.get_members(p)]
         return np.append(column, self.ghost)[self.table]

@@ -15,15 +15,27 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import GroupingInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import BaseSpace, DiscreteTime, LatticeNeighborhood, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Pair
+from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
+
+ORIGIN: Pair = (0, 0)
+REACH = 2
+HALF = 0.5
+VON_NEUMANN: tuple[Pair, ...] = ((1, 0), (-1, 0), (0, 1), (0, -1))
+DIAMOND = LatticeNeighborhood(
+    tuple((dx, dy) for dx in range(-REACH, REACH + 1) for dy in range(-REACH, REACH + 1) if abs(dx) + abs(dy) <= REACH),
+)
+IMITATIONS = ('best', 'fermi')
+MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
 
 
 class IteratedPrisonerElement(Element):
@@ -139,23 +151,6 @@ class PrisonerElement(Element):
         self.noise = noise
 
 
-ORIGIN: Pair = (0, 0)
-
-
-REACH = 2
-
-
-HALF = 0.5
-
-
-VON_NEUMANN: tuple[Pair, ...] = ((1, 0), (-1, 0), (0, 1), (0, -1))
-
-
-DIAMOND = LatticeNeighborhood(
-    tuple((dx, dy) for dx in range(-REACH, REACH + 1) for dy in range(-REACH, REACH + 1) if abs(dx) + abs(dy) <= REACH),
-)
-
-
 class IteratedDilemmaInteraction(LocalRuleInteraction):
     """Play of the iterated prisoner's dilemma between neighbours.
 
@@ -184,7 +179,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=DIAMOND, stochastic=True)
 
     @staticmethod
-    def years(
+    def get_years(
         own: Array,
         other: Array,
         *,
@@ -227,7 +222,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.systems.social.cooperation import IteratedDilemmaInteraction
-            >>> years = IteratedDilemmaInteraction.years(
+            >>> years = IteratedDilemmaInteraction.get_years(
             ...     np.arange(11.0), np.full(11, 6.0), rounds=10, reward=0.5, sucker=1.5, temptation=0.0, punishment=1.0
             ... )
             >>> int(np.argmin(years))
@@ -261,7 +256,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
             own = cells[center]
             return sum(
                 (
-                    IteratedDilemmaInteraction.years(
+                    IteratedDilemmaInteraction.get_years(
                         own,
                         cells[center[0] + dx, center[1] + dy],
                         punishment=punishment,
@@ -288,15 +283,6 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
             np.minimum(np.floor(draw * (np.asarray(rounds) + 1)), rounds),
         )
         return np.where(random < mutation, mutant, revised)
-
-
-IMITATIONS = ('best', 'fermi')
-
-
-MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
-
-
-SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
 
 
 class PrisonersDilemmaInteraction(LocalRuleInteraction):
@@ -458,18 +444,6 @@ class PublicGoodsInteraction(GroupingInteraction):
         return pot / count(over=group.members) - group.member.strategy
 
 
-def _random_strategies(
-    shape: Sequence[int],
-    share: float,
-    random_state: int | np.random.Generator | None,
-) -> Array:
-    """Return strategies that are 1, cooperation, with a probability.
-
-    The other strategies are 0, defection.
-    """
-    return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
-
-
 class SpatialPrisonersDilemmaSystem(BaseSystem):
     """The spatial prisoner's dilemma of Nowak and May.
 
@@ -509,6 +483,18 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
     until = 50
     dt = 1
 
+    @staticmethod
+    def _get_random_strategies(
+        shape: Sequence[int],
+        share: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return strategies that are 1, cooperation, with a probability.
+
+        The other strategies are 0, defection.
+        """
+        return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
+
     def __init__(
         self,
         shape: Sequence[int] = (50, 50),
@@ -528,19 +514,24 @@ class SpatialPrisonersDilemmaSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=PrisonerElement,
             space=LatticeSpace(tuple(self.shape)),
             values={
-                'strategy': _random_strategies(self.shape, self.share, self.random_state),
+                'strategy': SpatialPrisonersDilemmaSystem._get_random_strategies(
+                    self.shape,
+                    self.share,
+                    self.random_state,
+                ),
                 'temptation': self.temptation,
                 'noise': self.noise,
             },
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=self.imitation)],
@@ -603,14 +594,15 @@ class PublicGoodsGameSystem(BaseSystem):
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        strategies = _random_strategies(self.shape, self.share, self.random_state)
-        players = LatticeElement(
+        strategies = SpatialPrisonersDilemmaSystem._get_random_strategies(self.shape, self.share, self.random_state)
+        players = GroupElement(
             'players',
             element=ContributorElement,
-            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            space=LatticeSpace(tuple(self.shape), metric='manhattan'),
             values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
+            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
@@ -622,7 +614,7 @@ class PublicGoodsGameSystem(BaseSystem):
             phase='imitate',
         )
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
@@ -714,17 +706,17 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
         self.extremes = extremes
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         if self.extremes:
             strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)
         else:
             strategies = rng.integers(self.rounds + 1, size=tuple(self.shape)).astype(float)
-        players = LatticeElement(
+        players = GroupElement(
             'players',
             element=IteratedPrisonerElement,
-            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            space=LatticeSpace(tuple(self.shape), metric='manhattan'),
             values={
                 'strategy': strategies,
                 'rounds': self.rounds,
@@ -735,8 +727,9 @@ class IteratedLatticeDilemmaSystem(BaseSystem):
                 'mutation': self.mutation,
                 'extremes': float(self.extremes),
             },
+            on='sites',
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[players],
             interactions=[IteratedDilemmaInteraction('play', target='players')],

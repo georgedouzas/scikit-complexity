@@ -1,7 +1,4 @@
-"""Define training.
-
-Training takes optimizer steps on the adaptive parameters of a nested system once per epoch.
-"""
+"""Define the interaction that trains the adaptive parameters of a nested system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,20 +22,28 @@ OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
 
 
 class TrainingInteraction(Interaction):
-    """Training of the adaptive parameters of a nested system by gradient steps.
+    """An interaction that trains the parameters of a nested system by gradient steps.
 
-    The gradient steps are on a loss over unrolled runs. The role `system` binds the path of a nested system, which the
-    training unrolls over the sequences of a dataset from its initial states, inside one step of the discrete time of
-    the system that holds the interaction. That step is one epoch of shuffled batches, each followed by one update of
-    the optimizer, and the interaction returns the `GradientStepLaw` that takes it. The hyperparameters of the optimizer
-    are parameters of the interaction, so a schedule of `simulate` changes them between epochs. `'sgd'` reads the
-    learning rate, `'momentum'` also the momentum, `'rmsprop'` the learning rate and `beta2`, the decay of its mean
-    squared gradient, and `'adam'` the learning rate, `beta1`, and `beta2`. It differs from `GradientInteraction`, which
-    moves states down the gradient of a potential in the system's own time.
+    The role `system` binds a nested system, which the training runs over the sequences of a dataset from its initial
+    states and differentiates. One step of the outer system is one epoch: shuffled batches, each followed by one update
+    of the optimizer on the adaptive parameters named in `trained`. The hyperparameters of the optimizer are parameters
+    of the interaction, so a schedule of `simulate` can change them between epochs. The `optimizer` reads them as
+    follows:
+
+    - `'sgd'`: the learning rate.
+    - `'momentum'`: the learning rate and `momentum`.
+    - `'rmsprop'`: the learning rate and `beta2`, the decay of its mean squared gradient.
+    - `'adam'`: the learning rate, `beta1`, and `beta2`.
+
+    Unlike `GradientInteraction`, which moves states down a potential in the time of the system, it fits parameters of
+    another system to data, one epoch per step. Choose it when a part of the model learns from data during the run.
+
+    It appears in many fields. A recurrent neural network learns to predict a time series, an echo state network fits
+    its readout, and a learning agent improves its policy between rounds.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'training'`.
 
         system:
             The path of the nested system whose parameters the interaction trains.

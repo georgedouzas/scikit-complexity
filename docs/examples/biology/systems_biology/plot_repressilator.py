@@ -7,8 +7,8 @@ apart.
 """
 
 # %%
-# The system is built from its class with Elowitz and Leibler's rates and started with only the first protein. The
-# observer saves every third frame with the default blueprint, whose primary view is the time series of the mRNA and
+# The example builds `RepressilatorSystem` with Elowitz and Leibler's rates and starts it with only the first protein.
+# The observer saves every third frame with the default blueprint, whose primary view is the time series of the mRNA and
 # protein counts.
 
 import matplotlib.pyplot as plt
@@ -34,12 +34,14 @@ noisy = simulate(RepressilatorSystem(stochastic=True), random_state=0, until=300
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):
-        ax.plot(trajectory.times, trajectory.values(f'gene_{gene}.p'), label=f'protein {gene}')
+        ax.plot(trajectory.times, trajectory.get_values(f'gene_{gene}.p'), label=f'protein {gene}')
     ax.set_ylabel('protein count')
     ax.set_title(title)
 axes[0].legend(loc='upper right')
 axes[1].set_xlabel('time (min)')
-spread = np.std(noisy.values('gene_0.p')[noisy.times > 100]) / np.mean(noisy.values('gene_0.p')[noisy.times > 100])
+spread = np.std(noisy.get_values('gene_0.p')[noisy.times > 100]) / np.mean(
+    noisy.get_values('gene_0.p')[noisy.times > 100],
+)
 fig.suptitle(f'Proteins peak in turn; coefficient of variation with noise {spread:.2f}')
 fig.tight_layout()
 plt.show()

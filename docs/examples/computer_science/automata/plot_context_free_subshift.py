@@ -31,7 +31,7 @@ trajectory = simulate(ContextFreeSubshiftSystem(size=60, random_state=0), observ
 # the constraint, so they spread as the chain mixes, and the frequencies of the three symbols move away from those of
 # the balanced start.
 
-symbols = trajectory.values('cells.symbol').astype(int)
+symbols = trajectory.get_values('cells.symbol').astype(int)
 pattern = re.compile('1*2*')
 
 

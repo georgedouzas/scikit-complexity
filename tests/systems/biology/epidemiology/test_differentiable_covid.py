@@ -51,9 +51,9 @@ def test_no_transmission_gives_no_infections():
     """Test that with every beta 0 the daily infections are 0, and NumPy agents stay 0 or 1."""
     system = DifferentiableCovidAbmSystem(beta_household=0.0, beta_school=0.0, beta_company=0.0)
     trajectory = simulate(system, until=30, random_state=0)
-    assert np.all(trajectory.values('daily_infections') == 0)
-    assert set(np.unique(trajectory.values('people.i'))) <= {0.0, 1.0}
-    assert trajectory.values('people.i')[-1].sum() < trajectory.values('people.i')[0].sum()
+    assert np.all(trajectory.get_values('daily_infections') == 0)
+    assert set(np.unique(trajectory.get_values('people.i'))) <= {0.0, 1.0}
+    assert trajectory.get_values('people.i')[-1].sum() < trajectory.get_values('people.i')[0].sum()
 
 
 def test_system_holds_the_tag_differentiable():
@@ -66,7 +66,7 @@ def test_variational_calibration_recovers_the_three_betas():
     times = np.arange(31.0)
     runs = [simulate(DifferentiableCovidAbmSystem(), until=30, random_state=seed) for seed in range(20)]
     paths = ('cases.children', 'cases.adults')
-    data = {path: (times, np.mean([run.values(path) for run in runs], axis=0)) for path in paths}
+    data = {path: (times, np.mean([run.get_values(path) for run in runs], axis=0)) for path in paths}
     result = calibrate(
         DifferentiableCovidAbmSystem(),
         data,

@@ -27,13 +27,13 @@ class Wolfram:
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import Wolfram
-        >>> Wolfram(30).table().mapping[(1, 0, 0)]
+        >>> Wolfram(30).get_table().mapping[(1, 0, 0)]
         1
     """
 
     number: int
 
-    def table(self) -> TableSpec:
+    def get_table(self) -> TableSpec:
         """Return the rule as a table of the eight patterns.
 
         Returns:

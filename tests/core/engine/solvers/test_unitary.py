@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import NeighborInteraction
 from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
@@ -21,8 +21,6 @@ from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
 from ....conftest import SpinElement
 
 OMEGA = 2.0
-
-
 GAMMA = 0.5
 
 
@@ -105,12 +103,12 @@ def qubit_z(s):
     return local_operator(s.q.psi, 'z')
 
 
+Z = [ObservableSpec('z', qubit_z)]
+
+
 def total_z(s):
     """Return the total magnetisation of the chain."""
     return sum(local_operator(member.psi, 'z') for member in s.chain)
-
-
-Z = [ObservableSpec('z', qubit_z)]
 
 
 MAGNETIZATION = [ObservableSpec('magnetization', total_z)]
@@ -119,9 +117,9 @@ MAGNETIZATION = [ObservableSpec('magnetization', total_z)]
 def _chain(n_sites, **values):
     """Return a Heisenberg chain from a Néel state."""
     labels = ['up', 'down'] * (n_sites // 2)
-    return System(
+    return CompositeSystem(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'psi': labels}),
+            GroupElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'psi': labels}, on='sites'),
         ],
         interactions=[XXZInteraction('xxz', target='chain', **values)],
     )
@@ -129,10 +127,10 @@ def _chain(n_sites, **values):
 
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
-    system = System(elements=[RabiElement('q')])
+    system = CompositeSystem(elements=[RabiElement('q')])
     trajectory = simulate(system, until=np.pi / OMEGA, solver=UnitarySolver(), dt=0.05, observables=Z)
-    assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
-    assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
+    assert np.allclose(trajectory.get_values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
+    assert np.allclose(np.linalg.norm(trajectory.get_values('system.state'), axis=1), 1, atol=1e-8)
 
 
 def test_unitary_evolution_conserves_magnetization_and_energy():
@@ -144,47 +142,47 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
         solver=UnitarySolver(atol=1e-14, rtol=1e-13),
         dt=1.0,
     )
-    assert np.ptp(trajectory.values('magnetization')) < 1e-8
-    assert np.ptp(trajectory.values('energy')) < 1e-8
+    assert np.ptp(trajectory.get_values('magnetization')) < 1e-8
+    assert np.ptp(trajectory.get_values('energy')) < 1e-8
 
 
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        simulate(System(elements=[DecayingElement('q')]), until=1.0, solver=UnitarySolver())
+        simulate(CompositeSystem(elements=[DecayingElement('q')]), until=1.0, solver=UnitarySolver())
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
-    system = System(elements=[DecayingElement('q')])
+    system = CompositeSystem(elements=[DecayingElement('q')])
     trajectory = simulate(system, until=4.0, dt=0.5, observables=Z)
-    assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
-    traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
+    assert np.allclose((1 + trajectory.get_values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
+    traces = np.trace(trajectory.get_values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
 
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = simulate(System(elements=[DephasedElement('q')]), until=4.0, dt=0.2)
-    purity = trajectory.values('purity')
+    trajectory = simulate(CompositeSystem(elements=[DephasedElement('q')]), until=4.0, dt=0.2)
+    purity = trajectory.get_values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
 
 
 def test_jump_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
-    system = System(elements=[DecayingElement('q')])
+    system = CompositeSystem(elements=[DecayingElement('q')])
     runs = [
         simulate(system, until=10.0, solver=JumpTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z)
         for _ in range(2)
     ]
-    assert np.array_equal(runs[0].values('z'), runs[1].values('z'))
-    assert set(np.round(runs[0].values('z'), 8)) <= {-1.0, 1.0}
+    assert np.array_equal(runs[0].get_values('z'), runs[1].get_values('z'))
+    assert set(np.round(runs[0].get_values('z'), 8)) <= {-1.0, 1.0}
 
 
 def test_jump_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
-    system = System(elements=[DecayingElement('q')])
+    system = CompositeSystem(elements=[DecayingElement('q')])
     rng = np.random.default_rng(0)
     values = np.array(
         [
@@ -195,7 +193,7 @@ def test_jump_trajectories_average_to_the_master_equation():
                 dt=0.5,
                 random_state=rng,
                 observables=Z,
-            ).values(
+            ).get_values(
                 'z',
             )
             for _ in range(500)
@@ -216,7 +214,7 @@ def test_operator_solvers_follow_parameter_updates():
         dt=0.5,
         schedule={'xxz.delta': lambda t: 1.0 if t < 1.0 else 0.0},
     )
-    energy = trajectory.values('energy')
+    energy = trajectory.get_values('energy')
     assert np.ptp(energy[:2]) < 1e-8
     assert abs(energy[2] - energy[1]) > 0.1
     assert np.ptp(energy[2:]) < 1e-8

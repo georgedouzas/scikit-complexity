@@ -12,11 +12,10 @@ from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import LinearProgramLaw
 from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError, EnumerationLimitError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
 
-Flux = Annotated[float, StateSpec(algebraic=True)]
 NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 REVERSIBLE = ('v4', 'v6', 'b2')
 MATRIX = np.array(
@@ -32,6 +31,9 @@ MATRIX = np.array(
     ],
     dtype=float,
 )
+
+
+Flux = Annotated[float, StateSpec(algebraic=True)]
 
 
 class ToyElement(Element):
@@ -75,7 +77,7 @@ class ToyElement(Element):
 
 def _toy(**values):
     """Return the system of the toy network."""
-    return System(elements=[ToyElement('net', **values)], time=StaticTime())
+    return CompositeSystem(elements=[ToyElement('net', **values)], time=StaticTime())
 
 
 def _column(analysis, name):

@@ -8,7 +8,7 @@ they settle.
 """
 
 # %%
-# The system is built from its class with the values of Bala, Arshad and Noh: an initial stock of 1000
+# The example builds `GrainStorageSystem` with the values of Bala, Arshad and Noh: an initial stock of 1000
 # tonnes and 10000 tonnes on order, a desired stock of 6000 tonnes, a release fraction of 0.025 per week, a receiving
 # delay of 10 weeks, and an adjustment delay of 5 weeks. The run lasts 100 weeks, and the default blueprint shows the
 # two stocks and the three flows.
@@ -32,12 +32,12 @@ trajectory = simulate(GrainStorageSystem(), observers=[observer])
 # negative while the stock exceeds the desired one.
 
 fig, (top, bottom) = plt.subplots(2, 1, figsize=(7, 6), sharex=True)
-top.plot(trajectory.times, trajectory.values('store.stock'), label='grain stock')
+top.plot(trajectory.times, trajectory.get_values('store.stock'), label='grain stock')
 top.axhline(6000, linestyle=':', color='black', label='desired grain stock')
 top.set_ylabel('tonnes')
 top.legend()
-bottom.plot(trajectory.times, trajectory.values('store.procurement'), label='procurement rate')
-bottom.plot(trajectory.times, trajectory.values('store.receiving'), label='receiving rate')
+bottom.plot(trajectory.times, trajectory.get_values('store.procurement'), label='procurement rate')
+bottom.plot(trajectory.times, trajectory.get_values('store.receiving'), label='receiving rate')
 bottom.set_xlabel('weeks')
 bottom.set_ylabel('tonnes per week')
 bottom.legend()

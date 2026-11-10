@@ -17,13 +17,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+PAIR = 2
+TRIANGLE = 3
 
 
 class InfectiveElement(Element):
@@ -67,9 +70,6 @@ class InfectiveElement(Element):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the recovery of an infected node."""
         return [JumpLaw(s.recovery * where(s.infected == 1, 1, 0), {s.infected: -1})]
-
-
-PAIR = 2
 
 
 class SimplicialInfectionInteraction(HyperedgeInteraction):
@@ -122,9 +122,6 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
         rate = s.beta if len(s.others) + 1 == PAIR else s.beta_triangle
         exposed = math.prod((other.infected for other in s.others), start=where(infected == 0, 1, 0))
         return [JumpLaw(rate * exposed, {infected: 1})]
-
-
-TRIANGLE = 3
 
 
 class SimplicialContagionSystem(BaseSystem):
@@ -208,7 +205,12 @@ class SimplicialContagionSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
+    def _get_simplicial_complex(
+        n_nodes: int,
+        links: float,
+        triangles: float,
+        seed: int,
+    ) -> tuple[nx.Graph, list[tuple]]:
         """Return a random simplicial complex.
 
         It holds random links, and random filled triangles whose sides join the links.
@@ -220,24 +222,25 @@ class SimplicialContagionSystem(BaseSystem):
         graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
         return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         pairs = math.comb(self.n_nodes - 1, PAIR - 1)
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)
         links = min(max(self.mean_degree - 2 * self.mean_triangles, 0.0) / pairs, 1.0)
-        graph, hyperedges = self._simplicial_complex(self.n_nodes, links, triangles, self.seed)
+        graph, hyperedges = self._get_simplicial_complex(self.n_nodes, links, triangles, self.seed)
         sizes = [len(members) for members in hyperedges]
         degree = max(PAIR * sizes.count(PAIR) / self.n_nodes, 1.0)
         shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)
         rng = np.random.default_rng(self.seed + 1)
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
-        nodes = LatticeElement(
+        nodes = GroupElement(
             'nodes',
             element=InfectiveElement,
             space=NetworkSpace(graph, hyperedges=hyperedges),
             values={'infected': infected, 'recovery': self.recovery},
             visual=VisualSpec('sites', {'states': ['infected'], 'low': 0.0, 'high': 1.0}),
+            on='sites',
         )
         infection = SimplicialInfectionInteraction(
             'infection',
@@ -245,4 +248,4 @@ class SimplicialContagionSystem(BaseSystem):
             beta=self.infectivity * self.recovery / degree,
             beta_triangle=self.triangle_infectivity * self.recovery / shared,
         )
-        return System(self.label, elements=[nodes], interactions=[infection])
+        return CompositeSystem(self.label, elements=[nodes], interactions=[infection])

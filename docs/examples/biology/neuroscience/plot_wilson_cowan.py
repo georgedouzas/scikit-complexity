@@ -7,7 +7,7 @@ population activity.
 """
 
 # %%
-# The system is built from its class with Wilson and Cowan's couplings and the input `P = 1.25`. The observer saves
+# The example builds `WilsonCowanSystem` with Wilson and Cowan's couplings and the input `P = 1.25`. The observer saves
 # every second frame with the default blueprint, whose primary view is the time series of both activities.
 
 import matplotlib.pyplot as plt
@@ -31,9 +31,15 @@ oscillating = trajectory
 second = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=1.25))
 resting = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=0.0))
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(oscillating.values('cortex.E'), oscillating.values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
-ax.plot(second.values('cortex.E'), second.values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')
-ax.plot(resting.values('cortex.E'), resting.values('cortex.I'), ':', color='black', label='P = 0, decays to rest')
+ax.plot(oscillating.get_values('cortex.E'), oscillating.get_values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
+ax.plot(second.get_values('cortex.E'), second.get_values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')
+ax.plot(
+    resting.get_values('cortex.E'),
+    resting.get_values('cortex.I'),
+    ':',
+    color='black',
+    label='P = 0, decays to rest',
+)
 ax.set_xlabel('excitatory activity E')
 ax.set_ylabel('inhibitory activity I')
 ax.set_title('An input turns rest into a limit cycle')

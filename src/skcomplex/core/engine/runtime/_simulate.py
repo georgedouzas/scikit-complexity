@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.system import BaseSystem, System
+from ...components.systems import BaseSystem, CompositeSystem
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend, NumpyBackend
@@ -45,7 +45,7 @@ def _check_support(runner: BaseConfig, kind: str, tags: Tags) -> None:
         error_msg = f'The {kind} {runner!r} is not a {kind} of the engine.'
         raise ValidationError(error_msg)
     supported: Tags = get_supported()
-    missing = supported.missing(tags)
+    missing = supported.get_missing(tags)
     if missing:
         name, values = next(iter(missing.items()))
         error_msg = (
@@ -90,7 +90,7 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
     """
     if tags.laws is None or 'noise' in tags.laws:
         return None
-    fitting = {solver for solver in DEFAULT_SOLVERS.values() if not solver.get_supported_tags().missing(tags)}
+    fitting = {solver for solver in DEFAULT_SOLVERS.values() if not solver.get_supported_tags().get_missing(tags)}
     return fitting.pop()() if len(fitting) == 1 else None
 
 
@@ -211,14 +211,14 @@ def simulate(
             system, named in the message.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = System(
-        ...     elements=[PopulationElement('rabbits', n=10)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> round(simulate(system, until=20).values('rabbits.n')[-1])
+        >>> round(simulate(system, until=20).get_values('rabbits.x')[-1])
         100
     """
     return _simulate(
@@ -248,7 +248,7 @@ def _prepare_runners(
     backend: BaseBackend | None,
     compiler: BaseCompiler | None,
     observables: Sequence[ObservableSpec],
-) -> tuple[System, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
+) -> tuple[CompositeSystem, BaseSolver | None, BaseBackend | None, BaseCompiler | None, Sequence[ObservableSpec]]:
     """Return the composite of a system with copies of its runners, and observables.
 
     The runners are the solver, the backend, and the compiler. A setting left out comes from the tuned run settings of
@@ -301,8 +301,8 @@ def _prepare_runners(
     if runner is not None:
         _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
-    form = Simulation._default_compiler(composite) if form is None else form
-    tuned_observables = () if isinstance(system, System) else settings['observables']
+    form = Simulation._get_default_compiler(composite) if form is None else form
+    tuned_observables = () if isinstance(system, CompositeSystem) else settings['observables']
     if stepper is None and form is None and not composite.systems:
         stepper = _choose_solver(tags)
     return composite, stepper, runner, form, observables or tuned_observables
@@ -436,7 +436,7 @@ def _simulate(
         raise ValidationError(error_msg)
     if (record_draws or replay is not None) and backend is None:
         backend = NumpyBackend()
-    source: System | BaseProblemSpec
+    source: CompositeSystem | BaseProblemSpec
     if compiled is None:
         source, stepper, runner, form, observed = _prepare_runners(system, solver, backend, compiler, observables)
     else:

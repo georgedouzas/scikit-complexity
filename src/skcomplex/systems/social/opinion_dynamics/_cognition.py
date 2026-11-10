@@ -17,11 +17,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+TOPICS = (0, 2)
+COHERENCE = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
+SETTLED = 0.01
+MAX_SETTLING = 1000
+POSITIVE = (1.0, 1.0, -1.0)
 
 
 class ThinkerView(AgentView):
@@ -85,18 +91,6 @@ class ThinkerElement(Element):
         Their attributes are the states and parameters.
         """
         return ThinkerView
-
-
-TOPICS = (0, 2)
-
-
-COHERENCE = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
-
-
-SETTLED = 0.01
-
-
-MAX_SETTLING = 1000
 
 
 def _settle_once(valences: Array, decay: float) -> Array:
@@ -197,9 +191,6 @@ class ConversationsInteraction(GroupingInteraction):
         hearer.valences, hearer.attitude = settled, float(settled[1])
 
 
-POSITIVE = (1.0, 1.0, -1.0)
-
-
 class CognitiveConsistencySystem(BaseSystem):
     """Agents whose attitudes spread by conversation and settle in a belief network.
 
@@ -250,7 +241,7 @@ class CognitiveConsistencySystem(BaseSystem):
         self.decay = decay
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         graph = nx.complete_graph(40) if graph is None else graph
@@ -263,7 +254,7 @@ class CognitiveConsistencySystem(BaseSystem):
             size=size,
             values={'valences': valences, 'attitude': valences[:, 1], 'decay': self.decay},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[thinkers],
             interactions=[ConversationsInteraction('talks', target='thinkers')],

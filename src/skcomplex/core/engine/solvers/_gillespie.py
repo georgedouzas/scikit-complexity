@@ -18,24 +18,32 @@ from ._solver import Solver
 
 
 class GillespieSolver(Solver):
-    """Exact stochastic simulation of jump processes by the Gillespie direct method.
+    """A solver that simulates jump processes exactly by the Gillespie direct method.
 
     An event that would fire after `until` is discarded, which is exact because waiting times are memoryless. A run
     that records its draws keeps the time and the law of every firing, and a run that replays them fires the recorded
     laws at the recorded times and sums the log-likelihood of the path under its own propensities.
 
+    Choose it when the units are few and each event matters. It appears in many fields, such as molecules in a cell,
+    small outbreaks of an epidemic, and queues.
+
     Examples:
-        >>> import numpy as np
+        >>> from typing import Annotated
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.interactions import JumpInteraction
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.core.components.elements import CompartmentElement
-        >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.core.engine.solvers import GillespieSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
-        ...     elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
-        ...     interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
-        ... )
+        >>> from skcomplex.core.specs import StateSpec, StepSpec
+        >>> class PopulationElement(Element):
+        ...     def __init__(
+        ...         self, label, i: Annotated[float, StateSpec()] = 10.0, r: Annotated[float, StateSpec()] = 0.0
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.i = i
+        ...         self.r = r
+        >>> recovery = JumpInteraction('recovery', target='pop', changes={'i': -1, 'r': 1}, rate=lambda s: s.target.i)
+        >>> system = CompositeSystem(elements=[PopulationElement('pop')], interactions=[recovery])
         >>> problem = simulate(system, until=0).problem
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
@@ -72,7 +80,7 @@ class GillespieSolver(Solver):
         problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
-    def _rates(self, t: float, state: Array, p: Array) -> Array:
+    def _get_rates(self, t: float, state: Array, p: Array) -> Array:
         """Return the propensities at a state, after checking them.
 
         Args:
@@ -109,12 +117,12 @@ class GillespieSolver(Solver):
         topology = self.problem_.topology
         if topology is not None and channel in (topology.channels or {}):
             state = topology._fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
-            return self._bounded(t, state, p)
+            return self._get_bounded(t, state, p)
         targets = channels.targets[:, event - channels.offset]
         kept = targets >= 0
-        increments = channels.increments_at(t, state, p, event - channels.offset)
+        increments = channels.get_increments_at(t, state, p, event - channels.offset)
         np.add.at(state, targets[kept], increments[kept])
-        return self._bounded(t, state, p)
+        return self._get_bounded(t, state, p)
 
     def _replay(self, t: float, x: Array, p: Array, until: float, recorder: DrawRecorder) -> Array:
         """Fire the recorded laws at their recorded times from time `t` until `until`.
@@ -125,15 +133,15 @@ class GillespieSolver(Solver):
         state = x.copy()
         log_probability = 0.0
         with np.errstate(divide='ignore'):
-            for time, event in recorder.firings(t, until):
-                rates = self._rates(t, state, p)
+            for time, event in recorder.get_firings(t, until):
+                rates = self._get_rates(t, state, p)
                 if event >= rates.size:
                     error_msg = f'The replayed trajectory fires the jump law {event}, but the system has {rates.size}.'
                     raise ValidationError(error_msg)
                 log_probability += float(np.log(rates[event]) - rates.sum() * (time - t))
                 t = time
                 state = self._fire(t, state, p, event)
-            log_probability -= float(self._rates(t, state, p).sum() * (until - t))
+            log_probability -= float(self._get_rates(t, state, p).sum() * (until - t))
         recorder.add_log_probability(log_probability)
         return state
 
@@ -178,7 +186,7 @@ class GillespieSolver(Solver):
                 raise SolverError(error_msg) from error
         state = x.copy()
         while True:
-            rates = self._rates(t, state, p)
+            rates = self._get_rates(t, state, p)
             total = float(rates.sum())
             if total == 0:
                 return state

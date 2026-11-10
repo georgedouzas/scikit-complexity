@@ -6,7 +6,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 """
 
 # %%
-# The system is built from its class with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
+# The example builds `HasselmannSystem` with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
 # is integrated with the Euler-Maruyama scheme. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 lam, sigma = 0.5, 0.3
 run = simulate(HasselmannSystem(), until=2000, random_state=1)
-anomaly = run.values('ocean.T')[100:]
+anomaly = run.get_values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
 histogram = distribution(anomaly, kind='histogram', bins=40)
 edges, density = histogram.edges, histogram.density

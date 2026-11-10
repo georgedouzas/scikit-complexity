@@ -1,7 +1,4 @@
-"""Pass that lowers the differential operators of laws to stencils.
-
-It notes stable steps and linear terms.
-"""
+"""Pass that lowers the differential operators of laws to stencils."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.elements import FieldElement
 from ....components.laws import BaseLaw, RateLaw
-from ....components.laws.utils import COORDINATE_PREFIX
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ...problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_term_spec import OPERATORS, LinearTermSpec
@@ -25,7 +22,7 @@ from .._field_lowering import FieldLowering
 
 
 class LowerFieldsPass(BasePass):
-    """Pass that lowers the differential operators of laws to stencils.
+    """A pass that lowers the differential operators of laws to stencils.
 
     It notes stable steps and linear terms.
     """
@@ -48,9 +45,9 @@ class LowerFieldsPass(BasePass):
         limits: list[float] = []
         volume_limits: list[DiffusiveLimitSpec] = []
         linear: list[LinearTermSpec] = []
-        corrected = compilation.corrected = list(Compilation._required(compilation.corrected, 'corrected'))
+        corrected = compilation.corrected = list(Compilation._get_required(compilation.corrected, 'corrected'))
         for index, (spec, laws) in enumerate(corrected):
-            lowered = self._with_fields(
+            lowered = self._copy_with_fields(
                 spec,
                 laws,
                 compilation,
@@ -66,7 +63,7 @@ class LowerFieldsPass(BasePass):
         compilation.linear = linear
 
     @staticmethod
-    def _linear_terms_of(
+    def _get_linear_terms_of(
         spec: KernelSpec,
         laws: list[BaseLaw],
         places: dict[str, FieldElement],
@@ -76,13 +73,13 @@ class LowerFieldsPass(BasePass):
         for law in laws:
             if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
                 continue
-            for reference in spec._target_references(law._get_targets()[0]):
+            for reference in spec._get_target_references(law._get_targets()[0]):
                 if reference.entry.name in places and reference.source is ReadKind.MEMBER:
-                    terms += LowerFieldsPass._linear_terms(law.value, reference, spec.references, places)
+                    terms += LowerFieldsPass._get_linear_terms(law.value, reference, spec.references, places)
         return terms
 
     @staticmethod
-    def _with_fields(
+    def _copy_with_fields(
         spec: KernelSpec,
         laws: list[BaseLaw],
         compilation: Compilation,
@@ -97,9 +94,9 @@ class LowerFieldsPass(BasePass):
         The stable steps and the linear terms of rates are noted. The spec is replaced by a copy with the references of
         the neighbour reads and derived values in the compilation.
         """
-        places = FieldLowering._field_entries(Compilation._required(compilation.layout, 'layout'))
-        linear += LowerFieldsPass._linear_terms_of(spec, laws, places)
-        if not any(FieldLowering._law_has_operators(law) for law in laws):
+        places = FieldLowering._get_field_entries(Compilation._get_required(compilation.layout, 'layout'))
+        linear += LowerFieldsPass._get_linear_terms_of(spec, laws, places)
+        if not any(FieldLowering._get_law_has_operators(law) for law in laws):
             return laws
         lowering = FieldLowering(spec).prepare(compilation)
         result = lowering.run(laws).lowered_
@@ -111,7 +108,7 @@ class LowerFieldsPass(BasePass):
         return result
 
     @staticmethod
-    def _name_of(operator: object) -> str:
+    def _get_name_of(operator: object) -> str:
         """Return the name of a Python operator of a Sage expression, or an empty string."""
         return getattr(operator, '__name__', '')
 
@@ -120,14 +117,14 @@ class LowerFieldsPass(BasePass):
         """Return the linear terms of a sum, or `None` when a summand is not linear."""
         terms: Terms = []
         for item in operands:
-            part = LowerFieldsPass._linear(item, states)
+            part = LowerFieldsPass._get_linear(item, states)
             if part is None:
                 return None
             terms += part
         return terms
 
     @staticmethod
-    def _product_terms(operands: list[Expression], states: Mapping[Expression, ReferenceSpec]) -> Terms | None:
+    def _get_product_terms(operands: list[Expression], states: Mapping[Expression, ReferenceSpec]) -> Terms | None:
         """Return the linear terms of a constant times a linear expression, or `None`."""
         constant, variable = SR(1), []
         for item in operands:
@@ -137,11 +134,11 @@ class LowerFieldsPass(BasePass):
                 constant *= item
         if len(variable) != 1:
             return None
-        part = LowerFieldsPass._linear(variable[0], states)
+        part = LowerFieldsPass._get_linear(variable[0], states)
         return None if part is None else [(constant * coefficient, chain, state) for coefficient, chain, state in part]
 
     @staticmethod
-    def _operator_terms(
+    def _get_operator_terms(
         name: str,
         operands: list[Expression],
         states: Mapping[Expression, ReferenceSpec],
@@ -150,14 +147,14 @@ class LowerFieldsPass(BasePass):
 
         It is `None` otherwise.
         """
-        inner = LowerFieldsPass._linear(operands[0], states)
+        inner = LowerFieldsPass._get_linear(operands[0], states)
         if inner is None or (name == 'inverse_helmholtz' and not SR(operands[1]).is_zero()):
             return None
         axis = int(operands[1]) if name == 'partial' else 0
         return [(coefficient, ((name, axis), *chain), state) for coefficient, chain, state in inner]
 
     @staticmethod
-    def _linear(expression: object, states: Mapping[Expression, ReferenceSpec]) -> Terms | None:
+    def _get_linear(expression: object, states: Mapping[Expression, ReferenceSpec]) -> Terms | None:
         """Return the linear terms of an expression in field states.
 
         It is `None` when the expression is not linear.
@@ -170,14 +167,14 @@ class LowerFieldsPass(BasePass):
         operator = value.operator()
         name = getattr(operator, 'name', lambda: '')()
         if name in OPERATORS:
-            return LowerFieldsPass._operator_terms(name, value.operands(), states)
-        combine = {'add_vararg': LowerFieldsPass._sum_terms, 'mul_vararg': LowerFieldsPass._product_terms}.get(
-            LowerFieldsPass._name_of(operator),
+            return LowerFieldsPass._get_operator_terms(name, value.operands(), states)
+        combine = {'add_vararg': LowerFieldsPass._sum_terms, 'mul_vararg': LowerFieldsPass._get_product_terms}.get(
+            LowerFieldsPass._get_name_of(operator),
         )
         return None if combine is None else combine(value.operands(), states)
 
     @staticmethod
-    def _linear_terms(
+    def _get_linear_terms(
         value: object,
         target: ReferenceSpec,
         references: Mapping[Expression, ReferenceSpec],
@@ -213,13 +210,13 @@ class LowerFieldsPass(BasePass):
             if reference.is_state and reference.source is ReadKind.MEMBER and reference.entry.name in fields
         }
         expanded = SR(value).expand()
-        parts = expanded.operands() if LowerFieldsPass._name_of(expanded.operator()) == 'add_vararg' else [expanded]
+        parts = expanded.operands() if LowerFieldsPass._get_name_of(expanded.operator()) == 'add_vararg' else [expanded]
         parts = [
             part for part in parts if not any(str(item).startswith(COORDINATE_PREFIX) for item in part.variables())
         ]
         terms = []
         for part in parts:
-            found = LowerFieldsPass._linear(part, states)
+            found = LowerFieldsPass._get_linear(part, states)
             for coefficient, chain, state in found or []:
                 if any(item not in references or references[item].is_state for item in coefficient.variables()):
                     continue

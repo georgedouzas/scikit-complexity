@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
@@ -66,7 +66,7 @@ class ThresholdActivationInteraction(MapInteraction):
         It returns 0 for one that stays inactive.
         """
         del system
-        neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
+        neighbors = [item for item in agent.get_neighbors() if isinstance(item, ThresholdNodeView)]
         if agent.active or not neighbors:
             return float(agent.active)
         return float(sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold)
@@ -166,7 +166,7 @@ class WattsCascadesSystem(BaseSystem):
         self.seeds = seeds
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
@@ -180,7 +180,7 @@ class WattsCascadesSystem(BaseSystem):
             size=size,
             values={'active': active, 'threshold': self.threshold},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[nodes],
             interactions=[ThresholdActivationInteraction('activation', target='nodes')],

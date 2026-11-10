@@ -35,7 +35,7 @@ def test_isolated_urns_follow_heaps_law_of_the_urn_with_triggering():
     (4) without neighbours within 5 percent.
     """
     trajectory = _run(nx.empty_graph(30), 200, rho=4, nu=2)
-    novelties = trajectory.agents('urns', 200).values['novelties']
+    novelties = trajectory.get_agents('urns', 200).values['novelties']
     expected = _heaps(np.zeros((30, 30)), 4, 2, 200)
     assert novelties.mean() == pytest.approx(expected.mean(), rel=0.05)
 
@@ -43,8 +43,8 @@ def test_isolated_urns_follow_heaps_law_of_the_urn_with_triggering():
 def test_urns_keep_their_balls():
     """Test that the balls of every urn are its initial balls, `rho` per draw, and `nu + 1` per novelty."""
     trajectory = _run(nx.path_graph(5), 40, rho=3, nu=1)
-    balls = trajectory.agents('balls', 40)
-    urns = trajectory.agents('urns', 40)
+    balls = trajectory.get_agents('balls', 40)
+    urns = trajectory.get_agents('urns', 40)
     totals = np.bincount(balls.locations.astype(int), weights=balls.values['count'], minlength=5)
     novelties = urns.values['novelties'][np.argsort(urns.locations.astype(int))]
     np.testing.assert_allclose(totals, 2 + 3 * 40 + 2 * novelties)
@@ -57,7 +57,7 @@ def test_the_centre_of_a_star_discovers_faster_than_its_leaves():
     """
     graph = nx.star_graph(6)
     trajectory = _run(graph, 150, rho=6, nu=3)
-    urns = trajectory.agents('urns', 150)
+    urns = trajectory.get_agents('urns', 150)
     novelties = urns.values['novelties'][np.argsort(urns.locations.astype(int))]
     expected = _heaps(nx.to_numpy_array(graph), 6, 3, 150)
     assert novelties[0] > novelties[1:].max()

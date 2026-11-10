@@ -30,7 +30,7 @@ trajectory = simulate(KirmanExchangeRateSystem(), observers=[observer])
 # should pile up near 0 and 1. The changes of the deviation should be larger when chartists dominate, since their
 # eigenvalues lie close to the unit circle (Eq. 1.38) while fundamentalists contract the deviation (Eq. 1.37).
 
-share, deviation = trajectory.values('market.fundamentalists'), trajectory.values('market.x')
+share, deviation = trajectory.get_values('market.fundamentalists'), trajectory.get_values('market.x')
 fig, (path, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(trajectory.times, deviation, lw=0.5, label='deviation x')
 path.plot(trajectory.times, share, lw=0.8, label='share of fundamentalists')

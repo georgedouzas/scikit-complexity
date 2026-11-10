@@ -15,15 +15,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement, PointElement
-from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.elements import Element, FieldElement, GroupElement
+from ....core.components.interactions import PairInteraction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import advection, divergence, gradient, laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+from ...general.elements import PointElement
 from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
 
 
@@ -138,7 +139,7 @@ class PolarFluidElement(Element):
         return laws
 
 
-class SoftSphereInteraction(PairCouplingInteraction):
+class SoftSphereInteraction(PairInteraction):
     """Soft repulsion between overlapping spheres.
 
     The energy is `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
@@ -209,7 +210,7 @@ class SoftSphereInteraction(PairCouplingInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
+class CuckerSmaleAlignmentInteraction(PairInteraction):
     """Cucker-Smale alignment.
 
     The law is `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
@@ -290,7 +291,7 @@ class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
         return weight * (getattr(second, velocity) - getattr(first, velocity))
 
 
-class PhoreticAttractionInteraction(PairCouplingInteraction):
+class PhoreticAttractionInteraction(PairInteraction):
     """Phoretic attraction between active colloids.
 
     The attraction is the pair potential `-v0 R^2 / r` of an overdamped position.
@@ -347,53 +348,16 @@ class PhoreticAttractionInteraction(PairCouplingInteraction):
             cutoff=cutoff,
             position=position,
             write=position,
-            potential=self._attraction,
+            potential=self._get_attraction,
             period=period,
         )
         self.v0 = v0
         self.R = R
 
     @staticmethod
-    def _attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
+    def _get_attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
         """Return the potential `-v0 R^2 / r` of a pair at the distance `r`."""
         return -namespace.v0 * namespace.R**2 / r
-
-
-def _disks(
-    n_particles: int,
-    size: float,
-    random_state: int | np.random.Generator | None,
-) -> tuple[Array, Array]:
-    """Return positions on a jittered square grid over a box, and uniform orientations."""
-    rng = np.random.default_rng(random_state)
-    side = math.ceil(math.sqrt(n_particles))
-    spacing = size / side
-    grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n_particles]
-    positions = np.mod((grid + 0.5) * spacing + rng.normal(0.0, 0.05 * spacing, (n_particles, 2)), size)
-    return positions, rng.uniform(0.0, 2 * math.pi, n_particles)
-
-
-def _active_disks(
-    n_particles: int,
-    size: float,
-    speed: float,
-    D_r: float,
-    random_state: int | np.random.Generator | None,
-) -> System:
-    """Return active Brownian disks in a periodic box, without pair interactions."""
-    positions, angles = _disks(n_particles, size, random_state)
-    group = GroupElement(
-        'swimmers',
-        element=ActiveParticleElement,
-        size=n_particles,
-        values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
-    )
-    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-    return System(
-        elements=[group],
-        interactions=[propulsion],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
 
 
 class MotilityInducedPhaseSeparationSystem(BaseSystem):
@@ -440,6 +404,43 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
     dt = 0.1
     solver = EulerMaruyamaSolver(dt=0.005)
 
+    @staticmethod
+    def _get_disks(
+        n_particles: int,
+        size: float,
+        random_state: int | np.random.Generator | None,
+    ) -> tuple[Array, Array]:
+        """Return positions on a jittered square grid over a box, and uniform orientations."""
+        rng = np.random.default_rng(random_state)
+        side = math.ceil(math.sqrt(n_particles))
+        spacing = size / side
+        grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n_particles]
+        positions = np.mod((grid + 0.5) * spacing + rng.normal(0.0, 0.05 * spacing, (n_particles, 2)), size)
+        return positions, rng.uniform(0.0, 2 * math.pi, n_particles)
+
+    @staticmethod
+    def _get_active_disks(
+        n_particles: int,
+        size: float,
+        speed: float,
+        D_r: float,
+        random_state: int | np.random.Generator | None,
+    ) -> CompositeSystem:
+        """Return active Brownian disks in a periodic box, without pair interactions."""
+        positions, angles = MotilityInducedPhaseSeparationSystem._get_disks(n_particles, size, random_state)
+        group = GroupElement(
+            'swimmers',
+            element=ActiveParticleElement,
+            size=n_particles,
+            values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
+        )
+        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
+        return CompositeSystem(
+            elements=[group],
+            interactions=[propulsion],
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        )
+
     def __init__(
         self,
         n_particles: int = 400,
@@ -459,13 +460,19 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return repulsive active Brownian disks of unit diameter.
 
         The disks phase separate into clusters at high speed.
         """
         size = math.sqrt(self.n_particles * math.pi / 4 / self.packing_fraction)
-        system = _active_disks(self.n_particles, size, self.speed, self.D_r, self.random_state)
+        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+            self.n_particles,
+            size,
+            self.speed,
+            self.D_r,
+            self.random_state,
+        )
         repulsion = SoftSphereInteraction(
             'contact',
             first='swimmers',
@@ -474,7 +481,7 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
             period=size,
             k=self.k,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=system.elements,
             interactions=[*system.interactions, repulsion],
@@ -555,9 +562,15 @@ class LivingCrystalsSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        system = _active_disks(self.n_particles, self.size, self.speed, self.D_r, self.random_state)
+        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+            self.n_particles,
+            self.size,
+            self.speed,
+            self.D_r,
+            self.random_state,
+        )
         repulsion = SoftSphereInteraction(
             'contact',
             first='swimmers',
@@ -576,7 +589,7 @@ class LivingCrystalsSystem(BaseSystem):
             R=1.0,
         )
         interactions = [*system.interactions, repulsion, attraction]
-        return System(self.label, elements=system.elements, interactions=interactions, space=system.space)
+        return CompositeSystem(self.label, elements=system.elements, interactions=interactions, space=system.space)
 
 
 class CuckerSmaleFlockingSystem(BaseSystem):
@@ -636,7 +649,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Cucker-Smale flocking.
 
         Every agent aligns its velocity with all others, weighted by distance.
@@ -661,7 +674,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
             beta=self.beta,
             n_agents=self.n_agents,
         )
-        return System(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
 
 
 class TonerTuSystem(BaseSystem):
@@ -746,7 +759,7 @@ class TonerTuSystem(BaseSystem):
         self.spacing = spacing
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
@@ -764,7 +777,7 @@ class TonerTuSystem(BaseSystem):
             'D': self.D,
         }
         space = LatticeSpace(shape, spacing=self.spacing)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('flock', element=PolarFluidElement, space=space, values={**values, **parameters})],
         )

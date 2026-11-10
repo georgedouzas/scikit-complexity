@@ -7,13 +7,15 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.compile._members import MemberLowering
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
@@ -87,7 +89,7 @@ class RingInteraction(Interaction):
 
 def _ahead(backend, **settings):
     """Return the read positions of a group of four cars after one update."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cars', element=CarElement, size=4, values={'x': [10.0, 11.0, 12.0, 13.0]})],
         interactions=[LookAheadInteraction('look', cars='cars', **settings)],
     )
@@ -116,19 +118,22 @@ def test_shift_member_runs_the_same_on_both_backends():
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        system = System(
+        system = CompositeSystem(
             elements=[GroupElement('cars', element=CarElement, size=1000, values={'x': x})],
             interactions=[RingInteraction('ring', cars='cars')],
         )
         trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend)
         assert trajectory.problem.backend == backend._get_name()
-        trajectories.append(trajectory.values('cars.x'))
+        trajectories.append(trajectory.get_values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 
 
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
-    system = System(elements=[CarElement('car', x=1.0)], interactions=[LookAheadInteraction('look', cars='car')])
+    system = CompositeSystem(
+        elements=[CarElement('car', x=1.0)],
+        interactions=[LookAheadInteraction('look', cars='car')],
+    )
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
         PassCompiler().prepare(system).run()
 
@@ -154,7 +159,7 @@ class ShiftedGapInteraction(Interaction):
 
 def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
     """Test that a parameter of an interaction read at a member offset is the same at every member."""
-    system = System(
+    system = CompositeSystem(
         elements=[GroupElement('cars', element=CarElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[ShiftedGapInteraction('gap', cars='cars', gap=0.5)],
     )
@@ -211,7 +216,7 @@ def _hopping(occupations, boundary='periodic'):
         size=len(occupations),
         values={'n': np.asarray(occupations, dtype=float)},
     )
-    return System(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
+    return CompositeSystem(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -223,7 +228,7 @@ def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
         trajectory = simulate(system, until=20, dt=1.0, backend=backend(), random_state=seed)
-        totals = np.asarray(trajectory.values('sites.n')).sum(axis=1)
+        totals = np.asarray(trajectory.get_values('sites.n')).sum(axis=1)
         assert (totals == 150).all()
 
 
@@ -234,7 +239,7 @@ def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
     trajectory = simulate(system, until=100, dt=10.0, backend=backend(), random_state=0)
-    assert np.asarray(trajectory.values('sites.n'))[-1].tolist() == [0.0] * 5
+    assert np.asarray(trajectory.get_values('sites.n'))[-1].tolist() == [0.0] * 5
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -242,19 +247,27 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     """Test that a zero-range process of offset jumps and one of per-link interactions have one mean profile."""
     occupations = np.zeros(20)
     occupations[0] = 40.0
-    sites = LatticeElement('sites', element=ParticleSiteElement, space=LatticeSpace(20), values={'n': occupations})
+    sites = GroupElement(
+        'sites',
+        element=ParticleSiteElement,
+        space=LatticeSpace(20),
+        values={'n': occupations},
+        on='sites',
+    )
     links = [
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % 20}]'], q=0.5)
         for index in range(20)
     ]
     systems = [
-        System(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
-        System(elements=[sites], interactions=links),
+        CompositeSystem(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
+        CompositeSystem(elements=[sites], interactions=links),
     ]
     profiles = []
     for system in systems:
         finals = [
-            np.asarray(simulate(system, until=2, dt=2.0, backend=backend(), random_state=seed).values('sites.n'))[-1]
+            np.asarray(simulate(system, until=2, dt=2.0, backend=backend(), random_state=seed).get_values('sites.n'))[
+                -1
+            ]
             for seed in range(200)
         ]
         profiles.append((np.mean(finals, axis=0), np.std(finals, axis=0) / np.sqrt(200)))
@@ -275,3 +288,11 @@ def test_jump_at_member_offset_compiles_many_sites_fast():
     assert time.perf_counter() - start < 10
     assert len(trajectory.problem.interactions) == 1
     assert [channels.size for channels in trajectory.problem.jumps] == [1000, 1000]
+
+
+def test_member_lowering_shift_arguments():
+    """Test `MemberLowering._shift_arguments` on a small case."""
+    assert (
+        str(MemberLowering._shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0)))
+        == "(x, -2, 'fixed', 1.0)"
+    )

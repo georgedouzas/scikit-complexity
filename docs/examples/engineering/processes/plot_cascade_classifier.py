@@ -7,7 +7,7 @@ at the top as the fine product.
 """
 
 # %%
-# The system is built from its class with ten stages, the upward fraction `k = 0.6`, and a unit feed into
+# The example builds `CascadeClassifierSystem` with ten stages, the upward fraction `k = 0.6`, and a unit feed into
 # the middle stage, and runs for 50 time units. The blueprint shows the accumulated fine and coarse products in one time
 # series view, where the fine product grows faster.
 
@@ -52,7 +52,7 @@ fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
     run = simulate(CascadeClassifierSystem(k=float(k)), until=300, dt=1.0)
-    shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
+    shares.append(run.get_values('fine.m')[-1] - run.get_values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2
 ratio = (1 - grid) / grid

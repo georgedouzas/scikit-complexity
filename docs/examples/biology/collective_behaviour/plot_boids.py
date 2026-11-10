@@ -49,7 +49,7 @@ trajectory = simulate(
 
 polarization = []
 for frame in range(len(trajectory.times)):
-    boids = trajectory.agents('flock', frame)
+    boids = trajectory.get_agents('flock', frame)
     headings = np.column_stack([boids.values['vx'], boids.values['vy']])
     headings /= np.linalg.norm(headings, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))

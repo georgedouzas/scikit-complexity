@@ -38,8 +38,11 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
         for seed in range(6)
     ]
     times = runs[0].times
-    assert np.mean([run.values('mean')[-1] for run in runs]) == pytest.approx(10.0, rel=0.1)
-    assert np.mean([run.values('variance') for run in runs], axis=0)[1:] == pytest.approx(2 * 10.0 * times[1:], rel=0.2)
+    assert np.mean([run.get_values('mean')[-1] for run in runs]) == pytest.approx(10.0, rel=0.1)
+    assert np.mean([run.get_values('variance') for run in runs], axis=0)[1:] == pytest.approx(
+        2 * 10.0 * times[1:],
+        rel=0.2,
+    )
 
 
 def test_neutral_clustering_hops_slow_but_keep_the_clustering():
@@ -53,7 +56,7 @@ def test_neutral_clustering_hops_slow_but_keep_the_clustering():
             random_state=seed,
             backend=NumbaBackend(),
             until=until,
-        ).values('variance')
+        ).get_values('variance')
         for seed in range(32)
     ]
     times = np.arange(0.0, until + 1, 5.0)

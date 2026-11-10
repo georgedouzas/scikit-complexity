@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.analysis._symbolic import _mittag_leffler
+from skcomplex.core.analysis._symbolic import _MittagLefflerFunction
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -56,7 +56,7 @@ class SaturatingElement(Element):
 def test_mittag_leffler_exponential_case():
     """Test that E_(1, 1)(z) equals exp(z) within 1e-12."""
     z = np.linspace(-20.0, 5.0, 51)
-    assert np.max(np.abs(_mittag_leffler(1.0, 1.0, z) - np.exp(z))) < 1e-12
+    assert np.max(np.abs(_MittagLefflerFunction._get_mittag_leffler(1.0, 1.0, z) - np.exp(z))) < 1e-12
 
 
 @pytest.mark.parametrize(
@@ -71,16 +71,16 @@ def test_mittag_leffler_exponential_case():
 )
 def test_mittag_leffler_closed_forms(alpha, beta, z, expected):
     """Test that the function matches its closed forms in error functions and trigonometric functions."""
-    assert float(_mittag_leffler(alpha, beta, z)) == pytest.approx(expected, rel=1e-12)
+    assert float(_MittagLefflerFunction._get_mittag_leffler(alpha, beta, z)) == pytest.approx(expected, rel=1e-12)
 
 
 def test_mittag_leffler_asymptotic_matches_series():
     """Test that the asymptotic expansion for large arguments continues the series without a jump."""
     alpha = 0.6
     edge = -(50.0**alpha)
-    below, above = _mittag_leffler(alpha, 1.0, np.array([edge * 1.0001, edge * 0.9999]))
+    below, above = _MittagLefflerFunction._get_mittag_leffler(alpha, 1.0, np.array([edge * 1.0001, edge * 0.9999]))
     assert below == pytest.approx(above, rel=1e-3)
-    assert float(_mittag_leffler(alpha, 1.0, -1e6)) == pytest.approx(
+    assert float(_MittagLefflerFunction._get_mittag_leffler(alpha, 1.0, -1e6)) == pytest.approx(
         1e-6 / math.gamma(1 - alpha),
         rel=1e-5,
     )
@@ -88,7 +88,7 @@ def test_mittag_leffler_asymptotic_matches_series():
 
 def test_mittag_leffler_complex_arguments():
     """Test that complex arguments give complex values, with E_(2, 1)(-z^2) = cos(z)."""
-    value = _mittag_leffler(2.0, 1.0, np.array([-((1.0 + 0.5j) ** 2)]))
+    value = _MittagLefflerFunction._get_mittag_leffler(2.0, 1.0, np.array([-((1.0 + 0.5j) ** 2)]))
     assert np.iscomplexobj(value)
     assert value[0] == pytest.approx(np.cos(1.0 + 0.5j), rel=1e-12)
 
@@ -96,24 +96,26 @@ def test_mittag_leffler_complex_arguments():
 def test_mittag_leffler_rejects_nonpositive_alpha():
     """Test that a nonpositive first parameter is rejected."""
     with pytest.raises(AnalysisError, match='alpha'):
-        _mittag_leffler(0.0, 1.0, 1.0)
+        _MittagLefflerFunction._get_mittag_leffler(0.0, 1.0, 1.0)
 
 
 def test_solve_symbolically_fractional_relaxation():
     """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
-    system = System(elements=[RelaxingElement('r')])
+    system = CompositeSystem(elements=[RelaxingElement('r')])
     solution = symbolic(system, kind='solve', use_initial_state=True).solutions['r.x']
     assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
     symbols = {str(item): item for item in solution.rhs().variables()}
     value = float(solution.rhs().subs({symbols['t']: 2.0, symbols['lam_r']: 0.5}))
-    assert value == pytest.approx(2 * float(_mittag_leffler(0.6, 1.0, -0.5 * 2.0**0.6)), rel=1e-12)
+    assert value == pytest.approx(
+        2 * float(_MittagLefflerFunction._get_mittag_leffler(0.6, 1.0, -0.5 * 2.0**0.6)), rel=1e-12,
+    )
     assert 'x_r(0)' in str(symbolic(system, kind='solve').solutions['r.x'])
 
 
 def test_equations_of_fractional_state_write_caputo_derivative():
     """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
     assert (
-        str(symbolic(System(elements=[RelaxingElement('r')])).equations['r.x'])
+        str(symbolic(CompositeSystem(elements=[RelaxingElement('r')])).equations['r.x'])
         == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
     )
 
@@ -121,4 +123,9 @@ def test_equations_of_fractional_state_write_caputo_derivative():
 def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
-        symbolic(System(elements=[SaturatingElement('s')]), kind='solve')
+        symbolic(CompositeSystem(elements=[SaturatingElement('s')]), kind='solve')
+
+
+def test_mittag_leffler_of_order_one_half_at_minus_one():
+    """Test that `E_(1/2, 1)(-1)` is `exp(1) erfc(1)`, about 0.427584."""
+    assert round(float(_MittagLefflerFunction._get_mittag_leffler(0.5, 1.0, -1.0)), 6) == 0.427584

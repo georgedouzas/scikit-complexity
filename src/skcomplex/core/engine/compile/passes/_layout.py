@@ -1,7 +1,4 @@
-"""Declare the states and parameters of every component of a system.
-
-They are declared in the layout of its problem.
-"""
+"""Declare the states and parameters of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +18,8 @@ from sage.sets.real_set import RealSet
 from ....components.elements import FieldElement, GroupElement
 from ....components.interactions import BaseInteraction
 from ....components.laws import LinearProgramLaw
-from ....components.laws.utils import COORDINATE_PREFIX, coordinate
+from ....components.laws.utils import coordinate
+from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....components.specs import CensusRecordSpec, NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
@@ -29,18 +27,18 @@ from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, Wien
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 
-_MEMBERS = '~members'
-_MAX_SHOWN_COMPONENTS = 10
+HIDDEN_MEMBERS = '~members'
+MAX_SHOWN_COMPONENTS = 10
 
 
 class LayoutPass(BasePass):
-    """Pass that declares every component in tree order.
+    """A pass that declares every component in tree order.
 
     It checks that no two variables share a symbol.
     """
@@ -57,18 +55,21 @@ class LayoutPass(BasePass):
         """Declare the components of the nodes."""
         compilation = self.compilation_
         declarations = DeclarationsSpec(time=symbol('t'))
-        nodes = Compilation._required(compilation.nodes, 'nodes')
-        groups = LayoutPass._group_sizes(nodes)
+        nodes = Compilation._get_required(compilation.nodes, 'nodes')
+        groups = LayoutPass._get_group_sizes(nodes)
         for node in nodes:
             declarations, _ = self._declare_component(declarations, node, groups)
         self._check_symbol_names(declarations.blocks)
-        compilation.layout = self._with_program_values(
+        compilation.layout = self._copy_with_program_values(
             declarations,
-            Compilation._required(compilation.census, 'census').records,
+            Compilation._get_required(compilation.census, 'census').records,
         )
 
     @staticmethod
-    def _with_program_values(declarations: DeclarationsSpec, records: Sequence[CensusRecordSpec]) -> DeclarationsSpec:
+    def _copy_with_program_values(
+        declarations: DeclarationsSpec,
+        records: Sequence[CensusRecordSpec],
+    ) -> DeclarationsSpec:
         """Return the declarations with the hidden states of linear programs.
 
         The states record the objective values and duals of linear programs. Every partition compiles the same layout,
@@ -99,7 +100,7 @@ class LayoutPass(BasePass):
                     shape, members = ((rows,), rows) if rows > 1 else ((), None)
                     name = f'{record.owner}.{kind}_{position}'
                     entry = EntrySpec(name, declarations.ends[True], shape, RR, members)
-                    declarations = LayoutPass._with_entry(declarations, entry, np.zeros(rows), is_state=True)
+                    declarations = LayoutPass._copy_with_entry(declarations, entry, np.zeros(rows), is_state=True)
         return declarations
 
     @staticmethod
@@ -120,7 +121,7 @@ class LayoutPass(BasePass):
                 seen[name] = reference.entry.name
 
     @staticmethod
-    def _group_sizes(nodes: list[NodeSpec]) -> dict[str, int]:
+    def _get_group_sizes(nodes: list[NodeSpec]) -> dict[str, int]:
         """Return the number of members of every group of a system tree, by path."""
         return {node.path: node.members for node in nodes if node.members is not None and not node.interaction}
 
@@ -163,7 +164,7 @@ class LayoutPass(BasePass):
                 declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=False)
         for variable, declaration in {**states, **parameters}.items():
             if declaration.shape is not None:
-                shape = LayoutPass._role_shape(node, variable, declaration, groups)
+                shape = LayoutPass._get_role_shape(node, variable, declaration, groups)
                 declarations, block = LayoutPass._declare_shaped(declarations, block, variable, shape, declaration)
         if node.is_agent:
             declarations, block = LayoutPass._declare_agents(declarations, block)
@@ -181,7 +182,7 @@ class LayoutPass(BasePass):
         The block holds the handle `dW` of every Wiener process an interaction binds.
         """
         processes, handles = dict(declarations.processes), dict(declarations.handles)
-        for path, wiener in LayoutPass._noise_processes([node]).items():
+        for path, wiener in LayoutPass._get_noise_processes([node]).items():
             if path in processes:
                 continue
             base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
@@ -197,7 +198,7 @@ class LayoutPass(BasePass):
         return replace(declarations, processes=processes, handles=handles)
 
     @staticmethod
-    def _with_entry(
+    def _copy_with_entry(
         declarations: DeclarationsSpec,
         entry: EntrySpec,
         value: Array,
@@ -232,15 +233,15 @@ class LayoutPass(BasePass):
         name = f'{node.path}.{variable}'
         per = block.per
         if declaration.per is None:
-            member_shape = LayoutPass._shape_of(name, declaration, node.space)
+            member_shape = LayoutPass._get_shape_of(name, declaration, node.space)
         else:
-            member_shape = LayoutPass._per_entry_shape(node, variable, declaration)
+            member_shape = LayoutPass._get_per_entry_shape(node, variable, declaration)
             per = per | {variable}
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         value = LayoutPass._coerce_value(
             name,
-            LayoutPass._value_of(node, variable),
+            LayoutPass._get_value_of(node, variable),
             member_shape,
             declaration.domain,
             members,
@@ -248,7 +249,7 @@ class LayoutPass(BasePass):
         )
         is_complex = declaration.domain is CC
         start = declarations.ends[is_state]
-        tensor = LayoutPass._tensor_of(declaration, node.space)
+        tensor = LayoutPass._get_tensor_of(declaration, node.space)
         entry = EntrySpec(name, start, shape, declaration.domain, members, is_complex, declaration.period, tensor)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         suffixes = tensor.names if tensor is not None else range(member_shape[0] if member_shape else 0)
@@ -269,10 +270,10 @@ class LayoutPass(BasePass):
             },
             per=per,
         )
-        return LayoutPass._with_entry(declarations, entry, value, is_state), block
+        return LayoutPass._copy_with_entry(declarations, entry, value, is_state), block
 
     @staticmethod
-    def _role_shape(
+    def _get_role_shape(
         node: NodeSpec,
         variable: str,
         declaration: VariableSpec,
@@ -332,7 +333,7 @@ class LayoutPass(BasePass):
         """
         node = block.node
         name = f'{node.path}.{variable}'
-        value = LayoutPass._coerce_value(name, LayoutPass._value_of(node, variable), shape, declaration.domain)
+        value = LayoutPass._coerce_value(name, LayoutPass._get_value_of(node, variable), shape, declaration.domain)
         is_state = declaration.adaptive
         entry = EntrySpec(name, declarations.ends[is_state], shape, declaration.domain)
         handle = symbol(f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}', declaration.domain)
@@ -342,7 +343,7 @@ class LayoutPass(BasePass):
             entries={**block.entries, variable: entry},
             references={**block.references, handle: ReferenceSpec(entry, is_state, 0)},
         )
-        return LayoutPass._with_entry(declarations, entry, value, is_state), block
+        return LayoutPass._copy_with_entry(declarations, entry, value, is_state), block
 
     @staticmethod
     def _declare_coordinates(
@@ -365,7 +366,7 @@ class LayoutPass(BasePass):
             values = np.broadcast_to(np.reshape(space.coordinates_[name], shape), space.shape_).ravel().copy()
             variable = f'{COORDINATE_PREFIX}{name}'
             entry = EntrySpec(f'{block.node.path}.{variable}', declarations.ends[False], (rows,), RR, rows)
-            declarations = LayoutPass._with_entry(declarations, entry, values, is_state=False)
+            declarations = LayoutPass._copy_with_entry(declarations, entry, values, is_state=False)
             block = replace(
                 block,
                 symbols={**block.symbols, variable: coordinate(name)},
@@ -385,7 +386,7 @@ class LayoutPass(BasePass):
         node = block.node
         base = re.sub(r'[^0-9A-Za-z]', '_', node.path)
         members = symbol(f'members_{base}')
-        symbols: dict[str, Expression | FreeModuleElement] = {_MEMBERS: members, **block.symbols}
+        symbols: dict[str, Expression | FreeModuleElement] = {HIDDEN_MEMBERS: members, **block.symbols}
         agents = {**declarations.agents, members: (node.path, '')}
         for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
             if declaration.vector or declaration.domain is CC:
@@ -427,7 +428,7 @@ class LayoutPass(BasePass):
             },
         )
         return (
-            LayoutPass._with_entry(declarations, entry, np.ravel(np.asarray(values, dtype=float)), is_state=False),
+            LayoutPass._copy_with_entry(declarations, entry, np.ravel(np.asarray(values, dtype=float)), is_state=False),
             block,
         )
 
@@ -447,7 +448,7 @@ class LayoutPass(BasePass):
         declarations, block = LayoutPass._declare_hidden(
             declarations,
             block,
-            _ACTIVE,
+            ACTIVE,
             (np.arange(rows) < active).astype(float),
         )
         if group.on not in {'edges', 'hyperedges'}:
@@ -457,7 +458,7 @@ class LayoutPass(BasePass):
             error_msg = f'The group {node.path} lies on the {group.on} of a space that is not a network.'
             raise ValidationError(error_msg)
         if group.on == 'hyperedges':
-            return LayoutPass._declare_hidden(declarations, block, MEMBERS, LayoutPass._members(node, space))
+            return LayoutPass._declare_hidden(declarations, block, MEMBERS, LayoutPass._get_members(node, space))
         padding = np.zeros(rows - active, dtype=np.intp)
         for variable, ends in zip(ENDS, space.edges_[group.layer], strict=True):
             declarations, block = LayoutPass._declare_hidden(
@@ -469,7 +470,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _members(node: NodeSpec, space: NetworkSpace) -> Array:
+    def _get_members(node: NodeSpec, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges.
 
         The free rows hold zeros. A group with a rank holds a column per member of its largest hyperedge, and a smaller
@@ -513,7 +514,7 @@ class LayoutPass(BasePass):
         return members
 
     @staticmethod
-    def _value_of(node: NodeSpec, variable: str) -> object:
+    def _get_value_of(node: NodeSpec, variable: str) -> object:
         """Return the value of a variable of a component.
 
         For a group without it, it is the default of the element type.
@@ -551,7 +552,7 @@ class LayoutPass(BasePass):
         return value
 
     @staticmethod
-    def _per_entry_shape(node: NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -565,7 +566,7 @@ class LayoutPass(BasePass):
             )
             raise ValidationError(error_msg)
         entries = len(getattr(node.component, role))
-        value = LayoutPass._value_of(node, variable)
+        value = LayoutPass._get_value_of(node, variable)
         given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
         if given is not None and given != entries:
             error_msg = (
@@ -576,7 +577,7 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
-    def _tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+    def _get_tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
         It is `None` for any other state.
@@ -588,7 +589,7 @@ class LayoutPass(BasePass):
         return tensor
 
     @staticmethod
-    def _shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
+    def _get_shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
         Args:
@@ -628,7 +629,7 @@ class LayoutPass(BasePass):
         if not EntrySpec._contains(RealSet.open(0, oo), space.n_dim_) or not EntrySpec._contains(ZZ, space.n_dim_):
             error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
-        tensor = LayoutPass._tensor_of(declaration, space)
+        tensor = LayoutPass._get_tensor_of(declaration, space)
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
 
     @staticmethod
@@ -637,12 +638,12 @@ class LayoutPass(BasePass):
 
         A large array has many components.
         """
-        if isinstance(value, np.ndarray | list | tuple) and np.size(value) > _MAX_SHOWN_COMPONENTS:
+        if isinstance(value, np.ndarray | list | tuple) and np.size(value) > MAX_SHOWN_COMPONENTS:
             return f'an array of shape {np.shape(value)}'
         return repr(value)
 
     @staticmethod
-    def _flat_value(
+    def _get_flat_value(
         name: str,
         value: object,
         array: npt.NDArray[np.generic],
@@ -732,18 +733,18 @@ class LayoutPass(BasePass):
         """
         if not EntrySpec._contains(domain, value):
             error_msg = f'{name} = {LayoutPass._describe(value)} is not in its domain {domain}.'
-            if EntrySpec._contains(CC, value):
+            if EntrySpec._contains(CC, value) and not EntrySpec._contains(RR, value):
                 error_msg = (
                     f'{name} = {LayoutPass._describe(value)} has a nonzero imaginary part, which its domain {domain} '
                     f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
                     'values.'
                 )
             raise ValidationError(error_msg)
-        flat = LayoutPass._flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)
+        flat = LayoutPass._get_flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)
         return np.ascontiguousarray(flat).view(float) if domain is CC else np.asarray(flat, dtype=float)
 
     @staticmethod
-    def _noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:
+    def _get_noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:
         """Return the Wiener processes bound by the noise roles of a tree, by path.
 
         The noise roles are those of the interactions of a system tree. Interactions of one system that bind processes

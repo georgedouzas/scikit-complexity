@@ -35,22 +35,27 @@ trajectory = simulate(CropLivestockHouseholdSystem(), observers=[observer])
 # %%
 # Incomes and the maturation delay
 # --------------------------------
-# The crop income stays at 80000 a year, just above the consumption of 75000. Animals bought in a year join the herd
+# The crop income stays at 80000 a year, slightly above the consumption of 75000. Animals bought in a year join the herd
 # three years later, so the income from livestock should stay at zero for the first five years and then come in most
 # years, lifting the wealth well above its start, as in Fig. 4.27 of Bala et al.
 
 years = np.asarray(trajectory.times)
 fig, (income, herd) = plt.subplots(1, 2, figsize=(10, 4))
-income.step(years, trajectory.values('household.income_from_crop'), where='post', label='income from crop')
-income.step(years, trajectory.values('household.income_from_livestock'), where='post', label='income from livestock')
-income.step(years, trajectory.values('household.wealth'), where='post', label='wealth')
+income.step(years, trajectory.get_values('household.income_from_crop'), where='post', label='income from crop')
+income.step(
+    years,
+    trajectory.get_values('household.income_from_livestock'),
+    where='post',
+    label='income from livestock',
+)
+income.step(years, trajectory.get_values('household.wealth'), where='post', label='wealth')
 income.set_xlabel('years')
 income.set_ylabel('money')
 income.set_title('Incomes and wealth')
 income.legend()
-herd.step(years, trajectory.values('household.purchase'), where='post', label='animals bought')
-herd.step(years, trajectory.values('household.sale'), where='post', label='animals sold')
-herd.step(years, trajectory.values('household.livestock'), where='post', label='herd')
+herd.step(years, trajectory.get_values('household.purchase'), where='post', label='animals bought')
+herd.step(years, trajectory.get_values('household.sale'), where='post', label='animals sold')
+herd.step(years, trajectory.get_values('household.livestock'), where='post', label='herd')
 herd.set_xlabel('years')
 herd.set_ylabel('animals')
 herd.set_title('The herd')

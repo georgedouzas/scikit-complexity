@@ -12,13 +12,12 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
-
 YEAST_INPUTS = {
     'Cln3': (),
     'MBF': (('Cln3', 1), ('Clb1_2', -1)),
@@ -32,9 +31,7 @@ YEAST_INPUTS = {
     'Clb1_2': (('Clb5_6', 1), ('Mcm1', 1), ('Cdc20', -1), ('Cdh1', -1), ('Sic1', -1)),
     'Mcm1': (('Clb5_6', 1), ('Clb1_2', 1)),
 }
-
 YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
-
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
 
 
@@ -148,7 +145,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
         self.bias = bias
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a Kauffman random Boolean network."""
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
@@ -166,7 +163,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
             )
             for index in range(self.n_nodes)
         ]
-        return System(self.label, elements=nodes, interactions=functions)
+        return CompositeSystem(self.label, elements=nodes, interactions=functions)
 
 
 class YeastCellCycleSystem(BaseSystem):
@@ -208,7 +205,7 @@ class YeastCellCycleSystem(BaseSystem):
         super().__init__(label)
         self.active = active
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the Boolean network of the yeast cell cycle of Li et al.
 
         The yeast is the budding yeast.
@@ -224,4 +221,4 @@ class YeastCellCycleSystem(BaseSystem):
             )
             for name in YEAST_NODES
         ]
-        return System(self.label, elements=nodes, interactions=functions)
+        return CompositeSystem(self.label, elements=nodes, interactions=functions)

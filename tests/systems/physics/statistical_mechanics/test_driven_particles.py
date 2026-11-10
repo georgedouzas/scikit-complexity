@@ -35,7 +35,7 @@ def test_zero_range_process_condensation():
     for density in (3.0, 0.25):
         system = ZeroRangeProcessSystem(50, density=density, b=4.0)
         trajectory = simulate(system, until=20000, dt=100.0, random_state=0, backend=NumbaBackend())
-        occupations = trajectory.values('sites.n')[50:]
+        occupations = trajectory.get_values('sites.n')[50:]
         assert (occupations.sum(axis=1) == round(density * 50)).all()
         largest = occupations.max(axis=1).mean()
         if density > 0.5:
@@ -49,7 +49,7 @@ def test_dissipative_zero_range_level_profile():
     settings = {'n_levels': 4, 'branches': 2, 'nu': 1.0, 'alpha': 0.5, 'beta_ext': 1.0, 'dissipation': 0.5}
     system = DissipativeZeroRangeSystem(**settings)
     trajectory = simulate(system, until=6000, dt=1.0, random_state=0, backend=NumbaBackend())
-    quanta = trajectory.values('nodes.n')[100:]
+    quanta = trajectory.get_values('nodes.n')[100:]
     starts = [0, 1, 3, 7, 15]
     occupied = [(quanta[:, start:stop] > 0).mean() for start, stop in itertools.pairwise(starts)]
     expected = tree_occupation_probabilities(**settings)
@@ -65,6 +65,6 @@ def test_asep_phases(alpha, gamma, current, bulk):
     """Test the current and the bulk density of the low-density, high-density, and maximal-current phases."""
     system = ASEPSystem(100, alpha=alpha, gamma=gamma)
     trajectory = simulate(system, until=4000, dt=2.0, random_state=0, backend=NumbaBackend())
-    occupations = trajectory.values('lane.n')[250:]
+    occupations = trajectory.get_values('lane.n')[250:]
     assert abs(gamma * occupations[:, -1].mean() - current) < 0.02
     assert abs(occupations[:, 40:60].mean() - bulk) < 0.05

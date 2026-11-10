@@ -7,7 +7,7 @@ fluid at large scales. The view shows the number of particles of every hexagonal
 """
 
 # %%
-# The system is built from its class on a periodic 64 x 64 triangular lattice, where every channel is
+# The example builds `FHPLatticeGasSystem` on a periodic 64 x 64 triangular lattice, where every channel is
 # occupied with probability 0.2, or 0.6 inside a disc at the centre. The observer saves every step with the default
 # blueprint, whose primary view shows the particle number of every cell.
 
@@ -33,13 +33,13 @@ trajectory = simulate(system, until=120, observers=[observer], random_state=0)
 # the centre and spread over the lattice, so the mean particle number within the disc should fall towards the mean of
 # the whole gas.
 
-channels = np.stack([trajectory.values(f'gas.n{direction}').astype(float) for direction in range(6)])
+channels = np.stack([trajectory.get_values(f'gas.n{direction}').astype(float) for direction in range(6)])
 angles = np.arange(6) * np.pi / 3
 totals = channels.sum(axis=2)
 momentum = np.stack([np.cos(angles) @ totals, np.sin(angles) @ totals])
 positions = LatticeSpace((64, 64), geometry='triangular').prepare().positions_
 disc = np.linalg.norm(positions - positions.mean(axis=0), axis=1) < 64 / 6
-density = trajectory.values('gas.density')
+density = trajectory.get_values('gas.density')
 
 fig, (conserved, spread) = plt.subplots(1, 2, figsize=(10, 4))
 conserved.plot(trajectory.times, totals.sum(axis=0) - totals.sum(axis=0)[0], label='particle number')

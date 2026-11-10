@@ -8,7 +8,7 @@ import pytest
 from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import (
     CayleySpace,
@@ -16,7 +16,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     StateTranslationNeighborhood,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PowerSeriesSpec, StateSpec, TotalisticSpec
@@ -36,8 +36,8 @@ class GroupValuedElement(Element):
 
 def _translated(space, values, schedule='synchronous', rule=lambda value: value):
     """Return the system of a rule over the memory translated by the values of the cells."""
-    return System(
-        elements=[LatticeElement('cells', element=GroupValuedElement, space=space, values={'value': values})],
+    return CompositeSystem(
+        elements=[GroupElement('cells', element=GroupValuedElement, space=space, values={'value': values}, on='sites')],
         interactions=[
             LocalRuleInteraction(
                 'shift',
@@ -54,13 +54,13 @@ def _translated(space, values, schedule='synchronous', rule=lambda value: value)
 def _values(system, until, schedule_random_state=0):
     """Return the values of the cells at every step of a run."""
     trajectory = simulate(system, until=until, dt=1, random_state=schedule_random_state)
-    return trajectory.values('cells.value')
+    return trajectory.get_values('cells.value')
 
 
 def test_translated_memory_reads_the_product_of_every_site_and_its_value():
     """Test that the compiled rule computes `x(g · x(g))` at every step on a finite group."""
     space = CayleySpace(SYMMETRIC).prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     values = np.random.default_rng(1).integers(0, space.size_, space.size_).astype(float)
     trajectory = _values(_translated(space, values), 3)
     sites = np.arange(space.size_)
@@ -71,7 +71,7 @@ def test_translated_memory_reads_the_product_of_every_site_and_its_value():
 def test_translated_memory_commutes_with_translations_of_a_finite_group():
     """Test that translating a configuration by a group element translates its image, the equivariance of the map."""
     space = CayleySpace(SYMMETRIC).prepare()
-    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    products = space._get_translation_table(StateTranslationNeighborhood())[:, :, 0]
     values = np.random.default_rng(2).integers(0, space.size_, space.size_).astype(float)
     element = 5
     inverse = int(np.flatnonzero(products[element] == 0)[0])
@@ -113,15 +113,16 @@ def test_function_rule_updates_a_power_series_state():
     values[3, 0] = 1.0
 
     def difference(here, right):
-        return here - ring.multiply(ring.coefficients_of('t'), right)
+        return here - ring.multiply(ring.get_coefficients_of('t'), right)
 
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement(
+            GroupElement(
                 'cells',
                 element=PowerSeriesCellElement,
                 space=LatticeSpace(6),
                 values={'ring': ring, 'value': values},
+                on='sites',
             ),
         ],
         interactions=[
@@ -136,8 +137,8 @@ def test_function_rule_updates_a_power_series_state():
 
 def test_lookup_rules_reject_power_series_states():
     """Test that a totalistic rule cannot read a state of several components."""
-    system = System(
-        elements=[LatticeElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5))],
+    system = CompositeSystem(
+        elements=[GroupElement('cells', element=PowerSeriesCellElement, space=LatticeSpace(5), on='sites')],
         interactions=[
             LocalRuleInteraction(
                 'sum',

@@ -14,11 +14,12 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, ReactionInteraction
+from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import delayed, pulse
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
@@ -675,7 +676,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _normal_renewal(target: SimpleNamespace) -> Expression:
+    def _get_normal_renewal(target: SimpleNamespace) -> Expression:
         """Return the renewal rate of normal progenitors.
 
         The feedback of the differentiated cells raises it.
@@ -684,7 +685,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         renewal: Expression = (target.r1 + feedback) * (1 - target.NPr / target.NPmax)
         return renewal
 
-    def _therapy_deaths(
+    def _get_therapy_deaths(
         self,
         s: SimpleNamespace,
         therapy: str,
@@ -697,15 +698,15 @@ class StemCellDifferentiationSystem(BaseSystem):
         """
         target = s.target
         if therapy == 'continuous':
-            return target.d2 * target.uc * (1 + target.delta * self._normal_renewal(target)), target.uc
+            return target.d2 * target.uc * (1 + target.delta * self._get_normal_renewal(target)), target.uc
         if therapy == 'pulsed':
             on = pulse(s.t, start, duration)
-            return target.d2 * target.up * (1 + on * target.delta * self._normal_renewal(target)), target.up * (
+            return target.d2 * target.up * (1 + on * target.delta * self._get_normal_renewal(target)), target.up * (
                 1 + 3 * on
             )
         return target.d2, SR(1)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the eight-compartment system of stem-cell lineages.
 
         The lineages are normal and malignant.
@@ -745,13 +746,13 @@ class StemCellDifferentiationSystem(BaseSystem):
                 'normal_renewal',
                 target='tissue',
                 state='NPr',
-                rate=lambda s: self._normal_renewal(s.target) * s.target.NPr,
+                rate=lambda s: self._get_normal_renewal(s.target) * s.target.NPr,
             ),
             RateInteraction(
                 'normal_progenitor_death',
                 target='tissue',
                 state='NPr',
-                rate=lambda s: -self._therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                rate=lambda s: -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
             ),
             ReactionInteraction(
                 'mutation',
@@ -772,7 +773,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='NBs',
                 rate=lambda s: -s.target.d3
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.NBs,
             ),
             ReactionInteraction(
@@ -825,7 +826,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='APr',
                 rate=lambda s: -s.target.d6
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.APr,
             ),
             ReactionInteraction(
@@ -840,7 +841,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='ABs',
                 rate=lambda s: -s.target.d7
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.ABs,
             ),
             ReactionInteraction(
@@ -863,7 +864,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 propensity=lambda s: s.target.d8 * s.target.AD,
             ),
         ]
-        return System(self.label, elements=[tissue], interactions=interactions)
+        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
 
 
 class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
@@ -925,7 +926,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         self.tau1 = tau1
         self.tau2 = tau2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the bone marrow and blood system of leukaemia."""
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
@@ -1029,7 +1030,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 rate=lambda s: -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS,
             ),
         ]
-        return System(self.label, elements=[patient], interactions=interactions)
+        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
 
 
 class LeukaemiaStemCellsSystem(BaseSystem):
@@ -1107,7 +1108,7 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.m3 = m3
         self.d4 = d4
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of normal and leukaemic stem cells."""
         niche = LeukaemiaStemCellsElement(
             'niche',
@@ -1209,4 +1210,4 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 propensity=lambda s: s.target.d5 * s.target.AD,
             ),
         ]
-        return System(self.label, elements=[niche], interactions=interactions)
+        return CompositeSystem(self.label, elements=[niche], interactions=interactions)

@@ -11,9 +11,9 @@ def test_sir_vaccination_lowers_the_peak():
     """Test that the optimally vaccinated epidemic peaks lower than the epidemic without vaccination."""
     controlled = simulate(SIRVaccinationSystem())
     uncontrolled = simulate(SIRVaccinationSystem(a=0.0))
-    assert np.all(uncontrolled.values('population.u') == 0.0)
-    assert controlled.values('population.I').max() < 0.5 * uncontrolled.values('population.I').max()
-    assert controlled.values('population.u')[0] > controlled.values('population.u')[-1]
+    assert np.all(uncontrolled.get_values('population.u') == 0.0)
+    assert controlled.get_values('population.I').max() < 0.5 * uncontrolled.get_values('population.I').max()
+    assert controlled.get_values('population.u')[0] > controlled.get_values('population.u')[-1]
 
 
 def test_sir_vaccination_records_its_running_cost():
@@ -21,4 +21,4 @@ def test_sir_vaccination_records_its_running_cost():
     solver = clone(SIRVaccinationSystem.solver).set_params(nodes=51)
     system = SIRVaccinationSystem().prepare().system_
     trajectory = simulate(system, until=5.0, solver=solver, observables=SIRVaccinationSystem.observables)
-    assert np.all(trajectory.values('cost') > 0)
+    assert np.all(trajectory.get_values('cost') > 0)

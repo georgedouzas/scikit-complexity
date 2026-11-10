@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.populations import (
     LogisticGrowthInteraction,
@@ -22,11 +22,8 @@ from ..common.populations import (
 )
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
-
 WEB_GROWTH = {'frogs': (1.0, 100.0), 'mice': (1.2, 100.0)}
-
 WEB_MORTALITY = {'snakes': 0.3, 'hawks': 0.2}
-
 WEB_LINKS = (
     ('snakes', 'frogs', 0.02, 0.01),
     ('snakes', 'mice', 0.01, 0.005),
@@ -111,7 +108,7 @@ class CompetitionInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        first, second = s.first.n, s.second.n
+        first, second = s.first.x, s.second.x
         return [
             RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
             RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
@@ -183,7 +180,7 @@ class MutualismInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        first, second = s.first.n, s.second.n
+        first, second = s.first.x, s.second.x
         encounters = s.a * s.b * first * second
         return [
             RateLaw(first, encounters / (1 + s.a * s.handling * second)),
@@ -263,14 +260,14 @@ class CompetitionSystem(BaseSystem):
         self.alpha12 = alpha12
         self.alpha21 = alpha21
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two species that compete for the same resources.
 
         They coexist or exclude each other.
         """
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
                 CompetitionInteraction(
                     'competition',
@@ -363,11 +360,11 @@ class MutualismSystem(BaseSystem):
         self.b = b
         self.handling = handling
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two species that grow logistically and feed each other."""
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            elements=[PopulationElement('first', x=self.first), PopulationElement('second', x=self.second)],
             interactions=[
                 LogisticGrowthInteraction('growth_first', target='first', r=self.r1, K=self.K1),
                 LogisticGrowthInteraction('growth_second', target='second', r=self.r2, K=self.K2),
@@ -435,7 +432,7 @@ class FoodWebsSystem(BaseSystem):
         self.mortality = mortality
         self.links = links
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of a food web."""
         populations = self.populations
         growth = self.growth
@@ -453,8 +450,8 @@ class FoodWebsSystem(BaseSystem):
             PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
             for predator, prey, a, b in links
         ]
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[PopulationElement(name, n=n) for name, n in populations.items()],
+            elements=[PopulationElement(name, x=n) for name, n in populations.items()],
             interactions=interactions,
         )

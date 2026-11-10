@@ -15,7 +15,7 @@ from scipy import ndimage
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -239,14 +239,6 @@ def culture_observables(width: int, height: int) -> list[ObservableSpec]:
     ]
 
 
-def _get_culture_observables(system: System) -> list[ObservableSpec]:
-    """Return the culture observables of the grid of a system."""
-    if not isinstance(system.space, LatticeSpace):
-        return []
-    width, height = (int(size) for size in np.atleast_1d(system.space.shape))
-    return culture_observables(width, height)
-
-
 class AxelrodSystem(BaseSystem):
     """Axelrod's culture dissemination system on a full grid.
 
@@ -285,6 +277,14 @@ class AxelrodSystem(BaseSystem):
     references = ('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009')
     until = 200
 
+    @staticmethod
+    def _get_culture_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the culture observables of the grid of a system."""
+        if not isinstance(system.space, LatticeSpace):
+            return []
+        width, height = (int(size) for size in np.atleast_1d(system.space.shape))
+        return culture_observables(width, height)
+
     def __init__(
         self,
         width: int = 20,
@@ -302,7 +302,7 @@ class AxelrodSystem(BaseSystem):
         self.traits = traits
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
@@ -316,11 +316,11 @@ class AxelrodSystem(BaseSystem):
             values={'culture': cultures, 'features': self.features, 'traits': self.traits},
             location=locations,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[villages],
             interactions=[CulturalInfluenceInteraction('influence', target='villages')],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', neighborhood='von_neumann', capacity=1),
+            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan', capacity=1),
         )
 
     def get_run_settings(self) -> RunSettings:
@@ -329,5 +329,5 @@ class AxelrodSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _get_culture_observables(self._pass_parameters())
+        settings['observables'] = AxelrodSystem._get_culture_observables(self._get_pass_parameters())
         return settings

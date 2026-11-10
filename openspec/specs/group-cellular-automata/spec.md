@@ -96,7 +96,7 @@ computed once, and node colours from the cell states at each step.
   with the states over time
 
 ### Requirement: Injectivity and surjectivity are decided on finite universes
-`automaton` SHALL take a `System` with a `LocalRuleInteraction` as its source, and SHALL decide injectivity, surjectivity,
+`automaton` SHALL take a `CompositeSystem` with a `LocalRuleInteraction` as its source, and SHALL decide injectivity, surjectivity,
 and pre-injectivity of the automaton on finite quotients and
 windows, find Garden of Eden patterns, and find the inverse of a reversible automaton.
 
@@ -140,7 +140,7 @@ runs, and compute difference patterns of single-cell perturbations.
 - **THEN** the spatial entropy rate never increases from one step to the next beyond estimation error
 
 ### Requirement: A cellular automaton is a system
-A cellular automaton SHALL be a `System` with a `LocalRuleInteraction`, and no class SHALL duplicate it. The `run` of a
+A cellular automaton SHALL be a `CompositeSystem` with a `LocalRuleInteraction`, and no class SHALL duplicate it. The `run` of a
 `LocalRuleLaw` SHALL be one step of the map on configurations, and several steps SHALL be a loop over that `run` or a
 `simulate` run of the system.
 

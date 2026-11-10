@@ -7,8 +7,8 @@ and apart, so the flock moves as one.
 """
 
 # %%
-# The system is built from its class with thirty sheep, and the observer saves every step with the default blueprint,
-# whose primary view is the field with the sheep and the shepherd.
+# The example builds `ShepherdingSystem` with thirty sheep, and the observer saves every step with the default
+# blueprint, whose primary view is the field with the sheep and the shepherd.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,8 +27,8 @@ trajectory = simulate(ShepherdingSystem(), observers=[observer], random_state=0,
 # -----------------------------
 # The centre of the flock should approach the goal at `(5, 5)`, while the shepherd zig-zags behind it.
 
-centres = np.array([np.asarray(trajectory.agents('sheep', f).locations, float).mean(axis=0) for f in range(201)])
-dog = np.array([np.asarray(trajectory.agents('shepherds', f).locations, float)[0] for f in range(201)])
+centres = np.array([np.asarray(trajectory.get_agents('sheep', f).locations, float).mean(axis=0) for f in range(201)])
+dog = np.array([np.asarray(trajectory.get_agents('shepherds', f).locations, float)[0] for f in range(201)])
 fig, (field, distance) = plt.subplots(1, 2, figsize=(11, 4.5))
 field.plot(*centres.T, label='centre of the flock')
 field.plot(*dog.T, lw=0.6, label='shepherd')

@@ -28,7 +28,7 @@ trajectory = simulate(LeniaSystem(), observers=[observer], random_state=0)
 # -----------------
 # Orbium should keep its shape and its mass near 71 while it glides across the torus, wrapping around its edges.
 
-world = np.asarray(trajectory.lattice('world.A'))
+world = np.asarray(trajectory.get_lattice('world.A'))
 fig, axes = plt.subplots(1, 4, figsize=(13, 3.5))
 for ax, step in zip(axes[:3], (0, 100, 200), strict=True):
     ax.imshow(world[step], cmap='viridis', vmin=0, vmax=1)
@@ -56,7 +56,7 @@ kernels = [
 expanded = simulate(LeniaSystem(initial=initial, channels=2, kernels=kernels), until=50, random_state=0)
 fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
 for ax, channel in zip(axes, 'AB', strict=True):
-    ax.imshow(np.asarray(expanded.lattice(f'world.{channel}'))[-1], cmap='viridis', vmin=0, vmax=1)
+    ax.imshow(np.asarray(expanded.get_lattice(f'world.{channel}'))[-1], cmap='viridis', vmin=0, vmax=1)
     ax.set_title(f'channel {channel} at step 50')
     ax.set_axis_off()
 plt.show()

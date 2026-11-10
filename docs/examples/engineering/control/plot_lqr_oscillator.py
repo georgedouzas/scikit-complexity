@@ -7,7 +7,7 @@ comes to rest in a few seconds.
 """
 
 # %%
-# The system is built from its class with the natural frequency 1, the weight 1 of the displacement and the
+# The example builds `LqrOscillatorSystem` with the natural frequency 1, the weight 1 of the displacement and the
 # velocity, and the weight 0.1 of the force, so the gain is `K = (2.32, 3.82)`. RK4 integrates it with steps of 1 ms,
 # and the regulator sets the force after every step. The default blueprint shows the displacement and the force in one
 # time series view.
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import linearization
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import LqrOscillatorSystem
@@ -34,10 +34,10 @@ trajectory = simulate(system, observers=[observer])
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
 parts = system.prepare().system_
-linear = linearization(System(elements=list(parts.elements)))
+linear = linearization(CompositeSystem(elements=list(parts.elements)))
 gain = np.array([parts.interactions[0].gain])
 slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
-times, energy = trajectory.times, trajectory.values('energy')
+times, energy = trajectory.times, trajectory.get_values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(times, energy, label='energy of the oscillator')

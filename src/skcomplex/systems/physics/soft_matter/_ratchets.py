@@ -18,7 +18,7 @@ from ....core.components.elements import GroupElement
 from ....core.components.interactions import GradientInteraction, RateInteraction
 from ....core.components.laws.utils import mod, series, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.particles import BrownianParticleElement, ThermalNoiseInteraction
@@ -216,7 +216,7 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         self.gamma = gamma
         self.kT = kT
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return overdamped particles in a tilted periodic potential.
 
         The potential is `V(x) = U0 cos(2 pi x / L) - f x`.
@@ -229,7 +229,12 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         )
         washboard = TiltedWashboardInteraction('washboard', target='particles', U0=self.U0, L=self.L, f=self.f)
         bath = ThermalNoiseInteraction('bath', target='particles')
-        return System(self.label, elements=[particles], interactions=[washboard, bath], space=ContinuousSpace(n_dim=1))
+        return CompositeSystem(
+            self.label,
+            elements=[particles],
+            interactions=[washboard, bath],
+            space=ContinuousSpace(n_dim=1),
+        )
 
 
 class FlashingRatchetSystem(BaseSystem):
@@ -313,7 +318,7 @@ class FlashingRatchetSystem(BaseSystem):
         self.kT = kT
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         times = np.cumsum(rng.exponential(1 / self.rate, int(2 * self.rate * self.duration) + 10))
@@ -332,4 +337,9 @@ class FlashingRatchetSystem(BaseSystem):
             switches=tuple(float(time) for time in times[times < self.duration]),
         )
         bath = ThermalNoiseInteraction('bath', target='particles')
-        return System(self.label, elements=[particles], interactions=[sawtooth, bath], space=ContinuousSpace(n_dim=1))
+        return CompositeSystem(
+            self.label,
+            elements=[particles],
+            interactions=[sawtooth, bath],
+            space=ContinuousSpace(n_dim=1),
+        )

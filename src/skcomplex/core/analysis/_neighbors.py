@@ -1,7 +1,4 @@
-"""Measure the neighbours of agents.
-
-The measures are nearest-neighbour distances, the Clark-Evans ratio, `g(r)`, and like shares.
-"""
+"""Measure the neighbours of agents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,14 +20,12 @@ from ._base import SNAPSHOT_DIMENSIONS, _check_settings, _read_fields, _read_net
 from .types import Source
 
 KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
-# Settings every kind reads, besides `kind`.
 SETTINGS = {
     'distances': {'group', 'box'},
     'clark-evans': {'group', 'box'},
     'radial-distribution': {'group', 'box', 'bins', 'r_max'},
     'like-share': {'variables', 'attribute', 'empty', 'diagonal'},
 }
-
 TAGS = AnalysisTags(DataKind.AGENTS)
 KIND_TAGS = {
     'like-share': AnalysisTags(DataKind.FIELD),
@@ -39,7 +34,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class NeighborsResult:
-    """Neighbours of agents in space, or of cells of a grid or nodes of a network.
+    """A result of `neighbors`, the neighbours of agents, cells, or nodes.
 
     Args:
         positions:
@@ -107,6 +102,9 @@ def neighbors(
     An array of positions holds one snapshot, one row per agent, or one snapshot per frame along its first axis. A
     trajectory gives the positions of an agent group with the sides of its periodic space as the box, or its lattice
     frames for `'like-share'`. A grid array is one frame of states, and a graph carries the states on its nodes.
+
+    It appears in many fields. It counts the neighbours of birds in a flock, of cells in a tissue, and of particles in a
+    liquid.
 
     Args:
         source:

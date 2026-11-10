@@ -70,7 +70,7 @@ from ._logical_networks import (
     PetriNetSystem,
 )
 from ._metabolic_perturbations import MetabolicPerturbationsSystem
-from ._min_proteins import MinProteinSkeletonSystem, MinSkeletonElement
+from ._min_proteins import MinProteinSkeletonSystem
 from ._networks import (
     BiochemicalSystemsTheorySystem,
     GeneralizedMassActionInteraction,
@@ -136,7 +136,6 @@ __all__: list[str] = [
     'MammalianCellCycleSystem',
     'MetabolicPerturbationsSystem',
     'MinProteinSkeletonSystem',
-    'MinSkeletonElement',
     'NegativeAutoregulationSystem',
     'NoisyBooleanNetworkSystem',
     'NoisyMajorityInteraction',

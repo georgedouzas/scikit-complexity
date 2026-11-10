@@ -38,7 +38,7 @@ def test_spatial_triadic_percolation_regulates_links_by_their_signed_regulators(
     nodes, links = system.elements
     space = nodes.space.prepare()
     trajectory = simulate(system, until=2, backend=backend, random_state=0)
-    before, after = trajectory.values('nodes.active')[1], trajectory.values('links.active')[2]
+    before, after = trajectory.get_values('nodes.active')[1], trajectory.get_values('links.active')[2]
     negatives, positives = (np.asarray(links.values[name], dtype=int) for name in ('negatives', 'positives'))
     expected = [
         not before[list(hyperedge[2 : 2 + negative])].any()
@@ -52,7 +52,7 @@ def test_spatial_triadic_percolation_forms_blinking_patterns():
     """Test that the giant component keeps changing, blinks between steps, and is local in space."""
     system = SpatialTriadicPercolationSystem(4.0).prepare().system_
     trajectory = simulate(system, until=80, random_state=0)
-    active = trajectory.values('nodes.active').astype(float)[20:]
+    active = trajectory.get_values('nodes.active').astype(float)[20:]
     space = system.elements[0].space.prepare()
     offsets = np.abs(space.positions_[:, None, :] - space.positions_[None, :, :])
     distances = np.hypot(*np.moveaxis(np.minimum(offsets, 4.0 - offsets), -1, 0))

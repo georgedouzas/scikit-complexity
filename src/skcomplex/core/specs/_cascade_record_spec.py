@@ -10,7 +10,7 @@ from ._base_record_spec import BaseRecordSpec
 
 @dataclass(frozen=True)
 class CascadeRecordSpec(BaseRecordSpec):
-    """Cascade of a lattice within one step, such as an avalanche.
+    """A spec of the record of a cascade of a lattice within one step.
 
     Args:
         label:

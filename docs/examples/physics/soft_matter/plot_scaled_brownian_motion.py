@@ -1,13 +1,14 @@
 """
 # Scaled Brownian motion
 
-Brownian motion whose diffusion coefficient decays in time as `t^(alpha - 1)`, as in a medium that cools or stiffens.
-With `alpha = 0.5` the walkers move fast at first and then slow down, so their paths fan out quickly and then wander
-with ever smaller steps, and the spread grows as `t^0.5` instead of `t`. The view shows the paths of eight walkers.
+In scaled Brownian motion the diffusion coefficient decays in time as `t^(alpha - 1)`, as in a medium that cools or
+stiffens. With `alpha = 0.5` the walkers move fast at first and then slow down, so their paths fan out quickly and then
+wander with ever smaller steps, and the spread grows as `t^0.5` instead of `t`. The view shows the paths of eight
+walkers.
 """
 
 # %%
-# The system is built from its class with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
+# The example builds `ScaledBrownianMotionSystem` with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
 # Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.05 with the default blueprint,
 # whose primary view is the time series of the positions.
 
@@ -37,7 +38,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
     run = simulate(ScaledBrownianMotionSystem(n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
     times = run.times[1:]
-    squared = np.mean(run.values('walkers.x')[1:] ** 2, axis=1)
+    squared = np.mean(run.get_values('walkers.x')[1:] ** 2, axis=1)
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, alpha = {alpha}')
     exact = 2 * ((times + 0.01) ** alpha - 0.01**alpha)
     ax.loglog(times, exact, color=color, label=f'2 K ((t + t0)^{alpha} - t0^{alpha})')

@@ -6,8 +6,8 @@ sprouts out of the vessel towards the tumour, and once the new vessels arrive an
 """
 
 # %%
-# The system is built from its class with five sprouts on a 40 by 25 grid, the parent vessel along the left edge. The
-# observer saves every step with the default blueprint, whose primary view shows the cells and the fields.
+# The example builds `TumourAngiogenesisSystem` with five sprouts on a 40 by 25 grid, the parent vessel along the left
+# edge. The observer saves every step with the default blueprint, whose primary view shows the cells and the fields.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,10 +28,10 @@ trajectory = simulate(TumourAngiogenesisSystem(random_state=0), observers=[obser
 # then grow while the hypoxic share falls.
 
 frames = range(len(trajectory.times))
-hypoxic = [np.mean(trajectory.agents('cells/tumour', frame).values['hypoxic']) for frame in frames]
+hypoxic = [np.mean(trajectory.get_agents('cells/tumour', frame).values['hypoxic']) for frame in frames]
 fig, (counts, share) = plt.subplots(1, 2, figsize=(11, 4))
-counts.plot(trajectory.times, trajectory.values('cells/tumour.count'), label='tumour cells')
-counts.plot(trajectory.times, trajectory.values('cells/vessels.count'), label='vessel cells')
+counts.plot(trajectory.times, trajectory.get_values('cells/tumour.count'), label='tumour cells')
+counts.plot(trajectory.times, trajectory.get_values('cells/vessels.count'), label='vessel cells')
 counts.set_xlabel('step')
 counts.set_ylabel('cells')
 counts.set_title('New vessels feed the tumour')

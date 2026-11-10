@@ -1,7 +1,4 @@
-"""Measure irreversibility.
-
-The measures are entropy production, detailed balance, fluctuation theorems, and responses.
-"""
+"""Measure irreversibility."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -46,17 +43,7 @@ SETTINGS = {
     'response': {'unperturbed', 'field'},
     'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'intensity'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 PATH_KINDS = ('jump-entropy-production', 'count-entropy-production', 'detailed-balance')
-ENSEMBLE_KINDS = (
-    'langevin-entropy-production',
-    'fluctuation-theorem',
-    'uncertainty-relation',
-    'response',
-    'fluctuation-dissipation',
-)
-
 TAGS = AnalysisTags(DataKind.PATH)
 KIND_TAGS = {
     'langevin-entropy-production': AnalysisTags(DataKind.ENSEMBLE),
@@ -69,7 +56,7 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class IrreversibilityResult:
-    """Irreversibility of a process.
+    """A result of `irreversibility`, the irreversibility of a process.
 
     It is its entropy production, detailed balance, fluctuation relations, or response.
 
@@ -193,6 +180,9 @@ def irreversibility(
       against the `unperturbed` ensemble.
     - `'fluctuation-dissipation'`: the response, and the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)` of the
       two-time `correlation` over the same lags, 1 in equilibrium and below 1 in an aging system.
+
+    It appears in many fields. It measures how far a process is from equilibrium, in molecular motors, in heart beats,
+    and in the prices of a market.
 
     Args:
         source:

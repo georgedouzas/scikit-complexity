@@ -1,7 +1,4 @@
-"""Run a system over rows of values, scenarios, and replicates.
-
-There is one random stream per row and replicate.
-"""
+"""Run a system over rows of values, scenarios, and replicates, one stream per run."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,7 @@ import numpy.typing as npt
 from sklearn.base import clone
 
 from ..components.specs import ScenarioSpec
-from ..components.system import BaseSystem
+from ..components.systems import BaseSystem
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory
@@ -29,11 +26,13 @@ from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
 from ..specs._run_result_spec import _RunResultSpec
 from ._results import ExperimentResult
+from ._utils import build_system
 from .specs._task_spec import _TaskSpec
 from .types import Output, Row, Source
 
 EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
+
 
 type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver]]
 
@@ -88,45 +87,45 @@ def _check_count(name: str, value: object) -> None:
         raise ValidationError(error_msg)
 
 
-def _build(source: Source, arguments: Mapping[str, object]) -> BaseSystem:
-    """Return the system of a source with model parameters set.
+def _map_calls[Argument, Value](
+    function: Callable[[Argument], Value],
+    arguments: Sequence[Argument],
+    executor: str | Executor,
+) -> list[Value]:
+    """Return the values of a function at every argument, run on an executor.
 
-    It is a copy of a system, or what a factory builds.
+    Experiments that repeat whole fits, such as refits on noisy copies of data, run them with it.
 
     Args:
-        source:
-            The system, whose copy takes the arguments through `set_params`, or the factory, which takes them as
-            keyword arguments.
+        function:
+            The function of one argument, a module function or a partial of one for processes.
 
         arguments:
-            The model parameters by name.
+            The arguments, one per call.
+
+        executor:
+            `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
 
     Returns:
-        system:
-            The system with the model parameters.
+        values:
+            The value of every call, in the order of the arguments.
 
     Raises:
         ValidationError:
-            A model parameter is not one of the system.
-
-        ExperimentError:
-            The factory returns no system.
+            The executor is unknown.
     """
-    if isinstance(source, BaseSystem):
-        unknown = sorted(set(arguments) - set(source.get_params(deep=False)))
-        if unknown:
-            names = ', '.join(sorted(source.get_params(deep=False)))
-            error_msg = (
-                f'{", ".join(unknown)} is not a model parameter of {type(source).__name__}. Its model parameters are '
-                f'{names}, and dotted paths such as `growth.r` name the states and parameters of its parts.'
-            )
-            raise ValidationError(error_msg)
-        return clone(source).set_params(**arguments)
-    system = source(**arguments)
-    if not isinstance(system, BaseSystem):
-        error_msg = f'The factory of an experiment returns a system, not {type(system).__name__}.'
-        raise ExperimentError(error_msg)
-    return system
+    if isinstance(executor, str) and executor not in EXECUTORS:
+        error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
+        raise ValidationError(error_msg)
+    if executor == 'serial':
+        return [function(argument) for argument in arguments]
+    if isinstance(executor, Executor):
+        return list(executor.map(function, arguments))
+    pool = ThreadPoolExecutor() if executor == 'thread' else ProcessPoolExecutor()
+    try:
+        return list(pool.map(function, arguments))
+    finally:
+        pool.shutdown()
 
 
 def _name_analyses(
@@ -211,8 +210,8 @@ def _split_paths(problem: BaseProblemSpec, paths: Mapping[str, object]) -> tuple
             names = ', '.join([*problem.states.names, *problem.parameters.names])
             error_msg = f'{name} is neither a state nor a parameter of the system. Available paths are: {names}.'
             raise ValidationError(error_msg)
-        if not layout.entry(name).contains(value):
-            error_msg = f'{name} = {value!r} is not in its domain {layout.entry(name).domain}.'
+        if not layout.get_entry(name).contains(value):
+            error_msg = f'{name} = {value!r} is not in its domain {layout.get_entry(name).domain}.'
             raise ValidationError(error_msg)
         kept[name] = value
     return states, parameters
@@ -330,7 +329,7 @@ def _read_outputs(
             else:
                 scalars[name] = value
             continue
-        array = np.asarray(trajectory.values(output))
+        array = np.asarray(trajectory.get_values(output))
         series[output] = array[keep]
         if array.ndim == 1 and array.size:
             scalars[output] = array[-1]
@@ -388,7 +387,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
     values = {**task.row, **(task.scenario.overrides or {})}
     arguments = {name: value for name, value in values.items() if '.' not in name}
     paths = {name: value for name, value in values.items() if '.' in name}
-    system = _build(task.scenario.system if task.scenario.system is not None else task.source, arguments)
+    system = build_system(task.scenario.system if task.scenario.system is not None else task.source, arguments)
     settings = system.get_run_settings()
     compiled = None
     if settings['compiler'] is None:

@@ -17,13 +17,13 @@ def test_cournot_duopoly_converges_to_the_nash_equilibrium():
         30,
         observables=CournotDuopolySystem().get_run_settings()['observables'],
     )
-    assert exact.values('total')[-1] == pytest.approx(100.0, abs=1e-3)
-    assert exact.values('price')[-1] == pytest.approx(500.0, abs=1e-2)
+    assert exact.get_values('total')[-1] == pytest.approx(100.0, abs=1e-3)
+    assert exact.get_values('price')[-1] == pytest.approx(500.0, abs=1e-2)
     assert np.allclose(_agents(exact, 'firms', 30)['output'], 50.0, atol=1e-3)
     noisy = _run(
         CournotDuopolySystem(error=0.1).prepare().system_,
         30,
         observables=CournotDuopolySystem().get_run_settings()['observables'],
-    ).values('total')[10:]
+    ).get_values('total')[10:]
     assert noisy.std() > 0.5
     assert np.all(np.abs(noisy - 100.0) < 25.0)

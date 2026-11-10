@@ -13,12 +13,13 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import DensityElement, GroupElement
-from ....core.components.interactions import EncounterInteraction
+from ....core.components.elements import GroupElement
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.specs import ObservableSpec
+from ...general.kinetics import EncounterInteraction
+from ..common.populations import PopulationDensityElement
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 
@@ -88,7 +89,7 @@ def cell_density(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Exp
         density:
             The order-0 moment.
     """
-    return moment(s.f, 0, activities)
+    return moment(s.x, 0, activities)
 
 
 def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Expression:
@@ -105,15 +106,7 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
         mean:
             The normalized first moment.
     """
-    return moment(s.f, 1, activities, normalized=True)
-
-
-def _classes_of(system: System) -> int:
-    """Return the number of activity classes of a system.
-
-    It is the size of its tumour distribution.
-    """
-    return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
+    return moment(s.x, 1, activities, normalized=True)
 
 
 def immune_observables(classes: int) -> list[ObservableSpec]:
@@ -194,6 +187,14 @@ class ImmuneCompetitionSystem(BaseSystem):
     until = 40
     dt = 0.5
 
+    @staticmethod
+    def _get_classes_of(system: CompositeSystem) -> int:
+        """Return the number of activity classes of a system.
+
+        It is the size of its tumour distribution.
+        """
+        return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
+
     def __init__(
         self,
         classes: int = 5,
@@ -227,10 +228,10 @@ class ImmuneCompetitionSystem(BaseSystem):
                 The tuned run settings by name.
         """
         settings = super().get_run_settings()
-        settings['observables'] = immune_observables(_classes_of(self._build_system()))
+        settings['observables'] = immune_observables(ImmuneCompetitionSystem._get_classes_of(self._build_system()))
         return settings
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the kinetic system of tumour and immune cells.
 
         The system is the competition between tumour cells and immune cells.
@@ -241,24 +242,24 @@ class ImmuneCompetitionSystem(BaseSystem):
         tumour_density[0] = self.tumour
         immune_density = np.zeros(self.classes)
         immune_density[int(np.argmin(np.abs(activities - self.activation)))] = self.immune
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(
                     'tumour',
-                    element=DensityElement,
+                    element=PopulationDensityElement,
                     size=self.classes,
                     on='sites',
-                    values={'f': tumour_density},
+                    values={'x': tumour_density},
                 ),
                 GroupElement(
                     'immune',
-                    element=DensityElement,
+                    element=PopulationDensityElement,
                     size=self.classes,
                     on='sites',
-                    values={'f': immune_density},
+                    values={'x': immune_density},
                 ),
-                GroupElement('host', element=DensityElement, size=1, values={'f': 1.0}),
+                GroupElement('host', element=PopulationDensityElement, size=1, values={'x': 1.0}),
             ],
             interactions=[
                 EncounterInteraction(

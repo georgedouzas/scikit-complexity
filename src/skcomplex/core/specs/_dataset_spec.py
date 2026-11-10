@@ -17,7 +17,7 @@ MIN_DIMENSIONS = 2
 
 @dataclass(frozen=True)
 class DatasetSpec(BaseSpec):
-    """Sequences of values of the parameters of a system, with step weights.
+    """A spec of sequences of parameter values of a system, with step weights.
 
     There is one value per sequence and inner step. Every array has the shape `(sequences, steps)` followed by the shape
     of its parameter. At inner step `k` of sequence `i` every parameter takes its value at `[i, k]` before the laws of

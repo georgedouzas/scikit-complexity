@@ -15,15 +15,18 @@ from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
+
+BURNING = 2
+BURNT = 3
 
 
 class ContactSiteElement(Element):
@@ -87,7 +90,12 @@ class ContactSiteElement(Element):
                 The laws of the component.
         """
         return [
-            LocalRuleLaw(s.infected, VonNeumannNeighborhood(center=True), ContactSiteElement._spread, stochastic=True),
+            LocalRuleLaw(
+                s.infected,
+                BallNeighborhood(metric='manhattan', center='first'),
+                ContactSiteElement._spread,
+                stochastic=True,
+            ),
         ]
 
     @staticmethod
@@ -149,12 +157,6 @@ class ExclusionSiteElement(Element):
         self.beta = beta
 
 
-BURNING = 2
-
-
-BURNT = 3
-
-
 class PercolationSiteElement(Element):
     """Site of a percolation lattice.
 
@@ -202,7 +204,9 @@ class PercolationSiteElement(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRuleLaw(s.cover, VonNeumannNeighborhood(center=True), PercolationSiteElement._burn)]
+        return [
+            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
+        ]
 
     @staticmethod
     def _burn(cover: Array, *around: Array) -> Array:
@@ -336,10 +340,10 @@ class WalkerElement(Element):
         """
         if agent.stuck:
             return
-        if any(isinstance(other, WalkerView) and other.stuck for other in agent.neighbors()):
+        if any(isinstance(other, WalkerView) and other.stuck for other in agent.get_neighbors()):
             agent.stuck = 1.0
             return
-        cells = agent.neighbor_cells()
+        cells = agent.get_neighbor_cells()
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
 
 
@@ -401,29 +405,30 @@ class Q2rSystem(BaseSystem):
         return np.where(flips, -spin, spin), 1 - phase
 
     @staticmethod
-    def _checkerboard(shape: tuple[int, ...]) -> Array:
+    def _get_checkerboard(shape: tuple[int, ...]) -> Array:
         """Return 1 on the sites of even coordinate sum and 0 on the others."""
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
         space = LatticeSpace(shape)
-        group = LatticeElement(
+        group = GroupElement(
             'spins',
             element=Q2RSpinElement,
             space=space,
-            values={'spin': spins, 'phase': self._checkerboard(shape)},
+            values={'spin': spins, 'phase': self._get_checkerboard(shape)},
+            on='sites',
         )
         flip = LocalRuleInteraction(
             'flip',
             target='spins',
             state=('spin', 'phase'),
             rule=self._flip_without_cost,
-            neighborhood=VonNeumannNeighborhood(n_dim=len(shape), center=True),
+            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
         )
-        return System(self.label, elements=[group], interactions=[flip])
+        return CompositeSystem(self.label, elements=[group], interactions=[flip])
 
 
 class SitePercolationSystem(BaseSystem):
@@ -472,15 +477,23 @@ class SitePercolationSystem(BaseSystem):
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
         space = LatticeSpace(shape, boundary='fixed')
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('lattice', element=PercolationSiteElement, space=space, values={'cover': cover})],
+            elements=[
+                GroupElement(
+                    'lattice',
+                    element=PercolationSiteElement,
+                    space=space,
+                    values={'cover': cover},
+                    on='sites',
+                ),
+            ],
         )
 
 
@@ -540,19 +553,20 @@ class ContactProcessSystem(BaseSystem):
         self.infected = infected
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         shape = tuple(self.shape)
         states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
         space = LatticeSpace(shape)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'lattice',
                     element=ContactSiteElement,
                     space=space,
                     values={'infected': states, 'rate': self.rate, 'tau': self.tau},
+                    on='sites',
                 ),
             ],
         )
@@ -654,7 +668,7 @@ class TASEPSystem(BaseSystem):
         """
         return s.source.occupied * bernoulli('exit', s.source.beta)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the totally asymmetric simple exclusion process with parallel update.
 
         The process runs on an open line or a ring.
@@ -663,11 +677,12 @@ class TASEPSystem(BaseSystem):
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
         boundary = 'periodic' if self.ring else 'fixed'
-        lane = LatticeElement(
+        lane = GroupElement(
             'lane',
             element=ExclusionSiteElement,
             space=LatticeSpace(self.n_sites, boundary=boundary),
             values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
+            on='sites',
         )
         hops = TransferInteraction(
             'hops',
@@ -680,7 +695,7 @@ class TASEPSystem(BaseSystem):
             boundary=boundary,
         )
         if self.ring:
-            return System(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
+            return CompositeSystem(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
         first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
         entry = TransferInteraction(
             'entry',
@@ -698,7 +713,7 @@ class TASEPSystem(BaseSystem):
             into=Sink(),
             amount=self._leave,
         )
-        return System(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
 class DiffusionLimitedAggregationSystem(BaseSystem):
@@ -747,7 +762,7 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         middle = self.size // 2
@@ -762,8 +777,8 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
             values={'stuck': stuck},
             location=[tuple(map(int, cell)) for cell in cells],
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[walkers],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )

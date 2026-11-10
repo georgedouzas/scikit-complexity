@@ -11,10 +11,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.spaces import BallNeighborhood, LatticeSpace
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
@@ -102,7 +102,7 @@ class ElementaryAutomatonSystem(BaseSystem):
         self.size = size
         self.initial = initial
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an elementary cellular automaton by its Wolfram number.
 
         By default it starts from a single live cell.
@@ -110,14 +110,15 @@ class ElementaryAutomatonSystem(BaseSystem):
         values = np.zeros(self.size) if self.initial is None else np.asarray(self.initial, dtype=float)
         if self.initial is None:
             values[self.size // 2] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=BinaryCellElement,
                     space=LatticeSpace(self.size),
                     values={'alive': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -126,7 +127,7 @@ class ElementaryAutomatonSystem(BaseSystem):
                     target='cells',
                     state='alive',
                     rule=Wolfram(self.rule),
-                    neighborhood=BoxNeighborhood(),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                 ),
             ],
         )
@@ -191,28 +192,34 @@ class GameOfLifeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
+    def _get_random_cells(
+        shape: Sequence[int],
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Conway's Game of Life, or another life-like rule, on a torus."""
         values = (
-            self._random_cells(self.shape, self.density, self.random_state)
+            self._get_random_cells(self.shape, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life(self.born, self.survive),
-                    neighborhood=MooreNeighborhood(),
+                    neighborhood=BallNeighborhood(),
                 ),
             ],
         )
@@ -258,7 +265,7 @@ class LangtonsAntSystem(BaseSystem):
         self.heading = heading
 
     @staticmethod
-    def _ant_rule(*values: Array) -> tuple[Array, Array]:
+    def _get_ant_rule(*values: Array) -> tuple[Array, Array]:
         """Return the next colors and ants of Langton's ant.
 
         They are read from the von Neumann neighbourhoods of both states.
@@ -272,18 +279,19 @@ class LangtonsAntSystem(BaseSystem):
             ant = np.where((ants[column] >= 0) & (turned == heading), turned, ant)
         return color, ant
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         ant = np.full(tuple(self.shape), -1.0)
         ant[self.shape[0] // 2, self.shape[1] // 2] = self.heading
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=AntCellElement,
                     space=LatticeSpace(tuple(self.shape)),
                     values={'ant': ant},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -291,8 +299,8 @@ class LangtonsAntSystem(BaseSystem):
                     'ant',
                     target='cells',
                     state=('color', 'ant'),
-                    rule=self._ant_rule,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    rule=self._get_ant_rule,
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                     reads=('color', 'ant'),
                 ),
             ],

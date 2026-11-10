@@ -6,9 +6,9 @@ without vaccine, and the tumour regrows once the injections stop.
 """
 
 # %%
-# The system is built from its class with its default schedule, a one-hour injection of 0.5 dendritic cells per hour
-# every week, 8 times, and runs for 120 days in hours. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the T cells, the tumour, the dendritic cells, and IL-2.
+# The example builds `DendriticCellVaccineSystem` with its default schedule, a one-hour injection of 0.5 dendritic cells
+# per hour every week, 8 times, and runs for 120 days in hours. The observer saves every frame with the default
+# blueprint, whose primary view is the time series of the T cells, the tumour, the dendritic cells, and IL-2.
 
 import matplotlib.pyplot as plt
 
@@ -33,16 +33,16 @@ vaccinated = trajectory
 unvaccinated = simulate(DendriticCellVaccineSystem(dose=0.0), dt=12.0, solver=solver)
 days = vaccinated.times / 24
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
-tumour.plot(days, unvaccinated.values('site.A'), label='no vaccine')
-tumour.plot(days, vaccinated.values('site.A'), label='8 weekly doses')
+tumour.plot(days, unvaccinated.get_values('site.A'), label='no vaccine')
+tumour.plot(days, vaccinated.get_values('site.A'), label='8 weekly doses')
 tumour.axhline(0.9, color='black', linestyle='--', label='equilibrium 0.9')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour (fraction of capacity)')
 tumour.set_title('The vaccine shrinks the tumour while it lasts')
 tumour.legend()
-cells.plot(days, vaccinated.values('site.E'), label='cytotoxic T cells')
-cells.plot(days, vaccinated.values('site.EH'), label='helper T cells')
-cells.plot(days, vaccinated.values('site.ED'), label='dendritic cells')
+cells.plot(days, vaccinated.get_values('site.E'), label='cytotoxic T cells')
+cells.plot(days, vaccinated.get_values('site.EH'), label='helper T cells')
+cells.plot(days, vaccinated.get_values('site.ED'), label='dendritic cells')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('cells (fraction of capacity)')
 cells.set_title('Dendritic cells drive helper and cytotoxic T cells')

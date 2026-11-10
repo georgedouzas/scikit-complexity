@@ -6,7 +6,7 @@ small disturbance grows into a stop-and-go wave, where cars alternately crawl th
 """
 
 # %%
-# The system is built from its class with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
+# The example builds `OptimalVelocitySystem` with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
 # safety distance `hc = 2`, so that the uniform headway 2 is unstable, and runs for 200 time units. The blueprint shows
 # the speeds of all cars in one time series view, without a legend.
 
@@ -47,17 +47,17 @@ trajectory = simulate(system, observers=[observer])
 
 stable = simulate(OptimalVelocitySystem(length=80.0))
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
-spread.semilogy(trajectory.times, trajectory.values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
-spread.semilogy(stable.times, stable.values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')
+spread.semilogy(trajectory.times, trajectory.get_values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
+spread.semilogy(stable.times, stable.get_values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')
 spread.set_xlabel('time')
 spread.set_ylabel('spread of speeds')
 spread.set_title('The disturbance grows or decays')
 spread.legend()
-headways = np.mod(np.roll(trajectory.values('cars.x'), -1, axis=1) - trajectory.values('cars.x'), 40.0)
+headways = np.mod(np.roll(trajectory.get_values('cars.x'), -1, axis=1) - trajectory.get_values('cars.x'), 40.0)
 late = trajectory.times > 150
 cycle.plot(
     headways[late].ravel(),
-    trajectory.values('cars.v')[late].ravel(),
+    trajectory.get_values('cars.v')[late].ravel(),
     '.',
     markersize=2,
     label='all cars, t > 150',

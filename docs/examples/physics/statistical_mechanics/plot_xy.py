@@ -18,13 +18,13 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import XYSystem
 
+SYSTEM = 'xy'
+
 
 def wrap_angle(angles):
     """Return angles in `(-pi, pi]`."""
     return np.angle(np.exp(1j * np.asarray(angles)))
 
-
-SYSTEM = 'xy'
 
 system = XYSystem(size=64, temperature=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
@@ -46,7 +46,7 @@ def measure(temperature):
         until=400,
         random_state=1,
     )
-    theta = np.asarray(run.lattice('spins.theta'))[-100:]
+    theta = np.asarray(run.get_lattice('spins.theta'))[-100:]
     right, down = np.roll(theta, -1, axis=-1), np.roll(theta, -1, axis=-2)
     energy = -(np.cos(theta - right) + np.cos(theta - down)).mean()
     winding = wrap_angle(right - theta) + wrap_angle(np.roll(right, -1, -2) - right)

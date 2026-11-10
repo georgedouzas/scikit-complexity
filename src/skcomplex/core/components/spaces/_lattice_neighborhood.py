@@ -1,7 +1,4 @@
-"""Define lattice neighbourhoods.
-
-They are the ordered offsets of the sites a local rule reads.
-"""
+"""Define the neighbourhood of ordered offsets that a local rule reads."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,16 +12,24 @@ from ._base import BaseNeighborhood
 
 
 class LatticeNeighborhood(BaseNeighborhood):
-    """Ordered offsets of the sites a local rule reads.
+    """A neighbourhood of the ordered lattice offsets that a local rule reads.
 
-    The site itself is the zero offset when included.
+    Each offset is a vector of integers from a site to a neighbour, and the site itself is the zero offset when it is
+    included. The order of the offsets is the order in which a local rule receives the values.
+
+    Unlike `BallNeighborhood`, which builds its offsets from a radius, it takes any list of offsets. Choose it when a
+    neighbourhood has an irregular shape, or an order of its own, such as a cell and its two neighbours from left to
+    right.
+
+    It appears in elementary cellular automata, which read a cell and its two neighbours, and in rules that read cells
+    in one direction only, such as the upwind cells of a model of advection.
 
     Args:
         offsets:
             The offsets, one tuple of integers per neighbour, in the order rules receive their values.
 
         label:
-            The label of the neighbourhood.
+            The name of the neighbourhood, such as `'moore'`.
 
     Attributes:
         offsets_:

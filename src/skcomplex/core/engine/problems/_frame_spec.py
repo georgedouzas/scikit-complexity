@@ -18,7 +18,7 @@ from ._base_problem_spec import BaseProblemSpec
 
 @dataclass(frozen=True)
 class FrameSpec(BaseSpec):
-    """State of a simulation at one point in time.
+    """A spec of the state of a simulation at one point in time.
 
     Args:
         step:
@@ -63,7 +63,7 @@ class FrameSpec(BaseSpec):
     events: tuple[BaseRecordSpec, ...] = ()
     structures: Mapping[str, object] = field(default_factory=dict)
 
-    def value(self, name: str) -> npt.ArrayLike:
+    def get_value(self, name: str) -> npt.ArrayLike:
         """Return the value of a state or a parameter by dotted name.
 
         Args:
@@ -82,7 +82,7 @@ class FrameSpec(BaseSpec):
             return self.observables[name]
         return self.problem.parameters.read(self.parameters, name)
 
-    def lattice(self, name: str) -> AnyArray:
+    def get_lattice(self, name: str) -> AnyArray:
         """Return the values of a lattice state in lattice shape.
 
         Args:
@@ -97,9 +97,9 @@ class FrameSpec(BaseSpec):
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name)
+        shape = self.problem.get_lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        member = self.problem.states.entry(name).member_shape
-        return np.reshape(self.value(name), (*shape, *member))
+        member = self.problem.states.get_entry(name).member_shape
+        return np.reshape(self.get_value(name), (*shape, *member))

@@ -7,7 +7,7 @@ time series show both observables during the run.
 """
 
 # %%
-# The system is built from its class on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
+# The example builds `MattisSpinGlassSystem` on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the overlap and the magnetization.
 
@@ -32,15 +32,15 @@ simulation = simulate(system, until=400, observers=[observer], random_state=0)
 # near zero at every temperature. The left panel shows the spins and the gauge variables at the end of the run above:
 # the spins look disordered and the gauge variables form one domain.
 
-lattice = simulation.lattice('spins.spin')[-1]
+lattice = simulation.get_lattice('spins.spin')[-1]
 pattern = system.prepare().system_.elements[0].values['pattern'].reshape(lattice.shape)
 temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
     system_system = MattisSpinGlassSystem(size=32, temperature=temperature)
     trajectory = simulate(system_system, until=1000, dt=10, random_state=0)
-    overlaps.append(np.abs(trajectory.values('overlap')[-30:]).mean())
-    magnetizations.append(np.abs(trajectory.values('magnetization')[-30:]).mean())
+    overlaps.append(np.abs(trajectory.get_values('overlap')[-30:]).mean())
+    magnetizations.append(np.abs(trajectory.get_values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))
 grid = np.linspace(1.0, critical - 1e-6, 100)
 fig, (spins, gauge, curve) = plt.subplots(1, 3, figsize=(13, 4))

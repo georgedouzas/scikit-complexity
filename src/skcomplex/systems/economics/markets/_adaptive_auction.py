@@ -14,11 +14,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..common.policy import PolicyRuleInteraction
 
 
 class AdaptiveTraderView(AgentView):
@@ -95,7 +95,7 @@ class AdaptiveTraderElement(Element):
         return []
 
 
-class AdaptiveAuctionInteraction(FeedbackInteraction[SystemView]):
+class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
     """Double auction in which every buyer meets a random seller every iteration.
 
     Both adapt their quotes. Every iteration the buyers that still want units, in random order, meet a random seller
@@ -161,9 +161,9 @@ class AdaptiveAuctionInteraction(FeedbackInteraction[SystemView]):
             system:
                 The system view of the auction.
         """
-        rng, step = system.rng, system.parameter('step')
-        buyers = sorted(system.agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
-        sellers = sorted(system.agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
+        rng, step = system.rng, system.get_parameter('step')
+        buyers = sorted(system.get_agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
+        sellers = sorted(system.get_agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
         prices = []
         for buyer in (buyers[index] for index in rng.permutation(len(buyers))):
             stocked = [seller for seller in sellers if seller.units > 0]
@@ -180,7 +180,7 @@ class AdaptiveAuctionInteraction(FeedbackInteraction[SystemView]):
             else:
                 buyer.quote = min(buyer.quote + bid_step, buyer.value)
                 seller.quote = max(seller.quote - ask_step, seller.value)
-        last = system.history('price', 1)
+        last = system.get_history('price', 1)
         price = prices[-1] if prices else (float(last[-1]) if len(last) else float('nan'))
         system.report('price', price)
         system.report('volume', float(len(prices)))
@@ -271,7 +271,7 @@ class GoodingDoubleAuctionSystem(BaseSystem):
         self.unlimited = unlimited
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         values = self.value * (1 + self.spread * rng.uniform(-1, 1, self.n_buyers))
@@ -303,4 +303,4 @@ class GoodingDoubleAuctionSystem(BaseSystem):
             step=self.step,
             unlimited=self.unlimited,
         )
-        return System(self.label, elements=[buyers, sellers], interactions=[auction])
+        return CompositeSystem(self.label, elements=[buyers, sellers], interactions=[auction])

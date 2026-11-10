@@ -1,7 +1,4 @@
-"""Define the tensor spec.
-
-It holds the independent components of a rank-2 tensor of one symmetry.
-"""
+"""Define the spec of the independent components of a rank-2 tensor."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +23,7 @@ AXIS_NAMES = 'xyz'
 
 @dataclass(frozen=True)
 class TensorSpec(BaseSpec):
-    """Independent components of a rank-2 tensor of one symmetry.
+    """A spec of the independent components of a rank-2 tensor of one symmetry.
 
     The tensor lives in a space of two or three dimensions.
 
@@ -46,7 +43,7 @@ class TensorSpec(BaseSpec):
         >>> tensor = TensorSpec('traceless', 2)
         >>> tensor.names
         ('xx', 'xy')
-        >>> tensor.array_of([1.0, 2.0]).tolist()
+        >>> tensor.get_array_of([1.0, 2.0]).tolist()
         [[1.0, 2.0], [2.0, -1.0]]
     """
 
@@ -65,7 +62,7 @@ class TensorSpec(BaseSpec):
             error_msg = f'A tensor state needs a space of 2 or 3 dimensions, but its space has {self.n_dim}.'
             raise ValidationError(error_msg)
 
-    def _unit(self, row: int, column: int) -> IntArray:
+    def _get_unit(self, row: int, column: int) -> IntArray:
         """Return the tensor whose independent component at an index is 1.
 
         Its other independent components are 0.
@@ -102,9 +99,9 @@ class TensorSpec(BaseSpec):
 
         There is one tensor per component on the first axis.
         """
-        return np.stack([self._unit(row, column) for row, column in self.indices])
+        return np.stack([self._get_unit(row, column) for row, column in self.indices])
 
-    def matrix_of(self, components: Iterable[object]) -> Matrix:
+    def get_matrix_of(self, components: Iterable[object]) -> Matrix:
         """Return the symbolic matrix of independent components.
 
         The dependent entries are written in terms of them.
@@ -120,7 +117,7 @@ class TensorSpec(BaseSpec):
         Examples:
             >>> from sage.all__sagemath_symbolics import var
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('traceless', 2).matrix_of(var('a, b'))
+            >>> TensorSpec('traceless', 2).get_matrix_of(var('a, b'))
             [ a  b]
             [ b -a]
         """
@@ -129,7 +126,7 @@ class TensorSpec(BaseSpec):
             total += SR(component) * matrix(SR, unit.tolist())
         return total
 
-    def array_of(self, components: npt.ArrayLike) -> Array:
+    def get_array_of(self, components: npt.ArrayLike) -> Array:
         """Return the arrays of tensors of independent components on the last axis.
 
         Args:
@@ -142,12 +139,12 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('antisymmetric', 2).array_of([3.0]).tolist()
+            >>> TensorSpec('antisymmetric', 2).get_array_of([3.0]).tolist()
             [[0.0, 3.0], [-3.0, 0.0]]
         """
         return np.tensordot(np.asarray(components, dtype=float), self.basis, axes=1)
 
-    def principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
+    def get_principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
         """Return the principal axis and the scalar order of symmetric tensors.
 
         The tensors are given by their independent components. The principal axis is the eigenvector of the largest
@@ -171,19 +168,19 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> axes, orders = TensorSpec('traceless', 2).principal_of([0.5, 0.0])
+            >>> axes, orders = TensorSpec('traceless', 2).get_principal_of([0.5, 0.0])
             >>> abs(axes).round(6).tolist(), float(orders)
             ([1.0, 0.0], 1.0)
         """
         if self.symmetry not in {'symmetric', 'traceless'}:
             error_msg = f'A tensor of the symmetry {self.symmetry!r} has no principal axes. Use a symmetric tensor.'
             raise ValidationError(error_msg)
-        tensors = self.array_of(components)
+        tensors = self.get_array_of(components)
         means = np.trace(tensors, axis1=-2, axis2=-1) / self.n_dim
         values, vectors = np.linalg.eigh(tensors - means[..., None, None] * np.eye(self.n_dim))
         return vectors[..., -1], values[..., -1] * self.n_dim / (self.n_dim - 1)
 
-    def components_of(self, value: object) -> Array:
+    def get_components_of(self, value: object) -> Array:
         """Return the independent components of a numeric matrix.
 
         Args:
@@ -200,7 +197,7 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('symmetric', 2).components_of([[1, 2], [2, 3]]).tolist()
+            >>> TensorSpec('symmetric', 2).get_components_of([[1, 2], [2, 3]]).tolist()
             [1.0, 2.0, 3.0]
         """
         array = np.asarray(value.numpy() if isinstance(value, Matrix) else value, dtype=float)
@@ -208,7 +205,7 @@ class TensorSpec(BaseSpec):
             error_msg = f'The value has the shape {array.shape}, but the tensor is {self.n_dim} by {self.n_dim}.'
             raise ValidationError(error_msg)
         components = np.asarray([array[row, column] for row, column in self.indices])
-        if not np.allclose(self.array_of(components), array):
+        if not np.allclose(self.get_array_of(components), array):
             error_msg = f'The matrix {array.tolist()} does not have the symmetry {self.symmetry!r}.'
             raise ValidationError(error_msg)
         return components

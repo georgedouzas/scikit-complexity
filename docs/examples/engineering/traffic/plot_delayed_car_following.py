@@ -6,7 +6,7 @@ amplifies the oscillation from car to car, so the last cars of the chain swing t
 """
 
 # %%
-# The system is built from its class with eight cars, a lead car oscillating by 10% around speed 1 at
+# The example builds `DelayedCarFollowingSystem` with eight cars, a lead car oscillating by 10% around speed 1 at
 # `omega = 0.5`, and the reaction time `T = 1`, and runs for 60 time units. The blueprint shows the speeds of all cars
 # in one time series view.
 
@@ -49,7 +49,7 @@ fig, ax = plt.subplots(figsize=(6, 4.5))
 for delay, label in [(1.0, 'T = 1, unstable chain'), (0.2, 'T = 0.2, stable chain')]:
     run = simulate(DelayedCarFollowingSystem(T=delay), until=120)
     late = run.times > 60
-    amplitudes = [np.ptp(run.values(f'car_{car}.v')[late]) / 2 for car in range(8)]
+    amplitudes = [np.ptp(run.get_values(f'car_{car}.v')[late]) / 2 for car in range(8)]
     ax.semilogy(range(8), amplitudes, 'o-', label=label)
 ax.set_xlabel('car in the chain (0 is the leader)')
 ax.set_ylabel('amplitude of the speed oscillation')

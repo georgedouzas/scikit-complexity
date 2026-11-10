@@ -24,8 +24,8 @@ def test_heterogeneous_mean_field_sir_epidemic_threshold(factor, below):
         dt=1.0,
         until=200,
     )
-    final_size = trajectory.values('recovered')[-1]
-    assert trajectory.values('infected')[-1] < 1e-6
+    final_size = trajectory.get_values('recovered')[-1]
+    assert trajectory.get_values('infected')[-1] < 1e-6
     assert (final_size < 0.01) if below else (final_size > 0.05)
 
 
@@ -39,7 +39,7 @@ def test_heterogeneous_mean_field_sir_early_growth_rate():
         dt=0.5,
         until=12,
     )
-    theta = trajectory.values('network.i') @ ((degrees - 1) * probabilities) / first
+    theta = trajectory.get_values('network.i') @ ((degrees - 1) * probabilities) / first
     selected = trajectory.times >= 4
     rate = np.polyfit(trajectory.times[selected], np.log(theta[selected]), 1)[0]
     assert rate == pytest.approx((beta * (second - first) - mu * first) / first, rel=0.03)

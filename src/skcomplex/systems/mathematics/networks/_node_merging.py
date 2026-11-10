@@ -17,7 +17,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import StateSpec, VisualSpec
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
@@ -84,7 +84,7 @@ class NodeMergingSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import NodeMergingSystem
         >>> trajectory = simulate(NodeMergingSystem(50), until=20, random_state=0)
-        >>> network = trajectory.network(-1)
+        >>> network = trajectory.get_network(-1)
         >>> len(network.nodes), len(network.sources)
         (50, 49)
     """
@@ -108,13 +108,13 @@ class NodeMergingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _system(
+    def _build_network(
         label: str,
         capacity: int,
         space: NetworkSpace,
         links: int,
         changes: list[TopologyInteraction],
-    ) -> System:
+    ) -> CompositeSystem:
         """Return the network of variable groups on its nodes and links.
 
         The network has its changes and the map of the degrees.
@@ -122,9 +122,15 @@ class NodeMergingSystem(BaseSystem):
         nodes = GroupElement('nodes', element=MergingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
+        return CompositeSystem(
+            label,
+            elements=[nodes, edges],
+            interactions=[*changes, degree],
+            space=space,
+            time=DiscreteTime(),
+        )
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the node-merging network of Kim and coauthors.
 
         Its merging of linked nodes builds hubs without growth.
@@ -133,4 +139,4 @@ class NodeMergingSystem(BaseSystem):
         merging = TopologyInteraction('merging', target='nodes', action='contract-edge', one=True)
         arrival = TopologyInteraction('arrival', action='add-node', edges=self.edges)
         capacity = 4 * self.edges * self.n_nodes
-        return self._system(self.label, self.n_nodes, NetworkSpace(graph), capacity, [merging, arrival])
+        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [merging, arrival])

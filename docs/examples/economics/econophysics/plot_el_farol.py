@@ -45,7 +45,7 @@ trajectory = simulate(system, until=WEEKS, observers=[observer], random_state=0)
 # predictor that becomes popular defeats itself. The running mean after the transient should approach 60.
 
 times = trajectory.times
-attendance = trajectory.values('attendance')
+attendance = trajectory.get_values('attendance')
 settled = attendance[TRANSIENT:]
 running = np.cumsum(settled) / np.arange(1, len(settled) + 1)
 fig, (series, histogram) = plt.subplots(1, 2, figsize=(10, 4))

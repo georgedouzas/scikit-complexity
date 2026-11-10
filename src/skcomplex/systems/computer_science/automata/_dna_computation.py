@@ -1,6 +1,9 @@
 """DNA computation: Adleman's test tube, which solves a Hamiltonian path.
 
 Random ligation of edge oligos into paths solves the problem.
+
+`ADLEMAN_EDGES` holds the directed links of the seven-node graph of Adleman's experiment, whose only Hamiltonian path is
+0 to 6 in order.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -15,7 +18,7 @@ import numpy as np
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
@@ -37,10 +40,6 @@ ADLEMAN_EDGES = (
     (5, 2),
     (5, 6),
 )
-"""The directed links of the seven-node graph of Adleman's experiment, whose only Hamiltonian path is 0 to 6 in
-order.
-"""
-
 EMPTY = -1
 
 
@@ -148,7 +147,7 @@ class LigationInteraction(Interaction):
 
         Every consumed strand is replaced with a fresh oligo.
         """
-        strands = system.agents('target', StrandView)
+        strands = system.get_agents('target', StrandView)
         rng = system.rng
         order = rng.permutation(len(strands))
         for first, second in zip(order[::2], order[1::2], strict=False):
@@ -159,9 +158,9 @@ class LigationInteraction(Interaction):
             joined = head.copy()
             joined[head_length : head_length + tail_length - 1] = tail[1:tail_length]
             strands[first].path = joined
-            strands[second].path = self._oligo(head.size, rng)
+            strands[second].path = self._get_oligo(head.size, rng)
 
-    def _oligo(self, size: int, rng: np.random.Generator) -> IntArray:
+    def _get_oligo(self, size: int, rng: np.random.Generator) -> IntArray:
         """Return a fresh edge oligo drawn uniformly from the links.
 
         It is a path of two nodes padded to the size.
@@ -171,7 +170,15 @@ class LigationInteraction(Interaction):
         return path
 
 
-def _solutions(paths: AnyArray, start: int, end: int, n_nodes: int) -> IntArray:
+def _get_adleman_solutions(paths: AnyArray) -> float:
+    """Return the number of strands that are the Hamiltonian path of Adleman's graph.
+
+    The path goes from node 0 to node 6.
+    """
+    return float(_get_solutions(paths, 0, 6, 7).sum())
+
+
+def _get_solutions(paths: AnyArray, start: int, end: int, n_nodes: int) -> IntArray:
     """Return the mask of the strands that pass Adleman's filters.
 
     They are the Hamiltonian paths from the start to the end.
@@ -184,27 +191,6 @@ def _solutions(paths: AnyArray, start: int, end: int, n_nodes: int) -> IntArray:
     sized = lengths == n_nodes
     covered = np.array([np.unique(path[path >= 0]).size == n_nodes for path in nodes])
     return starting & ending & sized & covered
-
-
-def _adleman_solutions(paths: AnyArray) -> float:
-    """Return the number of strands that are the Hamiltonian path of Adleman's graph.
-
-    The path goes from node 0 to node 6.
-    """
-    return float(_solutions(paths, 0, 6, 7).sum())
-
-
-def _filtered_counts(paths: AnyArray, start: int, end: int, n_nodes: int) -> list[int]:
-    """Return the numbers of strands left after each of Adleman's filters.
-
-    The filters are by start and end, length, and coverage.
-    """
-    nodes: IntArray = np.asarray(paths, dtype=np.int64)
-    lengths = (nodes >= 0).sum(axis=1)
-    rows = np.arange(len(nodes))
-    ends = (nodes[:, 0] == start) & (nodes[rows, np.maximum(lengths - 1, 0)] == end)
-    sized = ends & (lengths == n_nodes)
-    return [int(ends.sum()), int(sized.sum()), int(_solutions(nodes, start, end, n_nodes).sum())]
 
 
 class DNAComputationSystem(BaseSystem):
@@ -253,7 +239,7 @@ class DNAComputationSystem(BaseSystem):
     topics = ('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic')
     references = ('Adleman 1994', 'Raman 2021')
     until = 60
-    observables = (ObservableSpec('solutions', group='strands', variable='path', reduce=_adleman_solutions),)
+    observables = (ObservableSpec('solutions', group='strands', variable='path', reduce=_get_adleman_solutions),)
 
     def __init__(
         self,
@@ -272,7 +258,7 @@ class DNAComputationSystem(BaseSystem):
         self.end = end
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Adleman's DNA computation of a Hamiltonian path.
 
         It runs by random ligation of edge oligos in a test tube.
@@ -285,7 +271,7 @@ class DNAComputationSystem(BaseSystem):
         paths = np.full((self.n_strands, len(nodes)), EMPTY)
         paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
         strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[strands],
             interactions=[LigationInteraction('ligation', target='strands', edges=self.edges)],

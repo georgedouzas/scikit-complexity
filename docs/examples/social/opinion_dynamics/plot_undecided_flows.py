@@ -1,9 +1,9 @@
 """
 # Mean-field flows of the undecided
 
-The numbers of agents against, undecided, and for, with undecided agents joining either side and decided agents
-becoming undecided at rates that grow with the number of undecided. Below a critical population every agent ends on
-one side, and above it the surplus never makes up its mind.
+The system counts the agents against, undecided, and for. Undecided agents join either side, and decided agents become
+undecided, at rates that grow with the number of undecided. Below a critical population every agent ends on one side,
+and above it the surplus never makes up its mind.
 """
 
 # %%
@@ -32,10 +32,10 @@ sizes = np.linspace(20, 150, 14)
 finals = []
 for size in sizes:
     run = simulate(UndecidedFlowsSystem(n_agents=float(size)), until=200, dt=1.0)
-    finals.append(run.values('population.undecided')[-1])
+    finals.append(run.get_values('population.undecided')[-1])
 fig, (flows, critical) = plt.subplots(1, 2, figsize=(10, 4))
 for name, label in (('against', 'against A'), ('support', 'for B'), ('undecided', 'undecided C')):
-    flows.plot(trajectory.times, trajectory.values(f'population.{name}'), label=label)
+    flows.plot(trajectory.times, trajectory.get_values(f'population.{name}'), label=label)
 flows.set_xlabel('time')
 flows.set_ylabel('agents')
 flows.set_title('One hundred agents')

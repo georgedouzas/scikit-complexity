@@ -32,7 +32,7 @@ MIN_HYPEREDGE = 2
 
 @dataclass(frozen=True, eq=False)
 class TopologyRequestSpec(BaseSpec):
-    """Spec of a change of the topology of a network that a law requests.
+    """A spec of a change of the topology of a network that a law requests.
 
     The law requests it for every member or edge it runs for. A request is the target of an `UpdateLaw`, whose value is
     the probability that it fires at every step for the member or edge the law runs for, or of a `JumpLaw`, as

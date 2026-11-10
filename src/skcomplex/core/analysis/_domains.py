@@ -1,7 +1,4 @@
-"""Measure the domains of fields.
-
-The measures are their size, its growth in time, pattern wavelengths, and interface densities.
-"""
+"""Measure the domains of fields."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,16 +28,13 @@ SETTINGS = {
     'wavelength': {'spacing', 'times'},
     'interface-density': {'attribute', 'times'},
 }
-"""Settings every kind reads, besides `kind` and `variables`."""
-
 MIN_LINE_POINTS = 2
-
 TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)
 class DomainsResult:
-    """Domains of every frame of a field, or of the states on a network.
+    """A result of `domains`, the domains of a field or of states on a network.
 
     Args:
         frames:
@@ -106,6 +100,9 @@ def domains(
 
     A trajectory gives the frames of a lattice state and their times. An array is one frame, or one frame per entry of
     `times` along its first axis. A graph carries the states on its nodes for `'interface-density'`.
+
+    It appears in many fields. It measures the growth of magnetic domains after a quench, of opinion regions in a voter
+    model, and of phases in an alloy.
 
     Args:
         source:

@@ -12,20 +12,15 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import (
-    DiffusionInteraction,
-    LifeCycleInteraction,
-    MapInteraction,
-    MovementInteraction,
-    RelaxationInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
 from ....core.components.laws import Source
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 TRAIL = 'land/ground.V'
 
@@ -247,7 +242,7 @@ class ActiveWalkersSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _corners(width: int, height: int) -> list[tuple[int, int]]:
+    def _get_corners(width: int, height: int) -> list[tuple[int, int]]:
         """Return the four corner cells of a grid, the entry points of the walkers."""
         return [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
 
@@ -283,12 +278,12 @@ class ActiveWalkersSystem(BaseSystem):
         if not isinstance(walker, WalkerView):
             return {}
         here = cast('tuple[int, int]', walker.location)
-        goals = [corner for corner in self._corners(round(walker.width), round(walker.height)) if corner != here]
+        goals = [corner for corner in self._get_corners(round(walker.width), round(walker.height)) if corner != here]
         goal_x, goal_y = goals[int(system.rng.integers(len(goals)))]
         return {'goal_x': float(goal_x), 'goal_y': float(goal_y)}
 
     @staticmethod
-    def _arrived(walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _has_arrived(walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a walker stands at its goal."""
         del system
         return isinstance(walker, WalkerView) and walker.location == (round(walker.goal_x), round(walker.goal_y))
@@ -298,18 +293,18 @@ class ActiveWalkersSystem(BaseSystem):
 
         Such a walker leaves the green now.
         """
-        return self._arrived(walker, system) and isinstance(walker, WalkerView) and bool(walker.arrived)
+        return self._has_arrived(walker, system) and isinstance(walker, WalkerView) and bool(walker.arrived)
 
     def _walks(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a walker is away from its goal.
 
         Such a walker steps.
         """
-        return not self._arrived(walker, system)
+        return not self._has_arrived(walker, system)
 
     def _get_arrived(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return whether a walker stands at its goal at the end of its activation."""
-        return float(self._arrived(walker, system))
+        return float(self._has_arrived(walker, system))
 
     @staticmethod
     def _get_step(walker: AgentViewProtocol, system: SystemViewProtocol) -> object:
@@ -323,11 +318,11 @@ class ActiveWalkersSystem(BaseSystem):
         if not isinstance(walker, WalkerView):
             return None
         x, y = cast('tuple[int, int]', walker.location)
-        cells = cast('list[tuple[int, int]]', list(walker.neighbor_cells()))
+        cells = cast('list[tuple[int, int]]', list(walker.get_neighbor_cells()))
         goal = np.array([walker.goal_x - x, walker.goal_y - y])
         steps = np.array([(cell[0] - x, cell[1] - y) for cell in cells], dtype=float)
         lengths = np.hypot(steps[:, 0], steps[:, 1])
-        rises = np.array([system.field(TRAIL, cell) for cell in cells]) - system.field(TRAIL, (x, y))
+        rises = np.array([system.get_field(TRAIL, cell) for cell in cells]) - system.get_field(TRAIL, (x, y))
         slope = 2 * (steps / lengths[:, None] ** 2).T @ rises / len(cells)
         heading = goal / max(float(np.hypot(*goal)), 1e-12) + walker.attraction * slope
         alignment = steps @ heading / (lengths * max(float(np.hypot(*heading)), 1e-12))
@@ -335,7 +330,7 @@ class ActiveWalkersSystem(BaseSystem):
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 
     @staticmethod
-    def _steps(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
+    def _has_stepped(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
         """Return whether a walker stepped in its activation.
 
         It steps since it had not arrived at its goal before.
@@ -351,12 +346,12 @@ class ActiveWalkersSystem(BaseSystem):
         """
         if not isinstance(walker, WalkerView):
             return 0.0
-        return walker.intensity * (1 - system.field('target.G', cell) / walker.G_max)
+        return walker.intensity * (1 - system.get_field('target.G', cell) / walker.G_max)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         rng = np.random.default_rng(self.random_state)
-        corners = self._corners(self.size, self.size)
+        corners = self._get_corners(self.size, self.size)
         starts = rng.integers(len(corners), size=self.n_walkers)
         goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
         walkers = GroupElement(
@@ -378,22 +373,35 @@ class ActiveWalkersSystem(BaseSystem):
             space=LatticeSpace((self.size, self.size), boundary='reflecting'),
             values={'T': self.T},
         )
-        return System(
+        return CompositeSystem(
             self.label,
             systems=[
-                System('people', elements=[walkers], space=LatticeSpace((self.size, self.size), boundary='fixed')),
-                System(
+                CompositeSystem(
+                    'people',
+                    elements=[walkers],
+                    space=LatticeSpace((self.size, self.size), boundary='fixed'),
+                ),
+                CompositeSystem(
                     'land',
                     elements=[ground],
                     interactions=[
-                        RelaxationInteraction('fading', target='ground', state='G', time=self._get_durability),
-                        DiffusionInteraction('spreading', target='ground', state='V', coefficient=self._get_diffusion),
-                        RelaxationInteraction(
+                        RateInteraction(
+                            'fading',
+                            target='ground',
+                            state='G',
+                            rate=lambda s: -s.target.G / self._get_durability(s),
+                        ),
+                        RateInteraction(
+                            'spreading',
+                            target='ground',
+                            state='V',
+                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.V),
+                        ),
+                        RateInteraction(
                             'smoothing',
                             target='ground',
                             state='V',
-                            goal=self._get_structure,
-                            time=self._get_relaxation,
+                            rate=lambda s: (self._get_structure(s) - s.target.V) / self._get_relaxation(s),
                         ),
                     ],
                 ),
@@ -414,11 +422,11 @@ class ActiveWalkersSystem(BaseSystem):
                     into='G',
                     amount=self._get_footprint,
                     pairing='site',
-                    guard=self._steps,
+                    guard=self._has_stepped,
                     form='agent',
                     schedule='member',
                 ),
-                LifeCycleInteraction(
+                BirthDeathInteraction(
                     'renewal',
                     target='people/walkers',
                     death=self._waits,

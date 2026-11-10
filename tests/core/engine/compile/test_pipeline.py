@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import BasePass
 from skcomplex.core.engine.compile._compilation import Compilation
@@ -44,7 +44,7 @@ def test_passes_are_ordered_produced_refined_then_read():
         _pass('Refine', ('layout',), ('layout',)),
         _pass('Produce', ('nodes',), ('layout',)),
     ]
-    assert _names(PassCompiler._ordered(passes, present=['nodes'])) == ['Produce', 'Refine', 'Read']
+    assert _names(PassCompiler._get_ordered(passes, present=['nodes'])) == ['Produce', 'Refine', 'Read']
 
 
 def test_passes_keep_the_given_order_of_refiners():
@@ -54,30 +54,32 @@ def test_passes_keep_the_given_order_of_refiners():
         _pass('SecondElement', ('layout',), ('layout',)),
         _pass('FirstElement', ('layout',), ('layout',)),
     ]
-    assert _names(PassCompiler._ordered(passes)) == ['Produce', 'SecondElement', 'FirstElement']
+    assert _names(PassCompiler._get_ordered(passes)) == ['Produce', 'SecondElement', 'FirstElement']
 
 
 def test_ordering_names_a_missing_input():
     """Test that a field no pass produces and the compilation lacks names the pass that reads it."""
     with pytest.raises(PipelineError, match="Lower reads the field 'layout'"):
-        PassCompiler._ordered([_pass('Lower', ('layout',), ('lowered',))], present=['nodes'])
+        PassCompiler._get_ordered([_pass('Lower', ('layout',), ('lowered',))], present=['nodes'])
 
 
 def test_ordering_accepts_a_field_the_compilation_holds():
     """Test that a field the compilation holds needs no producer."""
-    assert _names(PassCompiler._ordered([_pass('Lower', ('layout',), ('lowered',))], present=['layout'])) == ['Lower']
+    assert _names(PassCompiler._get_ordered([_pass('Lower', ('layout',), ('lowered',))], present=['layout'])) == [
+        'Lower',
+    ]
 
 
 def test_ordering_rejects_two_producers():
     """Test that two passes producing one field are rejected."""
     with pytest.raises(PipelineError, match='both produce'):
-        PassCompiler._ordered([_pass('One', (), ('layout',)), _pass('Two', (), ('layout',))])
+        PassCompiler._get_ordered([_pass('One', (), ('layout',)), _pass('Two', (), ('layout',))])
 
 
 def test_ordering_rejects_a_cycle():
     """Test that passes reading each other's fields are rejected."""
     with pytest.raises(PipelineError, match='cycle'):
-        PassCompiler._ordered([_pass('One', ('b',), ('a',)), _pass('Two', ('a',), ('b',))])
+        PassCompiler._get_ordered([_pass('One', ('b',), ('a',)), _pass('Two', ('a',), ('b',))])
 
 
 def test_passes_run_only_what_a_field_needs():
@@ -91,7 +93,7 @@ def test_passes_run_only_what_a_field_needs():
     ]
     compiler = PassCompiler(passes=passes)
     compiler.passes_ = tuple(passes)
-    compilation = compiler._new_compilation(System())
+    compilation = compiler._get_new_compilation(CompositeSystem())
     compiler._run_passes(compilation, until='lowered')
     assert log == ['Layout', 'Lower']
     compiler._run_passes(compilation)

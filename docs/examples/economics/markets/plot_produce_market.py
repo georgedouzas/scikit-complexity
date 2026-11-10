@@ -41,8 +41,8 @@ steps = np.arange(N_STALLS + 1)
 
 def expected_left(trajectory):
     """Return the expected mean number of items left after every visit, for the stocks of the market."""
-    stocks = trajectory.agents('stalls', 0).values['stock'].astype(int)
-    lists = trajectory.agents('shoppers', 0).values['wanted'].astype(int)
+    stocks = trajectory.get_agents('stalls', 0).values['stock'].astype(int)
+    lists = trajectory.get_agents('shoppers', 0).values['wanted'].astype(int)
     missing = np.array([sum(not stock >> kind & 1 for stock in stocks) for kind in range(N_KINDS)])
     wanted = np.array([[wish >> kind & 1 for kind in range(N_KINDS)] for wish in lists])
     survival = np.array([[comb(m, t) / comb(N_STALLS, t) for m in missing] for t in steps])
@@ -54,10 +54,10 @@ for index, stocked in enumerate((3, 6, 9)):
     system = ProduceMarketSystem(n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, n_items_stocked=stocked, random_state=0)
     trajectory = simulate(system, until=N_STALLS, random_state=0)
     color = f'C{index}'
-    left.semilogy(steps, trajectory.values('items_left'), 'o', color=color, label=f'{stocked} kinds per stall')
+    left.semilogy(steps, trajectory.get_values('items_left'), 'o', color=color, label=f'{stocked} kinds per stall')
     left.semilogy(steps, MEAN_LIST * (1 - stocked / N_KINDS) ** steps, '--', color=color, lw=0.8)
     left.semilogy(steps, expected_left(trajectory), color=color)
-    spent.plot(steps, trajectory.values('spent'), 'o-', color=color, label=f'{stocked} kinds per stall')
+    spent.plot(steps, trajectory.get_values('spent'), 'o-', color=color, label=f'{stocked} kinds per stall')
 left.set_ylim(1e-3, 10)
 left.set_xlabel('stalls visited')
 left.set_ylabel('mean items left')

@@ -25,7 +25,7 @@ def test_shaken_spring_block_blocked_configurations():
         period = 2.0 + relax_time
         system = ShakenSpringBlockSystem(50, amplitude=amplitude, relax_time=relax_time).prepare().system_
         trajectory = simulate(system, until=12 * period, dt=period, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        positions, velocities = trajectory.values('chain.x')[1:], trajectory.values('chain.v')[1:]
+        positions, velocities = trajectory.get_values('chain.x')[1:], trajectory.get_values('chain.v')[1:]
         assert np.all(np.abs(velocities) <= 0.02)
         assert np.all(np.abs(np.diff(positions, n=2, axis=1)) < 1.0)
         statistics.append(_elongation_statistics(positions))
@@ -44,6 +44,6 @@ def test_shaken_spring_block_independent_anchored_blocks():
         solver=EulerMaruyamaSolver(dt=0.01),
         random_state=0,
     )
-    positions = trajectory.values('chain.x')[1:]
+    positions = trajectory.get_values('chain.x')[1:]
     assert np.all(np.abs(positions) < 0.5)
     assert np.abs(positions).max() > 0.3

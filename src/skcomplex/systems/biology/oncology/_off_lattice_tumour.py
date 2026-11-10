@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood, DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
@@ -165,18 +165,18 @@ class TumourGrowthInteraction(Interaction):
         """Age a cell, divide and invade if it is a cancer cell, and move it by its springs."""
         cell = cast('SpringCellView', agent)
         cell.age += 1.0
-        neighbours = [cast('SpringCellView', item) for item in cell.neighbors(over=DELAUNAY)]
+        neighbours = [cast('SpringCellView', item) for item in cell.get_neighbors(over=DELAUNAY)]
         if cell.cancer:
             self._divide(cell, system)
             self._invade(cell, neighbours, system)
         self._relax(cell, neighbours, system)
 
     @staticmethod
-    def _edge_distance(cell: SpringCellView, system: SystemViewProtocol) -> float:
+    def _get_edge_distance(cell: SpringCellView, system: SystemViewProtocol) -> float:
         """Return the distance of a cell to the nearest healthy cell, from a tree kept for the step."""
         storage = system.storage
         if storage.get('time') != system.time:
-            cells = [cast('SpringCellView', item) for item in system.agents('target')]
+            cells = [cast('SpringCellView', item) for item in system.get_agents('target')]
             healthy = [item.location for item in cells if not item.cancer]
             storage['time'] = system.time
             storage['tree'] = cKDTree(np.asarray(healthy, dtype=float)) if healthy else None
@@ -190,15 +190,15 @@ class TumourGrowthInteraction(Interaction):
         needed = cell.g_age1 if system.time < cell.tau * HOURS_PER_DAY else cell.g_age2
         if cell.age < needed:
             return
-        probability = max(0.0, cell.p0 * (1.0 - self._edge_distance(cell, system) / cell.dmax))
+        probability = max(0.0, cell.p0 * (1.0 - self._get_edge_distance(cell, system) / cell.dmax))
         if not system.draw('divide', 'bernoulli', p=probability):
             return
         angle = system.draw('direction', 'uniform', low=0.0, high=2.0 * math.pi)
         offset = DAUGHTER_DISTANCE / 2 * cell.s * np.array([math.cos(angle), math.sin(angle)])
         centre = np.asarray(cell.location, dtype=float)
         cell.age = 0.0
-        cell.move_to(self._inside(centre - offset, system))
-        cell.create(location=self._inside(centre + offset, system), cancer=1, age=0.0)
+        cell.move_to(self._get_inside(centre - offset, system))
+        cell.create(location=self._get_inside(centre + offset, system), cancer=1, age=0.0)
 
     @staticmethod
     def _invade(cell: SpringCellView, neighbours: list[SpringCellView], system: SystemViewProtocol) -> None:
@@ -226,13 +226,13 @@ class TumourGrowthInteraction(Interaction):
         cell.move_to(tuple(float(item) for item in moved))
 
     @staticmethod
-    def _inside(position: np.ndarray, system: SystemViewProtocol) -> tuple[float, ...]:
+    def _get_inside(position: np.ndarray, system: SystemViewProtocol) -> tuple[float, ...]:
         """Return a position clipped into the square, a small margin inside its edges."""
         sides = np.asarray(system.dimensions, dtype=float)
         return tuple(float(item) for item in np.clip(position, 1e-6, sides - 1e-6))
 
 
-def _tumour_area(cancer: np.ndarray) -> float:
+def _get_tumour_area(cancer: np.ndarray) -> float:
     """Return the tumour area, the number of cancer cells times the area of a hexagonal cell."""
     return float(np.sum(cancer)) * HEXAGON_AREA
 
@@ -289,7 +289,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
     topics = ('tumour growth', 'agents', 'off-lattice', 'springs', 'delaunay', 'stochastic')
     references = ('Wang et al. 2024', 'Jenner et al. 2020', 'Meineke et al. 2001')
     until = 240.0
-    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_tumour_area),)
+    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
 
     def __init__(
         self,
@@ -316,7 +316,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         self.lam = lam
         self.initial_radius = initial_radius
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the cells on a hexagonal layout with a cancer cluster at the centre."""
         side = float(self.side)
         rows, columns = np.arange(0.5, side, ROW_SPACING), np.arange(0.5, side - 0.5)
@@ -341,7 +341,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
             location=[tuple(item) for item in positions],
             variable=True,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[cells],
             interactions=[TumourGrowthInteraction('growth', target='cells')],

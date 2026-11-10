@@ -13,28 +13,21 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, LatticeElement
-from ....core.components.interactions import SamplingInteraction
+from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
-from ....core.specs import RowScoreSpec, StateSpec, VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ..._extras import import_extra
+from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 
 SYSTEM = 'rna_neutral_networks'
-
 EXTRA = 'rna'
-
 FOLD_CACHE = 2**18
-
 BASES = 'ACGU'
-
 LAST_BASE = len(BASES) - 1
-
 START = 'GGGGAAACCCCAUCGAUAGCGGGAAACCGC'
-
 TARGET = '((((...)))).......((((....))))'
-
 REGIMES = ('neutral', 'adaptive')
 
 
@@ -272,7 +265,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         fold = fold_sequence(read_sequence(row))[0]
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of walkers of RNA sequences."""
         import_extra('RNA', 'rna_neutral_networks', 'rna')
         if self.regime not in REGIMES:
@@ -288,19 +281,20 @@ class RNANeutralNetworksSystem(BaseSystem):
             bases = np.random.default_rng(self.seed).integers(0, len(BASES), size=(self.walkers, self.length))
         else:
             bases = np.tile([BASES.index(letter) for letter in self.start], (self.walkers, 1))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'walkers',
                     element=NucleotideElement,
                     space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
                     values={'base': bases},
                     visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
+                    on='sites',
                 ),
             ],
             interactions=[
-                SamplingInteraction(
+                SequenceSamplingInteraction(
                     'walk',
                     target='walkers',
                     state='base',

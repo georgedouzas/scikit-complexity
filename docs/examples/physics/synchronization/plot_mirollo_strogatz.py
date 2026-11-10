@@ -31,7 +31,7 @@ trajectory = simulate(system, observers=[observer])
 fig, ax = plt.subplots(figsize=(6, 4))
 for seed in range(3):
     run = simulate(MirolloStrogatzSystem(n_oscillators=30, epsilon=0.1, seed=seed), until=60)
-    charges = np.asarray(run.values('oscillators.x'))
+    charges = np.asarray(run.get_values('oscillators.x'))
     groups = [len(np.unique(np.round(frame, 6))) for frame in charges]
     ax.step(run.times, groups, where='post', label=f'seed {seed}')
 ax.set_xlabel('time')

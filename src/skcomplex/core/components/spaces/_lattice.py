@@ -1,7 +1,4 @@
-"""Define lattice spaces.
-
-They are boxes of Z^d or of the triangular lattice whose sites hold lattice group members.
-"""
+"""Define the space of a box of `Z^d` or of the triangular lattice."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,25 +12,29 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
+from ._ball import BallNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
-from ._box import BoxNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
-from ._moore import MooreNeighborhood
-from ._triangular import TriangularNeighborhood
-from ._von_neumann import VonNeumannNeighborhood
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')
+SQUARE_METRICS = ('chebyshev', 'manhattan')
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
 TRIANGULAR_DIMENSIONS = 2
 
 
 class LatticeSpace(BaseSpace):
-    """Box of `Z^d`, or of the triangular lattice in 2D, holding lattice group members.
+    """A space of a box of `Z^d`, or of the triangular lattice in two dimensions.
 
-    `Z^d` is the integer lattice, and the sites hold the members. Sites are numbered in row-major order, so site `(i,
-    j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular site `(i, j)` keeps its integer coordinates
-    on a skewed grid and sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
+    `Z^d` is the lattice of points with integer coordinates in `d` dimensions. The sites hold the members of a group and
+    are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A triangular
+    site `(i, j)` sits at `(j + i / 2, i sqrt(3) / 2)` in the plane, so it has six neighbours at unit distance.
+
+    Unlike `NetworkSpace`, whose links are arbitrary, it has regular neighbours, a shape, and a boundary. Choose it when
+    members sit on a grid of cells, or a field discretizes a partial differential equation.
+
+    It appears in many fields. Spins of a magnet sit on a square lattice, trees of a forest fire on a grid, and the
+    cells of a reaction diffusion model on a mesh of points.
 
     Args:
         shape:
@@ -52,19 +53,24 @@ class LatticeSpace(BaseSpace):
         spacing:
             The distance between neighbouring sites, or one distance per dimension.
 
-        neighborhood:
-            The neighbourhood agents on a two-dimensional square lattice query, `'moore'` for the 8 surrounding cells
-            or `'von_neumann'` for the 4 adjacent ones.
+        metric:
+            The metric of the ball of radius 1 that agents query. It is `'chebyshev'` for the 8 surrounding cells of a
+            two-dimensional square lattice or `'manhattan'` for the 4 adjacent ones, and `'hexagonal'` for the six
+            neighbours on a triangular lattice. `None` means `'chebyshev'` on a square lattice and `'hexagonal'` on a
+            triangular one.
 
         capacity:
             The largest number of agents in a cell, or `None` for no limit.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         spacings_:
             The distance between neighbouring sites along every dimension.
+
+        metric_:
+            The metric of the ball agents query.
 
     Examples:
         >>> from skcomplex.core.components.spaces import LatticeSpace
@@ -85,7 +91,7 @@ class LatticeSpace(BaseSpace):
         boundary: str = 'periodic',
         fill: float = 0.0,
         spacing: float | Sequence[float] = 1.0,
-        neighborhood: str = 'moore',
+        metric: str | None = None,
         capacity: int | None = None,
         label: str = 'space',
     ) -> None:
@@ -95,7 +101,7 @@ class LatticeSpace(BaseSpace):
         self.boundary = boundary
         self.fill = fill
         self.spacing = spacing
-        self.neighborhood = neighborhood
+        self.metric = metric
         self.capacity = capacity
 
     def _prepare(self, context: None = None) -> None:
@@ -119,6 +125,7 @@ class LatticeSpace(BaseSpace):
         if self.geometry == 'triangular' and len(shape) != TRIANGULAR_DIMENSIONS:
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
+        self._check_metric()
         self.shape_ = tuple(int(size) for size in np.ravel(self.shape).tolist())
         self.n_dim_ = len(self.shape_)
         self.size_ = int(np.prod(self.shape_))
@@ -133,30 +140,39 @@ class LatticeSpace(BaseSpace):
         self.positions_ = coordinates * np.asarray(self.spacings_)
         self.periodic_ = self.boundary == 'periodic'
         self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
+        if self.metric is not None:
+            self.metric_ = self.metric
+        else:
+            self.metric_ = 'chebyshev' if self.geometry == 'square' else 'hexagonal'
 
-    def _axis_boundary(self, axis: int) -> str:
+    def _check_metric(self) -> None:
+        """Raise an error for a metric the geometry of the lattice does not take.
+
+        A square lattice takes the Chebyshev or the Manhattan metric, and a triangular one the hexagonal metric.
+        """
+        metrics = SQUARE_METRICS if self.geometry == 'square' else ('hexagonal',)
+        if self.metric is not None and self.metric not in metrics:
+            error_msg = (
+                f'A {self.geometry} lattice has the metric {self.metric!r}. Use one of {", ".join(metrics)}, or None.'
+            )
+            raise ValidationError(error_msg)
+
+    def _get_axis_boundary(self, axis: int) -> str:
         """Return the edges of an axis, the one boundary of the lattice."""
         return self.boundary
 
-    def _with_edges(self, boundary: str, fill: float) -> LatticeSpace:
+    def _copy_with_edges(self, boundary: str, fill: float) -> LatticeSpace:
         """Return the sites of the lattice with other edges.
 
         The reads of a state with its own boundary use them.
         """
         return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
-    def _default_neighborhood(self) -> LatticeNeighborhood:
-        """Return the neighbourhood agents query.
+    def _get_default_neighborhood(self) -> LatticeNeighborhood:
+        """Return the neighbourhood agents query, the unit ball under the lattice metric."""
+        return BallNeighborhood(metric=self.metric_, n_dim=self.n_dim_)
 
-        It is the triangular, von Neumann, or Moore neighbourhood of radius 1.
-        """
-        if self.geometry == 'triangular':
-            return TriangularNeighborhood()
-        if self.neighborhood == 'von_neumann':
-            return VonNeumannNeighborhood(n_dim=self.n_dim_)
-        return MooreNeighborhood(n_dim=self.n_dim_)
-
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the member index of every neighbour of every site.
 
         Sites outside fixed edges get `size_`.
@@ -177,7 +193,7 @@ class LatticeSpace(BaseSpace):
             shifted = coordinates + np.asarray(offset)[:, None]
             outside = np.zeros(self.size_, dtype=bool)
             for axis, size in enumerate(self.shape_):
-                edges = self._axis_boundary(axis)
+                edges = self._get_axis_boundary(axis)
                 if edges == 'periodic':
                     shifted[axis] %= size
                 elif edges == 'reflecting':
@@ -190,14 +206,14 @@ class LatticeSpace(BaseSpace):
             table[:, column] = np.where(outside, self.size_, flat)
         return table
 
-    def _ball(self, radius: int) -> LatticeNeighborhood:
+    def _get_ball(self, radius: int) -> LatticeNeighborhood:
         """Return the box of offsets within a radius along every dimension.
 
-        The site itself is included.
+        It is the Chebyshev ball with the site itself in its lexicographic place, on both geometries.
         """
-        return BoxNeighborhood(radius, n_dim=self.n_dim_)
+        return BallNeighborhood(radius, n_dim=self.n_dim_, center='inline')
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites one step apart along a dimension.
 
         Each pair comes once.
@@ -207,7 +223,7 @@ class LatticeSpace(BaseSpace):
         for axis, length in enumerate(self.shape_):
             shifted = np.roll(sites, -1, axis=axis)
             pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
-            if self._axis_boundary(axis) != 'periodic':
+            if self._get_axis_boundary(axis) != 'periodic':
                 edge = np.indices(self.shape_)[axis].ravel() == length - 1
                 pairs = pairs[~edge]
             for first, second in pairs.tolist():

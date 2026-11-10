@@ -8,7 +8,7 @@ and over long times the particles diffuse, much more slowly than straight swimme
 """
 
 # %%
-# The system is built from its class with speed `v = 3`, angular velocity `omega = 2`, translational
+# The example builds `ChiralActiveParticlesSystem` with speed `v = 3`, angular velocity `omega = 2`, translational
 # diffusion `D_t = 0.1`, and rotational diffusion `D_r = 0.1` in a square of side 50. The Euler-Maruyama stepper takes
 # steps of 0.01 and the observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn
 # larger than the system's visual does, so they read in the gallery thumbnail.
@@ -47,17 +47,17 @@ trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], rando
 # Circling suppresses diffusion
 # -----------------------------
 # Van Teeffelen and Löwen derived the mean squared displacement of a chiral swimmer,
-# `4 D_t t + 2 v^2 / w^2 [D_r w t + (omega^2 - D_r^2) + exp(-D_r t) ((D_r^2 - omega^2) cos(omega t)
-# - 2 omega D_r sin(omega t))]` with `w = D_r^2 + omega^2`. It oscillates at the circling frequency before it turns
-# diffusive with the coefficient `D_t + v^2 D_r / (2 w)`, far below that of straight swimmers. Particles in a box far
-# larger than their circles should follow it for `omega = 0` and `omega = 2`.
+# `4 D_t t + 2 v^2 / w^2 [D_r w t + (omega^2 - D_r^2) + exp(-D_r t) h(t)]` with `w = D_r^2 + omega^2` and
+# `h(t) = (D_r^2 - omega^2) cos(omega t) - 2 omega D_r sin(omega t)`. It oscillates at the circling frequency before it
+# turns diffusive with the coefficient `D_t + v^2 D_r / (2 w)`, far below that of straight swimmers. Particles in a box
+# far larger than their circles should follow it for `omega = 0` and `omega = 2`.
 
 fig, ax = plt.subplots(figsize=(7, 4))
 rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
     system_o = ChiralActiveParticlesSystem(n_particles=500, omega=omega, size=1e5, random_state=1)
     run = simulate(system_o, until=40, solver=solver, dt=0.1, random_state=1)
-    positions = run.values('swimmers.x')
+    positions = run.get_values('swimmers.x')
     times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     w = rotation**2 + omega**2

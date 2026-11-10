@@ -7,9 +7,9 @@ route, and after two roads of it are cut, explores again and finds a new one.
 """
 
 # %%
-# The system is built from its class on a Delaunay network of 40 points, with the best path cut at round 50. The
-# observer saves every round with the default blueprint, whose primary view is the time series of the shortest path of
-# every round.
+# The example builds `AntColonyOptimizationSystem` on a Delaunay network of 40 points, with the best path cut at round
+# 50. The observer saves every round with the default blueprint, whose primary view is the time series of the shortest
+# path of every round.
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -32,14 +32,14 @@ trajectory = simulate(system, observers=[observer], random_state=0, until=100)
 # jump up when the best route is cut, and settle again near the new shortest path.
 
 search = system.interactions[0]
-is_open = trajectory.agents('roads', 100).values['passable']
-tau = trajectory.agents('roads', 100).values['tau']
+is_open = trajectory.get_agents('roads', 100).values['passable']
+tau = trajectory.get_agents('roads', 100).values['tau']
 graph = nx.Graph()
 for (first, second), length, kept in zip(search.edges, search.lengths, is_open, strict=True):
     graph.add_edge(first, second, weight=length if kept else np.inf)
 before = nx.Graph([(a, b, {'weight': length}) for (a, b), length in zip(search.edges, search.lengths, strict=True)])
 fig, (series, roads) = plt.subplots(1, 2, figsize=(11, 4.5))
-series.plot(trajectory.times, trajectory.values('search.shortest'), label='shortest path of a round')
+series.plot(trajectory.times, trajectory.get_values('search.shortest'), label='shortest path of a round')
 series.axhline(nx.shortest_path_length(before, search.start, search.target, weight='weight'), color='black', ls='--')
 series.axhline(nx.shortest_path_length(graph, search.start, search.target, weight='weight'), color='gray', ls=':')
 series.axvline(50, color='tab:red', alpha=0.5, label='cut')

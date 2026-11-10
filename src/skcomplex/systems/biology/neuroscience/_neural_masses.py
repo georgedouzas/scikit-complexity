@@ -16,12 +16,11 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import BaseSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 FIELDS = ('r', 's')
-
 SETUPS = ('ping', 'ing')
 
 
@@ -341,7 +340,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         self.I0 = I0
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the exact quadratic integrate-and-fire neural mass."""
         if self.setup not in SETUPS:
             error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {self.setup!r}.'
@@ -353,7 +352,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                 delta=0.3 if self.delta is None else self.delta,
                 H=2.0 if self.H_i is None else self.H_i,
             )
-            return System(
+            return CompositeSystem(
                 self.label,
                 elements=[population],
                 interactions=[
@@ -373,7 +372,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                 ],
             )
         width = 1.0 if self.delta is None else self.delta
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 NeuralMassElement('excitatory', tau=20.0, delta=width, H=self.H_e),

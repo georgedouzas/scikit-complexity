@@ -12,7 +12,8 @@ from ..engine.solvers import BaseSolver
 from ..errors import TagError
 from ..specs import ObservableSpec
 from ._results import ExperimentResult
-from ._runs import _build, _check_source, _run_experiment
+from ._runs import _check_source, _run_experiment
+from ._utils import build_system
 from .types import Output, Source
 
 
@@ -36,6 +37,9 @@ def ensemble(
     stochastic system are independent and reproducible, and the result reads them as an ensemble, one row per run and
     one column per common time. The system needs the randomness `stochastic`, or a solver that draws, such as
     `KineticSolver`, since the runs of a deterministic system by a deterministic solver repeat one another.
+
+    It appears in many fields. It estimates the spread of the outcomes of a stochastic epidemic, of a weather forecast,
+    and of the wealth of agents in a market model.
 
     Args:
         system:
@@ -94,7 +98,7 @@ def ensemble(
         >>> from skcomplex.core.experiments import ensemble
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
-        >>> result.column('seed').tolist()
+        >>> result.get_column('seed').tolist()
         [0, 1, 2]
 
         A deterministic system has nothing to repeat:
@@ -104,7 +108,7 @@ def ensemble(
         ...
         skcomplex.core.errors.TagError: ensemble needs the randomness stochastic, but SIRSystem has the randomness ...
     """
-    built = _build(_check_source(system), {})
+    built = build_system(_check_source(system), {})
     stepper = solver if solver is not None else built.get_run_settings()['solver']
     if built.get_tags().randomness == 'deterministic' and not getattr(stepper, 'draws', False):
         error_msg = (

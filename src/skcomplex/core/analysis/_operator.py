@@ -1,7 +1,4 @@
-"""Analyse an operator system.
-
-The analyses are its spectrum, its ground state, and the purity and entanglement of its trajectories.
-"""
+"""Analyse an operator system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +12,7 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..components.system import System
+from ..components.systems import CompositeSystem
 from ..engine.compile.passes._operator_compiler import DENSE_LIMIT, OperatorCompiler
 from ..engine.problems import BaseProblemSpec
 from ..engine.problems._operator_problem_spec import OperatorProblemSpec
@@ -33,17 +30,14 @@ SETTINGS = {
     'purity': set(),
     'entanglement': {'subsystems'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
-
 TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)
 class OperatorMeasuresResult:
-    """Spectrum or ground state of an operator system, or purity or entanglement.
+    """A result of `operator_measures`, a spectrum, state, or entanglement.
 
     The purity or the entanglement is that of the states of its trajectory.
 
@@ -107,6 +101,9 @@ def operator_measures(
     - `'entanglement'`: the von Neumann entropy of the reduced state of some subsystems at every frame of a
       trajectory, in nats.
 
+    It appears in physics and chemistry. It finds the energy levels of a molecule, the ground state of a chain of spins,
+    and the entanglement of two qubits.
+
     Args:
         source:
             The operator system or its compiled problem for `'spectrum'` and `'ground-state'`, or a trajectory of it.
@@ -148,7 +145,7 @@ def operator_measures(
         >>> from skcomplex.core.components.laws import GeneratorLaw
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> from skcomplex.core.specs import HilbertSpec, StateSpec
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
@@ -162,11 +159,11 @@ def operator_measures(
         ...
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> system = System(elements=[TwoLevelElement('q')])
+        >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
         >>> operator_measures(system, n_states=2).energies.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> pair = System(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
+        >>> pair = CompositeSystem(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
         >>> trajectory = simulate(pair, until=1.0, dt=1.0, initial_state={'system.state': singlet})
         >>> result = operator_measures(trajectory, kind='entanglement', subsystems=['pair[0]'])
         >>> bool(np.allclose(result.entropy, np.log(2)))
@@ -213,7 +210,7 @@ def operator_measures(
     return OperatorMeasuresResult(problem, energies=energies, states=states)
 
 
-def _operator_problem(system: System | BaseProblemSpec) -> OperatorProblemSpec:
+def _operator_problem(system: CompositeSystem | BaseProblemSpec) -> OperatorProblemSpec:
     """Return the operator problem of a system, compiling it when needed."""
     problem = system if isinstance(system, BaseProblemSpec) else OperatorCompiler().prepare(system).run().problem_
     if not isinstance(problem, OperatorProblemSpec):
@@ -272,7 +269,7 @@ def _states_of(trajectory: Trajectory) -> tuple[OperatorProblemSpec, npt.NDArray
     if not isinstance(problem, OperatorProblemSpec):
         error_msg = 'The trajectory is not the trajectory of an operator system.'
         raise AnalysisError(error_msg)
-    return problem, np.asarray(trajectory.values(problem.states.names[0]))
+    return problem, np.asarray(trajectory.get_values(problem.states.names[0]))
 
 
 def _lowest_states(
@@ -286,7 +283,7 @@ def _lowest_states(
     They are found through QuTiP, within a basis.
     """
     dimension = math.prod(problem.dimensions)
-    matrix = problem._generator_at(0.0, p)
+    matrix = problem._get_generator_at(0.0, p)
     indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
     matrix = sp.csr_array(matrix[indices][:, indices])
     count = min(k, indices.size)

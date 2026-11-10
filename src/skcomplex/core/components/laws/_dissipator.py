@@ -1,4 +1,4 @@
-"""Define dissipator laws, the Lindblad terms of a Markovian master equation."""
+"""Define the law that adds one Lindblad term to an open linear evolution."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,14 +11,21 @@ from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
 from ._base import BaseLaw
-from .utils import has_operator
+from .utils._local_operators import has_operator
 
 
 class DissipatorLaw(BaseLaw):
-    """Lindblad term of a Markovian master equation.
+    """A law that adds one Lindblad term, a collapse operator and its rate.
 
-    The term has a collapse operator and a rate. The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L)
-    / 2)`.
+    An open system loses coherence to its surroundings. The Lindblad master equation writes that loss as a sum of terms,
+    each with a collapse operator `L` and a rate. The law adds `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)` to the
+    rate of the density matrix `rho`.
+
+    Unlike `GeneratorLaw`, which adds a reversible part to the evolution, it adds an irreversible part that drives the
+    state toward a mixture. Choose it when the system exchanges energy or information with an environment.
+
+    It appears in quantum optics, where an atom decays by spontaneous emission and a cavity leaks photons, and in
+    quantum computing, where qubits lose their phase.
 
     Args:
         operator:

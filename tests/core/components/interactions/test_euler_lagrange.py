@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws import EquationLaw
 from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -73,9 +73,9 @@ def test_run_matches_the_equation_of_a_damped_driven_pendulum():
         dissipation=lambda s: DAMPING * derivative(s.target.q, 1) ** 2 / 2,
         forcing=lambda s: FORCE * cos(OMEGA * s.t),
     )
-    by_lagrangian = _run(System(elements=[AngleElement('bob')], interactions=[pendulum]), 10.0)
-    by_hand = _run(System(elements=[PendulumElement('bob')]), 10.0)
-    np.testing.assert_allclose(by_lagrangian.values('bob.q'), by_hand.values('bob.q'), atol=1e-7)
+    by_lagrangian = _run(CompositeSystem(elements=[AngleElement('bob')], interactions=[pendulum]), 10.0)
+    by_hand = _run(CompositeSystem(elements=[PendulumElement('bob')]), 10.0)
+    np.testing.assert_allclose(by_lagrangian.get_values('bob.q'), by_hand.get_values('bob.q'), atol=1e-7)
 
 
 def test_run_solves_a_mass_matrix_of_several_coordinates():
@@ -91,12 +91,12 @@ def test_run_solves_a_mass_matrix_of_several_coordinates():
             - (s.target.a**2 + s.target.b**2) / 2
         ),
     )
-    trajectory = _run(System(elements=[PairElement('pair')], interactions=[coupled]), 5.0)
+    trajectory = _run(CompositeSystem(elements=[PairElement('pair')], interactions=[coupled]), 5.0)
     inverse = np.linalg.inv(np.array([[1.0, 0.5], [0.5, 1.0]]))
     generator = np.block([[np.zeros((2, 2)), np.eye(2)], [-inverse, np.zeros((2, 2))]])
     expected = np.array([expm(generator * time) @ [1.0, 0.0, 0.0, 0.0] for time in trajectory.times])
-    np.testing.assert_allclose(trajectory.values('pair.a'), expected[:, 0], atol=1e-7)
-    np.testing.assert_allclose(trajectory.values('pair.b'), expected[:, 1], atol=1e-7)
+    np.testing.assert_allclose(trajectory.get_values('pair.a'), expected[:, 0], atol=1e-7)
+    np.testing.assert_allclose(trajectory.get_values('pair.b'), expected[:, 1], atol=1e-7)
 
 
 def test_run_rejects_a_forcing_of_another_size():
@@ -143,10 +143,10 @@ def test_run_adds_the_equations_of_one_coordinate_from_several_interactions():
         )
         for label in ('left', 'right')
     ]
-    system = System(
+    system = CompositeSystem(
         elements=[AngleElement('left', q=1.0), AngleElement('right', q=1.0)],
         interactions=[*free, SpringInteraction('spring', first='left', second='right')],
     )
     trajectory = simulate(system, until=1.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0)
-    np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
-    np.testing.assert_allclose(trajectory.values('right.q')[-1], np.cos(1.0), atol=1e-7)
+    np.testing.assert_allclose(trajectory.get_values('left.q')[-1], np.cos(1.0), atol=1e-7)
+    np.testing.assert_allclose(trajectory.get_values('right.q')[-1], np.cos(1.0), atol=1e-7)

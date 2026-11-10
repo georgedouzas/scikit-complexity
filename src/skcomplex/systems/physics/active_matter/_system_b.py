@@ -18,7 +18,7 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -187,7 +187,7 @@ class ActiveSystemBSystem(BaseSystem):
         self.D = D
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return Active System B+.
 
         It is the conserved field theory of the density of active particles.
@@ -201,7 +201,7 @@ class ActiveSystemBSystem(BaseSystem):
             'zeta': self.zeta,
             'D': self.D,
         }
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
         )

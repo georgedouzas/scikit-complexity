@@ -13,7 +13,7 @@ from .conftest import GRIGORCHUK_BALLS
 
 def _site_of(space, word):
     """Return the site reached from the identity along the letters of a word."""
-    return int(space._index_table(MemoryNeighborhood((word,)))[0, 0])
+    return int(space._get_index_table(MemoryNeighborhood((word,)))[0, 0])
 
 
 def test_grigorchuk_group_is_an_automaton_group():
@@ -45,7 +45,7 @@ def test_grigorchuk_level_quotients_run_periodic_rules():
     for level in (1, 2, 3, 4):
         space = CayleySpace(grigorchuk_group().PermGroupOnLevel(level)).prepare()
         sizes.append(space.size_)
-        assert (space._index_table(MemoryNeighborhood(('1', *space.generators_))) < space.size_).all()
+        assert (space._get_index_table(MemoryNeighborhood(('1', *space.generators_))) < space.size_).all()
     assert sizes == [2, 8, 128, 4096]
 
 

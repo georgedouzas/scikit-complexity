@@ -6,8 +6,8 @@ steps.
 """
 
 # %%
-# The system is built from its class and started with LacI on. The observer saves every step with the default
-# blueprint, whose primary view is the time series of LacI, TetR, and cI.
+# The example builds `BooleanRepressilatorSystem` and starts it with LacI on. The observer saves every step with the
+# default blueprint, whose primary view is the time series of LacI, TetR, and cI.
 
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ fig, axes = plt.subplots(3, 1, figsize=(8, 5), sharex=True)
 for ax, delay in zip(axes, (0, 1, 2), strict=False):
     trajectory = simulate(BooleanRepressilatorSystem(x=(1, 0, 0), delay=delay), until=48)
     for offset, name in enumerate(('LacI', 'TetR', 'cI')):
-        ax.step(trajectory.times, trajectory.values(f'{name}.x') + 1.5 * offset, where='post', label=name)
+        ax.step(trajectory.times, trajectory.get_values(f'{name}.x') + 1.5 * offset, where='post', label=name)
     ax.set_yticks([0.5, 2.0, 3.5], ['LacI', 'TetR', 'cI'])
     ax.set_title(f'delay {delay}: period {6 * (delay + 1)}', fontsize='medium')
 axes[-1].set_xlabel('step')

@@ -10,7 +10,7 @@ from ._base import BaseClock
 
 
 class RealTimeClock(BaseClock):
-    """Clock that advances simulated time at a fixed speed relative to wall time.
+    """A clock that advances simulated time at a fixed speed relative to wall time.
 
     The largest delay of a frame behind its due time is recorded in `max_lag_`.
 

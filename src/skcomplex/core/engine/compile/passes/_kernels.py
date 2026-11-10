@@ -1,7 +1,4 @@
-"""Lower the laws of every kernel spec into kernels.
-
-There is one kernel per law kind and component.
-"""
+"""Lower the laws of every kernel spec into kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,14 +29,14 @@ from ...problems._reference_spec import ReferenceSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
-from .._laws import _KERNEL_FREE_LAWS
+from .._laws import KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
-_ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
+ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
 
 
 class KernelsPass(BasePass):
-    """Pass that lowers the reduced laws into the kernels of every law kind."""
+    """A pass that lowers the reduced laws into the kernels of every law kind."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -56,8 +53,8 @@ class KernelsPass(BasePass):
             error_msg = 'KernelsPass reads the outputs that the passes of formalisms lowered, which no pass wrote.'
             raise PipelineError(error_msg)
         compilation.kernels = self._lower_laws(
-            Compilation._required(compilation.reduced, 'reduced'),
-            Compilation._required(compilation.layout, 'layout'),
+            Compilation._get_required(compilation.reduced, 'reduced'),
+            Compilation._get_required(compilation.layout, 'layout'),
             compilation.outputs,
         )
 
@@ -67,7 +64,7 @@ class KernelsPass(BasePass):
         named = value.arguments is None or value.relative
         given = () if named else value.arguments or ()
         arguments = tuple(
-            item for argument in given for item in KernelsPass._symbolic_components(argument, 1, owner) or []
+            item for argument in given for item in KernelsPass._get_symbolic_components(argument, 1, owner) or []
         )
         if len(arguments) != len(given):
             error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
@@ -93,7 +90,7 @@ class KernelsPass(BasePass):
         ]
 
     @staticmethod
-    def _outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
+    def _get_outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
         """Return the outputs of one law value for its target components.
 
         The law and component are the owner.
@@ -101,7 +98,7 @@ class KernelsPass(BasePass):
         if isinstance(value, CallSpec):
             value._check()
             return KernelsPass._call_outputs(value, targets, owner)
-        expressions = KernelsPass._symbolic_components(value, len(targets), owner)
+        expressions = KernelsPass._get_symbolic_components(value, len(targets), owner)
         if expressions is None:
             if not callable(value):
                 error_msg = f'A {owner} has the value {value!r}, which is not a symbolic expression or a function.'
@@ -153,7 +150,7 @@ class KernelsPass(BasePass):
             if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
-            keys = KernelsPass._assignment_keys(target)
+            keys = KernelsPass._get_assignment_keys(target)
             laws = assigned[keys[0]] + assigned[keys[1]]
             if laws and not KernelsPass._combines([*laws, law]):
                 error_msg = (
@@ -168,7 +165,7 @@ class KernelsPass(BasePass):
         return combined
 
     @staticmethod
-    def _assignment_keys(target: ReferenceSpec) -> tuple[tuple[object, ...], ...]:
+    def _get_assignment_keys(target: ReferenceSpec) -> tuple[tuple[object, ...], ...]:
         """Return the keys of the laws an assignment of a target meets and holds.
 
         It meets the first two and holds all but the first. The laws of every member of a group are held under the
@@ -193,14 +190,16 @@ class KernelsPass(BasePass):
             or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw)
         ):
             return False
-        if not all(reference.source is ReadKind.SINGLE for reference in spec._target_references(law._get_targets()[0])):
+        if not all(
+            reference.source is ReadKind.SINGLE for reference in spec._get_target_references(law._get_targets()[0])
+        ):
             return False
         expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
         sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
         return ReadKind.REDUCED in sources and ReadKind.MEMBER not in sources
 
     @staticmethod
-    def _single_references(spec: KernelSpec) -> dict[Expression, ReferenceSpec]:
+    def _get_single_references(spec: KernelSpec) -> dict[Expression, ReferenceSpec]:
         """Return the references of a spec without its group members.
 
         They serve laws that run once.
@@ -212,7 +211,7 @@ class KernelsPass(BasePass):
         }
 
     @staticmethod
-    def _law_outputs(
+    def _get_law_outputs(
         spec: KernelSpec,
         law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
         targets: list[ReferenceSpec],
@@ -232,11 +231,11 @@ class KernelsPass(BasePass):
                 'formalism, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
-        outputs = KernelsPass._outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')
+        outputs = KernelsPass._get_outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')
         if isinstance(law, NoiseLaw) and law.process is not None:
-            keys = NoisePass._process_keys(spec, law, declarations)
+            keys = NoisePass._get_process_keys(spec, law, declarations)
             outputs = [
-                replace(item, process=KernelsPass._noise_process(key, declarations.wieners))
+                replace(item, process=KernelsPass._get_noise_process(key, declarations.wieners))
                 for item, key in zip(outputs, keys, strict=True)
             ]
         return outputs
@@ -263,13 +262,13 @@ class KernelsPass(BasePass):
         for spec, laws in specs:
             outputs: dict[tuple[type, bool, str | None], list[OutputSpec]] = defaultdict(list)
             for law in laws:
-                if isinstance(law, _KERNEL_FREE_LAWS):
+                if isinstance(law, KERNEL_FREE_LAWS):
                     continue
                 if isinstance(law, JumpLaw):
-                    output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
+                    output = KernelsPass._get_outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                     jump_changes[id(output)] = [
                         (
-                            spec._target_references(target)[0],
+                            spec._get_target_references(target)[0],
                             increment if BaseLaw._is_function(increment) else float(SR(increment)),
                         )
                         for target, increment in (law.changes or {}).items()
@@ -280,16 +279,16 @@ class KernelsPass(BasePass):
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                     error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
-                targets = spec._target_references(law._get_targets()[0])
+                targets = spec._get_target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
                 reduced = isinstance(law, UpdateLaw) and spec.reduce is not None
                 phase = law.phase if isinstance(law, UpdateLaw) else None
                 combined = (
                     KernelsPass._check_assignments(spec, law, targets, assigned[(type(law), phase)], once=once)
-                    if isinstance(law, _ASSIGNED_KINDS) and not reduced
+                    if isinstance(law, ASSIGNED_KINDS) and not reduced
                     else set()
                 )
-                law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
+                law_outputs = KernelsPass._get_law_outputs(spec, law, targets, declarations, lowered_outputs)
                 law_outputs = [
                     replace(item, combined=True) if position in combined else item
                     for position, item in enumerate(law_outputs)
@@ -297,26 +296,26 @@ class KernelsPass(BasePass):
                 if reduced:
                     law_outputs = [replace(item, reduce=spec.reduce, counts=spec.counts) for item in law_outputs]
                 laws_of.update({id(item): (spec, law) for item in law_outputs})
-                outputs[(KernelsPass._kind_of(law), once, phase)].extend(law_outputs)
+                outputs[(KernelsPass._get_kind_of(law), once, phase)].extend(law_outputs)
             for (kind, once, _), kind_outputs in outputs.items():
                 kernels[kind].append(
                     LawKernel(
                         spec.owner,
                         declarations.time,
-                        KernelsPass._single_references(spec) if once else spec.references,
+                        KernelsPass._get_single_references(spec) if once else spec.references,
                         1 if once else spec.rows,
                         states,
                         layout_parameters=parameters,
                         pairs=spec.pairs,
                         outputs=kind_outputs,
-                        names=spec._relative_names(names),
+                        names=spec._get_relative_names(names),
                         stream=stream,
                     ).prepare(),
                 )
         return LoweredKernelsSpec(kernels, jump_changes, laws_of, stream=stream)
 
     @staticmethod
-    def _covariance_factor(covariance: object) -> npt.NDArray[np.float64]:
+    def _get_covariance_factor(covariance: object) -> npt.NDArray[np.float64]:
         """Return a factor `L` with `L L^T = C` of a covariance.
 
         It is found by Cholesky or, for a singular covariance, by eigenvalues.
@@ -329,7 +328,7 @@ class KernelsPass(BasePass):
             return vectors * np.sqrt(np.maximum(values, 0.0))
 
     @staticmethod
-    def _noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
+    def _get_noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
         """Return the named Wiener process of a process key.
 
         It holds the covariance factor of a `WienerProcessSpec`.
@@ -340,11 +339,11 @@ class KernelsPass(BasePass):
         if kind == 'local':
             return NoiseProcessSpec(key)
         wiener = wieners[owner]
-        factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
+        factor = None if wiener.covariance is None else KernelsPass._get_covariance_factor(wiener.covariance)
         return NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
-    def _kind_of(law: BaseLaw) -> type:
+    def _get_kind_of(law: BaseLaw) -> type:
         """Return the class of a law that decides its form.
 
         Every noise law counts as a noise law.
@@ -365,7 +364,7 @@ class KernelsPass(BasePass):
         return type(value).__module__.split('.')[0] == 'sympy'
 
     @staticmethod
-    def _sympy_error(value: object, owner: str) -> ValidationError:
+    def _get_sympy_error(value: object, owner: str) -> ValidationError:
         """Return the error of a SymPy value in a law."""
         error_msg = (
             f'A {owner} has the SymPy value {value}. Sage is the symbolic layer, so write the expression with the '
@@ -374,10 +373,10 @@ class KernelsPass(BasePass):
         return ValidationError(error_msg)
 
     @staticmethod
-    def _to_expression(component: object, owner: str) -> Expression:
+    def _convert_to_expression(component: object, owner: str) -> Expression:
         """Return a component as a Sage expression."""
         if KernelsPass._is_sympy(component):
-            raise KernelsPass._sympy_error(component, owner)
+            raise KernelsPass._get_sympy_error(component, owner)
         if isinstance(component, Expression):
             return component
         if isinstance(component, numbers.Number | np.number):
@@ -386,10 +385,10 @@ class KernelsPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _to_components(value: object, owner: str) -> list[object] | None:
+    def _convert_to_components(value: object, owner: str) -> list[object] | None:
         """Return the components of a symbolic value, or `None` for a callable."""
         if KernelsPass._is_sympy(value):
-            raise KernelsPass._sympy_error(value, owner)
+            raise KernelsPass._get_sympy_error(value, owner)
         if isinstance(value, FreeModuleElement):
             return list(value)
         if isinstance(value, Expression | numbers.Number | np.number):
@@ -405,7 +404,7 @@ class KernelsPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
+    def _get_symbolic_components(value: object, size: int, owner: str) -> list[Expression] | None:
         """Return the symbolic components of a law value.
 
         It is `None` when the value is a callable.
@@ -429,10 +428,10 @@ class KernelsPass(BasePass):
             ValidationError:
                 The value is a SymPy expression, is of an unknown type, or has the wrong size.
         """
-        components = KernelsPass._to_components(value, owner)
+        components = KernelsPass._convert_to_components(value, owner)
         if components is None:
             return None
-        expressions = [KernelsPass._to_expression(component, owner) for component in components]
+        expressions = [KernelsPass._convert_to_expression(component, owner) for component in components]
         if len(expressions) == 1 and size > 1:
             expressions *= size
         if len(expressions) != size:

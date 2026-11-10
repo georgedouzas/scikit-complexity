@@ -30,7 +30,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for label, flux in (('flat connection', 0.0), ('flux of pi', np.pi)):
     system_system = GaugeNetworkAgentsSystem(flux=flux)
     run = simulate(system_system, until=40)
-    ax.semilogy(run.times, run.values('energy') + 1e-16, label=label)
+    ax.semilogy(run.times, run.get_values('energy') + 1e-16, label=label)
 ax.set_xlabel('time')
 ax.set_ylabel('energy of the transported differences')
 ax.legend()

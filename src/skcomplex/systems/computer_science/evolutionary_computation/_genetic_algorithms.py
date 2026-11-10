@@ -13,21 +13,22 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import EvolutionInteraction, Interaction
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
+from ...general.agents import EvolutionInteraction
 
 N_SITUATIONS = 243
-
-
 N_ACTIONS = 7
-
-
 REGIMES = ('generational', 'circumstance')
+EMPTY, CAN, WALL = 0, 1, 2
+STAY, PICK_UP, RANDOM_MOVE = 4, 5, 6
+MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
+CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
 class StrategyView(AgentView):
@@ -82,18 +83,6 @@ class StrategyElement(Element):
         It types their states.
         """
         return StrategyView
-
-
-EMPTY, CAN, WALL = 0, 1, 2
-
-
-STAY, PICK_UP, RANDOM_MOVE = 4, 5, 6
-
-
-MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
-
-
-CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
 class RoomCleaningInteraction(Interaction):
@@ -154,7 +143,7 @@ class RoomCleaningInteraction(Interaction):
 
     def _score_agents(self, system: SystemView) -> None:
         """Set the score of every strategy of the target to its mean score in random rooms."""
-        agents = system.agents('target', StrategyView)
+        agents = system.get_agents('target', StrategyView)
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
@@ -196,7 +185,7 @@ class RoomCleaningInteraction(Interaction):
         )
 
     @staticmethod
-    def _new_rooms(rng: np.random.Generator, shape: tuple[int, ...], side: int, density: float) -> IntArray:
+    def _build_rooms(rng: np.random.Generator, shape: tuple[int, ...], side: int, density: float) -> IntArray:
         """Return square rooms surrounded by walls.
 
         Every inner cell holds a can with a probability.
@@ -206,7 +195,7 @@ class RoomCleaningInteraction(Interaction):
         return rooms
 
     @staticmethod
-    def _situations(rooms: IntArray, rows: IntArray, columns: IntArray) -> IntArray:
+    def _get_situations(rooms: IntArray, rows: IntArray, columns: IntArray) -> IntArray:
         """Return the index of what Robby sees.
 
         He sees north, south, east, west, and here, and the index is in base 3.
@@ -227,12 +216,12 @@ class RoomCleaningInteraction(Interaction):
     ) -> Array:
         """Return the mean score of every strategy over sessions of cleaning random rooms."""
         shape = (strategies.shape[0], sessions)
-        rooms = RoomCleaningInteraction._new_rooms(rng, shape, side, density)
+        rooms = RoomCleaningInteraction._build_rooms(rng, shape, side, density)
         rows, columns = np.ones(shape, dtype=np.int64), np.ones(shape, dtype=np.int64)
         scores = np.zeros(shape)
         index = np.indices(shape)
         for _ in range(actions):
-            action = strategies[index[0], RoomCleaningInteraction._situations(rooms, rows, columns)]
+            action = strategies[index[0], RoomCleaningInteraction._get_situations(rooms, rows, columns)]
             action = np.where(action == RANDOM_MOVE, rng.integers(0, 4, shape), action)
             here = rooms[(*index, rows, columns)]
             picking = action == PICK_UP
@@ -367,19 +356,19 @@ class CircumstanceInteraction(Interaction):
             laws:
                 The rule of the generation.
         """
-        return [RuleLaw(self._generation)]
+        return [RuleLaw(self._advance_generation)]
 
-    def _generation(self, system: SystemView) -> None:
+    def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.
 
         Their places are filled with children of survivors.
         """
-        agents = system.agents('target', AgedStrategyView)
+        agents = system.get_agents('target', AgedStrategyView)
         rng = system.rng
         ages = np.array([agent.age for agent in agents]) + 1
         scores = np.array([agent.score for agent in agents])
         dead = ages >= self.lifespan
-        if self._starving(system.time):
+        if self._is_starving(system.time):
             dead[np.argsort(scores, kind='stable')[: round(self.starvation * len(agents))]] = True
         survivors = np.flatnonzero(~dead)
         if not survivors.size:
@@ -389,14 +378,14 @@ class CircumstanceInteraction(Interaction):
             agent.age = float(age)
         for index in np.flatnonzero(dead):
             first, second = rng.choice(survivors, size=2)
-            agents[index].actions = self._child(strategies[first], strategies[second], rng)
+            agents[index].actions = self._get_child(strategies[first], strategies[second], rng)
             agents[index].age = 0.0
 
-    def _starving(self, time: float) -> bool:
+    def _is_starving(self, time: float) -> bool:
         """Return whether the starvation is on in the generation of a time."""
         return self.switch is None or int(time // self.switch) % 2 == 0
 
-    def _child(self, first: IntArray, second: IntArray, rng: np.random.Generator) -> IntArray:
+    def _get_child(self, first: IntArray, second: IntArray, rng: np.random.Generator) -> IntArray:
         """Return the child of two strategies.
 
         It takes the head of one and the tail of the other, with mutated actions.
@@ -498,7 +487,7 @@ class RobbyGASystem(BaseSystem):
         self.switch = switch
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
@@ -538,8 +527,8 @@ class RobbyGASystem(BaseSystem):
                 size=self.n_strategies,
                 values={'actions': actions, 'score': scores, 'age': ages},
             )
-            return System(self.label, elements=[strategies], interactions=[circumstance, scoring])
-        return System(
+            return CompositeSystem(self.label, elements=[strategies], interactions=[circumstance, scoring])
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

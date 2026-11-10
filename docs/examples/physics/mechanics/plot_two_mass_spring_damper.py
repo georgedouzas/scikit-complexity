@@ -31,7 +31,7 @@ trajectory = simulate(system, until=50, dt=0.1, observers=[observer])
 # `sqrt(3)` of the normal modes, dashed, and nothing else since the system is linear and undamped.
 
 run = simulate(TwoMassSpringDamperSystem(x1=1.2, x2=2.0), until=2000, dt=0.1)
-power = spectrum(np.ravel(run.values('first.x')) - 1.0, dt=0.1)
+power = spectrum(np.ravel(run.get_values('first.x')) - 1.0, dt=0.1)
 frequencies, density = power.frequencies, power.power[0]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(2 * np.pi * frequencies, density)

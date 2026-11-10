@@ -6,9 +6,9 @@ two thirds of the carrying capacity: the virus reduces the tumour but does not e
 """
 
 # %%
-# The system is built from its class, from a tenth of the capacity of uninfected cells and a trace of infected cells,
-# and runs for 60 growth times. The observer saves every second frame with the default blueprint, whose primary view
-# is the time series of the two populations.
+# The example builds `OncolyticVirusSystem`, from a tenth of the capacity of uninfected cells and a trace of infected
+# cells, and runs for 60 growth times. The observer saves every second frame with the default blueprint, whose primary
+# view is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +18,7 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import OncolyticVirusSystem
 
 SYSTEM = 'oncolytic_virus'
+
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 trajectory = simulate(OncolyticVirusSystem(), observers=[observer])
@@ -30,17 +31,17 @@ trajectory = simulate(OncolyticVirusSystem(), observers=[observer])
 # `AU = d / alpha - r AV = 1/3`. The trajectory should end on that point.
 
 alpha, r, d = 1.0, 0.5, 0.5
-AU, AV = trajectory.values('tumour.AU'), trajectory.values('tumour.AV')
+uninfected, infected = trajectory.get_values('tumour.AU'), trajectory.get_values('tumour.AV')
 grid = np.linspace(0, 1, 50)
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, AU, label='uninfected')
-series.plot(trajectory.times, AV, label='infected')
-series.plot(trajectory.times, AU + AV, '--', label='whole tumour')
+series.plot(trajectory.times, uninfected, label='uninfected')
+series.plot(trajectory.times, infected, label='infected')
+series.plot(trajectory.times, uninfected + infected, '--', label='whole tumour')
 series.set_xlabel('time')
 series.set_ylabel('cells (fraction of capacity)')
 series.set_title('The virus spreads and the tumour shrinks')
 series.legend()
-plane.plot(AU, AV, label='simulated')
+plane.plot(uninfected, infected, label='simulated')
 plane.plot(grid, (1 - grid) / (1 + alpha), ':', label='uninfected nullcline')
 plane.plot(grid, 1 - grid + (alpha * grid - d) / r, ':', label='infected nullcline')
 plane.plot(1 / 3, 1 / 3, 'o', color='black', label='coexistence point')

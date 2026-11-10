@@ -34,7 +34,7 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 def cooperators(simplices):
     """Return the share of cooperators at the end of a run."""
     run = simulate(SimplicialSocialDilemmasSystem(simplices=simplices), until=ROUNDS, random_state=0)
-    return np.asarray(run.values('players.strategy'))[-1].mean()
+    return np.asarray(run.get_values('players.strategy'))[-1].mean()
 
 
 shares = np.linspace(0.0, 1.0, 6)

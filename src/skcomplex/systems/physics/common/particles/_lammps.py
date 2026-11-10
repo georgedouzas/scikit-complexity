@@ -23,6 +23,11 @@ def _lennard_jones(value: Callable[[str], Array]) -> str:
     return f'{float(value("epsilon")[0])} {float(value("sigma")[0])}'
 
 
+LAMMPS_PAIRS: dict[type[BaseInteraction], tuple[str, PairArguments]] = {
+    LennardJonesInteraction: ('lj/cut', _lennard_jones),
+}
+
+
 def _addforce(fix: LammpsFixSpec) -> str:
     """Return the `fix addforce` command of a constant force."""
     force = [*map(float, fix.value('F')), 0.0, 0.0, 0.0]
@@ -40,9 +45,6 @@ def _langevin(fix: LammpsFixSpec) -> str:
     return f'fix {fix.name} {fix.group} langevin {temperature} {temperature} {fix.mass() / gamma} {fix.seed()}'
 
 
-LAMMPS_PAIRS: dict[type[BaseInteraction], tuple[str, PairArguments]] = {
-    LennardJonesInteraction: ('lj/cut', _lennard_jones),
-}
 LAMMPS_FIXES: dict[type[BaseInteraction], Callable[[LammpsFixSpec], str]] = {
     ConstantForceInteraction: _addforce,
     DampingInteraction: _viscous,

@@ -7,8 +7,8 @@ while the predators grow on the prey and decline after them.
 """
 
 # %%
-# The system is built from its class with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The observer
-# saves every step with the default blueprint, whose primary view is the image of the marks.
+# The example builds `StigmergicPredatorPreySystem` with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The
+# observer saves every step with the default blueprint, whose primary view is the image of the marks.
 
 import matplotlib.pyplot as plt
 
@@ -31,7 +31,7 @@ without = simulate(StigmergicPredatorPreySystem(emotions=False, random_state=0),
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, run, title in zip(axes, [trajectory, without], ['with emotions', 'without'], strict=True):
     for kind in ['plants', 'prey', 'predators']:
-        ax.plot(run.times, run.values(f'life/{kind}.count'), label=kind)
+        ax.plot(run.times, run.get_values(f'life/{kind}.count'), label=kind)
     ax.set_xlabel('step')
     ax.set_title(title)
 axes[0].set_ylabel('organisms')

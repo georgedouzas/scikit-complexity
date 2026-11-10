@@ -13,7 +13,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class NoiseProcessSpec(BaseSpec):
-    """Named Wiener process that a noise output draws.
+    """A spec of a named Wiener process that a noise output draws.
 
     It is shared by every output with the same key.
 

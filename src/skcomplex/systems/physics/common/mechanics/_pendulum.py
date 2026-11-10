@@ -16,7 +16,7 @@ from .....core.components.elements import Element
 from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
-def _pendulum_bob(theta: float, l: float, **_: float) -> list[list[float]]:
+def _get_pendulum_bob(theta: float, l: float, **_: float) -> list[list[float]]:
     """Return the position of the bob of a pendulum hanging from the origin."""
     return [[l * np.sin(theta), -l * np.cos(theta)]]
 
@@ -57,7 +57,7 @@ class PendulumElement(Element):
         2.0
     """
 
-    visual = VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True})
+    visual = VisualSpec('bodies', {'positions': _get_pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True})
 
     def __init__(
         self,

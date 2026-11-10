@@ -9,7 +9,7 @@ The members are joined through a shared medium.
 from collections.abc import Mapping, Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ..common.metabolism import CommunityInteraction, community_medium_type, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
@@ -55,7 +55,7 @@ class CommunityFBASystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import CommunityFBASystem
         >>> trajectory = simulate(CommunityFBASystem(), until=0.0)
-        >>> round(float(trajectory.values('medium.objective_0')[0]), 3)
+        >>> round(float(trajectory.get_values('medium.objective_0')[0]), 3)
         0.862
     """
 
@@ -79,7 +79,7 @@ class CommunityFBASystem(BaseSystem):
         self.exchanges = exchanges
         self.common_rate = common_rate
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of two members of the E. coli core system that share a medium."""
         shared = dict(self.exchanges) if self.exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
         members = []
@@ -88,12 +88,12 @@ class CommunityFBASystem(BaseSystem):
             member.objective = {}
             for reaction in shared:
                 if shared[reaction] >= 0:
-                    member.set_params(**{f'lower_{member._identifier(reaction)}': OPEN_UPTAKE})
+                    member.set_params(**{f'lower_{member._get_identifier(reaction)}': OPEN_UPTAKE})
             if knockout:
-                identifier = member._identifier(knockout)
+                identifier = member._get_identifier(knockout)
                 member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
             members.append(member)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[*members, community_medium_type(list(shared))('medium')],
             interactions=[

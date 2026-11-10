@@ -41,11 +41,11 @@ trajectory = simulate(IkedaSystem(), observers=[observer])
 gains = np.linspace(0.2, 2.0, 37)
 low, high = [], []
 for a in gains:
-    x = simulate(IkedaSystem(a=a), until=300).values('ikeda.x')[-500:]
+    x = simulate(IkedaSystem(a=a), until=300).get_values('ikeda.x')[-500:]
     low.append(x.min())
     high.append(x.max())
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory.values('ikeda.x'))
+series.plot(trajectory.times, trajectory.get_values('ikeda.x'))
 series.axhline(np.pi, color='black', linestyle=':')
 series.set_xlabel('time')
 series.set_ylabel('x')

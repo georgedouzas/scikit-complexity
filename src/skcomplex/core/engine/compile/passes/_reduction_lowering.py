@@ -1,7 +1,4 @@
-"""Lower the reductions of laws to placeholders compiled once each.
-
-Neighbourhood reductions are lowered too.
-"""
+"""Lower the reductions of laws to placeholders compiled once each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,20 +17,14 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws.utils import (
-    both,
-    cell_operations_in,
-    contractions_in,
-    hyperedges_in,
-    maximum,
-    neighborhoods_in,
-    reductions_in,
-)
+from ....components.laws.utils import both, maximum
+from ....components.laws.utils._cells import cell_operations_in
+from ....components.laws.utils._contractions import contractions_in
+from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
 from ....components.spaces import (
     AdjacencyNeighborhood,
     CellComplexSpace,
     CofaceNeighborhood,
-    ConeNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
     LatticeNeighborhood,
@@ -67,9 +58,9 @@ from ...problems._static_search import StaticSearch
 from ...types import ReadKind
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
-from .._complex import _modulus_form
 from .._observables import _HeldElement
 from ._cells import DEGREES, CellTables
+from ._complex import LowerComplexPass
 from ._hyperedges import HyperedgeTables
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
@@ -78,7 +69,7 @@ PAIRWISE_KINDS = ('sum', 'mean', 'count', 'max', 'min')
 
 
 class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """Lowering of the reductions of laws to placeholders compiled once each.
+    """A lowering of the reductions of laws to placeholders compiled once each.
 
     Neighbourhood reductions are lowered too. `prepare(compilation)` reads the layout and the drawn values of the
     compilation, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with every reduction
@@ -135,7 +126,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         super()._prepare(context)
         draws = self.compilation_.draws
-        self.declarations_ = Compilation._required(self.compilation_.layout, 'layout')
+        self.declarations_ = Compilation._get_required(self.compilation_.layout, 'layout')
         self.drawn_ = draws.size if draws else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
@@ -183,7 +174,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 for target, value in (law.reset or {}).items()
             }
             guard = law.guard if BaseLaw._is_function(law.guard) else self._lower(SR(law.guard), spec)
-            return BasePass._replaced(law, guard=guard, reset=reset if law.reset is not None else None)
+            return BasePass._get_replaced(law, guard=guard, reset=reset if law.reset is not None else None)
         if isinstance(law, JumpLaw):
             return JumpLaw(self._lower(law.rate, spec), law.changes)
         if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
@@ -194,7 +185,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             value = replace(value, arguments=arguments)
         else:
             value = self._lower(value, spec)
-        return BasePass._replaced(law, value=value)
+        return BasePass._get_replaced(law, value=value)
 
     def _lower(self, value: object, spec: KernelSpec) -> object:
         """Return a law value with every reduction replaced by its placeholder.
@@ -212,17 +203,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         cells = cell_operations_in(value)
         if not found and not local and not around and not contracted and not cells:
             return value
-        placeholders = {call: self._contraction(call, spec) for call in contracted}
-        placeholders.update({call: self._cell_operation(call, spec) for call in cells})
-        placeholders.update({item.call: self._placeholder(item, spec) for item in found})
-        placeholders.update({item.call: self._neighborhood(item, spec) for item in local})
-        placeholders.update({item.call: self._hyperedges(item, spec) for item in around})
+        placeholders = {call: self._get_contraction(call, spec) for call in contracted}
+        placeholders.update({call: self._get_cell_operation(call, spec) for call in cells})
+        placeholders.update({item.call: self._get_placeholder(item, spec) for item in found})
+        placeholders.update({item.call: self._get_neighborhood(item, spec) for item in local})
+        placeholders.update({item.call: self._get_hyperedges(item, spec) for item in around})
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
-        return _modulus_form(lowered)
+        return LowerComplexPass._get_modulus_form(lowered)
 
-    def _group_of(self, item: Expression, spec: KernelSpec) -> str | None:
+    def _get_group_of(self, item: Expression, spec: KernelSpec) -> str | None:
         """Return the group, element set, or element a reduction symbol stands for.
 
         The symbol stands for its members.
@@ -231,22 +222,22 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return spec.sets[item].label
         if item in self.by_symbol_ or item in self.local_:
             return self.readers_[item]
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.OTHER}:
             return None
         owner = reference.entry.name.rpartition('.')[0]
         return owner if owner in self.declarations_.blocks else None
 
-    def _group(self, reduction: ReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str | None:
+    def _get_group(self, reduction: ReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str | None:
         """Return the one group a reduction reduces over.
 
         It first checks that it reads no second group.
         """
-        groups = {group for item in symbols if (group := self._group_of(item, spec)) is not None}
+        groups = {group for item in symbols if (group := self._get_group_of(item, spec)) is not None}
         over = None
         if reduction.over is not None:
-            over = self._group_of(reduction.over, spec)
-            reference = self._reference_of(reduction.over, spec)
+            over = self._get_group_of(reduction.over, spec)
+            reference = self._get_reference_of(reduction.over, spec)
             if over is None and reference is not None:
                 over = reference.entry.name.rpartition('.')[0]
             if over is not None:
@@ -264,7 +255,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return spec.group
         return next((item.label for item in spec.sets.values()), None)
 
-    def _read(self, item: Expression, spec: KernelSpec, group: str | None, size: int) -> ReadSpec:
+    def _read(self, item: Expression, spec: KernelSpec, group: str | None) -> ReadSpec:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item in spec.sets:
             references = spec.sets[item].references
@@ -290,7 +281,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 )
                 raise ValidationError(error_msg)
             return ReadSpec(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
@@ -303,7 +294,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return ReadSpec(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
         return ReadSpec(reference.is_state, entry.start + reference.column, entry, reference.column)
 
-    def _members(self, group: str | None, spec: KernelSpec) -> tuple[int, EntrySpec | None]:
+    def _get_members(self, group: str | None, spec: KernelSpec) -> tuple[int, EntrySpec | None]:
         """Return the size of a group and an entry that gives its size.
 
         It is `None` for an element set.
@@ -317,7 +308,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         references = next(item.references for item in spec.sets.values() if item.label == group)
         return len(references), None
 
-    def _weights(
+    def _get_weights(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -333,7 +324,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         readers = len(next(iter(spec.sets.values())).references) if spec.sets else spec.rows
         weights = reduction.weights
         if isinstance(weights, Expression):
-            return self._weights_read(reduction, spec, weights, (readers, size))
+            return self._get_weights_read(reduction, spec, weights, (readers, size))
         if not isinstance(weights, scipy.sparse.sparray | scipy.sparse.spmatrix):
             weights = np.asarray(weights, dtype=float)
             if weights.ndim == 1 and len(weights) == size:
@@ -348,7 +339,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(weights, dtype=float)
 
-    def _weights_read(
+    def _get_weights_read(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -359,7 +350,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
         It first checks its shape.
         """
-        reference = self._reference_of(weights, spec)
+        reference = self._get_reference_of(weights, spec)
         entry = reference.entry if reference is not None else None
         if entry is None or entry.shape != shape:
             given = 'not a shaped parameter' if entry is None else f'of the shape {entry.shape}'
@@ -373,7 +364,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         return ReadSpec(reference.is_state if reference is not None else False, indices, entry)
 
     @staticmethod
-    def _held_reduction(
+    def _get_held_reduction(
         reduction: ReductionSpec,
         agents: Mapping[Expression, tuple[str, str]],
         time: Expression,
@@ -439,12 +430,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             None if reduction.condition is None else SR(reduction.condition),
         )
 
-    def _held(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression | None:
+    def _get_held(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression | None:
         """Return the state of the element that holds a reduction of agents.
 
         It is `None` for a reduction of elements.
         """
-        held = self._held_reduction(reduction, self.declarations_.agents, self.declarations_.time, spec.owner)
+        held = self._get_held_reduction(reduction, self.declarations_.agents, self.declarations_.time, spec.owner)
         if held is None:
             return None
         block = next(
@@ -470,16 +461,16 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, value, ReferenceSpec(block.entries['value'], True, 0, ReadKind.SINGLE))
         return value
 
-    def _placeholder(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_placeholder(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction.
 
         It is the state that holds a reduction of agents, or its complex parts.
         """
-        held = self._held(reduction, spec)
+        held = self._get_held(reduction, spec)
         if held is not None:
             return held
         if not SR(reduction.argument).has(I):
-            return self._compiled(reduction, spec)
+            return self._get_compiled(reduction, spec)
         if reduction.kind not in {'sum', 'mean'}:
             error_msg = (
                 f'The reduction {reduction.call} of {spec.owner} reduces a complex expression, which only total and '
@@ -487,15 +478,15 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         argument = SR(reduction.argument)
-        real = self._compiled(replace(reduction, argument=argument.real_part()), spec)
-        imaginary = self._compiled(replace(reduction, argument=argument.imag_part()), spec)
+        real = self._get_compiled(replace(reduction, argument=argument.real_part()), spec)
+        imaginary = self._get_compiled(replace(reduction, argument=argument.imag_part()), spec)
         return real + I * imaginary
 
-    def _reduced_group(self, reduction: ReductionSpec, spec: KernelSpec, others: set[Expression]) -> str:
+    def _get_reduced_group(self, reduction: ReductionSpec, spec: KernelSpec, others: set[Expression]) -> str:
         """Return the one group whose members the `other` symbols of a reduction stand for."""
-        groups = {self._owner_of(item, spec) for item in others}
+        groups = {self._get_owner_of(item, spec) for item in others}
         if reduction.over is not None:
-            groups.add(self._group_of(reduction.over, spec) or self._owner_of(reduction.over, spec))
+            groups.add(self._get_group_of(reduction.over, spec) or self._get_owner_of(reduction.over, spec))
         if len(groups) != 1 or None in groups:
             names = ' and '.join(sorted(group or 'no group' for group in groups))
             error_msg = (
@@ -505,12 +496,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise RoleError(error_msg)
         return str(next(iter(groups)))
 
-    def _owner_of(self, item: Expression, spec: KernelSpec) -> str | None:
+    def _get_owner_of(self, item: Expression, spec: KernelSpec) -> str | None:
         """Return the path of the element or group a symbol of a spec reads.
 
         It is `None` for an unknown symbol.
         """
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         return None if reference is None else reference.entry.name.rpartition('.')[0]
 
     def _reads_reader(self, item: Expression, spec: KernelSpec) -> bool:
@@ -520,25 +511,25 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         if item in self.local_ or item in self.by_symbol_:
             return self.readers_[item] is not None
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         return reference is not None and reference.source is ReadKind.MEMBER
 
-    def _pairwise_read(self, item: Expression, spec: KernelSpec, readers: str | None) -> PairReadSpec:
+    def _get_pairwise_read(self, item: Expression, spec: KernelSpec, readers: str | None) -> PairReadSpec:
         """Return how a reduction that reads `other` reads one symbol.
 
         It reads it shared, of the reader, or of the other member.
         """
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return PairReadSpec(self._read(item, spec, readers, 0), 'reader')
+            return PairReadSpec(self._read(item, spec, readers), 'reader')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
-        reference = self._reference_of(item, spec)
+            return PairReadSpec(self._read(item, spec, None), 'shared')
+        reference = self._get_reference_of(item, spec)
         if reference is not None and reference.source is ReadKind.SINGLE:
             return PairReadSpec(
                 ReadSpec(reference.is_state, reference.index, reference.entry, reference.column),
                 'shared',
             )
-        owner = self._owner_of(item, spec)
+        owner = self._get_owner_of(item, spec)
         sides = {ReadKind.OTHER: 'other', ReadKind.MEMBER: 'reader'}
         side = sides.get(reference.source) if reference is not None else None
         if reference is None or side is None or (side == 'reader' and owner != readers):
@@ -552,7 +543,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
         return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
 
-    def _weighted_pairwise_form(
+    def _get_weighted_pairwise_form(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -578,7 +569,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return reduction.kind, argument, selected * weights
 
-    def _pair_weights_read(
+    def _get_pair_weights_read(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -592,10 +583,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if not isinstance(weights, Expression):
             return {}
         readers = self.declarations_.blocks[spec.group].rows if spec.group is not None else 1
-        read = self._weights_read(reduction, spec, weights, (readers, self.declarations_.blocks[group].rows))
+        read = self._get_weights_read(reduction, spec, weights, (readers, self.declarations_.blocks[group].rows))
         return {weights: PairReadSpec(read, 'pair')}
 
-    def _pairwise_form(
+    def _get_pairwise_form(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -614,7 +605,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         selected = SR(1) if condition is None else SR(condition)
         if reduction.weights is not None:
-            return self._weighted_pairwise_form(reduction, spec, argument, selected, condition)
+            return self._get_weighted_pairwise_form(reduction, spec, argument, selected, condition)
         if reduction.kind == 'count':
             return 'sum', selected, SR(1)
         if reduction.kind == 'mean' and condition is not None:
@@ -627,7 +618,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return reduction.kind, argument, selected
 
-    def _pairwise(
+    def _get_pairwise(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -641,15 +632,15 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         the other symbols of the reading group for the reading member, so the reduction runs over every pair of a
         reading member and a member of the reduced group.
         """
-        group = self._reduced_group(reduction, spec, others)
+        group = self._get_reduced_group(reduction, spec, others)
         if group in self.declarations_.capacity:
             error_msg = (
                 f'The reduction {reduction.call} of {spec.owner} reads `other` over the variable group {group}, whose '
                 'members come and go. Reduce over a group of fixed members.'
             )
             raise ValidationError(error_msg)
-        kind, argument, weight = self._pairwise_form(reduction, spec, argument, condition)
-        weighted = self._pair_weights_read(reduction, spec, group)
+        kind, argument, weight = self._get_pairwise_form(reduction, spec, argument, condition)
+        weighted = self._get_pair_weights_read(reduction, spec, group)
         symbols = symbols_of([argument, weight]) - {self.declarations_.time, *weighted}
         readers = spec.group
         rows = self.declarations_.blocks[readers].rows if readers is not None else 1
@@ -658,7 +649,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if key not in self.neighbourhoods_:
             indptr = (np.arange(rows + 1) * size).astype(np.intp)
             search = StaticSearch(indptr, np.tile(np.arange(size, dtype=np.intp), rows)).prepare()
-            reads = {item: self._pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)} | weighted
+            reads = {item: self._get_pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)} | weighted
             index = len(self.neighbourhoods_)
             shape, members = ((rows,), rows) if readers is not None else ((), None)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, shape, RR, members)
@@ -681,7 +672,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _separated(
+    def _get_separated(
         self,
         reduction: ReductionSpec,
         spec: KernelSpec,
@@ -714,14 +705,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             key = str(other)
             total = parts.get(key, (other, SR(0)))[1]
             parts[key] = (other, total + reader)
-        if len(parts) >= self.declarations_.blocks[self._reduced_group(reduction, spec, others)].rows:
+        if len(parts) >= self.declarations_.blocks[self._get_reduced_group(reduction, spec, others)].rows:
             return None
         reduced = [
-            reader * self._compiled(replace(reduction, argument=other), spec) for other, reader in parts.values()
+            reader * self._get_compiled(replace(reduction, argument=other), spec) for other, reader in parts.values()
         ]
         return SR(sum(reduced, SR(0)))
 
-    def _compiled(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_compiled(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction of a real expression.
 
         It is compiled the first time it is found.
@@ -732,21 +723,21 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         others = {
             item
             for item in symbols
-            if (reference := self._reference_of(item, spec)) is not None and reference.source is ReadKind.OTHER
+            if (reference := self._get_reference_of(item, spec)) is not None and reference.source is ReadKind.OTHER
         }
         if any(self._reads_reader(item, spec) for item in symbols - others) and others:
-            separated = self._separated(reduction, spec, argument, others) if condition is None else None
+            separated = self._get_separated(reduction, spec, argument, others) if condition is None else None
             if separated is not None:
                 return separated
-            return self._pairwise(reduction, spec, argument, condition, others)
-        group = self._group(reduction, spec, symbols)
-        activity = MaskRequestsPass._activity_symbol(spec, group) if group in self.declarations_.capacity else None
+            return self._get_pairwise(reduction, spec, argument, condition, others)
+        group = self._get_group(reduction, spec, symbols)
+        activity = MaskRequestsPass._get_activity_symbol(spec, group) if group in self.declarations_.capacity else None
         if activity is not None:
             present = SR(activity) > ACTIVE_THRESHOLD
             condition = present if condition is None else both(condition, present)
             symbols.add(activity)
-        size, members = self._members(group, spec)
-        weights = self._weights(reduction, spec, group, size)
+        size, members = self._get_members(group, spec)
+        weights = self._get_weights(reduction, spec, group, size)
         canonical = {item: spec.sets[item].canonical for item in symbols if item in spec.sets}
         argument_key = argument.subs(canonical) if canonical else argument
         condition_key = condition.subs(canonical) if canonical and condition is not None else condition
@@ -759,7 +750,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)
             placeholder = symbol(f'_reduced_{index}')
             reads = {
-                canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
+                canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)
             }
             compiled = ReductionKernel(
                 placeholder,
@@ -785,13 +776,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, column, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _tensor_entry(self, call: Expression, spec: KernelSpec) -> tuple[ReferenceSpec, EntrySpec]:
+    def _get_tensor_entry(self, call: Expression, spec: KernelSpec) -> tuple[ReferenceSpec, EntrySpec]:
         """Return the reference and the entry of the tensor of a contraction.
 
         It first checks its order and readers.
         """
         tensor, *factors = call.operands()
-        reference = self._reference_of(tensor, spec)
+        reference = self._get_reference_of(tensor, spec)
         block = self.declarations_.blocks.get(spec.group) if spec.group is not None else None
         rows = block.rows if block is not None else None
         entry = reference.entry if reference is not None else None
@@ -806,7 +797,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return cast(ReferenceSpec, reference), entry
 
-    def _axis_reads(
+    def _get_axis_reads(
         self,
         factor: Expression,
         axis: int,
@@ -819,7 +810,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         of the index `axis` of every combination of members.
         """
         symbols = sorted(symbols_of([factor]) - {self.declarations_.time}, key=str)
-        group = self._group(ReductionSpec(factor, 'sum', factor, None, None, None), spec, set(symbols))
+        group = self._get_group(ReductionSpec(factor, 'sum', factor, None, None, None), spec, set(symbols))
         if group is not None and group in self.declarations_.capacity:
             error_msg = (
                 f'A contraction of {spec.owner} reads the variable group {group}, whose members come and go. '
@@ -829,7 +820,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         renamed: dict[Expression, Expression] = {}
         reads: dict[Expression, ReadSpec] = {}
         for item in symbols:
-            read = self._read(item, spec, group, sizes[axis])
+            read = self._read(item, spec, group)
             if read.per_member and len(cast(Indices, read.index)) != sizes[axis]:
                 error_msg = (
                     f'The expression {factor} of index {axis + 1} of a contraction of {spec.owner} reads '
@@ -847,19 +838,19 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             reads[name] = ReadSpec(read.is_state, np.ascontiguousarray(index))
         return SR(factor).subs(renamed), reads
 
-    def _contraction(self, call: Expression, spec: KernelSpec) -> Expression:
+    def _get_contraction(self, call: Expression, spec: KernelSpec) -> Expression:
         """Return the placeholder of a contraction.
 
         It is a sum over every combination of members weighted by the tensor.
         """
-        reference, entry = self._tensor_entry(call, spec)
+        reference, entry = self._get_tensor_entry(call, spec)
         key = ('contraction', str(call), spec.group)
         if key not in self.found_:
             factors = [SR(self._lower(item, spec)) for item in call.operands()[1:]]
             rows, sizes = entry.shape[0], tuple(entry.shape[1:])
             argument, reads = SR(1), dict[Expression, ReadSpec]()
             for axis, factor in enumerate(factors):
-                expression, axis_reads = self._axis_reads(factor, axis, sizes, spec)
+                expression, axis_reads = self._get_axis_reads(factor, axis, sizes, spec)
                 argument, reads = argument * expression, reads | axis_reads
             size = math.prod(sizes)
             matrix = replace(entry, shape=(rows, size))
@@ -886,7 +877,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _neighbor_group(
+    def _get_neighbor_group(
         self,
         reduction: NeighborReductionSpec | HyperedgeReductionSpec,
         spec: KernelSpec,
@@ -898,16 +889,16 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         groups = set()
         for item in symbols:
-            reference = self._reference_of(item, spec)
+            reference = self._get_reference_of(item, spec)
             if item in self.local_:
                 groups.add(self.local_[item].group)
             elif item in self.by_symbol_ and self.readers_[item] is not None:
                 groups.add(str(self.readers_[item]))
             elif reference is not None and reference.source in {ReadKind.MEMBER, ReadKind.OTHER}:
                 groups.add(reference.entry.name.rpartition('.')[0])
-        groups = {group for group in groups if group in self.declarations_.groups and not self._on_edges(group)} or (
-            {spec.group} if spec.group is not None else set()
-        )
+        groups = {
+            group for group in groups if group in self.declarations_.groups and not self._get_on_edges(group)
+        } or ({spec.group} if spec.group is not None else set())
         if len(groups) != 1:
             names = ' and '.join(sorted(groups)) or 'no group'
             error_msg = (
@@ -917,11 +908,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise RoleError(error_msg)
         return next(iter(groups))
 
-    def _on_edges(self, group: str) -> bool:
+    def _get_on_edges(self, group: str) -> bool:
         """Check whether a group lives on the edges of a network."""
         return getattr(self.declarations_.blocks[group].node.component, 'on', None) == 'edges'
 
-    def _edge_read(self, reference: ReferenceSpec, spec: KernelSpec, group: str, over: object) -> PairReadSpec:
+    def _get_edge_read(self, reference: ReferenceSpec, spec: KernelSpec, group: str, over: object) -> PairReadSpec:
         """Return how a neighbourhood reduction reads a state of its edge group.
 
         The edge group is that of its layer, and it reads it per pair of neighbours.
@@ -930,7 +921,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         edges = self.declarations_.blocks[entry.name.rpartition('.')[0]]
         nodes = self.declarations_.blocks[group]
         layer = getattr(over, 'layer', None)
-        same = isinstance(over, AdjacencyNeighborhood) and SpecsPass._group_space(edges) is SpecsPass._group_space(
+        same = isinstance(over, AdjacencyNeighborhood) and SpecsPass._get_group_space(
+            edges,
+        ) is SpecsPass._get_group_space(
             nodes,
         )
         if not same or getattr(edges.node.component, 'layer', None) != layer:
@@ -942,7 +935,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
         return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), 'edge')
 
-    def _pair_read(
+    def _get_pair_read(
         self,
         item: Expression,
         spec: KernelSpec,
@@ -954,11 +947,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
         It reads it shared, of the reading member, or of the neighbour.
         """
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return PairReadSpec(self._read(item, spec, group, 0), 'reader')
+            return PairReadSpec(self._read(item, spec, group), 'reader')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+            return PairReadSpec(self._read(item, spec, None), 'shared')
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
@@ -971,8 +964,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return PairReadSpec(read, 'shared')
         entry = reference.entry
         owner = entry.name.rpartition('.')[0]
-        if owner != group and owner in self.declarations_.blocks and self._on_edges(owner):
-            return self._edge_read(reference, spec, group, over)
+        if owner != group and owner in self.declarations_.blocks and self._get_on_edges(owner):
+            return self._get_edge_read(reference, spec, group, over)
         if owner != group:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over the members of {group} reads {item} of another group. '
@@ -986,14 +979,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
         return PairReadSpec(read, 'other', image)
 
-    def _cell_place(self, item: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace] | None:
+    def _get_cell_place(self, item: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace] | None:
         """Return the degree and the cell complex of a symbol.
 
         It is `None` for a value shared by every cell.
         """
         if item in self.cells_:
             return self.cells_[item]
-        reference = self._reference_of(item, spec)
+        reference = self._get_reference_of(item, spec)
         if reference is None or reference.source is ReadKind.SINGLE:
             return None
         block = self.declarations_.blocks.get(reference.entry.name.rpartition('.')[0])
@@ -1007,13 +1000,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return DEGREES[part], space
 
-    def _cell_argument(self, argument: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace]:
+    def _get_cell_argument(self, argument: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace]:
         """Return the one degree and cell complex of an exterior calculus argument.
 
         They are those of the symbols of the argument.
         """
         symbols = symbols_of([argument]) - {self.declarations_.time}
-        places = {place for place in (self._cell_place(item, spec) for item in symbols) if place is not None}
+        places = {place for place in (self._get_cell_place(item, spec) for item in symbols) if place is not None}
         if len({(degree, id(space)) for degree, space in places}) != 1:
             error_msg = (
                 f'A law of {spec.owner} applies the exterior calculus to {argument}, which needs the states of cells '
@@ -1022,7 +1015,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return next(iter(places))
 
-    def _cell_read(self, item: Expression, spec: KernelSpec, reader: str | None = None) -> PairReadSpec:
+    def _get_cell_read(self, item: Expression, spec: KernelSpec, reader: str | None = None) -> PairReadSpec:
         """Return how a kernel over the cells of a matrix reads one symbol.
 
         It reads it shared, of the cell, or of the reader.
@@ -1032,8 +1025,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             indices = (local.entry.start + np.arange(local.entry.size)).astype(np.intp)
             return PairReadSpec(ReadSpec(False, indices, local.entry), 'reader' if local.group == reader else 'other')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
-        reference = self._reference_of(item, spec)
+            return PairReadSpec(self._read(item, spec, None), 'shared')
+        reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'The exterior calculus of {spec.owner} reads {item}, which is not a state or parameter of a member of '
@@ -1048,7 +1041,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         side = 'reader' if entry.name.rpartition('.')[0] == reader else 'other'
         return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
 
-    def _cell_kernel(
+    def _get_cell_kernel(
         self,
         key: tuple[object, ...],
         spec: KernelSpec,
@@ -1085,7 +1078,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if key not in self.neighbourhoods_:
             symbols = symbols_of([argument, weight]) - {self.declarations_.time}
             reads = {
-                item: self._cell_read(item, spec, group if not signed else None) for item in sorted(symbols, key=str)
+                item: self._get_cell_read(item, spec, group if not signed else None)
+                for item in sorted(symbols, key=str)
             }
             indptr = matrix.indptr.astype(np.intp)
             search = StaticSearch(indptr, matrix.indices.astype(np.intp)).prepare()
@@ -1111,7 +1105,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _cell_operation(self, call: Expression, spec: KernelSpec) -> Expression:
+    def _get_cell_operation(self, call: Expression, spec: KernelSpec) -> Expression:
         """Return the placeholder of a call of the exterior calculus.
 
         It is 0 for an exterior derivative applied twice.
@@ -1120,23 +1114,23 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         inner = SR(call.operands()[0])
         twice = name == 'exterior_derivative' and getattr(inner.operator(), 'name', lambda: '')() == name
         argument = SR(self._lower(inner.operands()[0] if twice else inner, spec))
-        degree, space = self._cell_argument(argument, spec)
+        degree, space = self._get_cell_argument(argument, spec)
         if twice:
-            CellTables.exterior_derivative_of(space, degree + 1)
+            CellTables.get_exterior_derivative_of(space, degree + 1)
             return SR(0)
         if name == 'exterior_derivative':
-            matrix, reached = CellTables.exterior_derivative_of(space, degree), degree + 1
+            matrix, reached = CellTables.get_exterior_derivative_of(space, degree), degree + 1
         elif name == 'codifferential':
-            matrix, reached = CellTables.codifferential_of(space, degree, self.declarations_), degree - 1
+            matrix, reached = CellTables.get_codifferential_of(space, degree, self.declarations_), degree - 1
         else:
-            matrix, reached = CellTables.hodge_star_of(space, degree, self.declarations_), degree
-        group = CellTables.group_at(space, reached, self.declarations_)
+            matrix, reached = CellTables.get_hodge_star_of(space, degree, self.declarations_), degree
+        group = CellTables.get_group_at(space, reached, self.declarations_)
         key = ('cell', name, str(argument), degree, id(space))
-        placeholder = self._cell_kernel(key, spec, ('sum', argument, SR(1), group), matrix)
+        placeholder = self._get_cell_kernel(key, spec, ('sum', argument, SR(1), group), matrix)
         self.cells_[placeholder] = (reached, space)
         return placeholder
 
-    def _coface(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_coface(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction over the cofaces of every member.
 
         The members are those of a group on a cell complex.
@@ -1153,17 +1147,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         argument = SR(self._lower(reduction.argument, spec))
         weight = SR(1) if reduction.weight is None else SR(self._lower(reduction.weight, spec))
-        matrix = abs(CellTables.exterior_derivative_of(space, DEGREES[part])).T.tocsr()
+        matrix = abs(CellTables.get_exterior_derivative_of(space, DEGREES[part])).T.tocsr()
         key = ('coface', reduction.kind, str(argument), str(weight), group)
-        return self._cell_kernel(key, spec, (reduction.kind, argument, weight, group), matrix, signed=False)
+        return self._get_cell_kernel(key, spec, (reduction.kind, argument, weight, group), matrix, signed=False)
 
-    def _neighborhood(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_neighborhood(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a neighbourhood reduction.
 
         It is compiled the first time it is found.
         """
         if isinstance(reduction.over, CofaceNeighborhood):
-            return self._coface(reduction, spec)
+            return self._get_coface(reduction, spec)
         argument = SR(self._lower(reduction.argument, spec))
         weight = SR(1) if reduction.weight is None else SR(self._lower(reduction.weight, spec))
         if argument.has(I) or weight.has(I):
@@ -1173,10 +1167,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         symbols = symbols_of([argument, weight]) - {self.declarations_.time}
-        group = self._neighbor_group(reduction, spec, symbols)
+        group = self._get_neighbor_group(reduction, spec, symbols)
         block = self.declarations_.blocks[group]
         over = (
-            reduction.over if reduction.over is not None else NeighborhoodKernel._default_neighborhood(block.node.space)
+            reduction.over
+            if reduction.over is not None
+            else NeighborhoodKernel._get_default_neighborhood(block.node.space)
         )
         if over is None:
             error_msg = (
@@ -1188,7 +1184,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if key not in self.neighbourhoods_:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             changing = (
-                self.declarations_.changing_entries(SpecsPass._group_space(block))
+                self.declarations_.get_changing_entries(SpecsPass._get_group_space(block))
                 if block.node.active is not None
                 else None
             )
@@ -1199,7 +1195,6 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 | MemoryNeighborhood
                 | RadiusNeighborhood
                 | NearestNeighborhood
-                | ConeNeighborhood
                 | DelaunayNeighborhood,
             ):
                 error_msg = (
@@ -1209,7 +1204,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 )
                 raise ValidationError(error_msg)
             over = over.prepare()
-            search = NeighborhoodKernel._neighbor_search(
+            search = NeighborhoodKernel._get_neighbor_search(
                 over,
                 block.node.space,
                 block.rows,
@@ -1217,7 +1212,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 states,
                 changing=changing,
             )
-            reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
+            reads = {item: self._get_pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
             compiled = NeighborhoodKernel(
@@ -1239,7 +1234,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _hyperedges(self, reduction: HyperedgeReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_hyperedges(self, reduction: HyperedgeReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction over the hyperedges around every member.
 
         It is the sum of one reduction per size. Over a neighbourhood, the hyperedges are the sets of current neighbours
@@ -1269,7 +1264,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         argument = SR(reduction.argument)
         weight = SR(1) if reduction.weight is None else SR(reduction.weight)
-        group = self._neighbor_group(reduction, spec, symbols_of([argument, weight]) - {self.declarations_.time})
+        group = self._get_neighbor_group(reduction, spec, symbols_of([argument, weight]) - {self.declarations_.time})
         space = self.declarations_.blocks[group].node.space
         if reduction.over is not None and reduction.size is not None:
             if not isinstance(space, ContinuousSpace) or group in self.declarations_.capacity:
@@ -1279,7 +1274,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                     'in a continuous space.'
                 )
                 raise ValidationError(error_msg)
-            return self._hyperedge_kernel(reduction, spec, group, (reduction.kind, argument, weight), reduction.size)
+            return self._get_hyperedge_kernel(
+                reduction,
+                spec,
+                group,
+                (reduction.kind, argument, weight),
+                reduction.size,
+            )
         if not isinstance(space, NetworkSpace) or not space.hyperedges_:
             error_msg = (
                 f'The hyperedge reduction {reduction.call} of {spec.owner} reads {group}, which lives on {space!r}. '
@@ -1303,7 +1304,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if reduction.size is not None:
             sizes = [reduction.size]
         if len(sizes) == 1:
-            return self._hyperedge_kernel(reduction, spec, group, (reduction.kind, argument, weight), sizes[0])
+            return self._get_hyperedge_kernel(reduction, spec, group, (reduction.kind, argument, weight), sizes[0])
         if reduction.kind not in {'sum', 'mean', 'count'}:
             error_msg = (
                 f'The hyperedge reduction {reduction.call} of {spec.owner} runs on the hyperedges of the sizes '
@@ -1312,14 +1313,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         kind = 'sum' if reduction.kind == 'mean' else reduction.kind
-        parts = [self._hyperedge_kernel(reduction, spec, group, (kind, argument, weight), size) for size in sizes]
+        parts = [self._get_hyperedge_kernel(reduction, spec, group, (kind, argument, weight), size) for size in sizes]
         combined = SR(sum(parts, SR(0)))
         if reduction.kind != 'mean':
             return combined
-        numbers = [self._hyperedge_kernel(reduction, spec, group, ('sum', SR(1), SR(1)), size) for size in sizes]
+        numbers = [self._get_hyperedge_kernel(reduction, spec, group, ('sum', SR(1), SR(1)), size) for size in sizes]
         return combined / maximum(SR(sum(numbers, SR(0))), 1)
 
-    def _hyperedge_kernel(
+    def _get_hyperedge_kernel(
         self,
         reduction: HyperedgeReductionSpec,
         spec: KernelSpec,
@@ -1359,10 +1360,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 reduction over them, the neighbour `other`, or a complex expression.
         """
         kind, argument, weight = terms
-        columns, positions = HyperedgeTables._around(spec, ReadKind.OTHER)
+        columns, positions = HyperedgeTables._get_around(spec, ReadKind.OTHER)
         focal = {item: symbol(f'{item}__focal', domain_of(item)) for item in columns}
         slots = {item: [focal[item], *others[: size - 1]] for item, others in columns.items()}
-        expansions = HyperedgeTables._expansions_over(slots, [argument, weight])
+        expansions = HyperedgeTables._get_expansions_over(slots, [argument, weight])
         argument, weight = SR(argument).subs(expansions), SR(weight).subs(expansions)
         argument, weight = SR(self._lower(argument, spec)), SR(self._lower(weight, spec))
         symbols = symbols_of([argument, weight]) - {self.declarations_.time}
@@ -1379,10 +1380,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         block = self.declarations_.blocks[group]
         key = ('hyperedges', kind, str(argument), str(weight), size, repr(reduction.over), group)
         if key not in self.neighbourhoods_:
-            search, tables = self._hyperedge_search(reduction, block, size)
+            search, tables = self._get_hyperedge_search(reduction, block, size)
             sources = {value: item for item, value in focal.items()}
             reads = {
-                item: self._hyperedge_read(item, spec, group, search, (sources, positions, tables))
+                item: self._get_hyperedge_read(item, spec, group, search, (sources, positions, tables))
                 for item in sorted(symbols, key=str)
             }
             index = len(self.neighbourhoods_)
@@ -1407,13 +1408,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _hyperedge_search(
+    def _get_hyperedge_search(
         self,
         reduction: HyperedgeReductionSpec,
         block: BlockSpec,
         size: int,
     ) -> tuple[StaticSearch | MetricSearch, list[Indices] | None]:
-        """Return the search of the hyperedges around every member and the tables of their other members.
+        """Return the hyperedge search around every member and the tables of other members.
 
         On a network, the search runs over the incidences of the hyperedges of the size, and the tables give the other
         member at every position. Over a neighbourhood, the search finds the current neighbours, which the kernel forms
@@ -1434,14 +1435,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                 The search, and the tables of the other members, or `None` over a neighbourhood.
         """
         if reduction.over is None:
-            indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
+            indptr, tables = HyperedgeTables._get_incidences(cast(NetworkSpace, block.node.space), size)
             return StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).prepare(), tables
         states = declarations_of(block.node.component_type, VariableKind.STATE)
-        over = cast(RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood, reduction.over).prepare()
-        search = NeighborhoodKernel._neighbor_search(over, block.node.space, block.rows, block.entries, states)
+        over = cast(RadiusNeighborhood | NearestNeighborhood, reduction.over).prepare()
+        search = NeighborhoodKernel._get_neighbor_search(over, block.node.space, block.rows, block.entries, states)
         return cast(MetricSearch, search), None
 
-    def _hyperedge_read(
+    def _get_hyperedge_read(
         self,
         item: Expression,
         spec: KernelSpec,
@@ -1481,14 +1482,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         sources, positions, tables = slots
         if item not in sources and item not in positions:
-            reference = self._reference_of(item, spec)
+            reference = self._get_reference_of(item, spec)
             if reference is not None and reference.source is ReadKind.OTHER:
                 error_msg = (
                     f'The hyperedge reduction of {spec.owner} reads {item}, the neighbour `other` of the member. Read '
                     'the other members of a hyperedge with `others`.'
                 )
                 raise ValidationError(error_msg)
-            return self._pair_read(item, spec, group, search)
+            return self._get_pair_read(item, spec, group, search)
         reference = spec.references[sources.get(item, item)]
         entry = reference.entry
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)

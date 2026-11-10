@@ -7,9 +7,9 @@ switch to their fitter allele, while loci with weak fields keep flipping between
 """
 
 # %%
-# The system is built from its class with 96 loci, random fields of standard deviation 0.01, no couplings, and the
-# per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with the
-# default blueprint, whose primary view is the space-time image of the alleles.
+# The example builds `OriginFixationWalkSystem` with 96 loci, random fields of standard deviation 0.01, no couplings,
+# and the per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with
+# the default blueprint, whose primary view is the space-time image of the alleles.
 
 import itertools
 
@@ -46,7 +46,7 @@ alleles = simulate(
     until=5000,
     dt=1.0,
     random_state=0,
-).values(
+).get_values(
     'genome.s',
 )[100:]
 visited = np.bincount(((alleles > 0) * 2 ** np.arange(4)).sum(axis=1).astype(int), minlength=16)
@@ -56,7 +56,7 @@ couplings = built.interactions[0].couplings
 fitness = 1.0 + genomes @ built.elements[0].values['h'] + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
 
 fig, (climb, law) = plt.subplots(1, 2, figsize=(10, 4))
-climb.plot(trajectory.times, trajectory.values('fitness'), label='simulated')
+climb.plot(trajectory.times, trajectory.get_values('fitness'), label='simulated')
 climb.axhline(1 + np.abs(fields).sum(), color='black', linestyle='--', label='peak of the landscape')
 climb.axhline(stationary, color='black', linestyle=':', label='stationary f*')
 climb.set_xlabel('time')

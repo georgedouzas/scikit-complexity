@@ -6,7 +6,7 @@ steady slow rate, the precession, while the inner ring nods rapidly by a tiny an
 """
 
 # %%
-# The system is built from its class with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
+# The example builds `GimballedGyroscopeSystem` with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
 # unit torque on the axis of the inner ring, and runs for 10 time units. The blueprint shows the angle of the outer
 # ring, which falls at the steady precession rate, over the whole run.
 
@@ -46,10 +46,14 @@ trajectory = simulate(system, observers=[observer])
 
 early = trajectory.times <= 0.5
 spins = np.array([25.0, 50.0, 100.0, 200.0])
-rates = [simulate(GimballedGyroscopeSystem(spin=spin)).values('gyroscope.alpha')[-1] / 10 for spin in spins]
+rates = [simulate(GimballedGyroscopeSystem(spin=spin)).get_values('gyroscope.alpha')[-1] / 10 for spin in spins]
 grid = np.linspace(20.0, 220.0, 100)
 fig, (nutation, law) = plt.subplots(1, 2, figsize=(10, 4))
-nutation.plot(trajectory.times[early], trajectory.values('gyroscope.alpha_d1')[early], label="precession rate alpha'")
+nutation.plot(
+    trajectory.times[early],
+    trajectory.get_values('gyroscope.alpha_d1')[early],
+    label="precession rate alpha'",
+)
 nutation.axhline(-1 / (2 * 50 * np.cos(0.3)), color='black', linestyle='--', label='mean rate')
 nutation.set_xlabel('time')
 nutation.set_ylabel("alpha'")

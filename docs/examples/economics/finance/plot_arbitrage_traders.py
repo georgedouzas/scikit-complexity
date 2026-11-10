@@ -3,7 +3,7 @@
 
 Schwichtenberg's gauge theory of arbitrage: traders carry a good on random walks along a line of markets, and the
 exchange rates between neighbouring markets act as a connection that the density of the good couples to. Without an
-arbitrage opportunity the good just diffuses, but a growing exchange-rate gradient, the field strength `E`, makes the
+arbitrage opportunity the good only diffuses, but a growing exchange-rate gradient, the field strength `E`, makes the
 traders drift towards the profitable direction faster and faster.
 """
 
@@ -38,7 +38,7 @@ trajectory = simulate(system, until=UNTIL, dt=0.02, observers=[observer])
 times = trajectory.times
 spacing = LENGTH / N_SITES
 positions = (np.arange(N_SITES) + 0.5) * spacing - LENGTH / 2
-rho = trajectory.values('market.rho')
+rho = trajectory.get_values('market.rho')
 mass = rho.sum(axis=1) * spacing
 centre = rho @ positions * spacing / mass
 variance = rho @ positions**2 * spacing / mass - centre**2

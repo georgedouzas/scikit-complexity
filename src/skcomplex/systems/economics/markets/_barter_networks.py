@@ -16,22 +16,17 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction
+from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
-from ....core.components.types import MatchingRule
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    MatchSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PartnerSpec,
-    RandomSearchSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
+from ...general.matching.types import MatchingRule
+
+TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
+GOODS = ('good1', 'good2')
 
 
 class BarterTraderView(AgentView):
@@ -124,7 +119,7 @@ class BarterTraderElement(Element):
         """
         if not isinstance(trader, BarterTraderView) or not isinstance(other, BarterTraderView):
             return False
-        return other.id != trader.id and other.location in trader.neighbor_cells()
+        return other.id != trader.id and other.location in trader.get_neighbor_cells()
 
     @staticmethod
     def get_rate_gap(trader: object, other: object) -> float:
@@ -189,15 +184,15 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             The path of the group of traders that can be found, the same group.
 
         rule:
-            The spec of the algorithm that pairs the traders, such as `PartnerSpec('local', clearing='provider')`.
+            The spec of the algorithm that pairs the traders, such as `PartnerMatchingSpec('local', value='provider')`.
 
-        limit:
-            The state with the limit of both sides, missing for traders, which then accept any partner.
+        reserve:
+            The state with the reserve value of both sides, missing for traders, which then accept any partner.
 
         quantity:
             The states of the partners a requester wants and a provider takes, one and without limit for traders.
 
-        allowance:
+        cap:
             The state of a requester with the most value it can give, missing for traders.
 
         transfers:
@@ -227,9 +222,9 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
         rule: MatchingRule = RandomSearchSpec(),
-        limit: str | tuple[str, str] = 'limit',
+        reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',
-        allowance: str = 'allowance',
+        cap: str = 'cap',
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, SystemView], None] | None = None,
@@ -240,9 +235,9 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             requesters=requesters,
             providers=providers,
             rule=rule,
-            limit=limit,
+            reserve=reserve,
             quantity=quantity,
-            allowance=allowance,
+            cap=cap,
             transfers=transfers,
             phase=phase,
             on_match=on_match,
@@ -275,7 +270,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
             super()._settle(match, system)
             return
         if BarterTraderElement.is_partner(first, second):
-            traded = self._barter(first, second, int(system.parameter('units')))
+            traded = self._barter(first, second, int(system.get_parameter('units')))
             system.storage['trades'] = self._get_trades(system) + traded
         super()._settle(match, system)
 
@@ -297,24 +292,18 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         system.storage['trades'] = 0.0
         super().match(system)
         system.report('trades', self._get_trades(system))
-        traders = system.agents('requesters', BarterTraderView)
+        traders = system.get_agents('requesters', BarterTraderView)
         system.report('searches', float(sum(trader.links for trader in traders)))
 
 
-TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
-
-
-GOODS = ('good1', 'good2')
+def _get_utility(agent: object) -> float:
+    """Return the Cobb-Douglas utility of the bundle of a trader."""
+    return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
 def _log_spread(rates: object) -> float:
     """Return the standard deviation of the log marginal rates of substitution."""
     return float(np.std(np.log(np.asarray(rates, dtype=float))))
-
-
-def _utility(agent: object) -> float:
-    """Return the Cobb-Douglas utility of the bundle of a trader."""
-    return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
 class WilhiteTradeNetworksSystem(BaseSystem):
@@ -374,7 +363,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     until = 60
     observables = (
         ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _utility, group='traders'),
+        ObservableSpec('utility', _get_utility, group='traders'),
     )
 
     def __init__(
@@ -432,7 +421,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
             graph.add_edge(int(rng.choice(groups[first])), int(rng.choice(groups[second])))
         return graph
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
@@ -449,7 +438,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
             },
             location=list(range(self.n_agents)),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[traders],
             interactions=[
@@ -464,7 +453,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
                     'barter',
                     requesters='traders',
                     providers='traders',
-                    rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, clearing='provider'),
+                    rule=PartnerMatchingSpec(choice='score', score=BarterTraderElement.get_rate_gap, value='provider'),
                     quantity=('quantity', 'partners'),
                     units=self.units,
                 ),

@@ -6,9 +6,9 @@ compartment of the cell cycle decay after an initial redistribution of the cells
 """
 
 # %%
-# The system is built from its class with the three compartments of Table 3.8, a killing agent `u1 = 0.6`, and a
-# blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the three compartments.
+# The example builds `CellCycleChemotherapySystem` with the three compartments of Table 3.8, a killing agent `u1 = 0.6`,
+# and a blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the
+# time series of the three compartments.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,14 +34,16 @@ kills = np.linspace(0.0, 0.8, 9)
 rates, eigenvalues = [], []
 for u1 in kills:
     trajectory = simulate(CellCycleChemotherapySystem(u1=u1, u2=u2), dt=2.0, until=300)
-    total = np.log(trajectory.values('tumour.A1') + trajectory.values('tumour.A2') + trajectory.values('tumour.A3'))
+    total = np.log(
+        trajectory.get_values('tumour.A1') + trajectory.get_values('tumour.A2') + trajectory.get_values('tumour.A3'),
+    )
     late = trajectory.times >= 200
     rates.append(np.polyfit(trajectory.times[late], total[late], 1)[0])
     matrix = [[-l1, 0, 2 * (1 - u1) * l3], [l1, -(1 - u2) * l2, 0], [0, (1 - u2) * l2, -l3]]
     eigenvalues.append(np.linalg.eigvals(matrix).real.max())
 fig, (compartments, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A1', 'A2', 'A3'):
-    compartments.plot(trajectory.times, trajectory.values(f'tumour.{name}'), label=name)
+    compartments.plot(trajectory.times, trajectory.get_values(f'tumour.{name}'), label=name)
 compartments.set_xlabel('time')
 compartments.set_ylabel('cells')
 compartments.set_title('Under u1 = 0.6 every compartment decays')

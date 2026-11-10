@@ -44,7 +44,7 @@ for index, d in enumerate((1, 2, 3)):
                 NkTechnologySystem(n_components=N_COMPONENTS, d=d, random_state=seed),
                 until=STEPS,
                 random_state=seed,
-            ).values('total_cost')
+            ).get_values('total_cost')
             for seed in range(SEEDS)
         ],
         axis=0,

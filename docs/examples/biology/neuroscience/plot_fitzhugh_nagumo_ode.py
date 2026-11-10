@@ -6,9 +6,9 @@ catches up and pulls it down, and the cycle repeats as relaxation oscillations.
 """
 
 # %%
-# The system is built from its class with the current `I = 0.5`, inside the range of periodic firing. The observer
-# saves every second frame with the default blueprint, whose primary view is the time series of the potential and the
-# recovery.
+# The example builds `FitzhughNagumoODESystem` with the current `I = 0.5`, inside the range of periodic firing. The
+# observer saves every second frame with the default blueprint, whose primary view is the time series of the potential
+# and the recovery.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +29,7 @@ trajectory = simulate(FitzhughNagumoODESystem(I=0.5), observers=[observer])
 # fixed point where they cross lies on the middle branch of the cubic and is unstable, so the trajectory should
 # settle on a cycle that hugs the outer branches of the cubic.
 
-v, w = trajectory.values('neuron.v'), trajectory.values('neuron.w')
+v, w = trajectory.get_values('neuron.v'), trajectory.get_values('neuron.w')
 a, b, current = 0.7, 0.8, 0.5
 grid = np.linspace(-2.5, 2.5, 200)
 fig, ax = plt.subplots(figsize=(6, 5))

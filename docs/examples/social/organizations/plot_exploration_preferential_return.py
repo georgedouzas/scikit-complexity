@@ -1,9 +1,9 @@
 """
 # Exploration and preferential return
 
-The model of human mobility of Song and coauthors, the baseline of the container model. At every displacement an
-individual explores a new place with a probability that decays with the number of places it knows, at a distance from a
-power law, and otherwise returns to a known place in proportion to its past visits.
+Song and coauthors model human mobility by exploration and preferential return, the baseline of the container model. At
+every displacement an individual explores a new place with a probability that decays with the number of places it knows,
+at a distance from a power law, and otherwise returns to a known place in proportion to its past visits.
 """
 
 # %%
@@ -29,9 +29,9 @@ trajectory = simulate(ExplorationPreferentialReturnSystem(), observers=[observer
 # trajectory should return again and again to a few places.
 
 steps = np.arange(1, len(trajectory.times))
-distinct = [np.mean(trajectory.agents('individuals', frame).values['distinct']) for frame in steps]
-x = [trajectory.agents('individuals', frame).values['x'][0] for frame in steps]
-y = [trajectory.agents('individuals', frame).values['y'][0] for frame in steps]
+distinct = [np.mean(trajectory.get_agents('individuals', frame).values['distinct']) for frame in steps]
+x = [trajectory.get_agents('individuals', frame).values['x'][0] for frame in steps]
+y = [trajectory.get_agents('individuals', frame).values['y'][0] for frame in steps]
 fig, (growth, path) = plt.subplots(1, 2, figsize=(10, 4))
 growth.loglog(steps, distinct, label='simulation')
 growth.loglog(steps, distinct[-1] * (steps / steps[-1]) ** (1 / 1.21), ':', color='black', label='slope 1 / 1.21')

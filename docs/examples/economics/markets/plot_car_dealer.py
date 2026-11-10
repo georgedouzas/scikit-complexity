@@ -39,9 +39,9 @@ trajectory = simulate(CarDealerSystem(), observers=[observer])
 
 times = np.asarray(trajectory.times)
 fig, (flows, delays) = plt.subplots(1, 2, figsize=(10, 4))
-flows.plot(times, trajectory.values('dealer.sales'), label='sales')
-flows.plot(times, trajectory.values('dealer.orders'), ':', label='orders')
-flows.plot(times, trajectory.values('dealer.deliveries'), '--', label='deliveries')
+flows.plot(times, trajectory.get_values('dealer.sales'), label='sales')
+flows.plot(times, trajectory.get_values('dealer.orders'), ':', label='orders')
+flows.plot(times, trajectory.get_values('dealer.deliveries'), '--', label='deliveries')
 flows.set_xlabel('days')
 flows.set_ylabel('cars per day')
 flows.set_title('The flows of the lot')
@@ -52,7 +52,7 @@ for label, settings in {
     'perception 5, response 6': {'response_delay': 6.0},
 }.items():
     scenario = simulate(CarDealerSystem(**settings))
-    delays.plot(times, scenario.values('dealer.inventory'), label=label)
+    delays.plot(times, scenario.get_values('dealer.inventory'), label=label)
 delays.set_xlabel('days')
 delays.set_ylabel('cars')
 delays.set_title('The inventory under other delays')

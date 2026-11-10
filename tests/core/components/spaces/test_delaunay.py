@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import ContinuousSpace, DelaunayNeighborhood
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import BackendError
@@ -41,7 +41,7 @@ def _problem(positions, side, boundary, backend=None, tags=None):
     """Return the problem of members at positions in a square, tagged by ones or by given tags."""
     values = {'x': positions, 'tag': np.ones(len(positions)) if tags is None else tags}
     group = GroupElement('cells', element=CountingElement, size=len(positions), values=values)
-    system = System(elements=[group], space=ContinuousSpace(extent=(side, side), boundary=boundary))
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(side, side), boundary=boundary))
     return PassCompiler(backend=backend or NumpyBackend()).prepare(system).run().problem_
 
 
@@ -96,7 +96,7 @@ def test_delaunay_neighbourhood_of_a_large_group_runs_on_numpy():
     rng = np.random.default_rng(0)
     values = {'x': rng.uniform(0.0, 10.0, (1000, 2)), 'tag': np.ones(1000)}
     group = GroupElement('cells', element=CountingElement, size=1000, values=values)
-    system = System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), boundary='open'))
+    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), boundary='open'))
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.backend == 'numpy'
     assert np.all(_counts(problem) >= 2)

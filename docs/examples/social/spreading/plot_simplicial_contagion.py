@@ -39,7 +39,7 @@ def prevalence(infectivity, share):
     """Return the mean share of infected nodes over the last ten time units of a run."""
     system_system = SimplicialContagionSystem(infectivity=infectivity, share=share, seed=0)
     run = simulate(system_system, until=30, random_state=0)
-    infected = run.values('nodes.infected')
+    infected = run.get_values('nodes.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)[-20:].mean()
 
 

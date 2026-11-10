@@ -29,7 +29,7 @@ trajectory = simulate(system, observers=[observer])
 # The exact solution is `u(x, t) = sin(m π x / L) cos(ω t)` with `ω = c m π / L`. Snapshots of the string should all
 # share the nodes at `x = L / 3` and `2 L / 3`, and the displacement at an antinode should follow `cos(ω t)`.
 
-displacement = trajectory.lattice('string.u')
+displacement = trajectory.get_lattice('string.u')
 times = np.asarray(trajectory.times)
 positions = 2.0 / 100 * np.arange(1, 100)
 omega = 3 * np.pi / 2.0

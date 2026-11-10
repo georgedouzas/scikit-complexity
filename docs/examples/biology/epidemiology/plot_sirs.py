@@ -6,7 +6,7 @@ outbreak, ever smaller waves follow until the infection settles at an endemic le
 """
 
 # %%
-# The system is built from its class with its default rates, an immunity that lasts 50 days on average, and run for
+# The example builds `SIRSSystem` with its default rates, an immunity that lasts 50 days on average, and runs it for
 # 300 days. The observer saves every second day with the default blueprint, whose primary view is the time series of
 # the three compartments.
 
@@ -27,7 +27,7 @@ trajectory = simulate(SIRSSystem(), observers=[observer])
 # The endemic equilibrium has `S = gamma / beta` susceptibles and `I = xi (N - S) / (gamma + xi)` infected. In the
 # `(S, I)` plane the trajectory should spiral into that point.
 
-susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
+susceptible, infected = trajectory.get_values('S.x'), trajectory.get_values('I.x')
 beta, gamma, xi, total = 0.0003, 0.1, 0.02, 1000.0
 s_star = gamma / beta
 i_star = xi * (total - s_star) / (gamma + xi)

@@ -17,19 +17,11 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, total, uniform, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
 TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
-
-
-def _softmax_action(incentive: Expression, temperature: Expression) -> Expression:
-    """Return the action ±1 drawn from the softmax policy.
-
-    The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
-    """
-    return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
 
 
 class LearnerElement(Element):
@@ -91,6 +83,14 @@ class LearnerElement(Element):
 
     law_classes = (UpdateLaw,)
 
+    @staticmethod
+    def _get_softmax_action(incentive: Expression, temperature: Expression) -> Expression:
+        """Return the action ±1 drawn from the softmax policy.
+
+        The probability of the action is `exp(±Q / T) / (exp(Q / T) + exp(-Q / T))`.
+        """
+        return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
+
     def __init__(
         self,
         label: str,
@@ -139,7 +139,7 @@ class LearnerElement(Element):
             incentive = where(least, 0, s.incentive)
             temperature = where(least, uniform('newcomer', 0, s.max_temperature), s.temperature)
         learned = (1 - s.memory) * incentive + s.memory * field
-        action = _softmax_action(learned, temperature)
+        action = LearnerElement._get_softmax_action(learned, temperature)
         return [
             UpdateLaw(s.incentive, learned),
             UpdateLaw(s.temperature, temperature),
@@ -221,15 +221,15 @@ class EvolutionarySKGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
+    def _get_sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
         """Return symmetric Gaussian couplings of variance `1 / N` with a zero diagonal."""
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
         return upper + upper.T
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        couplings = self._sk_couplings(self.n_agents, rng)
+        couplings = self._get_sk_couplings(self.n_agents, rng)
         spins = rng.choice([-1.0, 1.0], size=self.n_agents)
         evolving = self.temperature is None
         if self.temperature is None:
@@ -250,4 +250,4 @@ class EvolutionarySKGameSystem(BaseSystem):
             },
             visual=TEMPERATURE_VISUAL,
         )
-        return System(self.label, elements=[agents])
+        return CompositeSystem(self.label, elements=[agents])

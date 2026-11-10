@@ -1,7 +1,4 @@
-"""Advance the partitions of a co-simulation with their own solvers.
-
-Values are exchanged at synchronisation points.
-"""
+"""Advance the partitions of a co-simulation with their own solvers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +13,6 @@ from sklearn.base import clone
 from ...components.laws import (
     BoundaryLaw,
     CrossingLaw,
-    EmissionLaw,
     EquationLaw,
     FluxLaw,
     JumpLaw,
@@ -61,7 +57,7 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """Scheduler that advances every partition of a co-simulation with its own solver.
+    """A solver that advances every partition of a co-simulation with its own solver.
 
     Every partition is advanced to each synchronisation point. Between synchronisation points a partition holds the
     states of the other partitions at their last values, so a split adds an error of the order of `sync_dt`. A discrete
@@ -70,6 +66,9 @@ class CoSimulationSolver(Solver):
     another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and holds
     until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
     it already advanced. Jacobi advances every partition from the same values.
+
+    Choose it when parts of a system need different solvers, such as agents beside a field. It appears in many fields,
+    such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
 
     Args:
         solvers:
@@ -96,26 +95,26 @@ class CoSimulationSolver(Solver):
             The stepper of every partition by partition name.
 
     Examples:
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     systems=[
-        ...         System(
+        ...         CompositeSystem(
         ...             'a',
-        ...             elements=[PopulationElement('x', n=1)],
+        ...             elements=[PopulationElement('x', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
-        ...         System(
+        ...         CompositeSystem(
         ...             'b',
-        ...             elements=[PopulationElement('y', n=1)],
+        ...             elements=[PopulationElement('y', x=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],
         ... )
         >>> trajectory = simulate(system, until=1, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> [round(float(trajectory.values(name)[-1]), 2) for name in ('a/x.n', 'b/y.n')]
+        >>> [round(float(trajectory.get_values(name)[-1]), 2) for name in ('a/x.x', 'b/y.x')]
         [2.72, 2.72]
     """
 
@@ -135,7 +134,6 @@ class CoSimulationSolver(Solver):
                 CrossingLaw,
                 UpdateLaw,
                 TransitionLaw,
-                EmissionLaw,
                 RuleLaw,
                 LocalRuleLaw,
                 SampleLaw,
@@ -143,7 +141,7 @@ class CoSimulationSolver(Solver):
                 TransferLaw,
                 BoundaryLaw,
             },
-            noise=frozenset(NoiseKind),
+            noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset(OrderKind),
         )
 
@@ -212,7 +210,7 @@ class CoSimulationSolver(Solver):
                 error_msg = f'The compiler returned a {type(partitioned).__name__}, not a ProblemSpec.'
                 raise TypeError(error_msg)
             problem = partitioned
-        self.problem_, self.rng_ = problem, self._generator()
+        self.problem_, self.rng_ = problem, self._get_generator()
         generators = self.rng_.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
@@ -226,8 +224,8 @@ class CoSimulationSolver(Solver):
             stepper.set_params(random_state=generator, until=self.until).prepare(partition.problem)
             self.steppers_[partition.name] = stepper
         self._held = [
-            (path, reduction, self._reducer(reduction, problem.time))
-            for path, reduction in ObservableEvaluator._held_reductions_of(problem)
+            (path, reduction, self._get_reducer(reduction, problem.time))
+            for path, reduction in ObservableEvaluator._get_held_reductions_of(problem)
         ]
         self.initial_state_ = initial_state
         self._update_held(0.0, initial_state)
@@ -235,7 +233,7 @@ class CoSimulationSolver(Solver):
         self._collect()
 
     @staticmethod
-    def _reducer(
+    def _get_reducer(
         reduction: _HeldReductionSpec,
         time: Expression,
     ) -> Callable[[float, Sequence[Array], Sequence[object] | Array], float]:
@@ -282,7 +280,7 @@ class CoSimulationSolver(Solver):
 
         return reduce_expression
 
-    def _intervals(self, t: float, until: float) -> list[tuple[float, float]]:
+    def _get_intervals(self, t: float, until: float) -> list[tuple[float, float]]:
         """Return the synchronisation intervals of a frame.
 
         `sync_dt` is checked to divide the frame.
@@ -306,7 +304,7 @@ class CoSimulationSolver(Solver):
             for index in range(count)
         ]
 
-    def _size_of(self, group: str) -> int:
+    def _get_size_of(self, group: str) -> int:
         """Return the number of members of an element group."""
         return next(item.members or 1 for item in self.problem_.elements if item.path == group)
 
@@ -314,7 +312,7 @@ class CoSimulationSolver(Solver):
         """Write the current value of every held reduction into the state vector."""
         states = self.problem_.states
         for path, reduction, reducer in self._held:
-            agents = self._agents_of(reduction.group)
+            agents = self._get_agents_of(reduction.group)
             members: Sequence[object] | Array
             if agents is not None:
                 members = agents
@@ -323,10 +321,10 @@ class CoSimulationSolver(Solver):
                 ]
             else:
                 columns = [np.ravel(states.read(x, f'{reduction.group}.{name}')) for name in reduction.variables]
-                members = columns[0] if columns else np.zeros(self._size_of(reduction.group))
-            x[states.entry(f'{path}.value').indices] = reducer(t, columns, members)
+                members = columns[0] if columns else np.zeros(self._get_size_of(reduction.group))
+            x[states.get_entry(f'{path}.value').indices] = reducer(t, columns, members)
 
-    def _agents_of(self, group: str) -> list[object] | None:
+    def _get_agents_of(self, group: str) -> list[object] | None:
         """Return the agents of an agent group from the partition that holds it, or `None`."""
         for stepper in self.steppers_.values():
             agents = stepper.agents_.get(group)
@@ -352,7 +350,7 @@ class CoSimulationSolver(Solver):
             state = problem.update(start, source.copy(), p, *drawn)
             return state if boundary is None else boundary(end, state, p)
         if stepper._reads_inputs():
-            stepper.inputs_ = self.problem_.states.values(source)
+            stepper.inputs_ = self.problem_.states.get_values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end)).state_
         if boundary is not None:
             state = boundary(end, state, p)
@@ -399,7 +397,7 @@ class CoSimulationSolver(Solver):
             return x
         state = x.copy()
         self._update_held(t, state)
-        for start, end in self._intervals(t, until):
+        for start, end in self._get_intervals(t, until):
             base = state.copy()
             for partition in self.problem_.partitions:
                 source = state if self.scheme == 'gauss-seidel' else base

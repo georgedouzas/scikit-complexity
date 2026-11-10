@@ -49,9 +49,9 @@ trajectory = simulate(ArthurPolakSystem(), until=STEPS, observers=[observer], ra
 fig, (pools, invention) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(SEEDS):
     trajectory = simulate(ArthurPolakSystem(), until=STEPS, random_state=seed)
-    count = trajectory.values('technologies.count')
+    count = trajectory.get_values('technologies.count')
     pools.step(trajectory.times, count, where='post', color='C0', alpha=0.4)
-    costs = trajectory.agents('technologies', len(trajectory.times) - 1).values['cost']
+    costs = trajectory.get_agents('technologies', len(trajectory.times) - 1).values['cost']
     found = [int(np.argmax(count > index)) for index in range(3, int(count[-1]))]
     invention.loglog(costs[3:], np.maximum(found, 1), 'o', color='C1', alpha=0.6)
 pools.set_xlabel('step')

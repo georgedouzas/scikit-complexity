@@ -8,7 +8,7 @@ of the particle jumping between `-1` and `1` in step with the slow forcing of pe
 """
 
 # %%
-# The system is built from its class with forcing amplitude `A = 0.1`, frequency `f = 0.01`, and noise
+# The example builds `StochasticResonanceSystem` with forcing amplitude `A = 0.1`, frequency `f = 0.01`, and noise
 # intensity `D = 0.1`. The Euler-Maruyama stepper takes steps of 0.05 and the observer saves every frame of 4 with the
 # default blueprint, whose primary view is the time series of the position.
 
@@ -40,7 +40,7 @@ responses = []
 for intensity in intensities:
     run = simulate(StochasticResonanceSystem(D=intensity), until=4000, solver=solver, dt=1.0, random_state=1)
     times = run.times
-    well = np.sign(run.values('particle.x'))
+    well = np.sign(run.get_values('particle.x'))
     responses.append(2 * np.abs(np.mean(well * np.exp(-2j * np.pi * 0.01 * times))))
 matching = 1 / (4 * np.log(50 * np.sqrt(2) / (2 * np.pi)))
 fig, ax = plt.subplots(figsize=(7, 4))

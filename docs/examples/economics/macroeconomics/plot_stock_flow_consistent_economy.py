@@ -46,9 +46,11 @@ trajectory = simulate(StockFlowConsistentEconomySystem(), observers=[observer, C
 
 times = np.asarray(trajectory.times)
 money = (
-    trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
+    trajectory.get_values('households.deposits')
+    + trajectory.get_values('firms.deposits')
+    + trajectory.get_values('bank.deposits')
 )
-created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
+created = trajectory.get_values('circuit.lending') - trajectory.get_values('circuit.repayments')
 matrix = loops(trajectory, kind='flow-matrix', frame=10)
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')

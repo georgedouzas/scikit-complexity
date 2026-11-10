@@ -23,7 +23,7 @@ from ._pair_search import PairSearch
 
 @dataclass(frozen=True)
 class ReferenceSpec(BaseSpec):
-    """Component of a state or parameter that a symbol stands for.
+    """A spec of the component of a state or parameter that a symbol stands for.
 
     Args:
         entry:
@@ -60,7 +60,7 @@ class ReferenceSpec(BaseSpec):
         """Strided slice of the component of every member in the flat vector."""
         return slice(self.entry.start + self.column, self.entry.start + self.entry.size, self.entry.columns)
 
-    def column_of(self, x: Array, p: Array) -> Array:
+    def get_column_of(self, x: Array, p: Array) -> Array:
         """Return the component of every member.
 
         It is a view into the state or parameter vector.

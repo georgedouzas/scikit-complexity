@@ -1,7 +1,4 @@
-"""Integrator of ordinary differential equations based on `scipy.integrate`.
-
-It uses the step solvers of `scipy.integrate`.
-"""
+"""Integrator of ordinary differential equations based on `scipy.integrate`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +16,6 @@ from ...components.laws import (
     BilinearLaw,
     BoundaryLaw,
     CrossingLaw,
-    EncounterLaw,
     EquationLaw,
     FluxLaw,
     LinearProgramLaw,
@@ -33,68 +29,32 @@ from ...specs._segment_spec import _SegmentSpec
 from ...types import Array, FormKind, OrderKind
 from ..problems import ProblemSpec
 from ._event_locator import EventLocator
-from ._history import _RESTART, History
+from ._history import RESTART, History
 from ._solver import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
-
-
-_IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
-
-
-_JACOBIANS = ('auto', 'exact', 'dense')
-
-
-_DENSITY_LIMIT = 0.5
-
-
-_BAND_FRACTION = 0.1
-
-
-_STIFF_SPAN = 1000
-
-
-_EXPLICIT_SPAN = 100
-
-
-_DISCONTINUITY_ORDERS = 3
-
-
-_STEPS_PER_FRAME = 100
-
-
-_LARGEST_TIME = sys.float_info.max
-
-
-_LSODA_LARGEST_SIZE = 4096
-
-
-_STALL_STEP = 1e-9
-
-
-_RESTING_SPAN = 1e-9
-
-
-_STALL_STEPS = 1000
-
-
-_MAX_FRAME_STEPS = 50_000
-
-
-_BLOW_UP = 1e12
-
-
-_SMALL_NORM = 1e-5
-
-
-_TINY_NORM = 1e-15
-
-
-_FALLBACK_STEP = 1e-6
+IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
+JACOBIANS = ('auto', 'exact', 'dense')
+DENSITY_LIMIT = 0.5
+BAND_FRACTION = 0.1
+STIFF_SPAN = 1000
+EXPLICIT_SPAN = 100
+DISCONTINUITY_ORDERS = 3
+STEPS_PER_FRAME = 100
+LARGEST_TIME = sys.float_info.max
+LSODA_LARGEST_SIZE = 4096
+STALL_STEP = 1e-9
+RESTING_SPAN = 1e-9
+STALL_STEPS = 1000
+MAX_FRAME_STEPS = 50_000
+BLOW_UP = 1e12
+SMALL_NORM = 1e-5
+TINY_NORM = 1e-15
+FALLBACK_STEP = 1e-6
 
 
 class ScipyODESolver(Solver):
-    """Integrator of ordinary differential equations based on `scipy.integrate`.
+    """A solver of ordinary differential equations with `scipy.integrate`.
 
     It uses the step solvers of `scipy.integrate`. One integrator runs across the frames of a run, and every frame reads
     its state from the dense output of the step that covers the frame's time, and it restarts at every frame when a
@@ -107,6 +67,9 @@ class ScipyODESolver(Solver):
     differences over groups of independent columns and factor it with sparse LU, which makes them the stiff path for
     finite-difference and finite element fields. An explicit method that spans more than 1000 stable steps of the
     diffusion of a field in one call warns once.
+
+    Choose it as the default for continuous flows, with adaptive steps and stiff methods. It appears in every field,
+    such as epidemics, chemical kinetics, and circuits.
 
     Args:
         method:
@@ -150,12 +113,12 @@ class ScipyODESolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
-        ...     elements=[PopulationElement('a', n=1)],
+        >>> system = CompositeSystem(
+        ...     elements=[PopulationElement('a', x=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
         >>> problem = simulate(system, until=0).problem
@@ -179,7 +142,6 @@ class ScipyODESolver(Solver):
                 CrossingLaw,
                 BoundaryLaw,
                 TransferLaw,
-                EncounterLaw,
                 BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),
@@ -227,8 +189,8 @@ class ScipyODESolver(Solver):
         if self.method != 'auto' and self.method not in METHODS:
             error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
-        if self.jacobian not in _JACOBIANS:
-            error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, _JACOBIANS))}.'
+        if self.jacobian not in JACOBIANS:
+            error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, JACOBIANS))}.'
             raise SolverError(error_msg)
         self.jacobian_pattern_ = None
         self.jacobian_options_: dict[str, object] = {}
@@ -238,13 +200,13 @@ class ScipyODESolver(Solver):
         self._frame_steps = 0
         self._choosing = False
         self.method_ = 'LSODA' if self.method == 'auto' else self.method
-        if self.method_ in _IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
+        if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
         if self.method_ == 'LSODA' and not self._fits_lsoda(problem.initial_state.size):
             if self.method != 'auto':
                 error_msg = (
                     f'LSODA would store a dense {problem.initial_state.size} x {problem.initial_state.size} matrix, '
-                    f'more than the limit of {_LSODA_LARGEST_SIZE} states without a narrow band. Use '
+                    f'more than the limit of {LSODA_LARGEST_SIZE} states without a narrow band. Use '
                     "ScipyODESolver(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
                     'method.'
                 )
@@ -262,7 +224,7 @@ class ScipyODESolver(Solver):
 
     def _fits_lsoda(self, size: int) -> bool:
         """Check whether the dense or banded matrix of LSODA fits for a state of a size."""
-        return size <= _LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
+        return size <= LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
     def _prepare_jacobian(self, problem: ProblemSpec) -> None:
         """Derive the Jacobian structure an implicit method receives.
@@ -274,11 +236,11 @@ class ScipyODESolver(Solver):
         if self.jacobian == 'exact':
             jacobian.prepare(problem)
             self._exact = True
-            self.jacobian_pattern_ = jacobian.pattern()
+            self.jacobian_pattern_ = jacobian.get_pattern()
             return
-        pattern = jacobian.pattern()
+        pattern = jacobian.get_pattern()
         size = problem.initial_state.size
-        if pattern is None or pattern.nnz > _DENSITY_LIMIT * size * size:
+        if pattern is None or pattern.nnz > DENSITY_LIMIT * size * size:
             return
         self.jacobian_pattern_ = pattern
         if self.method_ != 'LSODA':
@@ -287,10 +249,10 @@ class ScipyODESolver(Solver):
         rows, columns = pattern.nonzero()
         lower = int(np.max(rows - columns, initial=0))
         upper = int(np.max(columns - rows, initial=0))
-        if max(lower, upper) <= _BAND_FRACTION * size:
+        if max(lower, upper) <= BAND_FRACTION * size:
             self.jacobian_options_ = {'lband': lower, 'uband': upper}
 
-    def _jacobian_options(self, history: History | None, p: Array) -> dict[str, object]:
+    def _get_jacobian_options(self, history: History | None, p: Array) -> dict[str, object]:
         """Return the keyword arguments that pass the Jacobian structure to the integrator."""
         if not self._exact:
             return self.jacobian_options_
@@ -300,7 +262,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Array) -> Array | scipy.sparse.csr_array:
-            run_state = RunStateSpec(time, state, History._with_delays(problem, history, time, state, p))
+            run_state = RunStateSpec(time, state, History._copy_with_delays(problem, history, time, state, p))
             matrix = jacobian.run(run_state).values_
             return matrix.toarray() if dense else matrix
 
@@ -315,7 +277,7 @@ class ScipyODESolver(Solver):
             return
         self._choosing = False
         limit = self.problem_.stable_step
-        if limit is not None and span > _EXPLICIT_SPAN * limit:
+        if limit is not None and span > EXPLICIT_SPAN * limit:
             self.method_ = 'BDF'
             self._prepare_jacobian(self.problem_)
 
@@ -325,11 +287,11 @@ class ScipyODESolver(Solver):
         The steps are those of the diffusion of a field.
         """
         limit = self.problem_.stable_step
-        if self._warned or self.method_ in _IMPLICIT or limit is None or until - t <= _STIFF_SPAN * limit:
+        if self._warned or self.method_ in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
             return
         self._warned = True
         warning_msg = (
-            f'{self.method_} spans {until - t:.6g} in one call, more than {_STIFF_SPAN} times the stability limit '
+            f'{self.method_} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
             f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
             "ScipyODESolver(method='BDF') or ScipyODESolver(method='Radau'), which receive the sparsity pattern of the "
             "Jacobian."
@@ -343,12 +305,12 @@ class ScipyODESolver(Solver):
         """
         return (
             self._solver is not None
-            and abs(t - self._time) <= _RESTART * max(1.0, abs(t))
+            and abs(t - self._time) <= RESTART * max(1.0, abs(t))
             and np.array_equal(x, self._state)
             and np.array_equal(p, self._parameters)
         )
 
-    def _next_discontinuity(self, time: float) -> float:
+    def _get_next_discontinuity(self, time: float) -> float:
         """Return the first time after a time where a delay carries a jump in slope.
 
         The jump is the one at the start of the run.
@@ -359,7 +321,7 @@ class ScipyODESolver(Solver):
         times = [
             history.start + order * delay.minimum
             for delay in self.problem_.delays
-            for order in range(1, _DISCONTINUITY_ORDERS + 1)
+            for order in range(1, DISCONTINUITY_ORDERS + 1)
             if history.start + order * delay.minimum > time
         ]
         return min(times, default=math.inf)
@@ -367,27 +329,35 @@ class ScipyODESolver(Solver):
     def _restart(self, t: float, x: Array, p: Array) -> None:
         """Start a new integrator at a time and state, bounded by the next breakpoint."""
         problem = self.problem_
-        drift = self._drift()
+        drift = self._get_drift()
         history = self.history_
         if history is not None:
             history.truncate(t)
-        after = t + _RESTART * max(1.0, abs(t))
-        later = problem.breakpoints.next_after(after)
+        after = t + RESTART * max(1.0, abs(t))
+        later = problem.breakpoints.get_next_after(after)
         if problem.breakpoints.unresolved:
             later = self._until if later is None else min(later, self._until)
-        bound = min(later if later is not None else math.inf, self._next_discontinuity(after))
+        bound = min(later if later is not None else math.inf, self._get_next_discontinuity(after))
         ceiling = EventLocator._find_left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
 
         def field(time: float, state: Array) -> Array:
             time = min(time, ceiling)
-            return drift(time, state, History._with_delays(problem, history, time, state, p))
+            return drift(time, state, History._copy_with_delays(problem, history, time, state, p))
 
         delay = EventLocator._find_smallest_delay(problem)
-        end = min(bound, _LARGEST_TIME)
-        max_step = max(delay, self._frame / _STEPS_PER_FRAME)
+        end = min(bound, LARGEST_TIME)
+        max_step = max(delay, self._frame / STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
         if first_step is None and self.method_ == 'LSODA':
-            first_step = self._lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
+            first_step = self._get_lsoda_first_step(
+                field,
+                t,
+                x,
+                end=end,
+                max_step=max_step,
+                rtol=self.rtol,
+                atol=self.atol,
+            )
         self._solver = METHODS[self.method_](
             field,
             t,
@@ -397,12 +367,12 @@ class ScipyODESolver(Solver):
             atol=self.atol,
             max_step=max_step,
             first_step=first_step,
-            **self._jacobian_options(history, p),
+            **self._get_jacobian_options(history, p),
         )
         self._segment = None
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
 
-    def _next_segment(self, p: Array) -> _SegmentSpec:
+    def _get_next_segment(self, p: Array) -> _SegmentSpec:
         """Return the step that covers the current time.
 
         A new step is taken, or the integrator restarts at a breakpoint.
@@ -419,7 +389,7 @@ class ScipyODESolver(Solver):
             message = solver.step()
             if solver.status == 'failed':
                 largest = float(np.max(np.abs(solver.y))) if solver.y.size else 0.0
-                if not np.isfinite(largest) or largest > _BLOW_UP:
+                if not np.isfinite(largest) or largest > BLOW_UP:
                     error_msg = (
                         f'The solution blows up near t = {start}: the largest state reaches {largest:.3g}, and the '
                         f'{self.method_} integrator cannot follow it. Check the laws for growth without bound, or end '
@@ -428,7 +398,7 @@ class ScipyODESolver(Solver):
                     raise SolverError(error_msg)
                 error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
-            if solver.t == start and solver.t_bound - start <= 2 * _RESTART * max(1.0, abs(start)):
+            if solver.t == start and solver.t_bound - start <= 2 * RESTART * max(1.0, abs(start)):
                 self._restart(solver.t_bound, before, p)
                 continue
             if solver.t == start or not np.all(np.isfinite(solver.y)):
@@ -467,21 +437,21 @@ class ScipyODESolver(Solver):
         """
         self._frame_steps += 1
         if self.method_ != 'LSODA':
-            if self._frame_steps >= _MAX_FRAME_STEPS:
+            if self._frame_steps >= MAX_FRAME_STEPS:
                 error_msg = (
-                    f'The {self.method_} integrator took {_MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
+                    f'The {self.method_} integrator took {MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
                     'state slides along a discontinuity of the drift, which no adaptive integrator crosses. Smooth the '
                     'switch of the law, or use a fixed step with RK4Solver.'
                 )
                 raise SolverError(error_msg)
             return False
-        if self._frame_steps >= _MAX_FRAME_STEPS:
+        if self._frame_steps >= MAX_FRAME_STEPS:
             return True
-        if end - start >= _STALL_STEP * max(1.0, abs(end)):
+        if end - start >= STALL_STEP * max(1.0, abs(end)):
             self._stalled = 0
             return False
         self._stalled += 1
-        return self._stalled >= _STALL_STEPS
+        return self._stalled >= STALL_STEPS
 
     def _leave_lsoda(self, t: float, x: Array, p: Array) -> None:
         """Continue with `RK45` after LSODA stalls on a default method.
@@ -489,9 +459,9 @@ class ScipyODESolver(Solver):
         On an explicit method, the named error is raised.
         """
         cause = (
-            f'{_MAX_FRAME_STEPS} steps in one frame'
-            if self._frame_steps >= _MAX_FRAME_STEPS
-            else f'{_STALL_STEPS} consecutive steps shorter than {_STALL_STEP:g} of the time'
+            f'{MAX_FRAME_STEPS} steps in one frame'
+            if self._frame_steps >= MAX_FRAME_STEPS
+            else f'{STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time'
         )
         if self.method != 'auto':
             error_msg = (
@@ -508,7 +478,7 @@ class ScipyODESolver(Solver):
         self._frame_steps = 0
         self._restart(t, x, p)
 
-    def _first_change(self, dense: Callable[[float], Array], end: float, p: Array) -> float:
+    def _get_first_change(self, dense: Callable[[float], Array], end: float, p: Array) -> float:
         """Return the first time of a step at which the boundary laws change the state.
 
         It is found up to the end of the step by bisection.
@@ -516,17 +486,17 @@ class ScipyODESolver(Solver):
 
         def changed(time: float) -> bool:
             state = np.asarray(dense(time), dtype=float)
-            return not np.array_equal(self._bounded(time, state, p), state)
+            return not np.array_equal(self._get_bounded(time, state, p), state)
 
         low, high = self._time, end
         if changed(low):
             return end
-        while high - low > _RESTART * max(1.0, abs(high)):
+        while high - low > RESTART * max(1.0, abs(high)):
             middle = (low + high) / 2
             low, high = (low, middle) if changed(middle) else (middle, high)
         return high
 
-    def _to_event(self, p: Array, until: float) -> None:
+    def _integrate_to_event(self, p: Array, until: float) -> None:
         """Integrate the current step up to a time or to its first event.
 
         The event or the boundary is then applied. The integrator restarts where a boundary law first changes the state.
@@ -534,26 +504,26 @@ class ScipyODESolver(Solver):
         a clipped state under a constant inflow, so the step runs to its end and the boundary projects the state there
         instead.
         """
-        segment = self._next_segment(p)
+        segment = self._get_next_segment(p)
         end = min(segment.end, until)
         after = segment.after if end == segment.end else np.asarray(segment.dense(end), dtype=float)
         hit = (
-            self.locator_.crossing(self._time, end, self._state, after, p=p, interpolant=segment.dense)
+            self.locator_.get_crossing(self._time, end, self._state, after, p=p, interpolant=segment.dense)
             if self.problem_.events
             else None
         )
         if hit is not None:
             time, index = hit
             state = self.locator_.apply(time, index, np.asarray(segment.dense(time), dtype=float), p)
-            self._restart(time, self._bounded(time, state, p), p)
+            self._restart(time, self._get_bounded(time, state, p), p)
             return
-        if np.array_equal(self._bounded(end, after, p), after):
+        if np.array_equal(self._get_bounded(end, after, p), after):
             self._time, self._state = end, after
             return
-        time = self._first_change(segment.dense, end, p)
-        if time - self._time <= _RESTING_SPAN * max(1.0, abs(time)):
+        time = self._get_first_change(segment.dense, end, p)
+        if time - self._time <= RESTING_SPAN * max(1.0, abs(time)):
             time = end
-        self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
+        self._restart(time, self._get_bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift from time `t` to time `until`.
@@ -594,14 +564,14 @@ class ScipyODESolver(Solver):
         if not self._continues(t, x, p):
             self._frame = until - t
             self._restart(t, x, p)
-        while self._time < until - _RESTART * max(1.0, abs(until)):
-            self._to_event(p, until)
+        while self._time < until - RESTART * max(1.0, abs(until)):
+            self._integrate_to_event(p, until)
             if self.locator_.stopped_at is not None:
                 return self._state.copy()
         return self._state.copy()
 
     @staticmethod
-    def _lsoda_first_step(
+    def _get_lsoda_first_step(
         field: Callable[[float, Array], Array],
         t: float,
         x: Array,
@@ -624,11 +594,11 @@ class ScipyODESolver(Solver):
             drift = field(t, x)
             scale = atol + np.abs(x) * rtol
             drift_norm = np.sqrt(np.mean((drift / scale) ** 2))
-            if drift_norm >= _SMALL_NORM:
+            if drift_norm >= SMALL_NORM:
                 return None
-            trial = min(_FALLBACK_STEP, span)
+            trial = min(FALLBACK_STEP, span)
             change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
             largest = max(drift_norm, change)
-            second = max(_FALLBACK_STEP, trial * 1e-3) if largest <= _TINY_NORM else (0.01 / largest) ** 0.5
+            second = max(FALLBACK_STEP, trial * 1e-3) if largest <= TINY_NORM else (0.01 / largest) ** 0.5
             step = min(100 * trial, second, span, max_step)
         return float(step) if math.isfinite(step) and step > 0 else None

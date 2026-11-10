@@ -6,8 +6,8 @@ without relapse.
 """
 
 # %%
-# The system is built from its class for patient type 1, whose PSA of 19 ng/mL starts the therapy at once. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of the three
+# The example builds `PiecewiseLinearIASSystem` for patient type 1, whose PSA of 19 ng/mL starts the therapy at once.
+# The observer saves every second frame with the default blueprint, whose primary view is the time series of the three
 # cell populations and the therapy.
 
 import matplotlib.pyplot as plt
@@ -31,9 +31,9 @@ trajectory = simulate(PiecewiseLinearIASSystem(), observers=[observer])
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for patient, axis in zip((1, 2, 3), axes, strict=True):
     run = trajectory if patient == 1 else simulate(PiecewiseLinearIASSystem(patient=patient))
-    psa = run.values('tumour.AD') + run.values('tumour.AIR') + run.values('tumour.AII')
+    psa = run.get_values('tumour.AD') + run.get_values('tumour.AIR') + run.get_values('tumour.AII')
     axis.plot(run.times, psa)
-    axis.fill_between(run.times, 0, 25, where=run.values('tumour.u') > 0.5, color='red', alpha=0.15)
+    axis.fill_between(run.times, 0, 25, where=run.get_values('tumour.u') > 0.5, color='red', alpha=0.15)
     axis.axhline(10.0, color='black', linestyle='--')
     axis.axhline(4.0, color='grey', linestyle='--')
     axis.set_xlabel('time (days)')

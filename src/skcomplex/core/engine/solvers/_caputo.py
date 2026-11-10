@@ -1,7 +1,4 @@
-"""Base class of steppers of Caputo fractional differential equations.
-
-They step on a fixed grid from the start of a run.
-"""
+"""Base class of steppers of Caputo fractional differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,13 +17,11 @@ from ..problems import ProblemSpec
 from ._solver import Solver
 
 GRID_TOLERANCE = 1e-9
-
-
-_CHANGE_TOLERANCE = 1e-12
+CHANGE_TOLERANCE = 1e-12
 
 
 class CaputoSolver(Solver):
-    """Base class of steppers of Caputo fractional differential equations.
+    """An abstract solver of Caputo fractional differential equations.
 
     They step on a fixed grid from the start of a run. A state of order `alpha` follows `D^alpha x = f(t, x)`, and a
     state of order 1 follows `dx/dt = f(t, x)`. The stepper keeps the history of the run on the grid `t0 + k dt`. A
@@ -78,7 +73,7 @@ class CaputoSolver(Solver):
         self._state = np.zeros(0)
         self._initial = np.zeros(0)
 
-    def _index(self, time: float) -> int:
+    def _get_index(self, time: float) -> int:
         """Return the index of a time on the grid of the run.
 
         The time is checked to lie on the grid.
@@ -98,7 +93,7 @@ class CaputoSolver(Solver):
         if not self._state.size or not math.isclose(t, self._origin + self._step_index * self.dt, abs_tol=1e-12):
             return False
         fractional = self._fractional
-        return bool(np.allclose(x[fractional], self._state[fractional], rtol=_CHANGE_TOLERANCE, atol=0.0))
+        return bool(np.allclose(x[fractional], self._state[fractional], rtol=CHANGE_TOLERANCE, atol=0.0))
 
     def _convolve(self, weights: Array, rows: Array) -> Array:
         """Return the sum over rows of every column weighted by the column of its order."""
@@ -110,7 +105,7 @@ class CaputoSolver(Solver):
             result[columns] = weights[:, group] @ rows[:, columns]
         return result
 
-    def _per_state(self, values: Array) -> Array:
+    def _get_per_state(self, values: Array) -> Array:
         """Return one value per state from one value per distinct order."""
         return values[self._groups]
 
@@ -194,7 +189,7 @@ class CaputoSolver(Solver):
             self._origin, self._step_index = t, 0
             self._initial, self._state = x.copy(), x.copy()
             self._restart(t, x)
-        stop = self._index(until)
+        stop = self._get_index(until)
         while self._step_index < stop:
             self._step(p)
             self._step_index += 1

@@ -1,4 +1,9 @@
-"""Celestial mechanics systems of bodies orbiting under gravity."""
+"""Celestial mechanics systems of bodies orbiting under gravity.
+
+`FIGURE_EIGHT` holds the gravitational constant, masses, positions, and velocities of the figure-eight orbit.
+`INNER_SOLAR_SYSTEM` holds the gravitational constant, masses, positions, and velocities of the Sun and the inner
+planets.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,15 +21,35 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
+FIGURE_EIGHT: Preset = (
+    1.0,
+    [1.0, 1.0, 1.0],
+    [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
+    [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
+)
+INNER_SOLAR_SYSTEM: Preset = (
+    4 * math.pi**2,
+    [1.0, 1.66e-7, 2.45e-6, 3.0e-6, 3.23e-7],
+    [[0.0, 0.0], [0.387, 0.0], [0.723, 0.0], [1.0, 0.0], [1.524, 0.0]],
+    [
+        [0.0, 0.0],
+        [0.0, 2 * math.pi / math.sqrt(0.387)],
+        [0.0, 2 * math.pi / math.sqrt(0.723)],
+        [0.0, 2 * math.pi],
+        [0.0, 2 * math.pi / math.sqrt(1.524)],
+    ],
+)
+PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
-def _star(**_: float) -> list[list[float]]:
+
+def _get_star(**_: float) -> list[list[float]]:
     """Return the position of the star at the origin of the relative coordinate."""
     return [[0.0, 0.0]]
 
@@ -67,7 +92,7 @@ class KeplerBodyElement(Element):
         10.0
     """
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _star})
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _get_star})
 
     def __init__(
         self,
@@ -90,7 +115,7 @@ class KeplerBodyElement(Element):
         self.mass = mass
 
 
-def _primaries(mu: float, **_: float) -> list[list[float]]:
+def _get_primaries(mu: float, **_: float) -> list[list[float]]:
     """Return the positions of the two primaries in the rotating frame."""
     return [[-mu, 0.0], [1 - mu, 0.0]]
 
@@ -131,7 +156,7 @@ class RotatingFrameBodyElement(Element):
         0.1
     """
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _get_primaries})
 
     def __init__(
         self,
@@ -194,31 +219,6 @@ class SitnikovBodyElement(Element):
         self.z = z
         self.z_d1 = z_d1
         self.e = e
-
-
-FIGURE_EIGHT: Preset = (
-    1.0,
-    [1.0, 1.0, 1.0],
-    [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
-    [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
-)
-"""Gravitational constant, masses, positions, and velocities of the figure-eight orbit."""
-
-INNER_SOLAR_SYSTEM: Preset = (
-    4 * math.pi**2,
-    [1.0, 1.66e-7, 2.45e-6, 3.0e-6, 3.23e-7],
-    [[0.0, 0.0], [0.387, 0.0], [0.723, 0.0], [1.0, 0.0], [1.524, 0.0]],
-    [
-        [0.0, 0.0],
-        [0.0, 2 * math.pi / math.sqrt(0.387)],
-        [0.0, 2 * math.pi / math.sqrt(0.723)],
-        [0.0, 2 * math.pi],
-        [0.0, 2 * math.pi / math.sqrt(1.524)],
-    ],
-)
-"""Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
-
-PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
 
 class GravityInteraction(PotentialEnergyInteraction):
@@ -290,17 +290,6 @@ def _get_kepler_energy(body: SimpleNamespace) -> Expression:
     return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
 
 
-def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
-    """Return the Hamiltonian of a light body in the frame rotating with two primaries.
-
-    The frame rotates at unit angular velocity.
-    """
-    first = sqrt((body.x + body.mu) ** 2 + body.y**2)
-    second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
-    kinetic = (body.px**2 + body.py**2) / 2 + body.y * body.px - body.x * body.py
-    return kinetic - (1 - body.mu) / first - body.mu / second
-
-
 class TwoBodyOrbitSystem(BaseSystem):
     """A light planet orbiting a heavy star under Newtonian gravity.
 
@@ -362,10 +351,10 @@ class TwoBodyOrbitSystem(BaseSystem):
         """Return the Hamiltonian of the Kepler problem of the target."""
         return _get_kepler_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         speed = float(np.sqrt(self.G * self.mass * (1 + self.eccentricity) / self.radius))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[KeplerBodyElement('planet', x=self.radius, y=0.0, px=0.0, py=speed, G=self.G, mass=self.mass)],
             interactions=[
@@ -441,7 +430,7 @@ class NBodySystem(BaseSystem):
         self.G = G
 
     @staticmethod
-    def _preset(name: str) -> Preset:
+    def _get_preset(name: str) -> Preset:
         """Return a preset's masses, positions, velocities, and gravitational constant.
 
         The preset is a named configuration.
@@ -451,9 +440,9 @@ class NBodySystem(BaseSystem):
             raise ValidationError(error_msg)
         return PRESETS[name]
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return bodies in the plane that attract pairwise by Newtonian gravity."""
-        preset_G, preset_masses, preset_positions, preset_velocities = self._preset(self.preset)
+        preset_G, preset_masses, preset_positions, preset_velocities = self._get_preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
         positions = preset_positions if self.positions is None else self.positions
         velocities = preset_velocities if self.velocities is None else self.velocities
@@ -471,7 +460,18 @@ class NBodySystem(BaseSystem):
             )
             for first, second in itertools.combinations(range(len(bodies)), 2)
         ]
-        return System(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+        return CompositeSystem(self.label, elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
+
+
+def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
+    """Return the Hamiltonian of a light body in the frame rotating with two primaries.
+
+    The frame rotates at unit angular velocity.
+    """
+    first = sqrt((body.x + body.mu) ** 2 + body.y**2)
+    second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
+    kinetic = (body.px**2 + body.py**2) / 2 + body.y * body.px - body.x * body.py
+    return kinetic - (1 - body.mu) / first - body.mu / second
 
 
 class RestrictedThreeBodySystem(BaseSystem):
@@ -547,9 +547,9 @@ class RestrictedThreeBodySystem(BaseSystem):
         """Return the Hamiltonian of the rotating frame of the target."""
         return _get_rotating_frame_energy(s.target)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 RotatingFrameBodyElement(
@@ -630,9 +630,9 @@ class SitnikovSystem(BaseSystem):
         distance = (1 - s.target.e * cos(s.t)) / 2
         return -1 / sqrt(s.target.z**2 + distance**2)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[SitnikovBodyElement('body', z=self.z, z_d1=self.vz, e=self.e)],
             interactions=[

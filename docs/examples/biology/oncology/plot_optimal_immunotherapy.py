@@ -7,10 +7,10 @@ tumour is cleared, after which the treatments stop.
 """
 
 # %%
-# The system is built from its class, the Kirschner-Panetta system in units of `10^5` cells, with a tumour of low
-# antigenicity that escapes the immune response when untreated. Its tuned Pontryagin solver solves the
-# problem on 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the cells,
-# IL-2, and both treatments in one time series view.
+# The example builds `OptimalImmunotherapySystem`, the Kirschner-Panetta system in units of `10^5` cells, with a tumour
+# of low antigenicity that escapes the immune response when untreated. Its tuned Pontryagin solver solves the problem on
+# 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the cells, IL-2, and both
+# treatments in one time series view.
 
 import matplotlib.pyplot as plt
 
@@ -31,14 +31,14 @@ trajectory = simulate(OptimalImmunotherapySystem(), observers=[observer])
 
 free = simulate(OptimalImmunotherapySystem(w1=1e6, w2=1e6))
 fig, (tumour, doses) = plt.subplots(1, 2, figsize=(10, 4))
-tumour.semilogy(free.times, free.values('site.y'), label='untreated')
-tumour.semilogy(trajectory.times, trajectory.values('site.y') + 1e-9, label='optimal treatment')
+tumour.semilogy(free.times, free.get_values('site.y'), label='untreated')
+tumour.semilogy(trajectory.times, trajectory.get_values('site.y') + 1e-9, label='optimal treatment')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells y (10^5)')
 tumour.set_title('The treatment clears the tumour')
 tumour.legend()
-doses.plot(trajectory.times, trajectory.values('site.u1'), label='adoptive therapy u1')
-doses.plot(trajectory.times, trajectory.values('site.u2'), label='IL-2 injection u2')
+doses.plot(trajectory.times, trajectory.get_values('site.u1'), label='adoptive therapy u1')
+doses.plot(trajectory.times, trajectory.get_values('site.u2'), label='IL-2 injection u2')
 doses.set_xlabel('time (days)')
 doses.set_title('Treat hard while the tumour is large')
 doses.legend()

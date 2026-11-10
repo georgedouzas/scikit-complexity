@@ -20,7 +20,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -199,7 +199,7 @@ class ColonySearchInteraction(Interaction):
             system:
                 The system.
         """
-        segments = system.agents(self.segments, TrailSegmentView)
+        segments = system.get_agents(self.segments, TrailSegmentView)
         tau = np.array([item.tau for item in segments])
         is_open = np.array([item.passable for item in segments]) > 0
         best = system.storage.get('best')
@@ -234,7 +234,7 @@ class ColonySearchInteraction(Interaction):
 
         The path has no segment if the ant does not arrive.
         """
-        neighbours = self._neighbours()
+        neighbours = self._get_neighbours()
         lengths = np.asarray(self.lengths, dtype=float)
         vertex, visited = self.start, [self.start]
         for _ in range(self.steps):
@@ -249,7 +249,7 @@ class ColonySearchInteraction(Interaction):
             else:
                 visited.append(vertex)
             if vertex == self.target:
-                index = self._index()
+                index = self._get_index()
                 return [index[frozenset(pair)] for pair in itertools.pairwise(visited)]
         return []
 
@@ -276,7 +276,7 @@ class ColonySearchInteraction(Interaction):
                 removed += 1
         return cut
 
-    def _neighbours(self) -> dict[int, list[tuple[int, int]]]:
+    def _get_neighbours(self) -> dict[int, list[tuple[int, int]]]:
         """Return the neighbours of every vertex with the index of the joining segment."""
         neighbours: dict[int, list[tuple[int, int]]] = {}
         for index, (first, second) in enumerate(self.edges):
@@ -284,7 +284,7 @@ class ColonySearchInteraction(Interaction):
             neighbours.setdefault(second, []).append((first, index))
         return neighbours
 
-    def _index(self) -> dict[frozenset[int], int]:
+    def _get_index(self) -> dict[frozenset[int], int]:
         """Return the index of the segment between every pair of vertices."""
         return {frozenset(pair): index for index, pair in enumerate(self.edges)}
 
@@ -369,7 +369,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.cut = cut
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that find the shortest path on a Delaunay road network.
 
         The path joins two points of the network.
@@ -399,4 +399,4 @@ class AntColonyOptimizationSystem(BaseSystem):
             Q=self.Q,
             cut=self.cut,
         )
-        return System(self.label, elements=[roads], interactions=[search], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[roads], interactions=[search], time=DiscreteTime())

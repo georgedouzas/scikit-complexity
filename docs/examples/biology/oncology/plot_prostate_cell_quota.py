@@ -6,8 +6,8 @@ falls. Off therapy the quotas refill and the tumour and the PSA regrow.
 """
 
 # %%
-# The system is built from its class: 15 billion androgen-dependent cells under therapy for 250 days every 500 days.
-# The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# The example builds `ProstateCellQuotaSystem`: 15 billion androgen-dependent cells under therapy for 250 days every 500
+# days. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
 # cells, the quotas, the PSA, and the androgen.
 
 import matplotlib.pyplot as plt
@@ -30,15 +30,15 @@ trajectory = simulate(ProstateCellQuotaSystem(), observers=[observer])
 
 times = trajectory.times
 fig, (quota, cells) = plt.subplots(1, 2, figsize=(10, 4))
-quota.plot(times, trajectory.values('tumour.Q1'), label='dependent cells Q1')
-quota.plot(times, trajectory.values('tumour.Q2'), label='independent cells Q2')
+quota.plot(times, trajectory.get_values('tumour.Q1'), label='dependent cells Q1')
+quota.plot(times, trajectory.get_values('tumour.Q2'), label='independent cells Q2')
 quota.axhline(0.025 * 0.3 / (0.025 - 0.015), color='black', linestyle='--', label='no net growth of AD')
 quota.set_xlabel('time (days)')
 quota.set_ylabel('cell quota (nM)')
 quota.set_title('The quotas follow the androgen')
 quota.legend()
-cells.plot(times, trajectory.values('tumour.AD'), label='dependent cells (billions)')
-cells.plot(times, trajectory.values('tumour.P'), label='serum PSA (ng/mL)')
+cells.plot(times, trajectory.get_values('tumour.AD'), label='dependent cells (billions)')
+cells.plot(times, trajectory.get_values('tumour.P'), label='serum PSA (ng/mL)')
 cells.set_xlabel('time (days)')
 cells.set_title('Cells and PSA fall during therapy')
 cells.legend()

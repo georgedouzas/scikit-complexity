@@ -7,7 +7,7 @@ light cone whose edges move at the largest group velocity of the chain.
 """
 
 # %%
-# The system is built from its class with the isotropic exchange `J = Δ = 1`, from one flipped spin at
+# The example builds `QuantumHeisenbergSystem` with the isotropic exchange `J = Δ = 1`, from one flipped spin at
 # site 6. The state is a vector of `2^12 = 4096` complex amplitudes that QuTiP evolves by the Schrödinger equation.
 # The observer saves every frame with the default blueprint, whose primary view is the space-time image of `S^z`.
 
@@ -48,7 +48,7 @@ energies = [
 ]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):
-    spread.plot(magnon.times, 0.5 - magnon.values('sz')[:, 6 + distance], label=f'd = {distance}')
+    spread.plot(magnon.times, 0.5 - magnon.get_values('sz')[:, 6 + distance], label=f'd = {distance}')
     spread.plot(magnon.times, jv(distance, magnon.times) ** 2, color='black', linestyle=':', linewidth=1)
 spread.set_xlabel('time')
 spread.set_ylabel('probability of the flip')

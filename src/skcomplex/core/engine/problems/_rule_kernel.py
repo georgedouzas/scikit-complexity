@@ -18,7 +18,8 @@ from ...specs import ArgumentsSpec, LookupSpec, RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
 
-_LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
+LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
+NO_ARGUMENTS = ArgumentsSpec()
 
 
 @numba.njit(cache=True)
@@ -53,11 +54,8 @@ def _fused_lookup(
     return following
 
 
-_NO_ARGUMENTS = ArgumentsSpec()
-
-
 class RuleKernel(BaseKernel):
-    """Local rule compiled for a lattice, with its neighbour table and its evaluation.
+    """A kernel of a local rule of a lattice, with its neighbour table.
 
     Args:
         owner:
@@ -115,7 +113,7 @@ class RuleKernel(BaseKernel):
         lookup: LookupSpec | None,
         schedule: str,
         stochastic: bool,
-        arguments: ArgumentsSpec = _NO_ARGUMENTS,
+        arguments: ArgumentsSpec = NO_ARGUMENTS,
         fused: bool = False,
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
@@ -150,7 +148,7 @@ class RuleKernel(BaseKernel):
         ones = np.ones(int(real.sum()))
         return scipy.sparse.csr_matrix((ones, (rows[real], columns[real])), shape=(size, size))
 
-    def _table_of(self, x: Array, sites: Indices | None) -> Indices:
+    def _get_table_of(self, x: Array, sites: Indices | None) -> Indices:
         """Return the neighbour table of some sites.
 
         When translated, it is read at the values of the first read state.
@@ -175,13 +173,13 @@ class RuleKernel(BaseKernel):
             padded[:, column, 0] if state.components == 1 else padded[:, column] for column in range(table.shape[1])
         ]
 
-    def _next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
+    def _get_next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
         """Return the next values of the targets at some sites.
 
         They are read from the current state.
         """
         space = self.space
-        table = self._table_of(x, sites)
+        table = self._get_table_of(x, sites)
         if self.lookup is not None:
             values = x[self.reads[0].sites]
             if self.fused and sites is None and self.translations is None:
@@ -192,7 +190,7 @@ class RuleKernel(BaseKernel):
                     np.ascontiguousarray(centers),
                     float(space.fill),
                     table,
-                    _LOOKUP_KINDS[lookup.kind],
+                    LOOKUP_KINDS[lookup.kind],
                     base=lookup.base,
                     lookup=lookup.values,
                     columns=lookup.columns,
@@ -209,7 +207,7 @@ class RuleKernel(BaseKernel):
             centers = x[self.targets[0].sites].astype(np.intp)
             return [lookup.values[(centers if sites is None else centers[sites]) * lookup.columns + totals]]
         columns = [column for state in self.reads for column in self._gather(x, state, table)]
-        keywords = self.arguments.values(x, p, sites)
+        keywords = self.arguments.get_values(x, p, sites)
         if self.degrees is not None:
             keywords['degree'] = self.degrees if sites is None else self.degrees[sites]
         if self.stochastic:
@@ -251,11 +249,11 @@ class RuleKernel(BaseKernel):
 
         The update covers the active sites and the sites that read one of them.
         """
-        x, p, rng = inputs.x, inputs.p, self._generator_of(inputs)
+        x, p, rng = inputs.x, inputs.p, self._get_generator_of(inputs)
         readers = active | (self.reading @ active.astype(np.float64) > 0)
         sites = np.flatnonzero(readers)
         if sites.size:
-            self._assign(x, self._next(x, p, sites, rng), sites)
+            self._assign(x, self._get_next(x, p, sites, rng), sites)
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the rule.
@@ -263,17 +261,17 @@ class RuleKernel(BaseKernel):
         The rule applies on its schedule.
         """
         self.values_ = None
-        state = self._state_of(inputs)
-        x, p, rng = state.x, state.p, self._generator_of(state)
+        state = self._get_state_of(inputs)
+        x, p, rng = state.x, state.p, self._get_generator_of(state)
         size = self.targets[0].size
         if self.schedule == 'synchronous':
-            self._assign(x, self._next(x, p, None, rng), None)
+            self._assign(x, self._get_next(x, p, None, rng), None)
             return
         if self.schedule in {'checkerboard', 'colored'}:
             for sites in self.classes:
-                self._assign(x, self._next(x, p, sites, rng), sites)
+                self._assign(x, self._get_next(x, p, sites, rng), sites)
             return
         order = rng.permutation(size) if self.schedule == 'random-sequential' else rng.integers(size, size=size)
         for site in order:
             sites = np.asarray([site])
-            self._assign(x, self._next(x, p, sites, rng), sites)
+            self._assign(x, self._get_next(x, p, sites, rng), sites)

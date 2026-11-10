@@ -1,7 +1,4 @@
-"""Draw the local expectation values of operator elements and groups.
-
-They are drawn as images and series.
-"""
+"""Draw the local expectation values of operator elements and groups."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,11 +20,11 @@ from ..problems import BaseProblemSpec, FrameSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_problem_spec import OperatorProblemSpec
 from ._base import BaseVisual
-from ._images import _SPACE_TIME, ImageVisual
+from ._images import SPACE_TIME, ImageVisual
 
 
 class ExpectationVisual(ImageVisual):
-    """Visual that logs the local expectations of operator elements and groups.
+    """A visual that logs the local expectations of operator elements and groups.
 
     A group logs the expectation of the displayed local operator of every member, such as `z`, as an image of
     its lattice under `<path>/<name>`, with a space-time image under `<path>/space_time/<name>` in one dimension. A
@@ -69,8 +66,8 @@ class ExpectationVisual(ImageVisual):
         problem = frame.problem
         if not isinstance(problem, OperatorProblemSpec):
             return
-        values = self._local_values(problem, element.path, frame.state)
-        shape = self._shape_of(element)
+        values = self._get_local_values(problem, element.path, frame.state)
+        shape = self._get_shape_of(element)
         for name, value in values.items():
             path = f'{element.path}/{name}'
             if shape is None:
@@ -78,10 +75,10 @@ class ExpectationVisual(ImageVisual):
                 continue
             array: npt.NDArray[np.float64] = np.asarray(value, dtype=float)
             if len(shape) == 1:
-                self._log_space_time(recording, f'{element.path}/{_SPACE_TIME}/{name}', array)
+                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the views of an operator element, group, or particle.
 
         A group or particle gets space-time and image views, and an element a series view.
@@ -99,28 +96,28 @@ class ExpectationVisual(ImageVisual):
         """
         if not isinstance(element, CompiledElementSpec):
             return []
-        shape = self._shape_of(element)
+        shape = self._get_shape_of(element)
         if shape is None:
             return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
-        name = self._profile_name(element)
+        name = self._get_profile_name(element)
         views: list[rrb.View] = []
-        if len(shape) == 1 and self._history_of(shape[0]):
-            views.append(rrb.Spatial2DView(origin=f'{element.path}/{_SPACE_TIME}/{name}', name=f'{name} history'))
+        if len(shape) == 1 and self._get_history_of(shape[0]):
+            views.append(rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{name}', name=f'{name} history'))
         views.append(rrb.Spatial2DView(origin=f'{element.path}/{name}', name=name))
         return views
 
     @staticmethod
-    def _profile_name(element: CompiledElementSpec) -> str:
+    def _get_profile_name(element: CompiledElementSpec) -> str:
         """Return the name of the local values of a group.
 
         It is its displayed operator, or `probability` for a particle.
         """
         if element.members is None:
             return 'probability'
-        return str(ExpectationVisual._view_of(element).display)
+        return str(ExpectationVisual._get_view_of(element).display)
 
     @staticmethod
-    def _view_of(element: CompiledElementSpec) -> OperatorViewSpec:
+    def _get_view_of(element: CompiledElementSpec) -> OperatorViewSpec:
         """Return the operator view of a compiled element, of its first member for a group.
 
         Args:
@@ -135,31 +132,31 @@ class ExpectationVisual(ImageVisual):
             ValidationError:
                 The element is neither an element nor a group of elements.
         """
-        member = OperatorCompiler._member_of(element.element)
+        member = OperatorCompiler._get_member_of(element.element)
         if member is None:
             error_msg = f'{element.path} is neither an operator element nor a group of them.'
             raise ValidationError(error_msg)
-        return OperatorCompiler._view_of(member)
+        return OperatorCompiler._get_view_of(member)
 
     @staticmethod
-    def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
+    def _get_shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
         """Return the lattice shape of the local values of an operator group or particle.
 
         It returns `None` for scalars.
         """
         space = getattr(element.element, 'space', None)
-        if element.members is None and ExpectationVisual._view_of(element).display is not None:
+        if element.members is None and ExpectationVisual._get_view_of(element).display is not None:
             return None
         return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
     @staticmethod
-    def _probabilities(problem: OperatorProblemSpec, x: Array) -> npt.NDArray[np.float64]:
+    def _get_probabilities(problem: OperatorProblemSpec, x: Array) -> npt.NDArray[np.float64]:
         """Return the probability of every basis state of the whole space."""
-        state = problem._state_of(x)
+        state = problem._get_state_of(x)
         return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
 
     @staticmethod
-    def _local_matrices(problem: OperatorProblemSpec, path: str, name: str) -> list[sp.csr_array]:
+    def _get_local_matrices(problem: OperatorProblemSpec, path: str, name: str) -> list[sp.csr_array]:
         """Return the matrices on the whole space of one local operator.
 
         There is one per member of an element or group.
@@ -173,12 +170,16 @@ class ExpectationVisual(ImageVisual):
             subsystems = [
                 item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
             ]
-            cached = [lowering._matrix(((item.key, item.operators[name]),), path) for item in subsystems]
+            cached = [lowering._get_matrix(((item.key, item.operators[name]),), path) for item in subsystems]
             problem.cache[f'{path}:{name}'] = cached
         return cached
 
     @staticmethod
-    def _local_values(problem: OperatorProblemSpec, path: str, x: Array) -> dict[str, npt.NDArray[np.float64] | float]:
+    def _get_local_values(
+        problem: OperatorProblemSpec,
+        path: str,
+        x: Array,
+    ) -> dict[str, npt.NDArray[np.float64] | float]:
         """Return the local expectations of an operator element or group at a state.
 
         The visual draws them. A group gives the expectation of the displayed local operator of every member. A single
@@ -200,24 +201,26 @@ class ExpectationVisual(ImageVisual):
                 A mapping from the name of a local operator, or `'probability'`, to an array or a number.
         """
         element = next(item for item in problem.elements if item.path == path)
-        display = ExpectationVisual._view_of(element).display
+        display = ExpectationVisual._get_view_of(element).display
         if element.members is None and display is None:
             index = problem.subsystems.index(path)
-            shaped = ExpectationVisual._probabilities(problem, x).reshape(problem.dimensions)
+            shaped = ExpectationVisual._get_probabilities(problem, x).reshape(problem.dimensions)
             others = tuple(axis for axis in range(len(problem.dimensions)) if axis != index)
             return {'probability': shaped.sum(axis=others)}
         if element.members is not None and display is not None:
-            matrices = ExpectationVisual._local_matrices(problem, path, display)
+            matrices = ExpectationVisual._get_local_matrices(problem, path, display)
             terms = [OperatorKernel(matrix, SR(1)).prepare() for matrix in matrices]
             values = [problem._expect([term], 0.0, x, np.zeros(0)) for term in terms]
             return {display: np.real(np.asarray(values))}
         names = [
-            name for name, local in ExpectationVisual._view_of(element).local_operators().items() if local.hermitian
+            name
+            for name, local in ExpectationVisual._get_view_of(element).get_local_operators().items()
+            if local.hermitian
         ]
         return {
             name: float(
                 np.real(problem._expect([OperatorKernel(matrix, SR(1)).prepare()], 0.0, x, np.zeros(0))),
             )
             for name in names
-            for matrix in ExpectationVisual._local_matrices(problem, path, name)
+            for matrix in ExpectationVisual._get_local_matrices(problem, path, name)
         }

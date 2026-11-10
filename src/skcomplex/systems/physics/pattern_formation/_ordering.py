@@ -19,9 +19,11 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
 
 class PhaseFieldElement(Element):
@@ -126,53 +128,6 @@ class LandauEnergyInteraction(GradientInteraction):
         return -(phi**2) / 2 + phi**4 / 4 - namespace.kappa * phi * laplacian(phi) / 2
 
 
-REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
-
-
-def _ordering(
-    label: str,
-    *,
-    shape: Sequence[int],
-    length: float,
-    mean: float,
-    kappa: float,
-    random_state: int | np.random.Generator | None,
-    conserved: bool,
-    temperature: float = 0.0,
-) -> System:
-    """Return a system of a label with a phase field that relaxes.
-
-    The field starts from small noise around a mean.
-
-    A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
-    """
-    shape = tuple(shape)
-    rng = np.random.default_rng(random_state)
-    values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
-    space = LatticeSpace(shape, spacing=length / shape[0])
-    interactions: list[BaseInteraction] = [
-        LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
-    ]
-    if temperature:
-        noise = RateInteraction(
-            'noise',
-            target='mixture',
-            state='phi',
-            noise=math.sqrt(2 * temperature),
-            conserved=True,
-        )
-        interactions.append(noise)
-    discretization = 'finite-difference' if temperature else 'spectral'
-    field = FieldElement(
-        'mixture',
-        element=PhaseFieldElement,
-        space=space,
-        values=values,
-        discretization=discretization,
-    )
-    return System(label, elements=[field], interactions=interactions)
-
-
 class AllenCahnSystem(BaseSystem):
     """The Allen-Cahn equation, System A.
 
@@ -216,6 +171,50 @@ class AllenCahnSystem(BaseSystem):
     dt = 1.0
     solver = ETDRK4Solver(dt=0.5)
 
+    @staticmethod
+    def _get_ordering(
+        label: str,
+        *,
+        shape: Sequence[int],
+        length: float,
+        mean: float,
+        kappa: float,
+        random_state: int | np.random.Generator | None,
+        conserved: bool,
+        temperature: float = 0.0,
+    ) -> CompositeSystem:
+        """Return a system of a label with a phase field that relaxes.
+
+        The field starts from small noise around a mean.
+
+        A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
+        """
+        shape = tuple(shape)
+        rng = np.random.default_rng(random_state)
+        values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
+        space = LatticeSpace(shape, spacing=length / shape[0])
+        interactions: list[BaseInteraction] = [
+            LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
+        ]
+        if temperature:
+            noise = RateInteraction(
+                'noise',
+                target='mixture',
+                state='phi',
+                noise=math.sqrt(2 * temperature),
+                conserved=True,
+            )
+            interactions.append(noise)
+        discretization = 'finite-difference' if temperature else 'spectral'
+        field = FieldElement(
+            'mixture',
+            element=PhaseFieldElement,
+            space=space,
+            values=values,
+            discretization=discretization,
+        )
+        return CompositeSystem(label, elements=[field], interactions=interactions)
+
     def __init__(
         self,
         shape: Sequence[int] = (128, 128),
@@ -233,9 +232,9 @@ class AllenCahnSystem(BaseSystem):
         self.kappa = kappa
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return _ordering(
+        return AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,
             length=self.length,
@@ -317,9 +316,9 @@ class CahnHilliardSystem(BaseSystem):
         self.temperature = temperature
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        return _ordering(
+        return AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,
             length=self.length,

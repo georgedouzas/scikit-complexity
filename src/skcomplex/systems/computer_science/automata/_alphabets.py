@@ -16,15 +16,19 @@ from sage.all__sagemath_gap import SymmetricGroup
 from sage.all__sagemath_symbolics import RR, ZZ
 from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
-from ....core.components.elements import DeclaredElement, Element, LatticeElement
+from ....core.components.elements import DeclaredElement, Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
+
+RATIONAL_SERIES = PowerSeriesSpec()
+FORWARD = LatticeNeighborhood(((0,), (1,)))
+NO_ELEMENT = -1
 
 
 class GroupCellElement(Element):
@@ -58,9 +62,6 @@ class GroupCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.value = value
-
-
-RATIONAL_SERIES = PowerSeriesSpec()
 
 
 class PowerSeriesCellElement(DeclaredElement):
@@ -139,10 +140,6 @@ class RealCellElement(Element):
         self.value = value
 
 
-FORWARD = LatticeNeighborhood(((0,), (1,)))
-NO_ELEMENT = -1
-
-
 class SelfIndexedShiftSystem(BaseSystem):
     """The map `τ(x)(g) = x(g · x(g))` over the group as alphabet.
 
@@ -201,7 +198,7 @@ class SelfIndexedShiftSystem(BaseSystem):
         """Return the value read at the product of a site and its own value, `x(g · x(g))`."""
         return value
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         space = CayleySpace(free_group(2) if self.group is None else self.group, ball=self.radius, fill=NO_ELEMENT)
         size = space.prepare().size_
@@ -209,9 +206,11 @@ class SelfIndexedShiftSystem(BaseSystem):
             values = np.random.default_rng(self.random_state).integers(0, size, size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('cells', element=GroupCellElement, space=space, values={'value': values})],
+            elements=[
+                GroupElement('cells', element=GroupCellElement, space=space, values={'value': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'translation',
@@ -278,14 +277,14 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         self.initial = initial
 
     @staticmethod
-    def _power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
+    def _get_power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
         """Return `x(n) - t x(n + 1)` in a truncated power series ring.
 
         The coefficients are on the last axis.
         """
         return ring.reduce(here - ring.multiply(variable, right))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         ring = PowerSeriesSpec(self.order, self.field)
         if self.initial is None:
@@ -294,18 +293,19 @@ class PowerSeriesAutomatonSystem(BaseSystem):
         else:
             values = np.asarray(self.initial, dtype=float)
         rule = functools.partial(
-            self._power_series_difference,
+            self._get_power_series_difference,
             ring=ring,
-            variable=ring.coefficients_of(ring.ring.gen()),
+            variable=ring.get_coefficients_of(ring.ring.gen()),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PowerSeriesCellElement,
                     space=LatticeSpace(self.size),
                     values={'ring': ring, 'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -370,7 +370,7 @@ class SubtractionAutomatonSystem(BaseSystem):
         """Return the truncated difference `max(0, x(n) - x(n + 1))` of the naturals."""
         return np.maximum(0.0, here - right)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals.
 
         Its image is not closed.
@@ -384,14 +384,15 @@ class SubtractionAutomatonSystem(BaseSystem):
             values = np.where(steps < 0, self.height, np.maximum(0, self.height - steps)).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PascalCellElement,
                     space=LatticeSpace(self.size, boundary='fixed'),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -458,24 +459,25 @@ class RealQuadraticAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _quadratic(here: Array, right: Array) -> Array:
+    def _get_quadratic(here: Array, right: Array) -> Array:
         """Return `x(n + 1) - x(n)^2`."""
         return right - here**2
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = x(n + 1) - x(n)^2` over the reals on a ring."""
         if self.initial is None:
             values = np.random.default_rng(self.random_state).uniform(-self.amplitude, self.amplitude, self.size)
         else:
             values = np.asarray(self.initial, dtype=float)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=RealCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -483,7 +485,7 @@ class RealQuadraticAutomatonSystem(BaseSystem):
                     'quadratic',
                     target='cells',
                     state='value',
-                    rule=self._quadratic,
+                    rule=self._get_quadratic,
                     neighborhood=FORWARD,
                 ),
             ],
@@ -543,14 +545,14 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
+    def _get_group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
         """Return the number of the group element `x(n)^-1 x(n + 1)`.
 
         It is read from a Cayley table and the inverses.
         """
         return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the automaton `τ(x)(n) = x(n)^-1 x(n + 1)` over a finite group.
 
         The finite group is its alphabet. It runs on a ring.
@@ -562,15 +564,16 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
             values = np.random.default_rng(self.random_state).integers(0, product.shape[0], self.size).astype(float)
         else:
             values = np.asarray(self.initial, dtype=float)
-        rule = functools.partial(self._group_difference, product=product, inverse=inverse)
-        return System(
+        rule = functools.partial(self._get_group_difference, product=product, inverse=inverse)
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=GroupCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': values},
+                    on='sites',
                 ),
             ],
             interactions=[

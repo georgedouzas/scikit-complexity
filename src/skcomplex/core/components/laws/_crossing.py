@@ -1,4 +1,4 @@
-"""Define crossing laws, events at the crossing of zero by a guard."""
+"""Define the law that fires an event when a guard crosses zero."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,11 +15,18 @@ from ._base import BaseLaw
 
 
 class CrossingLaw(BaseLaw):
-    """Event at the crossing of zero by a guard.
+    """A law that resets states or ends the run when a guard crosses zero.
 
-    At the event, states take new values or the run ends. Solvers locate the crossing within their tolerance. Crossings
-    leave the form of a system as is, so they combine with rate laws, and the trajectory records every crossing with its
-    time and the states before and after it.
+    The guard is an expression of the states whose sign change marks an event. At the event the states in `reset` take
+    new values, or the run ends when `terminal` is true. Solvers locate the crossing within their tolerance. A crossing
+    leaves the equations of a system as they are, so it combines with rate laws, and the trajectory records every
+    crossing with its time and the states before and after it.
+
+    Unlike `BoundaryLaw`, which corrects a state once per step, it finds the time of the event within the tolerance of
+    the solver. Choose it when the time of the event matters, such as an impact or a threshold.
+
+    It appears in many fields. A ball bounces off the floor, a neuron fires when its potential reaches a threshold, and
+    a thermostat switches a heater at a set temperature.
 
     Args:
         guard:

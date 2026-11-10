@@ -57,7 +57,7 @@ trajectory = simulate(system, until=STEPS, observables=observables, observers=[o
 # capital should have a power-law tail, which a maximum-likelihood fit locates, and the share of the capital held by
 # the largest 1 percent of firms should keep growing while aggregate production rises.
 
-capital = trajectory.agents('firms', STEPS).values['K']
+capital = trajectory.get_agents('firms', STEPS).values['K']
 fit = fit_law(capital)
 ccdf = distribution(capital, kind='ccdf')
 values, probabilities = ccdf.support, ccdf.survival
@@ -76,12 +76,12 @@ sizes.set_xlabel('capital K')
 sizes.set_ylabel('P(K > k)')
 sizes.set_title(f'Firm sizes after {STEPS} periods')
 sizes.legend()
-concentration.plot(trajectory.times, trajectory.values('top_share'), label='capital share of the top 1%')
+concentration.plot(trajectory.times, trajectory.get_values('top_share'), label='capital share of the top 1%')
 concentration.set_xlabel('period')
 concentration.set_ylabel('capital share of the largest 1%')
 concentration.set_title('Capital concentrates as production grows')
 production = concentration.twinx()
-production.plot(trajectory.times[1:], trajectory.values('production')[1:], color='C1')
+production.plot(trajectory.times[1:], trajectory.get_values('production')[1:], color='C1')
 production.set_ylabel('aggregate production', color='C1')
 fig.tight_layout()
 plt.show()

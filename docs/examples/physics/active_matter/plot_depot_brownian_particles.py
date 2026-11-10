@@ -8,7 +8,7 @@ direction. The view shows 50 particles started at the origin, flying apart along
 """
 
 # %%
-# The system is built from its class with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
+# The example builds `DepotBrownianParticlesSystem` with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
 # conversion `d = 10`, and velocity noise `D = 0.01`. The Euler-Maruyama stepper takes steps of 0.01 and the observer
 # saves every frame of 0.1 with the default blueprint, whose primary view shows the particles.
 
@@ -45,7 +45,7 @@ for intake in intakes:
         dt=0.5,
         random_state=1,
     )
-    speeds.append(np.linalg.norm(run.values('walkers.v')[-20:], axis=-1).mean())
+    speeds.append(np.linalg.norm(run.get_values('walkers.v')[-20:], axis=-1).mean())
 grid = np.linspace(0.5, 12, 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(intakes, speeds, 'o', label='simulation, 50 particles')

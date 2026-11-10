@@ -19,7 +19,7 @@ from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..common.networks import HostElement, SpreadingInteraction
 
@@ -203,7 +203,7 @@ class WattsMayConcurrencySystem(BaseSystem):
         self.T = T
         self.nu = nu
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SEIR epidemic of Watts and May."""
         population = PartnershipEpidemicElement(
             'population',
@@ -215,7 +215,7 @@ class WattsMayConcurrencySystem(BaseSystem):
             T=self.T,
             nu=self.nu,
         )
-        return System(self.label, elements=[population])
+        return CompositeSystem(self.label, elements=[population])
 
 
 class PairFormationSISSystem(BaseSystem):
@@ -297,7 +297,7 @@ class PairFormationSISSystem(BaseSystem):
         self.infected = infected
         self.seed = seed
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on partnerships that are replaced at once.
 
         The partnerships dissolve and are replaced at once.
@@ -327,7 +327,7 @@ class PairFormationSISSystem(BaseSystem):
             capacity=space.graph.number_of_edges(),
             visual=VisualSpec('sites', {'states': []}),
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people, partnerships],
             interactions=[

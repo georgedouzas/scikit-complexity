@@ -8,7 +8,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 """
 
 # %%
-# The system is built from its class with memory 0.75, the value of Lesmana et al. Every third step
+# The example builds `EvolutionarySKGameSystem` with memory 0.75, the value of Lesmana et al. Every third step
 # replaces the least fit agent, and two steps of learning alone follow. The observer saves every 50th step with the
 # default blueprint, whose primary view is the histogram of the temperatures. Every third frame of the
 # trajectory holds the fitnesses that decide a replacement.
@@ -28,9 +28,9 @@ TRANSIENT = 1500
 system = EvolutionarySKGameSystem(memory=0.75, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
 trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
-temperatures = np.asarray(trajectory.values('agents.temperature'))
-fitness = np.asarray(trajectory.values('agents.fitness'))[::3][TRANSIENT // 3 :]
-rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
+temperatures = np.asarray(trajectory.get_values('agents.temperature'))
+fitness = np.asarray(trajectory.get_values('agents.fitness'))[::3][TRANSIENT // 3 :]
+rewards = np.asarray(trajectory.get_values('agents.reward')).mean(axis=1)
 
 # %%
 # Selection, cascades, and the edge of ergodicity breaking
@@ -62,7 +62,7 @@ for scale in scales:
             until=300,
             random_state=run,
         )
-        .values('agents.reward')
+        .get_values('agents.reward')
         .mean(axis=1)[150:]
         for run in range(4)
     ]

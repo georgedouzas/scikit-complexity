@@ -16,9 +16,13 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+
+DRAW = 'draw'
+GROW = 'grow'
+BALLS = 'balls'
 
 
 class BallView(AgentView):
@@ -91,11 +95,6 @@ class UrnView(AgentView):
     novelties: float
     color: float
     novel: float
-
-
-DRAW = 'draw'
-GROW = 'grow'
-BALLS = 'balls'
 
 
 class UrnElement(Element):
@@ -191,8 +190,8 @@ class UrnElement(Element):
             system:
                 The view of the system.
         """
-        own = [ball for ball in agent.agents_here(BALLS) if isinstance(ball, BallView)]
-        social = [ball for ball in agent.neighbors(group=BALLS) if isinstance(ball, BallView)]
+        own = [ball for ball in agent.get_agents_here(BALLS) if isinstance(ball, BallView)]
+        social = [ball for ball in agent.get_neighbors(group=BALLS) if isinstance(ball, BallView)]
         colors = [ball.color for ball in own] + [ball.color for ball in social]
         weights = np.asarray([ball.count for ball in own] + [1.0] * len(social), dtype=float)
         if not colors:
@@ -216,8 +215,8 @@ class UrnElement(Element):
         """
         if agent.color < 0:
             return
-        rho, nu = system.parameter('rho'), system.parameter('nu')
-        own = [ball for ball in agent.agents_here(BALLS) if isinstance(ball, BallView)]
+        rho, nu = system.get_parameter('rho'), system.get_parameter('nu')
+        own = [ball for ball in agent.get_agents_here(BALLS) if isinstance(ball, BallView)]
         ball = next((ball for ball in own if ball.color == agent.color), None)
         if ball is None:
             agent.create(BALLS, color=agent.color, count=rho, drawn=1)
@@ -229,7 +228,9 @@ class UrnElement(Element):
         agent.novelties += 1
         stored = system.storage.get('colors')
         first = (
-            stored if isinstance(stored, int) else int(max(item.color for item in system.agents(BALLS, BallView))) + 1
+            stored
+            if isinstance(stored, int)
+            else int(max(item.color for item in system.get_agents(BALLS, BallView))) + 1
         )
         for color in range(first, first + int(nu) + 1):
             agent.create(BALLS, color=color, count=1, drawn=0)
@@ -295,7 +296,7 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         self.nu = nu
         self.m0 = m0
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         graph = self.graph
         graph = nx.karate_club_graph() if graph is None else graph
@@ -303,7 +304,7 @@ class InteractingUrnsNetworkSystem(BaseSystem):
         initial = self.nu + 1 if self.m0 is None else self.m0
         places = [node for node in nodes for _ in range(initial)]
         colors = list(range(len(places)))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

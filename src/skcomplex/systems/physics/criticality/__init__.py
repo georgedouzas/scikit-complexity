@@ -3,7 +3,7 @@
 The package covers sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches.
 """
 
-from ..common import SandpileCellElement
+from ..common.avalanches import SandpileCellElement
 from ._absorbing import ActiveFieldElement, DirectedPercolationLangevinSystem
 from ._crackling_noise import CracklingNoiseResult, crackling_noise
 from ._criticality import (
@@ -18,7 +18,6 @@ from ._criticality import (
 from ._evolutionary_learning import EvolutionarySKGameSystem, LearnerElement
 from ._learning import LearningAgentElement, SKGameSystem
 from ._sandpiles import (
-    BranchingTreeElement,
     EnergySiteElement,
     FixedEnergySandpileSystem,
     SelfOrganizedBranchingSystem,
@@ -29,7 +28,6 @@ from ._sandpiles import (
 __all__: list[str] = [
     'ActiveFieldElement',
     'AvalancheInteraction',
-    'BranchingTreeElement',
     'CracklingNoiseResult',
     'DirectedPercolationLangevinSystem',
     'EnergySiteElement',

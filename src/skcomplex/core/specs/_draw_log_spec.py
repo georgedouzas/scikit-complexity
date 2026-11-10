@@ -16,7 +16,7 @@ from ._draw_record_spec import DrawRecordSpec
 
 @dataclass(frozen=True)
 class DrawLogSpec(BaseSpec):
-    """Named draws and jump firings of one run, with their log-probability.
+    """A spec of the named draws and jumps of one run, with their log-probability.
 
     A run records it with `simulate(record_draws=True)` and replays it with `simulate(replay=trajectory)`.
 
@@ -47,7 +47,7 @@ class DrawLogSpec(BaseSpec):
     log_probability: float
 
     def _check(self) -> None:
-        """Raise an error when the firing times and laws differ in length or the times decrease."""
+        """Raise an error when firing times and laws differ in length or times decrease."""
         if len(self.firing_times) != len(self.firing_laws):
             error_msg = 'The firings hold times and laws of different lengths.'
             raise ValidationError(error_msg)

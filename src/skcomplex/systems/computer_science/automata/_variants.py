@@ -16,22 +16,23 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
-    BoxNeighborhood,
+    BallNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
-    MooreNeighborhood,
-    VonNeumannNeighborhood,
 )
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._pascal_cell import PascalCellElement
+
+LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
+PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
 
 
 class DiffusionCellElement(Element):
@@ -105,17 +106,6 @@ class NoisyElementaryCellElement(BinaryCellElement):
         self.noise = noise
 
 
-LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
-
-
-PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
-
-
-def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
-
-
 class HighlifeSystem(BaseSystem):
     """HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
 
@@ -158,6 +148,15 @@ class HighlifeSystem(BaseSystem):
     until = 100
     dt = 1
 
+    @staticmethod
+    def _get_random_cells(
+        shape: Sequence[int],
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
+        """Return cells that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
+
     def __init__(
         self,
         shape: Sequence[int] = (100, 100),
@@ -187,28 +186,30 @@ class HighlifeSystem(BaseSystem):
             raise ParameterError(error_msg)
         return tuple(int(digit) for digit in match['born']), tuple(int(digit) for digit in match['survive'])
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
 
         The automaton is given by its rule and runs on a torus.
         """
         born, survive = self._parse_life_rule(self.rule)
         values = (
-            _random_cells(self.shape, self.density, self.random_state)
+            HighlifeSystem._get_random_cells(self.shape, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )
         space = LatticeSpace(tuple(self.shape))
-        return System(
+        return CompositeSystem(
             self.label,
-            elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+            elements=[
+                GroupElement('cells', element=BinaryCellElement, space=space, values={'alive': values}, on='sites'),
+            ],
             interactions=[
                 LocalRuleInteraction(
                     'rule',
                     target='cells',
                     state='alive',
                     rule=life(born, survive),
-                    neighborhood=MooreNeighborhood(),
+                    neighborhood=BallNeighborhood(),
                 ),
             ],
         )
@@ -268,12 +269,12 @@ class NoisyAutomataSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _noisy_rule(number: int) -> Callable[..., Array]:
+    def _get_noisy_rule(number: int) -> Callable[..., Array]:
         """Return the elementary rule of a Wolfram number with noisy outputs.
 
         A uniform draw below the noise flips its output.
         """
-        mapping = Wolfram(number).table().mapping
+        mapping = Wolfram(number).get_table().mapping
         outputs = np.array(
             [mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)],
         )
@@ -284,21 +285,22 @@ class NoisyAutomataSystem(BaseSystem):
 
         return noisy
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an elementary cellular automaton whose outputs are flipped at random.
 
         The outputs are flipped with a small probability.
         """
-        values = _random_cells((self.size,), self.density, self.random_state)
+        values = HighlifeSystem._get_random_cells((self.size,), self.density, self.random_state)
         space = LatticeSpace(self.size)
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=NoisyElementaryCellElement,
                     space=space,
                     values={'alive': values, 'noise': self.noise},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -306,8 +308,8 @@ class NoisyAutomataSystem(BaseSystem):
                     'rule',
                     target='cells',
                     state='alive',
-                    rule=self._noisy_rule(self.rule),
-                    neighborhood=BoxNeighborhood(),
+                    rule=self._get_noisy_rule(self.rule),
+                    neighborhood=BallNeighborhood(n_dim=1, center='inline'),
                     stochastic=True,
                 ),
             ],
@@ -366,7 +368,7 @@ class DiffusionAutomatonSystem(BaseSystem):
         """
         return level + r * (sum(around) - len(around) * level)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`.
 
         It starts from a square of ones.
@@ -374,14 +376,15 @@ class DiffusionAutomatonSystem(BaseSystem):
         level = np.zeros(tuple(self.shape))
         rows, columns = (self.shape[0] - self.width) // 2, (self.shape[1] - self.width) // 2
         level[rows : rows + self.width, columns : columns + self.width] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=DiffusionCellElement,
                     space=LatticeSpace(tuple(self.shape)),
                     values={'level': level, 'r': self.r},
+                    on='sites',
                 ),
             ],
             interactions=[
@@ -390,7 +393,7 @@ class DiffusionAutomatonSystem(BaseSystem):
                     target='cells',
                     state='level',
                     rule=self._diffuse,
-                    neighborhood=VonNeumannNeighborhood(center=True),
+                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
                 ),
             ],
         )
@@ -439,21 +442,22 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         """Return the sum of a cell and its left neighbour."""
         return left + center
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return an additive automaton over the nonnegative integers.
 
         Its rule is `x'(n) = x(n - 1) + x(n)`. It starts from a single 1.
         """
         value = np.zeros(self.size)
         value[self.size // 2] = 1.0
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
-                LatticeElement(
+                GroupElement(
                     'cells',
                     element=PascalCellElement,
                     space=LatticeSpace(self.size),
                     values={'value': value},
+                    on='sites',
                 ),
             ],
             interactions=[

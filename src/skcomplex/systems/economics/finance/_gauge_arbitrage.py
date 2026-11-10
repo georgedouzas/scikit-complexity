@@ -22,7 +22,7 @@ from ....core.components.interactions import NeighborInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -171,34 +171,6 @@ class TraderCurrentInteraction(NeighborInteraction):
         return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
 
 
-def _total_good(t: float, values: Mapping[str, object]) -> float:
-    """Return the total of the good."""
-    del t
-    return float(np.sum(np.asarray(values['sites.rho'], dtype=float)))
-
-
-def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
-    """Return the largest absolute difference of the codifferential and the excess.
-
-    The codifferential is that of the field, and the excess that of the good.
-
-    The excess is that of the good.
-    """
-    del t
-    density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
-    electric = np.ravel(np.asarray(values['links.E'], dtype=float))
-    return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
-
-
-def _market_observables(system: System) -> list[ObservableSpec]:
-    """Return the total of the good and the Gauss residual against its excess density."""
-    space = system.elements[0].space.prepare()
-    return [
-        ObservableSpec('total_good', function=_total_good),
-        ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
-    ]
-
-
 class GaugeArbitrageMarketSystem(BaseSystem):
     """Exchange-rate potentials on links as lattice Maxwell fields.
 
@@ -246,6 +218,37 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     dt = 0.5
     solver = RK4Solver(dt=0.02)
 
+    @staticmethod
+    def _get_total_good(t: float, values: Mapping[str, object]) -> float:
+        """Return the total of the good."""
+        del t
+        return float(np.sum(np.asarray(values['sites.rho'], dtype=float)))
+
+    @staticmethod
+    def _get_gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str, object]) -> float:
+        """Return the largest absolute difference of the codifferential and the excess.
+
+        The codifferential is that of the field, and the excess that of the good.
+
+        The excess is that of the good.
+        """
+        del t
+        density = np.ravel(np.asarray(values['sites.rho'], dtype=float))
+        electric = np.ravel(np.asarray(values['links.E'], dtype=float))
+        return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
+
+    @staticmethod
+    def _get_market_observables(system: CompositeSystem) -> list[ObservableSpec]:
+        """Return the total of the good and the Gauss residual against its excess density."""
+        space = system.elements[0].space.prepare()
+        return [
+            ObservableSpec('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
+            ObservableSpec(
+                'gauss_residual',
+                function=partial(GaugeArbitrageMarketSystem._get_gauss_residual, space.incidences_[0]),
+            ),
+        ]
+
     def __init__(
         self,
         size: int = 16,
@@ -264,12 +267,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _potential_rate(namespace: SimpleNamespace) -> Expression:
+    def _get_potential_rate(namespace: SimpleNamespace) -> Expression:
         """Return the rate of the potential, the field `F_0i` of the link."""
         return namespace.target.E
 
     @staticmethod
-    def _field_rate(namespace: SimpleNamespace) -> Expression:
+    def _get_field_rate(namespace: SimpleNamespace) -> Expression:
         """Return the rate of the field without the current.
 
         It is minus the codifferential of the exterior derivative.
@@ -277,7 +280,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return -codifferential(exterior_derivative(namespace.target.A))
 
     @staticmethod
-    def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
+    def _get_initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
         """Return the electric field of the smallest norm with a given codifferential.
 
         Its codifferential is the excess of the good.
@@ -292,12 +295,19 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         )[0]
         return np.asarray(field, dtype=float)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
-        field = self._initial_field(space.incidences_[0], density - density.mean())
-        sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
+        field = self._get_initial_field(space.incidences_[0], density - density.mean())
+        sites = GroupElement(
+            'sites',
+            element=GoodSiteElement,
+            space=space,
+            on='sites',
+            values={'rho': density},
+            visual=VisualSpec(),
+        )
         links = GroupElement(
             'links',
             element=ExchangeLinkElement,
@@ -307,11 +317,11 @@ class GaugeArbitrageMarketSystem(BaseSystem):
             visual=VisualSpec('cell', {'state': 'A'}),
         )
         interactions = [
-            RateInteraction('potential', target='links', state='A', rate=self._potential_rate),
-            RateInteraction('field', target='links', state='E', rate=self._field_rate),
+            RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),
+            RateInteraction('field', target='links', state='E', rate=self._get_field_rate),
             TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
         ]
-        return System(self.label, elements=[sites, links], interactions=interactions)
+        return CompositeSystem(self.label, elements=[sites, links], interactions=interactions)
 
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings.
@@ -319,5 +329,5 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = _market_observables(self._pass_parameters())
+        settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())
         return settings

@@ -31,7 +31,7 @@ trajectory = simulate(DNAComputationSystem(), observers=[observer], random_state
 
 counts = []
 for frame in range(len(trajectory.times)):
-    paths = np.asarray(trajectory.agents('strands', frame).values['path'], dtype=int)
+    paths = np.asarray(trajectory.get_agents('strands', frame).values['path'], dtype=int)
     lengths = (paths >= 0).sum(axis=1)
     ends = (paths[:, 0] == 0) & (paths[np.arange(len(paths)), lengths - 1] == 6)
     sized = ends & (lengths == 7)
@@ -44,7 +44,7 @@ for column, label in enumerate(('start at 0 and end at 6', 'and pass 7 nodes', '
 ax.set_yscale('symlog')
 ax.set_xlabel('step')
 ax.set_ylabel('strands left')
-final = np.asarray(trajectory.agents('strands', len(trajectory.times) - 1).values['path'], dtype=int)
+final = np.asarray(trajectory.get_agents('strands', len(trajectory.times) - 1).values['path'], dtype=int)
 solved = {tuple(path) for path, ok in zip(final, covered, strict=True) if ok}
 ax.set_title(f'Solutions: {sorted(solved)}')
 ax.legend()

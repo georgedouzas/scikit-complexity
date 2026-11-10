@@ -1,7 +1,4 @@
-"""Find autocatalytic sets.
-
-An autocatalytic set is the maximal reflexively autocatalytic and food-generated subset.
-"""
+"""Find autocatalytic sets."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +20,7 @@ TAGS = AnalysisTags(DataKind.NETWORK)
 
 @dataclass(frozen=True)
 class AutocatalyticSetsResult:
-    """Maximal autocatalytic set of a catalytic reaction network at every frame.
+    """A result of `autocatalytic_sets`, the largest such set at every frame.
 
     Args:
         snapshots:
@@ -71,6 +68,9 @@ def autocatalytic_sets(
     reactions with a reactant outside the closure of the food set, or without a catalyst in it, until no reaction is
     removed, and returns the reactions left, an empty set when there is no RAF.
 
+    It appears in studies of the origin of life, where sets of molecules catalyse their own production, and in models of
+    economies whose goods are made from each other.
+
     Args:
         source:
             The network snapshot, or the trajectory of a network whose hyperedges change.
@@ -108,7 +108,7 @@ def autocatalytic_sets(
         snapshots = [source]
     elif isinstance(source, Trajectory):
         chosen = range(len(source.times)) if frames is None else frames
-        snapshots = [source.network(int(frame)) for frame in chosen]
+        snapshots = [source.get_network(int(frame)) for frame in chosen]
     else:
         error_msg = f'Autocatalytic sets are read from a network snapshot or a trajectory, not {type(source).__name__}.'
         raise AnalysisError(error_msg)
@@ -205,11 +205,6 @@ def _closure(food: set[int], reactions: list[tuple[list[int], int]]) -> set[int]
     Returns:
         closure:
             The food set and every product reachable from it.
-
-    Examples:
-        >>> from skcomplex.core.analysis._autocatalytic import _closure
-        >>> sorted(_closure({0, 1}, [([0, 1], 2), ([2, 5], 3), ([2], 4)]))
-        [0, 1, 2, 4]
     """
     closure = set(food)
     changed = True

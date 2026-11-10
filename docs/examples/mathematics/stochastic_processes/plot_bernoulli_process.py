@@ -22,7 +22,9 @@ SYSTEM = 'bernoulli_process'
 
 def successes(trajectory):
     """Return the success counts, one row per step and one column per sequence."""
-    return np.array([trajectory.agents('trials', frame).values['successes'] for frame in range(len(trajectory.times))])
+    return np.array(
+        [trajectory.get_agents('trials', frame).values['successes'] for frame in range(len(trajectory.times))],
+    )
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)

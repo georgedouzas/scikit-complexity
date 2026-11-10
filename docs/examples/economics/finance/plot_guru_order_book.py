@@ -30,8 +30,8 @@ trajectory = simulate(GuruOrderBookSystem(), until=1000)
 # Periods in which the guru gathers many followers should come with large returns, and the distribution of the daily
 # returns should have a much larger kurtosis than a Gaussian, as Caiani et al. find for coordination periods.
 
-returns = trajectory.values('market.log_return')[1:]
-followers = trajectory.values('market.guru_followers')[1:]
+returns = trajectory.get_values('market.log_return')[1:]
+followers = trajectory.get_values('market.guru_followers')[1:]
 fig, (series, tails) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times[1:], returns, lw=0.6, label='log return')
 series.plot(trajectory.times[1:], followers / 1000, lw=0.8, label='followers of the guru / 1000')

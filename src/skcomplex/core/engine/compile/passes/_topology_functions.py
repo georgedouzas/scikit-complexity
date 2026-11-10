@@ -1,7 +1,4 @@
-"""Pass that compiles the topology changes.
-
-It leaves out the compiled stepper loops when laws request them.
-"""
+"""Pass that compiles the topology changes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +17,7 @@ from ....types import Array, VariableKind
 from ..._utils import declarations_of, declared_variables, default_of
 from ...problems._block_spec import BlockSpec
 from ...problems._compiled_request_spec import CompiledRequestSpec
-from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
@@ -35,7 +32,7 @@ from ._specs import SpecsPass
 
 
 class TopologyFunctionsPass(BasePass):
-    """Pass that compiles the topology changes.
+    """A pass that compiles the topology changes.
 
     It leaves out the compiled stepper loops when laws request them.
     """
@@ -55,11 +52,11 @@ class TopologyFunctionsPass(BasePass):
         if functions is None or jumps is None:
             error_msg = 'TopologyFunctionsPass reads the numeric functions and the request jumps, which no pass wrote.'
             raise PipelineError(error_msg)
-        topology = self._topology(
-            Compilation._required(compilation.kernels, 'kernels'),
-            Compilation._required(compilation.reduced_apart, 'reduced_apart'),
-            Compilation._required(compilation.layout, 'layout'),
-            Compilation._required(compilation.reductions, 'reductions'),
+        topology = self._get_topology(
+            Compilation._get_required(compilation.kernels, 'kernels'),
+            Compilation._get_required(compilation.reduced_apart, 'reduced_apart'),
+            Compilation._get_required(compilation.layout, 'layout'),
+            Compilation._get_required(compilation.reductions, 'reductions'),
             jumps,
         )
         if topology is not None and (topology.requests or topology.channels):
@@ -86,7 +83,7 @@ class TopologyFunctionsPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _compiled_request(
+    def _get_compiled_request(
         spec: KernelSpec,
         request: TopologyRequestSpec,
         networks: dict[int, NetworkRowsSpec],
@@ -192,7 +189,7 @@ class TopologyFunctionsPass(BasePass):
         return isinstance(next(iter(law._get_targets()), None), _WeightSpec)
 
     @staticmethod
-    def _topology(
+    def _get_topology(
         lowered: LoweredKernelsSpec,
         apart: Laws,
         declarations: DeclarationsSpec,
@@ -203,7 +200,7 @@ class TopologyFunctionsPass(BasePass):
 
         The groups are the variable groups of networks, and the result is `None` if there are none.
         """
-        networks = TopologyFunctionsPass._networks(declarations)
+        networks = TopologyFunctionsPass._get_networks(declarations)
         if not networks:
             return None
         towards = [(spec, laws) for spec, laws in apart if all(TopologyFunctionsPass._is_weight(law) for law in laws)]
@@ -223,7 +220,7 @@ class TopologyFunctionsPass(BasePass):
                 if request is None or not isinstance(law, UpdateLaw):
                     error_msg = f'A law of {spec.owner} set apart for the networks requests no topology change.'
                     raise PipelineError(error_msg)
-                item = TopologyFunctionsPass._compiled_request(spec, request, networks, weights, declarations)
+                item = TopologyFunctionsPass._get_compiled_request(spec, request, networks, weights, declarations)
                 requests.append(
                     replace(item, condition=TopologyFunctionsPass._request_kernel(spec, law.value, declarations)),
                 )
@@ -240,20 +237,22 @@ class TopologyFunctionsPass(BasePass):
                     )
                     raise ValidationError(error_msg)
                 if found is not None:
-                    channels[index] = TopologyFunctionsPass._compiled_request(*found, networks, weights, declarations)
+                    channels[index] = TopologyFunctionsPass._get_compiled_request(
+                        *found,
+                        networks,
+                        weights,
+                        declarations,
+                    )
                 index += 1
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
-    def _capacity_rows(block: BlockSpec, declarations: DeclarationsSpec) -> CapacityRowsSpec:
+    def _get_capacity_rows(block: BlockSpec) -> CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
             block:
                 The block of the variable group.
-
-            declarations:
-                The declarations of the compilation.
 
         Returns:
             rows:
@@ -265,17 +264,17 @@ class TopologyFunctionsPass(BasePass):
         variables: dict[str, tuple[EntrySpec, bool]] = {}
         defaults: dict[str, Array] = {}
         for name, entry in block.entries.items():
-            if name in {_ACTIVE, *ENDS, MEMBERS}:
+            if name in {ACTIVE, *ENDS, MEMBERS}:
                 continue
             variables[name] = (entry, name in states)
             default = default_of(element, name) if name in declared_variables(element) else 0.0
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target, members = (block.entries.get(name) for name in (*ENDS, MEMBERS))
-        return CapacityRowsSpec(node.path, variables, defaults, block.entries[_ACTIVE], source, target, members)
+        return CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
 
     @staticmethod
-    def _networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
+    def _get_networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
         """Return the variable groups of every network whose groups are variable.
 
         They are keyed by the identity of the space.
@@ -284,7 +283,7 @@ class TopologyFunctionsPass(BasePass):
         networks = {}
         for key, space in spaces.items():
             nodes = tuple(
-                TopologyFunctionsPass._capacity_rows(block, declarations)
+                TopologyFunctionsPass._get_capacity_rows(block)
                 for block in declarations.capacity.values()
                 if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
             )
@@ -298,8 +297,8 @@ class TopologyFunctionsPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             edges = {
-                layer: TopologyFunctionsPass._capacity_rows(block, declarations)
-                for layer, block in declarations.changing_edges(space).items()
+                layer: TopologyFunctionsPass._get_capacity_rows(block)
+                for layer, block in declarations.get_changing_edges(space).items()
             }
             if not isinstance(space, NetworkSpace):
                 error_msg = f'The variable groups {", ".join(group.path for group in nodes)} are not on a network.'
@@ -307,7 +306,7 @@ class TopologyFunctionsPass(BasePass):
             directed = {layer: space.graphs_[layer].is_directed() for layer in edges}
             hyperedges = next(
                 (
-                    TopologyFunctionsPass._capacity_rows(block, declarations)
+                    TopologyFunctionsPass._get_capacity_rows(block)
                     for block in declarations.capacity.values()
                     if block.node.space is space and getattr(block.node.component, 'on', None) == 'hyperedges'
                 ),
@@ -325,11 +324,11 @@ class TopologyFunctionsPass(BasePass):
                 error_msg = f'The source role of {spec.owner} binds several groups, not the nodes of one network.'
                 raise ValidationError(error_msg)
             nodes = declarations.blocks[source]
-            return SpecsPass._group_space(nodes), 'edge'
+            return SpecsPass._get_group_space(nodes), 'edge'
         if spec.group in declarations.capacity:
             block = declarations.capacity[spec.group]
             on = getattr(block.node.component, 'on', None)
-            return SpecsPass._group_space(block), 'hyperedge' if on == 'hyperedges' else 'node'
+            return SpecsPass._get_group_space(block), 'hyperedge' if on == 'hyperedges' else 'node'
         if spec.rows == 1:
             spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
             if len(spaces) == 1:

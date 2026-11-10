@@ -15,7 +15,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
@@ -164,25 +164,25 @@ class CoevolutionaryClimbingInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.agents(self.species, CoevolvingSpeciesView)
+        species = system.get_agents(self.species, CoevolvingSpeciesView)
         genomes = [int(item.genome) for item in species]
         for index, item in enumerate(species):
             mutant = genomes[index] ^ (1 << int(system.rng.integers(self.n)))
             trial = [*genomes[:index], mutant, *genomes[index + 1 :]]
-            accepted = self._fitness(index, trial) > self._fitness(index, genomes)
+            accepted = self._get_fitness(index, trial) > self._get_fitness(index, genomes)
             if accepted:
                 genomes[index] = mutant
             item.moves = float(accepted)
         for index, item in enumerate(species):
             item.genome = float(genomes[index])
-            item.fitness = self._fitness(index, genomes)
+            item.fitness = self._get_fitness(index, genomes)
 
-    def _fitness(self, index: int, genomes: list[int]) -> float:
+    def _get_fitness(self, index: int, genomes: list[int]) -> float:
         """Return the fitness of a species.
 
         It is the mean contribution of its genes at the current genomes.
         """
-        partners, genes, tables = self._landscape(len(genomes), (self.n, self.k, self.c, self.s, self.seed))
+        partners, genes, tables = self._get_landscape(len(genomes), (self.n, self.k, self.c, self.s, self.seed))
         own = genomes[index]
         total = 0.0
         for locus in range(self.n):
@@ -195,7 +195,7 @@ class CoevolutionaryClimbingInteraction(Interaction):
 
     @staticmethod
     @lru_cache(maxsize=8)
-    def _landscape(size: int, settings: tuple[int, int, int, int, int]) -> tuple[Array, Array, Array]:
+    def _get_landscape(size: int, settings: tuple[int, int, int, int, int]) -> tuple[Array, Array, Array]:
         """Return the partner species, the coupled genes, and the tables.
 
         The coupled genes are those of every gene, and everything derives from `(n, k, c, s, seed)`.
@@ -278,7 +278,7 @@ class NKCSSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the NKCS model of Kauffman and Johnsen."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.n_species).astype(float)
         species = GroupElement(
@@ -296,4 +296,4 @@ class NKCSSystem(BaseSystem):
             s=self.s,
             seed=self.seed,
         )
-        return System(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())
+        return CompositeSystem(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())

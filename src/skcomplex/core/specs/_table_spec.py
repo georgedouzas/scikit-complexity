@@ -11,7 +11,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class TableSpec(BaseSpec):
-    """Rule given by the next value of every neighbourhood pattern of integer states.
+    """A spec of a rule given by the next value of every neighbourhood pattern.
 
     The states are `0` to `states - 1`.
 

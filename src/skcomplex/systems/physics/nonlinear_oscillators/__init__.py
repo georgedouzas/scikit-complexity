@@ -6,8 +6,6 @@ The package covers Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, b
 from ._billiards import BilliardsSystem, MushroomBilliardElement, SinaiBilliardElement, ThreeDiskBilliardElement
 from ._oscillators import (
     AdlerEquationSystem,
-    AdlerPhaseElement,
-    DuffingElement,
     DuffingSystem,
     ForcedTodaSystem,
     ForcedVanDerPolSystem,
@@ -15,19 +13,17 @@ from ._oscillators import (
     HenonHeilesSystem,
     ImpulsiveOscillatorElement,
     ImpulsiveOscillatorSystem,
+    KickInteraction,
     NuclearQuadrupoleSystem,
     QuadrupoleElement,
     StuartLandauSystem,
-    TodaElement,
     VanDerPolElement,
     VanDerPolSystem,
 )
 
 __all__: list[str] = [
     'AdlerEquationSystem',
-    'AdlerPhaseElement',
     'BilliardsSystem',
-    'DuffingElement',
     'DuffingSystem',
     'ForcedTodaSystem',
     'ForcedVanDerPolSystem',
@@ -35,13 +31,13 @@ __all__: list[str] = [
     'HenonHeilesSystem',
     'ImpulsiveOscillatorElement',
     'ImpulsiveOscillatorSystem',
+    'KickInteraction',
     'MushroomBilliardElement',
     'NuclearQuadrupoleSystem',
     'QuadrupoleElement',
     'SinaiBilliardElement',
     'StuartLandauSystem',
     'ThreeDiskBilliardElement',
-    'TodaElement',
     'VanDerPolElement',
     'VanDerPolSystem',
 ]

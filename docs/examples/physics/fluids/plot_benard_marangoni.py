@@ -8,7 +8,7 @@ the layer at the end of the run: bright cells of rising fluid packed in a hexago
 """
 
 # %%
-# The system is built from its class on a periodic square of side `16π`, eight cell wavelengths, at the
+# The example builds `BenardMarangoniSystem` on a periodic square of side `16π`, eight cell wavelengths, at the
 # distance `r = 0.1` above onset and with the quadratic term `g = 1` of the thermocapillary surface. The field starts
 # from noise of amplitude 0.01. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the field as an image.
@@ -38,9 +38,9 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # quadratic term also makes the rising cells stronger than the sinking rims, so the values of the hexagons should be
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
-hexagons = trajectory.lattice('layer.u')[-1]
+hexagons = trajectory.get_lattice('layer.u')[-1]
 rolls_run = simulate(BenardMarangoniSystem(g=0.0), random_state=0)
-rolls = rolls_run.lattice('layer.u')[-1]
+rolls = rolls_run.get_lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 
 fig, (spectrum_axes, histogram) = plt.subplots(1, 2, figsize=(10, 4))

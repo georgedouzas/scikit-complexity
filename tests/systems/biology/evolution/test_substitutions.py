@@ -14,7 +14,7 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
     loci, size = 4, 10.0
     system = OriginFixationWalkSystem(loci, N=size, mu=1.0, field_scale=0.1, coupling=0.3, random_state=1)
     trajectory = simulate(system, until=5000, dt=1.0, random_state=0)
-    alleles = trajectory.values('genome.s')[100:]
+    alleles = trajectory.get_values('genome.s')[100:]
     visited = np.bincount(((alleles > 0) * 2 ** np.arange(loci)).sum(axis=1).astype(int), minlength=2**loci)
     fields = system.system_.elements[0].values['h']
     couplings = system.system_.interactions[0].couplings
@@ -28,5 +28,5 @@ def test_origin_fixation_walk_climbs_the_landscape():
     system = OriginFixationWalkSystem(16, N=1000.0, mu=0.01, random_state=0)
     trajectory = simulate(system, until=1000, dt=10.0, random_state=0)
     fields = system.system_.elements[0].values['h']
-    assert trajectory.values('fitness')[-1] == pytest.approx(1.0 + np.abs(fields).sum(), abs=0.02)
-    assert trajectory.values('fitness')[-1] > trajectory.values('fitness')[0]
+    assert trajectory.get_values('fitness')[-1] == pytest.approx(1.0 + np.abs(fields).sum(), abs=0.02)
+    assert trajectory.get_values('fitness')[-1] > trajectory.get_values('fitness')[0]

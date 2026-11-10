@@ -42,7 +42,7 @@ trajectory = simulate(
 
 def densities(trajectory, frame):
     """Return the density of every block at a frame."""
-    blocks = trajectory.agents('dwellers', frame).values['block'].astype(int)
+    blocks = trajectory.get_agents('dwellers', frame).values['block'].astype(int)
     return np.bincount(blocks, minlength=BLOCKS) / CELLS
 
 

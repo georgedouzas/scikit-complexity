@@ -9,10 +9,12 @@ ensemble one member per step, and measure the geometry of point chains. The biol
 ## Requirements
 
 ### Requirement: Monte Carlo moves are accepted by row scores
-`SamplingInteraction` SHALL take a `RowScoreSpec` as its objective, a function of the values of one row of a lattice state
-along its last axis and the target's parameters that returns one number. It SHALL propose a declared number of moves
-per row and unit of time through its move, accept each by its rule on the change of the score of the row, give every
-row its own draws from the simulation's stream, and record the score of every row in the trajectory.
+The biology `SequenceSamplingInteraction`, a subclass of the core `SamplingInteraction` in
+`skcomplex.systems.biology.common.sequences`, SHALL take a `RowScoreSpec` as its objective, a function of the values of
+one row of a lattice state along its last axis and the target's parameters that returns one number. It SHALL propose a
+declared number of moves per row and unit of time through its move, accept each by its rule on the change of the score
+of the row, give every row its own draws from the simulation's stream, and record the score of every row in the
+trajectory. It SHALL return an `ArrayUpdateLaw`.
 
 #### Scenario: Neutral walk
 - **WHEN** a row score is 0 for sequences whose phenotype equals a target and 1 otherwise, and a walk starts on the
@@ -43,12 +45,12 @@ physics, at which the Metropolis rule accepts a move only when the objective doe
 - **THEN** the total energy never increases from one frame to the next
 
 ### Requirement: Drives read the step they run in
-`DriveLaw` SHALL pass the time of the step to a function that names `time` in its signature, so a drive can set a state
-to member `k` of an ensemble at step `k`.
+`ArrayUpdateLaw` SHALL pass the time of the step to a function that names `time` in its signature, so an array update
+can set a state to member `k` of an ensemble at step `k`.
 
 #### Scenario: Replay of an ensemble
-- **WHEN** a drive sets the positions of a 20-site chain to member `min(time, 37)` of an ensemble of 38 members, and the
-  system runs to time 40
+- **WHEN** an array update sets the positions of a 20-site chain to member `min(time, 37)` of an ensemble of 38
+  members, and the system runs to time 40
 - **THEN** the positions at frame 10 are member 10, and the positions at frame 40 are member 37
 
 ### Requirement: Chain geometry is analysed

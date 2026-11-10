@@ -121,6 +121,19 @@
   neural form, whose last layer at zero gives the typical rates. Areas under the curves are states with the
   concentration as rate, and the observable `F` is their dose-scaled ratio. Primitives: `rates`, `time-inputs`,
   `groups`, `observables`, and `neural-functions`.
+- **`growing_neural_cellular_automaton`.** Added from the survey of complex adaptive systems, since the neural
+  cellular automata that Hartl, Levin, and Pio-Lopez (2025, arXiv 2509.11131) review need exactly `neural_function` on
+  the sites of a lattice. Placement step 3, one system: `computer_science/automata/_neural_cellular_automaton.py`. One
+  `BaseSystem` with `n_channels=16`, `hidden=128`, `size`, `fire_rate=0.5`, `target`, and `random_state`. A site
+  element holds the channels, of which the first four are colour and alpha. One update interaction perceives every
+  channel through `convolve` with the identity and the two Sobel kernels, feeds the perception to one neural function
+  of two layers whose last layer starts at zero, multiplies the change by a `bernoulli` draw of each cell with
+  probability `fire_rate`, and keeps a cell alive when the largest alpha in its 3 by 3 neighbourhood, a `maximum`
+  reduction, exceeds 0.1 before and after the step. Training is the growing experiment of Mordvintsev et al.: from
+  one seed cell, a fixed number of steps, and the squared error of the colour and alpha channels against the target at
+  the last step, through `GradientStepLaw` on the unrolled run. The sample-pool and damage experiments are left out.
+  The default target is a synthetic ring of colours drawn by the system and labelled as such. Primitives: `lattices`,
+  `nonlocal-operators`, `updates`, `draws`, `reductions`, `learning`, and `neural-functions`.
 - The inventory gains the primitive `neural-functions`, "Neural networks called from laws, with weights as adaptive
   parameters", with `change = "add-hybrid-neural-laws"`.
 

@@ -13,16 +13,14 @@ from sage.all__sagemath_symbolics import Expression, abs_symbolic, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.components.elements import Element
-from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
-
-
 CIRCLES_END = 2
 
 
@@ -94,7 +92,7 @@ class BangBangPlantElement(Element):
         return [RateLaw(s.x, s.y), RateLaw(s.y, s.a * s.x + s.u), RateLaw(s.u, 0)]
 
     @staticmethod
-    def _switching_curve(plant: str, x: Expression) -> Expression:
+    def _get_switching_curve(plant: str, x: Expression) -> Expression:
         """Return the velocity `g(x)` of the switching curve of a plant at a position.
 
         Args:
@@ -126,7 +124,7 @@ class BangBangPlantElement(Element):
         return curve
 
     @staticmethod
-    def _control(plant: str, x: Expression, y: Expression) -> Expression:
+    def _get_control(plant: str, x: Expression, y: Expression) -> Expression:
         """Return the bang-bang control of a plant.
 
         It is -1 above its switching curve and 1 below it.
@@ -145,7 +143,7 @@ class BangBangPlantElement(Element):
             control:
                 The control.
         """
-        control: Expression = where(y > BangBangPlantElement._switching_curve(plant, x), -1, 1)
+        control: Expression = where(y > BangBangPlantElement._get_switching_curve(plant, x), -1, 1)
         return control
 
 
@@ -212,7 +210,7 @@ class MinimumTimeControlSystem(BaseSystem):
         self.plant = plant
         self.interval = interval
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         if self.plant not in PLANTS:
             error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
@@ -220,12 +218,12 @@ class MinimumTimeControlSystem(BaseSystem):
         if not self.interval > 0:
             error_msg = f'The interval of the samples is {self.interval!r}. Give a positive number.'
             raise ParameterError(error_msg)
-        start = float(BangBangPlantElement._control(self.plant, self.x, self.v))
-        sample = {'u': lambda s: BangBangPlantElement._control(self.plant, s.target.x, s.target.y)}
-        return System(
+        start = float(BangBangPlantElement._get_control(self.plant, self.x, self.v))
+        sample = {'u': lambda s: BangBangPlantElement._get_control(self.plant, s.target.x, s.target.y)}
+        return CompositeSystem(
             self.label,
             elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
             interactions=[
-                ImpulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
+                PulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
             ],
         )

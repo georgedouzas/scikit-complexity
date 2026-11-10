@@ -71,7 +71,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.physics.common.oscillators import (
         ...     KuramotoCouplingInteraction,
         ...     PhaseOscillatorElement,
@@ -79,8 +79,8 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> phases = GroupElement('phases', element=PhaseOscillatorElement, size=4, values={'theta': [0, 1, 2, 3]})
         >>> coupling = KuramotoCouplingInteraction('coupling', target='phases', K=2.0, mode='group', reduce='mean')
-        >>> system = System(elements=[phases], interactions=[coupling])
-        >>> theta = simulate(system, until=20.0, dt=1.0).values('phases.theta')
+        >>> system = CompositeSystem(elements=[phases], interactions=[coupling])
+        >>> theta = simulate(system, until=20.0, dt=1.0).get_values('phases.theta')
         >>> round(float(np.ptp(theta[-1])), 6)
         0.0
     """
@@ -108,7 +108,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
             source=source,
             read=state,
             write=state,
-            function=self._sine,
+            function=self._get_sine,
             reduce=reduce,
             mode=mode,
             weights=weights,
@@ -121,7 +121,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         self.alpha = alpha
         self.state = state
 
-    def _sine(self, namespace: SimpleNamespace) -> Expression:
+    def _get_sine(self, namespace: SimpleNamespace) -> Expression:
         """Return the term `K sin(theta_j - theta_i - alpha)` of one other member."""
         member, other = getattr(namespace.member, self.state), getattr(namespace.other, self.state)
         return namespace.K * sin(other - member - namespace.alpha)

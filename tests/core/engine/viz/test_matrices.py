@@ -36,7 +36,7 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
     )
     visual = next(item for item in observer.visuals_ if isinstance(item, MatrixVisual) and item.variable == 'A')
     assert (visual.name_, visual.shape_) == ('net/recurrence.A', (4, 4))
-    values = trajectory.values('net/recurrence.A')
+    values = trajectory.get_values('net/recurrence.A')
     assert not np.array_equal(values[0], values[-1])
     assert observer.logged_frames_ == 4
 

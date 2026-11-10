@@ -7,7 +7,7 @@ of the 48 x 48 lattice at the end of the run.
 """
 
 # %%
-# The system is built from its class on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
+# The example builds `EdwardsAndersonSystem` on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every second frame with the default blueprint,
 # whose primary view is the image of the spins.
 
@@ -40,10 +40,10 @@ for temperature in temperatures:
     values = sample.prepare().system_.elements[0].values
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
     trajectory = simulate(sample, until=2000, dt=10, random_state=0)
-    spins = trajectory.lattice('spins.spin')[-50:]
+    spins = trajectory.get_lattice('spins.spin')[-50:]
     bonds = spins * right * np.roll(spins, -1, axis=-1) + spins * down * np.roll(spins, -1, axis=-2)
     energies.append(-bonds.sum(axis=(1, 2)).mean() / 32**2)
-    magnetizations.append(np.abs(trajectory.values('magnetization')[-50:]).mean())
+    magnetizations.append(np.abs(trajectory.get_values('magnetization')[-50:]).mean())
     frozen.append(np.mean(spins.mean(axis=0) ** 2))
 grid = np.linspace(1.5, 3.6, 50)
 fig, (energy, order) = plt.subplots(1, 2, figsize=(10, 4))

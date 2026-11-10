@@ -35,7 +35,7 @@ order = []
 for coupling in couplings:
     system_system = KuramotoSystem(n_oscillators=400, K=coupling, sigma=1.0, seed=1)
     run = simulate(system_system, until=60, dt=0.2)
-    order.append(np.mean(np.asarray(run.values('order'))[-100:]))
+    order.append(np.mean(np.asarray(run.get_values('order'))[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, order, 'o-')
 ax.axvline(2 * np.sqrt(2 * np.pi) / np.pi, linestyle='--', color='black', label='K_c = 2 / (π g(0))')

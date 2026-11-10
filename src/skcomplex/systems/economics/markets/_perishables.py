@@ -15,18 +15,18 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import (
-    ChoiceInteraction,
-    MovementInteraction,
-    ReinforcementInteraction,
-    TransferInteraction,
-)
+from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ...general.agents import ChoiceInteraction, MovementInteraction
+from ..common.learning import PayoffLearningInteraction
+
+N_SHOPS = 2
+PHASE = 'visit'
 
 
 class CustomerView(AgentView):
@@ -104,7 +104,7 @@ class CustomerElement(Element):
         return CustomerView
 
     @staticmethod
-    def utility(agent: CustomerView, system: SystemView, option: float) -> float:
+    def get_utility(agent: CustomerView, system: SystemView, option: float) -> float:
         """Return the utility `S_k / T` of visiting shop `k`.
 
         Args:
@@ -124,7 +124,7 @@ class CustomerElement(Element):
         return (agent.s1 if option == 0 else agent.s2) / agent.T
 
     @staticmethod
-    def destination(agent: AgentViewProtocol, system: SystemViewProtocol) -> int | None:
+    def get_destination(agent: AgentViewProtocol, system: SystemViewProtocol) -> int | None:
         """Return the node of the shop the customer chose.
 
         Args:
@@ -141,7 +141,7 @@ class CustomerElement(Element):
         return int(agent.shop) if isinstance(agent, CustomerView) else None
 
     @staticmethod
-    def payoff(agent: CustomerView, system: SystemView, option: int) -> float:
+    def get_payoff(agent: CustomerView, system: SystemView, option: int) -> float:
         """Return the freshness of the product the customer bought last.
 
         It is the payoff of the shop it visited.
@@ -163,7 +163,7 @@ class CustomerElement(Element):
         return agent.freshness
 
     @staticmethod
-    def preference(agent: CustomerView) -> float:
+    def get_preference(agent: CustomerView) -> float:
         """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`.
 
         It is how much more likely the customer visits the first shop.
@@ -276,12 +276,6 @@ class ProductElement(Element):
         return float(np.exp(-(system.time - product.shelved) / product.tau_a)) - customer.freshness
 
 
-N_SHOPS = 2
-
-
-PHASE = 'visit'
-
-
 class PerishableGoodsDuopolySystem(BaseSystem):
     """Customers who choose between two shops of perishable goods.
 
@@ -330,7 +324,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
     topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
     references = ('Bertin 2021', 'Bouchaud 2013')
     until = 300
-    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.preference),)
+    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.get_preference),)
 
     def __init__(
         self,
@@ -351,7 +345,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         self.tau_a = tau_a
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         shelf = max(round(self.stock * self.customers), 1)
@@ -361,7 +355,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             target='customers',
             state='shop',
             options=tuple(float(shop) for shop in range(N_SHOPS)),
-            utility=CustomerElement.utility,
+            utility=CustomerElement.get_utility,
             schedule='member',
             form='agent',
             phase=PHASE,
@@ -369,7 +363,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         movement = MovementInteraction(
             'movement',
             target='customers',
-            step=CustomerElement.destination,
+            step=CustomerElement.get_destination,
             schedule='member',
             phase=PHASE,
         )
@@ -388,18 +382,18 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             partners=1,
             phase=PHASE,
         )
-        satisfaction_update = ReinforcementInteraction(
+        satisfaction_update = PayoffLearningInteraction(
             'satisfaction',
             target='customers',
             scores=('s1', 's2'),
-            payoff=CustomerElement.payoff,
+            payoff=CustomerElement.get_payoff,
             rate=1 - self.alpha,
             chosen='shop',
             schedule='member',
             form='agent',
             phase=PHASE,
         )
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[
                 GroupElement(

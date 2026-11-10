@@ -18,7 +18,7 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 
 BINARY = FiniteEnumeratedSet([0, 1])
@@ -329,7 +329,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _contacts(places: npt.NDArray[np.intp]) -> scipy.sparse.csr_array:
+    def _get_contacts(places: npt.NDArray[np.intp]) -> scipy.sparse.csr_array:
         """Return the weights `1 / (n - 1)` of the other members of the place of every agent, 0 for no place."""
         members = places >= 0
         same = (places[:, None] == places[None, :]) & members[:, None] & members[None, :]
@@ -337,7 +337,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         sizes = same.sum(axis=1, keepdims=True)
         return scipy.sparse.csr_array(np.where(same, 1.0 / np.maximum(sizes, 1), 0.0))
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the agents of the synthetic population with their places and the case counts."""
         rng = np.random.default_rng(self.random_state)
         size = HOUSEHOLD_ADULTS + HOUSEHOLD_CHILDREN
@@ -361,7 +361,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
                 'gamma': self.gamma,
             },
         )
-        contacts = tuple(self._contacts(places) for places in (households, schools, companies))
+        contacts = tuple(self._get_contacts(places) for places in (households, schools, companies))
         spread = CovidTransmissionInteraction(
             'spread',
             target='people',
@@ -370,7 +370,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
             hard=self.hard,
         )
         count = CaseCountInteraction('count', target='cases', source='people', children=children.astype(float))
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[people, CaseCountElement('cases')],
             interactions=[spread, count],

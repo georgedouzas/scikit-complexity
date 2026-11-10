@@ -7,12 +7,13 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import both, components, neighborhoods_in
+from skcomplex.core.components.laws.utils import both, components
+from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
@@ -91,9 +92,9 @@ def _expected(graph, weights, occupied, reduce, sites):
 def _drift(graph, weights, occupied, backend, reduce, *, sites=False):
     """Return the drift of the nodes, the reduction over the components of the active links."""
     space = NetworkSpace(graph)
-    system = System(
+    system = CompositeSystem(
         elements=[
-            LatticeElement('nodes', element=ValueElement, space=space, values={'a': occupied}),
+            GroupElement('nodes', element=ValueElement, space=space, values={'a': occupied}, on='sites'),
             GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': weights}),
         ],
         interactions=[ComponentsInteraction('components', nodes='nodes', links='links', reduce=reduce, sites=sites)],

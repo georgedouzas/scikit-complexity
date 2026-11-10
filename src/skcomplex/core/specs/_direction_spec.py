@@ -14,7 +14,7 @@ from ._entry_spec import EntrySpec
 
 @dataclass(frozen=True)
 class DirectionSpec(BaseSpec):
-    """State that holds the direction of the members.
+    """A spec of the state that holds the direction of the members.
 
     The direction is a vector, or an angle in two dimensions.
 
@@ -29,7 +29,7 @@ class DirectionSpec(BaseSpec):
     entry: EntrySpec
     angle: bool
 
-    def vectors(self, x: Array) -> Array:
+    def get_vectors(self, x: Array) -> Array:
         """Return the direction of every member as one row of components.
 
         Args:
@@ -40,7 +40,7 @@ class DirectionSpec(BaseSpec):
             directions:
                 One row per member.
         """
-        values = self.entry.view(x)
+        values = self.entry.get_view(x)
         if self.angle:
             return np.column_stack([np.cos(values[:, 0]), np.sin(values[:, 0])])
         return values

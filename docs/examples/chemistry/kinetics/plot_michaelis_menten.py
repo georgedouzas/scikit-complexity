@@ -6,7 +6,7 @@ product at a nearly steady rate until the substrate runs out and the enzyme is r
 """
 
 # %%
-# The system is built from its class with 100 enzymes and 300 substrate molecules as rate equations. The
+# The example builds `MichaelisMentenSystem` with 100 enzymes and 300 substrate molecules as rate equations. The
 # default blueprint shows the free enzyme `E`, the substrate `S`, the complex `C`, and the product `P` in one time
 # series view.
 
@@ -32,15 +32,15 @@ fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
     jumps = simulate(MichaelisMentenSystem(stochastic=True), random_state=seed)
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
-        curves.step(jumps.times, jumps.values(f'{species}.n'), where='post', color=color, alpha=0.3, linewidth=0.8)
+        curves.step(jumps.times, jumps.get_values(f'{species}.x'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
-    curves.plot(trajectory.times, trajectory.values(f'{species}.n'), color=color, linewidth=2, label=species)
+    curves.plot(trajectory.times, trajectory.get_values(f'{species}.x'), color=color, linewidth=2, label=species)
 curves.set_xlabel('time')
 curves.set_ylabel('molecules')
 curves.set_title('Rate equations (thick) and Gillespie runs (thin)')
 curves.legend()
-enzyme = trajectory.values('E.n') + trajectory.values('C.n')
-substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
+enzyme = trajectory.get_values('E.x') + trajectory.get_values('C.x')
+substrate = trajectory.get_values('S.x') + trajectory.get_values('C.x') + trajectory.get_values('P.x')
 totals.plot(trajectory.times, enzyme, label='E + C')
 totals.plot(trajectory.times, substrate, label='S + C + P')
 totals.set_ylim(0, 350)

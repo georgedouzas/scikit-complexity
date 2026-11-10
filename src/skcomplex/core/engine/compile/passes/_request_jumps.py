@@ -1,7 +1,4 @@
-"""Pass that turns the topology request jumps into jumps of no state change.
-
-They are the jumps that request topology changes, and the requests are noted.
-"""
+"""Pass that turns the topology request jumps into jumps of no state change."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +13,7 @@ from .._compilation import Compilation, Laws
 
 
 class RequestJumpsPass(BasePass):
-    """Pass that turns the topology request jumps into jumps of no state change.
+    """A pass that turns the topology request jumps into jumps of no state change.
 
     They are the jumps that request topology changes, and the requests are noted.
     """
@@ -33,7 +30,7 @@ class RequestJumpsPass(BasePass):
         """Note the requests of the jumps."""
         compilation = self.compilation_
         compilation.reduced, compilation.request_jumps = self._set_request_jumps_apart(
-            Compilation._required(compilation.reduced, 'reduced'),
+            Compilation._get_required(compilation.reduced, 'reduced'),
         )
 
     @staticmethod

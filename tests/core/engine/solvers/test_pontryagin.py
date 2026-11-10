@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import PontryaginSolver
 from skcomplex.core.errors import SolverError
@@ -42,7 +42,7 @@ def _quartic_cost(s):
 def test_pontryagin_matches_riccati_solution(linear_quadratic, quadratic_cost, riccati_control):
     """Test that the Pontryagin control of the scalar linear-quadratic problem matches the Riccati solution."""
     trajectory = simulate(linear_quadratic, until=1.0, solver=PontryaginSolver(quadratic_cost), dt=0.05)
-    np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
+    np.testing.assert_allclose(trajectory.get_values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
     solution = PontryaginSolver(quadratic_cost, until=1.0).prepare(trajectory.problem).solution_
     assert solution.cost == pytest.approx(np.tanh(1.0) / 2, abs=1e-5)
     np.testing.assert_allclose(solution.costates['plant.x'], -riccati_control(solution.times), atol=1e-6)
@@ -53,8 +53,8 @@ def test_pontryagin_terminal_cost_pulls_the_state_to_zero(linear_quadratic, quad
     free = simulate(linear_quadratic, until=1.0, solver=PontryaginSolver(quadratic_cost), dt=0.1)
     solver = PontryaginSolver(quadratic_cost, terminal=lambda s: 10 * s.plant.x**2)
     pinned = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.1)
-    final = pinned.values('plant.x')[-1]
-    assert abs(final) < abs(free.values('plant.x')[-1])
+    final = pinned.get_values('plant.x')[-1]
+    assert abs(final) < abs(free.get_values('plant.x')[-1])
     running = solver.set_params(until=1.0).prepare(pinned.problem).solution_.cost - 10 * final**2
     assert running > PontryaginSolver(quadratic_cost, until=1.0).prepare(free.problem).solution_.cost
 
@@ -63,14 +63,14 @@ def test_pontryagin_projects_the_control_onto_its_bounds(linear_quadratic, quadr
     """Test that a control whose optimum leaves its bounds is held at the bound."""
     solver = PontryaginSolver(quadratic_cost)
     trajectory = simulate(linear_quadratic, until=1.0, solver=solver, dt=0.1, initial_state={'plant.x': 30.0})
-    controls = trajectory.values('plant.u')
+    controls = trajectory.get_values('plant.u')
     assert controls.min() == pytest.approx(-10.0)
 
 
 def test_pontryagin_rejects_stationarity_without_unique_solution():
     """Test that a Hamiltonian with several stationary controls is rejected with a pointer to collocation."""
     with pytest.raises(SolverError, match='CollocationSolver'):
-        simulate(System(elements=[QuarticElement('plant')]), until=1.0, solver=PontryaginSolver(_quartic_cost))
+        simulate(CompositeSystem(elements=[QuarticElement('plant')]), until=1.0, solver=PontryaginSolver(_quartic_cost))
 
 
 def test_pontryagin_reports_a_sweep_that_does_not_converge(linear_quadratic, quadratic_cost):

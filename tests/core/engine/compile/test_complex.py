@@ -4,14 +4,15 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, imag_part, real_part
+from sage.all__sagemath_symbolics import CC, NN, RR, I, arg, conjugate, exp, gamma, imag_part, oo, real_part
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, laplacian, mod, total, where
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
@@ -89,6 +90,28 @@ class ReadoutElement(Element):
     def _get_laws(self, s):
         """Return the rotation and the readout."""
         return [UpdateLaw(s.z, s.z * exp(I * 0.3)), UpdateLaw(s.r, abs(s.z))]
+
+
+class CountElement(Element):
+    """Amount that cannot be negative beside a count of whole events."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        amount: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        events: Annotated[float, StateSpec(domain=NN)] = 0,
+        level: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.amount = amount
+        self.events = events
+        self.level = level
+
+    def _get_laws(self, s):
+        """Return constant states."""
+        return [UpdateLaw(s.amount, s.amount), UpdateLaw(s.events, s.events), UpdateLaw(s.level, s.level)]
 
 
 class StuartElement(Element):
@@ -176,7 +199,7 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
     u, v = 0.01 * rng.uniform(-1, 1, shape), 0.01 * rng.uniform(-1, 1, shape)
     space = LatticeSpace(shape, spacing=1.0)
     values = {'A': u + 1j * v}
-    joined = System(
+    joined = CompositeSystem(
         elements=[
             FieldElement(
                 'm',
@@ -187,7 +210,7 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
             ),
         ],
     )
-    split = System(
+    split = CompositeSystem(
         elements=[
             FieldElement(
                 'm',
@@ -203,7 +226,7 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
 
 def test_complex_state_reads_back_its_initial_value():
     """Test that a complex default is stored as a pair of floats and read back as a complex number."""
-    problem = PassCompiler().prepare(System(elements=[PhaseElement('osc', z=1 + 2j)])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', z=1 + 2j)])).run().problem_
     assert problem.initial_state.tolist() == [1.0, 2.0]
     assert problem.states.read(problem.initial_state, 'osc.z') == 1 + 2j
 
@@ -211,12 +234,32 @@ def test_complex_state_reads_back_its_initial_value():
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
     with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*domain=CC'):
-        PassCompiler().prepare(System(elements=[PhaseElement('osc', omega=1j)])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', omega=1j)])).run()
+
+
+@pytest.mark.parametrize(
+    ('values', 'message'),
+    [
+        ({'amount': -1.0}, r'a\.amount = -1\.0 is not in its domain \[0, \+oo\)\.'),
+        ({'events': 1.5}, r'a\.events = 1\.5 is not in its domain Non negative integer semiring\.'),
+    ],
+)
+def test_real_value_outside_real_domain_is_reported_outside_it(values, message):
+    """Test that a real value outside a real domain is reported as outside it, with no word of an imaginary part."""
+    with pytest.raises(ValidationError, match=message) as error:
+        PassCompiler().prepare(CompositeSystem(elements=[CountElement('a', **values)])).run()
+    assert 'imaginary' not in str(error.value)
+
+
+def test_complex_value_of_real_state_names_its_imaginary_part():
+    """Test that a complex value of a real state is reported as having a nonzero imaginary part."""
+    with pytest.raises(ValidationError, match=r'a\.level = \(1\+2j\) has a nonzero imaginary part'):
+        PassCompiler().prepare(CompositeSystem(elements=[CountElement('a', level=1 + 2j)])).run()
 
 
 def test_real_state_accepts_complex_value_with_zero_imaginary_part():
     """Test that a complex value with a zero imaginary part is a real value."""
-    problem = PassCompiler().prepare(System(elements=[PhaseElement('osc', omega=3 + 0j)])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[PhaseElement('osc', omega=3 + 0j)])).run().problem_
     assert problem.parameters.read(problem.initial_parameters, 'osc.omega') == 3.0
 
 
@@ -224,11 +267,11 @@ def test_complex_parameter_per_site_is_read_and_updated():
     """Test that every site reads its own complex parameter, and that an update changes the next step."""
     c = np.arange(16).reshape(4, 4) * (1 + 1j)
     grid = FieldElement('grid', element=QuadraticElement, space=LatticeSpace((4, 4)), values={'c': c})
-    trajectory = simulate(System(elements=[grid]), until=1, dt=1)
-    assert np.allclose(trajectory.lattice('grid.z')[1], c)
+    trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
+    assert np.allclose(trajectory.get_lattice('grid.z')[1], c)
     grid.set_params(values={'c': np.full((4, 4), 2j)})
-    trajectory = simulate(System(elements=[grid]), until=1, dt=1)
-    assert np.allclose(trajectory.lattice('grid.z')[1], 2j)
+    trajectory = simulate(CompositeSystem(elements=[grid]), until=1, dt=1)
+    assert np.allclose(trajectory.get_lattice('grid.z')[1], 2j)
 
 
 def test_layout_of_real_systems_is_unchanged():
@@ -256,12 +299,12 @@ def test_complex_component_is_located_by_its_part():
 def test_harmonic_phase_turns_on_the_unit_circle():
     """Test that `dz/dt = 2 i z` reaches `exp(20 i)` at time 10 with modulus 1 at every frame."""
     trajectory = simulate(
-        System(elements=[PhaseElement('osc')]),
+        CompositeSystem(elements=[PhaseElement('osc')]),
         until=10,
         solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
         dt=0.5,
     )
-    values = trajectory.values('osc.z')
+    values = trajectory.get_values('osc.z')
     assert values.dtype == np.complex128
     assert abs(values[-1] - np.exp(20j)) < 1e-8
     assert np.max(np.abs(np.abs(values) - 1)) < 1e-8
@@ -270,10 +313,10 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
-    trajectory = simulate(System(elements=[ReadoutElement('a')]), until=5, backend=backend(), dt=1)
-    assert trajectory.values('a.r').dtype == np.float64
-    assert np.allclose(trajectory.values('a.r')[1:], 2.0)
-    assert np.allclose(trajectory.values('a.z')[-1], 2 * np.exp(1.5j))
+    trajectory = simulate(CompositeSystem(elements=[ReadoutElement('a')]), until=5, backend=backend(), dt=1)
+    assert trajectory.get_values('a.r').dtype == np.float64
+    assert np.allclose(trajectory.get_values('a.r')[1:], 2.0)
+    assert np.allclose(trajectory.get_values('a.z')[-1], 2 * np.exp(1.5j))
 
 
 def test_complex_value_for_real_state_is_rejected():
@@ -294,7 +337,7 @@ def test_complex_value_for_real_state_is_rejected():
             return [RateLaw(s.x, I * s.x)]
 
     with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*domain=CC'):
-        PassCompiler().prepare(System(elements=[WrongElement('a')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[WrongElement('a')])).run()
 
 
 def test_ordering_complex_value_is_rejected():
@@ -315,7 +358,7 @@ def test_ordering_complex_value_is_rejected():
             return [UpdateLaw(s.z, where(s.z > 2, s.z, 2 * s.z))]
 
     with pytest.raises(ValidationError, match=r'UpdateLaw of a .*no order.*abs.*real_part'):
-        PassCompiler().prepare(System(elements=[OrderedElement('a')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[OrderedElement('a')])).run()
 
 
 def test_complex_functions_split_into_parts():
@@ -337,7 +380,7 @@ def test_complex_functions_split_into_parts():
         def _get_laws(self, s):
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.w, real_part(s.z) + I * imag_part(conjugate(s.z)) + arg(s.z))]
 
-    problem = PassCompiler().prepare(System(elements=[PartsElement('a')])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[PartsElement('a')])).run().problem_
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.isclose(problem.states.read(updated, 'a.w'), 3 - 4j + np.angle(3 + 4j))
 
@@ -358,7 +401,7 @@ def test_complex_functions_split_into_parts():
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.m, total(exp(I * s.z)))]
 
     values = np.array([0.0, 1.0, 2.0])
-    system = System(elements=[GroupElement('g', element=MeanElement, size=3, values={'z': values})])
+    system = CompositeSystem(elements=[GroupElement('g', element=MeanElement, size=3, values={'z': values})])
     problem = PassCompiler().prepare(system).run().problem_
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.allclose(problem.states.read(updated, 'g.m'), np.exp(1j * values).sum())
@@ -369,7 +412,9 @@ def test_backends_agree_on_complex_map():
     rng = np.random.default_rng(0)
     z = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     c = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
-    system = System(elements=[GroupElement('points', element=QuadraticElement, size=10_000, values={'z': z, 'c': c})])
+    system = CompositeSystem(
+        elements=[GroupElement('points', element=QuadraticElement, size=10_000, values={'z': z, 'c': c})],
+    )
     reference, compiled = (
         PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_,
         PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_,
@@ -396,9 +441,9 @@ def test_backends_agree_on_complex_map():
 )
 def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
-    joined = simulate(System(elements=[StuartElement('o')]), until=5, solver=solver, dt=0.5)
-    split = simulate(System(elements=[SplitStuartElement('o')]), until=5, solver=solver, dt=0.5)
-    assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
+    joined = simulate(CompositeSystem(elements=[StuartElement('o')]), until=5, solver=solver, dt=0.5)
+    split = simulate(CompositeSystem(elements=[SplitStuartElement('o')]), until=5, solver=solver, dt=0.5)
+    assert np.max(np.abs(joined.get_values('o.z') - (split.get_values('o.u') + 1j * split.get_values('o.v')))) < 1e-8
 
 
 @pytest.mark.parametrize(
@@ -413,7 +458,7 @@ def test_stiff_steppers_match_split_form(solver, discretization):
     joined, split = _ginzburg_landau((16, 16), discretization)
     first = simulate(joined, until=5, solver=solver, dt=1.0)
     second = simulate(split, until=5, solver=solver, dt=1.0)
-    assert np.max(np.abs(first.values('m.A') - (second.values('m.u') + 1j * second.values('m.v')))) < 1e-8
+    assert np.max(np.abs(first.get_values('m.A') - (second.get_values('m.u') + 1j * second.get_values('m.v')))) < 1e-8
 
 
 def test_complex_and_split_ginzburg_landau_agree():
@@ -421,10 +466,10 @@ def test_complex_and_split_ginzburg_landau_agree():
     joined, split = _ginzburg_landau()
     first = simulate(joined, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
     second = simulate(split, until=20, solver=ETDRK4Solver(dt=0.1), dt=1.0)
-    amplitude = first.lattice('m.A')
+    amplitude = first.get_lattice('m.A')
     assert amplitude.shape == (21, 32, 32)
     assert amplitude.dtype == np.complex128
-    assert np.max(np.abs(amplitude - (second.lattice('m.u') + 1j * second.lattice('m.v')))) < 1e-10
+    assert np.max(np.abs(amplitude - (second.get_lattice('m.u') + 1j * second.get_lattice('m.v')))) < 1e-10
 
 
 def test_free_schrodinger_equation_keeps_the_norm():
@@ -432,7 +477,7 @@ def test_free_schrodinger_equation_keeps_the_norm():
     positions = np.arange(256) * 0.25
     packet = np.exp(-((positions - 32) ** 2) / 4 + 2j * positions)
     space = LatticeSpace((256,), spacing=0.25)
-    system = System(
+    system = CompositeSystem(
         elements=[
             FieldElement(
                 'wave',
@@ -444,13 +489,13 @@ def test_free_schrodinger_equation_keeps_the_norm():
         ],
     )
     trajectory = simulate(system, until=5, solver=ETDRK4Solver(dt=0.01), dt=0.5)
-    norms = (np.abs(trajectory.values('wave.psi')) ** 2).sum(axis=1)
+    norms = (np.abs(trajectory.get_values('wave.psi')) ** 2).sum(axis=1)
     assert np.max(np.abs(norms / norms[0] - 1)) < 1e-8
 
 
 def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
-    values = simulate(System(elements=[PhaseElement('osc')]), until=5, dt=0.1).values('osc.z')
+    values = simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=5, dt=0.1).get_values('osc.z')
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
         spectrum(values)
     assert spectrum(values.real).power.size
@@ -459,7 +504,7 @@ def test_power_spectrum_rejects_complex_series():
 def test_lammps_backend_rejects_complex_state():
     """Test that the LAMMPS backend names the complex state it cannot run."""
     with pytest.raises(BackendError, match=r'LAMMPS backend.*complex state osc\.z'):
-        simulate(System(elements=[PhaseElement('osc')]), until=0.1, solver=LammpsSolver(), dt=0.1)
+        simulate(CompositeSystem(elements=[PhaseElement('osc')]), until=0.1, solver=LammpsSolver(), dt=0.1)
 
 
 def test_mesa_backend_rejects_complex_agent_state():
@@ -480,7 +525,7 @@ def test_mesa_backend_rejects_complex_agent_state():
             return [RuleLaw(lambda agent, system: None)]
 
     with pytest.raises(BackendError, match=r'walkers.*complex state z.*Mesa'):
-        PassCompiler().prepare(System(elements=[GroupElement('walkers', element=WalkerElement, size=3)])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=3)])).run()
 
 
 def _constant(t, z):
@@ -518,8 +563,8 @@ def test_complex_equation_and_event_split_into_parts():
             return [EquationLaw(derivative(s.z, 2) == -s.z), CrossingLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
-    trajectory = simulate(System(elements=[OscillatorElement('o')]), until=3, solver=solver, dt=0.5)
-    assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
+    trajectory = simulate(CompositeSystem(elements=[OscillatorElement('o')]), until=3, solver=solver, dt=0.5)
+    assert np.allclose(trajectory.get_values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 
 
 @pytest.mark.parametrize(
@@ -557,15 +602,15 @@ def test_unsupported_complex_laws_are_rejected(law, message):
 
     bad = BadElement
     with pytest.raises(ValidationError, match=message):
-        PassCompiler().prepare(System(elements=[bad('a')])).run()
+        PassCompiler().prepare(CompositeSystem(elements=[bad('a')])).run()
 
 
 def test_complex_observable_is_complex():
     """Test that an observable of a complex state is complex, and the observable of its modulus is real."""
-    system = System(
+    system = CompositeSystem(
         elements=[PhaseElement('osc', z=3 + 4j, omega=0.0)],
     )
     observables = [ObservableSpec('double', _double), ObservableSpec('size', _size)]
     trajectory = simulate(system, until=0.5, dt=0.5, observables=observables)
-    assert trajectory.values('double')[0] == 6 + 8j
-    assert trajectory.values('size')[0] == 5.0
+    assert trajectory.get_values('double')[0] == 6 + 8j
+    assert trajectory.get_values('size')[0] == 5.0

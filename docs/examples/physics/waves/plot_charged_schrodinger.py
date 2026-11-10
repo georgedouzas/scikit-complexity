@@ -9,7 +9,7 @@ the field and then runs along a straight line, while its real part alternates in
 """
 
 # %%
-# The system is built from its class: a Gaussian packet of width 2 at rest at the centre of a periodic line
+# The example builds `ChargedSchrodingerSystem`: a Gaussian packet of width 2 at rest at the centre of a periodic line
 # of length 80, with `D = 1/2` and charge `q = 1`, in the electric field `E = 1` switched on from `t = 0` to `t = 2`.
 # The observer saves every frame of 0.1 time units with the default blueprint.
 
@@ -36,11 +36,11 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 
 positions = 80 / 256 * np.arange(256) - 40
 times = trajectory.times
-density = trajectory.values('packet.u') ** 2 + trajectory.values('packet.w') ** 2
+density = trajectory.get_values('packet.u') ** 2 + trajectory.get_values('packet.w') ** 2
 centres = density @ positions / density.sum(axis=1)
 expected = np.where(times < 2.0, 0.5 * times**2, 2.0 + 2.0 * (times - 2.0))
 gauge = simulate(ChargedSchrodingerSystem(E=0.0, A_x=1.0, momentum=1.0))
-gauge_density = gauge.values('packet.u') ** 2 + gauge.values('packet.w') ** 2
+gauge_density = gauge.get_values('packet.u') ** 2 + gauge.get_values('packet.w') ** 2
 
 fig, (motion, norm) = plt.subplots(1, 2, figsize=(10, 4))
 motion.plot(times, centres, label='field E = 1 for t < 2')

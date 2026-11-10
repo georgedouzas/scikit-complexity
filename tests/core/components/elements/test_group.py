@@ -5,17 +5,38 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
-from skcomplex.core.components.elements import Element, GroupElement, PointElement
+from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.system import System
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
+
+
+class BallElement(Element):
+    """Point of a continuous space, with a vector state `x` of order 2."""
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+    def _prepare(self, context: BaseSpace | None = None) -> None:
+        """Set `default_visual_`, points at the values of `x`."""
+        super()._prepare(context)
+        self.default_visual_ = VisualSpec('points', {'position': 'x'})
 
 
 class PopulationElement(Element):
@@ -53,7 +74,7 @@ class CellElement(Element):
 def test_group_stores_arguments():
     """Test that a group stores its label, size, and values unmodified, and clones from them."""
     positions = np.zeros((1000, 2))
-    group = GroupElement('gas', element=PointElement, size=1000, values={'x': positions})
+    group = GroupElement('gas', element=BallElement, size=1000, values={'x': positions})
     assert (group.label, group.size) == ('gas', 1000)
     assert group.values['x'] is positions
     assert clone(group).size == 1000
@@ -78,7 +99,7 @@ def test_group_runs_into_the_laws_of_one_member():
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and values on the sites of a space pass the checks of a group."""
-    assert GroupElement('gas', element=PointElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
+    assert GroupElement('gas', element=BallElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
     sites = GroupElement('cells', element=PopulationElement, space=LatticeSpace((2, 3)), on='sites')
     assert sites.prepare().size_ == 6
 
@@ -101,7 +122,7 @@ def test_group_on_parts_without_a_space_raises_error():
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that preparing a group with the wrong number of values names the group, the variable, and both sizes."""
-    group = GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((999, 2))})
+    group = GroupElement('gas', element=BallElement, size=1000, values={'x': np.zeros((999, 2))})
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
         group.prepare()
 
@@ -139,24 +160,26 @@ def test_unknown_part_is_rejected():
 
 def test_group_with_invalid_size_is_reported_with_its_path():
     """Test that a group built with an invalid size is reported by validating the system, with the path of the group."""
-    system = System(systems=[System('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])])
+    system = CompositeSystem(
+        systems=[CompositeSystem('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])],
+    )
     (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.message.startswith("meadow/herds: Group 'herds' has size 0")
 
 
 def test_group_vector_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
-    system = System(
-        elements=[GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((1000, 2))})],
+    system = CompositeSystem(
+        elements=[GroupElement('gas', element=BallElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
-    assert PassCompiler().prepare(system).run().problem_.states.entry('gas.x').shape == (1000, 2)
+    assert PassCompiler().prepare(system).run().problem_.states.get_entry('gas.x').shape == (1000, 2)
 
 
 def test_group_takes_state_named_size():
     """Test that a state named size takes per-member values, since the group size is a constructor argument."""
     group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
-    problem = PassCompiler().prepare(System(elements=[group])).run().problem_
+    problem = PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_
     assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
 
 
@@ -166,8 +189,8 @@ def test_clone_keeps_values_and_compiles_to_the_same_problem():
     cloned = clone(group)
     assert np.array_equal(cloned.values['n'], group.values['n'])
     first, second = (
-        PassCompiler().prepare(System(elements=[group])).run().problem_,
-        PassCompiler().prepare(System(elements=[cloned])).run().problem_,
+        PassCompiler().prepare(CompositeSystem(elements=[group])).run().problem_,
+        PassCompiler().prepare(CompositeSystem(elements=[cloned])).run().problem_,
     )
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations
@@ -196,3 +219,84 @@ def test_group_on_hyperedges_takes_a_rank_and_an_empty_size():
     """Test that an empty variable group on hyperedges with a rank is valid."""
     group = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=4, rank=3)
     assert group.prepare().size_ == 0
+
+
+class HeightElement(Element):
+    """Cell with a height and no visual of its own."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+
+
+class ColumnElement(HeightElement):
+    """Column drawn by its heights."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('heights'),
+        *,
+        h: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, h=h)
+
+
+def test_group_on_sites_flattens_values_of_the_lattice_shape():
+    """Test that a group on the sites of a lattice has one member per site, in row-major order."""
+    values = {'h': np.arange(12.0).reshape(3, 4)}
+    cells = GroupElement('cells', element=HeightElement, space=LatticeSpace((3, 4)), on='sites', values=values)
+    cells.prepare()
+    assert (cells.size_, cells.on) == (12, 'sites')
+    assert cells.values_['h'].tolist() == np.arange(12.0).tolist()
+
+
+def test_group_on_sites_flattens_values_of_an_inherited_lattice():
+    """Test that a group on sites without a space of its own reads the shape of the space it inherits."""
+    cells = GroupElement('cells', element=HeightElement, on='sites', values={'h': np.eye(3, 4)})
+    assert cells.prepare(LatticeSpace((3, 4))).values_['h'].tolist() == np.eye(3, 4).ravel().tolist()
+
+
+def test_group_on_sites_of_a_network_reads_values_by_node():
+    """Test that a group on the sites of a network takes a mapping from node to value in node order."""
+    graph = nx.Graph([('b', 'a'), ('a', 'c')])
+    values = {'h': {'a': 1, 'b': 2, 'c': 3}}
+    cells = GroupElement('cells', element=HeightElement, space=NetworkSpace(graph), on='sites', values=values)
+    assert cells.prepare().values_['h'].tolist() == [2, 1, 3]
+
+
+def test_group_on_sites_rejects_values_of_another_shape():
+    """Test that values that are neither of the lattice shape nor one per site are rejected."""
+    values = {'h': np.zeros(5)}
+    cells = GroupElement('cells', element=HeightElement, space=LatticeSpace((3, 4)), on='sites', values=values)
+    with pytest.raises(ValidationError, match='5 values of h for 12 members'):
+        cells.prepare()
+
+
+def test_group_with_a_size_takes_values_as_given():
+    """Test that a group with a size of its own does not reshape values of the lattice shape."""
+    values = {'h': np.eye(3, 4)}
+    cells = GroupElement('cells', element=HeightElement, size=3, space=LatticeSpace((3, 4)), on='sites', values=values)
+    assert cells.prepare().values_['h'] is values['h']
+
+
+def test_group_on_sites_keeps_the_visual_of_its_element_type():
+    """Test that a group on sites of a type that declares a visual takes that visual, not that of its space."""
+    columns = GroupElement('columns', element=ColumnElement, space=LatticeSpace((3,)), on='sites').prepare()
+    assert columns.default_visual_.kind == 'heights'
+
+
+def test_group_on_sites_takes_the_visual_of_its_space():
+    """Test that a group on sites of a type that declares no visual is drawn as its space draws groups."""
+    lattice = GroupElement('cells', element=HeightElement, space=LatticeSpace((3,)), on='sites').prepare()
+    assert lattice.default_visual_ == VisualSpec('image')
+    network = GroupElement('cells', element=HeightElement, space=NetworkSpace(nx.path_graph(3)), on='sites')
+    assert network.prepare().default_visual_ == VisualSpec('sites')
+    inherited = GroupElement('cells', element=HeightElement, on='sites')
+    assert inherited.prepare(LatticeSpace((3,))).default_visual_ == VisualSpec('image')

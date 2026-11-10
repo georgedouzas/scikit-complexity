@@ -6,7 +6,7 @@ termination: a relaxation oscillation with the sawtooth shape of the glacial cyc
 """
 
 # %%
-# The system is built from its class with the time scale separation `alpha = 30`, the asymmetry
+# The example builds `VanDerPolIceAgesSystem` with the time scale separation `alpha = 30`, the asymmetry
 # `beta = 0.75`, and no orbital forcing, and runs for 400 kyr. The default blueprint shows `x` and `y` in one time
 # series view.
 
@@ -35,8 +35,8 @@ grid = np.linspace(-2.3, 2.3, 300)
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(grid**3 / 3 - grid, grid, color='gray', linestyle='--', label='nullcline x = y^3 / 3 - y')
 ax.plot(
-    trajectory.values('climate.x')[settled],
-    trajectory.values('climate.y')[settled],
+    trajectory.get_values('climate.x')[settled],
+    trajectory.get_values('climate.y')[settled],
     linewidth=2,
     label='limit cycle',
 )

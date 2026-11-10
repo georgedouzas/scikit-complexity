@@ -31,10 +31,10 @@ trajectory = simulate(OffLatticeTumourGrowthSystem(), until=480, dt=24, observer
 # at the end show the tumour in red among the healthy cells, spaced by their springs.
 
 days = np.asarray(trajectory.times) / 24
-locations = trajectory.agent_locations('cells')[-1]
-cancer = trajectory.agents('cells', len(trajectory.times) - 1).values['cancer']
+locations = trajectory.get_agent_locations('cells')[-1]
+cancer = trajectory.get_agents('cells', len(trajectory.times) - 1).values['cancer']
 fig, (area, tissue) = plt.subplots(1, 2, figsize=(10, 4.5))
-area.plot(days, trajectory.values('tumour_area'), color='tab:red')
+area.plot(days, trajectory.get_values('tumour_area'), color='tab:red')
 area.axvline(10, color='black', linestyle='--', label='switch')
 area.set_xlabel('time (days)')
 area.set_ylabel('tumour area (cell diameters squared)')
@@ -57,7 +57,7 @@ plt.show()
 small = {'side': 8.0, 'tau': 4.0}
 truth = simulate(OffLatticeTumourGrowthSystem(**small, g_age2=5.0), until=288, dt=24, random_state=1)
 times = np.arange(0.0, 289.0, 48.0)
-data = {'tumour_area': (times, np.interp(times, truth.times, truth.values('tumour_area')))}
+data = {'tumour_area': (times, np.interp(times, truth.times, truth.get_values('tumour_area')))}
 posterior = calibrate(
     OffLatticeTumourGrowthSystem(**small),
     data,

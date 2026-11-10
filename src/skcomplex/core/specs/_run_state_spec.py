@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RunStateSpec(BaseSpec):
-    """State of a run at one time.
+    """A spec of the state of a run at one time.
 
     Kernels and searches act at it.
 

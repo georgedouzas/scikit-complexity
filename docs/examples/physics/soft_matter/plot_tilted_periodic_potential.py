@@ -6,9 +6,9 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 """
 
 # %%
-# The system is built from its class with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
-# `kT = 0.5`, with the force `f = 1`, and simulated for 50 time units. The observer saves every frame with the default
-# blueprint, whose primary view holds the positions of the particles.
+# The example builds `TiltedPeriodicPotentialSystem` with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
+# `kT = 0.5`, with the force `f = 1`, and simulates it for 50 time units. The observer saves every frame with the
+# default blueprint, whose primary view holds the positions of the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,11 +63,11 @@ for f in forces:
         solver=EulerMaruyamaSolver(dt=0.005),
         random_state=1,
     )
-    positions = run.values('particles.x')[..., 0]
+    positions = run.get_values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 
 times = trajectory.times
-mean_position = trajectory.values('particles.x')[..., 0].mean(axis=1)
+mean_position = trajectory.get_values('particles.x')[..., 0].mean(axis=1)
 
 fig, (current, drift) = plt.subplots(1, 2, figsize=(10, 4))
 grid = np.linspace(0.05, 4.0, 60)

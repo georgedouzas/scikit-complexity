@@ -31,18 +31,18 @@ SOLVERS = [
 
 def test_empty_support_accepts_any_class():
     """Test that an empty field supports any class, and `None` in the space field supports no space."""
-    assert SupportSpec().missing('time', [StaticTime]) == []
-    assert SupportSpec(space={None}).missing('space', [None, LatticeSpace]) == ['LatticeSpace']
+    assert SupportSpec().get_missing('time', [StaticTime]) == []
+    assert SupportSpec(space={None}).get_missing('space', [None, LatticeSpace]) == ['LatticeSpace']
 
 
 def test_support_accepts_subclasses():
     """Test that a class is supported when it is a subclass of a supported class."""
-    assert SupportSpec(time={ContinuousTime}).missing('time', [ContinuousTime, DiscreteTime]) == ['DiscreteTime']
+    assert SupportSpec(time={ContinuousTime}).get_missing('time', [ContinuousTime, DiscreteTime]) == ['DiscreteTime']
 
 
 def test_default_ode_solver_lacks_noise():
     """Test that the default ODE solver supports rates but not noise."""
-    assert DEFAULT_SOLVERS[FormKind.ODE]._get_support().missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
+    assert DEFAULT_SOLVERS[FormKind.ODE]._get_support().get_missing('laws', [RateLaw, NoiseLaw]) == ['NoiseLaw']
 
 
 @pytest.mark.parametrize('solver', SOLVERS, ids=lambda solver: solver.__name__)

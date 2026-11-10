@@ -1,7 +1,4 @@
-"""Define groupings.
-
-A grouping draws groups of the members of a group every step and acts on each group.
-"""
+"""Define the interaction that draws groups of members every step and acts on each."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +13,8 @@ from ...errors import ValidationError
 from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
+from ..laws.utils import both, count, maximum, mean, minimum, total, variance
+from ..laws.utils._reductions import reductions_in
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ._interaction import Interaction
@@ -33,40 +31,38 @@ KEYED: dict[str, Callable[..., Expression]] = {
     'var': variance,
 }
 
+
 type Act = Callable[[list[AgentViewProtocol], SystemViewProtocol], None]
 type GroupFunction = Callable[[SimpleNamespace], object]
 
 
 class GroupingInteraction(Interaction):
-    """Grouping of the members of a group into groups drawn every step.
+    """An interaction that draws groups of members every step and acts on each group.
 
-    An action applies to every group.
+    At every step of discrete time the interaction splits the members of a group into smaller groups and acts on each of
+    them. The argument `groups` chooses how they form:
 
-    The groups are one of four kinds:
+    - `'pairs'`: disjoint random pairs, and an odd member out forms no group.
+    - `'partition'`: a random partition into groups of `size` members, the last group holding the rest.
+    - `'neighborhood'`: one group per member, the member first and then the members in the cells or nodes around it.
+    - `'state'`: one group per value of the state `by`, of at most `capacity` agents.
 
-    - `'pairs'` draws disjoint random pairs, and an odd member out forms no group.
-    - `'partition'` draws a random partition into groups of `size` members, the last group holding the remainder.
-    - `'neighborhood'` forms one group per member, the member first and then the members in the cells or nodes
-      around it.
-    - `'state'` forms one group per value of the state `by`, of at most `capacity` agents drawn at random among those
-      that hold the value in the agent form.
+    In the agent form the groups act in random order, each through `act(members, system)` or the method `act_on` that a
+    subclass overrides. In the symbolic form every member of a group takes the value `function(namespace)` for the state
+    `write` at the next step, combined by `reduce` over the groups that hold it, and a member in no group keeps its
+    value. The namespace of a group holds `member`, `others`, the other members in order, `members`, which the
+    reductions `total`, `mean`, `count`, `maximum`, and `minimum` read with `over=namespace.members`, the time `t`, and
+    the parameters. The grouping runs in its `phase` and reads the states that earlier phases of the step set.
 
-    In the agent form the groups act in random order, each through `act(members, system)`, a function of the list of
-    agent views and the system view, or the method `act_on` a subclass overrides. The grouping is an agent rule, so the
-    system runs in discrete time.
+    Unlike `NeighborInteraction`, whose edges are fixed by the space, it draws new groups at every step. Choose it when
+    members meet in random pairs or small groups, such as trades or games, rather than along fixed links.
 
-    In the symbolic form every member of a group takes the value of `function(namespace)` for the state `write` in the
-    next step, reduced by `reduce` over the groups that hold it, and a member in no group keeps its value. The
-    namespace of a group holds `member`, the member the value is for, `others`, the other members in the order of the
-    group, `members`, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with `over=namespace.members`,
-    the time `t`, and the parameters of the interaction. Pairs and partitions are drawn again at every step from the
-    random stream of the simulation, and neighbourhoods are those of the space. The groups by state hold no `others`,
-    and their reductions over the members are keyed by the state. Within a step, the grouping runs in its `phase` and
-    reads the states the phases before it set.
+    It appears in many fields. Agents trade in random pairs, players of a public goods game form groups each round, and
+    animals meet in random encounters that spread information.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The name of the interaction, unique among the parts of its system, such as `'trades'`.
 
         target:
             The path of the group whose members are grouped.
@@ -115,7 +111,7 @@ class GroupingInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element, GroupElement
         >>> from skcomplex.core.components.interactions import GroupingInteraction
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.specs import StateSpec
         >>> class VoterElement(Element):
@@ -128,8 +124,8 @@ class GroupingInteraction(Interaction):
         ...         member.s = majority
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1)
-        >>> trajectory.agents('voters', 1).values['s'].tolist()
+        >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1)
+        >>> trajectory.get_agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
         In the symbolic form every group of the partition takes the opinion of its majority:
@@ -144,8 +140,8 @@ class GroupingInteraction(Interaction):
         ...     write='s',
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
-        >>> trajectory = simulate(System(elements=[voters], interactions=[galam]), until=1, random_state=0)
-        >>> trajectory.values('voters.s')[-1].tolist()
+        >>> trajectory = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=1, random_state=0)
+        >>> trajectory.get_values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """
 
@@ -155,12 +151,12 @@ class GroupingInteraction(Interaction):
         """Return the tags of the agent-form rules or of the symbolic grouping updates."""
         return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
-    def _draws(self) -> bool:
+    def _get_draws(self) -> bool:
         """Return whether the grouping draws.
 
         It draws by random groups or by acting on its groups in random order.
         """
-        return super()._draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
+        return super()._get_draws() or self._get_argument('form') == 'agent' or self.groups != 'neighborhood'
 
     def __init__(
         self,
@@ -288,7 +284,8 @@ class GroupingInteraction(Interaction):
         for agent in agents:
             located.setdefault(agent.location_key, []).append(agent)
         return [
-            [agent, *(other for cell in agent.neighbor_cells() for other in located.get(cell, []))] for agent in agents
+            [agent, *(other for cell in agent.get_neighbor_cells() for other in located.get(cell, []))]
+            for agent in agents
         ]
 
     def _get_shared(
@@ -329,7 +326,7 @@ class GroupingInteraction(Interaction):
 
     def _get_groups(self, system: SystemViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return the groups of one step."""
-        agents = [agent for agent in system.agents(self._get_role('target')) if agent.alive]
+        agents = [agent for agent in system.get_agents(self._get_role('target')) if agent.alive]
         if self.groups == 'pairs':
             return self._get_partners(PartnerSpec('all', 'uniform', capacity=1), agents, system)
         if callable(self.groups) or isinstance(self.groups, PartnerSpec):
@@ -348,7 +345,7 @@ class GroupingInteraction(Interaction):
         for index in system.rng.permutation(len(groups)):
             self.act_on(groups[int(index)], system)
 
-    def _keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
+    def _get_keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
         """Return a reduction over the members of a group that share the value of `by`.
 
         The reduction is restricted to these members.
@@ -390,7 +387,7 @@ class GroupingInteraction(Interaction):
         group = SimpleNamespace(**names, member=target, members=target.other, others=())
         value = SR(self.function(group)) if self.function is not None else SR(0)
         keyed = {
-            reduction.call: self._keyed(reduction, target, target.other)
+            reduction.call: self._get_keyed(reduction, target, target.other)
             for reduction in reductions_in(value)
             if reduction.over is not None
         }

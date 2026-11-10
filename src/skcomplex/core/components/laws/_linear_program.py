@@ -1,7 +1,4 @@
-"""Define linear program laws.
-
-They set algebraic states to an optimal solution of a linear program.
-"""
+"""Define the law that sets algebraic states to the optimum of a linear program."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,12 +19,18 @@ RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
 class LinearProgramLaw(BaseLaw):
-    """Optimal solution of a linear program.
+    """A law that sets algebraic states to the optimum of a linear program.
 
-    It sets the algebraic states that are its variables. The laws whose variables overlap, from any element or
-    interaction, form one program: their variables unite, their constraints add, and at most one of them holds
-    objectives. The objectives are solved in order, and each optimum is kept within a relative 1e-9 while the next one
-    is solved.
+    A linear program maximizes or minimizes a linear objective under linear constraints. The law sets its variables,
+    which are algebraic states, to the optimum at every time. The laws whose variables overlap, from any part, form one
+    program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives are
+    solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
+
+    Unlike `EquationLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
+    when a quantity at each time is the best choice under constraints.
+
+    It appears in many fields. Flux balance analysis finds the fluxes of a metabolic network, an economy dispatches
+    power plants at least cost, and a planner allocates production under capacity limits.
 
     Args:
         variables:

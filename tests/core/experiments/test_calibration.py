@@ -13,13 +13,15 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.markets import BrockHommesSystem
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
+LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
+
 
 def _logistic_data(noise: float = 0.01, seed: int = 0):
     """Return logistic data at r = 0.8 and K = 500 with relative Gaussian noise."""
     rng = np.random.default_rng(seed)
     times = np.arange(0.0, 21.0)
     truth = 500 / (1 + 49 * np.exp(-0.8 * times))
-    return {'population.n': (times, truth * (1 + noise * rng.standard_normal(times.size)))}
+    return {'population.x': (times, truth * (1 + noise * rng.standard_normal(times.size)))}
 
 
 def test_calibration_recovers_logistic_parameters():
@@ -27,7 +29,7 @@ def test_calibration_recovers_logistic_parameters():
     rng = np.random.default_rng(0)
     times = np.arange(0.0, 21.0)
     truth = 500 / (1 + 49 * np.exp(-0.8 * times))
-    data = {'population.n': (times, truth * (1 + 0.01 * rng.standard_normal(times.size)))}
+    data = {'population.x': (times, truth * (1 + 0.01 * rng.standard_normal(times.size)))}
     bounds = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
     system = LogisticGrowthSystem(n=10.0)
     result = calibrate(system, data, bounds)
@@ -61,7 +63,7 @@ def test_calibration_recovers_logistic_parameters():
 )
 def test_calibration_rejects_invalid_settings(arguments, message):
     """Test that bad methods, losses, bounds, replicates, data, or dotted paths raise a named error."""
-    settings = {'data': {'population.n': ([0.0, 1.0], [1.0, 2.0])}, 'bounds': {'r': (0.1, 2.0)}, **arguments}
+    settings = {'data': {'population.x': ([0.0, 1.0], [1.0, 2.0])}, 'bounds': {'r': (0.1, 2.0)}, **arguments}
     with pytest.raises(ValidationError, match=message):
         calibrate(LogisticGrowthSystem(), **settings)
 
@@ -99,7 +101,7 @@ def test_point_fit_searches_the_central_part_of_a_scipy_prior():
 def _brock_hommes_data():
     """Return the price deviations of a small Brock-Hommes market."""
     truth = simulate(BrockHommesSystem(20, intensity=4.0, strength=1.3), until=60, random_state=0)
-    return {'pricing.deviation': (truth.times[1:], truth.values('pricing.deviation')[1:])}
+    return {'pricing.deviation': (truth.times[1:], truth.get_values('pricing.deviation')[1:])}
 
 
 @pytest.mark.slow
@@ -110,14 +112,17 @@ def test_global_fit_is_reproducible_and_beats_the_midpoints():
     second = calibrate(BrockHommesSystem(20), data, bounds, method='global', budget=200, random_state=0)
     assert first.estimates == second.estimates
     objective = _CalibrationObjective(BrockHommesSystem(20), _series_of(data), _check_priors(bounds), random_state=0)
-    best = objective.loss(list(first.estimates.values()), 'squares')
-    assert best < objective.loss([4.25, 1.3], 'squares')
+    best = objective.get_loss(list(first.estimates.values()), 'squares')
+    assert best < objective.get_loss([4.25, 1.3], 'squares')
 
 
 def test_event_likelihood_recovers_the_confidence_of_deffuant():
     """Test that the event likelihood of a recorded Deffuant run recovers the confidence within 0.02."""
     recorded = simulate(
-        DeffuantSystem(100, confidence=0.25, steepness=50.0), until=50, random_state=0, record_draws=True,
+        DeffuantSystem(100, confidence=0.25, steepness=50.0),
+        until=50,
+        random_state=0,
+        record_draws=True,
     )
     result = calibrate(
         DeffuantSystem(100, steepness=50.0),
@@ -138,9 +143,6 @@ def test_event_likelihood_recovers_the_rates_of_a_gillespie_run():
     assert result.estimates['beta'] == pytest.approx(0.0003, rel=0.1)
     assert result.estimates['gamma'] == pytest.approx(0.1, rel=0.1)
     assert result.r2 == pytest.approx(1.0)
-
-
-LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
 
 
 @pytest.mark.parametrize(
@@ -246,7 +248,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
     truth = simulate(system, until=60, random_state=3)
     times = np.arange(0.0, 61.0, 3.0)
-    data = {'I.n': (times, np.interp(times, truth.times, truth.values('I.n')))}
+    data = {'I.x': (times, np.interp(times, truth.times, truth.get_values('I.x')))}
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}
     result = calibrate(
         SIRSystem(198, 2, stochastic=True),
@@ -271,10 +273,10 @@ def test_abc_smc_compares_summary_statistics():
     """Test that ABC-SMC compares the summaries of the series, here the three final counts."""
     truth = simulate(SIRSystem(48, 2, beta=0.006, stochastic=True), until=30, random_state=0)
     times = np.arange(0.0, 31.0, 5.0)
-    data = {path: (times, np.interp(times, truth.times, truth.values(path))) for path in ('S.n', 'I.n', 'R.n')}
+    data = {path: (times, np.interp(times, truth.times, truth.get_values(path))) for path in ('S.x', 'I.x', 'R.x')}
 
     def finals(series):
-        return [series[path][-1] for path in ('S.n', 'I.n', 'R.n')]
+        return [series[path][-1] for path in ('S.x', 'I.x', 'R.x')]
 
     result = calibrate(
         SIRSystem(48, 2, stochastic=True),
@@ -291,7 +293,7 @@ def test_abc_smc_compares_summary_statistics():
 
 def test_variational_calibration_needs_a_differentiable_system():
     """Test that variational calibration of a stochastic system names the tag and the other methods."""
-    data = {'I.n': ([0.0, 1.0], [10.0, 12.0])}
+    data = {'I.x': ([0.0, 1.0], [10.0, 12.0])}
     with pytest.raises(ValidationError, match=r'differentiable\. Use one of the methods local, global, abc_smc, mcmc'):
         calibrate(SIRSystem(stochastic=True), data, {'beta': (0.0001, 0.001)}, method='variational')
 
@@ -328,5 +330,5 @@ def test_predictive_band_covers_a_well_specified_model():
     )
     predictive = result.predictive
     assert 0.75 <= predictive['coverage'] <= 1
-    assert np.all(predictive['q05']['population.n'] <= predictive['q95']['population.n'])
-    assert predictive['q50']['population.n'].shape == (21,)
+    assert np.all(predictive['q05']['population.x'] <= predictive['q95']['population.x'])
+    assert predictive['q50']['population.x'].shape == (21,)

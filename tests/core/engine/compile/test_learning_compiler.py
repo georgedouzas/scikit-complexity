@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.interactions import TrainingInteraction
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.system import System
+from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
@@ -43,7 +43,7 @@ def test_compile_a_system_that_trains_into_a_learning_problem():
     """Test that a system that trains compiles into a learning problem of its trained parameters and hyperparameters."""
     problem = PassCompiler().prepare(_elman()).run().problem_
     assert isinstance(problem, LearningProblemSpec)
-    assert problem.states.entry('net/readout.W').shape == (1, 4)
+    assert problem.states.get_entry('net/readout.W').shape == (1, 4)
     assert problem.parameters.has('training.learning_rate')
     assert problem.inner is not None
     assert problem.inner.backend == 'jax'
@@ -90,7 +90,7 @@ def test_shape_mismatch(values):
 
 def test_not_differentiable():
     """Test that a nested system holding a law given as a Python callable cannot be differentiated."""
-    net = System(
+    net = CompositeSystem(
         'net',
         elements=[GroupElement('cells', element=HoldingElement, size=2)],
         interactions=[CallableGrowthInteraction('growth', target='cells')],
@@ -98,7 +98,7 @@ def test_not_differentiable():
     data = DatasetSpec({'growth.r': np.zeros((2, 3))})
     loss = ObservableSpec('size', group='cells', reduce='sum', variable='n')
     training = TrainingInteraction('training', system='net', trained=['growth.r'], loss=loss, data=data)
-    issues = _issues(System('fit', systems=[net], interactions=[training], time=DiscreteTime()))
+    issues = _issues(CompositeSystem('fit', systems=[net], interactions=[training], time=DiscreteTime()))
     assert [issue.code for issue in issues] == ['learning-not-differentiable']
     assert 'discrete map or ordinary differential equations' in issues[0].message
 

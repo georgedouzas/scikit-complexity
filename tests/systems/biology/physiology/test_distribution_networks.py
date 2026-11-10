@@ -12,7 +12,7 @@ from skcomplex.systems.biology.physiology import WestBrownEnquistSystem
 def _totals(depth: int) -> tuple[float, float]:
     """Return the blood volume and the number of capillaries of a tree of a depth."""
     trajectory = simulate(WestBrownEnquistSystem(depth), until=1.0)
-    return float(trajectory.values('blood_volume')[-1]), float(trajectory.values('capillaries')[-1])
+    return float(trajectory.get_values('blood_volume')[-1]), float(trajectory.get_values('capillaries')[-1])
 
 
 @pytest.mark.parametrize('depth', [3, 5])

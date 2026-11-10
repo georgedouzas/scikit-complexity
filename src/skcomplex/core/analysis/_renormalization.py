@@ -1,7 +1,4 @@
-"""Coarse-grain networks across scales.
-
-The coarse-graining is by their Laplacian or by the angles of their nodes.
-"""
+"""Coarse-grain networks across scales."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,8 +26,6 @@ SETTINGS = {
     'laplacian': {'steps', 'time'},
     'geometric': {'steps', 'block', 'angle', 'beta'},
 }
-"""Settings every kind reads, besides `kind`."""
-
 MIN_BLOCK = 2
 DENSE_NODES = 3000
 SMALLEST_EIGENVALUE = 1e-10
@@ -38,13 +33,12 @@ TIMES = 200
 SMALLEST_TIME_SCALE = 0.1
 LARGEST_TIME_SCALE = 10.0
 SMALLEST_PEAK = 1e-3
-
 TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
 class RenormalizationResult:
-    """Network at every scale of a coarse-graining of a graph or of a trajectory.
+    """A result of `renormalization`, the network at every scale.
 
     The graph of a trajectory is that of its last frame.
 
@@ -99,6 +93,9 @@ def renormalization(
 
     A trajectory gives the network of its last frame, with the values of the states and parameters of the group on its
     nodes as node attributes.
+
+    It appears in many fields. It coarse-grains the internet, the brain, and transport networks to find their structure
+    across scales.
 
     Args:
         source:
@@ -200,9 +197,9 @@ def _read_frame(trajectory: Trajectory) -> nx.Graph:
     topology = trajectory.problem.topology
     if topology is None:
         return _read_networks(trajectory)[-1]
-    graph = trajectory.network(-1).graph()
+    graph = trajectory.get_network(-1).get_graph()
     for name, (entry, _) in topology.networks[0].nodes[0].variables.items():
-        values = np.asarray(trajectory.values(entry.name)[-1])
+        values = np.asarray(trajectory.get_values(entry.name)[-1])
         nx.set_node_attributes(graph, {node: values[node] for node in graph}, name)
     return graph
 

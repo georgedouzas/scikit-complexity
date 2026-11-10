@@ -133,7 +133,7 @@ class GrowthInteraction(Interaction):
             laws:
                 The rate law of the biomass.
         """
-        flux = getattr(namespace.cell, MetabolicNetworkElement.flux_name(self.reaction))
+        flux = getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(self.reaction))
         return [RateLaw(namespace.biomass.x, flux * namespace.biomass.x)]
 
 
@@ -219,7 +219,7 @@ class ExchangeInteraction(Interaction):
             laws:
                 The linear program law of the bound and the rate law of the medium.
         """
-        flux = getattr(namespace.cell, MetabolicNetworkElement.flux_name(self.reaction))
+        flux = getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(self.reaction))
         amount, biomass = namespace.substrate.c, namespace.biomass.x
         held = where(amount > 0, amount, 0)
         constraints = [flux >= -namespace.vmax * held / (namespace.km + held)]
@@ -252,7 +252,7 @@ class CommunityMediumElement(DeclaredElement):
 
     Examples:
         >>> from skcomplex.systems.biology.common.metabolism import CommunityMediumElement
-        >>> CommunityMediumElement.state_name('EX_glc__D_e')
+        >>> CommunityMediumElement.get_state_name('EX_glc__D_e')
         'u_EX_glc__D_e'
     """
 
@@ -274,12 +274,12 @@ class CommunityMediumElement(DeclaredElement):
         """
         flux = StateSpec(algebraic=True)
         return {
-            **{self.state_name(reaction): DeclaredVariableSpec(0.0, flux) for reaction in self.exchanges},
+            **{self.get_state_name(reaction): DeclaredVariableSpec(0.0, flux) for reaction in self.exchanges},
             **(self.variables or {}),
         }
 
     @staticmethod
-    def state_name(reaction: str) -> str:
+    def get_state_name(reaction: str) -> str:
         """Return the name of the state of the net exchange of a reaction.
 
         Args:
@@ -290,7 +290,7 @@ class CommunityMediumElement(DeclaredElement):
             name:
                 The name of the state.
         """
-        return f'u_{MetabolicNetworkElement._identifier(reaction)}'
+        return f'u_{MetabolicNetworkElement._get_identifier(reaction)}'
 
 
 class CommunityInteraction(Interaction):
@@ -348,12 +348,12 @@ class CommunityInteraction(Interaction):
         self.growth = growth
         self.common_rate = common_rate
 
-    def _weighted(self, namespace: SimpleNamespace, reaction: str) -> Expression:
+    def _get_weighted(self, namespace: SimpleNamespace, reaction: str) -> Expression:
         """Return the sum over the members of the flux of a reaction.
 
         The flux of every member is weighted by its abundance.
         """
-        name = MetabolicNetworkElement.flux_name(reaction)
+        name = MetabolicNetworkElement.get_flux_name(reaction)
         terms = [
             float(share) * getattr(member, name)
             for share, member in zip(self.abundances, namespace.members, strict=True)
@@ -374,14 +374,14 @@ class CommunityInteraction(Interaction):
         variables = []
         relations: list[Expression] = []
         for reaction, floor in (self.exchanges or {}).items():
-            state = getattr(namespace.medium, CommunityMediumElement.state_name(reaction))
+            state = getattr(namespace.medium, CommunityMediumElement.get_state_name(reaction))
             variables.append(state)
-            relations += [state == self._weighted(namespace, reaction), state >= float(floor)]
-        name = MetabolicNetworkElement.flux_name(self.growth)
+            relations += [state == self._get_weighted(namespace, reaction), state >= float(floor)]
+        name = MetabolicNetworkElement.get_flux_name(self.growth)
         growth = [getattr(member, name) for member in namespace.members]
         if self.common_rate:
             relations += [item == growth[0] for item in growth[1:]]
-        objective = LinearObjectiveSpec(self._weighted(namespace, self.growth))
+        objective = LinearObjectiveSpec(self._get_weighted(namespace, self.growth))
         return [LinearProgramLaw([*variables, *growth], relations, [objective])]
 
 
@@ -461,7 +461,7 @@ class ObjectiveFloorInteraction(Interaction):
             laws:
                 The linear program law of the bound.
         """
-        fluxes = [getattr(namespace.cell, MetabolicNetworkElement.flux_name(name)) for name in self.weights or {}]
+        fluxes = [getattr(namespace.cell, MetabolicNetworkElement.get_flux_name(name)) for name in self.weights or {}]
         terms = [float(weight) * flux for weight, flux in zip((self.weights or {}).values(), fluxes, strict=True)]
         return [LinearProgramLaw(fluxes, [sum(terms[1:], terms[0]) >= float(self.floor)])]
 
@@ -515,6 +515,6 @@ class SwitchInteraction(Interaction):
                 One update law per gene.
         """
         return [
-            UpdateLaw(getattr(namespace.cell, MetabolicNetworkElement.gene_name(gene)), 1 - namespace.node.x)
+            UpdateLaw(getattr(namespace.cell, MetabolicNetworkElement.get_gene_name(gene)), 1 - namespace.node.x)
             for gene in self.genes
         ]

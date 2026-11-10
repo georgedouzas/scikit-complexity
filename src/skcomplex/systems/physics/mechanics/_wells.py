@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ..common.particles import MassPointElement, PotentialEnergyInteraction
 
@@ -114,9 +114,9 @@ class ParticleInAWellSystem(BaseSystem):
         self.k = k
         self.m = m
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return a particle moving without friction in the potential `U(x) = k x² e^-x`."""
-        return System(
+        return CompositeSystem(
             self.label,
             elements=[MassPointElement('particle', x=self.x, x_d1=self.v, m=self.m)],
             interactions=[ExponentialWellInteraction('well', target='particle', k=self.k)],

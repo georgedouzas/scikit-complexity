@@ -1,7 +1,7 @@
 """
 # Phone adoption
 
-Hamill and Gilbert's system of how British households took up fixed-line phones from 1951. A household buys a phone
+Hamill and Gilbert model how British households took up fixed-line phones from 1951. A household buys a phone
 once its income passes a threshold, but only if a neighbour already has one to call. Incomes grow every year, so the
 phones spread outwards from the rich upper-class quarter in an S-shaped adoption curve, lagging behind the households
 that could already afford one.
@@ -37,7 +37,7 @@ trajectory = simulate(system_system, until=18, observers=[observer], random_stat
 system_system = PhoneAdoptionSystem(random_state=0)
 trajectory = simulate(system_system, until=YEARS, random_state=0)
 frames = range(len(trajectory.times))
-households = [trajectory.agents('households', frame).values for frame in frames]
+households = [trajectory.get_agents('households', frame).values for frame in frames]
 classes = households[0]['social_class']
 fig, (by_class, overall) = plt.subplots(1, 2, figsize=(10, 4))
 for index, name in enumerate(np.unique(classes)):
@@ -50,7 +50,7 @@ by_class.set_xlabel('year')
 by_class.set_ylabel('share of households')
 by_class.set_title('Phones (solid) lag affordability (dashed)')
 by_class.legend(fontsize=8)
-overall.plot(1951 + trajectory.times, trajectory.values('share'), label='with a phone')
+overall.plot(1951 + trajectory.times, trajectory.get_values('share'), label='with a phone')
 overall.plot(
     1951 + trajectory.times,
     [(values['income'] >= THRESHOLD).mean() for values in households],

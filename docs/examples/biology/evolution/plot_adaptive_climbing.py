@@ -41,7 +41,7 @@ for seed in range(8):
         random_state=seed,
     )
     best.append(
-        [trajectory.agents('population', frame).values['fitness'].max() for frame in range(len(trajectory.times))],
+        [trajectory.get_agents('population', frame).values['fitness'].max() for frame in range(len(trajectory.times))],
     )
 best = np.array(best)
 fig, ax = plt.subplots(figsize=(8, 4))

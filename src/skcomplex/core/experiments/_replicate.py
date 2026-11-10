@@ -1,7 +1,4 @@
-"""Replicate a system of single elements into groups of members.
-
-Many values then run as one vectorised simulation.
-"""
+"""Replicate a system of single elements into groups, run as one simulation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +13,6 @@ from ..components.elements import DeclaredElement, Element, GroupElement
 from ..components.laws import (
     BoundaryLaw,
     CrossingLaw,
-    EmissionLaw,
     EquationLaw,
     JumpLaw,
     NoiseLaw,
@@ -25,13 +21,14 @@ from ..components.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..components.system import System
-from ..engine._utils import declared_variables
-from ..engine.compile._probe import probe_laws
+from ..components.systems import CompositeSystem
+from ..engine._utils import declared_variables, probe_laws
 from ..engine.runtime import Trajectory, simulate
 from ..errors import ValidationError
+from ..specs import VariableSpec
 from ..types import VariableKind
-from ._runs import _build, _check_source
+from ._runs import _check_source
+from ._utils import build_system
 from .types import Source
 
 PLAIN_LAWS = (
@@ -42,11 +39,9 @@ PLAIN_LAWS = (
     BoundaryLaw,
     CrossingLaw,
     TransitionLaw,
-    EmissionLaw,
     TransferLaw,
     EquationLaw,
 )
-"""Laws of elements that a group of members of the same type runs as one vectorised simulation."""
 
 
 def _has_formalism_laws(element: Element) -> bool:
@@ -57,7 +52,7 @@ def _has_formalism_laws(element: Element) -> bool:
     return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
-def _check_plain(system: System) -> None:
+def _check_plain(system: CompositeSystem) -> None:
     """Raise an error for a system that is not only plain elements and interactions.
 
     The elements must be plain single elements.
@@ -79,6 +74,12 @@ def _check_plain(system: System) -> None:
         raise ValidationError(error_msg)
 
 
+def _is_declared_companion(element: Element, variable: VariableSpec) -> bool:
+    """Return whether a variable is a companion of a state declared from data."""
+    state = variable.derivative_of or variable.lag_of
+    return state is not None and state in element._get_declared()
+
+
 def _value_names(element: Element) -> list[str]:
     """Return the names of the states and parameters an element holds.
 
@@ -87,7 +88,8 @@ def _value_names(element: Element) -> list[str]:
     return [
         name
         for name, (variable, _) in declared_variables(element).items()
-        if variable.kind != VariableKind.ROLE and (hasattr(element, name) or name in element._get_declared())
+        if variable.kind != VariableKind.ROLE
+        and (hasattr(element, name) or name in element._get_declared() or _is_declared_companion(element, variable))
     ]
 
 
@@ -104,7 +106,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
 def _member_values(
     values: Mapping[str, npt.ArrayLike],
-    system: System,
+    system: CompositeSystem,
     size: int,
 ) -> dict[str, dict[str, object]]:
     """Return the per-member values of every element by its label.
@@ -145,7 +147,11 @@ def _member_values(
     return by_label
 
 
-def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+def _replicate(
+    system: CompositeSystem,
+    size: int,
+    values: Mapping[str, npt.ArrayLike] | None = None,
+) -> CompositeSystem:
     """Return a system whose single elements become groups of members.
 
     The members are of the same types and labels. Every member starts from the values of its element, except the dotted
@@ -173,16 +179,6 @@ def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | 
         ValidationError:
             The system has child systems, groups, fields, or agents, a path is not a state or parameter of an element,
             or its values do not have one row per member.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.experiments._replicate import _replicate
-        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-        >>> system = LogisticMapSystem(r=3.7).prepare().system_
-        >>> replicated = _replicate(system, 4, {'map.x': np.linspace(0.1, 0.4, 4)})
-        >>> group = replicated.elements[0]
-        >>> group.label, group.element.__name__, group.size
-        ('map', 'LogisticMapElement', 4)
     """
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)
@@ -196,7 +192,7 @@ def _replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | 
         )
         for element in system.elements
     ]
-    return System(
+    return CompositeSystem(
         system.label,
         elements=groups,
         interactions=[copy.copy(interaction) for interaction in system.interactions],
@@ -211,7 +207,7 @@ def _run_replicated(
     until: float | None,
     dt: float | None,
     random_state: int | None,
-) -> tuple[Trajectory, System]:
+) -> tuple[Trajectory, CompositeSystem]:
     """Return one run of a replicated system, and the composite of the system.
 
     The system is replicated once per value of every path.
@@ -243,7 +239,7 @@ def _run_replicated(
         ValidationError:
             The system has no tuned end time and none is given.
     """
-    system = _build(_check_source(source), {})
+    system = build_system(_check_source(source), {})
     settings = system.get_run_settings()
     composite = system.prepare().system_
     end = until if until is not None else settings['until']

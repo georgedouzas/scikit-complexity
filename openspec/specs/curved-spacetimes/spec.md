@@ -6,13 +6,11 @@ TBD - created by archiving change add-general-relativity. Update Purpose after a
 ## Requirements
 
 ### Requirement: Pseudo-Riemannian spaces derive their curvature
-`PseudoRiemannianSpace` SHALL take a symmetric, nondegenerate Sage metric and its coordinates, and `prepare` SHALL
-derive through EinsteinPy the Christoffel symbols `christoffel_[μ][α][β] = Γ^μ_αβ` and, unless `curvature=False`, the
-Riemann tensor, the Ricci tensor, the Ricci scalar, and the Einstein tensor `R_μν - R g_μν / 2`, as Sage expressions.
-Symbolic functions of the coordinates in the metric SHALL come back as the same functions, whatever their names. The
-space SHALL be an unbounded `ContinuousSpace` with one dimension per coordinate. A metric that is not square with one
-row per coordinate, not symmetric, or identically degenerate, or coordinates that are not distinct variables, SHALL
-raise a `ValidationError` from `prepare`.
+`SpacetimeSpace` of `skcomplex.systems.physics.common.relativity` SHALL take a symmetric, nondegenerate Sage metric and
+its coordinates, and `prepare` SHALL derive through EinsteinPy, loaded as the extra `relativity`, the Christoffel
+symbols `christoffel_[μ][α][β] = Γ^μ_αβ` and, unless `curvature=False`, the Riemann tensor, the Ricci tensor, the Ricci
+scalar, and the Einstein tensor, as Sage expressions. It SHALL be an unbounded `ContinuousSpace` with one dimension per
+coordinate, and a bad metric or bad coordinates SHALL raise a `ValidationError` from `prepare`.
 
 #### Scenario: Unit sphere
 - **WHEN** a user prepares the space of the metric `diag(1, sin²θ)` in `(θ, φ)`
@@ -34,11 +32,16 @@ raise a `ValidationError` from `prepare`.
 - **WHEN** a user prepares the metric `diag(1, 0)`
 - **THEN** `prepare` raises a `ValidationError` that says the metric is degenerate
 
+#### Scenario: Missing extra
+- **WHEN** a user prepares a `SpacetimeSpace` without `einsteinpy` installed
+- **THEN** the error names the extra `relativity`, and the core imports without `einsteinpy`
+
 ### Requirement: Geodesic interactions move points along geodesics
-`GeodesicInteraction` SHALL return one rate law `x''^μ = -Γ^μ_αβ(x) x'^α x'^β` on a vector state of order 2 of its
-target, with the Christoffel symbols of the `PseudoRiemannianSpace` it takes, for timelike and null tangents alike. It
-SHALL raise a `SpaceError` from `prepare` without such a space, and a `ValidationError` for a position whose number of
-components differs from the number of coordinates.
+`GeodesicInteraction` of `skcomplex.systems.physics.common.relativity` SHALL return one rate law
+`x''^μ = -Γ^μ_αβ(x) x'^α x'^β` on a vector state of order 2 of its target, with the Christoffel symbols of the
+`SpacetimeSpace` it takes, for timelike and null tangents alike. It SHALL raise a `SpaceError` from `prepare` without
+such a space, and a `ValidationError` for a position whose number of components differs from the number of
+coordinates.
 
 #### Scenario: Straight line in polar coordinates
 - **WHEN** a point of the polar plane `diag(1, r²)` starts at `(1, 0)` with the tangent `(0, 1)`
@@ -49,14 +52,12 @@ components differs from the number of coordinates.
 - **THEN** `g_μν x'^μ x'^ν` stays 0 within the tolerance of the solver
 
 ### Requirement: Einstein interactions reduce the field equations of an ansatz
-`EinsteinInteraction` SHALL take a `PseudoRiemannianSpace` with curvature whose metric holds functions of the
-coordinates named after states or parameters of its target, one component `(μ, ν)` per state, a source function that
-returns the mixed energy-momentum tensor, the coupling `κ`, and the cosmological constant `Λ`. It SHALL solve the
-equations `G^μ_ν + Λ δ^μ_ν = κ T^μ_ν` of the kept components for the second time derivatives of the states and return
-one rate law per state. A time derivative SHALL become the derivative of the state, and a derivative along a coordinate
-that `axes` maps to a lattice axis SHALL become `partial` of the field along that axis. A mixed derivative, a derivative
-of order above 2, a derivative along a coordinate without an axis, a kept coordinate, a function that names nothing, or
-components that do not fix the second derivatives SHALL raise a `ValidationError` that names the problem.
+`EinsteinFieldEquationsInteraction` of `skcomplex.systems.physics.cosmology` SHALL take a `SpacetimeSpace` with
+curvature whose metric holds functions of the coordinates named after states or parameters of its target, one
+component per state, a source of the mixed energy-momentum tensor, the coupling `κ`, and the cosmological constant `Λ`.
+It SHALL solve `G^μ_ν + Λ δ^μ_ν = κ T^μ_ν` of the kept components for the second time derivatives of the states and
+return one rate law per state, and it SHALL raise a `ValidationError` that names any derivative or component it cannot
+reduce.
 
 #### Scenario: Einstein-de Sitter universe
 - **WHEN** a flat Robertson-Walker ansatz holds dust of density `3 / (8 π a³)` and the component `(1, 1)` drives the
@@ -72,6 +73,11 @@ components that do not fix the second derivatives SHALL raise a `ValidationError
 - **WHEN** the same ansatz keeps only the component `(0, 0)`
 - **THEN** running the interaction raises a `ValidationError` that says the components do not fix the second
   derivatives
+
+#### Scenario: Field equations live in physics
+- **WHEN** a user lists `skcomplex.core.components.interactions` and `skcomplex.core.components.spaces`
+- **THEN** they hold no geodesic, no spacetime, and no interaction of the field equations, and the physics systems
+  build all three from `skcomplex.systems.physics`
 
 ### Requirement: Relativity systems reproduce known results
 The catalog SHALL hold `SchwarzschildPrecessionSystem`, `LightBendingSystem`, and `KerrFrameDraggingSystem` in

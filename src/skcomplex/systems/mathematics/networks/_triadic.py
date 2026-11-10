@@ -14,14 +14,14 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import HyperedgeInteraction, Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..common._regulated_node import RegulatedNodeElement
+from ..common.networks import RegulatedNodeElement
 
 
 class RegulatedLinkElement(Element):
@@ -209,7 +209,7 @@ class TriadicPercolationSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import TriadicPercolationSystem
         >>> system = TriadicPercolationSystem(200, p=0.8).prepare().system_
         >>> trajectory = simulate(system, until=3, random_state=0)
-        >>> giant = trajectory.values('nodes.active').mean(axis=1)
+        >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True
     """
@@ -239,7 +239,7 @@ class TriadicPercolationSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _regulated_links(
+    def _get_regulated_links(
         graph: nx.Graph,
         negative: float,
         rng: np.random.Generator,
@@ -258,20 +258,20 @@ class TriadicPercolationSystem(BaseSystem):
         signs = np.where(rng.uniform(size=len(hyperedges)) < negative, -1, 1)
         return hyperedges, signs
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return triadic percolation.
 
         Regulating nodes switch links on and off from the giant component.
         """
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
-        hyperedges, signs = self._regulated_links(graph, self.negative, rng)
+        hyperedges, signs = self._get_regulated_links(graph, self.negative, rng)
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = LatticeElement('nodes', element=RegulatedNodeElement, space=space)
+        nodes = GroupElement('nodes', element=RegulatedNodeElement, space=space, on='sites')
         links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
         interactions = [
             TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=self.p, phase='regulation'),
             GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
         time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return System(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)

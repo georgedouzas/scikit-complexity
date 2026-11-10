@@ -37,14 +37,15 @@ trajectory = simulate(system, until=60, observers=[observer], random_state=0)
 # %%
 # Reaction curves and convergence
 # -------------------------------
-# Firm `i` best responds with `q_i = (a - c_i) / (2 b) - q_j / 2`, and the Nash equilibrium `q_i = (a - 2 c_i + c_j)
-# / (3 b)` lies where the two reaction curves cross. Every simultaneous best response swaps the deviations of the two
-# firms and halves them, so without errors the distance to the equilibrium should fall as `2^-t`.
+# Firm `i` best responds with `q_i = (a - c_i) / (2 b) - q_j / 2`, and the Nash equilibrium
+# `q_i = (a - 2 c_i + c_j) / (3 b)` lies where the two reaction curves cross. Every simultaneous best response swaps
+# the deviations of the two firms and halves them, so without errors the distance to the equilibrium should fall as
+# `2^-t`.
 
 
 def outputs(trajectory):
     """Return the outputs of the two firms, one row per frame."""
-    return np.array([trajectory.agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
+    return np.array([trajectory.get_agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
 
 
 exact_system = CournotDuopolySystem(outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)

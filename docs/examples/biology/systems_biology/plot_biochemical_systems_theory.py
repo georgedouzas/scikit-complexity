@@ -6,9 +6,9 @@ the linear equations in the logarithms of the concentrations predict.
 """
 
 # %%
-# The system is built from its class. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits the supply
-# of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the default
-# blueprint, whose primary view is the time series of the three concentrations.
+# The example builds `BiochemicalSystemsTheorySystem`. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3`
+# inhibits the supply of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the
+# default blueprint, whose primary view is the time series of the three concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,8 +36,8 @@ steady = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.arr
 gma = simulate(BiochemicalSystemsTheorySystem(form='gma'), dt=0.1)
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):
-    ax.plot(trajectory.times, trajectory.values(f'X{index}.x'), color=color, label=f'X{index}, S-system')
-    ax.plot(gma.times, gma.values(f'X{index}.x'), ':', color='black')
+    ax.plot(trajectory.times, trajectory.get_values(f'X{index}.x'), color=color, label=f'X{index}, S-system')
+    ax.plot(gma.times, gma.get_values(f'X{index}.x'), ':', color='black')
     ax.axhline(steady[index - 1], color=color, linestyle='--', alpha=0.5)
 ax.plot([], [], ':', color='black', label='generalized mass action')
 ax.set_xlabel('time')

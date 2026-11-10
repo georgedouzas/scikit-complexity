@@ -1,7 +1,4 @@
-"""Define network spaces.
-
-They are graphs whose nodes members occupy, with named layers of relations over their nodes.
-"""
+"""Define the space of a graph whose nodes members occupy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,14 +22,19 @@ MIN_HYPEREDGE_NODES = 2
 
 
 class NetworkSpace(BaseSpace):
-    """Network whose nodes agents occupy or lattice sites sit on.
+    """A space of a graph whose nodes the members occupy, with layers of relations.
 
-    The neighbours of a node are given by its edges. Lattice groups on a network hold one member per node, in the order
-    of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes. Edges of a
-    layer are numbered in the order of `graph.edges`, and every layer lowers to arrays: the source and target node index
-    of every edge, and the adjacency of every node in compressed sparse row form. On an undirected graph the source of
-    an edge is the end that comes first in node order. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100,
-    0.1, seed=0)`.
+    The neighbours of a node are given by its edges. A group on the sites of a network holds one member per node, in the
+    order of `graph.nodes`. The graph is the default layer, and `layers` adds named relations over the same nodes, such
+    as work and home. Edges of a layer are numbered in the order of `graph.edges`, and on an undirected graph the source
+    of an edge is the end that comes first in node order. A network may also hold hyperedges, links of more than two
+    nodes. Build the graph with NetworkX, such as `nx.erdos_renyi_graph(100, 0.1, seed=0)`.
+
+    Unlike `LatticeSpace`, whose neighbours are regular, it takes any pattern of links. Choose it when the members are
+    joined by contacts, roads, wires, or trades.
+
+    It appears in many fields. A disease spreads on a contact network, generators synchronize on a power grid, banks
+    lend to each other on an interbank network, and neurons fire along their synapses.
 
     Args:
         graph:
@@ -53,7 +55,7 @@ class NetworkSpace(BaseSpace):
             its hyperedges. The members of an XGI hyperedge follow the order of the nodes of the graph.
 
         label:
-            The label of the space in its system.
+            The name of the space in its system, such as `'grid'`.
 
     Attributes:
         graphs_:
@@ -184,14 +186,27 @@ class NetworkSpace(BaseSpace):
                 The network has no such layer, or no hyperedges.
         """
         if on == 'edges':
-            if layer not in self.edges_:
-                known = ', '.join(repr(label) for label in self.edges_)
-                error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
-                raise SpaceError(error_msg)
+            self._check_layer(layer)
             return int(self.edges_[layer][0].size)
         if on == 'hyperedges' and self.hyperedges_:
             return len(self.hyperedges_)
         return super()._count_parts(on, layer)
+
+    def _check_layer(self, layer: str | None) -> None:
+        """Raise an error for a layer the network does not have.
+
+        Args:
+            layer:
+                The label of the layer, or `None` for the graph of the network.
+
+        Raises:
+            SpaceError:
+                The network has no such layer.
+        """
+        if layer not in self.edges_:
+            known = ', '.join(repr(label) for label in self.edges_)
+            error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
+            raise SpaceError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
         """Set the graph, the edges, the adjacency of every layer, and the node positions.
@@ -249,11 +264,11 @@ class NetworkSpace(BaseSpace):
             for start, stop in zip(self.incidence_.indptr[:-1], self.incidence_.indptr[1:], strict=True)
         )
 
-    def _default_neighborhood(self) -> AdjacencyNeighborhood:
+    def _get_default_neighborhood(self) -> AdjacencyNeighborhood:
         """Return the neighbours along the edges of the graph."""
         return AdjacencyNeighborhood()
 
-    def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+    def _get_index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
         """Return the node index of every neighbour of every node.
 
         It is padded with the number of nodes. The table has one row per node and one column per neighbour slot, as wide
@@ -262,6 +277,7 @@ class NetworkSpace(BaseSpace):
         if not isinstance(neighborhood, AdjacencyNeighborhood):
             error_msg = f'A network reads an adjacency neighbourhood, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
+        self._check_layer(neighborhood.layer)
         size = self.size_
         indptr, indices, _ = self.adjacency_[neighborhood.layer]
         degrees = np.diff(indptr)
@@ -272,11 +288,12 @@ class NetworkSpace(BaseSpace):
             return np.column_stack([np.arange(size, dtype=np.intp), table])
         return table
 
-    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+    def _get_neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
         """Return the pairs of distinct nodes joined by an edge of a layer.
 
         They come in the order of its edges.
         """
+        self._check_layer(layer)
         sources, targets = self.edges_[layer]
         return [
             (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second

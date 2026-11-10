@@ -1,7 +1,4 @@
-"""Euler-Maruyama integrator of stochastic differential equations.
-
-It takes a fixed internal step.
-"""
+"""Euler-Maruyama integrator of stochastic differential equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,9 +18,12 @@ from ._sde import SDESolver
 
 
 class EulerMaruyamaSolver(SDESolver):
-    """Euler-Maruyama integrator of stochastic differential equations.
+    """A solver that steps stochastic differential equations by Euler-Maruyama.
 
     It takes a fixed internal step.
+
+    Choose it as the default for noise in continuous time. It appears in many fields, such as stock prices, diffusing
+    particles, and noisy gene expression.
 
     Args:
         dt:
@@ -32,11 +32,11 @@ class EulerMaruyamaSolver(SDESolver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> system = System(
+        >>> system = CompositeSystem(
         ...     elements=[AssetElement('stock', price=100)],
         ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ... )
@@ -62,7 +62,7 @@ class EulerMaruyamaSolver(SDESolver):
                 TransferLaw,
                 NoiseLaw,
             },
-            noise=frozenset(NoiseKind),
+            noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -109,8 +109,8 @@ class EulerMaruyamaSolver(SDESolver):
                 The state at the end of the step.
         """
         problem = self.problem_
-        following = state + self._drift()(time, state, p) * step
-        np.add.at(following, problem.noise_rows, self._diffusion()(time, state, p) * noise)
+        following = state + self._get_drift()(time, state, p) * step
+        np.add.at(following, problem.noise_rows, self._get_diffusion()(time, state, p) * noise)
         return following
 
     def _step(self, time: float, state: Array, p: Array, lengths: Array) -> Array:
@@ -120,7 +120,7 @@ class EulerMaruyamaSolver(SDESolver):
         """
         noise = self._draw_increments(1.0) * np.sqrt(lengths[self.problem_.noise_rows])
         end = time + float(np.max(lengths))
-        return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
+        return self._get_bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate the drift and the noise from time `t` to time `until`.
@@ -166,5 +166,5 @@ class EulerMaruyamaSolver(SDESolver):
             time = t + index * step
             noise = self._draw_increments(math.sqrt(step))
             following = self._increment(time, state, p, step=step, noise=noise, end=time + step)
-            state = self._bounded(time + step, following, p)
+            state = self._get_bounded(time + step, following, p)
         return state

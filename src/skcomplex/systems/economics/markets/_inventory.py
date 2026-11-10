@@ -16,44 +16,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-
-
-def _sales(s: SimpleNamespace) -> Expression:
-    """Return the sales of the car dealership, the demand up to the inventory."""
-    demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    return minimum(demand, s.inventory)
-
-
-def _perceived(s: SimpleNamespace) -> Expression:
-    """Return the perceived sales of the car dealership.
-
-    They are its sales smoothed over the perception delay.
-    """
-    return distributed_delay(_sales(s), conserved=False, time=s.perception_delay)
-
-
-def _desired_inventory(s: SimpleNamespace) -> Expression:
-    """Return the inventory the car dealership desires.
-
-    It is a coverage of its perceived sales.
-    """
-    return s.coverage * _perceived(s)
-
-
-def _orders(s: SimpleNamespace) -> Expression:
-    """Return the orders of the car dealership.
-
-    They are its perceived sales and the gap to its desired inventory.
-    """
-    gap_orders = _perceived(s) + (_desired_inventory(s) - s.inventory) / s.response_delay
-    return maximum(gap_orders, 0)
-
-
-def _dealer(s: SimpleNamespace) -> SimpleNamespace:
-    """Return the symbols of the dealership a transfer moves cars of, with the time."""
-    return SimpleNamespace(t=s.t, **vars(s.source))
 
 
 class CarDealershipElement(Element):
@@ -127,6 +91,37 @@ class CarDealershipElement(Element):
         self.delivery_delay = delivery_delay
 
 
+def _get_perceived(s: SimpleNamespace) -> Expression:
+    """Return the perceived sales of the car dealership.
+
+    They are its sales smoothed over the perception delay.
+    """
+    return distributed_delay(_get_sales(s), conserved=False, time=s.perception_delay)
+
+
+def _get_desired_inventory(s: SimpleNamespace) -> Expression:
+    """Return the inventory the car dealership desires.
+
+    It is a coverage of its perceived sales.
+    """
+    return s.coverage * _get_perceived(s)
+
+
+def _get_orders(s: SimpleNamespace) -> Expression:
+    """Return the orders of the car dealership.
+
+    They are its perceived sales and the gap to its desired inventory.
+    """
+    gap_orders = _get_perceived(s) + (_get_desired_inventory(s) - s.inventory) / s.response_delay
+    return maximum(gap_orders, 0)
+
+
+def _get_sales(s: SimpleNamespace) -> Expression:
+    """Return the sales of the car dealership, the demand up to the inventory."""
+    demand = s.demand + step(s.t, s.step_time, s.demand_step)
+    return minimum(demand, s.inventory)
+
+
 class CarDealerSystem(BaseSystem):
     """Meadows' car dealership.
 
@@ -182,10 +177,15 @@ class CarDealerSystem(BaseSystem):
     until = 100.0
     dt = 1.0
     observables = (
-        ObservableSpec('perceived', _perceived, element='dealer'),
-        ObservableSpec('desired_inventory', _desired_inventory, element='dealer'),
-        ObservableSpec('orders', _orders, element='dealer'),
+        ObservableSpec('perceived', _get_perceived, element='dealer'),
+        ObservableSpec('desired_inventory', _get_desired_inventory, element='dealer'),
+        ObservableSpec('orders', _get_orders, element='dealer'),
     )
+
+    @staticmethod
+    def _get_dealer(s: SimpleNamespace) -> SimpleNamespace:
+        """Return the symbols of the dealership a transfer moves cars of, with the time."""
+        return SimpleNamespace(t=s.t, **vars(s.source))
 
     def __init__(
         self,
@@ -211,12 +211,12 @@ class CarDealerSystem(BaseSystem):
         self.delivery_delay = delivery_delay
 
     @staticmethod
-    def _deliveries(s: SimpleNamespace) -> Expression:
+    def _get_deliveries(s: SimpleNamespace) -> Expression:
         """Return the deliveries of the dealership, its orders through a third-order delay."""
-        dealer = _dealer(s)
-        return distributed_delay(_orders(dealer), order=3, time=dealer.delivery_delay)
+        dealer = CarDealerSystem._get_dealer(s)
+        return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         dealer = CarDealershipElement(
             'dealer',
@@ -235,8 +235,15 @@ class CarDealerSystem(BaseSystem):
             target='dealer',
             state=Source('factory'),
             into='inventory',
-            amount=self._deliveries,
+            amount=self._get_deliveries,
             flow='deliveries',
-            legs=[('inventory', Sink('customers'), lambda s: _sales(_dealer(s)), 'sales')],
+            legs=[
+                (
+                    'inventory',
+                    Sink('customers'),
+                    lambda s: _get_sales(CarDealerSystem._get_dealer(s)),
+                    'sales',
+                ),
+            ],
         )
-        return System(self.label, elements=[dealer], interactions=[cars])
+        return CompositeSystem(self.label, elements=[dealer], interactions=[cars])

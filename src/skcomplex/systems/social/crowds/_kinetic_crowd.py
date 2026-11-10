@@ -18,10 +18,12 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import BaseSystem, System
+from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
+
+TINY = 1e-12
 
 
 class KineticWalkerView(AgentView):
@@ -32,9 +34,6 @@ class KineticWalkerView(AgentView):
     speed: float
     direction: float
     target: float
-
-
-TINY = 1e-12
 
 
 class KineticWalkerElement(Element):
@@ -260,7 +259,7 @@ class KineticCrowdInteraction(Interaction):
         }
 
     @staticmethod
-    def _unit(vectors: Array, fallback: Array) -> Array:
+    def _get_unit(vectors: Array, fallback: Array) -> Array:
         """Return the unit vectors of the rows.
 
         Where a vector vanishes, it returns the fallback rows.
@@ -281,10 +280,10 @@ class KineticCrowdInteraction(Interaction):
         """
         rho, gradient, mean = fields['density'], fields['gradient'], fields['mean']
         goal = np.stack([np.where(walkers['target'] == 0, 1.0, -1.0), np.zeros(rho.size)], axis=1)
-        vacuum = self._unit(-gradient, np.zeros_like(gradient))
-        stream = self._unit(mean, goal)
-        mixed = self._unit(stress * stream + (1 - stress) * goal, goal)
-        preferred = self._unit(rho[:, None] * vacuum + (1 - rho[:, None]) * mixed, goal)
+        vacuum = self._get_unit(-gradient, np.zeros_like(gradient))
+        stream = self._get_unit(mean, goal)
+        mixed = self._get_unit(stress * stream + (1 - stress) * goal, goal)
+        preferred = self._get_unit(rho[:, None] * vacuum + (1 - rho[:, None]) * mixed, goal)
         slope = np.einsum('ij,ij->i', gradient, preferred)
         perceived = rho + slope / np.sqrt(1 + slope**2) * np.where(slope >= 0, 1 - rho, rho)
         mean_speed = fields['speed']
@@ -334,7 +333,7 @@ class KineticCrowdInteraction(Interaction):
             system:
                 The system.
         """
-        views = system.agents(self.target, KineticWalkerView)
+        views = system.get_agents(self.target, KineticWalkerView)
         if not views:
             return
         walkers = {
@@ -468,7 +467,7 @@ class KineticCrowdSystem(BaseSystem):
         self.panic_stress = panic_stress
         self.random_state = random_state
 
-    def _build_system(self) -> System:
+    def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
         target = (np.arange(self.n_walkers) % 2).astype(float)
@@ -499,4 +498,4 @@ class KineticCrowdSystem(BaseSystem):
             panic_time=self.panic_time,
             panic_stress=self.panic_stress,
         )
-        return System(self.label, elements=[walkers], interactions=[decisions])
+        return CompositeSystem(self.label, elements=[walkers], interactions=[decisions])
