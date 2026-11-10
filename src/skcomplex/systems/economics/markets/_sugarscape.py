@@ -164,34 +164,6 @@ class SugarPatchElement(Element):
         return SugarPatchView
 
 
-def landscape(width: int, height: int) -> Array:
-    """Return the sugar capacity of every cell, from 0 to 4 in rings around two peaks.
-
-    The peaks sit at 30 and 70 percent of the extent of the grid, and the rings of Downey (2018 ch. 9) have radii of
-    21, 16, 11, and 6 cells on a grid of 50 cells, scaled with the grid.
-
-    Args:
-        width:
-            The number of columns.
-
-        height:
-            The number of rows.
-
-    Returns:
-        capacity:
-            The capacity of the cell `(x, y)` at `[x, y]`.
-
-    Examples:
-        >>> from skcomplex.systems.economics.markets._sugarscape import landscape
-        >>> float(landscape(50, 50).max()), float(landscape(50, 50)[0, 49])
-        (4.0, 0.0)
-    """
-    x, y = np.meshgrid(np.arange(width), np.arange(height), indexing='ij')
-    scale = min(width, height) / 50
-    distance = np.min([np.hypot(x - px * width, y - py * height) for px, py in PEAKS], axis=0)
-    return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
-
-
 def _get_gini(wealth: object) -> float:
     """Return the Gini coefficient of the wealth of the foragers."""
     gini = distribution(np.asarray(wealth, dtype=float), kind='gini').gini
@@ -299,6 +271,19 @@ class SugarscapeSystem(BaseSystem):
         """Return whether the wealth of a forager has fallen below zero."""
         return isinstance(forager, ForagerView) and forager.sugar < 0
 
+    @staticmethod
+    def _get_landscape(width: int, height: int) -> Array:
+        """Return the sugar capacity of every cell, from 0 to 4 in rings around two peaks.
+
+        The peaks sit at 30 and 70 percent of the extent of the grid, and the rings of Downey (2018 ch. 9) have radii
+        of 21, 16, 11, and 6 cells on a grid of 50 cells, scaled with the grid. The capacity of the cell `(x, y)` is
+        at `[x, y]`.
+        """
+        x, y = np.meshgrid(np.arange(width), np.arange(height), indexing='ij')
+        scale = min(width, height) / 50
+        distance = np.min([np.hypot(x - px * width, y - py * height) for px, py in PEAKS], axis=0)
+        return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
+
     def __init__(
         self,
         width: int = 50,
@@ -376,7 +361,7 @@ class SugarscapeSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        capacity = landscape(self.width, self.height).ravel()
+        capacity = self._get_landscape(self.width, self.height).ravel()
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
         patches = GroupElement(
             'patches',

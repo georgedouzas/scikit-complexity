@@ -11,6 +11,7 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
+from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, _get_spin_space
 
 
 def test_quantum_heisenberg_ground_state_of_the_ring():
@@ -66,3 +67,16 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     simulate(system, until=2.0, dt=0.5, observers=[observer])
     assert observer.logged_frames_ == 5
     assert repr(ExpectationVisual()) == 'ExpectationVisual()'
+
+
+def test_spin_space_has_two_j_plus_one_states():
+    """Test that the space of a spin one has three states and a spin element takes it."""
+    space = _get_spin_space(1)
+    assert space.dimension == 3
+    assert SpinElement('s', hilbert=space).hilbert.dimension == 3
+
+
+def test_spin_space_refuses_a_quantum_number_off_the_half_integers():
+    """Test that a quantum number that is not a positive multiple of one half is refused."""
+    with pytest.raises(ValidationError, match='multiple of one half'):
+        _get_spin_space(0.3)

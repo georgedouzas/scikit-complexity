@@ -27,29 +27,12 @@ INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
 
 
-def spin_space(j: float = 0.5) -> HilbertSpec:
+def _get_spin_space(j: float) -> HilbertSpec:
     """Return the Hilbert space of a spin of quantum number `j`.
 
-    The basis runs from `m = j` down to `m = -j`.
-
-    Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
-
-    Args:
-        j:
-            The spin quantum number, a positive multiple of one half.
-
-    Returns:
-        space:
-            The Hilbert space, of dimension `2 j + 1`.
-
-    Raises:
-        ValidationError:
-            The quantum number is not a positive multiple of one half.
-
-    Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import spin_space
-        >>> spin_space(1).dimension
-        3
+    The quantum number is a positive multiple of one half. The basis runs from `m = j` down to `m = -j`, and the
+    operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`. Another quantum number
+    raises a `ValidationError`.
     """
     size = 2 * j + 1
     if not float(size).is_integer() or size < MIN_SPIN_DIMENSION:
@@ -65,7 +48,7 @@ def spin_space(j: float = 0.5) -> HilbertSpec:
     return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
 
 
-SPIN_HALF = spin_space()
+SPIN_HALF = _get_spin_space(0.5)
 
 
 class SpinElement(Element):
@@ -84,15 +67,16 @@ class SpinElement(Element):
             The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
         hilbert:
-            The Hilbert space, `spin_space(j)`, by default that of a spin one half.
+            The Hilbert space of the spin, with the spin components `x`, `y`, `z` and the ladder operators `plus` and
+            `minus` as its operators, by default that of a spin one half.
 
         visual:
             How the spin is drawn.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, spin_space
-        >>> SpinElement('s', hilbert=spin_space(1)).hilbert.dimension
-        3
+        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
+        >>> SpinElement('s').hilbert.dimension
+        2
     """
 
     def __init__(
