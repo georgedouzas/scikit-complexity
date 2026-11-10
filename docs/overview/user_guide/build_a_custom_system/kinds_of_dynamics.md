@@ -78,7 +78,7 @@ from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import UnregisteredLawError
 from skcomplex.core.specs import ParameterSpec, RequirementSpec, StateSpec
 
 
@@ -109,7 +109,7 @@ prepares, and runs on its own.
 
 The passes of the compilers that the library ships are fixed lists of the engine, so no form takes a law of a new
 class inside a system. An [`Element`](../core_components/elements.md#element) that returns the law shows this.
-`simulate` reports it with the code `laws-mixed`.
+`simulate` reports it as an `UnregisteredLawError` with the code `law-unregistered`.
 
 ```python continuation
 class NucleusElement(Element):
@@ -124,13 +124,12 @@ class NucleusElement(Element):
 
 try:
     simulate(CompositeSystem(elements=[NucleusElement('atom')]), until=1)
-except ValidationError as error:
+except UnregisteredLawError as error:
     message = str(error)
-assert '[laws-mixed]' in message
+assert '[law-unregistered]' in message
 message
 ```
 
-The message reads "No form takes the laws of this system together (DecayLaw: atom)" and advises to move the
-components of each kind of law into their own nested system. For a law of a new class that advice does not help,
-since no form takes it at all. A new kind of dynamics is a change to the engine, or a compiler of your own passed
+The message reads "The law class DecayLaw has no form the engine knows" for `atom`, and advises to write the law
+with a class the core provides. A new kind of dynamics is a change to the engine, or a compiler of your own passed
 through the `compiler` setting.
