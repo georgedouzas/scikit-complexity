@@ -291,10 +291,6 @@ class _CalibrationObjective:
             return -np.inf
         return -np.inf if probability is None else float(probability)
 
-    def log_prior(self, values: Sequence[float]) -> float:
-        """Return the log density of the priors at a parameter vector."""
-        return float(sum(prior.logpdf(value) for prior, value in zip(self.priors.values(), values, strict=True)))
-
     def get_loss(self, values: Sequence[float], loss: str) -> float:
         """Return the loss of a parameter vector to minimise.
 
