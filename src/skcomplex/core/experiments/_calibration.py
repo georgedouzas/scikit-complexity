@@ -708,7 +708,8 @@ def _fit_mcmc(
 
     A deterministic differentiable system with the Gaussian likelihood runs NUTS on its JAX run. Every other system runs
     the affine invariant ensemble sampler, with the log-likelihood evaluated on the host, and at least two walkers per
-    parameter and two more.
+    parameter and two more. The host returns the log-likelihood in single precision, since XLA may run the callback on
+    a thread of its own, where the double precision that `jax.enable_x64` sets for the calling thread does not hold.
     """
     names = objective.names
     priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
@@ -729,11 +730,11 @@ def _fit_mcmc(
             evaluate = objective.log_likelihood if loss == 'likelihood' else objective.get_event_log_likelihood
 
             def host(theta: Array) -> Array:
-                return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float64)
+                return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float32)
 
             def model() -> None:
                 theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
-                shape = jax.ShapeDtypeStruct((), jnp.float64)
+                shape = jax.ShapeDtypeStruct((), jnp.float32)
                 numpyro.factor('likelihood', jax.pure_callback(host, shape, theta, vmap_method='sequential'))
 
             sampler, walkers, method = AIES(model), max(chains, 2 * len(names) + 2), 'vectorized'
