@@ -1,6 +1,7 @@
-"""Elements of systems.
+"""Define elements, the parts of a system that hold its states.
 
-Elements are entities that carry states, and groups of identical elements.
+An element holds the states of a system, such as an amount, a position, or a word. A group holds many elements of one
+class as arrays, and a field holds one at every site of a space.
 """
 
 from ._base import BaseElement

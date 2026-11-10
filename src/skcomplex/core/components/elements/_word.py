@@ -1,7 +1,4 @@
-"""Define word elements.
-
-A word element holds a word of modules rewritten in parallel by string productions.
-"""
+"""Define the element that holds a word of symbols that productions rewrite."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,46 +13,61 @@ from ._element import Element
 
 
 class WordElement(Element):
-    """Element that holds a word of modules rewritten in parallel by productions.
+    """An element that holds a word of symbols that productions rewrite in parallel.
 
-    The productions are string productions. A subclass returns the `ProductionLaw`s of the word from `_get_laws`. Its
-    states are the count of every symbol whose name is a word of letters, digits, and underscores, and the length `size`
-    of the word.
+    A word is a string of modules, symbols that may carry parameters. At each step every symbol is replaced at once by
+    the word its `ProductionLaw` gives, as in an L-system, the grammar that Lindenmayer introduced to describe the
+    growth of plants. A subclass returns these laws from `_get_laws`. The states of the word are the count of each
+    symbol whose name is made of letters, digits, and underscores, and the length `size` of the word.
+
+    Unlike `PatchElement`, which rewrites shapes, it rewrites a string, which `geometry` can draw as line segments.
+    Choose it when a model grows by rewriting symbols, such as a branching plant or a fractal curve.
+
+    It appears in many fields. Lindenmayer modelled the growth of algae with it in biology, the Thue-Morse sequence of
+    symbolic dynamics in computer science is a word, and the Koch curve of mathematics is a word drawn as line segments.
 
     Args:
         label:
-            The label of the element.
+            The name of the word, such as `'algae'`.
 
         axiom:
-            The word at generation 0.
+            The word at the start, such as `'A'`.
 
         alphabet:
-            The symbols, as a string of one-character symbols or a mapping from name to number of parameters, or
-            `None` to take them from the axiom and the productions.
+            The symbols, as a string of one-character symbols or a mapping from each name to its number of parameters,
+            or `None` to read them from the axiom and the productions.
 
         ignore:
-            The symbols that contexts skip.
+            The symbols that a production skips when it reads the neighbours of a symbol, such as `'+-'` for turns.
 
         geometry:
-            The interpretation of the word as line segments, or `None`.
+            How the word is drawn as line segments, a `GeometrySpec`, or `None` for no drawing.
 
         max_size:
-            The largest word a generation may produce.
+            The largest word one step may produce, which guards memory.
 
         bounds:
-            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` to fit the data.
+            The box `(xmin, ymin, xmax, ymax)` that the drawing shows, or `None` to fit the data.
 
         visual:
-            How the word is drawn, or `None` for `default_visual_`.
+            How the word is drawn, such as `VisualSpec('geometry')`, or `None` for `default_visual_`.
 
     Examples:
+        In Lindenmayer's algae `A` becomes `AB` and `B` becomes `A`, so the length of the word runs through the
+        Fibonacci numbers.
+
         >>> from skcomplex.core.components.elements import WordElement
         >>> from skcomplex.core.components.laws import ProductionLaw
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
         >>> class AlgaeElement(WordElement):
+        ...     law_classes = (ProductionLaw,)
+        ...
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> AlgaeElement('algae', axiom='A').axiom
-        'A'
+        >>> trajectory = simulate(CompositeSystem(elements=[AlgaeElement('algae', axiom='A')]), until=5)
+        >>> trajectory.get_values('algae.size').tolist()
+        [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 
     def __init__(

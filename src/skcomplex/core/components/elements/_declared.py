@@ -1,7 +1,4 @@
-"""Define declared elements.
-
-A declared element takes its states and parameters as data at construction.
-"""
+"""Define the element whose states and parameters are given as data."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,26 +15,31 @@ from ._element import Element
 
 
 class DeclaredElement(Element):
-    """Element whose states and parameters are data.
+    """An element whose states and parameters are given as data.
 
-    It serves a system that knows them only when it builds the element. The compiler treats a declared variable as it
-    treats an annotated argument of the constructor: the spec gives the declaration and the value gives the default. A
-    law reads a declared variable from its namespace, and `get_value` reads its value from the element. A subclass that
-    derives its variables from other arguments overrides `_declare_variables`, and `variables` then holds the variables
-    that replace the derived ones. The mappings the constructor takes are read as immutable, so `set_params` changes a
-    variable. A declared state of higher order or with lags has companion states such as `x_d1` or `x_lag1`, whose
-    values are the initial values of its spec, so `get_value` reads them and `set_params` changes them as it changes a
-    variable.
+    The element takes a mapping from each name to its initial value and its spec, so a system can build it without a
+    class of its own. A law reads a declared variable by name, as it reads a state that a subclass declares, and
+    `get_value` returns its value. A state of higher order or with lags also has companion states, such as `x_d1` for
+    its first derivative or `x_lag1` for its value one step back, which `get_value` reads and `set_params` changes. A
+    subclass that derives its variables from other arguments overrides `_declare_variables`.
+
+    Unlike `Element`, it needs no subclass, since it takes its states and parameters as data. Choose it when a system
+    learns its variables only when it builds them, or when a class for one model would only repeat its arguments.
+
+    It appears in many fields. The number of people infected in an epidemic, the moles of a chemical species in a
+    reactor, the money in a bank account, and the tokens in a place of a Petri net are all declared states.
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The name of the element, unique among the parts of its system, such as `'infected'` or `'account'`.
 
         visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
 
         variables:
-            The declared states and parameters by name, or `None` for none.
+            The initial value and the spec of each state and parameter, by name, or `None` for none. For example,
+            `{'x': DeclaredVariableSpec(100.0, StateSpec())}` declares a state `x` that starts at 100, in the units of
+            the system, such as people or moles.
 
     Attributes:
         default_visual_:
@@ -48,12 +50,33 @@ class DeclaredElement(Element):
             A name is not an identifier or is an argument of the constructor, raised by `prepare`.
 
     Examples:
+        An epidemic compartment and a bank account are the same kind of element. Infected people recover at a rate of
+        0.1 a day.
+
         >>> from skcomplex.core.components.elements import DeclaredElement
-        >>> from skcomplex.core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
-        >>> variables = {'x': DeclaredVariableSpec(1.0, StateSpec()), 'r': DeclaredVariableSpec(0.5, ParameterSpec())}
-        >>> element = DeclaredElement('cell', variables=variables)
-        >>> element.get_value('x'), element.set_params(r=0.25).get_value('r')
-        (1.0, 0.25)
+        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+        >>> infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(100.0, StateSpec())})
+        >>> recovery = RateInteraction('recovery', target='infected', state='x', rate=lambda s: -0.1 * s.target.x)
+        >>> epidemic = CompositeSystem(elements=[infected], interactions=[recovery])
+        >>> simulate(epidemic, until=10, dt=5.0).get_values('infected.x').round(1).tolist()
+        [100.0, 60.7, 36.8]
+
+        Interest at 5 percent a year grows the account continuously.
+
+        >>> account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(250.0, StateSpec())})
+        >>> interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
+        >>> savings = CompositeSystem(elements=[account], interactions=[interest])
+        >>> simulate(savings, until=1, dt=1.0).get_values('account.x').round(2).tolist()
+        [250.0, 262.82]
+
+        A state of second order, such as the position of a mass, has a companion state for its velocity.
+
+        >>> mass = DeclaredElement('mass', variables={'x': DeclaredVariableSpec(1.0, StateSpec(order=2))})
+        >>> mass.get_value('x'), mass.get_value('x_d1')
+        (1.0, 0.0)
     """
 
     def __init__(
@@ -137,11 +160,11 @@ class DeclaredElement(Element):
 
         Args:
             name:
-                The name of the variable, or of a companion state such as `x_d1`.
+                The name of the variable, such as `'x'`, or of a companion state, such as `'x_d1'`.
 
         Returns:
             value:
-                The value.
+                The value of the variable.
 
         Examples:
             >>> from skcomplex.core.components.elements import DeclaredElement
@@ -161,16 +184,16 @@ class DeclaredElement(Element):
     def set_params(self, **params: object) -> Self:
         """Set arguments of the constructor and values of declared variables.
 
-        The declared variables keep their specs. The value of a companion state such as `x_d1` becomes the initial value
-        the spec of its state holds.
+        A declared variable keeps its spec and takes the new value. A companion state such as `x_d1` takes the new value
+        as the initial value that the spec of its state holds.
 
         Args:
             **params:
-                The new values by name.
+                The new values by name, such as `x=2.0`.
 
         Returns:
             element:
-                The element.
+                The element itself.
 
         Examples:
             >>> from skcomplex.core.components.elements import DeclaredElement

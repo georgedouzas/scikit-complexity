@@ -9,7 +9,7 @@
 
 ## 2. Pilot: elements and the coupling interaction
 
-- [ ] 2.1 Rewrite the docstrings of every module, class, and method of `skcomplex.core.components.elements` and its `__init__` by the rules of design.md, with the "Unlike" comparison and the "It appears in" uses paragraph of every class, add the cross-domain examples of `DeclaredElement`, add the package to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/core/components/elements` pass
+- [x] 2.1 Rewrite the docstrings of every module, class, and method of `skcomplex.core.components.elements` and its `__init__` by the rules of design.md, with the "Unlike" comparison and the "It appears in" uses paragraph of every class, add the cross-domain examples of `DeclaredElement`, add the package to `REWRITTEN`, and verify the guard and `pytest --doctest-modules src/skcomplex/core/components/elements` pass
 - [ ] 2.2 Rewrite the docstring of `CouplingInteraction` and its module, moving mode details to the `Args` entries, fixing the broken list of modes, and adding its comparison and uses paragraphs, and verify its doctests and pydoclint pass
 - [ ] 2.3 Read the rewritten docstrings through for flow and rewrite what sounds generated, then show the user the diff of 2.1 and 2.2 and record the approved style, or the corrections, in design.md before group 3 starts
 

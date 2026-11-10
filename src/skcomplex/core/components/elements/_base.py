@@ -1,4 +1,4 @@
-"""Define the base of elements, the parts of a system that hold states."""
+"""Define the abstract element, the part of a system that holds its states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,32 +13,41 @@ from ..spaces import BaseSpace
 
 
 class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
-    """Base of every element, a part of a system that holds states.
+    """An abstract element, the part of a system that holds its states.
 
-    A subclass takes its states and parameters as arguments of its own `__init__`, annotated with `Annotated` and the
-    spec `StateSpec` or `ParameterSpec`, and stores each under its own name, as in scikit-learn. A subclass
-    drawn in its own way gives `visual` a default in its signature. It returns its laws from `_get_laws`, which every
-    subclass implements, returning an empty list when the element has none.
+    A state is a value that changes as the system runs, such as the size of a population or the position of a particle.
+    An element names its states and parameters, may give laws of its own, and is drawn with a visual. A subclass takes
+    each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or `ParameterSpec` inside
+    `Annotated`, and stores it under the same name, as a scikit-learn estimator does. It returns its laws from
+    `_get_laws`, or an empty list when it has none.
+
+    Unlike `BasePart`, it holds states, and the interactions and laws of a system read and change them through it.
+    Choose it when a new kind of element stores its members in a way of its own, as `GroupElement` does. Choose
+    `Element` for one entity with named states.
+
+    It appears in every field through its subclasses, such as a population in ecology, a chemical species in a reactor,
+    a bank account in economics, and a pendulum in mechanics.
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The name of the element, unique among the parts of its system, such as `'rabbits'`.
 
         visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
 
     Attributes:
         default_visual_:
             The visual of the element when it sets none.
 
         laws_:
-            The laws the element contributes for the namespace of its last run.
+            The laws of the element for the namespace of its last run.
 
     Examples:
+        A population with one state and one parameter. The constructor stores its arguments as given.
+
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import BaseElement
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.specs import VisualSpec
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
         >>> class PopulationElement(BaseElement):
         ...     def __init__(
         ...         self,
@@ -95,13 +104,13 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
         return replace(self._get_law_tags(self._get_declared_laws()), domains=self._get_domain_tags())
 
     def get_states(self) -> dict[str, StateSpec]:
-        """Return the states the element carries with their specs.
+        """Return the states of the element with their specs.
 
-        They are those of its class and those it declares from data.
+        The states are those its class declares and those it takes as data.
 
         Returns:
             states:
-                A mapping from the name of every state to its spec.
+                The spec of every state, by name.
 
         Examples:
             >>> from typing import Annotated

@@ -1,4 +1,4 @@
-"""Define elements, the entities of a system that carry states."""
+"""Define the element whose states and parameters its subclass declares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,55 +15,66 @@ from ._base import BaseElement
 
 
 class Element(BaseElement):
-    """Base class of entities that carry state.
+    """An element whose states and parameters are declared by its own subclass.
 
-    Examples are particles, populations, agents, or firms. A subclass takes its states, its parameters, and `visual` as
-    arguments of its own `__init__`, annotating each state with a `StateSpec` and each parameter with a `ParameterSpec`
-    inside `Annotated`, and returns its intrinsic dynamics from `_get_laws`, which returns no laws by default. A
-    subclass drawn in its own way gives `visual` a default in its signature.
+    A subclass takes each state and parameter as an argument of its `__init__`, annotated with `StateSpec` or
+    `ParameterSpec` inside `Annotated`. It may return laws of its own from `_get_laws`, such as the growth of a
+    population, and it lists their classes in `law_classes`, so that `get_tags` can name their kinds before a run.
 
-    An element whose laws have the agent trait, such as rules, alone or in a group, is an agent: under discrete time it
-    runs on the agent stepper, whose rules receive every member as an agent with its states as attributes. Its states
-    then hold any value, not only numbers. A member is removed only when its states tagged with a quantity are settled
-    to zero, and its states and parameters cannot take the names of the agent view, such as `location` or `alive`, or
-    of the attributes Mesa reads, such as `position` or `system`.
+    A subclass that connects to other elements, such as a resistor in a circuit, declares its ports in `ports`, a
+    mapping from the name of each port to its `ConnectorSpec`. It then takes one algebraic state per variable of a port,
+    named `<port>_<variable>`. An equation, not a rate, fixes an algebraic state at every time. A flow is positive into
+    the element.
 
-    A subclass that connects to other elements declares its ports in the class variable `ports`, a mapping from the name
-    of a port to its `ConnectorSpec`, and takes one algebraic state per variable of a port, named `<port>_<variable>`.
-    A flow is positive into the element.
+    An element whose laws are agent rules, Python functions that change one member at each step, is an agent. Under
+    discrete time each member runs its rules with its states as attributes, and these states may hold any value, not
+    only numbers. A member is removed only when its states tagged with a quantity reach zero. Its states and parameters
+    cannot take the names that the agent view or Mesa reads, such as `location`, `alive`, `position`, or `system`.
 
-    A subclass that writes its laws in `_get_laws` lists their classes in the class variable `law_classes`, from which
-    its capability tags take the law kinds. Without the list, `get_tags()` leaves the law kinds unknown.
+    Unlike `BaseElement`, it returns no laws by default, and it can connect through ports or act as an agent. Choose it
+    when a kind of entity deserves a class of its own, such as a population with a growth law or a capacitor with two
+    pins, and choose `DeclaredElement` when the states are known only as data.
+
+    It appears in many fields. A prey population in ecology, a capacitor in an electric circuit, a firm in an economy,
+    and a pendulum in mechanics are each a subclass of it.
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
+            The name of the element, unique among the parts of its system, such as `'rabbits'`.
 
         visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            How the element is drawn, such as `VisualSpec('line')`, or `None` for `default_visual_`.
 
     Attributes:
         default_visual_:
             The visual of the element when it sets none.
 
     Examples:
+        A population and a bank deposit both grow at a rate proportional to their size, so one class serves both.
+
         >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.specs import VisualSpec
-        >>> from sage.all__sagemath_symbolics import oo
-        >>> from sage.sets.real_set import RealSet
-        >>> class PopulationElement(Element):
+        >>> from skcomplex.core.components.laws import RateLaw
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> class GrowthElement(Element):
+        ...     law_classes = (RateLaw,)
+        ...
         ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        ...         visual=VisualSpec('line'),
+        ...         self, label, x: Annotated[float, StateSpec()] = 1.0, r: Annotated[float, ParameterSpec()] = 0.5
         ...     ):
-        ...         super().__init__(label, visual=visual)
-        ...         self.n = n
-        >>> PopulationElement('rabbits', n=40)
-        PopulationElement(label='rabbits', n=40)
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.r = r
+        ...
+        ...     def _get_laws(self, namespace):
+        ...         return [RateLaw(namespace.x, namespace.r * namespace.x)]
+        >>> rabbits = GrowthElement('rabbits', x=40.0, r=0.5)
+        >>> deposit = GrowthElement('deposit', x=250.0, r=0.05)
+        >>> trajectory = simulate(CompositeSystem(elements=[rabbits, deposit]), until=1, dt=1.0)
+        >>> trajectory.get_values('rabbits.x').round(1).tolist(), trajectory.get_values('deposit.x').round(2).tolist()
+        ([40.0, 65.9], [250.0, 262.82])
     """
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {}

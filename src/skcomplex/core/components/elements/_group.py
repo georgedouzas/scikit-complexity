@@ -1,7 +1,4 @@
-"""Define groups of identical elements.
-
-The variables of a group are arrays with one row per member.
-"""
+"""Define the element that holds many members of one element class as arrays."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,56 +22,70 @@ MIN_RANK = 2
 
 
 class GroupElement(BaseElement):
-    """Group of identical elements of one type.
+    """An element that holds many members of one element class as arrays.
 
-    Its variables are arrays with one row per member. A value is either an array whose first dimension is the size of
-    the group, or one value shared by every member. Variables without a value take the default of the constructor of the
-    element type, and the laws of the group are the laws of its element type, written for one member.
+    Each state and parameter of the group is an array with one row per member, or one value that every member shares. A
+    variable without a value takes the default of the element class. The laws of the group are those of the class,
+    written for one member and run for every member at once. A group may sit on the sites, the edges, or the hyperedges
+    of a space, with one member on each. A hyperedge is a link that joins more than two nodes of a network. With
+    `variable=True`, laws add and remove members during a run, as births and deaths do.
+
+    Unlike `Element`, which is one entity, it holds many entities of the same class and runs their laws as arrays.
+    Choose it when a model has many alike units, such as the cells of a lattice, the nodes of a network, or a population
+    of agents.
+
+    It appears in many fields. The herds of a grazing ecosystem, the assets of a portfolio, the cells of a tissue, and
+    the generators of a power grid are groups of one element class.
 
     Args:
         label:
-            The label of the group, unique among the children of its system.
+            The name of the group, unique among the parts of its system, such as `'herds'`.
 
         element:
-            The element type of the members.
+            The element class of every member, such as a class with one state `x` for the size of a herd.
 
         size:
-            The number of members.
+            The number of members, such as `100`, or `None` for one member per part of the space that `on` names.
 
         values:
-            A mapping from state or parameter name to its per-member or shared value. On sites, a per-site value may
-            also be an array of the lattice shape or a mapping from node to value on a network.
+            The value of each state or parameter by name, with one row per member or one value for all, such as
+            `{'x': [40.0, 25.0, 60.0]}`. On sites, a value may also be an array of the lattice shape, or a mapping from
+            each node of a network to its value.
 
         visual:
-            How the group is drawn, or `None` for `default_visual_`.
+            How the group is drawn, such as `VisualSpec('sites')`, or `None` for `default_visual_`.
 
         space:
-            The space whose sites the members occupy, such as a lattice with one member per site or a network with one
+            The space whose parts the members occupy, such as a lattice with one member per site or a network with one
             member per node in the order of `graph.nodes`, or `None` for the space of the enclosing system.
 
         variable:
             Whether laws add and remove members during a run, such as the births and deaths of agents.
 
         on:
-            The part of the space with one member each, `'sites'`, `'edges'`, or `'hyperedges'`, or `None` for members
-            that are not tied to parts of the space. With a part and no size, the size is the number of parts.
+            The part of the space that holds one member each, or `None` for members tied to no part. Without a size, the
+            size is the number of these parts.
+
+            - `'sites'`: the sites of a lattice or the nodes of a network.
+            - `'edges'`: the edges of a network, such as the lines of a power grid.
+            - `'hyperedges'`: the hyperedges of a network, such as the groups of a social network.
 
         location:
-            The initial places of agents in the space: cell coordinates, a network node, a position, or a polygon that
-            holds the member at a uniform point inside it, one per member or one shared by every member, or `None` for
-            random places. Only the agent stepper reads it.
+            The starting place of each agent, one per member or one for all, or `None` for random places. A place is a
+            cell of a lattice, a node of a network, a position, or a polygon that holds the member at a random point
+            inside it. Only the agent stepper reads it.
 
         layer:
-            The layer of the network whose edges a group on edges lives on, or `None` for the graph of the network.
+            The layer of the network whose edges a group on edges sits on, such as `'work'`, or `None` for the main
+            graph.
 
         capacity:
             The largest number of members of a variable group on the sites or edges of a network, which compiled
             backends reserve rows for, or `None` for twice the initial size.
 
         rank:
-            The largest number of members of a hyperedge of a variable group on the hyperedges of a network, the rank
-            of its hypergraph, which compiled backends reserve a column per member for, so the group holds hyperedges
-            of every size up to it, or `None` for one size, that of the initial hyperedges.
+            The largest number of members of one hyperedge of a variable group on hyperedges, such as `3` for triangles,
+            or `None` for the size of the initial hyperedges. Compiled backends reserve one column per member up to it.
 
     Attributes:
         default_visual_:
@@ -82,35 +93,47 @@ class GroupElement(BaseElement):
             default visual of the space of a group on sites, and the plain visual otherwise.
 
         size_:
-            The number of members: the size, or for a group on parts without one, the number of parts of its space.
+            The number of members, which is `size` when it is given and otherwise the number of parts of the space.
 
         values_:
             The values with one row per member, or one value shared by every member.
 
     Examples:
+        Three herds of grazing animals start at different sizes.
+
         >>> from typing import Annotated
-        >>> import networkx as nx
-        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.spaces import NetworkSpace
-        >>> from skcomplex.core.specs import LayerSpec
-        >>> from skcomplex.core.specs import VisualSpec
-        >>> class PopulationElement(Element):
-        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 1.0, visual=VisualSpec('line')):
-        ...         super().__init__(label, visual=visual)
-        ...         self.n = n
-        >>> GroupElement('herds', element=PopulationElement, size=3).prepare().size_
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> class StockElement(Element):
+        ...     def __init__(
+        ...         self, label, x: Annotated[float, StateSpec()] = 0.0, r: Annotated[float, ParameterSpec()] = 0.1
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.r = r
+        >>> herds = GroupElement('herds', element=StockElement, size=3, values={'x': [40.0, 25.0, 60.0]})
+        >>> herds.prepare().size_
         3
-        >>> ring = NetworkSpace(nx.cycle_graph(30))
-        >>> GroupElement('weights', element=PopulationElement, space=ring, on='edges').prepare().size_
-        30
-        >>> space = NetworkSpace(nx.cycle_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))])
-        >>> wages = GroupElement('wages', element=PopulationElement, space=space, on='edges', layer='work')
-        >>> wages.prepare().size_
-        6
-        >>> herds = GroupElement('herds', element=PopulationElement, size=3).prepare()
-        >>> herds.default_visual_
-        VisualSpec(kind='line', options={})
+
+        The same class holds the assets of a portfolio, each with its own yearly return.
+
+        >>> from skcomplex.core.components.interactions import RateInteraction
+        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> holdings = {'x': [100.0, 50.0], 'r': [0.05, 0.02]}
+        >>> assets = GroupElement('assets', element=StockElement, size=2, values=holdings)
+        >>> returns = RateInteraction('returns', target='assets', state='x', rate=lambda s: s.target.r * s.target.x)
+        >>> portfolio = CompositeSystem(elements=[assets], interactions=[returns])
+        >>> simulate(portfolio, until=1, dt=1.0).get_values('assets.x').round(2).tolist()
+        [[100.0, 50.0], [105.13, 51.01]]
+
+        On the edges of a network one member sits on each edge, such as the lines of a ring of five substations.
+
+        >>> import networkx as nx
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> lines = GroupElement('lines', element=StockElement, space=NetworkSpace(nx.cycle_graph(5)), on='edges')
+        >>> lines.prepare().size_
+        5
     """
 
     def __init__(
@@ -168,9 +191,9 @@ class GroupElement(BaseElement):
         return self.element._get_specs()
 
     def get_declaring_part(self) -> type[BaseElement] | BaseElement:
-        """Return what declares the variables of a member.
+        """Return what declares the states and parameters of a member.
 
-        It is its class, or a member when it declares them from data.
+        It is the element class, or a member with the values of the group when the class takes its variables as data.
 
         Returns:
             part:
@@ -191,7 +214,7 @@ class GroupElement(BaseElement):
 
         Returns:
             states:
-                A mapping from the name of every state to its spec.
+                The spec of every state, by name.
 
         Examples:
             >>> from skcomplex.core.components.elements import DeclaredElement, GroupElement
