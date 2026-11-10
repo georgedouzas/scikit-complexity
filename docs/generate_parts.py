@@ -163,7 +163,7 @@ def _links(items: list[str], more: str) -> str:
     return shown if len(items) <= SHOWN else f'{shown}, and more in {more}'
 
 
-def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]]], family: str) -> list[str]:
+def _fact_sheet(item: type[BasePart], catalog: list[tuple[str, type[BaseSystem], set[type]]], family: str) -> list[str]:
     """Return the fact sheet of a class of the core: its variables, tags, solvers, errors, links, and uses.
 
     Elements and interactions list their states and parameters, laws their kind, and spaces and times their tag.
@@ -186,7 +186,7 @@ def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]
             f'- Parameters: {", ".join(f"`{name}`" for name in parameters) or "none declared"}',
             f'- Law kinds: {_values(laws, empty="none of its own")}',
         ]
-    elif family == 'laws':
+    elif issubclass(item, BaseLaw):
         tags = BasePart._get_law_tags([item]) if item.get_requirements() is not None else Tags()
         facts = [f'- Law kind: {_values(tags.laws, empty="from a subclass")}', f'- Randomness: `{tags.randomness}`']
     elif issubclass(item, BaseTime):
@@ -239,14 +239,14 @@ def _fact_sheet(item: type, catalog: list[tuple[str, type[BaseSystem], set[type]
     return lines
 
 
-def _family_classes(package: ModuleType) -> list[type]:
+def _family_classes(package: ModuleType) -> list[type[BasePart]]:
     """Return the public part classes of a family package, sorted by name."""
     every = (getattr(package, name) for name in package.__all__)
     found = (item for item in every if isinstance(item, type) and issubclass(item, BasePart))
     return sorted(found, key=lambda item: item.__name__)
 
 
-def _facts(items: list[type], family: str) -> str:
+def _facts(items: list[type[BasePart]], family: str) -> str:
     """Return the comparison table and the fact sheets of the classes of a family."""
     catalog = _catalog_classes()
     rows = [[f'[`{item.__name__}`](#{item.__name__.lower()})', *_comparison(item)] for item in items]
