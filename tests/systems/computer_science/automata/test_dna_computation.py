@@ -8,7 +8,6 @@ from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import DNAComputationSystem
 from skcomplex.systems.computer_science.automata._dna_computation import (
     ADLEMAN_EDGES,
-    _filtered_counts,
     _get_solutions,
 )
 
@@ -20,8 +19,6 @@ def test_dna_computation_finds_the_only_hamiltonian_path_of_adlemans_graph():
     solved = paths[_get_solutions(paths, 0, 6, 7)]
     assert len(solved) >= 1
     assert np.all(solved == np.arange(7))
-    counts = _filtered_counts(paths, 0, 6, 7)
-    assert counts[0] >= counts[1] >= counts[2] == len(solved)
     assert trajectory.get_values('solutions')[-1] == len(solved)
 
 

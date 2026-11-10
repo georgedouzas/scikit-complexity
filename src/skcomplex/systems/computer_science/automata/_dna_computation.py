@@ -170,23 +170,6 @@ class LigationInteraction(Interaction):
         return path
 
 
-def _filtered_counts(paths: AnyArray, start: int, end: int, n_nodes: int) -> list[int]:
-    """Return the numbers of strands left after each of Adleman's filters.
-
-    The filters are by start and end, length, and coverage.
-    """
-    nodes: IntArray = np.asarray(paths, dtype=np.int64)
-    lengths = (nodes >= 0).sum(axis=1)
-    rows = np.arange(len(nodes))
-    ends = (nodes[:, 0] == start) & (nodes[rows, np.maximum(lengths - 1, 0)] == end)
-    sized = ends & (lengths == n_nodes)
-    return [
-        int(ends.sum()),
-        int(sized.sum()),
-        int(_get_solutions(nodes, start, end, n_nodes).sum()),
-    ]
-
-
 def _get_adleman_solutions(paths: AnyArray) -> float:
     """Return the number of strands that are the Hamiltonian path of Adleman's graph.
 

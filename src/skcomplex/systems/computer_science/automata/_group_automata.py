@@ -29,7 +29,6 @@ from ._generator_neighborhood import GeneratorNeighborhood
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
-GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
 GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
 FLIP_PROBABILITY = 0.5
