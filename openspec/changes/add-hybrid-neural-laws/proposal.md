@@ -31,6 +31,11 @@ equations (2306.10335), parameter maps of chemical structure (2310.09167), and l
     log-normal random effects, with linear or saturable elimination, and a latent neural form
   - `oral_iv_pk_hybrid`: compounds given orally and intravenously, whose rates follow from descriptors through a fixed
     reference map or through a neural map
+- New system in `computer_science/automata`, added from the survey of complex adaptive systems (2509.11131):
+  - `growing_neural_cellular_automaton`: the growing neural cellular automaton of Mordvintsev et al. (2020), whose 16
+    channels per cell are updated by a neural function of the perceived neighbourhood (the identity and two Sobel
+    convolutions of every channel) with a random mask of cells and an alive mask, trained through the unrolled run to
+    grow a target pattern from one seed
 
 ## Capabilities
 
@@ -44,14 +49,15 @@ None.
   differentiable.
 - `data-driven-dynamics`: hybrid neural surrogates fitted by `neural_identification`, with parameter maps of covariates
   and mixed effects.
-- `model-library`: the systems `tacrolimus_population_pk` and `oral_iv_pk_hybrid`.
+- `model-library`: the systems `tacrolimus_population_pk`, `oral_iv_pk_hybrid`, and
+  `growing_neural_cellular_automaton`.
 
 ## Impact
 
 - Code: `src/skcomplex/core/components/laws/utils/` (new `_neural.py`), `src/skcomplex/core/specs/_parameter_spec.py`,
   `src/skcomplex/core/engine/backends/_jax.py` and `_numpy.py`, `core/engine/solvers/_gradient_descent.py`, a new
-  `src/skcomplex/core/analysis/_neural_identification.py`, and two modules in
-  `src/skcomplex/systems/biology/physiology/`.
+  `src/skcomplex/core/analysis/_neural_identification.py`, two modules in
+  `src/skcomplex/systems/biology/physiology/`, and one module in `src/skcomplex/systems/computer_science/automata/`.
 - Dependencies: Equinox becomes a runtime dependency. JAX, Diffrax, and Optax already are.
 - No dependency on the other changes of this set. `calibrate` of `add-bayesian-calibration` stays the function for
   parameters of a known system, and `neural_identification` is the function for systems with learned terms.
