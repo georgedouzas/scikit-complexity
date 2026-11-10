@@ -19,6 +19,24 @@
 - [ ] 3.4 Add the gallery example `docs/examples/biology/evolution/plot_surviving_by_serving.py` that runs 24 agents for 1000 episodes and detects the core of the transfer network over time windows, and verify the gallery check passes
 - [ ] 3.5 Commit the work as conventional `feat` commits, with the breaking `method` default marked, and verify `nox -s changelog` lists them
 
-## 4. Verification
+## 4. Causal emergence across scales
 
-- [ ] 4.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
+- [ ] 4.1 Add the kind `'scales'` to `emergence` with both pairs of causal primitives, the consistency check, the given
+  and searched paths, and the fields `scale_values`, `contributions`, `path`, and `complexity`, and verify the
+  chain-of-the-paper, equal-gains, mesoscale, and inconsistent-partition scenarios in
+  `tests/core/analysis/test_emergence.py`
+- [ ] 4.2 Add a doctest of the kind on a small chain and a paragraph in the emergence section of
+  `docs/overview/user_guide/analyse.md`, and verify both run
+
+## 5. Group coordination
+
+- [ ] 5.1 Add the kinds `'synergy-capacity'` and `'coalition'` to `emergence` on `partial_information` and the
+  information estimators, and verify the exclusive-or, independent-copies, and three-way scenarios
+- [ ] 5.2 Add `method` to `surrogate_test` with `'shift'`, `'swap'`, and `'block'`, and verify the shifts, swaps, and
+  default-unchanged scenarios in `tests/core/analysis/test_surrogates.py`
+- [ ] 5.3 Add a paragraph and a runnable example of a synergy test against swap surrogates in the emergence section of
+  `docs/overview/user_guide/analyse.md`, and verify it runs
+
+## 6. Verification
+
+- [ ] 6.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
