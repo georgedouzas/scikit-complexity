@@ -23,6 +23,8 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActivePassiveFlockingSystem
 
 SYSTEM = 'active_passive_flocking'
+SETTINGS = {'backend': NumbaBackend(), 'random_state': 0}
+
 
 system = ActivePassiveFlockingSystem()
 size = system.prepare().system_.space.extent[0]
@@ -50,7 +52,6 @@ trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], rand
 # flocking off the two should stay together. The mean distance is a coarse measure in a periodic box, so the snapshot
 # is the better guide to the flocks.
 
-SETTINGS = {'backend': NumbaBackend(), 'random_state': 0}
 positions = trajectory.get_values('agents.x')[-1]
 active = trajectory.get_values('agents.active')[-1] == 1.0
 fig, (snapshot, distance) = plt.subplots(1, 2, figsize=(10, 4.5))

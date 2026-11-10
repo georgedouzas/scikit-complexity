@@ -280,7 +280,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.amplitude = amplitude
         self.seed = seed
 
-    def _maxwell_system(self, space: CellComplexSpace) -> CompositeSystem:
+    def _get_maxwell_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return a lattice Maxwell field on the links.
 
         The field comes from static charges and a transverse wave.
@@ -309,7 +309,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         rate = RateInteraction('maxwell', target='links', state='A', rate=LatticeGaugeFieldsSystem._get_curl_of_curl)
         return CompositeSystem(self.label, elements=[links, sites], interactions=[rate])
 
-    def _monte_carlo_system(self, space: CellComplexSpace) -> CompositeSystem:
+    def _get_monte_carlo_system(self, space: CellComplexSpace) -> CompositeSystem:
         """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
         rng = np.random.default_rng(self.seed)
         size = space.incidences_[0].shape[0]
@@ -328,7 +328,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         return CompositeSystem(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
 
     @staticmethod
-    def _gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_gauge_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observables of the dynamics.
 
         They are the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
@@ -367,7 +367,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         The settings have the observables of the dynamics, and velocity Verlet for Maxwell.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._gauge_observables(self._build_system()))
+        settings['observables'] = tuple(self._get_gauge_observables(self._build_system()))
         if self.dynamics == 'hamiltonian':
             settings['until'] = 50.0
             settings['dt'] = 0.5
@@ -384,5 +384,5 @@ class LatticeGaugeFieldsSystem(BaseSystem):
             raise ValidationError(error_msg)
         space = CellComplexSpace(LatticeSpace((self.size,) * self.dimension)).prepare()
         if self.dynamics == 'hamiltonian':
-            return self._maxwell_system(space)
-        return self._monte_carlo_system(space)
+            return self._get_maxwell_system(space)
+        return self._get_monte_carlo_system(space)

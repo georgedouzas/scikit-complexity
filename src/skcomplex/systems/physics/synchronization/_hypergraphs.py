@@ -157,7 +157,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
+    def _get_simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
         """Return a random hypergraph over the oscillators.
 
         The hypergraph has the given densities of links and of triangles.
@@ -166,7 +166,7 @@ class HypergraphKuramotoSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        hypergraph = self._simplices(self.n_oscillators, self.links, self.triangles, self.seed)
+        hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
         mean_links = max(PAIR * sizes.count(PAIR) / self.n_oscillators, 1.0)

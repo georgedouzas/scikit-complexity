@@ -218,11 +218,11 @@ class FrictionOscillatorSystem(DynamicalSystem):
         """Return the motion of the mass under the spring and the friction, which makes it stick and slip."""
         return {
             'x': lambda s: where(abs(s.target.v) > s.target.v_stick, s.target.v, 0),
-            'v': self._acceleration,
+            'v': self._get_acceleration,
         }
 
     @staticmethod
-    def _acceleration(s: SimpleNamespace) -> Expression:
+    def _get_acceleration(s: SimpleNamespace) -> Expression:
         """Return the acceleration of the mass, zero while the static friction holds it."""
         mass = s.target
         force = -mass.k * mass.x - mass.c * mass.v

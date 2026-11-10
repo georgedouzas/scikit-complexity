@@ -185,9 +185,9 @@ class BondSamplingInteraction(SpinSamplingInteraction):
     """
 
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='spin', energy=self._energy, neighborhood=NEAREST)
+        super().__init__(label, target=target, state='spin', energy=self._get_energy, neighborhood=NEAREST)
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
         s = namespace.target
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)

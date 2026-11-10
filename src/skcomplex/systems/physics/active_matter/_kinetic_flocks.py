@@ -75,21 +75,28 @@ class AngularAlignmentInteraction(EncounterInteraction):
         noise: float = 0.5,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, field=field, rate=self._rate, kernel=self._get_kernel, state=state)
+        super().__init__(
+            label,
+            candidate=candidate,
+            field=field,
+            rate=self._get_rate,
+            kernel=self._get_kernel,
+            state=state,
+        )
         self.angles = angles
         self.frequency = frequency
         self.noise = noise
 
-    def _centres(self) -> npt.NDArray[np.float64]:
+    def _get_centres(self) -> npt.NDArray[np.float64]:
         """Return the angle of every cell."""
         return 2 * np.pi * (np.arange(self.angles) + 0.5) / self.angles
 
-    def _rate(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
+    def _get_rate(self, _: SimpleNamespace) -> npt.NDArray[np.float64]:
         """Return the rate of every pair of angles times the cell width of the partner."""
-        centres = self._centres()
+        centres = self._get_centres()
         return 8 * np.pi / self.angles * self.frequency * np.abs(np.sin(np.subtract.outer(centres, centres) / 2))
 
-    def _noise_weights(
+    def _get_noise_weights(
         self,
         centres: npt.NDArray[np.float64],
         means: npt.NDArray[np.float64],
@@ -103,14 +110,18 @@ class AngularAlignmentInteraction(EncounterInteraction):
 
         The outcome angles spread around the mean angle of the pair.
         """
-        centres = self._centres()
+        centres = self._get_centres()
         cosines, sines = np.cos(centres), np.sin(centres)
         along, across = np.add.outer(cosines, cosines), np.add.outer(sines, sines)
         means = np.arctan2(across, along)
         opposite = np.hypot(along, across) < ANTIPODAL
         means = np.where(opposite, centres[:, None] + np.pi / 2, means)
-        weights = self._noise_weights(centres, means)
-        weights = np.where(opposite[:, :, None], (weights + self._noise_weights(centres, means + np.pi)) / 2, weights)
+        weights = self._get_noise_weights(centres, means)
+        weights = np.where(
+            opposite[:, :, None],
+            (weights + self._get_noise_weights(centres, means + np.pi)) / 2,
+            weights,
+        )
         return weights / weights.sum(axis=2, keepdims=True)
 
 
@@ -153,12 +164,12 @@ class AngularDiffusionInteraction(EncounterInteraction):
         noise: float = 0.5,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, candidate=candidate, rate=self._rate, kernel=self._get_kernel, state=state)
+        super().__init__(label, candidate=candidate, rate=self._get_rate, kernel=self._get_kernel, state=state)
         self.angles = angles
         self.tumbling = tumbling
         self.noise = noise
 
-    def _rate(self, _: SimpleNamespace) -> float:
+    def _get_rate(self, _: SimpleNamespace) -> float:
         """Return the rate of the events."""
         return self.tumbling
 

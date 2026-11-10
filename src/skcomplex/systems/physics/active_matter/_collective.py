@@ -348,14 +348,14 @@ class PhoreticAttractionInteraction(PairInteraction):
             cutoff=cutoff,
             position=position,
             write=position,
-            potential=self._attraction,
+            potential=self._get_attraction,
             period=period,
         )
         self.v0 = v0
         self.R = R
 
     @staticmethod
-    def _attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
+    def _get_attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
         """Return the potential `-v0 R^2 / r` of a pair at the distance `r`."""
         return -namespace.v0 * namespace.R**2 / r
 

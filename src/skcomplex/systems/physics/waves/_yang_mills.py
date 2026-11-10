@@ -454,7 +454,7 @@ class LatticeYangMillsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_yang_mills_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the mean plaquette and the Polyakov loop of the links."""
         links = next(element for element in system.elements if element.label == 'links')
         space = links.space.prepare()
@@ -473,7 +473,7 @@ class LatticeYangMillsSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
+        settings['observables'] = tuple(self._get_yang_mills_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:

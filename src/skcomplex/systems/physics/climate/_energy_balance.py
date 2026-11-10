@@ -374,7 +374,7 @@ def _get_daisyworld_temperature(s: SimpleNamespace) -> Expression:
 
 def _daisyworld_emission(planet: SimpleNamespace) -> Expression:
     """Return the fourth power of the effective temperature of the planet."""
-    return planet.S * planet.L * (1 - DaisyworldSystem._daisyworld_albedo(planet)) / planet.sigma
+    return planet.S * planet.L * (1 - DaisyworldSystem._get_daisyworld_albedo(planet)) / planet.sigma
 
 
 class DaisyworldSystem(DynamicalSystem):
@@ -458,16 +458,16 @@ class DaisyworldSystem(DynamicalSystem):
         return {
             'white': lambda s: (
                 s.target.white
-                * (self._bare(s.target) * self._get_growth(s.target, s.target.albedo_white) - s.target.gamma)
+                * (self._get_bare(s.target) * self._get_growth(s.target, s.target.albedo_white) - s.target.gamma)
             ),
             'black': lambda s: (
                 s.target.black
-                * (self._bare(s.target) * self._get_growth(s.target, s.target.albedo_black) - s.target.gamma)
+                * (self._get_bare(s.target) * self._get_growth(s.target, s.target.albedo_black) - s.target.gamma)
             ),
         }
 
     @staticmethod
-    def _bare(planet: SimpleNamespace) -> Expression:
+    def _get_bare(planet: SimpleNamespace) -> Expression:
         """Return the area fraction of bare fertile ground."""
         return planet.p - planet.white - planet.black
 
@@ -477,14 +477,14 @@ class DaisyworldSystem(DynamicalSystem):
 
         The rate is parabolic in their local temperature and zero outside it.
         """
-        local = (planet.q * (DaisyworldSystem._daisyworld_albedo(planet) - albedo) + _daisyworld_emission(planet)) ** (
-            1 / 4
-        )
+        local = (
+            planet.q * (DaisyworldSystem._get_daisyworld_albedo(planet) - albedo) + _daisyworld_emission(planet)
+        ) ** (1 / 4)
         growth = 1 - planet.k * (planet.optimum - local) ** 2
         return where(growth > 0, growth, 0)
 
     @staticmethod
-    def _daisyworld_albedo(planet: SimpleNamespace) -> Expression:
+    def _get_daisyworld_albedo(planet: SimpleNamespace) -> Expression:
         """Return the planetary albedo.
 
         The albedo is the area average of the albedos of bare ground and of both daisies.

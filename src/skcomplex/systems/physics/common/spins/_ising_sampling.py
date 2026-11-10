@@ -68,13 +68,13 @@ class IsingSamplingInteraction(SpinSamplingInteraction):
             label,
             target=target,
             state=state,
-            energy=self._energy,
+            energy=self._get_energy,
             rule=rule,
             schedule=schedule,
             neighborhood=neighborhood,
         )
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J s sum_j s_j - h s` of a spin."""
         spin, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * spin * neighbors(other, over=self.neighborhood) - namespace.target.h * spin

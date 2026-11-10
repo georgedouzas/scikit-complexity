@@ -19,13 +19,13 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
 
+SYSTEM = 'complex_ginzburg_landau'
+
 
 def wrap_angle(angles):
     """Return angles in `(-pi, pi]`."""
     return np.angle(np.exp(1j * np.asarray(angles)))
 
-
-SYSTEM = 'complex_ginzburg_landau'
 
 system = ComplexGinzburgLandauSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)

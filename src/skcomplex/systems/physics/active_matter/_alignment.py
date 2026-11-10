@@ -82,13 +82,13 @@ class PolarAlignmentInteraction(PairInteraction):
             cutoff=cutoff,
             position=position,
             write='theta',
-            function=self._torque,
+            function=self._get_torque,
             period=period,
         )
         self.gamma = gamma
 
     @staticmethod
-    def _torque(namespace: SimpleNamespace) -> Expression:
+    def _get_torque(namespace: SimpleNamespace) -> Expression:
         """Return the torque `gamma sin(theta_j - theta_i)` on the first member of a pair."""
         return namespace.gamma * sin(namespace.second.theta - namespace.first.theta)
 

@@ -221,7 +221,7 @@ class EvolutionarySKGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
+    def _get_sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
         """Return symmetric Gaussian couplings of variance `1 / N` with a zero diagonal."""
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
         return upper + upper.T
@@ -229,7 +229,7 @@ class EvolutionarySKGameSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
         rng = np.random.default_rng(self.random_state)
-        couplings = self._sk_couplings(self.n_agents, rng)
+        couplings = self._get_sk_couplings(self.n_agents, rng)
         spins = rng.choice([-1.0, 1.0], size=self.n_agents)
         evolving = self.temperature is None
         if self.temperature is None:

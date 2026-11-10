@@ -107,7 +107,7 @@ class NonreciprocalMoverElement(Element):
         self.J_bb = J_bb
         self.radius = radius
 
-    def _coupling(self, namespace: SimpleNamespace) -> Expression:
+    def _get_coupling(self, namespace: SimpleNamespace) -> Expression:
         """Return the alignment of a member with a neighbour, by the species of both."""
         s = namespace
         first, second = s.species, s.other.species
@@ -131,7 +131,7 @@ class NonreciprocalMoverElement(Element):
         """
         s = namespace
         over = RadiusNeighborhood(self.radius, center=True)
-        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._coupling(s))
+        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._get_coupling(s))
         return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 

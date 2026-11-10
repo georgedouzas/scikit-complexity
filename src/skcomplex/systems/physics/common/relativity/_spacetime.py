@@ -165,7 +165,7 @@ class SpacetimeSpace(ContinuousSpace):
             expression = expression.substitute_function(old, new)
         return expression
 
-    def _to_sage(self, value: object, pairs: Sequence[tuple[SymbolicFunction, SymbolicFunction]]) -> Expression:
+    def _convert_to_sage(self, value: object, pairs: Sequence[tuple[SymbolicFunction, SymbolicFunction]]) -> Expression:
         """Return a SymPy expression of EinsteinPy as a Sage expression.
 
         The functions of the ansatz are restored.
@@ -258,7 +258,7 @@ class SpacetimeSpace(ContinuousSpace):
         values = christoffel.tensor()
         indices = range(n_dim)
         self.christoffel_: Christoffel = tuple(
-            tuple(tuple(self._to_sage(values[mu, alpha, beta], pairs) for beta in indices) for alpha in indices)
+            tuple(tuple(self._convert_to_sage(values[mu, alpha, beta], pairs) for beta in indices) for alpha in indices)
             for mu in indices
         )
         self.riemann_: Riemann | None = None
@@ -271,15 +271,20 @@ class SpacetimeSpace(ContinuousSpace):
         values = riemann.tensor()
         self.riemann_ = tuple(
             tuple(
-                tuple(tuple(self._to_sage(values[rho, sigma, mu, nu], pairs) for nu in indices) for mu in indices)
+                tuple(
+                    tuple(self._convert_to_sage(values[rho, sigma, mu, nu], pairs) for nu in indices) for mu in indices
+                )
                 for sigma in indices
             )
             for rho in indices
         )
         ricci = symbolic.RicciTensor.from_riemann(riemann)
         values = ricci.tensor()
-        self.ricci_ = matrix(SR, n_dim, n_dim, lambda mu, nu: self._to_sage(values[mu, nu], pairs))
-        self.ricci_scalar_ = self._to_sage(symbolic.RicciScalar.from_riccitensor(ricci).expr, pairs).simplify_full()
+        self.ricci_ = matrix(SR, n_dim, n_dim, lambda mu, nu: self._convert_to_sage(values[mu, nu], pairs))
+        self.ricci_scalar_ = self._convert_to_sage(
+            symbolic.RicciScalar.from_riccitensor(ricci).expr,
+            pairs,
+        ).simplify_full()
         self.einstein_ = (self.ricci_ - self.ricci_scalar_ * self.metric_ / 2).apply_map(
             lambda entry: SR(entry).simplify_full(),
         )

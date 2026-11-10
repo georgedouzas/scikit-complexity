@@ -189,17 +189,17 @@ class PolarGelSiteElement(Element):
         self.zeta = zeta
 
     @staticmethod
-    def _molecular_field(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_molecular_field(s: SimpleNamespace) -> FreeModuleElement:
         """Return the molecular field of the polarisation at a site."""
         return -s.a * s.p - s.c * s.p.dot_product(s.p) * s.p + s.K * s.p.apply_map(laplacian)
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
         """Return the velocity of the Stokes flow of the stresses at a site.
 
         The stresses are the elastic and active ones.
         """
-        field = PolarGelSiteElement._molecular_field(s)
+        field = PolarGelSiteElement._get_molecular_field(s)
         outer = s.p.outer_product(field)
         stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
         stress -= s.zeta * s.p.outer_product(s.p)
@@ -295,7 +295,8 @@ class PolarGelSiteElement(Element):
         return [
             RateLaw(
                 s.p,
-                -self._get_corotational_transport(s.p, self._velocity(s), s.xi) + self._molecular_field(s) / s.gamma,
+                -self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
+                + self._get_molecular_field(s) / s.gamma,
             ),
         ]
 
@@ -378,12 +379,12 @@ class NematicGelSiteElement(Element):
         self.zeta = zeta
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+    def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
         """Return the velocity of the Stokes flow of the stresses at a site.
 
         The stresses are the elastic and active ones.
         """
-        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
+        field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
         stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
         force = tensor_divergence(stress)
         return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
@@ -400,11 +401,11 @@ class NematicGelSiteElement(Element):
                 The rate of `Q`.
         """
         s = namespace
-        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
+        field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
         return [
             RateLaw(
                 s.Q,
-                -PolarGelSiteElement._get_corotational_transport(s.Q, self._velocity(s), s.xi) + field / s.gamma,
+                -PolarGelSiteElement._get_corotational_transport(s.Q, self._get_velocity(s), s.xi) + field / s.gamma,
             ),
         ]
 
@@ -476,7 +477,7 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         return a * square / 2 + c * square**2 / 4 - K * (tensor * tensor.apply_map(laplacian)).trace() / 2
 
     @classmethod
-    def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
+    def _get_molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
         """Return the molecular field of a tensor.
 
         The field is the negative functional derivative of the free energy.
@@ -664,7 +665,7 @@ def _get_gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
 
     The velocity depends on the order the namespace holds.
     """
-    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
+    return PolarGelSiteElement._get_velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._get_velocity(s)
 
 
 class ActiveGelsSystem(BaseSystem):

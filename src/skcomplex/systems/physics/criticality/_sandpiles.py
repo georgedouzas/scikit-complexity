@@ -97,12 +97,12 @@ class ToppleInteraction(LocalRuleInteraction):
             label,
             target=target,
             state='height',
-            rule=self._topple,
+            rule=self._get_topple,
             neighborhood=BallNeighborhood(metric='manhattan', center='first'),
         )
         self.threshold = threshold
 
-    def _topple(self, height: Array, *around: Array) -> Array:
+    def _get_topple(self, height: Array, *around: Array) -> Array:
         """Return the heights after every site at or above the threshold topples once."""
         gained = np.sum([neighbor >= self.threshold for neighbor in around], axis=0)
         return height - self.threshold * (height >= self.threshold) + gained
@@ -328,7 +328,7 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
         self.generations = generations
 
     @staticmethod
-    def _branch(generations: int, s: SimpleNamespace) -> Expression:
+    def _get_branch(generations: int, s: SimpleNamespace) -> Expression:
         """Return the active sites of the next generation, or a new avalanche's one site."""
         return where(
             SelfOrganizedBranchingSystem._get_ends(s.target, generations),
@@ -374,7 +374,7 @@ class SelfOrganizedBranchingSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley."""
         return {
-            'z': partial(self._branch, self.generations),
+            'z': partial(self._get_branch, self.generations),
             'g': partial(self._advance, self.generations),
             'p': partial(self._tune, self.generations),
         }

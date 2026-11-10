@@ -83,7 +83,7 @@ class FullyConnectedSpinElement(Element):
         self.temperature = temperature
         self.couplings = couplings
 
-    def _field(self, s: SimpleNamespace) -> Expression:
+    def _get_field(self, s: SimpleNamespace) -> Expression:
         """Return the local field of a spin, without its own contribution."""
         if self.couplings is None:
             return s.J * (mean(s.spin) - s.spin / count()) + s.h
@@ -100,7 +100,7 @@ class FullyConnectedSpinElement(Element):
             laws:
                 The laws of the component.
         """
-        rate = 1 / (1 + exp(2 * s.spin * self._field(s) / s.temperature))
+        rate = 1 / (1 + exp(2 * s.spin * self._get_field(s) / s.temperature))
         return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
 
 

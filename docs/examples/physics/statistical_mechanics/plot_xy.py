@@ -18,13 +18,13 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import XYSystem
 
+SYSTEM = 'xy'
+
 
 def wrap_angle(angles):
     """Return angles in `(-pi, pi]`."""
     return np.angle(np.exp(1j * np.asarray(angles)))
 
-
-SYSTEM = 'xy'
 
 system = XYSystem(size=64, temperature=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)

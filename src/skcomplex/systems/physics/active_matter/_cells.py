@@ -237,7 +237,7 @@ class SzaboCellsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _turning(s: SimpleNamespace, *, reach: float) -> Expression:
+    def _get_turning(s: SimpleNamespace, *, reach: float) -> Expression:
         """Return the rate that turns a heading towards the velocity.
 
         The rate is `arcsin((n x v / |v|)_z) / tau`.
@@ -249,7 +249,7 @@ class SzaboCellsSystem(BaseSystem):
         return arcsin(clip(cross, -1, 1)) / cell.tau
 
     @staticmethod
-    def _angular_noise(s: SimpleNamespace) -> Expression:
+    def _get_angular_noise(s: SimpleNamespace) -> Expression:
         """Return the amplitude `eta / sqrt(12)` of the angular noise."""
         return s.target.eta / sqrt(12)
 
@@ -288,8 +288,8 @@ class SzaboCellsSystem(BaseSystem):
             'turning',
             target='cells',
             state='theta',
-            rate=functools.partial(self._turning, reach=self.R_0),
-            noise=self._angular_noise,
+            rate=functools.partial(self._get_turning, reach=self.R_0),
+            noise=self._get_angular_noise,
         )
         return CompositeSystem(
             self.label,

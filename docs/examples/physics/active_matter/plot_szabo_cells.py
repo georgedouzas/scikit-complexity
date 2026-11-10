@@ -24,6 +24,9 @@ from skcomplex.systems.physics.active_matter import SzaboCellsSystem
 
 SYSTEM = 'szabo_cells'
 SIZE = float(np.sqrt(200.0))
+DENSITIES = (0.05, 0.25, 1.0)
+CELLS = 100
+
 
 box = rrb.Spatial2DView(
     origin='/cells',
@@ -58,8 +61,6 @@ def order_of(trajectory, size):
     return np.linalg.norm(moves.mean(axis=1) / np.diff(trajectory.times)[:, None], axis=-1)
 
 
-DENSITIES = (0.05, 0.25, 1.0)
-CELLS = 100
 curves = {}
 for density in DENSITIES:
     settings = {'until': 40.0, 'random_state': 1}

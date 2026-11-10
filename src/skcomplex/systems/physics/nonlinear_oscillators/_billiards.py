@@ -405,7 +405,7 @@ class BilliardsSystem(BaseSystem):
         self.spacing = spacing
 
     @staticmethod
-    def _disc(label: str, angle: float) -> ReflectionInteraction:
+    def _get_disc(label: str, angle: float) -> ReflectionInteraction:
         """Return the reflection off a disc of the three-disk table.
 
         The center of the disc lies at a polar angle.
@@ -490,7 +490,7 @@ class BilliardsSystem(BaseSystem):
                 spacing=self.spacing,
                 radius=self.disc_radius,
             )
-            walls = [self._disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
+            walls = [self._get_disc(f'disc_{index}', angle) for index, angle in enumerate(ANGLES)]
             return CompositeSystem(self.label, elements=[table], interactions=walls)
         error_msg = f'Unknown billiard shape {self.shape!r}. Use one of {", ".join(SHAPES)}.'
         raise ValidationError(error_msg)

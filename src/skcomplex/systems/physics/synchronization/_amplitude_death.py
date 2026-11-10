@@ -182,7 +182,7 @@ class OscillatorDeathSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
+    def _get_frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
         """Return the midpoint quantiles of a density of frequencies of a given width.
 
         The density is Lorentzian or quartic.
@@ -198,7 +198,7 @@ class OscillatorDeathSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system, built from its model parameters."""
-        omegas = self._frequency_quantiles(self.n_oscillators, self.width, self.distribution)
+        omegas = self._get_frequency_quantiles(self.n_oscillators, self.width, self.distribution)
         x, y = OscillatorDeathSystem._spread_on_circle(self.n_oscillators, self.random_state)
         oscillators = GroupElement(
             'oscillators',

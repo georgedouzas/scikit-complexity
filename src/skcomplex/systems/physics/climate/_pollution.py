@@ -155,10 +155,10 @@ class PopulationPollutionSystem(DynamicalSystem):
 
     def _get_equations(self) -> Equations:
         """Return the flows of the population and the pollution."""
-        return {'population': self._population_rate, 'pollution': self._pollution_rate}
+        return {'population': self._get_population_rate, 'pollution': self._get_pollution_rate}
 
     @staticmethod
-    def _population_rate(s: SimpleNamespace) -> Expression:
+    def _get_population_rate(s: SimpleNamespace) -> Expression:
         """Return the births minus the deaths of the population."""
         region = s.target
         ratio = _get_pollution_ratio(region)
@@ -168,7 +168,7 @@ class PopulationPollutionSystem(DynamicalSystem):
         return region.population * (births - deaths)
 
     @staticmethod
-    def _pollution_rate(s: SimpleNamespace) -> Expression:
+    def _get_pollution_rate(s: SimpleNamespace) -> Expression:
         """Return the generation minus the absorption of the pollution."""
         region = s.target
         absorption = region.pollution / series(_get_pollution_ratio(region), *ABSORPTION_TIME)

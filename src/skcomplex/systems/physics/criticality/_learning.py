@@ -167,7 +167,7 @@ class SKGameSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observable of the mean reward per agent of the SK game."""
         agents = system.elements[0]
         if not isinstance(agents, GroupElement) or agents.values is None:
@@ -189,7 +189,7 @@ class SKGameSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._observables(self._build_system()))
+        settings['observables'] = tuple(self._get_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:

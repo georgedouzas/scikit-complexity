@@ -405,7 +405,7 @@ class Q2rSystem(BaseSystem):
         return np.where(flips, -spin, spin), 1 - phase
 
     @staticmethod
-    def _checkerboard(shape: tuple[int, ...]) -> Array:
+    def _get_checkerboard(shape: tuple[int, ...]) -> Array:
         """Return 1 on the sites of even coordinate sum and 0 on the others."""
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
@@ -418,7 +418,7 @@ class Q2rSystem(BaseSystem):
             'spins',
             element=Q2RSpinElement,
             space=space,
-            values={'spin': spins, 'phase': self._checkerboard(shape)},
+            values={'spin': spins, 'phase': self._get_checkerboard(shape)},
             on='sites',
         )
         flip = LocalRuleInteraction(

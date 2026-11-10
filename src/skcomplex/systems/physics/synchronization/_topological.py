@@ -147,7 +147,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         self.model = model
 
     @staticmethod
-    def _node_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
+    def _get_node_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
         """Return the coupling of a node phase.
 
         The coupling is scaled by the order parameter of the projections of the link phases.
@@ -170,7 +170,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         )
 
     @staticmethod
-    def _triangle_link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
+    def _get_triangle_link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
         """Return the link coupling of the Nodes-Links-Triangles system.
 
         Each term is scaled by the other face.
@@ -185,7 +185,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         )
 
     @staticmethod
-    def _topological_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_topological_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the order parameters of the node phases and the link phase projections."""
         space = system.elements[0].space.prepare()
         return [
@@ -202,7 +202,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._topological_observables(self._build_system()))
+        settings['observables'] = tuple(self._get_topological_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:
@@ -238,7 +238,7 @@ class TopologicalKuramotoSystem(BaseSystem):
                 target='nodes',
                 state='theta',
                 sources=['links'],
-                rate=partial(self._node_rate, self.coupling),
+                rate=partial(self._get_node_rate, self.coupling),
             ),
         ]
         if self.model == 'NL':
@@ -256,7 +256,7 @@ class TopologicalKuramotoSystem(BaseSystem):
             target='links',
             state='theta',
             sources=['nodes', 'triangles'],
-            rate=partial(self._triangle_link_rate, self.coupling),
+            rate=partial(self._get_triangle_link_rate, self.coupling),
         )
         return CompositeSystem(
             self.label,

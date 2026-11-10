@@ -165,7 +165,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
             label,
             target=target,
             state=state,
-            energy=self._energy,
+            energy=self._get_energy,
             move='random-value',
             rule=rule,
             neighborhood=neighborhood,
@@ -173,7 +173,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
         )
         self.q = q
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J` times the number of neighbours in the spin's state."""
         color, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * neighbors(where(other == color, 1, 0), over=self.neighborhood)
@@ -222,13 +222,13 @@ class XYSamplingInteraction(SpinSamplingInteraction):
             label,
             target=target,
             state=state,
-            energy=self._energy,
+            energy=self._get_energy,
             move='rotate',
             neighborhood=neighborhood,
             width=width,
         )
 
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
+    def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the local energy `-J sum_j cos(theta - theta_j)` of a spin."""
         angle, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
         return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)

@@ -124,7 +124,7 @@ class CohesiveParticleElement(Element):
         self.r_e = r_e
         self.r_a = r_a
 
-    def _attraction(self, distance: Expression, namespace: SimpleNamespace) -> Expression:
+    def _get_attraction(self, distance: Expression, namespace: SimpleNamespace) -> Expression:
         """Return the cohesion force, repulsive below `r_c` and towards `r_e` beyond it."""
         s = namespace
         return where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
@@ -144,7 +144,7 @@ class CohesiveParticleElement(Element):
         near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
         dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
         distance = sqrt(dx**2 + dy**2)
-        force = self._attraction(distance, s)
+        force = self._get_attraction(distance, s)
         count = neighbors(1, over=near)
         angle = uniform('noise', -math.pi, math.pi)
         along_x = (

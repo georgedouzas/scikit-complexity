@@ -171,18 +171,18 @@ class LogisticCouplingInteraction(CouplingInteraction):
         self.state = state
 
     @staticmethod
-    def _logistic(r: Expression, x: Expression) -> Expression:
+    def _get_logistic(r: Expression, x: Expression) -> Expression:
         """Return the logistic map `r x (1 - x)`."""
         return r * x * (1 - x)
 
     def _get_map(self, namespace: SimpleNamespace) -> Expression:
         """Return the map of the neighbour, with the growth rate of the node."""
-        return self._logistic(namespace.member.r, getattr(namespace.other, self.state))
+        return self._get_logistic(namespace.member.r, getattr(namespace.other, self.state))
 
     def _get_mix(self, namespace: SimpleNamespace, reduction: Target) -> Target:
         """Return the map of the node mixed with the mean map of its neighbours."""
         member = namespace.member
-        own = self._logistic(member.r, getattr(member, self.state))
+        own = self._get_logistic(member.r, getattr(member, self.state))
         return (1 - member.epsilon) * own + member.epsilon * reduction
 
 

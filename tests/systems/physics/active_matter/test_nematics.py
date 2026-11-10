@@ -84,7 +84,7 @@ def test_molecular_field_is_the_negative_derivative_of_the_energy():
     """The molecular field of a symmetric traceless tensor is `-a Q - c tr(Q^2) Q + K laplacian(Q)`."""
     q, r, a, c, k = var('q, r, a, c, k')
     tensor = matrix(SR, [[q, r], [r, -q]])
-    field = LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, k)
+    field = LandauDeGennesEnergyInteraction._get_molecular_field(tensor, a, c, k)
     square = (tensor * tensor).trace()
     expected = -a * q - c * square * q + k * laplacian(q)
     assert bool((field[0, 0] - expected).expand() == 0)
@@ -193,5 +193,5 @@ def test_landau_de_gennes_molecular_field_of_a_uniaxial_tensor():
     """Test that the molecular field of a uniaxial tensor is `-(2 c q^2 + a) q` on the diagonal."""
     q, a, c = var('q, a, c')
     tensor = matrix(SR, [[q, 0], [0, -q]])
-    field = LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0]
+    field = LandauDeGennesEnergyInteraction._get_molecular_field(tensor, a, c, 0)[0, 0]
     assert bool(field == -(2 * c * q**2 + a) * q)

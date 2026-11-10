@@ -226,7 +226,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _repulsion_energy(
+    def _get_repulsion_energy(
         s: SimpleNamespace,
         r: Expression,
         *,
@@ -243,7 +243,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
 
     @staticmethod
-    def _propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
+    def _get_propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
         """Return the force `mu (v_t - |v|) v / |v|` towards the target speed `v_t`.
 
         The target speed is `v0` when active and 0 when passive.
@@ -253,7 +253,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return velocity * (mu * (s.target.active * v0 - speed) / speed)
 
     @staticmethod
-    def _flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
+    def _get_flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
         """Return the flocking force of size `alpha` on an active agent.
 
         The force points along the summed velocities of the others in reach.
@@ -262,12 +262,12 @@ class ActivePassiveFlockingSystem(BaseSystem):
         return summed * (s.target.active * alpha / sqrt(summed.dot_product(summed) + SOFTENING))
 
     @staticmethod
-    def _random_force(s: SimpleNamespace, *, amplitude: float) -> Expression:
+    def _get_random_force(s: SimpleNamespace, *, amplitude: float) -> Expression:
         """Return the amplitude of the noise of an agent, 0 when passive."""
         return s.target.active * amplitude
 
     @staticmethod
-    def _observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
         """Return the observables of the agents.
 
         They are the velocity of the active agents, their polarization, and the mean distance within each kind.
@@ -307,7 +307,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
         The observables of the parts are built from the model parameters.
         """
         settings = super().get_run_settings()
-        settings['observables'] = tuple(self._observables(self._build_system()))
+        settings['observables'] = tuple(self._get_observables(self._build_system()))
         return settings
 
     def _build_system(self) -> CompositeSystem:
@@ -337,7 +337,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
             ),
         )
         energy = functools.partial(
-            self._repulsion_energy,
+            self._get_repulsion_energy,
             epsilon=self.epsilon,
             radius=self.radius,
             exponent=self.exponent,
@@ -357,13 +357,13 @@ class ActivePassiveFlockingSystem(BaseSystem):
                 RateInteraction(
                     'propulsion',
                     target='agents',
-                    rate=functools.partial(self._propulsion, mu=self.mu, v0=self.v0),
-                    noise=functools.partial(self._random_force, amplitude=self.eta * math.sqrt(self.time_step / 3)),
+                    rate=functools.partial(self._get_propulsion, mu=self.mu, v0=self.v0),
+                    noise=functools.partial(self._get_random_force, amplitude=self.eta * math.sqrt(self.time_step / 3)),
                 ),
                 RateInteraction(
                     'flocking',
                     target='agents',
-                    rate=functools.partial(self._flocking, alpha=self.alpha, reach=self.flocking_radius),
+                    rate=functools.partial(self._get_flocking, alpha=self.alpha, reach=self.flocking_radius),
                 ),
             ],
             space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),

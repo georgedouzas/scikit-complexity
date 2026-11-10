@@ -168,25 +168,25 @@ class DoubleGyreSystem(BaseSystem):
         self.tau0 = tau0
 
     @staticmethod
-    def _velocity(s: SimpleNamespace) -> list[Expression]:
+    def _get_velocity(s: SimpleNamespace) -> list[Expression]:
         """Return the geostrophic velocity of a site, `(-psi_y, psi_x)`."""
         streamfunction = _get_streamfunction(s.target)
         return [-partial(streamfunction, 1), partial(streamfunction, 0)]
 
     @staticmethod
-    def _beta_drift(s: SimpleNamespace) -> Expression:
+    def _get_beta_drift(s: SimpleNamespace) -> Expression:
         """Return the advection of the planetary vorticity, `-beta psi_x`."""
         drift: Expression = -s.target.beta * partial(_get_streamfunction(s.target), 0)
         return drift
 
     @staticmethod
-    def _wind(s: SimpleNamespace) -> Expression:
+    def _get_wind(s: SimpleNamespace) -> Expression:
         """Return the input of vorticity by the curl of the wind stress."""
         curl: Expression = s.target.curl
         return curl
 
     @staticmethod
-    def _viscosity(s: SimpleNamespace) -> Expression:
+    def _get_viscosity(s: SimpleNamespace) -> Expression:
         """Return the viscosity of a site."""
         viscosity: Expression = s.target.nu
         return viscosity
@@ -217,11 +217,11 @@ class DoubleGyreSystem(BaseSystem):
             'transport',
             target='basin',
             state='zeta',
-            drift=self._velocity,
-            source=self._beta_drift,
+            drift=self._get_velocity,
+            source=self._get_beta_drift,
             limiter=None,
             riemann=None,
         )
-        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._wind)
-        viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._viscosity)
+        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._get_wind)
+        viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._get_viscosity)
         return CompositeSystem(self.label, elements=[basin], interactions=[transport, wind, viscosity])

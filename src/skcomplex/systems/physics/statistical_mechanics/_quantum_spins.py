@@ -356,7 +356,7 @@ class QuantumHeisenbergSystem(BaseSystem):
         self.initial = initial
 
     @staticmethod
-    def _initial_labels(n_sites: int, initial: str) -> list[str]:
+    def _get_initial_labels(n_sites: int, initial: str) -> list[str]:
         """Return the basis label of every spin of a product initial state."""
         if initial == 'neel':
             return ['up' if site % 2 == 0 else 'down' for site in range(n_sites)]
@@ -386,7 +386,7 @@ class QuantumHeisenbergSystem(BaseSystem):
             )
             raise ValidationError(error_msg)
         space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
-        labels = self._initial_labels(self.n_sites, self.initial)
+        labels = self._get_initial_labels(self.n_sites, self.initial)
         chain = GroupElement('chain', element=SpinElement, space=space, values={'psi': labels}, on='sites')
         interactions: list[BaseInteraction] = [
             XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),

@@ -323,25 +323,19 @@ class CarbonCycleSystem(DynamicalSystem):
         """Return Rothman's balance of carbonate ion and dissolved inorganic carbon."""
         return {
             'c': lambda s: (
-                self._buffer(s)
-                * (s.target.mu * (1 - self._burial(s) - self._respiration(s) - s.target.nu) + s.target.w - s.target.w0)
+                self._get_buffer(s)
+                * (
+                    s.target.mu * (1 - self._get_burial(s) - self._get_respiration(s) - s.target.nu)
+                    + s.target.w
+                    - s.target.w0
+                )
             ),
             'w': lambda s: (
-                s.target.mu * (1 - self._burial(s) + self._respiration(s) + s.target.nu) - s.target.w + s.target.w0
+                s.target.mu * (1 - self._get_burial(s) + self._get_respiration(s) + s.target.nu)
+                - s.target.w
+                + s.target.w0
             ),
         }
-
-    def _burial(self, s: SimpleNamespace) -> Expression:
-        """Return `burial` from the namespace of an equation."""
-        return self._get_burial(s)
-
-    def _respiration(self, s: SimpleNamespace) -> Expression:
-        """Return `respiration` from the namespace of an equation."""
-        return self._get_respiration(s)
-
-    def _buffer(self, s: SimpleNamespace) -> Expression:
-        """Return `buffer` from the namespace of an equation."""
-        return self._get_buffer(s)
 
     def _get_burial(self, s: SimpleNamespace) -> Expression:
         """Return the burial of organic carbon.
@@ -476,11 +470,11 @@ class VanDerPolIceAgesSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the slow ice volume and the fast climate of the relaxation oscillator."""
         return {
-            'x': lambda s: -(s.target.y + s.target.beta + s.target.gamma * self._forcing(s)) / s.target.tau,
+            'x': lambda s: -(s.target.y + s.target.beta + s.target.gamma * self._get_forcing(s)) / s.target.tau,
             'y': lambda s: -s.target.alpha * (s.target.y**3 / 3 - s.target.y - s.target.x) / s.target.tau,
         }
 
-    def _forcing(self, s: SimpleNamespace) -> Expression:
+    def _get_forcing(self, s: SimpleNamespace) -> Expression:
         """Return `forcing` from the namespace of an equation."""
         return self._get_orbital_forcing(s)
 

@@ -372,7 +372,7 @@ class SocialForestDiebackSystem(BaseSystem):
         self.tf = tf
 
     @staticmethod
-    def _replicator(s: SimpleNamespace) -> Expression:
+    def _get_replicator(s: SimpleNamespace) -> Expression:
         """Return the replicator rate of the share of mitigators.
 
         The mitigators perceive the warming of the forest.
@@ -416,6 +416,6 @@ class SocialForestDiebackSystem(BaseSystem):
             target='people',
             state='x',
             sources=['forest'],
-            rate=self._replicator,
+            rate=self._get_replicator,
         )
         return CompositeSystem(self.label, elements=[forest, people], interactions=[growth, mitigation])

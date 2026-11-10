@@ -90,13 +90,13 @@ class MicrostateElement(Element):
             LocalRuleLaw(
                 s.P,
                 BallNeighborhood(n_dim=1, center='inline'),
-                MicrostateElement._master_step,
+                MicrostateElement._get_master_step,
                 reads=(s.P, s.U),
             ),
         ]
 
     @staticmethod
-    def _glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
+    def _get_glauber(source: Array, destination: Array, beta: float | Array, w: float | Array) -> Array:
         """Return the probability of a move between two states.
 
         The probability is `w / (1 + exp(beta (U_destination - U_source)))`.
@@ -104,7 +104,7 @@ class MicrostateElement(Element):
         return w / (1 + np.exp(beta * (destination - source)))
 
     @staticmethod
-    def _master_step(*around: Array, beta: float | Array, w: float | Array) -> Array:
+    def _get_master_step(*around: Array, beta: float | Array, w: float | Array) -> Array:
         """Return the probabilities after one step of the master equation.
 
         The step moves probability to the two neighbouring states.
@@ -114,12 +114,12 @@ class MicrostateElement(Element):
         """
         left, center, right, energy_left, energy, energy_right = around
         gain = (
-            MicrostateElement._glauber(energy_left, energy, beta, w) * left
-            + MicrostateElement._glauber(energy_right, energy, beta, w) * right
+            MicrostateElement._get_glauber(energy_left, energy, beta, w) * left
+            + MicrostateElement._get_glauber(energy_right, energy, beta, w) * right
         )
         loss = (
-            MicrostateElement._glauber(energy, energy_left, beta, w)
-            + MicrostateElement._glauber(energy, energy_right, beta, w)
+            MicrostateElement._get_glauber(energy, energy_left, beta, w)
+            + MicrostateElement._get_glauber(energy, energy_right, beta, w)
         ) * center
         return center + gain - loss
 

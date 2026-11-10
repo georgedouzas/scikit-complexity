@@ -108,7 +108,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
             source=source,
             read=state,
             write=state,
-            function=self._sine,
+            function=self._get_sine,
             reduce=reduce,
             mode=mode,
             weights=weights,
@@ -121,7 +121,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         self.alpha = alpha
         self.state = state
 
-    def _sine(self, namespace: SimpleNamespace) -> Expression:
+    def _get_sine(self, namespace: SimpleNamespace) -> Expression:
         """Return the term `K sin(theta_j - theta_i - alpha)` of one other member."""
         member, other = getattr(namespace.member, self.state), getattr(namespace.other, self.state)
         return namespace.K * sin(other - member - namespace.alpha)

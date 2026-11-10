@@ -430,7 +430,7 @@ class NBodySystem(BaseSystem):
         self.G = G
 
     @staticmethod
-    def _preset(name: str) -> Preset:
+    def _get_preset(name: str) -> Preset:
         """Return a preset's masses, positions, velocities, and gravitational constant.
 
         The preset is a named configuration.
@@ -442,7 +442,7 @@ class NBodySystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return bodies in the plane that attract pairwise by Newtonian gravity."""
-        preset_G, preset_masses, preset_positions, preset_velocities = self._preset(self.preset)
+        preset_G, preset_masses, preset_positions, preset_velocities = self._get_preset(self.preset)
         masses = preset_masses if self.masses is None else self.masses
         positions = preset_positions if self.positions is None else self.positions
         velocities = preset_velocities if self.velocities is None else self.velocities
