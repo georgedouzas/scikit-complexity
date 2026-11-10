@@ -35,8 +35,10 @@
 - Probes in three fields, on real data where it exists.
 
 **Non-Goals:**
-- Bridges to scikit-learn model selection, Gymnasium, and PettingZoo. They are the follow-up `add-learning-bridges`.
-  Only scikit-learn regressors as learned models are part of this change.
+- scikit-learn splitters, scorers, and parameter grids inside `identify`, `calibrate`, and `train_policy`, and the
+  Gymnasium and PettingZoo environments. They are the follow-up `add-learning-bridges`. scikit-learn regressors and
+  pipelines as learned models and `make_arrays` are part of this change.
+- Adapter classes with `fit` and `predict` around systems or experiments. They are rejected below.
 - Off-policy methods (Q-learning, soft actor-critic, fitted Q iteration) and multi-agent methods (independent learners,
   centralised critics, self-play). They are designed below and specified by `add-off-policy-learning` and
   `add-multi-agent-learning`.
@@ -64,16 +66,43 @@
 | Reward, return | an observable of the system, summed over decisions with a discount |
 | Reinforcement learning | the experiment `train_policy`, whose result holds a system with the trained policy |
 | Forecast evaluation | the analysis `forecast_skill` |
+| Feature and target arrays | `make_arrays`, from runs to the `X` and `y` of any scikit-learn pipeline |
 
-No ML package, base class, or verb is added. Learned parts are configured with `prepare` and run with `run`, like
-every part.
+No machine-learning package, base class, or verb is added. The one new package, `skcomplex.core.data`, holds functions
+that make and reshape data. Learned parts are configured with `prepare` and run with `run`, like every part.
+
+### scikit-learn inside, not around
+
+Decided on 2026-11-10. A system is the model being simulated, not an estimator, so no system and no experiment is
+wrapped in a scikit-learn estimator. scikit-learn enters in three places instead:
+
+- **Learned terms.** A fitted regressor or pipeline is the model of `learned_function`, a term of a law.
+- **Model selection inside the experiments.** `identify`, `calibrate`, and `train_policy` accept scikit-learn
+  splitters as `cv`, scorers as `scoring`, and parameter grids as `param_grid`, and their frozen results report the
+  score of every fold and the selected settings. This is specified by `add-learning-bridges`, since it adds arguments
+  and result fields to three experiments and `identify` works without it.
+- **Arrays for any pipeline.** `make_arrays` of `skcomplex.core.data` turns runs into `X`, `y`, and `groups`, so any
+  pipeline trains on simulated or observed data and any splitter keeps runs whole.
+
+`prepare` and `run` stay the only verbs of the classes of the library.
+
+Alternatives considered:
+
+- Adapter classes such as `IdentificationEstimator` and `SurrogateEstimator`, with `fit`, `predict`, and `score` around
+  `identify` and the surrogate analyses. Rejected: they are a second way of doing what `identify` does, and they make
+  a system look like an estimator when it is the model being simulated.
+- Systems with `fit` and `predict` themselves. Rejected for the same reasons, and because it would add a second verb
+  pair to every class.
+
+The accepted cost: a fitted system cannot sit inside a scikit-learn `Pipeline` or `GridSearchCV`. Model selection
+runs inside the experiments, and pipelines train on the arrays of `make_arrays` or sit inside laws.
 
 ### Placement
 
 | Part | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `ObservationSpec`, `ObservedRunSpec`, `ObservedRunsSpec` | 2, the losses, `identify`, `calibrate`, and the surrogate analyses read them by type | `skcomplex.core.specs` | ecology (pelt and census counts), epidemiology (reported cases), pharmacology (sparse samples), climate (station series), engineering (sensors), neuroscience (recordings) |
-| `read_runs`, `observe`, `split_runs` | 2, functions that build the spec the fits read, as the model selection functions of scikit-learn | `skcomplex.core.experiments` (see the items needing approval) | as above |
+| `read_runs`, `observe`, `split_runs`, `make_arrays` | 2, functions that build the spec the fits read and the arrays any pipeline reads, as `sklearn.datasets` and `train_test_split` do | `skcomplex.core.data`, approved on 2026-11-10 | as above |
 | Whole-number sizes of `ParameterSpec.shape` | 1, the structural spec of every parameter | `skcomplex.core.specs` | every learned function, and fixed-size vectors in any field |
 | `learned_function`, `learned_weights` | 2, a law function the backends lower by the type of its model | `skcomplex.core.components.laws.utils` | ecology and epidemiology (unknown rates), pharmacology (covariate maps), physics (learned potentials, neural cellular automata), engineering (learned controllers), neuroscience (learned couplings) |
 | Lowering of learned functions | 2, backend lowering | `core/engine/backends/_jax.py`, `_numpy.py`, and the Numba fallback | as above |
@@ -106,7 +135,7 @@ Checked on PyPI on 2026-11-10.
 | numpyro | 0.22.0 | 2026-09 | Present, the categorical and normal distributions of policies, their samples and log densities |
 | pandas | 3.1.1 | 2026-11-04 | Present, the reader of data frames |
 | pysindy | 2.1.0 | 2026-01 | Present, the smoothed derivatives of `method='derivatives'` |
-| scikit-learn | 1.9.1 | 2026-09-10 | Present, regressors as learned models |
+| scikit-learn | 1.9.1 | 2026-09-10 | Present, regressors and pipelines as learned models |
 
 Rejected: Flax, whose modules carry state outside the pytree. Haiku, no longer developed. rlax 0.1.9 (2026-06-12),
 the JAX library of reinforcement learning losses, because it requires distrax, which requires `tfp-nightly`, a nightly
@@ -140,6 +169,21 @@ step a system of this library.
   labelled simulated data in every docstring and example that uses it.
 - `split_runs(data, *, validation=0.2, random_state=None)` returns two `ObservedRunsSpec`, as `train_test_split` does,
   splitting whole runs so no run leaks into both.
+- `make_arrays(data, *, kind='transitions', features=None, targets=None, lags=1, horizon=1, summary='last')` reads
+  observed runs, one trajectory or several, or the `ExperimentResult` of `ensemble` or `sweep`, read as runs as
+  `observe` reads them but without noise. It returns `X`, `y`, and `groups`, the index of the run of every row, which
+  `GroupKFold` and the other group splitters take so no run is split across training and test rows.
+  - `kind='transitions'` gives one row per run and observation time. `X` holds the `features` paths (all observed
+    paths by default) at the last `lags` observation times, oldest first, and the inputs of the run at the last of
+    them. `y` holds the `targets` paths (the features by default) `horizon` observation times later. So `lags=1` and
+    `horizon=1` map states to next states, as the data of a learned map or a reservoir.
+  - `kind='runs'` gives one row per run. `X` holds the conditions of the run, the swept parameters of a sweep, and `y`
+    holds the `summary` of every target path over the run: `'last'`, `'mean'`, `'min'`, `'max'`, or a callable of
+    times and values. Scalar outputs of an `ExperimentResult` are targets as they are. So a pipeline learns the map
+    from parameters to outcomes, as an emulator of the system.
+  - Rows with a missing value are left out, and paths with their own times enter a row only at the times they share.
+  - The name is a verb, as `make_pipeline` and `make_scorer` are, and says the result is new arrays made from the
+    runs.
 - Every fit reads the spec. `calibrate` accepts it for `data`, its former mapping being one run. `_read_samples`
   accepts it, so `sparse_identification`, `mode_decomposition`, and `reservoir` take observed runs, with conditions as
   the parameters of a parametric library and inputs as their control inputs. `TrainingInteraction` takes it as `data`.
@@ -156,10 +200,11 @@ step a system of this library.
   `equinox.combine(unravel(weights), static)(inputs)[k]`, vectorised over members and pairs with `jax.vmap`, traced and
   differentiable. The NumPy backend calls the same function compiled with `jax.jit`. The Numba backend falls back to
   Python with its existing warning.
-- A scikit-learn regressor is cloned when the law is built and called through `predict` on the NumPy backend, once per
-  evaluation over all members. It takes no `weights`. An unfitted regressor raises `ValidationError` at `prepare`
-  unless the system is passed to `identify(method='derivatives')`, which fits it. The JAX backend has no form for it,
-  so the compiler reports `not-differentiable`, the issue `calibrate` already reads.
+- A scikit-learn regressor, or a pipeline that ends in one, is cloned when the law is built and called through
+  `predict` on the NumPy backend, once per evaluation over all members. It takes no `weights`. An unfitted regressor
+  raises `ValidationError` at `prepare` unless the system is passed to `identify(method='derivatives')`, which fits
+  it. The JAX backend has no form for it, so the compiler reports `not-differentiable`, the issue `calibrate` already
+  reads.
 - The compiler reports `learned-weights` when the weight vector does not have the length of the module, and
   `learned-inputs` when the number of inputs is not the input size of the model.
 - A symbolic learned term is an ordinary expression whose coefficients are adaptive parameters, such as the laws
@@ -281,8 +326,8 @@ step a system of this library.
 
 ### Follow-up order
 
-1. `add-learning-bridges`: scikit-learn estimators wrapping `identify` and the surrogate analyses for pipelines and
-   model selection, a system as a Gymnasium environment and a Gymnasium environment as a system, and the same for
+1. `add-learning-bridges`: scikit-learn splitters, scorers, and parameter grids inside `identify`, `calibrate`, and
+   `train_policy`, a system as a Gymnasium environment and a Gymnasium environment as a system, and the same for
    PettingZoo.
 2. `add-off-policy-learning`: Q-learning with a target network, soft actor-critic, and fitted Q iteration from logged
    runs.
@@ -290,11 +335,25 @@ step a system of this library.
 
 The drafts that build on this change may follow in any order after it. None needs the follow-ups.
 
-### Items needing approval
+### The data package and its layer
 
-- No new package is needed. One placement is offered for the maintainer to decide: `read_runs`, `observe`, and
-  `split_runs` live in `skcomplex.core.experiments` as the model selection functions of scikit-learn do. A subpackage
-  `skcomplex.core.data`, mirroring `sklearn.datasets`, would hold them instead. It is not created unless approved.
+Decided on 2026-11-10. `skcomplex.core.data` is a new package of the core that holds `read_runs`, `observe`,
+`split_runs`, and `make_arrays`, as `sklearn.datasets` holds what makes data. The specs of observed runs stay in
+`skcomplex.core.specs`, since the fits read them by type.
+
+The layers contract of `pyproject.toml` runs `experiments`, `analysis`, `engine`, `components`, `specs`, `base`, then
+`types` and `errors`. `data` enters between `analysis` and `engine`, so experiments and analyses may import it and it
+imports neither. It imports only `skcomplex.core.specs`, the trajectories of `skcomplex.core.engine.runtime`, and the
+root modules of types and errors. `observe` and `make_arrays` read an `ExperimentResult` through its `runs`, run result
+specs of `skcomplex.core.specs`, so the package never imports `skcomplex.core.experiments`. A forbidden contract keeps
+it from `skcomplex.core.components` and the other engine packages, so data stays a reader of results and specs.
+
+### Decisions of 2026-11-10
+
+- Systems are not scikit-learn estimators, and no adapter class is added, as recorded above.
+- `ObservedRunsSpec` replaces `DatasetSpec`, a breaking change with no alias.
+- The package `skcomplex.core.data` is approved and holds `read_runs`, `observe`, `split_runs`, and `make_arrays`.
+- The subpackage `skcomplex.systems.general.environments` is approved for the bridges of `add-learning-bridges`.
 
 ## Risks / Trade-offs
 
@@ -316,12 +375,9 @@ The drafts that build on this change may follow in any order after it. None need
 `DatasetSpec({'inputs.x': X, 'outputs.target': Y}, weights=W, times=T)` becomes `ObservedRunsSpec` with one
 `ObservedRunSpec` per sequence whose `inputs` hold the slices of `X` and `Y` at the times `T`, built by
 `read_runs` from an xarray dataset of dimensions `run` and `time`. Loss observables keep reading the target
-parameters. No other public name changes.
+parameters. `DatasetSpec` keeps no alias. No other public name changes.
 
 ## Open Questions
 
-- The scikit-learn bridge of the follow-up gives estimators with `fit` and `predict`, as scikit-learn requires, while
-  the classes of the library speak `prepare` and `run`. The constitution asks public objects to conform to the
-  framework they plug into, so the follow-up proposes the scikit-learn verbs for those adapters only.
-- Should `read_runs`, `observe`, and `split_runs` live in a new `skcomplex.core.data` instead of
-  `skcomplex.core.experiments`?
+- Torch models train outside the one Optax loop, by their own libraries. Whether that stays is the open question of
+  `add-torch-surrogates`.

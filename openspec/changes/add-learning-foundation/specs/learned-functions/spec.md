@@ -3,8 +3,8 @@
 ## Purpose
 
 Lets a user put a learned model inside any law, an Equinox module whose weights are one adaptive parameter or a
-scikit-learn regressor, so hybrid laws, learned interactions, and learned controllers are ordinary parts that every
-backend that lowers them runs and that the fits of the library train.
+scikit-learn regressor or pipeline, so hybrid laws, learned interactions, and learned controllers are ordinary parts
+that every backend that lowers them runs and that the fits of the library train.
 
 ## ADDED Requirements
 
@@ -46,13 +46,17 @@ a given shape that is addressed by path, recorded with its shape, and changed or
   names
 
 ### Requirement: Scikit-learn regressors are learned models
-`learned_function` SHALL accept a scikit-learn regressor, called through `predict` once per evaluation over every member,
-on the NumPy backend. A system holding one SHALL not be differentiable, and an unfitted regressor SHALL be refused at
-`prepare` unless `identify(method='derivatives')` fits it.
+`learned_function` SHALL accept a scikit-learn regressor, or a pipeline that ends in one, called through `predict` once
+per evaluation over every member, on the NumPy backend. A system holding one SHALL not be differentiable, and an
+unfitted regressor SHALL be refused at `prepare` unless `identify(method='derivatives')` fits it.
 
 #### Scenario: Fitted regressor
 - **WHEN** a rate law reads a fitted `KNeighborsRegressor` of one state
 - **THEN** the compiled rate equals `predict` on the states of every member within 1e-12
+
+#### Scenario: Fitted pipeline
+- **WHEN** a rate law reads a fitted pipeline of `StandardScaler` and `Ridge` of two states
+- **THEN** the compiled rate equals `predict` of the pipeline on the states of every member within 1e-12
 
 #### Scenario: Not differentiable
 - **WHEN** a system with a regressor in a law is compiled with the JAX backend

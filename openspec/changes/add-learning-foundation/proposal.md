@@ -18,22 +18,30 @@ from system identification to reinforcement learning, plug into the same parts.
 
 - **Observed data.** New frozen specs `ObservationSpec`, the observation model of which states or observables are
   seen and with what noise, and `ObservedRunSpec` and `ObservedRunsSpec`, observed runs with their own irregular
-  times, missing values, inputs, and conditions. New functions `read_runs`, which reads them from a pandas data frame
-  or an xarray dataset, `observe`, which turns simulated trajectories and experiment results into observed runs through
-  an observation model, and `split_runs`, which splits runs into training and validation sets. Every fit reads them:
-  `calibrate`, `identify`, the surrogate analyses, and the training of learned parts.
+  times, missing values, inputs, and conditions. A new package `skcomplex.core.data`, approved on 2026-11-10, holds
+  the functions that make and reshape data: `read_runs`, which reads observed runs from a pandas data frame or an
+  xarray dataset, `observe`, which turns simulated trajectories and experiment results into observed runs through an
+  observation model, `split_runs`, which splits runs into training and validation sets, and `make_arrays`, which turns
+  runs, trajectories, ensembles, or sweeps into the arrays `X` and `y` of scikit-learn, from parameters to summaries or
+  from states to later states with lags, so any scikit-learn pipeline trains on simulated or observed data. Every fit
+  reads observed runs: `calibrate`, `identify`, the surrogate analyses, and the training of learned parts.
 - **Learned functions in laws.** New law function `learned_function(model, *inputs, weights=...)` that calls a
   learned model inside any law. The model is an Equinox module, whose weights are one adaptive vector parameter that
-  the JAX and NumPy backends lower and differentiate, or a scikit-learn regressor, which the NumPy backend calls. A
-  learned term added to a known term is a hybrid law, a learned pair potential is a learned interaction, and a symbolic
-  term with adaptive coefficients needs nothing new. `ParameterSpec(shape=...)` accepts whole numbers beside role
-  names, so a weight vector of a given length is declared.
+  the JAX and NumPy backends lower and differentiate, or a scikit-learn regressor or pipeline, which the NumPy backend
+  calls. A learned term added to a known term is a hybrid law, a learned pair potential is a learned interaction, and
+  a symbolic term with adaptive coefficients needs nothing new. `ParameterSpec(shape=...)` accepts whole numbers
+  beside role names, so a weight vector of a given length is declared.
 - **One fit loop.** The Optax loop of `GradientDescentSolver` becomes the one loop of the library. It takes batches of
   runs and a gradient from one of two estimators, pathwise through a differentiable run or by the score of recorded
   draws, with validation runs and early stopping. Losses follow from the noise of the observation model: squares,
   squares of logarithms, or the likelihood of Gaussian, log-normal, Poisson, or negative binomial noise.
-- **BREAKING: `ObservedRunsSpec` replaces `DatasetSpec`.** A data set of inputs and targets is a set of observed runs
-  whose inputs are the parameter series. `TrainingInteraction` takes it as `data`.
+- **BREAKING: `ObservedRunsSpec` replaces `DatasetSpec`.** Decided on 2026-11-10. `DatasetSpec` is removed with no
+  alias. A data set of inputs and targets is a set of observed runs whose inputs are the parameter series.
+  `TrainingInteraction` takes it as `data`.
+- **scikit-learn inside, not around.** Systems are not scikit-learn estimators, and no class gains `fit` or
+  `predict`. scikit-learn enters as learned terms of laws and through `make_arrays`, and its splitters, scorers, and
+  parameter grids enter `identify`, `calibrate`, and `train_policy` in `add-learning-bridges`. `prepare` and `run` stay
+  the only verbs of the classes of the library.
 - **Identification as an experiment.** New experiment `identify(system, data, *, trained, method, ...)` that fits the
   adaptive parameters of a system, learned weights included, to observed runs, and returns a frozen
   `IdentificationResult` whose `system` is the system with the fitted values. `method='gradient'` trains through the
@@ -65,9 +73,10 @@ from system identification to reinforcement learning, plug into the same parts.
 ### New Capabilities
 
 - `observed-data`: observation models, observed runs with irregular times, missing values, inputs, and conditions,
-  their readers from pandas and xarray, simulated observations, and splits of runs.
-- `learned-functions`: Equinox modules and scikit-learn regressors called from laws, weights as adaptive parameters,
-  hybrid laws, and learned interactions.
+  their readers from pandas and xarray, simulated observations, splits of runs, and the arrays of scikit-learn made
+  from runs.
+- `learned-functions`: Equinox modules and scikit-learn regressors and pipelines called from laws, weights as adaptive
+  parameters, hybrid laws, and learned interactions.
 - `reinforcement-learning`: systems read as environments, policies as parts, and the training of policies as an
   experiment.
 
@@ -79,21 +88,25 @@ from system identification to reinforcement learning, plug into the same parts.
 - `data-driven-dynamics`: the surrogate analyses read observed runs.
 - `trajectory-analysis`: the forecast skill of learned and pretrained forecasters.
 - `model-library`: the universal Lotka-Volterra, learned contact SIR, and cart-pole systems.
+- `package-layout`: the package `skcomplex.core.data` and its place between analysis and the engine.
 
 ## Impact
 
 - Core: new specs in `skcomplex.core.specs`, a new module `components/laws/utils/_learned.py`,
   `core/specs/_parameter_spec.py`, the JAX and NumPy backends and the Numba fallback, `components/interactions` with a
   new `_policy.py`, `core/engine/solvers/_gradient_descent.py`, `components/interactions/_training.py`, new modules
-  `_identification.py`, `_policy_training.py`, and `_observed_runs.py` in `core/experiments`, `_calibration.py`,
-  `core/analysis/_base.py`, and a new `core/analysis/_forecast_skill.py`.
+  `_identification.py` and `_policy_training.py` in `core/experiments`, `_calibration.py`, `core/analysis/_base.py`,
+  a new `core/analysis/_forecast_skill.py`, and the new package `core/data` with its layer in the import contracts of
+  `pyproject.toml`.
 - Systems: new modules in `biology/ecology`, `biology/epidemiology`, and `engineering/control`.
-- API: `DatasetSpec` is removed. The Elman network, the user guide, and the tests move to `ObservedRunsSpec`.
+- API: **BREAKING** `DatasetSpec` is removed with no alias. The Elman network, the user guide, and the tests move to
+  `ObservedRunsSpec`.
 - Dependencies: `equinox>=0.13.8` (0.13.8, released 2026-05-05) and `xarray>=2026.9.0` (2026.9.0, released
   2026-09-29). JAX, Optax, Diffrax, numpyro, pandas, pysindy, and scikit-learn are already runtime dependencies.
 - Docs: sections in the build, calibrate, experiments, and analysis pages of the user guide, three gallery examples,
   and the inventory primitives `observed-data`, `learned-functions`, and `policies`.
-- Follow-up drafts, in order: `add-learning-bridges` (scikit-learn estimators, Gymnasium and PettingZoo environments),
+- Follow-up drafts, in order: `add-learning-bridges` (scikit-learn splitters, scorers, and parameter grids inside
+  `identify`, `calibrate`, and `train_policy`, and Gymnasium and PettingZoo environments),
   `add-off-policy-learning`, and `add-multi-agent-learning`.
 - Drafts that build on it: `add-hybrid-neural-laws`, `extend-law-discovery`, `add-learned-indicators`,
   `add-generative-samplers`, `add-neural-particle-simulators`, `add-equilibrium-census`, `add-torch-surrogates`,

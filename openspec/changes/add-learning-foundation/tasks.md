@@ -2,9 +2,13 @@
 
 ## 1. Dependencies and placement
 
-- [ ] 1.1 Ask the maintainer whether `read_runs`, `observe`, and `split_runs` go to `skcomplex.core.experiments` or to a
-  new `skcomplex.core.data`, and record the answer in `design.md` before any code is written
-- [ ] 1.2 Add `equinox>=0.13.8` and `xarray>=2026.9.0` to the runtime dependencies in `pyproject.toml` and the Project
+- [ ] 1.1 Create the package `src/skcomplex/core/data` with its `__init__.py` and the mirrored `tests/core/data`, add
+  `skcomplex.core.data` to the layers contract of `pyproject.toml` between `skcomplex.core.analysis` and
+  `skcomplex.core.engine`, add a forbidden contract that keeps it from `skcomplex.core.components` and every engine
+  package but `runtime`, and verify the import contracts pass and fail on a test import of `skcomplex.core.experiments`
+- [ ] 1.2 Add `skcomplex.core.data` to the package list of the user guide and the API reference, and verify the strict
+  docs build
+- [ ] 1.3 Add `equinox>=0.13.8` and `xarray>=2026.9.0` to the runtime dependencies in `pyproject.toml` and the Project
   Profile of the constitution, with their release dates, and verify `pdm install` resolves and both import
 
 ## 2. Observed data
@@ -13,17 +17,23 @@
   verify the unknown-noise scenario and its doctest in `tests/core/specs/test_observation_spec.py`
 - [ ] 2.2 Add `ObservedRunSpec` and `ObservedRunsSpec` with their checks of paths and times, export them, and verify the
   paths-with-their-own-times and times-that-decrease scenarios and their doctests
-- [ ] 2.3 Add `read_runs` for pandas data frames in long and wide form, and verify the long-frame and missing-column
-  scenarios
+- [ ] 2.3 Add `read_runs` for pandas data frames in long and wide form in `src/skcomplex/core/data/_read.py`, export
+  it from `skcomplex.core.data`, and verify the long-frame and missing-column scenarios in `tests/core/data/`
 - [ ] 2.4 Extend `read_runs` to xarray datasets with the dimensions `time` and `run` and conditions as coordinates, and
   verify the dataset-with-conditions scenario
-- [ ] 2.5 Add `observe` on trajectories with the five noise models and readout observables, and verify the
-  readout-of-a-compartment and same-seed scenarios
-- [ ] 2.6 Extend `observe` to `ExperimentResult` sources with conditions per design point and `replicates`, and verify
-  the sweep-as-runs scenario
-- [ ] 2.7 Add `split_runs`, and verify the no-run-in-both-sets and too-few-runs scenarios
-- [ ] 2.8 Document observation models and observed runs in the calibrate page of the user guide, labelling simulated
-  data as such, and verify its code blocks run
+- [ ] 2.5 Add `observe` on trajectories with the five noise models and readout observables in
+  `src/skcomplex/core/data/_observe.py`, export it, and verify the readout-of-a-compartment and same-seed scenarios
+- [ ] 2.6 Extend `observe` to `ExperimentResult` sources, read through their run result specs, with conditions per
+  design point and `replicates`, and verify the sweep-as-runs scenario
+- [ ] 2.7 Add `split_runs` in `src/skcomplex/core/data/_split.py`, export it, and verify the no-run-in-both-sets and
+  too-few-runs scenarios
+- [ ] 2.8 Add `make_arrays` with `kind='transitions'` in `src/skcomplex/core/data/_arrays.py`, export it, and verify the
+  states-to-next-states, unknown-path, and pipeline-trained-on-runs scenarios
+- [ ] 2.9 Add `kind='runs'` with the summaries and the scalar outputs of experiment results, and verify the
+  parameters-to-summaries scenario
+- [ ] 2.10 Document observation models, observed runs, and `make_arrays` in the calibrate page of the user guide,
+  labelling simulated data as such, with a runnable example that trains a scikit-learn pipeline on the arrays of a
+  sweep with `GroupKFold`, and verify its code blocks run
 
 ## 3. Learned functions
 
@@ -38,8 +48,9 @@
   weights-changed scenarios on NumPy
 - [ ] 3.5 Report `learned-weights` and `learned-inputs` in the compiler, and verify both scenarios
 - [ ] 3.6 Make the Numba path fall back to Python with the existing warning, and verify the 2000-member scenario
-- [ ] 3.7 Accept scikit-learn regressors with one `predict` per evaluation, refuse unfitted ones at `prepare`, report
-  `not-differentiable` on JAX, and verify the fitted-regressor and not-differentiable scenarios
+- [ ] 3.7 Accept scikit-learn regressors and pipelines with one `predict` per evaluation, refuse unfitted ones at
+  `prepare`, report `not-differentiable` on JAX, and verify the fitted-regressor, fitted-pipeline, and
+  not-differentiable scenarios
 - [ ] 3.8 Mark systems whose learned models are all Equinox modules as differentiable, and verify the
   gradient-of-the-weights scenario against finite differences
 - [ ] 3.9 Verify the hybrid-rate and learned-pair-potential scenarios on the NumPy and JAX backends
@@ -55,7 +66,7 @@
 - [ ] 4.3 Pad and mask runs of different lengths and missing values, and verify the masked-steps, shape-mismatch, and
   runs-of-different-lengths scenarios
 - [ ] 4.4 Move the Elman network, its gallery example, the user guide, and every test from `DatasetSpec` to observed
-  runs, remove `DatasetSpec`, and add the breaking changelog line with the migration
+  runs, remove `DatasetSpec` with no alias, and add the breaking changelog line with the migration
 - [ ] 4.5 Add the loss names `'squares'`, `'log'`, and `'likelihood'` with the five noise models, and verify the
   Poisson-likelihood and likelihood-without-noise scenarios
 - [ ] 4.6 Add `validation` and `patience` with the recorded validation loss and the best parameters, and verify the

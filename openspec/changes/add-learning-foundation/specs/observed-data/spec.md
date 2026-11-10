@@ -4,7 +4,9 @@
 
 Lets a user describe what was observed of a system, which states or observables and with what noise, hold observed
 runs with irregular times, missing values, inputs, and conditions, read them from pandas and xarray, simulate them from
-trajectories, and split them into training and validation runs, so every fit of the library reads one kind of data.
+trajectories, split them into training and validation runs, and turn them into the arrays `X` and `y` of
+scikit-learn, so every fit of the library reads one kind of data and any scikit-learn pipeline trains on simulated or
+observed runs.
 
 ## ADDED Requirements
 
@@ -78,3 +80,32 @@ with the share of runs given, at least one run in each, and the same split for t
 #### Scenario: Too few runs
 - **WHEN** one run is split
 - **THEN** it raises `ValidationError` that says a split needs at least two runs
+
+### Requirement: Runs become the arrays of scikit-learn
+`make_arrays(data, ...)` SHALL turn observed runs, trajectories, or the runs of an `ExperimentResult` of `ensemble` or
+`sweep` into a feature array `X`, a target array `y`, and an array `groups` that holds the run of every row, and SHALL
+leave out rows with a missing value.
+
+#### Scenario: Pipeline trained on runs
+- **WHEN** the arrays of 20 observed runs are passed with their `groups` to `cross_val_score` of a pipeline of
+  `StandardScaler` and `Ridge` with `GroupKFold(5)`
+- **THEN** it returns 5 scores, and no run has rows in both the training and the test rows of a fold
+
+#### Scenario: Unknown path
+- **WHEN** `targets` names a path that the runs do not hold
+- **THEN** it raises `ValidationError` that names the path and lists the paths of the runs
+
+### Requirement: Arrays hold transitions or whole runs
+With `kind='transitions'`, every row of `make_arrays` SHALL hold the feature paths at the last `lags` observation times
+of a run and the target paths `horizon` observation times later. With `kind='runs'`, every row SHALL hold the
+conditions of one run and a summary of its target paths.
+
+#### Scenario: States to next states
+- **WHEN** a trajectory of a Lotka-Volterra system with 101 frames is turned into arrays with `lags=2` and `horizon=1`
+- **THEN** `X` has 99 rows of 4 columns, `y` has 99 rows of 2 columns, and every row of `y` equals the states of the
+  frame after the last frame of its row of `X`
+
+#### Scenario: Parameters to summaries
+- **WHEN** a sweep of 5 values of `r` with 3 replicates each is turned into arrays with `kind='runs'`, the target
+  `prey.x`, and `summary='mean'`
+- **THEN** `X` holds the 15 values of `r` of the runs and `y` the mean of `prey.x` over every run
