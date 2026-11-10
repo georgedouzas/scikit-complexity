@@ -76,7 +76,7 @@ population = virtual_population(
     BOUNDS,
     ['diameter', log_ratio],
     {'diameter': (1.0, 10.0)},
-    n=400,
+    n=80,
     target={'log_ratio': observed},
     until=BASELINE,
     random_state=0,
@@ -100,8 +100,9 @@ plt.show()
 # Identifiability of one patient
 # ------------------------------
 # The first selected patient is treated from day 60, and its tumour diameter is measured every week for 180 days with
-# 2% noise. Profiles of the growth and the killing should close inside the bounds, since the untreated weeks show the
-# growth and the treated weeks the killing.
+# 2% noise. The profile of the killing, with the other parameters known, should close inside its bounds, since the
+# treated weeks show how fast the T cells kill. A profile of several parameters fits the others again at every point,
+# so it costs far more runs.
 
 chosen = population.selected.iloc[0]
 truth = {name: float(chosen[name]) for name in BOUNDS}
@@ -111,19 +112,23 @@ rng = np.random.default_rng(2)
 diameters = simulate(patient(**truth), until=180.0, dt=1.0).get_values('diameter')
 noisy = diameters[days.astype(int)] * (1 + 0.02 * rng.standard_normal(days.size))
 data = {'diameter': (days, noisy)}
-profile = identifiability(patient(**known), data, FITTED, n_starts=2, random_state=0)
-fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-for ax, name in zip(axes, FITTED, strict=True):
-    values, ratio = profile.profiles[name]
-    order = np.argsort(values)
-    ax.plot(values[order], ratio[order], marker='.')
-    ax.axhline(np.exp(-3.84 / 2), color='grey', linestyle=':', label='95% threshold')
-    ax.axvline(truth[name], color='black', linestyle='--', label='truth')
-    ax.set_xlabel(name)
-    ax.set_title(profile.verdicts[name])
-    ax.legend()
-axes[0].set_ylabel('likelihood ratio')
-fig.tight_layout()
+profile = identifiability(
+    patient(growth=truth['growth'], **known),
+    data,
+    {'kill': FITTED['kill']},
+    n_starts=1,
+    random_state=0,
+)
+values, ratio = profile.profiles['kill']
+order = np.argsort(values)
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(values[order], ratio[order], marker='.')
+ax.axhline(np.exp(-3.84 / 2), color='grey', linestyle=':', label='95% threshold')
+ax.axvline(truth['kill'], color='black', linestyle='--', label='truth')
+ax.set_xlabel('kill (per cell per day)')
+ax.set_ylabel('likelihood ratio')
+ax.set_title(f"The killing is {profile.verdicts['kill']}")
+ax.legend()
 plt.show()
 
 # %%
@@ -133,7 +138,13 @@ plt.show()
 # known and passed to the factory of patients. Its tumour should follow the measured diameters, and its estimates
 # should lie near the truth.
 
-twins = calibrate_individuals(patient, {'patient': data}, FITTED, known={'patient': known}, random_state=0)
+twins = calibrate_individuals(
+    patient,
+    {'patient': data},
+    FITTED,
+    known={'patient': known},
+    random_state=0,
+)
 fitted = simulate(twins.calibrations['patient'].system, until=180.0, dt=1.0)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(days, noisy, 'o', color='black', label='measured')
