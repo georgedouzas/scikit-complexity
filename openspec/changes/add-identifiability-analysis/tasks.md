@@ -13,8 +13,8 @@
 
 ## 3. QSP system
 
-- [ ] 3.1 Add `ImmunoOncologyQspSystem` in `biology/oncology/_immuno_oncology_qsp.py` from `CompartmentElement`, `ReactionInteraction`, and `DosingInteraction`, and test the treatment and the antibody kinetics scenarios
-- [ ] 3.2 Add the inventory entry `immuno_oncology_qsp` with the source 2403.03335 and its primitives, and verify the inventory check passes
+- [x] 3.1 Add `ImmunoOncologyQspSystem` in `biology/oncology/_immuno_oncology_qsp.py` from `CompartmentElement`, `ReactionInteraction`, and `DosingInteraction`, and test the treatment and the antibody kinetics scenarios
+- [x] 3.2 Add the inventory entry `immuno_oncology_qsp` with the source 2403.03335 and its primitives, and verify the inventory check passes
 
 ## 4. Virtual populations
 

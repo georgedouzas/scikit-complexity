@@ -90,6 +90,7 @@ from ._immune_competition import (
     mean_activity,
     step_table,
 )
+from ._immuno_oncology_qsp import ImmunoOncologyQspSystem
 from ._immunotherapy import (
     AntiPD1CheckpointSystem,
     CheckpointTumourElement,
@@ -176,6 +177,7 @@ __all__: list[str] = [
     'HahnfeldtSystem',
     'IdetaIntermittentAndrogenSystem',
     'ImmuneCompetitionSystem',
+    'ImmunoOncologyQspSystem',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
     'IrradiationInteraction',
