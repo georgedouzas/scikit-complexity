@@ -24,6 +24,7 @@ MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 DRIVEN = np.asarray([[-0.1, 1.0], [-1.0, -0.2]])
 DRIVE = np.asarray([0.0, 1.0])
 STEP = 0.1
+NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 
 class LinearElement(Element):
@@ -111,9 +112,6 @@ def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return simulate(CompositeSystem(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
-
-
-NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 
 def _fit(source, **settings):

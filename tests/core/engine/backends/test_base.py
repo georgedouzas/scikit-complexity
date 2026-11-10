@@ -42,6 +42,8 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 from skcomplex.systems.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
 
+CUTOFF = 2.5
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -55,9 +57,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-CUTOFF = 2.5
 
 
 class LennardJonesInteraction(PairInteraction):

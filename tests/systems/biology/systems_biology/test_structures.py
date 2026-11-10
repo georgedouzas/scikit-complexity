@@ -19,8 +19,6 @@ from skcomplex.systems.biology.systems_biology import (
     write_structure,
 )
 
-# The curves T and O of Fig. 1.41 of Konieczny et al. (2023), read in pixels above the axis at 29 even steps across the
-# plot. One pixel is added to each, since the drawn curve T touches the axis, where a divergence has no value.
 FIGURE_THEORETICAL = np.array(
     [1, 2, 3, 4, 4, 10, 17, 30, 46, 74, 98, 129, 156, 176, 182, 176, 156, 128, 103, 72, 45, 30, 18, 10, 5, 4, 3, 2, 2],
     dtype=float,
@@ -197,7 +195,11 @@ def test_environment_factor_recovers_the_factor_of_a_profile():
 
 
 def test_curves_of_fig_1_41_give_the_values_the_book_prints_for_them(monkeypatch):
-    """Test that the curves of Fig. 1.41 give its `K = 0.5` and, within reading error, the `RD = 0.7` of Fig. 1.40."""
+    """Test that the curves of Fig. 1.41 give its `K = 0.5` and, within reading error, the `RD = 0.7` of Fig. 1.40.
+
+    The curves T and O of Fig. 1.41 of Konieczny et al. (2023) are read in pixels above the axis at 29 even steps across
+    the plot. One pixel is added to each, since the drawn curve T touches the axis, where a divergence has no value.
+    """
     module = importlib.import_module('skcomplex.systems.biology.systems_biology._fuzzy_oil_drop')
     monkeypatch.setattr(module, '_read_theoretical', lambda positions: FIGURE_THEORETICAL / FIGURE_THEORETICAL.sum())
 

@@ -222,6 +222,9 @@ def _modulus(s):
     return abs(s.z)
 
 
+ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order', _modulus)]
+
+
 def _total(s):
     """Return the sum of the two populations."""
     return s.a.n + s.b.n
@@ -275,9 +278,6 @@ def _perceived(s):
 def _smoothed_population(s):
     """Return the population smoothed over one unit of time."""
     return distributed_delay(s.n, conserved=False, time=1.0)
-
-
-ORDER = [ObservableSpec('z', _phase_vector, group='osc'), ObservableSpec('order', _modulus)]
 
 
 def _oscillators():

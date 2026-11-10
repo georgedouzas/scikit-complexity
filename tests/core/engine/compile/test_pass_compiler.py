@@ -94,6 +94,9 @@ from skcomplex.systems.physics.statistical_mechanics import ParticleSiteElement,
 from ....conftest import CallableGrowthInteraction, HoldingElement, NodeElement, _correlated, _summed
 from .conftest import PairElement
 
+CUTOFF = 2.5
+RECEIVED: dict[str, object] = {}
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -665,9 +668,6 @@ def _compile_time(n_links):
     return min(durations)
 
 
-CUTOFF = 2.5
-
-
 class LennardJonesInteraction(PairInteraction):
     """Lennard-Jones pair potential."""
 
@@ -807,9 +807,6 @@ def _lennard_jones_gas(n, seed=0):
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
-
-
-RECEIVED: dict[str, object] = {}
 
 
 class RecorderInteraction(Interaction):

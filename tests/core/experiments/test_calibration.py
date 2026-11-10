@@ -13,6 +13,8 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.markets import BrockHommesSystem
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
+LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
+
 
 def _logistic_data(noise: float = 0.01, seed: int = 0):
     """Return logistic data at r = 0.8 and K = 500 with relative Gaussian noise."""
@@ -141,9 +143,6 @@ def test_event_likelihood_recovers_the_rates_of_a_gillespie_run():
     assert result.estimates['beta'] == pytest.approx(0.0003, rel=0.1)
     assert result.estimates['gamma'] == pytest.approx(0.1, rel=0.1)
     assert result.r2 == pytest.approx(1.0)
-
-
-LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
 
 
 @pytest.mark.parametrize(

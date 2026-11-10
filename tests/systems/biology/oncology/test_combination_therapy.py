@@ -14,8 +14,6 @@ from skcomplex.systems.biology.oncology import (
 )
 
 PRECISE = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-
-
 STIFF = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 

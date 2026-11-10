@@ -93,7 +93,6 @@ AGENTS = {
     'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
     'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
-
 AGENT_ALIASES = {
     'choice-intensity': ('choice', 'intensity', 2.0),
     'choice-activity': ('choice', 'activity', 0.5),
@@ -106,6 +105,32 @@ SYMBOLIC_ALIASES = {
     'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
     'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
     'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
+}
+GRID_ONLY = {
+    'transfer': (
+        TransferInteraction(
+            'trade',
+            source='agents',
+            target='agents',
+            state='x',
+            amount=1.0,
+            pairing='cell',
+            form='agent',
+        ),
+        'pairing',
+    ),
+    'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
+    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
+    'life cycle': (BirthDeathInteraction('life', target='agents', placement='neighbor'), 'placement'),
+    'matching': (
+        MatchingInteraction(
+            'market',
+            requesters='agents',
+            providers='agents',
+            rule=PartnerSpec('neighbors'),
+        ),
+        'candidates',
+    ),
 }
 
 
@@ -297,34 +322,6 @@ def test_get_parameter_symbol_reads_a_renamed_parameter_in_the_symbolic_form(cas
     plain = _run_nodes(interaction(case, target='nodes', **{**arguments, parameter: value}), discrete)
     aliased = _get_aliased(interaction)(case, target='nodes', renamed=parameter, alias=value, **arguments)
     np.testing.assert_allclose(_run_nodes(aliased, discrete), plain)
-
-
-GRID_ONLY = {
-    'transfer': (
-        TransferInteraction(
-            'trade',
-            source='agents',
-            target='agents',
-            state='x',
-            amount=1.0,
-            pairing='cell',
-            form='agent',
-        ),
-        'pairing',
-    ),
-    'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
-    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
-    'life cycle': (BirthDeathInteraction('life', target='agents', placement='neighbor'), 'placement'),
-    'matching': (
-        MatchingInteraction(
-            'market',
-            requesters='agents',
-            providers='agents',
-            rule=PartnerSpec('neighbors'),
-        ),
-        'candidates',
-    ),
-}
 
 
 @pytest.mark.parametrize('case', list(GRID_ONLY))

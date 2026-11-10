@@ -19,6 +19,10 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+CLASSES = 9
+ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
+PROFILE = np.array([0.05, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05, 0.03, 0.02])
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -32,11 +36,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-CLASSES = 9
-ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
-PROFILE = np.array([0.05, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05, 0.03, 0.02])
 
 
 class RecorderElement(Element):

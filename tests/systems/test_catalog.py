@@ -30,6 +30,21 @@ from skcomplex.systems.physics.active_matter import ActiveGelsSystem
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
+CONFORMANCE_FRAMES = 10
+SLOW = {'ActiveGelsSystem', 'CocoaSystem', 'HigherOrderRandomLotkaVolterraSystem'}
+FIELDS = [
+    'biology',
+    'chemistry',
+    'computer_science',
+    'economics',
+    'engineering',
+    'mathematics',
+    'physics',
+    'social',
+]
+PROBED_COLUMNS = 40
+UNFOLDED: tuple[str, ...] = ()
+
 
 def _undeclared_laws(system: CompositeSystem) -> list[str]:
     """Return the laws an interaction of a compiled system returned that its class does not list."""
@@ -112,25 +127,6 @@ def test_listing_rejects_a_system_class_without_suffix_or_with_computed_field(tm
     module.write_text("class PendulumSystem:\n    field = 'physics/' + 'mechanics'\n")
     with pytest.raises(RegistryError, match="defines the class variable 'field' with a value computed at run time"):
         _SystemClasses(tmp_path).get_classes()
-
-
-CONFORMANCE_FRAMES = 10
-SLOW = {'ActiveGelsSystem', 'CocoaSystem', 'HigherOrderRandomLotkaVolterraSystem'}
-
-
-FIELDS = [
-    'biology',
-    'chemistry',
-    'computer_science',
-    'economics',
-    'engineering',
-    'mathematics',
-    'physics',
-    'social',
-]
-
-
-PROBED_COLUMNS = 40
 
 
 def _probe_pattern(problem, x, p, rng):
@@ -250,10 +246,6 @@ def test_seeded_runs_of_a_stochastic_system_repeat():
     assert not np.array_equal(counts, simulate(PoissonProcessSystem(), random_state=None).get_values('counters.count'))
 
 
-# Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.
-UNFOLDED: tuple[str, ...] = ()
-
-
 def _imported_modules(path: Path, field: Path) -> set[Path]:
     """Return the modules of a field that a module imports relatively, through a package's re-exports too."""
     return {module for module in _relative_imports(path) if module.is_relative_to(field) and module != path}
@@ -333,7 +325,11 @@ def _owners(field: Path) -> dict[Path, set[Path]]:
     ],
 )
 def test_no_module_serves_one_system(field):
-    """Test that no module of a field that defines no system serves only one system, which should hold it instead."""
+    """Test that no module of a field that defines no system serves only one system, which should hold it instead.
+
+    The fields of `UNFOLDED` still have component modules that are not folded into their systems, so they are expected
+    to fail. The change that folds a field removes it from there.
+    """
     root = Path(str(files('skcomplex.systems'))) / field
     found = [
         f'{module.relative_to(root)} -> {next(iter(systems)).relative_to(root)}'

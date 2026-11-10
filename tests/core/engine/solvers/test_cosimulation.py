@@ -27,6 +27,8 @@ from skcomplex.systems.biology.ecology import PredationInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.economics.resources import HarvestingSystem
 
+REDUCTIONS = {'sum': total, 'mean': mean, 'max': maximum}
+
 
 class BreederElement(Element):
     """Agent that creates one offspring every step."""
@@ -62,9 +64,6 @@ class IdleElement(Element):
     def observe(self, agent, system):
         """Record the fertility of the soil at the last synchronisation point."""
         agent.seen = system.inputs['land/soil.x']
-
-
-REDUCTIONS = {'sum': total, 'mean': mean, 'max': maximum}
 
 
 class CountingInteraction(Interaction):

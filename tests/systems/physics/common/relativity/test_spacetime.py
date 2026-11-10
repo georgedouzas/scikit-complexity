@@ -16,6 +16,9 @@ from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.systems.general.elements import PointElement
 from skcomplex.systems.physics.common.relativity import GeodesicInteraction, SpacetimeSpace
 
+ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
+
+
 pytest.importorskip('einsteinpy')
 
 t, r, theta, phi, M = SR.var('t r theta phi M')
@@ -106,8 +109,6 @@ def test_prepared_space_derives_again_only_when_its_source_changes():
     plane = SpacetimeSpace([[1, 0], [0, r**2]], ('r', 'phi')).prepare()
     assert plane.set_params(metric=[[1, 0], [0, 4 * r**2]]).prepare().christoffel_[0][1][1] == -4 * r
 
-
-ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
 
 r, phi, theta = SR.var('r phi theta')
 

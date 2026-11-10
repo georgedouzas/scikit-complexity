@@ -32,6 +32,9 @@ from skcomplex.systems.mathematics.dynamical_systems import FiniteTimeBlowUpSyst
 from skcomplex.systems.physics.heat import HeatDiffusionSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
+STIFF_SIZE = 4000
+SIZE = 400
+
 
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
@@ -327,9 +330,6 @@ def test_default_solver_steps_large_diffusive_fields_explicitly():
     assert _stepped_solver(problem, 4, 2.0).method_ == 'RK45'
 
 
-STIFF_SIZE = 4000
-
-
 def _stiff_fisher_problem():
     """Return Fisher-KPP on 4000 points whose diffusion makes the largest eigenvalue about 1600."""
     return (
@@ -444,9 +444,6 @@ def _hutchinson_run(jacobian):
     )
     state = trajectory.states[-1]
     return time.perf_counter() - start, state
-
-
-SIZE = 400
 
 
 class LevelInteraction(Interaction):

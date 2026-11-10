@@ -32,6 +32,7 @@ from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateS
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
+HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
 
 
 class OscillatorElement(Element):
@@ -607,9 +608,6 @@ def test_coupling_map_form_runs_in_its_phase():
     coupling = CouplingInteraction('coupling', target='cells', form='map', mode='group', phase='play')
     laws = coupling.prepare().run(SimpleNamespace(source=source, target=target)).laws_
     assert [law.phase for law in laws] == ['play']
-
-
-HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
 
 
 def _hyperedge_drift(coupling, theta, backend, space=None):

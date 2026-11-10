@@ -19,6 +19,7 @@ from skcomplex.core.errors import BackendWarning, ValidationError
 from skcomplex.core.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 STEPS = 2000
+MATRIX = [[0.9, 0.1], [0.4, 0.6]]
 
 
 class BaseCountElement(Element):
@@ -235,9 +236,6 @@ def _chain(matrix, backend=None):
         simulate(system, until=STEPS, backend=backend or NumpyBackend(), random_state=7).get_values('a.x'),
         dtype=int,
     )
-
-
-MATRIX = [[0.9, 0.1], [0.4, 0.6]]
 
 
 def test_transition_function_matches_the_frequencies_of_the_symbolic_matrix():

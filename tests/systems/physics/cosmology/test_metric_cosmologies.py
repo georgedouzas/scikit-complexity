@@ -27,6 +27,7 @@ from skcomplex.systems.physics.cosmology import (
 from ..conftest import _run, _series
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-12)
+ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
 @pytest.mark.parametrize(
@@ -101,8 +102,6 @@ def test_oppenheimer_snyder_collapse_rejects_a_ball_inside_its_horizon():
     with pytest.raises(ValidationError, match='inside the Schwarzschild radius'):
         OppenheimerSnyderCollapseSystem(radius=1.5).prepare()
 
-
-ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 t, r, theta, phi, x, y, z = SR.var('t r theta phi x y z')
 

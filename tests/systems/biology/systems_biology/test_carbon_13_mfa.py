@@ -18,39 +18,6 @@ from skcomplex.systems.biology.systems_biology import (
 )
 
 TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
-
-
-def test_estimation_recovers_the_split_of_alpha_ketoglutarate():
-    """Test the estimated split, that every interval holds its true value, and that the test accepts the fit."""
-    analysis = tca_labelling_analysis(noise=0.002, random_state=0)(Carbon13MFASystem().prepare().system_)
-    assert analysis.fluxes['v3'] == pytest.approx(50, abs=2)
-    assert analysis.fluxes['v4'] == pytest.approx(50, abs=2)
-    assert analysis.accepted
-    for name, value in TRUE.items():
-        low, high = analysis.intervals[name]
-        assert low - 1e-6 <= value <= high + 1e-6, name
-
-
-def test_simulation_gives_the_published_pattern():
-    """Test the glutamate of the true fluxes and the tracer of Antoniewicz et al. (2007)."""
-    analysis = tca_labelling_analysis('simulation')(Carbon13MFASystem().prepare().system_)
-    found = analysis.distributions['published']['Glu']
-    np.testing.assert_allclose(found, [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039], atol=5e-5)
-
-
-def test_origins_of_a_valid_map():
-    """Test that the map records where atoms of citrate come from."""
-    atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')])
-    assert atoms.origins[('Cit', 1)] == ('OAC', 4)
-    assert atoms.origins[('Cit', 5)] == ('AcCoA', 1)
-
-
-def test_check_names_an_unbalanced_letter():
-    """Test that a product letter no reactant carries raises an error that names the reaction and the letter."""
-    with pytest.raises(ValidationError, match=r"reaction v1.*'z'"):
-        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')])._check()
-
-
 BOUND = 300.0
 PUBLISHED = [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]
 ATOMS = (
@@ -87,6 +54,37 @@ ASPARTATE = TracerSpec('Asp', {'0000': 1.0})
 PUBLISHED_TRACER = (TracerSpec('AcCoA', {'00': 0.5, '01': 0.25, '11': 0.25}), ASPARTATE)
 FIRST_TRACER = (TracerSpec('AcCoA', {'00': 0.5, '10': 0.5}), ASPARTATE)
 SECOND_TRACER = (TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}), ASPARTATE)
+
+
+def test_estimation_recovers_the_split_of_alpha_ketoglutarate():
+    """Test the estimated split, that every interval holds its true value, and that the test accepts the fit."""
+    analysis = tca_labelling_analysis(noise=0.002, random_state=0)(Carbon13MFASystem().prepare().system_)
+    assert analysis.fluxes['v3'] == pytest.approx(50, abs=2)
+    assert analysis.fluxes['v4'] == pytest.approx(50, abs=2)
+    assert analysis.accepted
+    for name, value in TRUE.items():
+        low, high = analysis.intervals[name]
+        assert low - 1e-6 <= value <= high + 1e-6, name
+
+
+def test_simulation_gives_the_published_pattern():
+    """Test the glutamate of the true fluxes and the tracer of Antoniewicz et al. (2007)."""
+    analysis = tca_labelling_analysis('simulation')(Carbon13MFASystem().prepare().system_)
+    found = analysis.distributions['published']['Glu']
+    np.testing.assert_allclose(found, [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039], atol=5e-5)
+
+
+def test_origins_of_a_valid_map():
+    """Test that the map records where atoms of citrate come from."""
+    atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')])
+    assert atoms.origins[('Cit', 1)] == ('OAC', 4)
+    assert atoms.origins[('Cit', 5)] == ('AcCoA', 1)
+
+
+def test_check_names_an_unbalanced_letter():
+    """Test that a product letter no reactant carries raises an error that names the reaction and the letter."""
+    with pytest.raises(ValidationError, match=r"reaction v1.*'z'"):
+        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')])._check()
 
 
 def _system():

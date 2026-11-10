@@ -16,6 +16,8 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
+CUTOFF = 2.5
+
 
 class BallElement(Element):
     """Point of a continuous space, with a vector state `x` of order 2."""
@@ -35,9 +37,6 @@ class BallElement(Element):
         """Set `default_visual_`, points at the values of `x`."""
         super()._prepare(context)
         self.default_visual_ = VisualSpec('points', {'position': 'x'})
-
-
-CUTOFF = 2.5
 
 
 class SoftSphereInteraction(PairInteraction):

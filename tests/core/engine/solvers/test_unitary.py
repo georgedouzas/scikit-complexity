@@ -21,8 +21,6 @@ from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
 from ....conftest import SpinElement
 
 OMEGA = 2.0
-
-
 GAMMA = 0.5
 
 
@@ -105,12 +103,12 @@ def qubit_z(s):
     return local_operator(s.q.psi, 'z')
 
 
+Z = [ObservableSpec('z', qubit_z)]
+
+
 def total_z(s):
     """Return the total magnetisation of the chain."""
     return sum(local_operator(member.psi, 'z') for member in s.chain)
-
-
-Z = [ObservableSpec('z', qubit_z)]
 
 
 MAGNETIZATION = [ObservableSpec('magnetization', total_z)]

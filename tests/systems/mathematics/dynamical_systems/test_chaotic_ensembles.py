@@ -14,14 +14,8 @@ from skcomplex.systems.mathematics.dynamical_systems import (
 )
 
 ENSEMBLE_SIZE = 10000
-
-
 BINS = 20
-
-
 STEPS = 200
-
-
 STANDARD_DEVIATIONS = 4
 
 

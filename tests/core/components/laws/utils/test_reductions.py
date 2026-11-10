@@ -56,6 +56,30 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+BACKENDS = (NumpyBackend(), NumbaBackend())
+GAMMA = 0.5
+CRITICAL = 2 * GAMMA
+RADIUS = 1.0
+PAIRWISE = {
+    'mean': lambda g: mean(sin(g.other.x - g.x), over=g),
+    'total': lambda g: total(g.other.x * g.x, over=g),
+    'selected-mean': lambda g: mean(g.other.x - g.x, over=g, where=g.other.x > g.x),
+    'count': lambda g: count(over=g, where=g.other.x > g.x),
+    'maximum': lambda g: maximum(cos(g.other.x - g.x), over=g),
+    'minimum': lambda g: minimum(g.other.x - g.x, over=g),
+}
+NETWORK = nx.gnp_random_graph(12, 0.3, seed=5)
+KEYED = {
+    'total': (lambda g: total(g.other.x, over=g, by='k'), np.sum),
+    'mean': (lambda g: mean(g.other.x, over=g, by='k'), np.mean),
+    'count': (lambda g: count(over=g, by='k'), np.size),
+    'circular_mean': (
+        lambda g: circular_mean(g.other.x, over=g, by='k'),
+        lambda shared: np.arctan2(np.sin(shared).sum(), np.cos(shared).sum()),
+    ),
+}
+HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
+
 
 @pytest.mark.parametrize(
     ('function', 'kind'),
@@ -119,11 +143,6 @@ def test_count_reduces_values():
     """Test that the reduction table counts members, also none."""
     assert ReductionKernel._reduce_values([1.0, 2.0], 'count') == 2.0
     assert ReductionKernel._reduce_values([], 'count') == 0.0
-
-
-BACKENDS = (NumpyBackend(), NumbaBackend())
-GAMMA = 0.5
-CRITICAL = 2 * GAMMA
 
 
 class ReducingElement(Element):
@@ -649,9 +668,6 @@ def test_kuramoto_agrees_across_backends():
     )
 
 
-RADIUS = 1.0
-
-
 class MoverElement(Element):
     """Mover element."""
 
@@ -751,16 +767,6 @@ class PairwiseInteraction(Interaction):
         return [RateLaw(s.group.x, self.reduction(s.group))]
 
 
-PAIRWISE = {
-    'mean': lambda g: mean(sin(g.other.x - g.x), over=g),
-    'total': lambda g: total(g.other.x * g.x, over=g),
-    'selected-mean': lambda g: mean(g.other.x - g.x, over=g, where=g.other.x > g.x),
-    'count': lambda g: count(over=g, where=g.other.x > g.x),
-    'maximum': lambda g: maximum(cos(g.other.x - g.x), over=g),
-    'minimum': lambda g: minimum(g.other.x - g.x, over=g),
-}
-
-
 def _pairwise_expected(name, values):
     """Return the reduction of every member over the differences to every member of a group."""
     differences = values[None, :] - values[:, None]
@@ -847,9 +853,6 @@ class ImitatingElement(Element):
         return [UpdateLaw(s.out, neighbors(s.other.strategy, reduce='argmax', weight=s.other.payoff))]
 
 
-NETWORK = nx.gnp_random_graph(12, 0.3, seed=5)
-
-
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 @pytest.mark.parametrize(
     ('space', 'graph'),
@@ -896,17 +899,6 @@ def _keyed_drift(values, keys, reduction, backend):
     )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
-
-
-KEYED = {
-    'total': (lambda g: total(g.other.x, over=g, by='k'), np.sum),
-    'mean': (lambda g: mean(g.other.x, over=g, by='k'), np.mean),
-    'count': (lambda g: count(over=g, by='k'), np.size),
-    'circular_mean': (
-        lambda g: circular_mean(g.other.x, over=g, by='k'),
-        lambda shared: np.arctan2(np.sin(shared).sum(), np.cos(shared).sum()),
-    ),
-}
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
@@ -978,9 +970,6 @@ def test_minimum_of_several_expressions_takes_no_group():
     x = var('x')
     with pytest.raises(ValidationError, match='member by member'):
         minimum(x, 2 * x, where=x > 0)
-
-
-HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
 
 
 class AroundElement(Element):

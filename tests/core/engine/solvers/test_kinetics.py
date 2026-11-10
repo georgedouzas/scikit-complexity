@@ -19,6 +19,10 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.experiments import ensemble
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+CLASSES = 9
+HORIZON = 2.0
+PARTICLES = (1_000, 10_000, 100_000)
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -32,11 +36,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-CLASSES = 9
-HORIZON = 2.0
-PARTICLES = (1_000, 10_000, 100_000)
 
 
 def _table():

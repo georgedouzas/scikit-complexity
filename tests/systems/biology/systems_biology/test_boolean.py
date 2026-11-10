@@ -28,6 +28,9 @@ YEAST_RECORDED = (
     '00001100100',
     *('00001000100',) * 4,
 )
+SIZE_NAMES = ('n_nodes', 'n_genes', 'size', 'n')
+CONNECTIVITY_NAMES = ('k', 'K', 'connectivity', 'n_inputs')
+N_NODES = 200
 
 
 def _damage(k, seed, n_nodes=100, steps=40):
@@ -44,15 +47,6 @@ def _damage(k, seed, n_nodes=100, steps=40):
             state = problem.update(float(step), state, problem.initial_parameters)
         finals.append(state)
     return float(np.abs(finals[0] - finals[1]).sum())
-
-
-SIZE_NAMES = ('n_nodes', 'n_genes', 'size', 'n')
-
-
-CONNECTIVITY_NAMES = ('k', 'K', 'connectivity', 'n_inputs')
-
-
-N_NODES = 200
 
 
 def _damage_share(factory, connectivity, seed):

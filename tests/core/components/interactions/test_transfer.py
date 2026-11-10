@@ -25,6 +25,14 @@ from skcomplex.core.specs import (
     VisualSpec,
 )
 
+NAMED_SHORTHANDS = {
+    'random': PartnerSpec('all', 'uniform'),
+    'pairs': PartnerSpec('all', 'uniform', capacity=1),
+    'neighbors': PartnerSpec('neighbors', 'all'),
+    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
+    'cell': PartnerSpec('cell', 'all'),
+}
+
 
 class StockElement(Element):
     """Holder of a level with a capacity and a clock."""
@@ -838,15 +846,6 @@ def test_prepare_names_the_radius_for_grid_candidates_in_a_continuous_space():
     )
     with pytest.raises(SpaceError, match='radius'):
         give.prepare(ContinuousSpace(extent=(5.0, 5.0)))
-
-
-NAMED_SHORTHANDS = {
-    'random': PartnerSpec('all', 'uniform'),
-    'pairs': PartnerSpec('all', 'uniform', capacity=1),
-    'neighbors': PartnerSpec('neighbors', 'all'),
-    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
-    'cell': PartnerSpec('cell', 'all'),
-}
 
 
 def _shorthand_levels(pairing: object, seed: int) -> list[float]:

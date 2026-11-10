@@ -8,17 +8,9 @@ from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
 
 STEPS = 51_000
-
-
 TRANSIENT = 3_000
-
-
 SEED = 1
-
-
 SWEEP = (0.05, 0.1, 0.2, 0.3, 0.5, 1.0)
-
-
 SWEEP_STEPS = 3_000
 
 

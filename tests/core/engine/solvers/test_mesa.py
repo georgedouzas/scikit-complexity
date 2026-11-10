@@ -36,6 +36,10 @@ from skcomplex.core.specs import (
 from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 
+SEEN: list[object] = []
+UNDECLARED: list[bool] = []
+LOG: list[tuple[str, int]] = []
+
 
 class BreederElement(Element):
     """Agent that creates one offspring every step."""
@@ -412,9 +416,6 @@ def test_mesa_validates_systems_against_its_support():
     assert PassCompiler(solver=MesaSolver()).prepare(_money_system()).report_.ok
 
 
-SEEN: list[object] = []
-
-
 class CattleElement(Element):
     """Agent that stays where it is and that a census interaction counts."""
 
@@ -693,9 +694,6 @@ class ForagerElement(Element):
             UNDECLARED.append(True)
 
 
-UNDECLARED: list[bool] = []
-
-
 def test_agent_views_read_and_set_states_as_properties():
     """Test that a rule sets a state through its view and that an undeclared state raises Python's own error."""
     UNDECLARED.clear()
@@ -829,9 +827,6 @@ class TickerElement(Element):
     def tick(self, agent, system):
         """Log the agent with the element tag."""
         LOG.append(('element', agent.id))
-
-
-LOG: list[tuple[str, int]] = []
 
 
 class EchoInteraction(Interaction):

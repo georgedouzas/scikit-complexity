@@ -109,7 +109,7 @@ tests and the catalog tests pass with the field added to the checked packages.
 
 ## 8. Tests and documents
 
-- [ ] 8.1 Apply the constants script to `tests`, moving the constants that sit below a definition and closing the gaps.
+- [x] 8.1 Apply the constants script to `tests`, moving the constants that sit below a definition and closing the gaps.
   Verify the two constants tests pass with `tests` added to the checked folders and the suite passes unchanged.
 - [x] 8.2 Apply the constants script to `docs`: the gallery examples, `gallery_tools`, `gallery_conf.py`,
   `gallery_hooks.py`, the generators, and `inventory_checks.py`, without `docs/generated`. Rename their private

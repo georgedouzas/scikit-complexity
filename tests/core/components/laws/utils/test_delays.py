@@ -15,6 +15,15 @@ from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
+STEP_RESPONSES = {
+    'material1': (lambda value, time: distributed_delay(value, time, 1), lambda t: 1 - np.exp(-t / 2)),
+    'material3': (lambda value, time: distributed_delay(value, time, 3), lambda t: stats.gamma(3, scale=2 / 3).cdf(t)),
+    'smoothing1': (
+        lambda value, time: distributed_delay(value, time, conserved=False),
+        lambda t: 1 - np.exp(-t / 2),
+    ),
+}
+
 
 class DelayedElement(Element):
     """Output stock that integrates a delay of a unit step at time 1 with delay time 6."""
@@ -76,16 +85,6 @@ class StepResponseElement(Element):
     def _get_laws(self, s):
         """Return the integration of the delayed step."""
         return [RateLaw(s.out, self.delay(step(s.t, 1.0), 2.0))]
-
-
-STEP_RESPONSES = {
-    'material1': (lambda value, time: distributed_delay(value, time, 1), lambda t: 1 - np.exp(-t / 2)),
-    'material3': (lambda value, time: distributed_delay(value, time, 3), lambda t: stats.gamma(3, scale=2 / 3).cdf(t)),
-    'smoothing1': (
-        lambda value, time: distributed_delay(value, time, conserved=False),
-        lambda t: 1 - np.exp(-t / 2),
-    ),
-}
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])

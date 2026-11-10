@@ -20,6 +20,8 @@ from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
+CLASSES = 9
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -33,9 +35,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-CLASSES = 9
 
 
 def _exchange_table(size, share=0.5):

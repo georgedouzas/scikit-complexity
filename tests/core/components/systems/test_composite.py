@@ -33,6 +33,12 @@ from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
+PAULI = HilbertSpec(
+    2,
+    {'x': (np.array([[0.0, 1.0], [1.0, 0.0]]), True), 'z': (np.diag([1.0, -1.0]), True)},
+    basis={'up': 0, 'down': 1},
+)
+
 
 class BallElement(Element):
     """Point of a continuous space, with a vector state `x` of order 2."""
@@ -52,13 +58,6 @@ class BallElement(Element):
         """Set `default_visual_`, points at the values of `x`."""
         super()._prepare(context)
         self.default_visual_ = VisualSpec('points', {'position': 'x'})
-
-
-PAULI = HilbertSpec(
-    2,
-    {'x': (np.array([[0.0, 1.0], [1.0, 0.0]]), True), 'z': (np.diag([1.0, -1.0]), True)},
-    basis={'up': 0, 'down': 1},
-)
 
 
 class StockElement(Element):

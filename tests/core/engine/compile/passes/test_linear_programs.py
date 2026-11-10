@@ -20,11 +20,13 @@ from skcomplex.core.errors import InfeasibleError, ValidationError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, RoleSpec, RunStateSpec, StateSpec
 from skcomplex.core.types import FormKind
 
+TOY_NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
+TOY_REVERSIBLE = ('v4', 'v6', 'b2')
+
+
 Flux = Annotated[float, StateSpec(algebraic=True)]
 Amount = Annotated[float, StateSpec()]
 Number = Annotated[float, ParameterSpec()]
-TOY_NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
-TOY_REVERSIBLE = ('v4', 'v6', 'b2')
 
 
 class ToyNetworkElement(Element):

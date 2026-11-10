@@ -17,6 +17,8 @@ from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
+CLASSES = np.arange(9.0)
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -30,9 +32,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-CLASSES = np.arange(9.0)
 
 
 class TraderElement(Element):

@@ -41,6 +41,21 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
 
+STORED_GEOMETRIC_BROWNIAN_MOTION = [
+    100.0,
+    106.84701129798354,
+    108.17826266273447,
+    105.65734164064845,
+    110.49449907498547,
+    109.94445714673115,
+    110.82007444147138,
+    114.5517667447161,
+    111.32038165744878,
+    109.67041359152822,
+    108.34081429617326,
+]
+HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -153,21 +168,6 @@ class HeaterElement(Element):
     def _get_laws(self, s):
         """Return the laws of the heater element."""
         return [RateLaw(s.T, s.power - s.T)]
-
-
-STORED_GEOMETRIC_BROWNIAN_MOTION = [
-    100.0,
-    106.84701129798354,
-    108.17826266273447,
-    105.65734164064845,
-    110.49449907498547,
-    109.94445714673115,
-    110.82007444147138,
-    114.5517667447161,
-    111.32038165744878,
-    109.67041359152822,
-    108.34081429617326,
-]
 
 
 def test_simulation_updates_one_per_entry_weight_live():
@@ -503,9 +503,6 @@ def test_trajectory_values_adaptive_shaped_parameter_of_an_interaction(backend):
     trajectory = simulate(system, until=1.0, dt=0.1, backend=backend())
     assert trajectory.get_values('input.W').shape == (11, 4, 2)
     np.testing.assert_allclose(trajectory.get_values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)
-
-
-HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 
 
 class PersonElement(Element):

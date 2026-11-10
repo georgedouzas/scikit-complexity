@@ -16,7 +16,6 @@ from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError, EnumerationLimitError
 from skcomplex.core.specs import LinearObjectiveSpec, ParameterSpec, StateSpec
 
-Flux = Annotated[float, StateSpec(algebraic=True)]
 NAMES = ('v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'b1', 'b2', 'vbio')
 REVERSIBLE = ('v4', 'v6', 'b2')
 MATRIX = np.array(
@@ -32,6 +31,9 @@ MATRIX = np.array(
     ],
     dtype=float,
 )
+
+
+Flux = Annotated[float, StateSpec(algebraic=True)]
 
 
 class ToyElement(Element):

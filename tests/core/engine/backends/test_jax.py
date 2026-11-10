@@ -23,6 +23,8 @@ from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated, _weighted
 
+KEY = jax.random.PRNGKey(0)
+
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
@@ -62,9 +64,6 @@ def test_jax_rejects_a_callable_law():
     )
     with pytest.raises(BackendError, match='Python function'):
         PassCompiler(backend=JaxBackend()).prepare(system).run()
-
-
-KEY = jax.random.PRNGKey(0)
 
 
 def _relaxed_run(size, temperature=None, hard=False, kind='bernoulli', key=KEY):

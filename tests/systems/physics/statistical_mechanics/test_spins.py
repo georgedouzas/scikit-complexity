@@ -13,6 +13,8 @@ from skcomplex.systems.physics.statistical_mechanics._spins import PottsSampling
 from ..common.spins.conftest import _run
 from .conftest import magnetization
 
+CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
+
 
 def test_potts_spins_take_only_their_states_and_order_cold():
     """Test that Potts spins stay within their `q` states and order into one state at a low temperature."""
@@ -27,9 +29,6 @@ def test_aligned_xy_spins_stay_aligned_when_cold():
     """Test that aligned planar spins keep a large magnetization at a low temperature."""
     angles = _run(XYSamplingInteraction('xy', target='sites', width=0.5), 'theta', {'temperature': 0.1})
     assert np.abs(np.exp(1j * angles[-1]).mean()) > 0.9
-
-
-CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
 
 
 class Images:

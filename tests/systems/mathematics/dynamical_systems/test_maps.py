@@ -26,8 +26,6 @@ from skcomplex.systems.mathematics.dynamical_systems import (
 from ..conftest import _run
 
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
-
-
 CRITICAL_KICK = 0.971635
 
 

@@ -21,6 +21,9 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import AxisSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 
+N_STATES = 5
+DAM_SPEED_UP = 15.0
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -34,10 +37,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-N_STATES = 5
-DAM_SPEED_UP = 15.0
 
 
 class CyclicElement(Element):

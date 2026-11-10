@@ -24,11 +24,7 @@ from skcomplex.core.errors import IncompatibleLawsError, ParameterError, Validat
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
-
-
 EMISSION = [[0.7, 0.3], [0.2, 0.8]]
-
-
 BINARY = FiniteEnumeratedSet([0, 1])
 
 

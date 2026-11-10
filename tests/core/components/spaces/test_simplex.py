@@ -21,6 +21,8 @@ from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
 
+SIZE = 12
+
 
 class AmountElement(Element):
     """Element that holds one nonnegative scalar `x`, an amount."""
@@ -34,9 +36,6 @@ class AmountElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
-
-
-SIZE = 12
 
 
 def _simplex(size: int = SIZE) -> SimplexSpace:

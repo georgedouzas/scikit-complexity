@@ -28,8 +28,6 @@ ECOLOGY = {
     'NeutralMacroecologySystem',
     'StochasticPredatorPreySystem',
 }
-
-
 EPIDEMIOLOGY = {
     'SISSystem',
     'SIRSSystem',
@@ -40,8 +38,6 @@ EPIDEMIOLOGY = {
     'MetapopulationSystem',
     'DelayedSIRSSystem',
 }
-
-
 EVOLUTION = {
     'ReplicatorDynamicsSystem',
     'MoranProcessSystem',
