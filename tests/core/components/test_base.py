@@ -118,25 +118,6 @@ FAMILIES = (
     *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
     'skcomplex.systems.general',
 )
-REWRITTEN: tuple[str, ...] = (
-    'skcomplex.core.analysis',
-    'skcomplex.core.base',
-    'skcomplex.core.components',
-    'skcomplex.core.engine._utils',
-    'skcomplex.core.engine.backends',
-    'skcomplex.core.engine.compile',
-    'skcomplex.core.engine.problems',
-    'skcomplex.core.engine.runtime',
-    'skcomplex.core.engine.solvers',
-    'skcomplex.core.engine.translators',
-    'skcomplex.core.engine.types',
-    'skcomplex.core.engine.viz',
-    'skcomplex.core.errors',
-    'skcomplex.core.experiments',
-    'skcomplex.core.specs',
-    'skcomplex.core.types',
-    'skcomplex.systems.general',
-)
 
 
 class DoublingPart(BasePart):
@@ -262,17 +243,12 @@ def _walk_docstrings(node, name, *, public):
                 yield from _walk_docstrings(child, f'{name}.{child.name}', public=is_public)
 
 
-def _rewritten(name):
-    """Return whether a dotted name lies in a package whose docstrings are rewritten."""
-    return any(name == prefix or name.startswith(f'{prefix}.') for prefix in REWRITTEN)
-
-
 def _public_definitions(kind):
-    """Return the dotted name, the name, and the docstring of every top-level public class or function rewritten."""
+    """Return the dotted name, the name, and the docstring of every top-level public class or function."""
     for module, tree in _core_modules():
         for node in tree.body:
             docstring = ast.get_docstring(node) if isinstance(node, kind) else None
-            if docstring and not node.name.startswith('_') and _rewritten(module):
+            if docstring and not node.name.startswith('_'):
                 yield f'{module}.{node.name}', node.name, docstring
 
 
@@ -450,7 +426,7 @@ def test_docstrings_read_naturally():
 
 
 def test_class_summaries_name_their_kind():
-    """Test that a rewritten public class names its kind after an article, and no summary holds a field term."""
+    """Test that a public class names its kind after an article, and no summary holds a field term."""
     found = {}
     for name, short, docstring in _public_definitions(ast.ClassDef):
         summary = docstring.splitlines()[0]
@@ -466,17 +442,13 @@ def test_class_summaries_name_their_kind():
 
 
 def test_docstrings_say_main_public_methods():
-    """Test that no rewritten docstring calls the main public methods verbs."""
-    found = [
-        name
-        for name, docstring, _ in _docstrings()
-        if _rewritten(name) and re.search(r'\bverbs?\b', docstring, flags=re.IGNORECASE)
-    ]
+    """Test that no docstring calls the main public methods verbs."""
+    found = [name for name, docstring, _ in _docstrings() if re.search(r'\bverbs?\b', docstring, flags=re.IGNORECASE)]
     assert found == [], found
 
 
 def test_components_compare_and_name_uses():
-    """Test that every rewritten public class of a family compares itself with its nearest part and names its uses."""
+    """Test that every public class of a family compares itself with its nearest part and names its uses."""
     found = []
     for name, _, docstring in _public_definitions(ast.ClassDef):
         if not name.startswith(FAMILIES):
