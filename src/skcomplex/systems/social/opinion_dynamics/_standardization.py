@@ -164,15 +164,15 @@ class StandardizationInteraction(ChoiceInteraction):
         """
         counts = system.get_composition('target', 'configuration')
         up, down = counts.get(0.0, 0), counts.get(1.0, 0)
-        spin, new = float(StandardizationInteraction._spins_of(np.array(agent.configuration))), float(
-            StandardizationInteraction._spins_of(np.array(option)),
+        spin, new = float(StandardizationInteraction._get_spins(np.array(agent.configuration))), float(
+            StandardizationInteraction._get_spins(np.array(option)),
         )
         standardizing = system.get_parameter('K') * abs(new) * (up + down - abs(spin))
         ordering = system.get_parameter('J') * new * (up - down - spin)
         return (standardizing + ordering) / sum(counts.values())
 
     @staticmethod
-    def _spins_of(configurations: Array) -> Array:
+    def _get_spins(configurations: Array) -> Array:
         """Return the spin of each configuration.
 
         It is 1 for configuration 0, -1 for configuration 1, and 0 otherwise.
@@ -261,9 +261,9 @@ class StandardizedAgentsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _spin_of(agent: ComplexAgentView, system: SystemViewProtocol) -> float:
+    def _get_spin(agent: ComplexAgentView, system: SystemViewProtocol) -> float:
         """Return the spin of the configuration of an agent."""
-        return float(StandardizationInteraction._spins_of(np.array(agent.configuration)))
+        return float(StandardizationInteraction._get_spins(np.array(agent.configuration)))
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
@@ -284,7 +284,7 @@ class StandardizedAgentsSystem(BaseSystem):
                     size=self.agents,
                     values={
                         'configuration': configurations,
-                        'spin': StandardizationInteraction._spins_of(configurations),
+                        'spin': StandardizationInteraction._get_spins(configurations),
                     },
                 ),
             ],
@@ -302,7 +302,7 @@ class StandardizedAgentsSystem(BaseSystem):
                     'spin',
                     target='agents',
                     state='spin',
-                    function=self._spin_of,
+                    function=self._get_spin,
                     schedule='member',
                     form='agent',
                     phase=PHASE,

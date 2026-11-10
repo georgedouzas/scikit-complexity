@@ -179,7 +179,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=DIAMOND, stochastic=True)
 
     @staticmethod
-    def years(
+    def get_years(
         own: Array,
         other: Array,
         *,
@@ -222,7 +222,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.systems.social.cooperation import IteratedDilemmaInteraction
-            >>> years = IteratedDilemmaInteraction.years(
+            >>> years = IteratedDilemmaInteraction.get_years(
             ...     np.arange(11.0), np.full(11, 6.0), rounds=10, reward=0.5, sucker=1.5, temptation=0.0, punishment=1.0
             ... )
             >>> int(np.argmin(years))
@@ -256,7 +256,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
             own = cells[center]
             return sum(
                 (
-                    IteratedDilemmaInteraction.years(
+                    IteratedDilemmaInteraction.get_years(
                         own,
                         cells[center[0] + dx, center[1] + dy],
                         punishment=punishment,

@@ -291,7 +291,7 @@ class InsiderSabotageSystem(BaseSystem):
         return float(agent.feeling if agent.predisposed and agent.days == 0 else agent.first)
 
     @staticmethod
-    def _disgruntle(agent: EmployeeView, system: SystemViewProtocol) -> float:
+    def _get_disgruntlement(agent: EmployeeView, system: SystemViewProtocol) -> float:
         """Return the disgruntlement.
 
         It is the shortfall of today's feeling from the expectation of a predisposed one.
@@ -326,7 +326,7 @@ class InsiderSabotageSystem(BaseSystem):
         return float(weighted / weights)
 
     @staticmethod
-    def _stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
+    def _get_stress(agent: EmployeeView, system: SystemViewProtocol) -> float:
         """Return the change of stress towards its level.
 
         The level is that in sight of a supervisor, an agent of another group, or out.
@@ -383,11 +383,11 @@ class InsiderSabotageSystem(BaseSystem):
         maps = [
             ('feeling', self._feel, 'replace'),
             ('first', self._remember_first, 'replace'),
-            ('disgruntlement', self._disgruntle, 'replace'),
+            ('disgruntlement', self._get_disgruntlement, 'replace'),
             ('days', self._count_day, 'increment'),
             ('mean_feeling', self._average, 'increment'),
             ('expectation', self._expect, 'replace'),
-            ('stress', self._stress, 'increment'),
+            ('stress', self._get_stress, 'increment'),
             ('skill', self._learn, 'increment'),
         ]
         work = [

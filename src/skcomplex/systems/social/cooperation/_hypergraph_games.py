@@ -299,7 +299,12 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _hypergraph(n_nodes: int, sizes: Sequence[int], hyperdegree: float, rng: np.random.Generator) -> xgi.Hypergraph:
+    def _get_hypergraph(
+        n_nodes: int,
+        sizes: Sequence[int],
+        hyperdegree: float,
+        rng: np.random.Generator,
+    ) -> xgi.Hypergraph:
         """Return a hypergraph of hyperedges of random members.
 
         On average a node has `hyperdegree` hyperedges of every size around it.
@@ -314,7 +319,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
-        hypergraph = self._hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
+        hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
         players = GroupElement(
@@ -438,7 +443,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
+    def _get_triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
         """Return a network grown from a complete graph on five nodes.
 
         Each new node joins both ends of a link.
@@ -456,7 +461,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
         rng = np.random.default_rng(self.seed)
-        graph, triangles = self._triangle_attachment(self.n_nodes, rng)
+        graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices
         hyperedges: list[tuple[int, ...]] = []
         for triangle, simplex in zip(triangles, filled, strict=True):

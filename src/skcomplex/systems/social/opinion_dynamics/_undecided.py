@@ -307,22 +307,22 @@ class UndecidedFlowsSystem(BaseSystem):
         self.driven = driven
 
     @staticmethod
-    def _joining_against(s: SimpleNamespace) -> Expression:
+    def _get_joining_against(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents against, `omega C`."""
         return s.source.omega * s.source.undecided
 
     @staticmethod
-    def _joining_support(s: SimpleNamespace) -> Expression:
+    def _get_joining_support(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents for, `omega C`."""
         return s.source.omega * s.source.undecided
 
     @staticmethod
-    def _doubting_against(s: SimpleNamespace) -> Expression:
+    def _get_doubting_against(s: SimpleNamespace) -> Expression:
         """Return the flow of agents against into the undecided, `gamma A C^drive`."""
         return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
 
     @staticmethod
-    def _doubting_support(s: SimpleNamespace) -> Expression:
+    def _get_doubting_support(s: SimpleNamespace) -> Expression:
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
         return s.source.eta * s.source.support * s.source.undecided**s.source.drive
 
@@ -342,12 +342,12 @@ class UndecidedFlowsSystem(BaseSystem):
             target='population',
             state='undecided',
             into='against',
-            amount=self._joining_against,
+            amount=self._get_joining_against,
             flow='joining_against',
             legs=[
-                ('undecided', 'support', self._joining_support, 'joining_support'),
-                ('against', 'undecided', self._doubting_against, 'doubting_against'),
-                ('support', 'undecided', self._doubting_support, 'doubting_support'),
+                ('undecided', 'support', self._get_joining_support, 'joining_support'),
+                ('against', 'undecided', self._get_doubting_against, 'doubting_against'),
+                ('support', 'undecided', self._get_doubting_support, 'doubting_support'),
             ],
         )
         return CompositeSystem(self.label, elements=[population], interactions=[flows])

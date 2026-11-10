@@ -105,7 +105,7 @@ tests and the catalog tests pass with the field added to the checked packages.
 - [x] 7.8 Physics, including the LAMMPS tables, `_lattice_gases.py`, `_yang_mills.py`, and the unexported
   `corotational`, `upper_convected`, `spin_space`, `site_space`, and `velocity_of`, whose examples move into their
   mirrored tests.
-- [ ] 7.9 Social.
+- [x] 7.9 Social.
 
 ## 8. Tests and documents
 

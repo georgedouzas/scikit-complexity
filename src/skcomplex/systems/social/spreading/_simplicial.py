@@ -205,7 +205,12 @@ class SimplicialContagionSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
+    def _get_simplicial_complex(
+        n_nodes: int,
+        links: float,
+        triangles: float,
+        seed: int,
+    ) -> tuple[nx.Graph, list[tuple]]:
         """Return a random simplicial complex.
 
         It holds random links, and random filled triangles whose sides join the links.
@@ -223,7 +228,7 @@ class SimplicialContagionSystem(BaseSystem):
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)
         links = min(max(self.mean_degree - 2 * self.mean_triangles, 0.0) / pairs, 1.0)
-        graph, hyperedges = self._simplicial_complex(self.n_nodes, links, triangles, self.seed)
+        graph, hyperedges = self._get_simplicial_complex(self.n_nodes, links, triangles, self.seed)
         sizes = [len(members) for members in hyperedges]
         degree = max(PAIR * sizes.count(PAIR) / self.n_nodes, 1.0)
         shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)

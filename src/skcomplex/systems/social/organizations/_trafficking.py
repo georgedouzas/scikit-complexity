@@ -230,12 +230,12 @@ class DailyMovementsInteraction(Interaction):
         """
         return [RuleLaw(self.move_free, phase=self.phase), RuleLaw(self.move_victims, phase=self.victims_phase)]
 
-    def _city(self, location: object, width: int) -> int:
+    def _get_city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
         return DailyMovementsInteraction._get_cell(location)[0] * self.n_cities // width
 
     @staticmethod
-    def _shape(system: SystemView) -> tuple[int, int]:
+    def _get_shape(system: SystemView) -> tuple[int, int]:
         """Return the width and the height of the grid of the system."""
         dimensions = system.dimensions
         if dimensions is None:
@@ -246,7 +246,7 @@ class DailyMovementsInteraction(Interaction):
 
     def _travel(self, woman: TravellerView, cell: tuple[int, int], width: int) -> None:
         """Move a woman to a cell and count a trip when the city changes."""
-        if self._city(cell, width) != self._city(woman.location, width):
+        if self._get_city(cell, width) != self._get_city(woman.location, width):
             woman.trips += 1
         woman.move_to(cell)
 
@@ -260,7 +260,7 @@ class DailyMovementsInteraction(Interaction):
         free = [woman for woman in system.get_agents('women', TravellerView) if not woman.victim]
         if not free:
             return
-        width, height = self._shape(system)
+        width, height = self._get_shape(system)
         city = int(system.rng.integers(self.n_cities))
         start, stop = city * width // self.n_cities, (city + 1) * width // self.n_cities
         cell = (int(system.rng.integers(start, stop)), int(system.rng.integers(height)))
@@ -279,7 +279,7 @@ class DailyMovementsInteraction(Interaction):
             for place in system.get_agents('premises', PremisesView)
             if place.brothel
         ]
-        width = self._shape(system)[0]
+        width = self._get_shape(system)[0]
         for brothel in brothels:
             victims = [
                 woman
@@ -367,7 +367,7 @@ class TraffickingSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _heat(place: PremisesView, system: SystemViewProtocol) -> float:
+    def _get_heat(place: PremisesView, system: SystemViewProtocol) -> float:
         """Return the growth of the bills of a premises in a day.
 
         It is `1 / (1 + exp(x0 - n))` for the `n` people inside.
@@ -436,7 +436,7 @@ class TraffickingSystem(BaseSystem):
                 'bills',
                 target='premises',
                 state='bills',
-                function=self._heat,
+                function=self._get_heat,
                 sources=['women'],
                 mode='increment',
                 form='agent',

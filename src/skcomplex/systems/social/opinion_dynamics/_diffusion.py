@@ -313,7 +313,7 @@ class InfluentialsSystem(BaseSystem):
         return belief
 
     @staticmethod
-    def _care(agent: BelieverView, system: SystemViewProtocol) -> float:
+    def _get_care(agent: BelieverView, system: SystemViewProtocol) -> float:
         """Return the level an agent cares at, the index of its largest weight."""
         return float(np.argmax(agent.belief))
 
@@ -346,7 +346,7 @@ class InfluentialsSystem(BaseSystem):
             'caring',
             target='people',
             state='caring',
-            function=self._care,
+            function=self._get_care,
             schedule='member',
             form='agent',
         )

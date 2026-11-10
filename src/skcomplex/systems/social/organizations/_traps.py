@@ -225,17 +225,17 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         self.lifetime = lifetime
 
     @staticmethod
-    def _allocation_a(s: SimpleNamespace) -> Expression:
+    def _get_allocation_a(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the first competitor."""
         return s.source.budget * _get_allocation(s.source)
 
     @staticmethod
-    def _allocation_b(s: SimpleNamespace) -> Expression:
+    def _get_allocation_b(s: SimpleNamespace) -> Expression:
         """Return the share of the budget that flows to the second competitor."""
         return s.source.budget * (1 - _get_allocation(s.source))
 
     @staticmethod
-    def _depreciation_a(s: SimpleNamespace) -> Expression:
+    def _get_depreciation_a(s: SimpleNamespace) -> Expression:
         """Return the depreciation of the resources of the first competitor.
 
         The resources depreciate over their lifetime.
@@ -243,7 +243,7 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
         return s.source.a / s.source.lifetime
 
     @staticmethod
-    def _depreciation_b(s: SimpleNamespace) -> Expression:
+    def _get_depreciation_b(s: SimpleNamespace) -> Expression:
         """Return the depreciation of the resources of the second competitor.
 
         The resources depreciate over their lifetime.
@@ -258,12 +258,12 @@ class SuccessToTheSuccessfulSystem(BaseSystem):
             target='contest',
             state=Source('budget'),
             into='a',
-            amount=self._allocation_a,
+            amount=self._get_allocation_a,
             flow='allocation_a',
             legs=[
-                (Source('budget'), 'b', self._allocation_b, 'allocation_b'),
-                ('a', Sink('depreciation'), self._depreciation_a, 'depreciation_a'),
-                ('b', Sink('depreciation'), self._depreciation_b, 'depreciation_b'),
+                (Source('budget'), 'b', self._get_allocation_b, 'allocation_b'),
+                ('a', Sink('depreciation'), self._get_depreciation_a, 'depreciation_a'),
+                ('b', Sink('depreciation'), self._get_depreciation_b, 'depreciation_b'),
             ],
         )
         return CompositeSystem(
@@ -354,18 +354,18 @@ class ShiftingTheBurdenSystem(BaseSystem):
         self.erosion = erosion
 
     @staticmethod
-    def _fixing(s: SimpleNamespace) -> Expression:
+    def _get_fixing(s: SimpleNamespace) -> Expression:
         """Return the quick fix, in proportion to the symptom."""
         return s.source.fix_rate * _get_symptom(s.source)
 
     @staticmethod
-    def _building(s: SimpleNamespace) -> Expression:
+    def _get_building(s: SimpleNamespace) -> Expression:
         """Return the building of capability, the delayed symptom over the build time."""
         burden = s.source
         return distributed_delay(_get_symptom(burden), conserved=False, time=burden.solution_delay) / burden.build_time
 
     @staticmethod
-    def _erosion(s: SimpleNamespace) -> Expression:
+    def _get_erosion(s: SimpleNamespace) -> Expression:
         """Return the erosion of capability by the intervention."""
         return s.source.erosion * s.source.intervention * s.source.capability
 
@@ -387,11 +387,11 @@ class ShiftingTheBurdenSystem(BaseSystem):
             target='burden',
             state=Source('intervener'),
             into='intervention',
-            amount=self._fixing,
+            amount=self._get_fixing,
             flow='fixing',
             legs=[
-                (Source('learning'), 'capability', self._building, 'building'),
-                ('capability', Sink('atrophy'), self._erosion, 'erosion'),
+                (Source('learning'), 'capability', self._get_building, 'building'),
+                ('capability', Sink('atrophy'), self._get_erosion, 'erosion'),
             ],
         )
         return CompositeSystem(self.label, elements=[burden], interactions=[flows])
@@ -733,7 +733,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         self.absolute = absolute
 
     @staticmethod
-    def _correction(s: SimpleNamespace) -> Expression:
+    def _get_correction(s: SimpleNamespace) -> Expression:
         """Return the corrective action.
 
         It is the gap from the performance to the desired state over the correction time.
@@ -741,7 +741,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return (s.source.desired - s.source.performance) / s.source.correction_time
 
     @staticmethod
-    def _perception(s: SimpleNamespace) -> Expression:
+    def _get_perception(s: SimpleNamespace) -> Expression:
         """Return the update of the perceived state toward the biased performance.
 
         The performance is lowered by the negative bias.
@@ -750,7 +750,7 @@ class DriftToLowPerformanceSystem(BaseSystem):
         return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
 
     @staticmethod
-    def _goal_erosion(s: SimpleNamespace) -> Expression:
+    def _get_goal_erosion(s: SimpleNamespace) -> Expression:
         """Return the slip of the desired state toward the perceived state.
 
         It is zero for absolute standards.
@@ -777,11 +777,11 @@ class DriftToLowPerformanceSystem(BaseSystem):
             target='performance',
             state=Source('effort'),
             into='performance',
-            amount=self._correction,
+            amount=self._get_correction,
             flow='correction',
             legs=[
-                (Source('information'), 'perceived', self._perception, 'perception'),
-                (Source('standards'), 'desired', self._goal_erosion, 'goal_erosion'),
+                (Source('information'), 'perceived', self._get_perception, 'perception'),
+                (Source('standards'), 'desired', self._get_goal_erosion, 'goal_erosion'),
             ],
         )
         return CompositeSystem(self.label, elements=[element], interactions=[flows])

@@ -57,7 +57,7 @@ def test_public_goods_game_depends_on_synergy():
 def test_best_reply_to_a_strategy_is_to_defect_one_round_earlier():
     """Test that against a strategy `m` the fewest years in prison come from the strategy `m - 1`."""
     for opponent in range(1, 11):
-        years = IteratedDilemmaInteraction.years(
+        years = IteratedDilemmaInteraction.get_years(
             np.arange(11.0),
             np.full(11, float(opponent)),
             rounds=10,
