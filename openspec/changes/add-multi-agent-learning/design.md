@@ -31,7 +31,7 @@ fixed strategies of Axelrod's tournaments.
 | `online` of `PolicyInteraction` | 2, an option of a core interaction that the runtime handles by type | `core/components/interactions/_policy.py` | economics (traders that learn while trading), social systems (norms), ecology (foraging), neuroscience (learning animals), computer science (games) |
 | `TemporalDifferenceInteraction` | 3, a recipe of core update laws and rules used by several fields | `skcomplex.systems.general.agents`, approved and existing | economics (learning traders and firms), social systems (norms and conventions), neuroscience (dopamine prediction errors, Sutton and Barto ch. 15), ecology (foraging), computer science (games) |
 | `'epsilon-greedy'` of `ChoiceInteraction` | 3, a rule of an existing recipe | `general/agents/_choice.py` | as above |
-| `MultiArmedBanditSystem`, `CliffWalkingSystem` | 3, one system each | `biology/neuroscience/_reinforcement_tasks.py` | biology |
+| `MultiArmedBanditSystem`, `CliffWalkingSystem` | 3, one system each | `computer_science/reinforcement_learning/_reinforcement_tasks.py` | computer science |
 
 ### Independent learners
 
@@ -107,9 +107,8 @@ fixed strategies of Axelrod's tournaments.
   reward -1 per move and -100 for the cliff, which sends the agent back to the start. The book reports that
   Q-learning learns the optimal path along the edge of the cliff and SARSA the safer path, and that SARSA earns more
   per episode online with epsilon 0.1.
-- Both live in `biology/neuroscience`, since bandit tasks and temporal difference errors are models of decision
-  neuroscience (Sutton and Barto ch. 15). A subfield `computer_science/reinforcement_learning` would fit them better,
-  and creating it needs the maintainer's approval first, as the open questions say.
+- Both live in the new subfield `computer_science/reinforcement_learning`, approved by the user on 2026-11-10, since
+  they are benchmarks of reinforcement learning. Later reinforcement learning probes join them there.
 
 ## Risks / Trade-offs
 
@@ -123,9 +122,6 @@ fixed strategies of Axelrod's tournaments.
 - [Self-play leagues grow memory] → The league keeps a bounded number of past weights.
 
 ## Open Questions
-
-- Should the two task systems live in a new subfield `computer_science/reinforcement_learning` instead of
-  `biology/neuroscience`? It is a new package, so it waits for the maintainer.
 
 - Should LOLA be a method of `train_policy` in a later change? It needs gradients through the update of the opponent,
   which the shared loop can give for differentiable policies.

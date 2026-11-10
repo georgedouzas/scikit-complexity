@@ -165,9 +165,7 @@ every variable independently and compares a scalar field of an analysis on the d
 
 None beyond the changelog line for the `method` default.
 
-## Open Questions
+## Decisions on licences
 
-- pyEDM is licensed for educational, research, and non-profit use only. The user accepted the GPL-3.0 of tigramite but
-  has not ruled on this licence. If it is not accepted, `'ccm'` uses the short estimator of Datseris and Parlitz (Code
-  7.2), nearest neighbours of the delay embedding on `scipy.spatial.cKDTree` with exponential weights, and pyEDM is
-  dropped. The scenarios are the same either way.
+- pyEDM is licensed for educational, research, and non-profit use only. The user accepted it as a runtime dependency
+  on 2026-11-10, as with the GPL-3.0 of tigramite. The release notes and the installation page state both licences.

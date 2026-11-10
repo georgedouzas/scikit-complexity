@@ -12,7 +12,7 @@ inventory entry.
 - **THEN** each player receives -1 per step, then -2 per step
 
 ### Requirement: Multi-armed bandit
-The library SHALL provide `multi_armed_bandit` in `biology/neuroscience`, the 10-armed testbed of Sutton and Barto (2018,
+The library SHALL provide `multi_armed_bandit` in `computer_science/reinforcement_learning`, the 10-armed testbed of Sutton and Barto (2018,
 sect. 2.3), with a learner by temporal differences and choice or by an online policy, a gallery example, and an
 inventory entry.
 
@@ -23,7 +23,7 @@ inventory entry.
   best arm at most 91% of the time plus the sampling error
 
 ### Requirement: Cliff walking
-The library SHALL provide `cliff_walking` in `biology/neuroscience`, the 4 by 12 gridworld of Sutton and Barto (2018,
+The library SHALL provide `cliff_walking` in `computer_science/reinforcement_learning`, the 4 by 12 gridworld of Sutton and Barto (2018,
 Example 6.6), with a SARSA or Q-learning learner, a gallery example, and an inventory entry.
 
 #### Scenario: Safe and optimal paths
