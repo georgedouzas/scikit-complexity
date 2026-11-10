@@ -3,6 +3,7 @@
 import ast
 import doctest
 import importlib
+import inspect
 import multiprocessing
 import re
 import textwrap
@@ -45,6 +46,8 @@ CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
 FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
 REWRITTEN_DOCUMENTS: tuple[str, ...] = ()
+CORE_COMPONENTS = USER_GUIDE / 'core_components'
+FAMILY_PAGES = {'elements.md': 'skcomplex.core.components.elements'}
 GALLERY = Path('docs') / 'examples'
 OWN_RECEIVERS = ('self', 'cls', 'super()')
 DOCTESTS = doctest.DocTestParser()
@@ -564,6 +567,28 @@ def test_documents_read_naturally(request):
     """Test that the prose of the rewritten documents holds no semicolon, dash, or banned phrase."""
     found = _unnatural_lines(request.config.rootpath, REWRITTEN_DOCUMENTS)
     assert not found, f'{len(found)} lines that do not read naturally:\n' + '\n'.join(found)
+
+
+def test_core_components_pages_cover_every_class(request):
+    """Test that each family page has a section per public class and imports nothing from the catalog."""
+    found = []
+    for page, package in FAMILY_PAGES.items():
+        path = request.config.rootpath / CORE_COMPONENTS / page
+        headings = set(re.findall(r'^## (\w+)$', path.read_text(encoding='utf-8'), flags=re.MULTILINE))
+        module = importlib.import_module(package)
+        classes = [getattr(module, name) for name in module.__all__]
+        found += [
+            f'{page}: no section for {item.__name__}'
+            for item in classes
+            if isinstance(item, type) and not inspect.isabstract(item) and item.__name__ not in headings
+        ]
+        for start, block in _python_blocks(path):
+            found += [
+                f'{page}:{start + line}: imports {module_name}'
+                for line, module_name, _ in _imported_names(block)
+                if module_name == SYSTEMS or module_name.startswith(f'{SYSTEMS}.')
+            ]
+    assert not found, '\n'.join(found)
 
 
 def test_banned_phrases_match_the_core_guard(request):
