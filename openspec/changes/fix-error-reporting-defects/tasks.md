@@ -18,8 +18,8 @@
 
 ## 4. Errors
 
-- [ ] 4.1 Remove `ArgumentError`, raise `ValidationError` in the ridesharing system instead, drop its troubleshooting section and its uses in `tests/core/test_errors.py`, verified by those tests, `tests/systems/engineering/traffic`, and `test_troubleshooting_covers_every_error`
-- [ ] 4.2 Add a test in `tests/core/test_errors.py` that every public error class of `skcomplex.errors` is raised somewhere in `src`, verified by running it
+- [x] 4.1 Remove `ArgumentError`, raise `ValidationError` in the ridesharing system instead, drop its troubleshooting section and its uses in `tests/core/test_errors.py`, verified by those tests, `tests/systems/engineering/traffic`, and `test_troubleshooting_covers_every_error`
+- [x] 4.2 Add a test in `tests/core/test_errors.py` that every public error class of `skcomplex.errors` is raised somewhere in `src`, verified by running it
 
 ## 5. Experiments and analyses
 

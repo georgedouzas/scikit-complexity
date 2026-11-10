@@ -344,26 +344,6 @@ message.splitlines()[-1]
 The code is `label`, and the message asks for a unique label of letters, digits, and underscores. The fix renames the
 second element, such as to `lynx`.
 
-## ArgumentError
-
-The core does not raise this error at present. A constructor given an argument it does not declare raises the
-`TypeError` of Python, which names the closest declared argument. `ArgumentError` subclasses `TypeError`, so
-`except TypeError` catches both.
-
-```python
-from skcomplex.core.components.interactions import RateInteraction
-
-try:
-    RateInteraction('births', target='hares', state='x', rat=lambda s: 0.55 * s.target.x)
-except TypeError as error:
-    message = str(error)
-message
-```
-
-The message says that `RateInteraction` got an unexpected keyword argument `rat` and asks whether `rate` was meant.
-The fix is the name in the signature of the class. Among the ready-made systems, the ride sharing system raises
-`ArgumentError` when a function that ranks riders and cabs receives values of another kind.
-
 ## RoleError
 
 A role names an element by its label. A typing error, or an element left out of the system, leaves the role bound to

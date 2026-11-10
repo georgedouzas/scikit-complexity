@@ -89,13 +89,6 @@ class LabelError(ValidationError):
     """
 
 
-class ArgumentError(SkcomplexError, TypeError):
-    """An error for a part given an undeclared argument or missing a required one.
-
-    An undeclared argument is one that the constructor of the part does not take. Check the signature of the class.
-    """
-
-
 class RoleError(ValidationError):
     """An error for a role of an interaction that names a missing element.
 

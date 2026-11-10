@@ -20,7 +20,7 @@ from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.engine.solvers import AgentView, SystemView
-from ....core.errors import ArgumentError
+from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ...general.agents import BirthDeathInteraction
 from ...general.matching import MatchingInteraction, MatchSpec, StableMatchingSpec
@@ -456,7 +456,7 @@ class RidesharingSystem(BaseSystem):
         """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
-            raise ArgumentError(error_msg)
+            raise ValidationError(error_msg)
         return -float(CabElement._get_blocks(CabElement._get_cell(rider.location), CabElement._get_cell(cab.location)))
 
     @staticmethod
@@ -467,7 +467,7 @@ class RidesharingSystem(BaseSystem):
         """
         if not isinstance(rider, RiderView):
             error_msg = f'A cab ranks riders, but got {rider!r}.'
-            raise ArgumentError(error_msg)
+            raise ValidationError(error_msg)
         return rider.waited
 
     @staticmethod
@@ -477,7 +477,7 @@ class RidesharingSystem(BaseSystem):
         rider, cab = ride.requester, ride.provider
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
-            raise ArgumentError(error_msg)
+            raise ValidationError(error_msg)
         new_target_x_value, new_target_y_value = CabElement._get_cell(rider.location)
         cab.target_x = new_target_x_value
         cab.target_y = new_target_y_value
