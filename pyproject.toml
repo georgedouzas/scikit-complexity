@@ -724,6 +724,7 @@ docs = [
     "mkdocstrings[python]>=0.25.1",
     "markdown-callouts>=0.4.0",
     "markdown-exec>=1.9.3",
+    "griffelib>=2.0",
     'pandas>=2.2.2',
     "matplotlib>=3.9",
 ]
