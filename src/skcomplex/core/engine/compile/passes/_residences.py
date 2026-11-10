@@ -69,7 +69,6 @@ class ResidencesPass(BasePass):
 
     @staticmethod
     def _declare(
-        spec: KernelSpec,
         reference: ReferenceSpec,
         compilation: Compilation,
         references: dict[Expression, ReferenceSpec],
@@ -137,7 +136,7 @@ class ResidencesPass(BasePass):
                     raise ValidationError(error_msg)
                 if call in counts:
                     continue
-                previous, count = ResidencesPass._declare(spec, reference, compilation, references)
+                previous, count = ResidencesPass._declare(reference, compilation, references)
                 counts[call] = where(item == previous, count + 1, 0)
                 added += [UpdateLaw(previous, item), UpdateLaw(count, counts[call])]
         return [*(ResidencesPass._get_substituted(law, counts) for law in laws), *added]

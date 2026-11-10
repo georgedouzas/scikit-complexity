@@ -255,7 +255,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return spec.group
         return next((item.label for item in spec.sets.values()), None)
 
-    def _read(self, item: Expression, spec: KernelSpec, group: str | None, size: int) -> ReadSpec:
+    def _read(self, item: Expression, spec: KernelSpec, group: str | None) -> ReadSpec:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item in spec.sets:
             references = spec.sets[item].references
@@ -520,9 +520,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         It reads it shared, of the reader, or of the other member.
         """
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return PairReadSpec(self._read(item, spec, readers, 0), 'reader')
+            return PairReadSpec(self._read(item, spec, readers), 'reader')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+            return PairReadSpec(self._read(item, spec, None), 'shared')
         reference = self._get_reference_of(item, spec)
         if reference is not None and reference.source is ReadKind.SINGLE:
             return PairReadSpec(
@@ -750,7 +750,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)
             placeholder = symbol(f'_reduced_{index}')
             reads = {
-                canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
+                canonical.get(item, item): self._read(item, spec, group) for item in sorted(symbols, key=str)
             }
             compiled = ReductionKernel(
                 placeholder,
@@ -820,7 +820,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         renamed: dict[Expression, Expression] = {}
         reads: dict[Expression, ReadSpec] = {}
         for item in symbols:
-            read = self._read(item, spec, group, sizes[axis])
+            read = self._read(item, spec, group)
             if read.per_member and len(cast(Indices, read.index)) != sizes[axis]:
                 error_msg = (
                     f'The expression {factor} of index {axis + 1} of a contraction of {spec.owner} reads '
@@ -949,9 +949,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """
         reference = self._get_reference_of(item, spec)
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return PairReadSpec(self._read(item, spec, group, 0), 'reader')
+            return PairReadSpec(self._read(item, spec, group), 'reader')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+            return PairReadSpec(self._read(item, spec, None), 'shared')
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
@@ -1025,7 +1025,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             indices = (local.entry.start + np.arange(local.entry.size)).astype(np.intp)
             return PairReadSpec(ReadSpec(False, indices, local.entry), 'reader' if local.group == reader else 'other')
         if item in self.by_symbol_:
-            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+            return PairReadSpec(self._read(item, spec, None), 'shared')
         reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (

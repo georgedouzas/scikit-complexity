@@ -247,15 +247,12 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
-    def _get_capacity_rows(block: BlockSpec, declarations: DeclarationsSpec) -> CapacityRowsSpec:
+    def _get_capacity_rows(block: BlockSpec) -> CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
             block:
                 The block of the variable group.
-
-            declarations:
-                The declarations of the compilation.
 
         Returns:
             rows:
@@ -286,7 +283,7 @@ class TopologyFunctionsPass(BasePass):
         networks = {}
         for key, space in spaces.items():
             nodes = tuple(
-                TopologyFunctionsPass._get_capacity_rows(block, declarations)
+                TopologyFunctionsPass._get_capacity_rows(block)
                 for block in declarations.capacity.values()
                 if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
             )
@@ -300,7 +297,7 @@ class TopologyFunctionsPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             edges = {
-                layer: TopologyFunctionsPass._get_capacity_rows(block, declarations)
+                layer: TopologyFunctionsPass._get_capacity_rows(block)
                 for layer, block in declarations.get_changing_edges(space).items()
             }
             if not isinstance(space, NetworkSpace):
@@ -309,7 +306,7 @@ class TopologyFunctionsPass(BasePass):
             directed = {layer: space.graphs_[layer].is_directed() for layer in edges}
             hyperedges = next(
                 (
-                    TopologyFunctionsPass._get_capacity_rows(block, declarations)
+                    TopologyFunctionsPass._get_capacity_rows(block)
                     for block in declarations.capacity.values()
                     if block.node.space is space and getattr(block.node.component, 'on', None) == 'hyperedges'
                 ),

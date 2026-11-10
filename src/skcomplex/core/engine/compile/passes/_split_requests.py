@@ -5,7 +5,6 @@
 
 
 from ....components.laws import BaseLaw, UpdateLaw
-from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import BlockLaws, Compilation
@@ -31,14 +30,14 @@ class SplitRequestsPass(BasePass):
         collected: BlockLaws = []
         apart = Compilation._get_required(compilation.apart, 'apart')
         for spec, laws, block in Compilation._get_required(compilation.collected, 'collected'):
-            kept, updates = self._split_requests(spec, laws)
+            kept, updates = self._split_requests(laws)
             collected.append((spec, kept, block))
             if updates:
                 apart.append((spec, updates))
         compilation.collected = collected
 
     @staticmethod
-    def _split_requests(spec: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
+    def _split_requests(laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
         """Return the laws of a spec without its topology request updates, and those.
 
         They are the update laws that request topology changes.
