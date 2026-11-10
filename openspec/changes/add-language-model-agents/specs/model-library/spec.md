@@ -25,6 +25,15 @@ memory.
 - **THEN** the request holds the rules, the reward and the penalty, and the `W` names in an order that differs between
   two players of the same round for a seed
 
+### Requirement: Learned players of the naming game
+`LlmNamingGameSystem` SHALL declare its decisions as the actions of an environment of `add-learning-foundation` and
+SHALL take `player='learned'`, a policy shared by every agent over its memory, trained by `train_policy`.
+
+#### Scenario: Learned players reach consensus
+- **WHEN** the learned player, a policy shared by every agent over its memory, is trained by `train_policy` with
+  `'reinforce'` and `random_state=0`, and the trained system runs with 20 seeds
+- **THEN** in most runs one name reaches a share of at least 0.9 within 1000 rounds
+
 ### Requirement: Network growth by language-model agents
 The library SHALL provide `LlmNetworkGrowthSystem` in `mathematics/networks` (De Marzo, Pietronero, and Garcia 2023,
 arXiv 2312.06619): nodes with random names arrive one at a time and link to `m` existing nodes, chosen by an oracle

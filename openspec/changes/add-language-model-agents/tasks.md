@@ -33,14 +33,16 @@
 
 - [ ] 4.1 Add `LlmNamingGameSystem` in `src/skcomplex/systems/social/language/_llm_naming_game.py` with both players,
   committed agents, and the consensus observables, and verify the consensus, committed-minority, and prompt scenarios
-- [ ] 4.2 Add `LlmNetworkGrowthSystem` in `src/skcomplex/systems/mathematics/networks/_llm_network_growth.py`, and
+- [ ] 4.2 Once `add-learning-foundation` is applied, declare the environment of every probe and add the learned
+  player of the naming game, and verify the learned-players-reach-consensus scenario, marked slow
+- [ ] 4.3 Add `LlmNetworkGrowthSystem` in `src/skcomplex/systems/mathematics/networks/_llm_network_growth.py`, and
   verify the preferential-player and request scenarios
-- [ ] 4.3 Add `GroupGuessingGameSystem` in `src/skcomplex/systems/social/organizations/_group_guessing_game.py` with
+- [ ] 4.4 Add `GroupGuessingGameSystem` in `src/skcomplex/systems/social/organizations/_group_guessing_game.py` with
   the three conditions, and verify the feedback-player and prompt scenarios
-- [ ] 4.4 Add the inventory entries `llm_naming_game`, `llm_network_growth`, and `group_guessing_game` with sources
+- [ ] 4.5 Add the inventory entries `llm_naming_game`, `llm_network_growth`, and `group_guessing_game` with sources
   2410.08948, 2312.06619, and 2510.05174, and the primitive `oracle-queries` with
   `change = "add-language-model-agents"`, and verify the inventory check passes
-- [ ] 4.5 Record one run of each probe against a named model with `save_queries`, store the logs as labelled data
+- [ ] 4.6 Record one run of each probe against a named model with `save_queries`, store the logs as labelled data
   files under `docs/examples/`, and add a gallery example of each probe that replays its log and compares it with the
   rule-based player, and verify the strict gallery build runs them without network access
 

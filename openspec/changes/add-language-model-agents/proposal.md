@@ -26,7 +26,10 @@ record replays. Without that, a run that costs money and time cannot be reproduc
   api_key_variable, temperature, system_prompt)`, which returns an `OracleSpec` that calls any endpoint compatible with
   the OpenAI chat API, and `parse_options(answer, options, count)`, which reads the chosen options from a free-text
   answer. It sits behind the new optional extra `language-models`.
-- New systems, each with a rule-based player beside the oracle player, so that tests and comparisons need no model:
+- New systems, each with a rule-based player beside the oracle player, so that tests and comparisons need no model.
+  Each declares its decisions as the actions of an `EnvironmentSpec` of `add-learning-foundation`, so the oracle, the
+  rules, and a learned `PolicyInteraction` play the same game, and the naming game gains `player='learned'`, trained by
+  `train_policy`, as a third baseline:
   - `LlmNamingGameSystem` in `social/language`, the pairwise naming game with a memory of past rounds, rewards, and a
     committed minority (2410.08948)
   - `LlmNetworkGrowthSystem` in `mathematics/networks`, a network grown by nodes that choose whom to link to from the
@@ -58,5 +61,7 @@ record replays. Without that, a run that costs money and time cannot be reproduc
   the standard library (`hashlib`, `json`, `sqlite3`) for seeds, records, and the cache.
 - Docs: the agent section of the user guide, a gallery example of each probe that replays recorded queries, and the inventory
   with the primitive `oracle-queries`.
+- Depends on `add-learning-foundation` only for the environments of the probes and the learned player. The oracle
+  primitive, its record, and its replay do not need it.
 - `extend-network-and-emergence-measures` adds the synergy measures that the gallery example of the group guessing game
   reads. The probe lands after it or shows only the practical criterion that exists today.

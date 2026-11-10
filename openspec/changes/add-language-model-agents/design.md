@@ -37,6 +37,7 @@ adds that a library the core uses is a runtime dependency, so the core cannot im
 | `query` of the system view, `oracles` of `simulate`, the record, the cache, and the replay | 2, the engine handles them | `core/engine/solvers/_mesa.py`, `core/engine/runtime` | as above |
 | `chat_oracle`, `parse_options` | 3, a recipe used by several fields | `skcomplex.systems.general.language_models` | social (language, organizations), mathematics (networks) |
 | `LlmNamingGameSystem` | 3, one system | `social/language/_llm_naming_game.py` | social |
+| The learned player of the naming game | 3, a `PolicyInteraction` of `add-learning-foundation` in one system | `social/language/_llm_naming_game.py` | social |
 | `LlmNetworkGrowthSystem` | 3, one system | `mathematics/networks/_llm_network_growth.py` | mathematics |
 | `GroupGuessingGameSystem` | 3, one system | `social/organizations/_group_guessing_game.py` | social |
 
@@ -67,6 +68,15 @@ requirement asks.
   the step, the agent, and the first differing character of the request.
 - `save_queries(trajectory, path)` and `load_queries(path)` in `core/engine/runtime` write and read JSON lines. They
   hold no credential, since the oracle never puts its key in a request.
+
+### Oracles, rules, and policies
+
+An oracle is not a learned policy. Its answers are queried, cached, recorded, and replayed, while the actions of a
+`PolicyInteraction` of `add-learning-foundation` are draws of a learned function. Both choose among the actions of the
+same `EnvironmentSpec`, which every probe declares as a class attribute: the observation is the memory of the agent, the
+action is the choice among the options, and the reward is the payoff of the round. The three players are therefore
+interchangeable on one game, and a run of the oracle player is compared with a policy trained by `train_policy` on the
+rewards of the game. Recorded queries and recorded action draws share the replay path of `simulate`.
 
 ### Seeds and determinism
 
@@ -106,7 +116,10 @@ cache nor the model. The guide states that a fresh run against a hosted model ca
   match and `-50` for a mismatch, and `committed`, the number of agents that always give one name. The pool is shuffled
   for each player and round, as 2410.08948 does to remove the bias of order. `player='oracle'` builds the prompt of the
   paper from the rules, the shuffled names, and the memory, and reads the name with `parse_options`. `player='score'`
-  gives the name of largest summed reward in memory, at random among ties and at random with an empty memory. The
+  gives the name of largest summed reward in memory, at random among ties and at random with an empty memory.
+  `player='learned'` is a `PolicyInteraction` in its agent form, bound to the agents with shared weights, whose
+  categorical action is the name and whose observation encodes the memory as counts of rewards per name. It is trained
+  by `train_policy` with `'reinforce'` on the reward of the rounds. The
   observables are the share of the most common name and the consensus time, the first round at which that share
   reaches 0.9 over a window of rounds.
 - **`LlmNetworkGrowthSystem`.** Nodes arrive one at a time with a random name from a list and link to `m` existing
