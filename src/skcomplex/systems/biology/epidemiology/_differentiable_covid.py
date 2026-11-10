@@ -329,7 +329,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _contacts(places: npt.NDArray[np.intp]) -> scipy.sparse.csr_array:
+    def _get_contacts(places: npt.NDArray[np.intp]) -> scipy.sparse.csr_array:
         """Return the weights `1 / (n - 1)` of the other members of the place of every agent, 0 for no place."""
         members = places >= 0
         same = (places[:, None] == places[None, :]) & members[:, None] & members[None, :]
@@ -361,7 +361,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
                 'gamma': self.gamma,
             },
         )
-        contacts = tuple(self._contacts(places) for places in (households, schools, companies))
+        contacts = tuple(self._get_contacts(places) for places in (households, schools, companies))
         spread = CovidTransmissionInteraction(
             'spread',
             target='people',

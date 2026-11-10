@@ -275,7 +275,7 @@ class GrowingSimplicialComplexSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem
-        >>> simulate(GrowingSimplicialComplexSystem(13), until=10, random_state=0).network(-1).hyperedges.shape
+        >>> simulate(GrowingSimplicialComplexSystem(13), until=10, random_state=0).get_network(-1).hyperedges.shape
         (11, 3)
     """
 

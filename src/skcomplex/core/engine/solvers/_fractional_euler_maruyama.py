@@ -309,7 +309,7 @@ class FractionalEulerMaruyamaSolver(Solver):
             >>> import numpy as np
             >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
             >>> solver = FractionalEulerMaruyamaSolver
-            >>> noise = solver._fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
+            >>> noise = solver._get_fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
             >>> noise.shape
             (100, 2000)
             >>> round(float(np.mean(noise[1:] * noise[:-1])), 1)

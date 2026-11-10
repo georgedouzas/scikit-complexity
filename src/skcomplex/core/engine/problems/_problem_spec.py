@@ -382,7 +382,7 @@ class ProblemSpec(BaseProblemSpec):
             >>> from skcomplex.core.engine._utils import symbol, vector
             >>> from skcomplex.core.engine.problems import ProblemSpec
             >>> x, y = symbol('x'), symbol('y')
-            >>> ProblemSpec._real_components_of(vector([x + I * y, 2 * x]))
+            >>> ProblemSpec._get_real_components_of(vector([x + I * y, 2 * x]))
             [x, y, 2*x]
         """
         components: list[object] = []

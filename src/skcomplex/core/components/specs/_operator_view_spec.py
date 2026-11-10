@@ -48,7 +48,7 @@ class OperatorViewSpec(BaseSpec):
         ...         super().__init__(label)
         ...         self.psi = psi
         ...         self.hilbert = hilbert
-        >>> OperatorViewSpec(TwoLevelElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
+        >>> OperatorViewSpec(TwoLevelElement('q', psi='down'), 'psi', QUBIT).get_initial_vector().tolist()
         [0j, (1+0j)]
     """
 

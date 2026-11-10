@@ -183,12 +183,15 @@ class CliqueCompetitionInteraction(Interaction):
         excitatory = np.asarray(self.w, dtype=float)
         inhibitory = np.where(excitatory > 0, 0.0, -1.0)
         np.fill_diagonal(inhibitory, 0.0)
-        excitation = self._reservoir(site.phi, s.phi_w, s.f_w_min, s.width) * total(site.x, weights=excitatory)
-        inhibition = s.z * total(self._reservoir(site.phi, s.phi_z, s.f_z_min, s.width) * site.x, weights=inhibitory)
+        excitation = self._get_reservoir(site.phi, s.phi_w, s.f_w_min, s.width) * total(site.x, weights=excitatory)
+        inhibition = s.z * total(
+            self._get_reservoir(site.phi, s.phi_z, s.f_z_min, s.width) * site.x,
+            weights=inhibitory,
+        )
         r = excitation + inhibition
         return [RateLaw(site.x, where(r > 0, (1 - site.x) * r, site.x * r))]
 
-    def _reservoir(self, phi: Expression, center: Expression, floor: Expression, width: Expression) -> Expression:
+    def _get_reservoir(self, phi: Expression, center: Expression, floor: Expression, width: Expression) -> Expression:
         """Return the sigmoidal reservoir function of a reservoir level."""
         lowest = atan(-center / width)
         return floor + (1 - floor) * (atan((phi - center) / width) - lowest) / (atan((1 - center) / width) - lowest)

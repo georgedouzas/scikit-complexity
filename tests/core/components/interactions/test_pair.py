@@ -192,7 +192,7 @@ def _soft(namespace, r):
 def _rates(system, path):
     """Return the rates of a state at the initial state, one row per member."""
     problem = PassCompiler().prepare(system).run().problem_
-    entry = problem.states.entry(path)
+    entry = problem.states.get_entry(path)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return drift[entry.start : entry.start + entry.size].reshape(entry.rows, entry.columns)
 

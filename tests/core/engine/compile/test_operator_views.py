@@ -110,9 +110,9 @@ def test_operator_rejects_non_scalars():
 def test_operator_adjoint_reverses_and_conjugates():
     """Test that the adjoint reverses products, adjoins factors, and conjugates coefficients."""
     a, m = _namespace(QubitElement('q'), 'q'), _namespace(ModeElement('m', hilbert=mode_space(4)), 'm')
-    adjoint = a.plus.multiply(m.annihilate).multiply(1j).adjoint()
+    adjoint = a.plus.multiply(m.annihilate).multiply(1j).get_adjoint()
     assert adjoint.text == '(-1j)*m.create*q.minus'
-    assert LocalOperatorSpec('hop', qutip.sigmap()).adjoint().adjoint().name == 'hop'
+    assert LocalOperatorSpec('hop', qutip.sigmap()).get_adjoint().get_adjoint().name == 'hop'
 
 
 def test_laws_reject_values_that_are_not_operators():

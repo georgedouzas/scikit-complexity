@@ -174,7 +174,7 @@ def _member_relations(s: SimpleNamespace, position: int, member: MetabolicNetwor
     relations = []
     abundance = getattr(s, f'x_{position}')
     for column, (name, spec) in enumerate(member.reactions.items()):
-        identifier = member._identifier(name)
+        identifier = member._get_identifier(name)
         flux = getattr(s, f'v_{position}_{column}')
         relations.append(flux >= member.get_number(f'lower_{identifier}') * abundance)
         relations.append(flux <= member.get_number(f'upper_{identifier}') * abundance)
@@ -273,7 +273,7 @@ def _largest_rate(members: list[MetabolicNetworkElement]) -> float:
         weights = member.objective or member.default_objective
         rates.append(
             sum(
-                abs(float(weight)) * member.get_number(f'upper_{member._identifier(name)}')
+                abs(float(weight)) * member.get_number(f'upper_{member._get_identifier(name)}')
                 for name, weight in weights.items()
             ),
         )

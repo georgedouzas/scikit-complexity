@@ -320,7 +320,7 @@ def test_group_on_edges_has_one_member_per_edge():
         .run()
         .problem_
     )
-    assert problem.states.entry('weights.n').shape == (30,)
+    assert problem.states.get_entry('weights.n').shape == (30,)
 
 
 def test_group_on_edges_outside_a_network_is_reported():

@@ -250,7 +250,7 @@ class HerdingInteraction(MovementInteraction):
         return 'cows' if role == 'target' else role
 
     @staticmethod
-    def _cell(agent: AgentViewProtocol) -> tuple[int, ...]:
+    def _get_cell(agent: AgentViewProtocol) -> tuple[int, ...]:
         """Return the cell of an agent as a tuple of integers."""
         location = agent.location
         if not isinstance(location, tuple):
@@ -266,17 +266,17 @@ class HerdingInteraction(MovementInteraction):
         It removes the cow that finds none.
         """
         patches = [cast(PastureView, patch) for patch in system.get_agents('pasture')]
-        cells = [self._cell(patch) for patch in patches]
+        cells = [self._get_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         occupied = np.zeros(len(cells), dtype=bool)
-        occupied[[index[self._cell(cow)] for cow in system.get_agents('cows') if cow.alive and cow.id != agent.id]] = (
-            True
-        )
+        occupied[
+            [index[self._get_cell(cow)] for cow in system.get_agents('cows') if cow.alive and cow.id != agent.id]
+        ] = True
         free = (np.asarray([patch.grass for patch in patches]) >= system.get_parameter('threshold')) & ~occupied
         if not free.any():
             agent.remove()
             return None
-        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._cell(agent), dtype=float)).T)
+        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._get_cell(agent), dtype=float)).T)
         return cells[int(np.argmin(np.where(free, distances, np.inf)))]
 
 

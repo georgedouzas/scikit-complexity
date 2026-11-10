@@ -132,7 +132,7 @@ class DelayedSIRSSystem(BaseSystem):
         self.e = e
 
     @staticmethod
-    def _infected_or_immune(center: SimpleNamespace) -> Expression:
+    def _get_infected_or_immune(center: SimpleNamespace) -> Expression:
         """Return the fraction of a center that cannot be infected.
 
         The fraction is the one infected now or in the last `recovery` steps.
@@ -149,7 +149,7 @@ class DelayedSIRSSystem(BaseSystem):
         visit, and `s = 1 - x - x(t - 1) - ... - x(t - recovery)` is the susceptible fraction of the center.
         """
         home, away = s.target, s.sources[0]
-        infected: Expression = home.a * (home.x + away.e * away.x) * (1 - self._infected_or_immune(home))
+        infected: Expression = home.a * (home.x + away.e * away.x) * (1 - self._get_infected_or_immune(home))
         return infected
 
     def _build_system(self) -> CompositeSystem:

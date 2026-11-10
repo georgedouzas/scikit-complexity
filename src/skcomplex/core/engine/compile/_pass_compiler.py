@@ -837,7 +837,7 @@ class PassCompiler(BaseCompiler):
             ...         return ('nodes',)
             ...     def _get_writes(self):
             ...         return ('layout',)
-            >>> ordered = PassCompiler._ordered([LowerPass(), DeclarePass()], present=['nodes'])
+            >>> ordered = PassCompiler._get_ordered([LowerPass(), DeclarePass()], present=['nodes'])
             >>> [type(item).__name__ for item in ordered]
             ['DeclarePass', 'LowerPass']
         """

@@ -69,7 +69,7 @@ def _fitted_trend(history: Array, weeks: int) -> float:
     return float(slope * weeks + intercept)
 
 
-PREDICTORS = (
+PREDICTORS: tuple[tuple[Callable[..., float], Mapping[str, float]], ...] = (
     *((_lag, {'weeks': weeks}) for weeks in range(1, 7)),
     *((_average, {'weeks': weeks}) for weeks in (2, 3, 4, 5, 6, 8, 10)),
     *((_fitted_trend, {'weeks': weeks}) for weeks in (3, 4, 5, 6, 8, 10)),
@@ -79,9 +79,6 @@ PREDICTORS = (
     *((heuristics.fundamental, {'fundamental': level, 'reversion': 0.5}) for level in range(30, 95, 5)),
     *((heuristics.fundamental, {'fundamental': level, 'reversion': -0.5}) for level in (55, 60, 65)),
 )
-
-
-Predictor = tuple[Callable[..., float], Mapping[str, float]]
 
 
 def forecasts(history: npt.ArrayLike) -> Array:

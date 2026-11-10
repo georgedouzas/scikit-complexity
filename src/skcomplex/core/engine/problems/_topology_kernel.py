@@ -385,7 +385,7 @@ class TopologyKernel(BaseKernel):
             >>> import numpy as np
             >>> from skcomplex.core.engine.problems._topology_kernel import TopologyKernel
             >>> weights, allowed = np.array([1.0, 0.0, 2.0, 1.0]), np.array([True, True, True, False])
-            >>> TopologyKernel._independent(weights, allowed, np.random.default_rng(0))
+            >>> TopologyKernel._get_independent(weights, allowed, np.random.default_rng(0))
             [0, 2]
         """
         candidates = np.flatnonzero(allowed)

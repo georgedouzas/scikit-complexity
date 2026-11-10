@@ -1109,7 +1109,7 @@ def test_compile_group_names_states_by_group_path():
         space=ContinuousSpace(n_dim=2),
     )
     problem = PassCompiler().prepare(system).run().problem_
-    assert problem.states.entry('gas.x').shape == (500, 2)
+    assert problem.states.get_entry('gas.x').shape == (500, 2)
     assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.x_d1'][0]
 
 

@@ -450,7 +450,7 @@ class WilsonCowanSystem(BaseSystem):
         self.c4 = c4
 
     @staticmethod
-    def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
+    def _get_response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
         """Return the response `logistic(x) - logistic(0)` of a sigmoid.
 
         The sigmoid has a gain and a threshold, and the response is 0 at no input.
@@ -459,25 +459,25 @@ class WilsonCowanSystem(BaseSystem):
         return response
 
     @staticmethod
-    def _saturation(gain: Expression, threshold: Expression) -> Expression:
+    def _get_saturation(gain: Expression, threshold: Expression) -> Expression:
         """Return the largest value of the response of a sigmoid of a gain and a threshold."""
         saturation: Expression = 1 - logistic(0, threshold, 1 / gain)
         return saturation
 
-    def _excitation(self, s: SimpleNamespace) -> Expression:
+    def _get_excitation(self, s: SimpleNamespace) -> Expression:
         """Return the response of the Wilson-Cowan excitatory population to its input."""
         c = s.target
-        excitation: Expression = (self._saturation(c.a_e, c.theta_e) - c.r_e * c.E) * self._response(
+        excitation: Expression = (self._get_saturation(c.a_e, c.theta_e) - c.r_e * c.E) * self._get_response(
             c.c1 * c.E - c.c2 * c.I + c.P,
             c.a_e,
             c.theta_e,
         )
         return excitation
 
-    def _inhibition(self, s: SimpleNamespace) -> Expression:
+    def _get_inhibition(self, s: SimpleNamespace) -> Expression:
         """Return the response of the Wilson-Cowan inhibitory population to its input."""
         c = s.target
-        inhibition: Expression = (self._saturation(c.a_i, c.theta_i) - c.r_i * c.I) * self._response(
+        inhibition: Expression = (self._get_saturation(c.a_i, c.theta_i) - c.r_i * c.I) * self._get_response(
             c.c3 * c.E - c.c4 * c.I + c.Q,
             c.a_i,
             c.theta_i,
@@ -502,14 +502,14 @@ class WilsonCowanSystem(BaseSystem):
                 'excitatory_relaxation',
                 target='cortex',
                 state='E',
-                goal=self._excitation,
+                goal=self._get_excitation,
                 time=lambda s: s.target.tau_e,
             ),
             LeakyIntegrationInteraction(
                 'inhibitory_relaxation',
                 target='cortex',
                 state='I',
-                goal=self._inhibition,
+                goal=self._get_inhibition,
                 time=lambda s: s.target.tau_i,
             ),
         ]
@@ -581,7 +581,7 @@ class ThetaNeuronsSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
+    def _get_lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
         """Return evenly spaced quantiles of a Lorentzian distribution."""
         levels = (np.arange(size) + 0.5) / size
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
@@ -595,7 +595,7 @@ class ThetaNeuronsSystem(BaseSystem):
             size=self.n_neurons,
             values={
                 'theta': phases,
-                'eta': np.asarray(self._lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
+                'eta': np.asarray(self._get_lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
             },
         )
         return CompositeSystem(
@@ -736,7 +736,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         self.omega = omega
 
     @staticmethod
-    def _kl_gradient(s: SimpleNamespace) -> Expression:
+    def _get_kl_gradient(s: SimpleNamespace) -> Expression:
         """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient.
 
         The gradient is the one of the polyhomeostatic neuron.
@@ -769,13 +769,13 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
                 'gain_plasticity',
                 target='neuron',
                 state='a',
-                rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._kl_gradient(s)),
+                rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._get_kl_gradient(s)),
             ),
             RateInteraction(
                 'threshold_plasticity',
                 target='neuron',
                 state='b',
-                rate=lambda s: -s.target.eps_b * s.target.a * self._kl_gradient(s),
+                rate=lambda s: -s.target.eps_b * s.target.a * self._get_kl_gradient(s),
             ),
         ]
         return CompositeSystem(self.label, elements=[neuron], interactions=interactions)

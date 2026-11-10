@@ -636,7 +636,7 @@ def _network_of(system: CompositeSystem) -> MetabolicNetworkElement:
 
 def _bounds_of(network: MetabolicNetworkElement, reaction: str) -> tuple[float, float]:
     """Return the bounds of a reaction, from the parameters of the network."""
-    identifier = network._identifier(reaction)
+    identifier = network._get_identifier(reaction)
     return network.get_number(f'lower_{identifier}'), network.get_number(f'upper_{identifier}')
 
 
@@ -894,8 +894,8 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
     reactions = fit.units.reactions
     fixed = {name: value for name, (value, deviation) in fit.measured_fluxes.items() if deviation == 0}
     identifiers = {
-        **{f'lower_{network._identifier(name)}': value for name, value in fixed.items()},
-        **{f'upper_{network._identifier(name)}': value for name, value in fixed.items()},
+        **{f'lower_{network._get_identifier(name)}': value for name, value in fixed.items()},
+        **{f'upper_{network._get_identifier(name)}': value for name, value in fixed.items()},
     }
     vertices = []
     for _ in range(VERTEX_DRAWS):
@@ -914,7 +914,9 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
         solved = problem.programs[0].run(state).values_
         vertices.append(
             [
-                float(np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.flux_name(name)}'))[0]))
+                float(
+                    np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.get_flux_name(name)}'))[0]),
+                )
                 for name in reactions
             ],
         )

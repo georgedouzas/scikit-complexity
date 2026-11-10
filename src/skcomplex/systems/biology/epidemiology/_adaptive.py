@@ -258,13 +258,13 @@ class AdaptiveSISSystem(BaseSystem):
         )
 
     @staticmethod
-    def _random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
+    def _get_random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
         """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the SIS epidemic on a network."""
-        space = self._random_network(self.n, self.k, self.seed)
+        space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
         hosts = GroupElement(
             'hosts',

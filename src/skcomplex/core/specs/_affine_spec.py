@@ -86,7 +86,7 @@ class AffineSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import AffineSpec
-            >>> AffineSpec(scale=0.5, translation=(1, 0)).matrix_at({}).tolist()
+            >>> AffineSpec(scale=0.5, translation=(1, 0)).get_matrix_at({}).tolist()
             [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
         """
         if self.matrix is not None:

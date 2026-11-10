@@ -274,7 +274,7 @@ class NoisyAutomataSystem(BaseSystem):
 
         A uniform draw below the noise flips its output.
         """
-        mapping = Wolfram(number).table().mapping
+        mapping = Wolfram(number).get_table().mapping
         outputs = np.array(
             [mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)],
         )

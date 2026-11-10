@@ -71,7 +71,7 @@ class SemiLagrangianSolver(Solver):
         ... )
         >>> system = CompositeSystem(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = simulate(system, until=2.0, solver=solver).values('gas.x')[-1]
+        >>> final = simulate(system, until=2.0, solver=solver).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

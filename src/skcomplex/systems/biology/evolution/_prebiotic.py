@@ -248,7 +248,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         self.sigma = sigma
 
     @staticmethod
-    def _mean_fitness(master: SimpleNamespace) -> Expression:
+    def _get_mean_fitness(master: SimpleNamespace) -> Expression:
         """Return the mean fitness of a population around a master sequence.
 
         The mean fitness is `x0 + (1 - sigma) (1 - x0)`.
@@ -261,7 +261,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         The share is `x0 (1 - u) / <W>`.
         """
         master = s.target
-        return master.x * (1 - master.u) / self._mean_fitness(master)
+        return master.x * (1 - master.u) / self._get_mean_fitness(master)
 
     def _replicate_mutants(self, s: SimpleNamespace, *, first: bool, last: bool) -> Expression:
         """Return the next share of a class of mutants.
@@ -276,7 +276,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         source_fitness = 1 if first else 1 - sigma
         kept = 1 if last else 1 - u
         gained = u * source_fitness * source.x + kept * (1 - sigma) * s.target.x
-        return gained / self._mean_fitness(master)
+        return gained / self._get_mean_fitness(master)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the shares of a population around a master sequence.

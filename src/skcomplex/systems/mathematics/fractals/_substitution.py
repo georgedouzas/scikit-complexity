@@ -254,7 +254,7 @@ class KochCurveSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import KochCurveSystem
-        >>> simulate(KochCurveSystem(), until=3).values('koch.F').tolist()
+        >>> simulate(KochCurveSystem(), until=3).get_values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
 
@@ -302,7 +302,7 @@ class CantorSetSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
-        >>> simulate(CantorSetSystem(), until=3).values('cantor.size').tolist()
+        >>> simulate(CantorSetSystem(), until=3).get_values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -367,7 +367,7 @@ class SierpinskiSubstitutionSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
-        >>> simulate(SierpinskiSubstitutionSystem(), until=2).values('sierpinski.size').tolist()
+        >>> simulate(SierpinskiSubstitutionSystem(), until=2).get_values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
 

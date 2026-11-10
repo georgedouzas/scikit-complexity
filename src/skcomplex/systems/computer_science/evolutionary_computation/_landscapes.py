@@ -145,7 +145,7 @@ class ReproductionInteraction(EvolutionInteraction):
             fitness:
                 The fitness of every genome.
         """
-        return ReproductionInteraction._fitness_of(
+        return ReproductionInteraction._get_fitness_of(
             np.ravel(strategies),
             np.asarray(self.zero_values),
             np.asarray(self.one_values),
@@ -183,7 +183,7 @@ class ReproductionInteraction(EvolutionInteraction):
         return (genomes.astype(np.int64)[:, None] >> np.arange(n_bits)) & 1
 
     @staticmethod
-    def _fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
+    def _get_fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
         """Return the mean over the loci of the value of each genome's allele."""
         bits = ReproductionInteraction._bits_of(genomes, zero_values.size)
         return np.where(bits == 1, one_values, zero_values).mean(axis=1)
@@ -251,7 +251,7 @@ class BitStringEvolutionSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         zero_values, one_values = rng.random(self.n_bits), rng.random(self.n_bits)
         genomes = rng.integers(0, 2**self.n_bits, size=self.n_agents).astype(float)
-        fitness = ReproductionInteraction._fitness_of(genomes, zero_values, one_values)
+        fitness = ReproductionInteraction._get_fitness_of(genomes, zero_values, one_values)
         reproduction = ReproductionInteraction(
             'reproduction',
             target='genomes',

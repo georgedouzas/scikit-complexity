@@ -234,7 +234,7 @@ class ColonySearchInteraction(Interaction):
 
         The path has no segment if the ant does not arrive.
         """
-        neighbours = self._neighbours()
+        neighbours = self._get_neighbours()
         lengths = np.asarray(self.lengths, dtype=float)
         vertex, visited = self.start, [self.start]
         for _ in range(self.steps):
@@ -276,7 +276,7 @@ class ColonySearchInteraction(Interaction):
                 removed += 1
         return cut
 
-    def _neighbours(self) -> dict[int, list[tuple[int, int]]]:
+    def _get_neighbours(self) -> dict[int, list[tuple[int, int]]]:
         """Return the neighbours of every vertex with the index of the joining segment."""
         neighbours: dict[int, list[tuple[int, int]]] = {}
         for index, (first, second) in enumerate(self.edges):

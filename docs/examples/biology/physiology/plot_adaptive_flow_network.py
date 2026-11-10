@@ -32,7 +32,7 @@ trajectory = simulate(system, dt=0.1, observers=[observer], until=20)
 
 conductances = trajectory.get_values('vessels.C')
 adaptation = system.interactions[0]
-drops = np.abs(adaptation._pressure_drops(conductances[-1]))
+drops = np.abs(adaptation._get_pressure_drops(conductances[-1]))
 graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(6, 6), label_attribute='position')
 positions = nx.get_node_attributes(graph, 'position')
 fig, (network, balance) = plt.subplots(1, 2, figsize=(11, 4.5))

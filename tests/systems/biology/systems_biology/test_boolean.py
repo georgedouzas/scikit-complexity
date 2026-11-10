@@ -68,7 +68,7 @@ def _damage_share(factory, connectivity, seed):
     problem = PassCompiler().prepare(factory(**options)).run().problem_
     name = problem.states.names[0]
     perturbed = problem.initial_state.copy()
-    perturbed[problem.states.entry(name).start] = 1 - perturbed[problem.states.entry(name).start]
+    perturbed[problem.states.get_entry(name).start] = 1 - perturbed[problem.states.get_entry(name).start]
     finals = [
         np.asarray(
             _run(dataclasses.replace(problem, initial_state=initial), 50, random_state=seed).get_values(name)[-1],

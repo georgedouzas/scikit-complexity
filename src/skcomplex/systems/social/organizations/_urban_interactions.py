@@ -125,7 +125,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
         >>> trajectory = simulate(UrbanScalingInteractionsSystem(13, internal=0.0), until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 

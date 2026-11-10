@@ -187,7 +187,7 @@ class NetworkAttackSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import NetworkAttackSystem
         >>> trajectory = simulate(NetworkAttackSystem(50), until=3, random_state=0)
-        >>> int(trajectory.network(-1).nodes.size) < 50
+        >>> int(trajectory.get_network(-1).nodes.size) < 50
         True
     """
 
@@ -315,7 +315,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
         >>> system = RandomGraphEnsemblesSystem(40, ensemble='watts_strogatz', steps=5).prepare().system_
         >>> trajectory = simulate(system, until=5, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         80
     """
 
@@ -634,7 +634,7 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import InterdependentNetworkCascadeSystem
         >>> system = InterdependentNetworkCascadeSystem(200, p=0.3).prepare().system_
-        >>> int(simulate(system, until=20).values('nodes.active')[-1].sum())
+        >>> int(simulate(system, until=20).get_values('nodes.active')[-1].sum())
         0
     """
 

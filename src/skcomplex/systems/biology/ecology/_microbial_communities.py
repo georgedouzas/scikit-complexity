@@ -173,7 +173,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         self.a = a
 
     @staticmethod
-    def _growth(namespace: SimpleNamespace) -> object:
+    def _get_growth(namespace: SimpleNamespace) -> object:
         """Return the intrinsic growth `b x` of a species."""
         return namespace.target.b * namespace.target.x
 
@@ -197,7 +197,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
             self.label,
             elements=[species],
             interactions=[
-                RateInteraction('growth', target='species', rate=self._growth),
+                RateInteraction('growth', target='species', rate=self._get_growth),
                 GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
             ],
         )

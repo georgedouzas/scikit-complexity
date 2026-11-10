@@ -67,14 +67,12 @@ class AtomProtocol(Protocol):
 class ChainProtocol(Protocol):
     """Chain of a structure in Biopython.
 
-    The extra `structures` holds Biopython.
+    The extra `structures` holds Biopython. Its `atom_to_internal_coordinates` reads the internal coordinates of the
+    positions of the atoms, and its `internal_to_atom_coordinates` writes the positions of the atoms from them.
     """
 
-    def atom_to_internal_coordinates(self) -> None:
-        """Read the internal coordinates of the positions of the atoms."""
-
-    def internal_to_atom_coordinates(self) -> None:
-        """Write the positions of the atoms from the internal coordinates."""
+    atom_to_internal_coordinates: Callable[[], None]
+    internal_to_atom_coordinates: Callable[[], None]
 
     def get_residues(self) -> Iterator[ResidueProtocol]:
         """Return the residues of the chain."""

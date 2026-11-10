@@ -86,7 +86,7 @@ class AdaptrodeSystem(DynamicalSystem):
         self.stop = stop
 
     @staticmethod
-    def _input(s: SimpleNamespace) -> Expression:
+    def _get_input(s: SimpleNamespace) -> Expression:
         """Return the input pulse train of the Adaptrode.
 
         The train is `amplitude` for `width` steps every `period` until `stop`.
@@ -132,7 +132,7 @@ class AdaptrodeSystem(DynamicalSystem):
         return {
             'w0': lambda s: (
                 s.target.w0
-                + s.target.alpha0 * self._input(s) * (s.target.w_max - s.target.w0)
+                + s.target.alpha0 * self._get_input(s) * (s.target.w_max - s.target.w0)
                 - s.target.delta0 * (s.target.w0 - s.target.w1)
             ),
             'w1': lambda s: (

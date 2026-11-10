@@ -310,7 +310,7 @@ def test_maximum_drives_single_element(largest, drive):
     )
     problem = PassCompiler().prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    assert rates[problem.states.entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
+    assert rates[problem.states.get_entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -513,7 +513,7 @@ def test_observable_read_in_its_own_partition():
     simulation = simulate(system, until=5, dt=0.5, observables=observables)
     problem, trajectory = simulation.problem, simulation
     assert not problem.partitions
-    index = problem.states.entry('account.x').start
+    index = problem.states.get_entry('account.x').start
     for row, values in enumerate(trajectory.states):
         rate = problem.drift(0.0, values, problem.initial_parameters)[index]
         assert rate == pytest.approx(trajectory.get_values('mean_wealth')[row], abs=1e-12)

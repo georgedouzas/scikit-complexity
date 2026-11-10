@@ -400,87 +400,93 @@ class VascularCorePeripherySystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the growth of the radius, the balances, and the inhibitor kinetics."""
         return {
-            'Ar': self._growth,
-            'Ac': lambda s: self._transfer(s) * s.target.Ap - self._necrosis(s),
-            'Ap': lambda s: -self._transfer(s) * s.target.Ap + self._proliferation(s),
-            'An': self._necrosis,
-            'Vbc': lambda s: self._internalization(s) + self._angiogenesis(s),
-            'Vbp': lambda s: s.target.Vx * self._volume_increment(s) - self._internalization(s) + self._angiogenesis(s),
-            'U': lambda s: self._infusion(s) - s.target.du * s.target.U,
+            'Ar': self._get_growth,
+            'Ac': lambda s: self._transfer(s) * s.target.Ap - self._get_necrosis(s),
+            'Ap': lambda s: -self._transfer(s) * s.target.Ap + self._get_proliferation(s),
+            'An': self._get_necrosis,
+            'Vbc': lambda s: self._get_internalization(s) + self._get_angiogenesis(s),
+            'Vbp': lambda s: s.target.Vx * self._get_volume_increment(s)
+            - self._get_internalization(s)
+            + self._get_angiogenesis(s),
+            'U': lambda s: self._get_infusion(s) - s.target.du * s.target.U,
         }
 
-    def _ratio(self, s: SimpleNamespace) -> Expression:
+    def _get_ratio(self, s: SimpleNamespace) -> Expression:
         """Return `ratio` from the namespace of an equation."""
-        return VascularCorePeripherySystem._core_ratio(s.target.Ar)
+        return VascularCorePeripherySystem._get_core_ratio(s.target.Ar)
 
-    def _core(self, s: SimpleNamespace) -> Expression:
+    def _get_core(self, s: SimpleNamespace) -> Expression:
         """Return `core` from the namespace of an equation."""
-        return VascularCorePeripherySystem._get_ball(self._ratio(s) * s.target.Ar)
+        return VascularCorePeripherySystem._get_ball(self._get_ratio(s) * s.target.Ar)
 
-    def _periphery(self, s: SimpleNamespace) -> Expression:
+    def _get_periphery(self, s: SimpleNamespace) -> Expression:
         """Return `periphery` from the namespace of an equation."""
-        return VascularCorePeripherySystem._get_ball(s.target.Ar) - self._core(s)
+        return VascularCorePeripherySystem._get_ball(s.target.Ar) - self._get_core(s)
 
-    def _density(self, s: SimpleNamespace) -> Expression:
+    def _get_density(self, s: SimpleNamespace) -> Expression:
         """Return `density` from the namespace of an equation."""
-        return s.target.Ap / self._periphery(s)
+        return s.target.Ap / self._get_periphery(s)
 
-    def _growth(self, s: SimpleNamespace) -> Expression:
+    def _get_growth(self, s: SimpleNamespace) -> Expression:
         """Return `growth` from the namespace of an equation."""
-        return s.target.r1 * logistic(self._density(s), s.target.p_g, s.target.kappa_g)
+        return s.target.r1 * logistic(self._get_density(s), s.target.p_g, s.target.kappa_g)
 
-    def _core_increment(self, s: SimpleNamespace) -> Expression:
+    def _get_core_increment(self, s: SimpleNamespace) -> Expression:
         """Return `core_increment` from the namespace of an equation."""
-        return VascularCorePeripherySystem._get_ball(self._ratio(s) * (s.target.Ar + self._growth(s))) - self._core(s)
+        return VascularCorePeripherySystem._get_ball(
+            self._get_ratio(s) * (s.target.Ar + self._get_growth(s)),
+        ) - self._get_core(s)
 
-    def _volume_increment(self, s: SimpleNamespace) -> Expression:
+    def _get_volume_increment(self, s: SimpleNamespace) -> Expression:
         """Return `volume_increment` from the namespace of an equation."""
         return VascularCorePeripherySystem._get_ball(
-            s.target.Ar + self._growth(s),
+            s.target.Ar + self._get_growth(s),
         ) - VascularCorePeripherySystem._get_ball(
             s.target.Ar,
         )
 
     def _transfer(self, s: SimpleNamespace) -> Expression:
         """Return `transfer` from the namespace of an equation."""
-        return self._core_increment(s) / self._periphery(s)
+        return self._get_core_increment(s) / self._get_periphery(s)
 
-    def _core_nutrient(self, s: SimpleNamespace) -> Expression:
+    def _get_core_nutrient(self, s: SimpleNamespace) -> Expression:
         """Return `core_nutrient` from the namespace of an equation."""
-        return s.target.Vbc / (self._core(s) * s.target.rv_ref)
+        return s.target.Vbc / (self._get_core(s) * s.target.rv_ref)
 
-    def _periphery_nutrient(self, s: SimpleNamespace) -> Expression:
+    def _get_periphery_nutrient(self, s: SimpleNamespace) -> Expression:
         """Return `periphery_nutrient` from the namespace of an equation."""
-        return s.target.Vbp / (self._periphery(s) * s.target.rv_ref)
+        return s.target.Vbp / (self._get_periphery(s) * s.target.rv_ref)
 
-    def _necrosis(self, s: SimpleNamespace) -> Expression:
+    def _get_necrosis(self, s: SimpleNamespace) -> Expression:
         """Return `necrosis` from the namespace of an equation."""
         return (
-            s.target.m * logistic(self._core_nutrient(s), s.target.p3, s.target.kappa3) ** s.target.theta1 * s.target.Ac
+            s.target.m
+            * logistic(self._get_core_nutrient(s), s.target.p3, s.target.kappa3) ** s.target.theta1
+            * s.target.Ac
         )
 
-    def _proliferation(self, s: SimpleNamespace) -> Expression:
+    def _get_proliferation(self, s: SimpleNamespace) -> Expression:
         """Return `proliferation` from the namespace of an equation."""
         return (
             s.target.r2
-            * logistic(self._periphery_nutrient(s), s.target.p1, s.target.kappa1)
-            * logistic(self._density(s), s.target.p2, s.target.kappa2)
+            * logistic(self._get_periphery_nutrient(s), s.target.p1, s.target.kappa1)
+            * logistic(self._get_density(s), s.target.p2, s.target.kappa2)
             * s.target.Ap
         )
 
-    def _signal(self, s: SimpleNamespace) -> Expression:
+    def _get_signal(self, s: SimpleNamespace) -> Expression:
         """Return `signal` from the namespace of an equation."""
-        return logistic(self._core_nutrient(s), s.target.p4, s.target.kappa4) ** s.target.theta2
+        return logistic(self._get_core_nutrient(s), s.target.p4, s.target.kappa4) ** s.target.theta2
 
-    def _angiogenesis(self, s: SimpleNamespace) -> Expression:
+    def _get_angiogenesis(self, s: SimpleNamespace) -> Expression:
         """Return `angiogenesis` from the namespace of an equation."""
-        return s.target.a1 * exp(-s.target.xi_e * s.target.U) * self._signal(s) * s.target.Vbp
+        return s.target.a1 * exp(-s.target.xi_e * s.target.U) * self._get_signal(s) * s.target.Vbp
 
-    def _internalization(self, s: SimpleNamespace) -> Expression:
+    def _get_internalization(self, s: SimpleNamespace) -> Expression:
         """Return `internalization` from the namespace of an equation."""
         return s.target.r3 * s.target.Ar**s.target.beta * self._transfer(s) * s.target.Vbp
 
-    def _infusion(self, s: SimpleNamespace) -> Expression:
+    def _get_infusion(self, s: SimpleNamespace) -> Expression:
         """Return `infusion` from the namespace of an equation."""
         return s.target.dose * pulse_train(s.t, self.period, self.width, start=self.start)
 
@@ -490,7 +496,7 @@ class VascularCorePeripherySystem(DynamicalSystem):
         return 4 * pi * radius**3 / 3
 
     @staticmethod
-    def _core_ratio(radius: Expression) -> Expression:
+    def _get_core_ratio(radius: Expression) -> Expression:
         """Return the core-periphery ratio of a tumour radius.
 
         The ratio is `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15`.

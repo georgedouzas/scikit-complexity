@@ -83,7 +83,7 @@ class ExplosivePercolationSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
         >>> trajectory = simulate(ExplosivePercolationSystem(100), until=50, random_state=0)
-        >>> len(trajectory.network(-1).sources)
+        >>> len(trajectory.get_network(-1).sources)
         50
     """
 

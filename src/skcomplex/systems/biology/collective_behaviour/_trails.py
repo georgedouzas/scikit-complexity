@@ -242,7 +242,7 @@ class ActiveWalkersSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _corners(width: int, height: int) -> list[tuple[int, int]]:
+    def _get_corners(width: int, height: int) -> list[tuple[int, int]]:
         """Return the four corner cells of a grid, the entry points of the walkers."""
         return [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
 
@@ -278,12 +278,12 @@ class ActiveWalkersSystem(BaseSystem):
         if not isinstance(walker, WalkerView):
             return {}
         here = cast('tuple[int, int]', walker.location)
-        goals = [corner for corner in self._corners(round(walker.width), round(walker.height)) if corner != here]
+        goals = [corner for corner in self._get_corners(round(walker.width), round(walker.height)) if corner != here]
         goal_x, goal_y = goals[int(system.rng.integers(len(goals)))]
         return {'goal_x': float(goal_x), 'goal_y': float(goal_y)}
 
     @staticmethod
-    def _arrived(walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _has_arrived(walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a walker stands at its goal."""
         del system
         return isinstance(walker, WalkerView) and walker.location == (round(walker.goal_x), round(walker.goal_y))
@@ -293,18 +293,18 @@ class ActiveWalkersSystem(BaseSystem):
 
         Such a walker leaves the green now.
         """
-        return self._arrived(walker, system) and isinstance(walker, WalkerView) and bool(walker.arrived)
+        return self._has_arrived(walker, system) and isinstance(walker, WalkerView) and bool(walker.arrived)
 
     def _walks(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a walker is away from its goal.
 
         Such a walker steps.
         """
-        return not self._arrived(walker, system)
+        return not self._has_arrived(walker, system)
 
     def _get_arrived(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return whether a walker stands at its goal at the end of its activation."""
-        return float(self._arrived(walker, system))
+        return float(self._has_arrived(walker, system))
 
     @staticmethod
     def _get_step(walker: AgentViewProtocol, system: SystemViewProtocol) -> object:
@@ -330,7 +330,7 @@ class ActiveWalkersSystem(BaseSystem):
         return cells[int(system.rng.choice(len(cells), p=weights / weights.sum()))]
 
     @staticmethod
-    def _steps(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
+    def _has_stepped(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
         """Return whether a walker stepped in its activation.
 
         It steps since it had not arrived at its goal before.
@@ -351,7 +351,7 @@ class ActiveWalkersSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         rng = np.random.default_rng(self.random_state)
-        corners = self._corners(self.size, self.size)
+        corners = self._get_corners(self.size, self.size)
         starts = rng.integers(len(corners), size=self.n_walkers)
         goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
         walkers = GroupElement(
@@ -422,7 +422,7 @@ class ActiveWalkersSystem(BaseSystem):
                     into='G',
                     amount=self._get_footprint,
                     pairing='site',
-                    guard=self._steps,
+                    guard=self._has_stepped,
                     form='agent',
                     schedule='member',
                 ),

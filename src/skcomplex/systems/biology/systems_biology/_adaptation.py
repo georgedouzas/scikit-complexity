@@ -143,9 +143,9 @@ class EnzymeRegulationInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [RateLaw(s.target.X, self._conversion(s.source.X, s.target.X, s.k, s.K))]
+        return [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
 
-    def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
+    def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by a regulator.
 
         The conversion follows the sign of the interaction.
@@ -230,9 +230,9 @@ class EnzymeStimulusInteraction(Interaction):
                 The laws of the component.
         """
         regulator = s.level + step(s.t, self.at, self.change)
-        return [RateLaw(s.target.X, self._conversion(regulator, s.target.X, s.k, s.K))]
+        return [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
 
-    def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
+    def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by the stimulus.
 
         The conversion follows the sign of the interaction.

@@ -145,13 +145,13 @@ class LogicalRegulationInteraction(Interaction):
                 The laws of the component.
         """
         level = s.target.level
-        focal = self._focal(s.regulators)
+        focal = self._get_focal(s.regulators)
         return [
             JumpLaw(where(focal > level, 1, 0), {level: 1}),
             JumpLaw(where(focal < level, 1, 0), {level: -1}),
         ]
 
-    def _focal(self, regulators: Sequence[SimpleNamespace]) -> Expression:
+    def _get_focal(self, regulators: Sequence[SimpleNamespace]) -> Expression:
         """Return the focal level of the target.
 
         It is the logical parameter of the regulators that act.

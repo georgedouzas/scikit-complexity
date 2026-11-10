@@ -89,7 +89,7 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import DavidsenEbelBornholdtSystem
         >>> trajectory = simulate(DavidsenEbelBornholdtSystem(50), until=20, random_state=0)
-        >>> len(trajectory.network(-1).nodes)
+        >>> len(trajectory.get_network(-1).nodes)
         50
     """
 

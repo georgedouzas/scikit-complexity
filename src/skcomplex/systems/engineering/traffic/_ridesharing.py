@@ -161,7 +161,7 @@ class CabElement(Element):
         """Collect the fare of the rider, take it on board, and head for its destination."""
         rider = next(item for item in system.get_agents('riders', RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
-        blocks = CabElement._get_blocks(CabElement._cell(agent.location), destination)
+        blocks = CabElement._get_blocks(CabElement._get_cell(agent.location), destination)
         fare = system.get_parameter('base_fare') + system.get_parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
@@ -182,12 +182,12 @@ class CabElement(Element):
         """
         if agent.task == IDLE:
             return
-        x, y = CabElement._cell(agent.location)
+        x, y = CabElement._get_cell(agent.location)
         target = (int(agent.target_x), int(agent.target_y))
         if (x, y) != target:
             step = (int(np.sign(target[0] - x)), 0) if x != target[0] else (0, int(np.sign(target[1] - y)))
             agent.move_to((x + step[0], y + step[1]))
-        if CabElement._cell(agent.location) != target:
+        if CabElement._get_cell(agent.location) != target:
             return
         if agent.task == PICKING_UP:
             self._pick_up(agent, system)
@@ -196,7 +196,7 @@ class CabElement(Element):
             agent.seats = 1.0
 
     @staticmethod
-    def _cell(location: object) -> tuple[int, int]:
+    def _get_cell(location: object) -> tuple[int, int]:
         """Return the integer coordinates of a cell."""
         x, y = np.atleast_1d(np.asarray(location, dtype=float))[:2]
         return int(x), int(y)
@@ -457,7 +457,7 @@ class RidesharingSystem(BaseSystem):
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
             raise ArgumentError(error_msg)
-        return -float(CabElement._get_blocks(CabElement._cell(rider.location), CabElement._cell(cab.location)))
+        return -float(CabElement._get_blocks(CabElement._get_cell(rider.location), CabElement._get_cell(cab.location)))
 
     @staticmethod
     def _patience(cab: object, rider: object) -> float:
@@ -478,7 +478,7 @@ class RidesharingSystem(BaseSystem):
         if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
             error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
             raise ArgumentError(error_msg)
-        new_target_x_value, new_target_y_value = CabElement._cell(rider.location)
+        new_target_x_value, new_target_y_value = CabElement._get_cell(rider.location)
         cab.target_x = new_target_x_value
         cab.target_y = new_target_y_value
         new_destination_x, new_destination_y = rider.destination_x, rider.destination_y

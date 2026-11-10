@@ -229,7 +229,7 @@ class OperatorSpec(BaseSpec):
             >>> import qutip
             >>> from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
             >>> plus = LocalOperatorSpec('plus', qutip.sigmap())
-            >>> OperatorSpec({(('q', plus),): 1}).multiply(2j).adjoint().text
+            >>> OperatorSpec({(('q', plus),): 1}).multiply(2j).get_adjoint().text
             '(-2j)*q.minus'
         """
         return OperatorSpec(

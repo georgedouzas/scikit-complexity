@@ -643,13 +643,13 @@ class SteerableFeedbackLoopSystem(DynamicalSystem):
         """Return the synthesis and consumption of the product and the effector response."""
         return {
             'x': lambda s: s.target.v * s.target.e - s.target.d * s.target.x,
-            'e': lambda s: (self._receptor(s) - s.target.e) / s.target.T,
+            'e': lambda s: (self._get_receptor(s) - s.target.e) / s.target.T,
         }
 
-    def _sensitivity(self, s: SimpleNamespace) -> Expression:
+    def _get_sensitivity(self, s: SimpleNamespace) -> Expression:
         """Return `sensitivity` from the namespace of an equation."""
         return s.target.K * (1 + s.target.steering * pulse(s.t, self.start, self.duration))
 
-    def _receptor(self, s: SimpleNamespace) -> Expression:
+    def _get_receptor(self, s: SimpleNamespace) -> Expression:
         """Return `receptor` from the namespace of an equation."""
-        return 1 / (1 + (delayed(s.target.x, s.target.tau) / self._sensitivity(s)) ** s.target.n)
+        return 1 / (1 + (delayed(s.target.x, s.target.tau) / self._get_sensitivity(s)) ** s.target.n)

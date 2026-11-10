@@ -43,7 +43,7 @@ def test_compile_a_system_that_trains_into_a_learning_problem():
     """Test that a system that trains compiles into a learning problem of its trained parameters and hyperparameters."""
     problem = PassCompiler().prepare(_elman()).run().problem_
     assert isinstance(problem, LearningProblemSpec)
-    assert problem.states.entry('net/readout.W').shape == (1, 4)
+    assert problem.states.get_entry('net/readout.W').shape == (1, 4)
     assert problem.parameters.has('training.learning_rate')
     assert problem.inner is not None
     assert problem.inner.backend == 'jax'

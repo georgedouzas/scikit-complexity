@@ -99,7 +99,7 @@ class SequenceSamplingInteraction(SamplingInteraction):
         ... )
         >>> spins = GroupElement('spins', element=SpinElement, space=LatticeSpace((2, 8)), on='sites')
         >>> system = CompositeSystem(elements=[spins], interactions=[walk], time=DiscreteTime())
-        >>> simulate(system, until=3, random_state=0).values('walk.score').shape
+        >>> simulate(system, until=3, random_state=0).get_values('walk.score').shape
         (4, 2)
     """
 

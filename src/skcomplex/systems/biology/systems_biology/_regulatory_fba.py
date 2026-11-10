@@ -174,10 +174,10 @@ class RegulatoryFBASystem(BaseSystem):
         """
         cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
         cell.parsimonious, cell.infeasible = True, 'zero'
-        identifier = cell._identifier(ACETATE_EXCHANGE)
+        identifier = cell._get_identifier(ACETATE_EXCHANGE)
         cell.set_params(
             **{f'lower_{identifier}': -float(self.acetate_vmax)},
-            **{cell.gene_name(gene): 0.0 for gene in ACETATE_GENES},
+            **{cell.get_gene_name(gene): 0.0 for gene in ACETATE_GENES},
         )
         nodes = [BooleanNodeElement(f'node_{position}', x=1) for position in range(self.lag + 1)]
         chain = [

@@ -307,7 +307,7 @@ def test_exact_jacobian_reads_the_parameters_it_receives():
     problem = PassCompiler().prepare(_fisher_line(20, 'zero-flux')).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     first = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
-    p[problem.parameters.entry('line.D').indices] *= 2
+    p[problem.parameters.get_entry('line.D').indices] *= 2
     second = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     off = ~np.eye(20, dtype=bool)
     np.testing.assert_allclose(second[off], 2 * first[off])

@@ -676,7 +676,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         self.seed = seed
 
     @staticmethod
-    def _normal_renewal(target: SimpleNamespace) -> Expression:
+    def _get_normal_renewal(target: SimpleNamespace) -> Expression:
         """Return the renewal rate of normal progenitors.
 
         The feedback of the differentiated cells raises it.
@@ -685,7 +685,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         renewal: Expression = (target.r1 + feedback) * (1 - target.NPr / target.NPmax)
         return renewal
 
-    def _therapy_deaths(
+    def _get_therapy_deaths(
         self,
         s: SimpleNamespace,
         therapy: str,
@@ -698,10 +698,10 @@ class StemCellDifferentiationSystem(BaseSystem):
         """
         target = s.target
         if therapy == 'continuous':
-            return target.d2 * target.uc * (1 + target.delta * self._normal_renewal(target)), target.uc
+            return target.d2 * target.uc * (1 + target.delta * self._get_normal_renewal(target)), target.uc
         if therapy == 'pulsed':
             on = pulse(s.t, start, duration)
-            return target.d2 * target.up * (1 + on * target.delta * self._normal_renewal(target)), target.up * (
+            return target.d2 * target.up * (1 + on * target.delta * self._get_normal_renewal(target)), target.up * (
                 1 + 3 * on
             )
         return target.d2, SR(1)
@@ -746,13 +746,13 @@ class StemCellDifferentiationSystem(BaseSystem):
                 'normal_renewal',
                 target='tissue',
                 state='NPr',
-                rate=lambda s: self._normal_renewal(s.target) * s.target.NPr,
+                rate=lambda s: self._get_normal_renewal(s.target) * s.target.NPr,
             ),
             RateInteraction(
                 'normal_progenitor_death',
                 target='tissue',
                 state='NPr',
-                rate=lambda s: -self._therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                rate=lambda s: -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
             ),
             ReactionInteraction(
                 'mutation',
@@ -773,7 +773,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='NBs',
                 rate=lambda s: -s.target.d3
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.NBs,
             ),
             ReactionInteraction(
@@ -826,7 +826,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='APr',
                 rate=lambda s: -s.target.d6
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.APr,
             ),
             ReactionInteraction(
@@ -841,7 +841,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 target='tissue',
                 state='ABs',
                 rate=lambda s: -s.target.d7
-                * self._therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
                 * s.target.ABs,
             ),
             ReactionInteraction(

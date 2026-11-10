@@ -135,7 +135,7 @@ def entropy(
     - `'spectral'`: the Shannon entropy of the normalized periodogram.
     - `'ensemble'`: the Shannon entropy in bits of the outcomes of an ensemble at every frame, and their
       Kullback-Leibler divergence from the `reference` law, as in the H-theorem. The ensemble has one row per run and
-      one column per frame of integer outcomes, such as `ExperimentResult.ensemble` returns.
+      one column per frame of integer outcomes, such as `ExperimentResult.get_ensemble` returns.
 
     Args:
         source:

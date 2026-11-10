@@ -232,7 +232,7 @@ class DailyMovementsInteraction(Interaction):
 
     def _city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
-        return DailyMovementsInteraction._cell(location)[0] * self.n_cities // width
+        return DailyMovementsInteraction._get_cell(location)[0] * self.n_cities // width
 
     @staticmethod
     def _shape(system: SystemView) -> tuple[int, int]:
@@ -275,21 +275,23 @@ class DailyMovementsInteraction(Interaction):
         """
         women = system.get_agents('women', TravellerView)
         brothels = [
-            DailyMovementsInteraction._cell(place.location)
+            DailyMovementsInteraction._get_cell(place.location)
             for place in system.get_agents('premises', PremisesView)
             if place.brothel
         ]
         width = self._shape(system)[0]
         for brothel in brothels:
             victims = [
-                woman for woman in women if woman.victim and DailyMovementsInteraction._cell(woman.location) == brothel
+                woman
+                for woman in women
+                if woman.victim and DailyMovementsInteraction._get_cell(woman.location) == brothel
             ]
             moved = system.rng.permutation(len(victims))[: int(system.rng.integers(len(victims) + 1))]
             for index in moved:
                 self._travel(victims[index], brothels[int(system.rng.integers(len(brothels)))], width)
 
     @staticmethod
-    def _cell(location: object) -> tuple[int, int]:
+    def _get_cell(location: object) -> tuple[int, int]:
         """Return a grid location as a tuple of integers."""
         column, row = (int(item) for item in np.ravel(np.asarray(location)))
         return column, row

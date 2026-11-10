@@ -251,7 +251,7 @@ class PheromoneForagingSystem(BaseSystem):
         """Return the cell of the nest of an ant."""
         return round(ant.nest_x), round(ant.nest_y)
 
-    def _homes(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _is_homing(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether an ant carries food away from the nest.
 
         Such an ant walks home.
@@ -332,7 +332,7 @@ class PheromoneForagingSystem(BaseSystem):
         """
         if not isinstance(ant, AntView):
             return 0.0
-        return float(not self._homes(ant, system) and not self._searches(ant, system))
+        return float(not self._is_homing(ant, system) and not self._searches(ant, system))
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of ants that find food and lay a pheromone trail home."""
@@ -384,7 +384,7 @@ class PheromoneForagingSystem(BaseSystem):
                     'homing',
                     target='colony/ants',
                     step=self._get_home_step,
-                    condition=self._homes,
+                    condition=self._is_homing,
                     schedule='member',
                 ),
                 TransferInteraction(

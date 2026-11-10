@@ -782,7 +782,7 @@ class CellularPottsSystem(BaseSystem):
         return settings
 
     @staticmethod
-    def _disordered_lattice(shape: tuple[int, int], rng: np.random.Generator) -> nx.Graph:
+    def _get_disordered_lattice(shape: tuple[int, int], rng: np.random.Generator) -> nx.Graph:
         """Return the periodic Voronoi tessellation of jittered points as a graph of sites.
 
         There is one point per unit area.
@@ -831,7 +831,7 @@ class CellularPottsSystem(BaseSystem):
         kinds = np.asarray(self.adhesion, dtype=float).shape[0]
         kind_of = tuple(int(kind) for kind in rng.permutation(np.arange(count) % kinds))
         if self.lattice == 'disordered':
-            graph = self._disordered_lattice((rows, columns), rng)
+            graph = self._get_disordered_lattice((rows, columns), rng)
             x, y = np.asarray([point for _, point in graph.nodes(data='pos')]).T
             space: LatticeSpace | NetworkSpace = NetworkSpace(graph)
         else:

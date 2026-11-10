@@ -173,7 +173,7 @@ def test_law_reads_a_moment():
     problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = float(PROFILE @ ACTIVITIES / PROFILE.sum())
-    assert rates[problem.states.entry('recorder.y').start] == pytest.approx(expected)
+    assert rates[problem.states.get_entry('recorder.y').start] == pytest.approx(expected)
 
 
 def test_moment_inside_a_group_law_is_shared():

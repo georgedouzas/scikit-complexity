@@ -21,10 +21,11 @@ class PolicyRuleInteraction[SystemT: SystemViewProtocol](Interaction):
     """Single actor that reads the system and sets parameters from what it reads.
 
     It reads the system once per round of its phase. Its rule runs once per round of its phase, after the agents of the
-    phase. It reads observables with `system.observable(name)`, reporters with `system.history(name)`, and agents with
-    `system.get_agents(name)`, and sets parameters of any group or interaction with `system.set_parameter(name, value)`. A
-    change is visible to every rule at once and recorded in the trajectory like any parameter. Subclasses declare their
-    own parameters, such as a target, and override `act`. Otherwise `rule(system)` acts.
+    phase. It reads observables with `system.get_observable(name)`, reporters with `system.get_history(name)`, and
+    agents with `system.get_agents(name)`, and sets parameters of any group or interaction with
+    `system.set_parameter(name, value)`. A change is visible to every rule at once and recorded in the trajectory like
+    any parameter. Subclasses declare their own parameters, such as a target, and override `act`. Otherwise
+    `rule(system)` acts.
 
     Args:
         label:

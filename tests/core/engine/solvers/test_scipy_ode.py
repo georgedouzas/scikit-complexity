@@ -750,7 +750,7 @@ def test_exact_jacobian_follows_parameter_changes():
         stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
         x = stepper.run(StepSpec(0.0, problem.initial_state, p, 0.5)).state_
         changed = p.copy()
-        changed[problem.parameters.entry('line.D').indices] = 3.0
+        changed[problem.parameters.get_entry('line.D').indices] = 3.0
         states[option] = stepper.run(StepSpec(0.5, x, changed, 1.0)).state_
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()

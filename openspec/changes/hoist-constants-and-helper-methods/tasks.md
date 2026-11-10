@@ -93,7 +93,7 @@ tests and the catalog tests pass with the field added to the checked packages.
 - [x] 7.1 `systems/_catalog.py` and `_extras.py`: rename `_LISTED` and `_SYSTEM_CLASSES`, the latter as a derived
   value. Update `tests/systems/test_catalog.py` only where it imports a renamed name. Verify `all_systems` returns the
   same list as before.
-- [ ] 7.2 Biology, including `_carbon_13_mfa.py` and `_logical_networks.py`, whose three constants drop the
+- [x] 7.2 Biology, including `_carbon_13_mfa.py` and `_logical_networks.py`, whose three constants drop the
   annotation that names a local alias.
 - [x] 7.3 Chemistry, including the shared diffusion helpers and `_noise` of `_reaction_diffusion.py`, which becomes
   `_get_noise`.

@@ -320,7 +320,7 @@ class CompileEncountersPass(BasePass):
 
         Examples:
             >>> from skcomplex.core.engine.compile.passes._compile_encounters import CompileEncountersPass
-            >>> CompileEncountersPass._kinetic_table([[0.5, 0.5]]).dtype
+            >>> CompileEncountersPass._get_kinetic_table([[0.5, 0.5]]).dtype
             dtype('float64')
         """
         array = np.asarray(value, dtype=object)

@@ -520,7 +520,7 @@ class SettlerElement(Element):
         return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
     @staticmethod
-    def _cell(agent: AgentView) -> tuple[int, ...]:
+    def _get_cell(agent: AgentView) -> tuple[int, ...]:
         """Return the cell of an agent of the lattice."""
         location = agent.location
         if not isinstance(location, tuple):
@@ -538,7 +538,7 @@ class SettlerElement(Element):
             width, height = system.dimensions or (1, 1)
             reach = int(sight)
             dx, dy = system.rng.integers(-reach, reach + 1, size=2)
-            x, y = SettlerElement._cell(agent)
+            x, y = SettlerElement._get_cell(agent)
             agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
             return
         cells = agent.get_neighbor_cells()
@@ -802,7 +802,7 @@ class CommonsInteraction(Interaction):
         """
         cells: dict[tuple[int, ...], list[SettlerView]] = {}
         for person in system.get_agents('people', SettlerView):
-            cells.setdefault(SettlerElement._cell(person), []).append(person)
+            cells.setdefault(SettlerElement._get_cell(person), []).append(person)
         for group in cells.values():
             patch = SettlerElement._patch_here(group[0])
             labour = sum(person.labour for person in group if person.age >= person.maturity)

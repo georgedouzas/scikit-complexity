@@ -107,7 +107,7 @@ class PriceAdjustmentInteraction(MapInteraction):
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
         >>> system = CompositeSystem(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-        >>> simulate(system, until=3).values('quote.x').tolist()
+        >>> simulate(system, until=3).get_values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
 

@@ -142,7 +142,7 @@ class ReactionInteraction(JumpInteraction):
         >>> values = {'x': np.arange(3.0)}
         >>> cells = FieldElement('cells', element=NonnegativeElement, space=LatticeSpace((3,)), values=values)
         >>> trajectory = simulate(CompositeSystem(elements=[cells], interactions=[decay]), until=1, dt=1.0)
-        >>> np.round(trajectory.lattice('cells.x')[-1], 3).tolist()
+        >>> np.round(trajectory.get_lattice('cells.x')[-1], 3).tolist()
         [0.0, 0.368, 0.736]
 
         A coefficient that is a parameter, the decay at the rate `x` that removes `1 / epsilon` units per event:

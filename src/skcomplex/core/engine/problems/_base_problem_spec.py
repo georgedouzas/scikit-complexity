@@ -99,7 +99,7 @@ class BaseProblemSpec(BaseSpec):
         >>> from skcomplex.core.engine.problems import BaseProblemSpec
         >>> layout = LayoutSpec(())
         >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.stochastic, problem.adaptive_parameters, problem.lattice_shape('a.n')
+        >>> problem.stochastic, problem.adaptive_parameters, problem.get_lattice_shape('a.n')
         (False, {}, None)
     """
 

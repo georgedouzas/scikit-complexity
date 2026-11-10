@@ -229,7 +229,7 @@ class ShepherdingInteraction(Interaction):
         shepherds = np.array([np.asarray(item.location, dtype=float) for item in dogs])
         headings = np.array([[item.hx, item.hy] for item in flock])
         moved, headings = self._move_sheep(sheep, shepherds, headings, system.rng)
-        targets, driving = self._targets(sheep, shepherds)
+        targets, driving = self._get_targets(sheep, shepherds)
         steps = self._get_unit(targets - shepherds) + 0.3 * self._get_unit(system.rng.normal(size=shepherds.shape))
         distances = np.linalg.norm(sheep[None, :, :] - shepherds[:, None, :], axis=2)
         blocked = distances.min(axis=1) < 3 * self.ra
@@ -268,7 +268,7 @@ class ShepherdingInteraction(Interaction):
         heading = np.where(alert[:, None], self._get_unit(herded), grazing)
         return sheep + self.delta * heading, heading
 
-    def _targets(self, sheep: Array, shepherds: Array) -> tuple[Array, Array]:
+    def _get_targets(self, sheep: Array, shepherds: Array) -> tuple[Array, Array]:
         """Return the points the shepherds head to and whether each drives the flock."""
         centre, goal = sheep.mean(axis=0), np.asarray(self.goal, dtype=float)
         spread = np.linalg.norm(sheep - centre, axis=1)

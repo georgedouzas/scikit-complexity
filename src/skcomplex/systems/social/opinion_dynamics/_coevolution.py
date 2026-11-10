@@ -239,7 +239,7 @@ class CoevolvingVoterSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
         >>> trajectory = simulate(CoevolvingVoterSystem(30), until=5, random_state=0)
-        >>> int(trajectory.network(-1).sources.size) == int(trajectory.network(0).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size) == int(trajectory.get_network(0).sources.size)
         True
     """
 

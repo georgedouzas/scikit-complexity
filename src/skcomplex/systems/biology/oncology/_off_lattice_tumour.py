@@ -172,7 +172,7 @@ class TumourGrowthInteraction(Interaction):
         self._relax(cell, neighbours, system)
 
     @staticmethod
-    def _edge_distance(cell: SpringCellView, system: SystemViewProtocol) -> float:
+    def _get_edge_distance(cell: SpringCellView, system: SystemViewProtocol) -> float:
         """Return the distance of a cell to the nearest healthy cell, from a tree kept for the step."""
         storage = system.storage
         if storage.get('time') != system.time:
@@ -190,7 +190,7 @@ class TumourGrowthInteraction(Interaction):
         needed = cell.g_age1 if system.time < cell.tau * HOURS_PER_DAY else cell.g_age2
         if cell.age < needed:
             return
-        probability = max(0.0, cell.p0 * (1.0 - self._edge_distance(cell, system) / cell.dmax))
+        probability = max(0.0, cell.p0 * (1.0 - self._get_edge_distance(cell, system) / cell.dmax))
         if not system.draw('divide', 'bernoulli', p=probability):
             return
         angle = system.draw('direction', 'uniform', low=0.0, high=2.0 * math.pi)

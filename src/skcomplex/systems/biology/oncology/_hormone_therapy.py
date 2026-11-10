@@ -1547,7 +1547,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         self.width = width
 
     @staticmethod
-    def _quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
+    def _get_quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
         """Return the uptake of androgen into a quota.
 
         The uptake slows as the quota fills.
@@ -1621,7 +1621,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 'dependent_uptake',
                 target='tumour',
                 state='Q1',
-                rate=lambda s: self._quota_uptake(s.target, s.target.Q1, s.target.q1),
+                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q1, s.target.q1),
             ),
             RateInteraction(
                 'dependent_use',
@@ -1639,7 +1639,7 @@ class ProstateCellQuotaSystem(BaseSystem):
                 'independent_uptake',
                 target='tumour',
                 state='Q2',
-                rate=lambda s: self._quota_uptake(s.target, s.target.Q2, s.target.q2),
+                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q2, s.target.q2),
             ),
             RateInteraction(
                 'independent_use',
@@ -1764,7 +1764,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         self.age = age
 
     @staticmethod
-    def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
+    def _get_prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
         """Return the prostate volume in cm³ at the age of the patient.
 
         The volume is `v1 a^phi / (v2^phi + a^phi) + v3`.
@@ -1774,7 +1774,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return volume
 
     @staticmethod
-    def _receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
+    def _get_receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
         """Return the growth rate that the activated receptors drive.
 
         The receptors are activated by DHT and testosterone.
@@ -1784,18 +1784,20 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return growth
 
     @staticmethod
-    def _receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
+    def _get_receptor_death(target: SimpleNamespace, psi3: Expression) -> Expression:
         """Return the death rate that the activated receptors lower."""
         death: Expression = psi3 / (target.psi4 + target.UD + target.UT)
         return death
 
-    def _dependent_division(self, target: SimpleNamespace) -> Expression:
+    def _get_dependent_division(self, target: SimpleNamespace) -> Expression:
         """Return the division of androgen-dependent cells.
 
         The normal and the cancer cells crowd the division.
         """
         crowding = (target.c1 * target.N + target.AD + target.AI) / target.b2
-        division: Expression = self._receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
+        division: Expression = (
+            self._get_receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
+        )
         return division
 
     def _build_system(self) -> CompositeSystem:
@@ -1815,44 +1817,44 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 'normal_growth',
                 target='prostate',
                 state='N',
-                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
+                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
                 * s.target.N
                 * (
                     1
                     - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
-                    / (self._prostate_volume(s.target, s.t) / s.target.Vc)
+                    / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
                 ),
             ),
             ReactionInteraction(
                 'normal_death',
                 target='prostate',
                 reactants={'N': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_n) * s.target.N,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_n) * s.target.N,
             ),
             RateInteraction(
                 'dependent_division',
                 target='prostate',
                 state='AD',
-                rate=lambda s: self._dependent_division(s.target),
+                rate=lambda s: self._get_dependent_division(s.target),
             ),
             ReactionInteraction(
                 'mutation',
                 target='prostate',
                 reactants={'AD': 1},
                 products={'AI': 1},
-                propensity=lambda s: s.target.m1 * self._dependent_division(s.target),
+                propensity=lambda s: s.target.m1 * self._get_dependent_division(s.target),
             ),
             ReactionInteraction(
                 'dependent_death',
                 target='prostate',
                 reactants={'AD': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_d) * s.target.AD,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_d) * s.target.AD,
             ),
             RateInteraction(
                 'independent_growth',
                 target='prostate',
                 state='AI',
-                rate=lambda s: self._receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
+                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
                 * s.target.AI
                 * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
             ),
@@ -1860,7 +1862,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 'independent_death',
                 target='prostate',
                 reactants={'AI': 1},
-                propensity=lambda s: self._receptor_death(s.target, s.target.psi3_i) * s.target.AI,
+                propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_i) * s.target.AI,
             ),
             RateInteraction(
                 'psa_production',
@@ -1877,7 +1879,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du1
                 * s.target.UIP
                 * s.target.N
-                / (self._prostate_volume(s.target, s.t) / s.target.Vc),
+                / (self._get_prostate_volume(s.target, s.t) / s.target.Vc),
             ),
             ReactionInteraction(
                 'cancer_leak',
@@ -2063,7 +2065,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
         self.a2 = a2
 
     @staticmethod
-    def _room(target: SimpleNamespace) -> Expression:
+    def _get_room(target: SimpleNamespace) -> Expression:
         """Return the Gompertz room `log(Asat / (Ag + As + Am))`.
 
         The room slows the passage through the cell cycle.
@@ -2080,7 +2082,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 target='tumour',
                 reactants={'Ag': 1},
                 products={'As': 1},
-                propensity=lambda s: s.target.mg * s.target.Ag * self._room(s.target),
+                propensity=lambda s: s.target.mg * s.target.Ag * self._get_room(s.target),
             ),
             ReactionInteraction(
                 'synthesis',
@@ -2094,7 +2096,7 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 target='tumour',
                 reactants={'Am': 1},
                 products={'Ag': 2},
-                propensity=lambda s: s.target.mm * s.target.Am * self._room(s.target),
+                propensity=lambda s: s.target.mm * s.target.Am * self._get_room(s.target),
             ),
             ReactionInteraction(
                 'drug_kill',

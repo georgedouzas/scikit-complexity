@@ -88,9 +88,9 @@ class CommunityFBASystem(BaseSystem):
             member.objective = {}
             for reaction in shared:
                 if shared[reaction] >= 0:
-                    member.set_params(**{f'lower_{member._identifier(reaction)}': OPEN_UPTAKE})
+                    member.set_params(**{f'lower_{member._get_identifier(reaction)}': OPEN_UPTAKE})
             if knockout:
-                identifier = member._identifier(knockout)
+                identifier = member._get_identifier(knockout)
                 member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
             members.append(member)
         return CompositeSystem(

@@ -554,7 +554,7 @@ def _parameter_values(
     names = problem.parameters.names
     label = network.label
     for reaction, (lower, upper) in bounds.items():
-        identifier = network._identifier(reaction)
+        identifier = network._get_identifier(reaction)
         values[names.index(f'{label}.lower_{identifier}')] = lower
         values[names.index(f'{label}.upper_{identifier}')] = upper
     return values

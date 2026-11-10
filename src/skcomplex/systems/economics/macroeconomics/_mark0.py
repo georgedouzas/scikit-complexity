@@ -321,7 +321,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         return float(value) if isinstance(value, int | float | np.number) else default
 
     @staticmethod
-    def _weighted(values: Array, weights: Array) -> float:
+    def _get_weighted(values: Array, weights: Array) -> float:
         """Return the mean of values weighted by nonnegative weights.
 
         It is the plain mean when they sum to zero.
@@ -338,8 +338,8 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         active = state['active'] > 0
         workforce, demand, price, wage, profit = (state[name] for name in ('n', 'd', 'p', 'w', 'profit'))
         production = zeta * workforce
-        mean_price = self._weighted(price[active], production[active])
-        mean_wage = self._weighted(wage[active], production[active])
+        mean_price = self._get_weighted(price[active], production[active])
+        mean_wage = self._get_weighted(wage[active], production[active])
         attraction = np.where(active, np.exp(system.get_parameter('beta') * (wage / mean_wage - 1)), 0.0)
         available = unemployment * len(workforce) * attraction / attraction.sum()
         under, over = active & (production < demand), active & (production > demand)
@@ -403,8 +403,8 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         bill = state['w'] * state['n']
         wages = float(bill.sum())
         state['e'] = state['e'] - bill
-        mean_price = self._weighted(state['p'][active], production[active])
-        mean_wage = self._weighted(state['w'][active], production[active])
+        mean_price = self._get_weighted(state['p'][active], production[active])
+        mean_wage = self._get_weighted(state['w'][active], production[active])
         budget = c * (savings + wages + rho_d * savings)
         weights = np.where(active, np.exp(-system.get_parameter('beta') * state['p'] / mean_price), 0.0)
         state['d'] = budget * weights / (state['p'] * weights.sum())
@@ -417,7 +417,7 @@ class Mark0EconomyInteraction(PolicyRuleInteraction[SystemView]):
         state['e'] -= dividends
         savings += float(dividends.sum())
         fragility_of = np.divide(-state['e'], bill, out=np.zeros(size), where=bill > 0)
-        fragility = self._weighted(fragility_of[active], production[active])
+        fragility = self._get_weighted(fragility_of[active], production[active])
         threshold = self._threshold(system, month, fragility)
         defaulted = active & (fragility_of >= threshold)
         losses = float(-state['e'][defaulted].sum())

@@ -474,7 +474,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_connections(n_neurons: int, probability: float, rng: np.random.Generator) -> list[tuple[int, int]]:
+    def _get_random_connections(n_neurons: int, probability: float, rng: np.random.Generator) -> list[tuple[int, int]]:
         """Return the directed links of a random network without self-links."""
         return list(nx.gnp_random_graph(n_neurons, probability, seed=rng, directed=True).edges)
 
@@ -524,7 +524,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
                 J=self.J,
                 D=self.D,
             )
-            for source, target in self._random_connections(self.n_neurons, self.probability, rng)
+            for source, target in self._get_random_connections(self.n_neurons, self.probability, rng)
         ]
         return CompositeSystem(self.label, elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
 
@@ -593,7 +593,7 @@ class LegionSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _excitation(s: SimpleNamespace) -> Expression:
+    def _get_excitation(s: SimpleNamespace) -> Expression:
         """Return the excitation of an oscillator by a stimulated neighbour.
 
         The neighbour excites it in its active phase.
@@ -635,7 +635,7 @@ class LegionSystem(BaseSystem):
             target='oscillators',
             read='x',
             write='x',
-            function=self._excitation,
+            function=self._get_excitation,
         )
         drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
         inhibition = GlobalInhibitionInteraction(

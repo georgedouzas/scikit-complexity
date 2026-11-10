@@ -33,7 +33,7 @@ class CompartmentElement(NonnegativeElement):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> system = CompositeSystem(elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10)])
-        >>> simulate(system, until=2, dt=1.0).values('S.x').tolist()
+        >>> simulate(system, until=2, dt=1.0).get_values('S.x').tolist()
         [990.0, 990.0, 990.0]
     """
 

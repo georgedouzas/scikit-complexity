@@ -477,13 +477,13 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return agent.group.rpartition('/')[2]
 
     @staticmethod
-    def _occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
+    def _get_occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
         """Return the agents around an agent by their cell."""
         return {other.location: other for other in agent.get_neighbors()}
 
-    def _empty_cells(self, agent: AgentViewProtocol) -> list[object]:
+    def _get_empty_cells(self, agent: AgentViewProtocol) -> list[object]:
         """Return the neighbouring cells of an agent that no agent occupies."""
-        occupied = self._occupants(agent)
+        occupied = self._get_occupants(agent)
         return [cell for cell in agent.get_neighbor_cells() if cell not in occupied]
 
     def _get_empty_cell(self, agent: AgentViewProtocol | None, system: SystemViewProtocol) -> object:
@@ -491,7 +491,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
 
         It is `None` when there is none.
         """
-        cells = [] if agent is None else self._empty_cells(agent)
+        cells = [] if agent is None else self._get_empty_cells(agent)
         return cells[int(system.rng.integers(len(cells)))] if cells else None
 
     @staticmethod
@@ -506,7 +506,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _spreads(self, plant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether a mature plant has an empty neighbouring cell to spread into."""
         del system
-        return isinstance(plant, PlantView) and plant.age >= plant.maturity and bool(self._empty_cells(plant))
+        return isinstance(plant, PlantView) and plant.age >= plant.maturity and bool(self._get_empty_cells(plant))
 
     @staticmethod
     def _starves(animal: AgentViewProtocol, system: SystemViewProtocol) -> bool:
@@ -520,7 +520,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _get_fear(self, prey: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the number of predators around a prey, its experience of fear."""
         del system
-        return float(sum(self._get_kind(other) == PREDATORS for other in self._occupants(prey).values()))
+        return float(sum(self._get_kind(other) == PREDATORS for other in self._get_occupants(prey).values()))
 
     @staticmethod
     def _get_anger(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -560,7 +560,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         """
         if not isinstance(animal, ForagerView):
             return None
-        occupants = self._occupants(animal)
+        occupants = self._get_occupants(animal)
         options = [
             (cell, occupants.get(cell))
             for cell in animal.get_neighbor_cells()
@@ -640,7 +640,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         The animal needs an empty neighbouring cell, and happiness raises the probability.
         """
         del system
-        if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not self._empty_cells(animal):
+        if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not self._get_empty_cells(animal):
             return 0.0
         return float(animal.reproduction * (1 + animal.emotions * (animal.happiness - animal.distress)))
 
@@ -761,7 +761,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
         ]
 
     @staticmethod
-    def _random_cells(
+    def _get_random_cells(
         rng: np.random.Generator,
         width: int,
         height: int,
@@ -776,7 +776,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of plants, prey, and predators on a grid."""
         rng = np.random.default_rng(self.random_state)
-        plant_cells, prey_cells, predator_cells = self._random_cells(
+        plant_cells, prey_cells, predator_cells = self._get_random_cells(
             rng,
             self.width,
             self.height,

@@ -124,12 +124,12 @@ class SIRVaccinationSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the flows between the fractions."""
         return {
-            'S': lambda s: -self._infection(s.target) - s.target.u * s.target.S,
-            'I': lambda s: self._infection(s.target) - s.target.gamma * s.target.I,
+            'S': lambda s: -self._get_infection(s.target) - s.target.u * s.target.S,
+            'I': lambda s: self._get_infection(s.target) - s.target.gamma * s.target.I,
             'R': lambda s: s.target.gamma * s.target.I + s.target.u * s.target.S,
         }
 
     @staticmethod
-    def _infection(population: SimpleNamespace) -> Expression:
+    def _get_infection(population: SimpleNamespace) -> Expression:
         """Return the new infections per unit time, `beta S I`."""
         return population.beta * population.S * population.I

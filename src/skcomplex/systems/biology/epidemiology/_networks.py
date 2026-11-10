@@ -133,17 +133,17 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         self.rho = rho
 
     @staticmethod
-    def _recovery(namespace: SimpleNamespace) -> Expression:
+    def _get_recovery(namespace: SimpleNamespace) -> Expression:
         """Return the recovery `-rho_k` of a degree class at rate 1."""
         return -namespace.target.rho
 
     @staticmethod
-    def _edge_weight(namespace: SimpleNamespace) -> Expression:
+    def _get_edge_weight(namespace: SimpleNamespace) -> Expression:
         """Return the share `k P(k)` of the ends of edges that another degree class holds."""
         return namespace.other.k * namespace.other.P
 
     @staticmethod
-    def _infection(namespace: SimpleNamespace) -> Expression:
+    def _get_infection(namespace: SimpleNamespace) -> Expression:
         """Return the infection `lam k (1 - rho_k) rho_k'` of a degree class.
 
         The infection is by the nodes of another class.
@@ -162,16 +162,16 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
             values={'rho': self.rho, 'lam': self.lam, 'k': degrees, 'P': weights},
         )
         interactions = [
-            RateInteraction('recovery', target='network', state='rho', rate=self._recovery),
+            RateInteraction('recovery', target='network', state='rho', rate=self._get_recovery),
             CouplingInteraction(
                 'infection',
                 target='network',
                 read='rho',
                 write='rho',
-                function=self._infection,
+                function=self._get_infection,
                 reduce='normalized-mean',
                 mode='group',
-                weights=self._edge_weight,
+                weights=self._get_edge_weight,
                 include_self=True,
             ),
         ]
@@ -267,14 +267,14 @@ class MetapopulationSystem(NetworkDynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the infections, recoveries, and hops of every node."""
         return {
-            'S': lambda s: -self._infections(s.target) + s.target.D * laplacian(s.target.S),
+            'S': lambda s: -self._get_infections(s.target) + s.target.D * laplacian(s.target.S),
             'I': lambda s: (
-                self._infections(s.target) - s.target.gamma * s.target.I + s.target.D * laplacian(s.target.I)
+                self._get_infections(s.target) - s.target.gamma * s.target.I + s.target.D * laplacian(s.target.I)
             ),
             'R': lambda s: s.target.gamma * s.target.I + s.target.D * laplacian(s.target.R),
         }
 
     @staticmethod
-    def _infections(cities: SimpleNamespace) -> Expression:
+    def _get_infections(cities: SimpleNamespace) -> Expression:
         """Return the new infections per unit time of a node."""
         return cities.beta * cities.S * cities.I / (cities.S + cities.I + cities.R)

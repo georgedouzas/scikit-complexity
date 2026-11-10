@@ -100,7 +100,7 @@ class DuplicationDeletionSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import DuplicationDeletionSystem
         >>> trajectory = simulate(DuplicationDeletionSystem(30), until=20, random_state=0)
-        >>> len(trajectory.network(-1).nodes)
+        >>> len(trajectory.get_network(-1).nodes)
         30
     """
 

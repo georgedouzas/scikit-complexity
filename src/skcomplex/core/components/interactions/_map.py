@@ -101,7 +101,7 @@ class MapInteraction(Interaction):
         ...     'map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x)
         ... )
         >>> system = CompositeSystem(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-        >>> simulate(system, until=2).values('value.x').tolist()
+        >>> simulate(system, until=2).get_values('value.x').tolist()
         [0.5, 0.75, 0.5625]
         >>> agents = MapInteraction('map', target='walkers', state='x', function=lambda a, m: a.x + 1, form='agent')
         >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__

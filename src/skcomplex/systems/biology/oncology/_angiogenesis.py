@@ -440,7 +440,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         return float(vessel.supply) if isinstance(vessel, VesselView) else 0.0
 
     @staticmethod
-    def _active(tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    def _is_active(tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
         """Return whether the VEGF at a tip reaches `activation`.
 
         An activated tip moves.
@@ -452,11 +452,11 @@ class TumourAngiogenesisSystem(BaseSystem):
 
         There the tip leaves one.
         """
-        return self._active(tip, system) and not tip.get_agents_here(VESSELS)
+        return self._is_active(tip, system) and not tip.get_agents_here(VESSELS)
 
     def _get_branching(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> float:
         """Return the probability `branching` that an active tip splits in two."""
-        return float(tip.branching) if isinstance(tip, SproutView) and self._active(tip, system) else 0.0
+        return float(tip.branching) if isinstance(tip, SproutView) and self._is_active(tip, system) else 0.0
 
     @staticmethod
     def _get_chemotaxis(tip: AgentViewProtocol, system: SystemViewProtocol) -> object:
@@ -556,7 +556,7 @@ class TumourAngiogenesisSystem(BaseSystem):
                 'chemotaxis',
                 target=SPROUTS,
                 step=self._get_chemotaxis,
-                condition=self._active,
+                condition=self._is_active,
                 schedule='member',
             ),
         ]

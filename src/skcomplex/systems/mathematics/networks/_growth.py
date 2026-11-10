@@ -246,7 +246,7 @@ class BarabasiAlbertSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
         >>> trajectory = simulate(BarabasiAlbertSystem(13), until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 
@@ -573,7 +573,7 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.networks import PopularitySimilarityNetworkSystem
         >>> system = PopularitySimilarityNetworkSystem(13).prepare().system_
         >>> trajectory = simulate(system, until=10, random_state=0)
-        >>> int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).sources.size)
         23
     """
 
@@ -697,7 +697,7 @@ class GraphletArrivalSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import GraphletArrivalSystem
         >>> trajectory = simulate(GraphletArrivalSystem(22), until=10, random_state=0)
-        >>> int(trajectory.network(-1).nodes.size), int(trajectory.network(-1).sources.size)
+        >>> int(trajectory.get_network(-1).nodes.size), int(trajectory.get_network(-1).sources.size)
         (22, 21)
     """
 

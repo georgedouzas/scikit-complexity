@@ -84,6 +84,6 @@ class FluxBalanceSystem(BaseSystem):
             )
         element = load_network('textbook', 'cell', needed_by='flux_balance')
         element.parsimonious = self.parsimonious
-        identifier = f'lower_{element._identifier(OXYGEN_EXCHANGE)}'
+        identifier = f'lower_{element._get_identifier(OXYGEN_EXCHANGE)}'
         element.set_params(**{identifier: -float(self.oxygen)})
         return CompositeSystem(self.label, elements=[element], time=StaticTime())

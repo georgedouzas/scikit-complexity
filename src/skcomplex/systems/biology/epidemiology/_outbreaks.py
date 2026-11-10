@@ -178,12 +178,12 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         self.infected = infected
 
     @staticmethod
-    def _edge_weight(namespace: SimpleNamespace) -> Expression:
+    def _get_edge_weight(namespace: SimpleNamespace) -> Expression:
         """Return the share `k P(k)` of the ends of edges that another degree class holds."""
         return namespace.other.k * namespace.other.P
 
     @staticmethod
-    def _infection(namespace: SimpleNamespace) -> Expression:
+    def _get_infection(namespace: SimpleNamespace) -> Expression:
         """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class.
 
         The infection is by the nodes of another class.
@@ -191,15 +191,15 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         member, other = namespace.member, namespace.other
         return member.beta * member.k * member.s * (other.k - 1) * other.i / other.k
 
-    def _susceptible_loss(self, namespace: SimpleNamespace) -> Expression:
+    def _get_susceptible_loss(self, namespace: SimpleNamespace) -> Expression:
         """Return the loss of susceptible density of a degree class.
 
         The loss is to the infection by another class.
         """
-        return -self._infection(namespace)
+        return -self._get_infection(namespace)
 
     @staticmethod
-    def _recovery(namespace: SimpleNamespace) -> Expression:
+    def _get_recovery(namespace: SimpleNamespace) -> Expression:
         """Return the recovery `mu i_k` of a degree class."""
         return namespace.source.mu * namespace.source.i
 
@@ -227,10 +227,10 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
                 target='network',
                 read='i',
                 write='i',
-                function=self._infection,
+                function=self._get_infection,
                 reduce='normalized-mean',
                 mode='group',
-                weights=self._edge_weight,
+                weights=self._get_edge_weight,
                 include_self=True,
             ),
             CouplingInteraction(
@@ -238,10 +238,10 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
                 target='network',
                 read='s',
                 write='s',
-                function=self._susceptible_loss,
+                function=self._get_susceptible_loss,
                 reduce='normalized-mean',
                 mode='group',
-                weights=self._edge_weight,
+                weights=self._get_edge_weight,
                 include_self=True,
             ),
             TransferInteraction(
@@ -250,7 +250,7 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
                 target='network',
                 state='i',
                 into='r',
-                amount=self._recovery,
+                amount=self._get_recovery,
             ),
         ]
         return CompositeSystem(self.label, elements=[classes], interactions=interactions)

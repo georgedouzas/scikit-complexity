@@ -52,9 +52,9 @@ class PowerSeriesSpec(BaseSpec):
         >>> series = PowerSeriesSpec(4)
         >>> series.multiply(np.array([1, 1, 0, 0]), np.array([1, -1, 0, 0])).tolist()
         [1.0, 0.0, -1.0, 0.0]
-        >>> series.series_of([1, 2, 0, 0])
+        >>> series.get_series_of([1, 2, 0, 0])
         1 + 2*t + O(t^4)
-        >>> series.coefficients_of(series.ring.gen() ** 2).tolist()
+        >>> series.get_coefficients_of(series.ring.gen() ** 2).tolist()
         [0.0, 0.0, 1.0, 0.0]
     """
 

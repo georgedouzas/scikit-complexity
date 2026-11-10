@@ -110,7 +110,7 @@ def ergodicity(
 
     The diagnostic is of one kind.
 
-    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.ensemble` returns:
+    The ensemble kinds read one row per run and one column per time, such as `ExperimentResult.get_ensemble` returns:
 
     - `'breaking'`: the variance across runs of the time averages over the variance of all the values, near 0 for
       ergodic runs longer than their relaxation time and near 1 when every run is frozen in its own state.

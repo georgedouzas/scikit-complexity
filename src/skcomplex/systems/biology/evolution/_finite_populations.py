@@ -131,14 +131,14 @@ class ClimberElement(Element):
         """
         n, k, seed = int(agent.n), int(agent.k), int(agent.seed)
         mutant = int(agent.genome) ^ (1 << int(system.rng.integers(n)))
-        fitness = ClimberElement._nk_fitness(mutant, n, k, seed)
+        fitness = ClimberElement._get_nk_fitness(mutant, n, k, seed)
         if fitness > agent.fitness:
             agent.genome = float(mutant)
             agent.fitness = fitness
 
     @staticmethod
     @lru_cache(maxsize=16)
-    def _nk_tables(seed: int, n: int, k: int) -> Array:
+    def _get_nk_tables(seed: int, n: int, k: int) -> Array:
         """Return the fitness contributions of every locus.
 
         There is one contribution for every configuration of the locus and its `k` neighbours.
@@ -146,12 +146,12 @@ class ClimberElement(Element):
         return np.random.default_rng(seed).random((n, 2 ** (k + 1)))
 
     @staticmethod
-    def _nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
+    def _get_nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
         """Return the NK fitness of a genome.
 
         It is the mean contribution of its loci, each read with the next `k` loci.
         """
-        tables = ClimberElement._nk_tables(seed, n, k)
+        tables = ClimberElement._get_nk_tables(seed, n, k)
         bits = [(genome >> locus) & 1 for locus in range(n)]
         total = 0.0
         for locus in range(n):
@@ -272,7 +272,10 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
                 The fitness of every genome.
         """
         return np.array(
-            [AdaptiveClimbingInteraction._random_fitness(int(genome), self.seed) for genome in np.ravel(strategies)],
+            [
+                AdaptiveClimbingInteraction._get_random_fitness(int(genome), self.seed)
+                for genome in np.ravel(strategies)
+            ],
         )
 
     def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
@@ -302,7 +305,7 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
         return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
     @staticmethod
-    def _random_fitness(genome: int, seed: int) -> float:
+    def _get_random_fitness(genome: int, seed: int) -> float:
         """Return the fitness of a genome in the random energy system.
 
         The fitness is uniform in [0, 1] and fixed by the seed.
@@ -758,7 +761,7 @@ class AdaptiveClimbingSystem(BaseSystem):
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of a finite population."""
-        fitness = AdaptiveClimbingInteraction._random_fitness(0, self.seed)
+        fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
         return CompositeSystem(
             self.label,
             elements=[
@@ -841,7 +844,7 @@ class NKLandscapeSystem(BaseSystem):
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system."""
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
-        fitness = [ClimberElement._nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
+        fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
         group = GroupElement(
             'climbers',
             element=ClimberElement,

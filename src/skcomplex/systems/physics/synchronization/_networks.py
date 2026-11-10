@@ -153,7 +153,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
         >>> system = CompositeSystem(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> simulate(system, until=1).values('maps.x')[-1].tolist()
+        >>> simulate(system, until=1).get_values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 

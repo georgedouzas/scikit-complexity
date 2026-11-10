@@ -107,10 +107,10 @@ class DroopCellQuotaSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the uptake and dilution of the quota and the growth and death of biomass."""
         return {
-            'Q': lambda s: s.target.vmax * s.target.R / (s.target.g + s.target.R) - self._growth(s) * s.target.Q,
-            'P': lambda s: (self._growth(s) - s.target.d) * s.target.P,
+            'Q': lambda s: s.target.vmax * s.target.R / (s.target.g + s.target.R) - self._get_growth(s) * s.target.Q,
+            'P': lambda s: (self._get_growth(s) - s.target.d) * s.target.P,
         }
 
-    def _growth(self, s: SimpleNamespace) -> Expression:
+    def _get_growth(self, s: SimpleNamespace) -> Expression:
         """Return `growth` from the namespace of an equation."""
         return s.target.r_inf * (1 - s.target.q / s.target.Q)

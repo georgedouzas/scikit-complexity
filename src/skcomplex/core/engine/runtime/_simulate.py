@@ -218,7 +218,7 @@ def simulate(
         ...     elements=[PopulationElement('rabbits', x=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> round(simulate(system, until=20).values('rabbits.x')[-1])
+        >>> round(simulate(system, until=20).get_values('rabbits.x')[-1])
         100
     """
     return _simulate(

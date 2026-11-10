@@ -46,7 +46,7 @@ class TensorSpec(BaseSpec):
         >>> tensor = TensorSpec('traceless', 2)
         >>> tensor.names
         ('xx', 'xy')
-        >>> tensor.array_of([1.0, 2.0]).tolist()
+        >>> tensor.get_array_of([1.0, 2.0]).tolist()
         [[1.0, 2.0], [2.0, -1.0]]
     """
 
@@ -120,7 +120,7 @@ class TensorSpec(BaseSpec):
         Examples:
             >>> from sage.all__sagemath_symbolics import var
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('traceless', 2).matrix_of(var('a, b'))
+            >>> TensorSpec('traceless', 2).get_matrix_of(var('a, b'))
             [ a  b]
             [ b -a]
         """
@@ -142,7 +142,7 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('antisymmetric', 2).array_of([3.0]).tolist()
+            >>> TensorSpec('antisymmetric', 2).get_array_of([3.0]).tolist()
             [[0.0, 3.0], [-3.0, 0.0]]
         """
         return np.tensordot(np.asarray(components, dtype=float), self.basis, axes=1)
@@ -171,7 +171,7 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> axes, orders = TensorSpec('traceless', 2).principal_of([0.5, 0.0])
+            >>> axes, orders = TensorSpec('traceless', 2).get_principal_of([0.5, 0.0])
             >>> abs(axes).round(6).tolist(), float(orders)
             ([1.0, 0.0], 1.0)
         """
@@ -200,7 +200,7 @@ class TensorSpec(BaseSpec):
 
         Examples:
             >>> from skcomplex.core.specs import TensorSpec
-            >>> TensorSpec('symmetric', 2).components_of([[1, 2], [2, 3]]).tolist()
+            >>> TensorSpec('symmetric', 2).get_components_of([[1, 2], [2, 3]]).tolist()
             [1.0, 2.0, 3.0]
         """
         array = np.asarray(value.numpy() if isinstance(value, Matrix) else value, dtype=float)

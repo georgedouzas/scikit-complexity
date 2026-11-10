@@ -91,7 +91,7 @@ class MinProteinSkeletonSystem(ReactionDiffusionSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _uniform_state(total_D: float, total_E: float) -> dict[str, float]:
+    def _get_uniform_state(total_D: float, total_E: float) -> dict[str, float]:
         """Return the uniform steady state of the skeleton system.
 
         It has the totals of MinD and MinE.
@@ -121,7 +121,7 @@ class MinProteinSkeletonSystem(ReactionDiffusionSystem):
     def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
         """Return the uniform state with 1% of MinD moved between the cytosol and the membrane, and the rates."""
         rng = np.random.default_rng(self.random_state)
-        uniform = self._uniform_state(self.total_D, self.total_E)
+        uniform = self._get_uniform_state(self.total_D, self.total_E)
         values: dict[str, Array] = {name: np.full(self.n_sites, value) for name, value in uniform.items()}
         noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, self.n_sites)
         values['md'] = values['md'] + noise

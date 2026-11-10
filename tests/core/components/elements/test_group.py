@@ -173,7 +173,7 @@ def test_group_vector_state_has_member_shape():
         elements=[GroupElement('gas', element=BallElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
-    assert PassCompiler().prepare(system).run().problem_.states.entry('gas.x').shape == (1000, 2)
+    assert PassCompiler().prepare(system).run().problem_.states.get_entry('gas.x').shape == (1000, 2)
 
 
 def test_group_takes_state_named_size():

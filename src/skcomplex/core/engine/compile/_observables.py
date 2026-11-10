@@ -986,7 +986,7 @@ class ObservableEvaluator:
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
             >>> system = CompositeSystem(elements=[PopulationElement('rabbits')])
             >>> problem = PassCompiler().prepare(system).run().problem_
-            >>> ObservableEvaluator._namespace_of(problem).rabbits.x
+            >>> ObservableEvaluator._get_namespace_of(problem).rabbits.x
             x_rabbits
         """
         prefix = f'{scope}/' if scope else ''
@@ -1053,7 +1053,7 @@ class ObservableEvaluator:
             >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
             >>> from skcomplex.systems.economics.resources import HarvestingSystem
             >>> problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
-            >>> [path for path, _ in ObservableEvaluator._held_reductions_of(problem)]
+            >>> [path for path, _ in ObservableEvaluator._get_held_reductions_of(problem)]
             ['village/farmers_count']
         """
         return [

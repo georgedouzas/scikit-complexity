@@ -192,14 +192,18 @@ class GameOfLifeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
+    def _get_random_cells(
+        shape: Sequence[int],
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
     def _build_system(self) -> CompositeSystem:
         """Return Conway's Game of Life, or another life-like rule, on a torus."""
         values = (
-            self._random_cells(self.shape, self.density, self.random_state)
+            self._get_random_cells(self.shape, self.density, self.random_state)
             if self.initial is None
             else np.asarray(self.initial, dtype=float)
         )

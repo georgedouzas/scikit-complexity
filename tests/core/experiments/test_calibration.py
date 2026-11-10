@@ -110,8 +110,8 @@ def test_global_fit_is_reproducible_and_beats_the_midpoints():
     second = calibrate(BrockHommesSystem(20), data, bounds, method='global', budget=200, random_state=0)
     assert first.estimates == second.estimates
     objective = _CalibrationObjective(BrockHommesSystem(20), _series_of(data), _check_priors(bounds), random_state=0)
-    best = objective.loss(list(first.estimates.values()), 'squares')
-    assert best < objective.loss([4.25, 1.3], 'squares')
+    best = objective.get_loss(list(first.estimates.values()), 'squares')
+    assert best < objective.get_loss([4.25, 1.3], 'squares')
 
 
 def test_event_likelihood_recovers_the_confidence_of_deffuant():

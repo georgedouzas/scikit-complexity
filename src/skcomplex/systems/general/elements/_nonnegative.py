@@ -38,7 +38,7 @@ class NonnegativeElement(Element):
         >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.runtime import simulate
         >>> system = CompositeSystem(elements=[NonnegativeElement('A', x=990), NonnegativeElement('B', x=10)])
-        >>> simulate(system, until=2, dt=1.0).values('A.x').tolist()
+        >>> simulate(system, until=2, dt=1.0).get_values('A.x').tolist()
         [990.0, 990.0, 990.0]
     """
 

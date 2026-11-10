@@ -212,7 +212,7 @@ class HodgkinHuxleySystem(BaseSystem):
         self.g_l = g_l
 
     @staticmethod
-    def _gate_rates(v: Expression) -> GateRates:
+    def _get_gate_rates(v: Expression) -> GateRates:
         """Return the opening and closing rates per ms of the gates `n`, `m`, and `h`.
 
         The rates are at a potential in mV.
@@ -223,27 +223,29 @@ class HodgkinHuxleySystem(BaseSystem):
             'h': (0.07 * exp(-(v + 65) / 20), 1 / (1 + exp(-(v + 35) / 10))),
         }
 
-    def _gate_kinetics(self, gate: str) -> Callable[[SimpleNamespace], Expression]:
+    def _get_gate_kinetics(self, gate: str) -> Callable[[SimpleNamespace], Expression]:
         """Return the rate `alpha(v) (1 - x) - beta(v) x` of a gate `x`.
 
         The rate is a function of the namespace of the neuron.
         """
 
         def kinetics(s: SimpleNamespace) -> Expression:
-            opening, closing = self._gate_rates(s.target.v)[gate]
+            opening, closing = self._get_gate_rates(s.target.v)[gate]
             x = getattr(s.target, gate)
             rate: Expression = opening * (1 - x) - closing * x
             return rate
 
         return kinetics
 
-    def _resting_gates(self, v: float) -> dict[str, float]:
+    def _get_resting_gates(self, v: float) -> dict[str, float]:
         """Return the steady-state opening of every gate at a fixed potential in mV."""
-        return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in self._gate_rates(v).items()}
+        return {
+            gate: float(opening / (opening + closing)) for gate, (opening, closing) in self._get_gate_rates(v).items()
+        }
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the Hodgkin-Huxley neuron."""
-        gates = self._resting_gates(self.v)
+        gates = self._get_resting_gates(self.v)
         return CompositeSystem(
             self.label,
             elements=[
@@ -284,7 +286,7 @@ class HodgkinHuxleySystem(BaseSystem):
                     divisor='C',
                 ),
                 *[
-                    RateInteraction(f'{gate}_gating', target='neuron', state=gate, rate=self._gate_kinetics(gate))
+                    RateInteraction(f'{gate}_gating', target='neuron', state=gate, rate=self._get_gate_kinetics(gate))
                     for gate in ('n', 'm', 'h')
                 ],
                 CrossingInteraction('spike', target='neuron', guard=lambda s: s.target.v, direction=1),

@@ -503,7 +503,7 @@ class BasePass(BaseConfig[Compilation, None]):
             >>> from skcomplex.core.components.laws import RateLaw
             >>> from skcomplex.core.engine.compile import BasePass
             >>> x = var('x')
-            >>> BasePass._replaced(RateLaw(x, -x), value=-2 * x).value
+            >>> BasePass._get_replaced(RateLaw(x, -x), value=-2 * x).value
             -2*x
         """
         return type(law)(**{**law.get_params(deep=False), **changes})

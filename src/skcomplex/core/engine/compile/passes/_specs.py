@@ -772,7 +772,7 @@ class SpecsPass(BasePass):
         Examples:
             >>> from sage.all__sagemath_symbolics import var
             >>> from skcomplex.core.engine.compile.passes._specs import SpecsPass
-            >>> SpecsPass._end_symbols(var('x_cells__source'))
+            >>> SpecsPass._get_end_symbols(var('x_cells__source'))
             (x_cells, x_cells__other)
         """
         name = str(item).removesuffix(END_SUFFIXES[0]).removesuffix(END_SUFFIXES[1])

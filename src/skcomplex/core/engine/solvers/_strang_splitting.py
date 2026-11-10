@@ -82,7 +82,7 @@ class StrangSplittingSolver(Solver):
         >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
         >>> system = CompositeSystem(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = simulate(system, until=0.2, solver=solver).values('gas.x')[-1]
+        >>> final = simulate(system, until=0.2, solver=solver).get_values('gas.x')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

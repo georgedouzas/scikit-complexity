@@ -683,41 +683,41 @@ class PenaeidShrimpSystem(DynamicalSystem):
     def _get_equations(self) -> Equations:
         """Return the ingestion, assimilation, respiration, spawning, and growth laws."""
         return {
-            'gut': lambda s: self._ingestion(s) - self._assimilated(s),
-            'biomass': lambda s: self._assimilated(s) - self._respired(s) - self._spawning(s),
+            'gut': lambda s: self._get_ingestion(s) - self._get_assimilated(s),
+            'biomass': lambda s: self._get_assimilated(s) - self._get_respired(s) - self._get_spawning(s),
             'gonads': lambda s: s.target.biomass * s.target.gsi,
             'length': lambda s: s.target.K * (s.target.L_inf - s.target.length),
         }
 
-    def _food(self, s: SimpleNamespace) -> Expression:
+    def _get_food(self, s: SimpleNamespace) -> Expression:
         """Return `food` from the namespace of an equation."""
         return series(s.t, DAYS, FOOD)
 
-    def _temperature(self, s: SimpleNamespace) -> Expression:
+    def _get_temperature(self, s: SimpleNamespace) -> Expression:
         """Return `temperature` from the namespace of an equation."""
         return series(s.t, DAYS, TEMPERATURE)
 
-    def _max_ration(self, s: SimpleNamespace) -> Expression:
+    def _get_max_ration(self, s: SimpleNamespace) -> Expression:
         """Return `max_ration` from the namespace of an equation."""
-        return series(s.target.biomass, *ALLOMETRY) * series(self._temperature(s), *THERMAL) * s.target.ration
+        return series(s.target.biomass, *ALLOMETRY) * series(self._get_temperature(s), *THERMAL) * s.target.ration
 
-    def _ingestion(self, s: SimpleNamespace) -> Expression:
+    def _get_ingestion(self, s: SimpleNamespace) -> Expression:
         """Return `ingestion` from the namespace of an equation."""
-        return self._max_ration(s) * (1 - exp(-s.target.k * self._food(s)))
+        return self._get_max_ration(s) * (1 - exp(-s.target.k * self._get_food(s)))
 
-    def _assimilated(self, s: SimpleNamespace) -> Expression:
+    def _get_assimilated(self, s: SimpleNamespace) -> Expression:
         """Return `assimilated` from the namespace of an equation."""
         return s.target.gut * s.target.assimilation
 
-    def _respired(self, s: SimpleNamespace) -> Expression:
+    def _get_respired(self, s: SimpleNamespace) -> Expression:
         """Return `respired` from the namespace of an equation."""
         return (
             s.target.respiration
-            * exp(0.07 * self._temperature(s))
+            * exp(0.07 * self._get_temperature(s))
             * (s.target.biomass * s.target.phi) ** 0.185
             * s.target.biomass
         )
 
-    def _spawning(self, s: SimpleNamespace) -> Expression:
+    def _get_spawning(self, s: SimpleNamespace) -> Expression:
         """Return `spawning` from the namespace of an equation."""
         return 9.3 * s.target.length**2.8 * s.target.egg_weight

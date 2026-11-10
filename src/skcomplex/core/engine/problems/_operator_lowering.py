@@ -305,7 +305,8 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             >>> from skcomplex.core.specs import LocalOperatorSpec
             >>> q = SR.symbol('q')
             >>> z = LocalOperatorSpec('z', qutip.sigmaz(), hermitian=True)
-            >>> OperatorLowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
+            >>> term = var('h') * local_operator(q, SR.symbol('z'))
+            >>> OperatorLowering._get_operator_of(term, {q: ('q', {'z': z})}).text
             'h*q.z'
         """
         value = SR(expression)

@@ -160,7 +160,7 @@ class TopologyInteraction(NeighborInteraction):
         ...     elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5))
         ... )
         >>> trajectory = simulate(system, until=1, random_state=0)
-        >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
+        >>> len(trajectory.get_network(0).sources), len(trajectory.get_network(1).sources)
         (5, 0)
 
         A network that grows by triangles from one triangle:
@@ -175,7 +175,7 @@ class TopologyInteraction(NeighborInteraction):
         ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
         ... )
         >>> trajectory = simulate(system, until=5, random_state=0)
-        >>> trajectory.network(-1).hyperedges.shape
+        >>> trajectory.get_network(-1).hyperedges.shape
         (6, 3)
     """
 

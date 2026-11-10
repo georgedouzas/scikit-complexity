@@ -56,10 +56,10 @@ class TripletInteraction(RateInteraction):
         a: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state, rate=self._triplets)
+        super().__init__(label, target=target, state=state, rate=self._get_triplets)
         self.a = a
 
-    def _triplets(self, namespace: SimpleNamespace) -> object:
+    def _get_triplets(self, namespace: SimpleNamespace) -> object:
         """Return the growth of a species from the pairs of other species."""
         abundance = getattr(namespace.target, self.state)
         return abundance * contraction(namespace.a, abundance, abundance) / 2

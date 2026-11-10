@@ -167,7 +167,7 @@ class Trajectory:
             >>> system = LogisticMapSystem().prepare().system_
             >>> ensemble = _replicate(system, 3, {'map.x': [0.1, 0.2, 0.3]})
             >>> trajectory = simulate(ensemble, until=2, dt=1)
-            >>> float(trajectory.member(1, simulate(system, until=0).problem).values('map.x')[0])
+            >>> float(trajectory.get_member(1, simulate(system, until=0).problem).get_values('map.x')[0])
             0.2
         """
         frames = len(self.times)
@@ -220,7 +220,7 @@ class Trajectory:
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.biology.collective_behaviour import BoidsSystem
             >>> trajectory = simulate(BoidsSystem().prepare().system_, until=2, random_state=0)
-            >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
+            >>> [locations.shape[1] for locations in trajectory.get_agent_locations('flock')]
             [2, 2, 2]
         """
         frames = [self.get_agents(group, frame) for frame in range(len(self.times))]
@@ -328,7 +328,7 @@ class Trajectory:
             >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
             >>> trajectory = simulate(CantorSetSystem(), until=4, random_state=0)
-            >>> trajectory.structure('cantor', 2).parts
+            >>> trajectory.get_structure('cantor', 2).parts
             4
         """
         structures = self.structures[frame] if self.structures else {}

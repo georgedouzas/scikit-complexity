@@ -457,10 +457,12 @@ class DaisyworldSystem(DynamicalSystem):
         """Return the growth and death of white and black daisies on the bare ground."""
         return {
             'white': lambda s: (
-                s.target.white * (self._bare(s.target) * self._growth(s.target, s.target.albedo_white) - s.target.gamma)
+                s.target.white
+                * (self._bare(s.target) * self._get_growth(s.target, s.target.albedo_white) - s.target.gamma)
             ),
             'black': lambda s: (
-                s.target.black * (self._bare(s.target) * self._growth(s.target, s.target.albedo_black) - s.target.gamma)
+                s.target.black
+                * (self._bare(s.target) * self._get_growth(s.target, s.target.albedo_black) - s.target.gamma)
             ),
         }
 
@@ -470,7 +472,7 @@ class DaisyworldSystem(DynamicalSystem):
         return planet.p - planet.white - planet.black
 
     @staticmethod
-    def _growth(planet: SimpleNamespace, albedo: Expression) -> Expression:
+    def _get_growth(planet: SimpleNamespace, albedo: Expression) -> Expression:
         """Return the growth rate of daisies of an albedo.
 
         The rate is parabolic in their local temperature and zero outside it.

@@ -192,7 +192,7 @@ class InputCouplingInteraction(CouplingInteraction):
             source=source,
             read='x',
             write='u',
-            function=self._input,
+            function=self._get_input,
             mode='group',
             weights='D',
             form='map',
@@ -200,7 +200,7 @@ class InputCouplingInteraction(CouplingInteraction):
         )
         self.D = D
 
-    def _input(self, namespace: SimpleNamespace) -> object:
+    def _get_input(self, namespace: SimpleNamespace) -> object:
         """Return the input of the other unit."""
         return namespace.other.x
 

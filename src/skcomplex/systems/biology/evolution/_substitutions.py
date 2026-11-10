@@ -137,7 +137,7 @@ class SubstitutionInteraction(TransitionInteraction):
         if self.couplings is None:
             return genome.h, namespace.F0 + total(genome.h * alleles)
         couplings = np.asarray(self.couplings, dtype=float)
-        return genome.h + total(alleles, weights=couplings), SubstitutionInteraction._fitness_of(
+        return genome.h + total(alleles, weights=couplings), SubstitutionInteraction._get_fitness_of(
             genome,
             namespace.F0,
             couplings,
@@ -164,7 +164,7 @@ class SubstitutionInteraction(TransitionInteraction):
         return [self._get_jump(alleles, -1.0, 1.0, rate), self._get_jump(alleles, 1.0, -1.0, rate)]
 
     @staticmethod
-    def _fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:
+    def _get_fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:
         """Return the fitness of the genome of a group of loci.
 
         The fitness is `F0 + sum_i h_i s_i + sum_ij J_ij s_i s_j / 2`.

@@ -132,14 +132,14 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
             target=target,
             read='theta',
             write='theta',
-            function=self._response,
+            function=self._get_response,
             reduce='mean',
             mode='group',
             include_self=True,
         )
         self.K = K
 
-    def _response(self, namespace: SimpleNamespace) -> Expression:
+    def _get_response(self, namespace: SimpleNamespace) -> Expression:
         """Return the response `K P(theta_j) R(theta_i)` of a member to one other member."""
         return namespace.K * (1 + cos(namespace.other.theta)) * -sin(namespace.member.theta)
 

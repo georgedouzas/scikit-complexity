@@ -178,7 +178,7 @@ def test_encounter_rate_reads_its_parameter():
     problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     base = problem.drift(0.0, x, p)
-    p[problem.parameters.entry('exchange.eta').start] = 3.0
+    p[problem.parameters.get_entry('exchange.eta').start] = 3.0
     np.testing.assert_allclose(problem.drift(0.0, x, p), 3 * base)
 
 
@@ -237,7 +237,7 @@ def test_proliferation_and_destruction_change_the_density():
     problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     x, p = problem.initial_state, problem.initial_parameters
     rates = problem.drift(0.0, x, p)
-    cells = problem.states.entry('cells.x')
+    cells = problem.states.get_entry('cells.x')
     signal_total = 0.1 * CLASSES
     np.testing.assert_allclose(rates[cells.indices], (0.5 - 0.2) * _profile() * signal_total)
     assert [item.kind for item in problem.encounters] == ['bilinear', 'bilinear']

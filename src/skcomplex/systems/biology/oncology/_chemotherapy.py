@@ -912,18 +912,18 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
 
     def _get_equations(self) -> Equations:
         """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells."""
-        return {'S': self._sensitive_rate, 'Rm': self._mutated_rate, 'Rp': self._switched_rate}
+        return {'S': self._get_sensitive_rate, 'Rm': self._get_mutated_rate, 'Rp': self._get_switched_rate}
 
     @staticmethod
-    def _room(tumour: SimpleNamespace) -> Expression:
+    def _get_room(tumour: SimpleNamespace) -> Expression:
         """Return the room left for growth, `1 - b V`."""
         return 1 - tumour.b * (tumour.S + tumour.Rm + tumour.Rp)
 
     @staticmethod
-    def _sensitive_rate(s: SimpleNamespace) -> Expression:
+    def _get_sensitive_rate(s: SimpleNamespace) -> Expression:
         """Return the rate of the sensitive cells."""
         tumour = s.target
-        room = DrugResistanceSwitchingSystem._room(tumour)
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
         return (
             tumour.r1 * room * tumour.S
             - (tumour.m1 + tumour.m2) * tumour.S
@@ -933,10 +933,10 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         )
 
     @staticmethod
-    def _mutated_rate(s: SimpleNamespace) -> Expression:
+    def _get_mutated_rate(s: SimpleNamespace) -> Expression:
         """Return the rate of the cells resistant by mutation."""
         tumour = s.target
-        room = DrugResistanceSwitchingSystem._room(tumour)
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
         return (
             tumour.r2 * room * tumour.Rm
             + tumour.m1 * tumour.S
@@ -945,10 +945,10 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         )
 
     @staticmethod
-    def _switched_rate(s: SimpleNamespace) -> Expression:
+    def _get_switched_rate(s: SimpleNamespace) -> Expression:
         """Return the rate of the cells resistant by phenotype switching."""
         tumour = s.target
-        room = DrugResistanceSwitchingSystem._room(tumour)
+        room = DrugResistanceSwitchingSystem._get_room(tumour)
         return (
             tumour.r3 * room * tumour.Rp
             + tumour.m2 * tumour.S

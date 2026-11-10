@@ -249,7 +249,7 @@ class OperatorCompiler(BaseCompiler):
             ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
             ...         super().__init__(label)
             ...         self.psi = psi
-            >>> OperatorCompiler._hilbert_state(TwoLevelElement)
+            >>> OperatorCompiler._get_hilbert_state(TwoLevelElement)
             'psi'
         """
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():

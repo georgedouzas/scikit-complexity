@@ -34,7 +34,7 @@ class LocalOperatorSpec(BaseSpec):
     Examples:
         >>> import qutip
         >>> from skcomplex.core.specs import LocalOperatorSpec
-        >>> LocalOperatorSpec('plus', qutip.sigmap()).adjoint().name
+        >>> LocalOperatorSpec('plus', qutip.sigmap()).get_adjoint().name
         'minus'
     """
 

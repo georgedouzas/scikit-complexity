@@ -1007,7 +1007,7 @@ class ChemoimmunotherapySystem(BaseSystem):
         self.doses = doses
 
     @staticmethod
-    def _effector_kill(target: SimpleNamespace) -> Expression:
+    def _get_effector_kill(target: SimpleNamespace) -> Expression:
         """Return the ratio-dependent kill rate of tumour cells by effector cells.
 
         The rate is `D = a1 (E^l) / (g1 A^l + E^l)`.
@@ -1050,7 +1050,7 @@ class ChemoimmunotherapySystem(BaseSystem):
                 'effector_kill',
                 target='tumour',
                 reactants={'A': 1},
-                propensity=lambda s: self._effector_kill(s.target) * s.target.A,
+                propensity=lambda s: self._get_effector_kill(s.target) * s.target.A,
             ),
             ReactionInteraction(
                 'chemo_tumour_kill',
@@ -1090,8 +1090,8 @@ class ChemoimmunotherapySystem(BaseSystem):
                 state='E',
                 rate=lambda s: (
                     s.target.r3
-                    * (self._effector_kill(s.target) * s.target.A) ** 2
-                    / (s.target.g3 + (self._effector_kill(s.target) * s.target.A) ** 2)
+                    * (self._get_effector_kill(s.target) * s.target.A) ** 2
+                    / (s.target.g3 + (self._get_effector_kill(s.target) * s.target.A) ** 2)
                     * s.target.E
                 ),
             ),
@@ -1425,7 +1425,7 @@ class ChemovirotherapySystem(BaseSystem):
         self.infusion = infusion
 
     @staticmethod
-    def _infusion_shape(s: SimpleNamespace, infusion: str) -> Expression:
+    def _get_infusion_shape(s: SimpleNamespace, infusion: str) -> Expression:
         """Return the shape in time of an infusion.
 
         The infusion is constant, exponentially decaying, or periodic.
@@ -1503,7 +1503,7 @@ class ChemovirotherapySystem(BaseSystem):
                 'infusion',
                 target='tumour',
                 state='U',
-                rate=lambda s: s.target.u1 * self._infusion_shape(s, self.infusion),
+                rate=lambda s: s.target.u1 * self._get_infusion_shape(s, self.infusion),
             ),
         ]
         return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
@@ -1559,7 +1559,7 @@ class GliomaChemovirotherapySystem(BaseSystem):
         self.u1 = u1
 
     @staticmethod
-    def _glia_rate(target: SimpleNamespace) -> Expression:
+    def _get_glia_rate(target: SimpleNamespace) -> Expression:
         """Return the net rate of the glia, whose decline kills neurons."""
         G = target.G
         rate: Expression = (
@@ -1598,7 +1598,9 @@ class GliomaChemovirotherapySystem(BaseSystem):
                 target='brain',
                 reactants={'N': 1},
                 propensity=lambda s: (
-                    -s.target.psi * where(self._glia_rate(s.target) < 0, self._glia_rate(s.target), 0) * s.target.N
+                    -s.target.psi
+                    * where(self._get_glia_rate(s.target) < 0, self._get_glia_rate(s.target), 0)
+                    * s.target.N
                 ),
             ),
             MichaelisMentenInteraction(
@@ -1766,9 +1768,9 @@ class HER2TargetedTherapySystem(DynamicalSystem):
 
     def _get_equations(self) -> Equations:
         """Return the tumour growth, the antibody binding, and the paclitaxel uptake."""
-        return {'A': self._growth, 'Ab': self._binding, 'Pin': self._uptake}
+        return {'A': self._get_growth, 'Ab': self._get_binding, 'Pin': self._get_uptake}
 
-    def _growth(self, s: SimpleNamespace) -> Expression:
+    def _get_growth(self, s: SimpleNamespace) -> Expression:
         """Return the logistic growth of the cells, slowed by the antibody and capped by the paclitaxel."""
         tumour = s.target
         inhibition = where(s.t > self.t_a, tumour.a1 * tumour.Ab, 0)
@@ -1779,14 +1781,14 @@ class HER2TargetedTherapySystem(DynamicalSystem):
         )
         return tumour.r * (1 - inhibition) * (1 - tumour.A / (tumour.kc - cytotoxicity)) * tumour.A
 
-    def _binding(self, s: SimpleNamespace) -> Expression:
+    def _get_binding(self, s: SimpleNamespace) -> Expression:
         """Return the binding of the free antibody to the receptors while it is present."""
         tumour = s.target
         free_antibody = where(s.t >= self.t_antibody, tumour.antibody, 0)
         binding = tumour.theta_ab * (free_antibody - tumour.Ab) * (tumour.theta_r * tumour.A - tumour.Ab)
         return where(free_antibody > 0, binding, 0)
 
-    def _uptake(self, s: SimpleNamespace) -> Expression:
+    def _get_uptake(self, s: SimpleNamespace) -> Expression:
         """Return the uptake of the free paclitaxel into the cells while it is present."""
         tumour = s.target
         free_paclitaxel = where(s.t >= self.t_p, tumour.paclitaxel, 0)
@@ -1892,7 +1894,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         self.doses = doses
 
     @staticmethod
-    def _elimination(target: SimpleNamespace, drug: str) -> Expression:
+    def _get_elimination(target: SimpleNamespace, drug: str) -> Expression:
         """Return the elimination rate `k10 = alpha beta / k21` of a drug.
 
         The drug is eliminated from its central compartment.
@@ -1902,7 +1904,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         return elimination
 
     @staticmethod
-    def _drug_effect(target: SimpleNamespace, drug: str) -> Expression:
+    def _get_drug_effect(target: SimpleNamespace, drug: str) -> Expression:
         """Return the Emax effect of a drug.
 
         The resistance shifts its half-effect concentration.
@@ -1956,7 +1958,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 'pruning',
                 target='tumour',
                 reactants={'Vb': 1},
-                propensity=lambda s: s.target.a2 * s.target.Vb * self._drug_effect(s.target, 'an'),
+                propensity=lambda s: s.target.a2 * s.target.Vb * self._get_drug_effect(s.target, 'an'),
             ),
             RateInteraction(
                 'immune_growth',
@@ -1975,7 +1977,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 'immune_boost',
                 target='tumour',
                 state='E',
-                rate=lambda s: s.target.a3 * s.target.E * self._drug_effect(s.target, 'im'),
+                rate=lambda s: s.target.a3 * s.target.E * self._get_drug_effect(s.target, 'im'),
             ),
             DosingInteraction(
                 'dosing_an',
@@ -1990,7 +1992,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 'elimination_an',
                 target='tumour',
                 reactants={'c_an': 1},
-                propensity=lambda s: self._elimination(s.target, 'an') * s.target.c_an,
+                propensity=lambda s: self._get_elimination(s.target, 'an') * s.target.c_an,
             ),
             ReactionInteraction(
                 'distribution_an',
@@ -2025,7 +2027,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
                 'elimination_im',
                 target='tumour',
                 reactants={'c_im': 1},
-                propensity=lambda s: self._elimination(s.target, 'im') * s.target.c_im,
+                propensity=lambda s: self._get_elimination(s.target, 'im') * s.target.c_im,
             ),
             ReactionInteraction(
                 'distribution_im',

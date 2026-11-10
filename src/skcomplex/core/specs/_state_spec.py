@@ -63,7 +63,8 @@ class StateSpec(BaseSpec):
             The path of the agent group, relative to the element's system, a member of which the state names by its
             id, or `None`. A negative value names no member, nor does any value in a system without that group. The
             initial values of the group give the position of the member among the initial members of the referenced
-            group, which the agent stepper turns into its id, and rules read the member with `agent.referenced(state)`.
+            group, which the agent stepper turns into its id, and rules read the member with
+            `agent.get_referenced(state)`.
 
         role:
             What the state means in space or in a snapshot of agents or particles, `'position'` for a coordinate or a

@@ -324,13 +324,17 @@ class MajorityRuleSystem(BaseSystem):
         return total >= MAJORITY
 
     @staticmethod
-    def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
+    def _get_random_cells(
+        shape: Sequence[int],
+        density: float,
+        random_state: int | np.random.Generator | None,
+    ) -> Array:
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
     def _build_system(self) -> CompositeSystem:
         """Return the parts of the system built from its model parameters."""
-        values = self._random_cells(self.shape, self.density, self.random_state)
+        values = self._get_random_cells(self.shape, self.density, self.random_state)
         return CompositeSystem(
             self.label,
             elements=[

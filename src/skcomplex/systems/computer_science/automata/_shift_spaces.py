@@ -458,7 +458,7 @@ class MorseSubshiftSystem(BaseSystem):
     Examples:
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
-        >>> simulate(MorseSubshiftSystem(), until=3).values('morse.size').tolist()
+        >>> simulate(MorseSubshiftSystem(), until=3).get_values('morse.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 

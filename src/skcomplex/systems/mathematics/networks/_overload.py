@@ -103,7 +103,7 @@ class MotterLaiOverloadSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import MotterLaiOverloadSystem
         >>> trajectory = simulate(MotterLaiOverloadSystem(tolerance=0.1), until=10)
-        >>> int(trajectory.network(-1).nodes.size) < 300
+        >>> int(trajectory.get_network(-1).nodes.size) < 300
         True
     """
 

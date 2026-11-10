@@ -194,10 +194,10 @@ class LateralInhibitionInteraction(Interaction):
                 The laws of the component.
         """
         cell = s.cells
-        inhibition = total(self._sigmoid(cell.a - 1 / 2, cell.width), weights=np.asarray(self.kernel, dtype=float))
-        return [RateLaw(cell.a, self._sigmoid(cell.a - inhibition, cell.width) - cell.a)]
+        inhibition = total(self._get_sigmoid(cell.a - 1 / 2, cell.width), weights=np.asarray(self.kernel, dtype=float))
+        return [RateLaw(cell.a, self._get_sigmoid(cell.a - inhibition, cell.width) - cell.a)]
 
-    def _sigmoid(self, u: Expression, width: Expression) -> Expression:
+    def _get_sigmoid(self, u: Expression, width: Expression) -> Expression:
         """Return the logistic sigmoid `1 / (1 + exp(-u / width))`."""
         return 1 / (1 + exp(-u / width))
 

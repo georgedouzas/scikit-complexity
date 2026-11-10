@@ -55,7 +55,7 @@ class LindbladSolver(OperatorSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = CompositeSystem(elements=[TwoLevelElement('q')])
-        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).values('q.z')
+        >>> values = simulate(system, until=2.0, solver=LindbladSolver(), dt=1.0, observables=z).get_values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """

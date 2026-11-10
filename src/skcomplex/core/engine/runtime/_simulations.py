@@ -158,7 +158,7 @@ class Simulation(BaseConfig[None, float]):
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
-        >>> round(simulation.trajectory_.values('rabbits.x')[-1])
+        >>> round(simulation.trajectory_.get_values('rabbits.x')[-1])
         100
     """
 

@@ -151,7 +151,7 @@ class CometsSystem(BaseSystem):
         initial = np.zeros(self.shape)
         initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
         space = LatticeSpace(self.shape, spacing=self.box)
-        images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
+        images = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
         cells = {
             'name': 'ColonyCell',
             'reactions': plain,

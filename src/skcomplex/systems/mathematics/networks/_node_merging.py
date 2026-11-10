@@ -84,7 +84,7 @@ class NodeMergingSystem(BaseSystem):
         >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import NodeMergingSystem
         >>> trajectory = simulate(NodeMergingSystem(50), until=20, random_state=0)
-        >>> network = trajectory.network(-1)
+        >>> network = trajectory.get_network(-1)
         >>> len(network.nodes), len(network.sources)
         (50, 49)
     """

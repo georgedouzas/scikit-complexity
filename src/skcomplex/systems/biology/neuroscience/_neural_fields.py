@@ -147,7 +147,7 @@ class AmariNeuralFieldSystem(BaseSystem):
         self.width = width
 
     @staticmethod
-    def _amari_rate(s: SimpleNamespace) -> Expression:
+    def _get_amari_rate(s: SimpleNamespace) -> Expression:
         """Return the rate of the Amari field.
 
         The rate is the leak, the input of firing sites through the kernel, and the rest.
@@ -178,5 +178,5 @@ class AmariNeuralFieldSystem(BaseSystem):
             space=LatticeSpace(self.n_sites, spacing=spacing),
             values=values,
         )
-        rate = RateInteraction('rate', target='field', state='u', rate=self._amari_rate)
+        rate = RateInteraction('rate', target='field', state='u', rate=self._get_amari_rate)
         return CompositeSystem(self.label, elements=[field], interactions=[rate])

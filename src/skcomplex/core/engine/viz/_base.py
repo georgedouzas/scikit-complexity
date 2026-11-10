@@ -313,7 +313,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.engine.viz import BaseVisual
-            >>> BaseVisual._colors_of(np.array([0.0, 1.0]), 0.0, 1.0).shape
+            >>> BaseVisual._get_colors_of(np.array([0.0, 1.0]), 0.0, 1.0).shape
             (2, 3)
         """
         fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
@@ -345,7 +345,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.engine.viz import BaseVisual
-            >>> BaseVisual._palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
+            >>> BaseVisual._get_palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
             (2, 3)
         """
         if high <= low:

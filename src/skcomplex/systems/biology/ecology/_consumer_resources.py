@@ -204,7 +204,7 @@ class ConsumptionInteraction(Interaction):
             error_msg = f'The exponent of essential resources must be below -1, not {self.n}.'
             raise ValidationError(error_msg)
 
-    def _essential_growth(self, R: Expression) -> Expression:
+    def _get_essential_growth(self, R: Expression) -> Expression:
         """Return the growth of a consumer on essential resources.
 
         The growth is `(sum_b (c_ib R_b)^n)^(1/n)`.
@@ -259,7 +259,7 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
         """
         consumers, resources = s.consumers, s.resources
         if self.kind == 'essential':
-            growth = self._essential_growth(resources.R) - consumers.m
+            growth = self._get_essential_growth(resources.R) - consumers.m
         else:
             intake = total(resources.w * resources.R, weights=np.asarray(self.c, dtype=float))
             growth = consumers.e * (intake - consumers.m)
@@ -363,7 +363,7 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
             renewal = resources.kappa - resources.omega * R
         if self.kind == 'essential':
             stoichiometry = np.asarray(self.c if self.v is None else self.v, dtype=float)
-            depletion = total(consumers.N * self._essential_growth(R), weights=stoichiometry.T)
+            depletion = total(consumers.N * self._get_essential_growth(R), weights=stoichiometry.T)
         else:
             depletion = R * total(consumers.N, weights=np.asarray(self.c, dtype=float).T)
         return [RateLaw(R, renewal - depletion)]

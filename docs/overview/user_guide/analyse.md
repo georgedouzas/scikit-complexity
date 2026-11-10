@@ -194,7 +194,7 @@ An analysis given a trajectory extracts its kind of data itself:
 - the agents of a group, with their positions unwrapped across periodic sides,
 - the network of every frame.
 
-An ensemble of runs is one row per run and one column per common time, as `ExperimentResult.ensemble` returns it.
+An ensemble of runs is one row per run and one column per common time, as `ExperimentResult.get_ensemble` returns it.
 
 `applicable_analyses` takes a trajectory, a system, or an array, and returns the kinds of data the object holds in
 `kinds`. It lists in `analyses` the analyses of the library that apply under each kind, and in `readings` how
@@ -513,7 +513,7 @@ In the chain of Hoel, Albantakis, and Tononi above, seven noisy states merge int
 carries more effective information than the micro states.
 
 `ergodicity` of kind `'breaking'`, `'metric'`, or `'distance'` diagnoses whether the runs of an ensemble explore
-the same states. The ensemble has one row per run, as `ExperimentResult.ensemble` returns it.
+the same states. The ensemble has one row per run, as `ExperimentResult.get_ensemble` returns it.
 
 ```python
 import numpy as np

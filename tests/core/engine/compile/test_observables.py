@@ -106,7 +106,7 @@ def test_reductions_agree_with_observables(system_class):
     frame = x if problem.algebraic is None else problem.algebraic(0.0, x, p)
     recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, frame, p, agents_of=lambda group: [])
     for index, path in enumerate(paths):
-        value = rates[problem.states.entry(f'probe_{index}.y').start]
+        value = rates[problem.states.get_entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'system/{path}']), rel=1e-12, abs=1e-12)
 
 
@@ -126,7 +126,7 @@ def test_laws_read_an_observable_of_time():
     rates = reading.drift(1.0, x, p)
     recorded = ObservableEvaluator(problem).prepare().evaluate(1.0, x, p, agents_of=lambda group: [])
     assert recorded['system/energy'] > 0
-    assert rates[problem.states.entry('probe.y').start] == pytest.approx(recorded['system/energy'], rel=1e-12)
+    assert rates[problem.states.get_entry('probe.y').start] == pytest.approx(recorded['system/energy'], rel=1e-12)
 
 
 def test_function_observable_reads_the_names_of_its_own_system():
