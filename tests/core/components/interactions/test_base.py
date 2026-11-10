@@ -374,8 +374,17 @@ SPEC_VARIANTS = {
 def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
     """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
     assert SPEC_VARIANTS[case](FixedSpec()).prepare() is not None
-    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*BaseSpec'):
+    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*, or a spec that the part handles\.') as error:
         SPEC_VARIANTS[case]('unknown').prepare()
+    assert 'BaseSpec' not in str(error.value)
+
+
+def test_unknown_mode_of_a_map_names_only_the_accepted_values():
+    """Test that an unknown mode of a map names the value given and the accepted names, and no base class."""
+    with pytest.raises(ValidationError) as error:
+        MapInteraction('m', target='a', state='x', function=lambda s: s.target.x, mode='add').prepare()
+    message = str(error.value)
+    assert message == "Unknown mode 'add' of 'm'. Use one of 'replace', 'increment', or a spec that the part handles."
 
 
 class FixedChoiceInteraction(ChoiceInteraction):

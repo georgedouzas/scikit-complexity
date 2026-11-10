@@ -733,7 +733,7 @@ class LayoutPass(BasePass):
         """
         if not EntrySpec._contains(domain, value):
             error_msg = f'{name} = {LayoutPass._describe(value)} is not in its domain {domain}.'
-            if EntrySpec._contains(CC, value):
+            if EntrySpec._contains(CC, value) and not EntrySpec._contains(RR, value):
                 error_msg = (
                     f'{name} = {LayoutPass._describe(value)} has a nonzero imaginary part, which its domain {domain} '
                     f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '

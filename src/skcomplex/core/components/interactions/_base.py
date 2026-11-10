@@ -278,8 +278,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
-        accepted = [*(kind.__name__ for kind in kinds), *map(repr, values), *(['a function'] if functions else [])]
-        error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
+        accepted = [*map(repr, values), *(['a function'] if functions else [])]
+        spec = ', or a spec that the part handles' if kinds else ''
+        error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}{spec}.'
         raise ValidationError(error_msg)
 
     def _get_variant_error(self, value: object, name: str, method: str) -> ValidationError:

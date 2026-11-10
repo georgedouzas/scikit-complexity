@@ -2,8 +2,8 @@
 
 ## 1. Values and variants
 
-- [ ] 1.1 Report a real value outside a real domain as outside it, and keep the imaginary part message for complex values, verified by new tests in `tests/core/engine/compile/test_complex.py` for `-1.0` in `[0, +oo)`, `1.5` in the nonnegative integers, and `1 + 2j` in a real state
-- [ ] 1.2 Make an unknown variant list only the quoted names and describe accepted specs in words, and update the pinned message in `tests/core/components/interactions/test_base.py`, verified by a test that `MapInteraction(mode='add')` names `'replace'` and `'increment'` and holds no `BaseSpec`
+- [x] 1.1 Report a real value outside a real domain as outside it, and keep the imaginary part message for complex values, verified by new tests in `tests/core/engine/compile/test_complex.py` for `-1.0` in `[0, +oo)`, `1.5` in the nonnegative integers, and `1 + 2j` in a real state
+- [x] 1.2 Make an unknown variant list only the quoted names and describe accepted specs in words, and update the pinned message in `tests/core/components/interactions/test_base.py`, verified by a test that `MapInteraction(mode='add')` names `'replace'` and `'increment'` and holds no `BaseSpec`
 
 ## 2. Laws
 
