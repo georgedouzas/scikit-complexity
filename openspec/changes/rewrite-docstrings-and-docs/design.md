@@ -121,6 +121,30 @@ semicolon. The main fault is the content, not the length of the first line.
 Alternative considered: a third-party prose linter such as Vale. It needs its own rules and configuration, and the
 user asked for a light guard, not a style linter.
 
+### The approved style
+
+The user approved the pilot of groups 1 and 2 on 2026-11-10 without corrections. The rewritten package
+`skcomplex.core.components.elements` and `CouplingInteraction` are the reference for every later group. A class
+docstring holds these parts, in this order.
+
+1. The summary: "An element whose states and parameters are given as data." It names the kind after an article.
+2. The body, one or two paragraphs that say what the part does in plain words, defining every term it uses. A mode
+   list, one line per mode, follows the paragraph that names the argument. Details of a mode go to its `Args` entry.
+3. The comparison: "Unlike `Element`, it needs no subclass, since it takes its states and parameters as data. Choose it
+   when ..." It names the nearest part and what the class adds over it.
+4. The uses: "It appears in many fields." followed by concrete uses in one or two sentences, such as people infected in
+   an epidemic or money in a bank account. A part with fewer honest uses names those it has, such as "It appears in
+   lattice models of ...", and never invents one.
+5. `Args`, each entry a meaning with an example value, such as "The name of the element, unique among the parts of its
+   system, such as `'infected'`", and a list of allowed values where the argument takes a fixed set.
+6. `Attributes` and `Raises` where they apply, with `Raises` saying which main public method raises the error.
+7. `Examples` that open with one sentence on what they show, then build a use from one field and, where it fits in a
+   few lines, a second field with the same class.
+
+A method keeps an imperative summary, `Args`, `Returns`, and a short example. A private module has one imperative line
+that names its concept, such as "Define the interaction that couples each member to its neighbours.", and a package
+`__init__` adds one short paragraph that names what it holds.
+
 ### The guard
 
 Four tests are added to `tests/core/components/test_base.py`, which already walks the core and holds `FIELD_TERMS`.
