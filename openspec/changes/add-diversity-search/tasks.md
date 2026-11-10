@@ -12,7 +12,9 @@
 - [ ] 2.3 Add `'novelty'` on the proximity archive, and verify the novelty-without-an-objective scenario
 - [ ] 2.4 Add `'goal-exploration'` with nearest neighbours of scikit-learn, and verify the goals-reached scenario
 - [ ] 2.5 Accept shaped parameters by their entries, and verify a search over a two by two matrix parameter
-- [ ] 2.6 Write the docstring with a runnable example and a section of `docs/overview/user_guide/run_experiments.md`,
+- [ ] 2.6 Once `add-learning-foundation` is applied, accept the weights of a learned function or a policy as a searched
+  parameter, and verify the diverse-cart-pole-policies scenario, marked slow
+- [ ] 2.7 Write the docstring with a runnable example and a section of `docs/overview/user_guide/run_experiments.md`,
   and verify both run
 
 ## 3. Open-endedness

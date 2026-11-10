@@ -21,6 +21,9 @@ space of behaviours, and no measure of novelty or learnability of a run.
   score of 2412.17799. The kind `'observer'` fits an observer to the artefacts up to every time and gives the loss
   matrix `l(t, T)`, the novelty and learnability tests of 2406.04268, and the verdict.
 - `embedding` takes any function from a frame to a vector, so a pretrained vision model can be plugged in by the user.
+- The searched parameters may be the weights of a learned function or of a policy of `add-learning-foundation`, so
+  diversity search over policies is neuroevolution with archives, and the observer of `open_endedness` may be a
+  learned density model trained on the shared Optax loop of the foundation.
 - New system `ParticleLifeSystem` in `computer_science/automata`, particles of several species that attract or repel
   one another through an asymmetric matrix, one of the substrates of 2412.17799.
 - New runtime dependency `ribs` (pyribs).
@@ -46,5 +49,6 @@ None.
   the nearest neighbours.
 - Docs: the experiments and analysis guides, a gallery example of particle life searched by MAP-Elites, a gallery
   example of goal exploration on Lenia, and the inventory with the primitive `diversity-search`.
-- Independent of the other changes. `add-torch-surrogates` makes torch a runtime dependency, after which a later change
+- Depends on `add-learning-foundation` only for the search over learned weights and for learned observers. The
+  search, the measures, and particle life do not need it. `add-torch-surrogates` makes torch a runtime dependency, after which a later change
   can add a CLIP embedding beside the user function.

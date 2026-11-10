@@ -21,8 +21,8 @@ another field, so particle life uses only core parts.
 - A pretrained vision-language embedding inside the core. The user passes the embedding. Torch and open_clip are not
   added here.
 - The curriculum and the gradient inner loop of 2402.10236, which train an initial pattern to reach a goal through a
-  differentiable run. The learning solver already fits differentiable runs, and goal exploration here perturbs
-  parameters only.
+  differentiable run. `identify` and `TrainingInteraction` of `add-learning-foundation` already fit differentiable
+  runs, and goal exploration here perturbs parameters only.
 - `sensorimotor_lenia`, Lenia with an obstacle channel. It is a probe of the curriculum, which is out of scope.
 - Supervised target search of ASAL. `calibrate` already fits a target, and an embedding-based loss is a user function.
 
@@ -45,6 +45,9 @@ another field, so particle life uses only core parts.
 - `descriptors` is a mapping from a name to a function of a trajectory with a range, which sets the bounds of the
   archive. `objective` is a function of a trajectory or `None`, which scores every run as 1.
 - Runs go through the same private runner as `sweep`, so executors, outputs, and seeds behave the same.
+- A parameter may be the weight vector of a `learned_function` or of a `PolicyInteraction` of
+  `add-learning-foundation`, given one pair of bounds for every entry. `'cma-me'` searches it as covariance matrix
+  adaptation does in neuroevolution, and the archive keeps policies or learned laws that behave differently.
 - `'map-elites'` uses `ribs.archives.GridArchive`, `ribs.emitters.GaussianEmitter`, and `ribs.schedulers.Scheduler`.
   `'cma-me'` swaps the emitter for `EvolutionStrategyEmitter` with the improvement ranker. `'novelty'` uses
   `ProximityArchive` with `k` nearest neighbours and a novelty threshold.
@@ -64,7 +67,9 @@ another field, so particle life uses only core parts.
   the expectation of equation 3 of 2412.17799 with its sign turned so that larger means more open-ended.
 - `'observer'`: artefacts are the embedded frames. For every `t` in a set of checkpoints, a clone of `observer`
   (default `sklearn.mixture.GaussianMixture(n_components=4)`) is fitted to the artefacts up to `t`, and `l(t, T)` is
-  the mean of `-score_samples` over a window around `T`. Novelty holds when the Spearman correlation of `l(t, T)` with
+  the mean of `-score_samples` over a window around `T`. The observer may also be a learned density model of
+  `add-learning-foundation`, an Equinox module trained on the shared Optax loop by the negative log density of the
+  artefacts, whose `score_samples` is its log density. Novelty holds when the Spearman correlation of `l(t, T)` with
   `T` is positive with a p-value below `alpha` for most checkpoints `t`, and learnability when the correlation of
   `l(t, T)` with `t` is negative in the same sense. The result holds the matrix, both correlations per checkpoint, and
   the verdicts.

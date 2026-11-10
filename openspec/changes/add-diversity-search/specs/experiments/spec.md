@@ -37,3 +37,14 @@ nearest to it, perturb its parameters, run them, and archive the result, after a
 - **WHEN** a user explores a system whose descriptors are a smooth invertible map of its parameters
 - **THEN** after 500 runs the mean distance from 100 fresh goals to their nearest archived descriptors is below a tenth
   of the width of the bounds
+
+### Requirement: Diversity search reaches learned weights
+`diversity_search` SHALL take as a parameter the weight vector of a learned function or of a policy of
+`add-learning-foundation`, with one pair of bounds for every entry, so policies and learned laws are searched by
+quality diversity as by neuroevolution.
+
+#### Scenario: Diverse cart-pole policies
+- **WHEN** a user searches the weights of a linear policy of `CartPoleSystem` by `'cma-me'` with the mean cart position
+  and the mean pole angle as descriptors and the return as objective, for 2000 runs
+- **THEN** the archive holds policies in at least half of a 10 by 10 grid, and its best objective is above the return
+  of the policy with zero weights

@@ -15,7 +15,7 @@ the mean novelty as the open-endedness score of Kumar et al. (2024, arXiv 2412.1
 
 ### Requirement: Novelty and learnability to an observer
 `open_endedness(source, *, kind='observer', observer)` SHALL fit a copy of a scikit-learn estimator with
-`score_samples` to the artefacts up to every time `t`, give the loss matrix `l(t, T)` as the mean negative score of the
+`score_samples`, or a learned density model of `add-learning-foundation`, to the artefacts up to every time `t`, give the loss matrix `l(t, T)` as the mean negative score of the
 artefacts at `T > t`, and test novelty, the loss rising with `T` at fixed `t`, and learnability, the loss falling with
 `t` at fixed `T`, as Hughes et al. (2024, arXiv 2406.04268) define them.
 
