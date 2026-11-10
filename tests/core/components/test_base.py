@@ -98,6 +98,26 @@ BANNED_PHRASES = (
     'magic',
 )
 SUMMARY_LENGTH = 80
+KINDS = {
+    'Element': 'element',
+    'Interaction': 'interaction',
+    'Law': 'law',
+    'Space': 'space',
+    'Time': 'time',
+    'Neighborhood': 'neighbourhood',
+    'System': 'system',
+    'Solver': 'solver',
+    'Backend': 'backend',
+    'Observer': 'observer',
+    'Spec': 'spec',
+    'Result': 'result',
+    'Pass': 'pass',
+    'Error': 'error',
+}
+FAMILIES = tuple(
+    f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')
+)
+REWRITTEN: tuple[str, ...] = ()
 
 
 class DoublingPart(BasePart):
@@ -194,16 +214,21 @@ def _hand_written(cls):
     return names
 
 
+def _core_modules():
+    """Return the dotted name and the syntax tree of every module of `skcomplex.core`, read from its source."""
+    for path in sorted((Path(SOURCE) / 'core').rglob('*.py')):
+        parts = path.relative_to(Path(SOURCE).parent).with_suffix('').parts
+        module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
+        yield module, ast.parse(path.read_text(encoding='utf-8'))
+
+
 def _docstrings():
     """Return the dotted name, the docstring, and the publicity of every docstring of `skcomplex.core`.
 
-    The walk reads the source of every module and descends into classes, not into functions.
+    The walk descends into classes, not into functions.
     """
-    core = Path(SOURCE) / 'core'
-    for path in sorted(core.rglob('*.py')):
-        parts = path.relative_to(Path(SOURCE).parent).with_suffix('').parts
-        module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
-        yield from _walk_docstrings(ast.parse(path.read_text(encoding='utf-8')), module, public=True)
+    for module, tree in _core_modules():
+        yield from _walk_docstrings(tree, module, public=True)
 
 
 def _walk_docstrings(node, name, *, public):
@@ -216,6 +241,20 @@ def _walk_docstrings(node, name, *, public):
             if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
                 is_public = public and not child.name.startswith('_')
                 yield from _walk_docstrings(child, f'{name}.{child.name}', public=is_public)
+
+
+def _rewritten(name):
+    """Return whether a dotted name lies in a package whose docstrings are rewritten."""
+    return any(name == prefix or name.startswith(f'{prefix}.') for prefix in REWRITTEN)
+
+
+def _public_definitions(kind):
+    """Return the dotted name, the name, and the docstring of every top-level public class or function rewritten."""
+    for module, tree in _core_modules():
+        for node in tree.body:
+            docstring = ast.get_docstring(node) if isinstance(node, kind) else None
+            if docstring and not node.name.startswith('_') and _rewritten(module):
+                yield f'{module}.{node.name}', node.name, docstring
 
 
 def _prose_lines(docstring):
@@ -389,3 +428,43 @@ def test_docstrings_read_naturally():
             if faults:
                 found.setdefault(name, []).append((line, faults))
     assert found == {}, found
+
+
+def test_class_summaries_name_their_kind():
+    """Test that a rewritten public class names its kind after an article, and no summary holds a field term."""
+    found = {}
+    for name, short, docstring in _public_definitions(ast.ClassDef):
+        summary = docstring.splitlines()[0]
+        kind = next((word for suffix, word in KINDS.items() if short.endswith(suffix)), None)
+        if not summary.startswith(('A ', 'An ')) or (kind is not None and kind not in summary.lower()):
+            found[name] = summary
+    for name, _, docstring in [*_public_definitions(ast.ClassDef), *_public_definitions(ast.FunctionDef)]:
+        words = {word.lower() for word in re.findall('[A-Za-z]+', docstring.splitlines()[0])}
+        terms = sorted(term for term in FIELD_TERMS if term.lower() in words)
+        if terms:
+            found[name] = terms
+    assert found == {}, found
+
+
+def test_docstrings_say_main_public_methods():
+    """Test that no rewritten docstring calls the main public methods verbs."""
+    found = [
+        name
+        for name, docstring, _ in _docstrings()
+        if _rewritten(name) and re.search(r'\bverbs?\b', docstring, flags=re.IGNORECASE)
+    ]
+    assert found == [], found
+
+
+def test_components_compare_and_name_uses():
+    """Test that every rewritten public class of a family compares itself with its nearest part and names its uses."""
+    found = []
+    for name, _, docstring in _public_definitions(ast.ClassDef):
+        if not name.startswith(FAMILIES):
+            continue
+        paragraphs = [' '.join(paragraph.split()) for paragraph in docstring.split('\n\n')]
+        compares = any(p.startswith('Unlike') and 'Choose it when' in p for p in paragraphs)
+        names_uses = any(p.startswith('It appears in') for p in paragraphs)
+        if not (compares and names_uses):
+            found.append(name)
+    assert found == [], found
