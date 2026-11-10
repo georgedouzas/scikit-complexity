@@ -28,4 +28,4 @@
 
 ## 6. Integration
 
-- [ ] 6.1 Run ruff, mypy on src, tests and docs, lint-imports, the tests in chunks with `-n 4`, the doctests, and the markdown blocks, and verify all pass with no suppression added
+- [x] 6.1 Run ruff, mypy on src, tests and docs, lint-imports, the tests in chunks with `-n 4`, the doctests, and the markdown blocks, and verify all pass with no suppression added
