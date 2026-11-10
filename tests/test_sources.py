@@ -45,7 +45,11 @@ UTILS_MODULE = re.compile(r'\._utils$|\.utils\.')
 CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
 FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
-REWRITTEN_DOCUMENTS: tuple[str, ...] = ()
+REWRITTEN_DOCUMENTS: tuple[str, ...] = (
+    'docs/overview/user_guide/build_a_custom_system/index.md',
+    'docs/overview/user_guide/core_components/elements.md',
+    'docs/overview/user_guide/core_components/index.md',
+)
 CORE_COMPONENTS = USER_GUIDE / 'core_components'
 FAMILY_PAGES = {'elements.md': 'skcomplex.core.components.elements'}
 GALLERY = Path('docs') / 'examples'

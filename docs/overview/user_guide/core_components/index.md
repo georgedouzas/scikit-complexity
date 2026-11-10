@@ -48,7 +48,7 @@ classDiagram
     Law --> Element : changes a state of
 ```
 
-The words carry no meaning of one field. A population, a chemical species, a bank account, and a cell of a lattice are
+None of these words belongs to one field. A population, a chemical species, a bank account, and a cell of a lattice are
 all elements, and an epidemic, a reaction, and a payment are all interactions.
 
 ## A run
