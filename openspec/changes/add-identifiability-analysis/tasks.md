@@ -26,7 +26,7 @@
 
 - [x] 5.1 Add `calibrate_individuals` and `IndividualCalibrationResult` in `src/skcomplex/core/experiments/_individuals.py`, export them, and test the digital twins of five virtual patients and the error for a known parameter that is also fitted
 - [x] 5.2 Write the docstring with a runnable example and a user guide paragraph, and verify both run
-- [ ] 5.3 Add the gallery example `docs/examples/biology/oncology/plot_immuno_oncology_qsp.py` of `ImmunoOncologyQspSystem` with a virtual population, a profile of one patient, and the patient's calibration, and verify strict gallery coverage passes
+- [x] 5.3 Add the gallery example `docs/examples/biology/oncology/plot_immuno_oncology_qsp.py` of `ImmunoOncologyQspSystem` with a virtual population, a profile of one patient, and the patient's calibration, and verify strict gallery coverage passes
 
 ## 6. Integration
 
