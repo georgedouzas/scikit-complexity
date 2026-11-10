@@ -207,7 +207,6 @@ simulate(catalog, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 
 The pages below build other kinds of system from the same parts.
 
-- [Choosing compatible components](choosing_compatible_components.md)
 - [Defining elements](defining_elements.md)
 - [Kinds of dynamics](kinds_of_dynamics.md)
 - [General interactions](general_interactions.md)

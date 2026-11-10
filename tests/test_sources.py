@@ -47,6 +47,51 @@ CORE_GUARD = Path('tests') / 'core' / 'components' / 'test_base.py'
 FENCE = re.compile(r'^\s*(```|~~~)')
 INLINE_CODE = re.compile('`[^`\n]*`')
 REWRITTEN_DOCUMENTS: tuple[str, ...] = (
+    'CONTRIBUTING.md',
+    'README.md',
+    'docs/overview/user_guide/glossary.md',
+    'docs/overview/user_guide/troubleshooting.md',
+    'docs/overview/user_guide/index.md',
+    'docs/overview/user_guide/select_a_ready_made_system.md',
+    'docs/overview/user_guide/change_it.md',
+    'docs/overview/user_guide/system_classes.md',
+    'docs/overview/user_guide/extend_the_library.md',
+    'docs/overview/user_guide/build_a_custom_system/agent_based_systems.md',
+    'docs/overview/user_guide/build_a_custom_system/anomalous_processes.md',
+    'docs/overview/user_guide/build_a_custom_system/cell_complexes_and_link_fields.md',
+    'docs/overview/user_guide/build_a_custom_system/connected_components.md',
+    'docs/overview/user_guide/build_a_custom_system/constraints_and_search.md',
+    'docs/overview/user_guide/build_a_custom_system/control.md',
+    'docs/overview/user_guide/build_a_custom_system/defining_elements.md',
+    'docs/overview/user_guide/build_a_custom_system/delays_events_drivers_and_noise.md',
+    'docs/overview/user_guide/build_a_custom_system/fields.md',
+    'docs/overview/user_guide/build_a_custom_system/general_interactions.md',
+    'docs/overview/user_guide/build_a_custom_system/geometry_of_chains.md',
+    'docs/overview/user_guide/build_a_custom_system/groups_of_many_elements.md',
+    'docs/overview/user_guide/build_a_custom_system/kinds_of_dynamics.md',
+    'docs/overview/user_guide/build_a_custom_system/kinetic_systems_of_active_particles.md',
+    'docs/overview/user_guide/build_a_custom_system/lattice_systems.md',
+    'docs/overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md',
+    'docs/overview/user_guide/build_a_custom_system/linear_programs.md',
+    'docs/overview/user_guide/build_a_custom_system/networks.md',
+    'docs/overview/user_guide/build_a_custom_system/phase_space_fields.md',
+    'docs/overview/user_guide/build_a_custom_system/quantum_systems.md',
+    'docs/overview/user_guide/build_a_custom_system/rewriting_systems.md',
+    'docs/overview/user_guide/build_a_custom_system/static_systems.md',
+    'docs/overview/user_guide/build_a_custom_system/stochastic_maps.md',
+    'docs/overview/user_guide/build_a_custom_system/stocks_and_flows.md',
+    'docs/overview/user_guide/analyse.md',
+    'docs/overview/user_guide/calibrate.md',
+    'docs/overview/user_guide/check.md',
+    'docs/overview/user_guide/evaluate.md',
+    'docs/overview/user_guide/observe.md',
+    'docs/overview/user_guide/run_experiments.md',
+    'docs/overview/user_guide/share.md',
+    'docs/overview/user_guide/simulate.md',
+    'docs/overview/user_guide/case_studies/index.md',
+    'docs/overview/user_guide/case_studies/epidemic_calibration.md',
+    'docs/overview/user_guide/case_studies/opinion_sweep.md',
+    'docs/overview/user_guide/case_studies/ising_transition.md',
     'docs/overview/user_guide/build_a_custom_system/index.md',
     'docs/overview/user_guide/core_components/choosing_parts.md',
     'docs/overview/user_guide/core_components/elements.md',
@@ -611,6 +656,24 @@ def test_core_components_pages_cover_every_class(request):
         module = importlib.import_module(f'{GENERAL}.{concept.name}')
         found += [f'general.md: no section for {name}' for name in module.__all__ if name not in headings]
     assert not found, '\n'.join(found)
+
+
+def test_troubleshooting_covers_every_error(request):
+    """Test that the troubleshooting page has a section per public error class of the core."""
+    page = (request.config.rootpath / USER_GUIDE / 'troubleshooting.md').read_text(encoding='utf-8')
+    headings = set(re.findall(r'^## (\w+)$', page, flags=re.MULTILINE))
+    module = importlib.import_module('skcomplex.core.errors')
+    errors = [
+        name
+        for name, item in vars(module).items()
+        if isinstance(item, type)
+        and issubclass(item, Exception)
+        and not issubclass(item, Warning)
+        and item.__module__ == module.__name__
+        and not name.startswith('_')
+    ]
+    missing = [name for name in errors if name not in headings]
+    assert errors and not missing, f'no section for {missing}'
 
 
 def test_banned_phrases_match_the_core_guard(request):

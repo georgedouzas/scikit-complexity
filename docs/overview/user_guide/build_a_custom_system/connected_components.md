@@ -1,8 +1,14 @@
 # Connected components
 
-Assemble a system from components that connect through ports, as engineers do with circuits and plants. Each
-component states equations and leaves open which variable each equation determines. So one resistor gives a current
-under a voltage source and a voltage under a current source.
+This page assembles a system from components that connect through ports, the way engineers draw circuits and
+plants. A port is the point where a component meets its neighbours, such as the pin of a resistor. Each component
+states equations and leaves open which variable each equation determines, so one resistor gives a current under a
+voltage source and a voltage under a current source.
+
+Here two reservoirs of a chemical share one node. Each is an [`Element`](../core_components/elements.md#element) whose
+[`EquationLaw`](../core_components/laws.md#equationlaw) ties its flow to the gap between its potential and its level,
+and a [`ConnectionInteraction`](../core_components/interactions.md#connectioninteraction) joins them in a
+[`CompositeSystem`](../core_components/systems.md#compositesystem).
 
 ```python
 from typing import Annotated, ClassVar
@@ -47,26 +53,29 @@ assert trajectory.get_values('second.a_n')[-1] == -1.0
 trajectory.get_values('first.a_mu')[-1], trajectory.get_values('second.a_n')[-1]
 ```
 
-The two reservoirs share one node. The node makes their potentials equal and their flows sum to zero, so the potential
-settles between the two levels and a flow runs from one reservoir into the other.
+The block returns `(2.0, -1.0)`. The node makes the two potentials equal and the two flows sum to zero, so the
+potential settles at 2.0, halfway between the levels 1.0 and 3.0. A flow of 1.0 leaves the second reservoir and enters
+the first.
 
 ## Algebraic states
 
-`StateSpec(algebraic=True)` declares a state that no law integrates and that the equations of the system determine at
-every time.
+This section shows how to declare a state that the equations fix at every time instead of a law that integrates
+it. `StateSpec(algebraic=True)` declares such an algebraic state, as the potentials and flows of the reservoirs above.
 
 - An algebraic state has order 1 and no lags.
 - Its initial value is the starting guess of a nonlinear solve.
 - A law other than an `EquationLaw` that targets it raises `AlgebraicStateError`.
 - The trajectory records it at every frame, so observables and visuals read it like any other state.
 - The solvers integrate only the other states, so the state vector they advance keeps it at its initial value.
-- A law given as a function that reads values by name sees that initial value. Read it through a symbolic law instead.
+- A law given as a function that reads values by name sees that initial value. A symbolic law reads the solved value.
 
 ## Ports and connections
 
-`ConnectorSpec(name, potential, flow)` names the variables of a port, and the core holds no named connector. An element
-type declares its ports in the class variable `ports`, a mapping from the name of a port to its connector. It takes one
-algebraic state per variable of a port, named `<port>_<variable>`. A flow is positive into the element.
+This section declares the ports of an element and joins them at nodes. A connector names the two variables of a
+port: a potential, which is equal at a node, such as a voltage, and a flow, which sums to zero there, such as a
+current. `ConnectorSpec(name, potential, flow)` defines one, and the core holds no named connector of its own. An
+element class declares its ports in the class variable `ports`, a mapping from the name of a port to its connector. It
+takes one algebraic state per variable of a port, named `<port>_<variable>`. A flow is positive into the element.
 
 `ConnectionInteraction(label, members=..., ports=...)` is one node.
 
@@ -75,7 +84,8 @@ algebraic state per variable of a port, named `<port>_<variable>`. A flow is pos
 - A node with many ports is one connection.
 - A port that no connection names has a zero flow.
 
-A circuit takes one connector and one element class per component. Here a capacitor discharges through a resistor.
+A circuit takes one connector and one element class per component. Here a capacitor of 0.5 farad, charged to 1
+volt, discharges through a resistor of 2 ohm.
 
 ```python
 from typing import Annotated, ClassVar
@@ -184,16 +194,17 @@ assert np.allclose(trajectory.get_values('load.p_i').ravel(), trajectory.get_val
 trajectory.get_values('tank.u')[-1].round(4)
 ```
 
-The voltage of the capacitor decays as `exp(-t / RC)`, and the current through the load is that voltage over `R`. The
-ready-made engineering systems, such as those of `skcomplex.systems.engineering.circuits`, hold electrical and thermal
-components built in the same way. A port component drives a mechanism through an `EquationLaw` whose target is a
-coordinate of an `EulerLagrangeInteraction`, which adds to the equation of that coordinate, as `DcMotorSystem` of
-`skcomplex.systems.engineering.mechatronics` shows.
+The voltage of the capacitor is 0.3679 after one second. It decays as `exp(-t / RC)` with `RC = 1`, and the current
+through the load is that voltage over `R`. The ready-made systems of `skcomplex.systems.engineering.circuits` build
+their electrical and thermal components in the same way. A port component also drives a mechanism. Its
+`EquationLaw` then targets a coordinate of an
+[`EulerLagrangeInteraction`](../core_components/interactions.md#eulerlagrangeinteraction) and adds to the equation of
+that coordinate, as `DcMotorSystem` of `skcomplex.systems.engineering.mechatronics` shows.
 
 ## The solve
 
-The compiler solves the equations of a system with algebraic states inside the right side of its differential
-equations, so its solvers run unchanged.
+This section explains how the engine finds the algebraic states at each step. The compiler solves the equations of
+the system inside the right side of its differential equations, so the solvers run unchanged.
 
 - The unknowns are the highest derivatives and the algebraic states.
 - A maximum bipartite matching pairs the equations with the unknowns. The strongly connected components of their
@@ -204,11 +215,13 @@ equations, so its solvers run unchanged.
 - The laws that read an algebraic state read its solution. A function argument, an event guard, or a reset that reads
   an algebraic state of a nonlinear block raises `ValidationError`, because these need a symbolic value.
 
-The solve has no index reduction, so the structural check below reports a system of a higher index.
+The index of a system counts how often its equations must be differentiated before they fix every unknown. The
+solve has no index reduction, so the structural check below reports a system of a higher index.
 
 ## Issues of connected systems
 
-`simulate` reports these issues with the other issues of a system, before it compiles anything.
+This section lists the faults of a connected system and their fixes. `simulate` reports these issues with the other
+issues of a system, before it compiles anything.
 
 - `port-connector`: the ports of one connection have different connectors, or a connection names a port that no single
   element declares. Connect declared ports of one connector.
@@ -219,4 +232,5 @@ The solve has no index reduction, so the structural check below reports a system
   issue names the constrained states. Add a compliant element, such as a resistance, between them.
 - `algebraic-law`: a law other than an `EquationLaw` targets an algebraic state. State its value with an `EquationLaw`.
 
-A connection under discrete time gives the `law-time` issue of every `EquationLaw`.
+A connection under discrete time gives the `law-time` issue of every `EquationLaw`, because an equation law requires
+continuous or static time.

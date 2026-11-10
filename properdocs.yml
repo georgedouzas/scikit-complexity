@@ -35,7 +35,6 @@ nav:
         - Choosing parts: overview/user_guide/core_components/choosing_parts.md
       - Build a custom system:
         - overview/user_guide/build_a_custom_system/index.md
-        - Choosing compatible components: overview/user_guide/build_a_custom_system/choosing_compatible_components.md
         - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
         - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
         - General interactions: overview/user_guide/build_a_custom_system/general_interactions.md
@@ -60,11 +59,22 @@ nav:
         - Constraints and search: overview/user_guide/build_a_custom_system/constraints_and_search.md
         - Control: overview/user_guide/build_a_custom_system/control.md
         - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
+      - Check: overview/user_guide/check.md
       - Simulate: overview/user_guide/simulate.md
-      - Observe: overview/user_guide/observe.md
       - Analyse: overview/user_guide/analyse.md
+      - Evaluate: overview/user_guide/evaluate.md
+      - Calibrate: overview/user_guide/calibrate.md
       - Run experiments: overview/user_guide/run_experiments.md
+      - Visualise: overview/user_guide/observe.md
+      - Share: overview/user_guide/share.md
       - Extend the library: overview/user_guide/extend_the_library.md
+      - Case studies:
+        - overview/user_guide/case_studies/index.md
+        - An epidemic calibrated to case data: overview/user_guide/case_studies/epidemic_calibration.md
+        - An opinion model swept and analysed: overview/user_guide/case_studies/opinion_sweep.md
+        - A lattice phase transition: overview/user_guide/case_studies/ising_transition.md
+      - Glossary: overview/user_guide/glossary.md
+      - Troubleshooting: overview/user_guide/troubleshooting.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
   - Parts:

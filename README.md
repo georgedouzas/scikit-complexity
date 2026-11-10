@@ -46,13 +46,13 @@
 
 ## Overview
 
-With `scikit-complexity`, you can describe a system in any field of science with just a few lines of code, and it takes
-care of the rest: it works out the mathematics, picks a solver unless you choose one, runs the simulation, and can
-stream it live to the [Rerun](https://rerun.io) viewer.
+`scikit-complexity` simulates and analyses complex systems from any field of science. You describe a system by its
+parts, and the library derives its equations, picks a solver unless you choose one, runs the simulation, and can stream
+it to the [Rerun](https://rerun.io) viewer.
 
-Complex systems are usually modelled in separate tools with separate conventions, often one for each field.
-Here they all share one small vocabulary, in the spirit of [scikit-learn](https://scikit-learn.org): elements carry
-state, interactions change it through laws, and systems nest and compose. Learn it once, and every field opens up.
+Complex systems are usually modelled in separate tools, often one for each field, each with its own conventions. Here
+every field shares one small vocabulary in the style of [scikit-learn](https://scikit-learn.org). Elements carry
+states, interactions change them through laws, and systems nest and compose.
 
 <table>
   <tr>
@@ -102,24 +102,25 @@ state, interactions change it through laws, and systems nest and compose. Learn 
 
 ## Features
 
-- Every kind of dynamics, one interface. Differential equations, stochastic processes, jump processes, discrete maps,
-  cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and systems that learn by gradient
-  descent.
-- The form of your system is inferred. Write the laws, and the framework decides whether it is an ODE, an SDE or a jump
-  process, and compiles it for NumPy, Numba, or JAX.
-- Symbols when you want them, code when you don't. Laws are Sage symbolic expressions you can inspect and solve exactly,
-  or plain Python functions.
-- Watch it run. Stream any simulation to Rerun in real time, and change its parameters while it runs.
-- Analysis included. Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
-  identification, plus experiments for parameter sweeps, sensitivity, calibration and basin stability.
-- Standing on mature libraries. SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
-- Add your own parts without changing the library. Its systems use the same public classes you do, so each one doubles as
-  an example for your own.
+- **One interface for many kinds of dynamics.** Differential equations, stochastic processes, jump processes, discrete
+  maps, cellular automata, agents, networks and hypergraphs, fields and partial differential equations, quantum
+  systems, and systems that learn by gradient descent all run through `simulate`.
+- **The form is inferred.** The library reads the laws of a system and decides whether it is an ordinary differential
+  equation, a stochastic differential equation, or a jump process. It then compiles it for NumPy, Numba, or JAX.
+- **Symbolic or numeric laws.** A law is a Sage symbolic expression, which you can inspect and solve exactly, or a
+  Python function.
+- **Live runs.** A simulation streams to Rerun as it runs, and a schedule changes its parameters during the run.
+- **Analyses and experiments.** The analysis functions range from Lyapunov exponents and entropy to network motifs,
+  scaling laws, and system identification. The experiment functions run parameter sweeps, sensitivity analyses,
+  calibrations, and studies of basin stability.
+- **Mature libraries underneath.** SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX, and others do the numerical work.
+- **Parts of your own.** The ready-made systems use the same public classes as you do, so each one is also an example
+  for a system of your own.
 
 ## Installation
 
-`scikit-complexity` supports Python 3.12, 3.13, and 3.14 on Linux and on macOS 13 or later with Apple silicon, and is
-available on PyPI. On Python 3.14 the install builds `memory-allocator` from source, so it needs a C compiler:
+`scikit-complexity` supports Python 3.12, 3.13, and 3.14 on Linux and on macOS 13 or later with Apple silicon. It is
+available on PyPI. On Python 3.14 the install builds `memory-allocator` from source, so it needs a C compiler.
 
 ```bash
 pip install scikit-complexity
@@ -128,7 +129,7 @@ pip install scikit-complexity
 The installation includes Sage through the [passagemath](https://github.com/passagemath/passagemath) distributions,
 LAMMPS, Mesa, Numba, JAX, and Rerun. Windows has no passagemath wheels, so on Windows the package runs in WSL.
 
-For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm):
+For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm).
 
 ```bash
 git clone https://github.com/georgedouzas/scikit-complexity.git
@@ -138,21 +139,21 @@ pdm install
 
 ## Usage
 
-The library speaks scikit-learn. What you define is an estimator, a class with `get_params`, `set_params`, and
-`clone`: elements, interactions, and systems. What you do to them is a function: `simulate` runs a system as
-`cross_validate` runs a model, analyses measure the run as `sklearn.metrics` scores one, and experiments run many as
-the model selection functions do.
+The library follows the conventions of scikit-learn. What you define is an estimator, a class with `get_params`,
+`set_params`, and `clone`, such as an element, an interaction, or a system. What you do to it is a function. `simulate`
+runs a system as `cross_validate` runs a model, an analysis measures the run as `sklearn.metrics` scores a model, and
+an experiment runs many systems as the model selection functions do.
 
-There are two ways in. Select a ready-made system from the catalog, or build a custom system from the general classes
-of `skcomplex.core.components`.
+You can start in two ways. Select a ready-made system from the catalog, or build a custom system from the general
+classes of `skcomplex.core.components`.
 
 ### Select a ready-made system
 
-Every ready-made system is a class with a field, topics, references, and parameters. You import it from its subfield,
-the package `skcomplex.systems.<field>.<subfield>`, and `all_systems` finds them, as `all_estimators` does in
-scikit-learn.
+This section finds a system of the catalog, reads its description, and simulates it. Every ready-made system is a
+class with a field, topics, references, and parameters. You import it from its subfield, the package
+`skcomplex.systems.<field>.<subfield>`, and `all_systems` lists the classes, as `all_estimators` does in scikit-learn.
 
-List the systems of a field:
+The systems of one field, here ecology, are listed by their field path.
 
 ```python
 from skcomplex.systems import all_systems
@@ -160,14 +161,15 @@ from skcomplex.systems import all_systems
 ecology = [name for name, _ in all_systems(field='biology/ecology')]
 ```
 
-Search every field by topic, or by the capability tags of a system:
+A search by topic covers every field, and a search by capability tags selects systems by what they do, such as
+running with random events.
 
 ```python continuation
 oscillators = [name for name, _ in all_systems(topics='oscillation')]
 stochastic = [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
 ```
 
-Import the class you chose from its subfield and read what it is:
+The class you choose is imported from its subfield, and its attributes say what it models and where it comes from.
 
 ```python continuation
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -175,7 +177,9 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 LotkaVolterraSystem.topics, LotkaVolterraSystem.references, LotkaVolterraSystem().get_params()
 ```
 
-Simulate it with its tuned settings, or with parameters and settings of your own:
+The topics of `LotkaVolterraSystem` are `predator-prey`, `ode`, and `oscillation`, its references are Lotka (1925) and
+Volterra (1926), and its parameters start from 40 prey and 9 predators. `simulate` runs it with its tuned settings, or
+with parameters and settings of your own.
 
 ```python continuation
 from skcomplex.core.engine.runtime import simulate
@@ -185,7 +189,7 @@ fast_prey = simulate(LotkaVolterraSystem(r=1.5), until=50, dt=0.1)
 round(float(fast_prey.get_values('prey.x').max()))
 ```
 
-Each run can stream to the Rerun viewer:
+With a prey growth rate of 1.5, the prey peak at 49. Each run can also stream to the Rerun viewer.
 
 <table>
   <tr>
@@ -200,9 +204,10 @@ and the page of each system shows the classes it is built from.
 
 ### Build a custom system
 
-A custom system needs only the core. An element declares its states, and an interaction declares its roles and returns
-its laws, where the namespace `s` holds the symbols of its parameters and of the elements bound to its roles. A predator
-and prey system takes one element class, the general `RateInteraction`, and one new interaction:
+This section writes a predator and prey system from the core alone. An element declares its states. An interaction
+declares its roles, the names of the elements it reads and changes, and returns its laws. In `_get_laws`, the
+namespace `s` holds the symbols of its parameters and of the elements bound to its roles. The system takes one element
+class, the general `RateInteraction`, and one new interaction.
 
 ```python
 from typing import Annotated
@@ -254,8 +259,9 @@ trajectory = simulate(system, until=30, dt=0.05)
 round(float(trajectory.get_values('rabbits.n').max()))
 ```
 
-A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer
-during the run. A schedule changes a parameter while the system runs, here halving the hunting rate at time 15:
+The rabbits peak at 51. A `RerunObserver` records the run for the Rerun viewer, and
+`RerunObserver('predators', spawn=True)` opens the viewer during the run. A schedule changes a parameter while the
+system runs. Here it halves the hunting rate at time 15.
 
 ```python continuation
 import tempfile
@@ -274,7 +280,9 @@ trajectory = simulate(
 float(trajectory.times[-1])
 ```
 
-Adding a process takes one more interaction, and the analysis `symbolic` shows the equations of the system:
+The run ends at time 30.0, with the hunting rate halved for its second half. A new process takes one more
+interaction. Here a fishery harvests a fish stock in proportion to its size, and the analysis `symbolic` returns the
+equations of the system.
 
 ```python continuation
 from sage.all__sagemath_symbolics import oo
@@ -309,17 +317,20 @@ harvested = CompositeSystem(
 symbolic(harvested).equations['fish.n']
 ```
 
+The equation of the stock is the logistic growth `-0.0005 (n - 1000) n` minus the harvest `h n`.
+
 ### Find out which components fit
 
-An interaction states what it needs from each role, and an element states what it carries. Ask them before you build:
+This section checks that parts fit before you build a system with them. An interaction states what it needs from each
+role, and an element states what it carries.
 
 ```python continuation
 hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
 hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states())
 ```
 
-When a role is bound to an element without the state it reads, `simulate` raises an error that names the role, the
-state, and the fix:
+The role `prey` reads the state `n`, and `PopulationElement` carries `n`, so they fit. When a role is bound to an
+element without the state it reads, `simulate` raises a `RoleElementError`.
 
 ```python continuation
 from skcomplex.core.errors import RoleElementError
@@ -342,13 +353,15 @@ except RoleElementError as error:
 message
 ```
 
+The message says that the role `prey` reads `n` but the element `tank` carries `level`. It proposes three fixes: bind
+the role to an element that carries the state, declare the state on the element, or read another state.
+
 The [parts pages](https://georgedouzas.github.io/scikit-complexity/parts/elements/) list every element, interaction, law,
 solver, and backend with the tags they accept, and the
-[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/)
+[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/check/#what-an-interaction-needs)
 walks through the choices in order.
 
 ## Spec-driven development
 
-The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
-project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development, and
-`openspec/config.yaml` names the constitution as binding.
+The project develops from specifications with [OpenSpec](https://github.com/Fission-AI/OpenSpec). Its engineering
+constitution, `openspec/constitution.md`, binds all work, and `openspec/config.yaml` names it as binding.

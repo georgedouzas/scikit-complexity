@@ -1,13 +1,19 @@
 # Anomalous processes
 
-Write processes with memory: heavy-tailed jumps, events that fire after waiting times from any distribution, noise
-whose increments are correlated over the whole run, and derivatives of fractional order.
+This page writes processes that depart from ordinary diffusion and exponential decay. They have heavy-tailed jumps,
+events that fire after waiting times from any distribution, noise whose increments are correlated over the whole run,
+or derivatives of fractional order. A heavy tail means that very large values are far more likely than under a normal
+distribution.
 
 ## Draws from SciPy distributions
 
-Draw from any distribution of `scipy.stats`, such as a Lévy stable law for long flights.
-`draw(name, distribution, **parameters)` takes the name of the distribution, such as `'pareto'`, `'lomax'`, `'expon'`,
-`'beta'`, or `'levy_stable'`, with its shape parameters, `loc`, and `scale` as keywords.
+This section draws from any distribution of `scipy.stats`, such as a Lévy stable law for long flights. The function
+`draw(name, distribution, **parameters)` takes the name of the distribution, such as `'pareto'`, `'lomax'`,
+`'expon'`, `'beta'`, or `'levy_stable'`, with its shape parameters, `loc`, and `scale` as keywords.
+
+Here 100 fliers each take a step drawn from a symmetric stable law of index 1.5 on every step, through an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) of an [`Element`](../core_components/elements.md#element)
+subclass that a [`GroupElement`](../core_components/elements.md#groupelement) repeats.
 
 ```python
 from typing import Annotated
@@ -34,19 +40,34 @@ flight = simulate(fliers, until=20, dt=1.0, random_state=0)
 flight.get_values('fliers.x').shape
 ```
 
+The positions hold 21 frames, the start and 20 steps, of 100 fliers each. The steps show the heavy tail. The largest
+step is about ninety times the median one.
+
+```python continuation
+import numpy as np
+
+steps = np.abs(np.diff(flight.get_values('fliers.x'), axis=0))
+int(steps.max()), round(float(np.median(steps)), 1)
+```
+
+The largest of the 2000 steps has a length of 91, and the median length is 1.0. A SciPy draw follows these rules.
+
 - The keywords can be expressions of states and parameters.
 - A SciPy draw follows the rules of the other named draws, and it samples with the distribution's `rvs` and the
   random generator of the run.
 - Compiling rejects a name `scipy.stats` does not provide, listing the closest names, and keywords the distribution does
   not take.
 - In update laws, a SciPy draw is sampled for every member before each step, and the map then steps in Python with the
-  backend's compiled update.
+  compiled update of the [backend](../glossary.md#backend).
 
 ## Jumps on clocks of waiting times
 
-Fire an event after a random waiting time, such as a trapped particle that escapes after a heavy-tailed wait.
-`JumpLaw(waiting=..., reset=..., label=...)` fires after a waiting time, applies its reset to the states all at once,
-and draws the next waiting time from the states after the reset.
+This section fires an event after a random waiting time, such as a trapped particle that escapes after a
+heavy-tailed wait. [`JumpLaw`](../core_components/laws.md#jumplaw)`(waiting=..., reset=..., label=...)` fires after a
+waiting time, applies its reset to the states all at once, and draws the next waiting time from the states after the
+reset. A renewal is one such firing.
+
+Here 1000 walkers wait a Pareto time of index 0.5, which has no finite mean, and then jump by a normal step.
 
 ```python
 from typing import Annotated
@@ -81,6 +102,9 @@ walk = simulate(walkers, until=1000, dt=100.0, random_state=0)
 walk.problem.form.value, bool(walk.get_values('jumps.renewals')[-1] > 1000)
 ```
 
+The system compiles to the form `'renewal process'`, and the 1000 walkers renew more than 1000 times by time 1000.
+The clocks follow these rules.
+
 - Every member of a group renews on its own clock.
 - Draws in the waiting time and the reset take a fresh value at every renewal of every member, and every use of one
   name in a renewal reads the same value.
@@ -101,9 +125,11 @@ compiler keeps the count of every member in a hidden state, `<group>.<label>~ren
 
 ## Fractional noise
 
-Drive a state with noise that remembers its past, as in rough or persistent paths.
-`NoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index
-`0 < H < 1`.
+This section drives a state with noise that remembers its past, as in rough or persistent paths.
+[`NoiseLaw`](../core_components/laws.md#noiselaw)`(targets, value, hurst=hurst)` drives a state with fractional
+Brownian motion of Hurst index `0 < H < 1`. The Hurst index sets how the increments correlate.
+
+Here 500 walkers follow rough paths of index 0.3 with amplitude 1 up to time 1.
 
 ```python
 from typing import Annotated
@@ -130,6 +156,9 @@ rough = simulate(walkers, until=1, dt=0.1, solver=FractionalEulerMaruyamaSolver(
 round(float(rough.get_values('walkers.x')[-1].var()), 1)
 ```
 
+The variance of the positions at time 1 is 1.0, the variance `t^(2H)` of fractional Brownian motion at `t = 1`. The
+noise follows these rules.
+
 - The increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`.
 - A Hurst index of 1/2 compiles to a noise law without one. For other indices the amplitude must not depend on any state.
 - `FractionalEulerMaruyamaSolver(dt, horizon)` is the stepper of systems with fractional noise. When it first advances,
@@ -145,8 +174,12 @@ These ready-made systems have memory: `ContinuousTimeRandomWalkSystem`, `LevyWal
 
 ## Fractional derivatives
 
-Give a state a derivative of fractional order, for relaxation that is slower than any exponential. A state declared
-with a fractional order, `StateSpec(order=0.6)`, has a Caputo derivative of that order.
+This section gives a state a derivative of fractional order, for relaxation that is slower than any exponential. A
+state declared with a fractional order, `StateSpec(order=0.6)`, has a Caputo derivative of that order. The Caputo
+derivative of order `alpha` weighs the whole past of the rate of change with a kernel that decays as a power of time.
+
+Here a state relaxes under a [`RateLaw`](../core_components/laws.md#ratelaw) with `D^0.6 x = -x` from 1.0, and the run
+compares with the exact solution at time 20.
 
 ```python
 from typing import Annotated
@@ -176,7 +209,8 @@ exact = solution.subs({solution.variables()[0]: 20.0})
 relaxing.problem.form.value, abs(float(relaxing.get_values('a.x')[-1]) - float(exact)) < 1e-3
 ```
 
-The simulated relaxation matches the exact Mittag-Leffler solution to `1e-3` at time 20.
+The system compiles to the form `'fractional differential equations'`, and the simulated relaxation matches the
+exact Mittag-Leffler solution to within `1e-3` at time 20.
 
 The rate laws on a fractional state give its derivative, `D^alpha x = f(t, x)`, and superpose as for any state, so no
 other law kind is needed. Order 1 is the ordinary rate law. The derivative of order `alpha` at a time depends on the

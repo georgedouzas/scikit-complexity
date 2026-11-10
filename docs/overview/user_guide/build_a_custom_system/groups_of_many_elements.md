@@ -1,7 +1,14 @@
 # Groups of many elements
 
-Use a group when your system has many identical elements, such as the molecules of a gas, the cars on a road, or the
-neurons of a network. You write the laws once for one member, and they run over all members at array speed.
+This page builds systems of many identical elements, such as the molecules of a gas, the cars on a road, or the
+neurons of a network. A group writes the laws once for one member and runs them over all members with array
+operations.
+
+Here a [`GroupElement`](../core_components/elements.md#groupelement) holds 1000 atoms of an
+[`Element`](../core_components/elements.md#element) subclass with a two-dimensional position of order 2, so the
+position has a velocity `x_d1`. The atoms start at random places with random velocities inside a unit box, a
+[`ContinuousSpace`](../core_components/spaces.md#continuousspace) with reflecting walls, and a
+[`CompositeSystem`](../core_components/systems.md#compositesystem) holds them.
 
 ```python
 from typing import Annotated
@@ -34,19 +41,20 @@ trajectory = simulate(gas, until=0.5, dt=0.01)
 trajectory.get_values('gas.x').shape
 ```
 
-A group holds N identical elements of one type as arrays, with one row per member. It compiles once, whatever its
-size, and every law written for one member runs over all members with array operations.
+The positions hold 51 frames of 1000 atoms in two dimensions. A group holds N identical elements of one class as
+arrays, with one row per member. It compiles once, whatever its size, and every law written for one member runs over
+all members with array operations. A group follows these rules.
 
 - A group is `GroupElement(label, element=..., size=..., values={...})`, with per-member values by state name. The
   states and parameters of agents cannot take the names of the agent view, such as `location` or `alive`.
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
-- An interaction whose role binds to a group applies to every member. A single element bound next to the group
+- An interaction whose [role](../glossary.md#role) binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
 - Group variables are named by the group path, such as `gas.x` with shape `(1000, 2)`.
 - A group parameter takes one value for every member, or one value per member, in the `schedule` of `simulate`.
 
 The ready-made `IdealGasSystem` builds such a gas of non-interacting molecules in a reflecting box, with the model
-parameters `n_molecules`, `kT`, and `size`. `prepare` builds its parts in `system_`:
+parameters `n_molecules`, `kT`, and `size`. `prepare` builds its parts in `system_`.
 
 ```python
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
@@ -54,10 +62,13 @@ from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 IdealGasSystem(n_molecules=200, kT=2.0, size=1.0).prepare().system_.elements[0].size
 ```
 
+The first element of the built system is a group of 200 molecules.
+
 ## Reductions over a group
 
-Use a reduction when a member's law needs a quantity of the whole group, such as its total, its mean, or the number of
-members above a threshold. Here every unit reads the total of the group in its own law:
+This section lets the law of a member read a quantity of the whole group, such as its total, its mean, or the number
+of members above a threshold. Such a quantity is a reduction. Here every unit of 50 relaxes toward the hyperbolic
+tangent of the group total, through a [`RateLaw`](../core_components/laws.md#ratelaw).
 
 ```python
 from typing import Annotated
@@ -86,16 +97,21 @@ units = CompositeSystem(elements=[GroupElement('units', element=UnitElement, siz
 simulate(units, until=2, dt=0.5).get_values('units.x')[-1, :3].round(3).tolist()
 ```
 
+The first three units end at -0.861, -0.855, and -0.85 at time 2. The initial values sum to zero up to a rounding
+error of about `4e-15`, but this balance is unstable. Each unit feeds the total back to all 50, so the error grows, the
+total turns strongly negative, and every unit is pulled toward -1.
+
 `total`, `mean`, `maximum`, `minimum`, `variance`, and `count` of `skcomplex.core.components.laws.utils` reduce an
 expression over the members of a group inside any law. Inside the reduction, the symbols of a member stand for the
 reduced member. Outside it, they stand for the reading member. So `RateLaw(s.x, -s.x + tanh(total(s.x)))` reads the
 group total in every member's own law.
 
-A reduction is evaluated once per evaluation, before the member laws, at a cost linear in the size of the group, on
-NumPy and Numba.
+The engine evaluates a reduction once per evaluation of the laws, before the member laws, at a cost linear in the
+size of the group, on NumPy and Numba.
 
-Reductions also take weights and nest. Replicator dynamics, where each strategy grows by how much its payoff beats the
-mean payoff, needs both:
+Reductions also take weights and nest. Replicator dynamics, where the share of each strategy grows by how much its
+payoff beats the mean payoff, needs both. Here an [`Interaction`](../core_components/interactions.md#interaction)
+reads a population of two strategies, with a payoff matrix in which each strategy does better against the other.
 
 ```python continuation
 from skcomplex.core.components.interactions import Interaction
@@ -127,7 +143,8 @@ game = CompositeSystem(
 simulate(game, until=40, dt=1.0).get_values('population.x')[-1].round(3).tolist()
 ```
 
-The arguments of a reduction are:
+The shares settle at 0.667 and 0.333, where the two payoffs `-0.5 x_1 + 2 x_2` and `x_2` are equal. A reduction takes
+these arguments.
 
 - `where` selects the members with a condition on the reduced member, such as `count(where=s.x > 0.5)`. A reduction
   that selects no member is 0.
@@ -138,7 +155,7 @@ The arguments of a reduction are:
   interaction changes, as [Shaped parameters and coupling tensors](learning_by_gradient_steps.md#shaped-parameters-and-coupling-tensors) shows.
 - `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
 
-Reductions follow a few rules:
+Reductions follow these rules.
 
 - A reduction reads one group, and an argument that reads two groups raises an error.
 - Reductions nest, so the mean fitness `total(s.x * total(s.x, weights=A))` of replicator dynamics evaluates the inner
@@ -149,9 +166,9 @@ Reductions follow a few rules:
 - Discrete maps read the reductions at step `n`, jump propensities after every event, and events at the state they
   receive.
 
-**Element sets.** A role also binds to an element set, a list of single elements of one type. The interaction's laws
-apply to each element, the elements keep their own state names, and reductions over the role reduce over the set.
-Here three named units inhibit each other:
+**Element sets.** A role also binds to an element set, a list of single elements of one class. The laws of the
+interaction apply to each element, the elements keep their own state names, and reductions over the role reduce over
+the set. Here three named units grow logistically and inhibit each other with the strength `beta = 2`.
 
 ```python
 from typing import Annotated
@@ -189,10 +206,15 @@ network = CompositeSystem(
 (simulate(network, until=30, dt=1.0).states[-1].round(3) + 0.0).tolist()
 ```
 
+The unit that starts highest, `unit_2`, ends at 1.0 and the other two at 0.0. Strong mutual inhibition lets one winner
+take all.
+
 ## Variadic roles
 
-Use a variadic role when one law takes any number of inputs, such as a node that sums weighted signals from a chosen
-list of other nodes:
+This section gives one law any number of inputs, such as a node that sums weighted signals from a chosen list of
+other nodes. A variadic role binds such a list. Here the node `out` sums two single nodes and the member 3 of a group,
+with the weights 1, 1, and 10, through an [`UpdateLaw`](../core_components/laws.md#updatelaw). A schedule sets the
+third weight to 0 from time 1.
 
 ```python
 from typing import Annotated
@@ -243,6 +265,9 @@ trajectory = simulate(summed, until=2, dt=1, schedule={'sum.weights[2]': lambda 
 trajectory.get_values('out.x').tolist(), trajectory.get_values('sum.weights')[-1].tolist()
 ```
 
+The node `out` reads 0.0, then `1 + 2 + 10 * 3 = 33.0`, then 3.0 once the third weight is 0. The weights end at
+`[1.0, 1.0, 0.0]`. The role and the parameter follow these rules.
+
 - A role declared with `RoleSpec(variadic=True)` binds a list of element paths and group member references
   `<group>[<i>]`. Laws read it as a tuple of namespaces in the given order.
 - A parameter declared with `ParameterSpec(per='<role>')` holds one value per entry, and laws read it as a tuple of
@@ -259,8 +284,10 @@ correlated noise of [Delays, events, drivers, and noise](delays_events_drivers_a
 
 ## Several groups and member offsets
 
-Use a member offset when a member reads its neighbour in the group order, such as a car that reads the car ahead on a
-ring road. A small push to the first car grows into a traffic jam:
+This section lets a member read its neighbour in the group order, such as a car that reads the car ahead on a ring
+road. A member offset gives that read. Here 20 cars sit 2.0 apart on a ring of length 40, and each speeds toward a
+velocity that depends on its headway, the distance to the car ahead. A push of 0.1 to the first car breaks the even
+spacing.
 
 ```python
 from typing import Annotated
@@ -306,13 +333,16 @@ ring = CompositeSystem(
 bool(simulate(ring, until=50, dt=1.0).get_values('cars.v')[-1].std() > 0.1)
 ```
 
+At time 50 the velocities of the cars differ with a standard deviation above 0.1, so the small push has grown into a
+traffic jam.
+
 `shift_member(expression, offset, boundary='periodic', fill=0.0)` reads an expression of a group's members at the
 member `offset` places along the group order, the member index.
 
 - Past the ends, `'periodic'` wraps around, `'reflecting'` mirrors the order, and `'fixed'` reads `fill`.
 - Nested offsets add, and an offset read of a single element raises an error.
 - The read compiles to an index table of the group, so one kernel runs over every member on the NumPy and the Numba
-  backends.
+  [backends](../glossary.md#backend).
 
 The ring roads of `OptimalVelocitySystem` and `IntelligentDriverSystem` of `skcomplex.systems.engineering.traffic`
 read the car ahead this way, with `mod` for the headway across the point where positions wrap.
@@ -323,7 +353,9 @@ is the work of a pair interaction or a reduction.
 
 ## Jacobians of reductions
 
-Implicit solvers need the Jacobian of the system, and the library computes it exactly, even through reductions:
+This section computes the Jacobian of a system with reductions, the matrix of the derivatives of every rate with
+respect to every state. Implicit solvers need it, and the library computes it exactly, by the chain rule through the
+reductions. Here the 50 units of the first reduction example give their Jacobian at the initial state.
 
 ```python
 from typing import Annotated
@@ -355,14 +387,15 @@ jacobian = problem.jacobian.prepare(problem).run(state).values_
 jacobian.shape, problem.jacobian.get_pattern().nnz
 ```
 
-A reduction makes every reading member depend on every reduced member. The Jacobian of a drift with reductions
-therefore has the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`.
+The Jacobian is a 50 by 50 matrix, and all of its 2500 entries can be nonzero. A reduction makes every reading member
+depend on every reduced member. The Jacobian of a drift with reductions therefore has the rank-one block
+`dF_i/dR dR/dx_j` of every reduction `R`.
 
 - `problem.jacobian` of an ODE problem is a kernel. Prepared with the problem and run at a `RunStateSpec`, it sets in
   `values_` the exact Jacobian, by the chain rule through every reduction, as a SciPy sparse matrix.
 - `problem.jacobian.get_pattern()` states its structure, which the implicit methods of `ScipyODESolver` receive (see
   [Discretizations and stiff solvers](fields.md#discretizations-and-stiff-solvers)).
-- When the dense blocks exceed 4 million entries, `pattern()` returns `None` and an implicit solver estimates a dense
+- When the dense blocks exceed 4 million entries, `get_pattern()` returns `None` and an implicit solver estimates a dense
   Jacobian.
 
 Mean-field groups are rarely stiff, so an explicit method such as `ScipyODESolver(method='RK45')` suits large groups
@@ -374,7 +407,10 @@ replicator dynamics are therefore derived symbolically. A larger group raises an
 
 ## Pair interactions
 
-Use a pair interaction for forces between members that depend on their distance, such as the atoms of a liquid:
+This section adds forces between members that depend on their distance, such as the forces between the atoms of a
+liquid. A [`PairInteraction`](../core_components/interactions.md#pairinteraction) gives them. Here 100 atoms on a
+square grid of spacing 1.2 interact through the Lennard-Jones potential `4 (r^-12 - r^-6)`, cut off at the distance
+2.5.
 
 ```python
 from typing import Annotated
@@ -412,7 +448,7 @@ liquid = CompositeSystem(
 simulate(liquid, until=1, dt=0.05).get_values('atoms.x').shape
 ```
 
-A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
+The positions hold 21 frames of 100 atoms in two dimensions. A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
 group or between two groups. `PairInteraction` adds to the rate of a state of both members a function of the
 pair, or minus the gradient of a pair potential of their distance, divided by an optional `divisor`. On a state of
 order 2, such as the position of an `AtomElement`, the rate is its second derivative.
@@ -421,10 +457,10 @@ order 2, such as the position of an `AtomElement`, the rate is its second deriva
 
 ## Boundaries
 
-Boundaries keep members inside a box, by walls that reflect them or by edges that wrap around. The gas at the top of
-this section bounces off the walls of its `ContinuousSpace(boundary='reflecting')`.
+This section keeps members inside a box, by walls that reflect them or by edges that wrap around. The gas at the top
+of this page bounces off the walls of its `ContinuousSpace(boundary='reflecting')`. Boundaries follow these rules.
 
-- A `BoundaryLaw` sets the value of a state after every internal solver step, however long the frame, so a frame never
+- A [`BoundaryLaw`](../core_components/laws.md#boundarylaw) sets the value of a state after every internal solver step, however long the frame, so a frame never
   reports a state that a boundary would change.
 - Adaptive solvers find the first time in a step where a boundary acts, and restart there.
 - Boundaries combine with every form, so walls and periodic boxes work for differential equations, stochastic

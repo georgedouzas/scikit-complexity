@@ -1,8 +1,18 @@
 # Constraints and search
 
-Let a system search for a solution, step by step: anneal an objective, optimise it with a population of candidates, or
-satisfy logical constraints. Each search is an interaction on a group, so a run records its progress like any other
-dynamics.
+This page lets a system search for a solution step by step. It anneals an objective, optimises it with a population of
+candidates, or satisfies logical constraints. Each search is an interaction on a group, so a run records its progress
+like any other dynamics.
+
+## Annealing
+
+This section anneals twenty candidates towards the minimum of `(x - 2)^2`. Simulated annealing proposes a random move
+and accepts it with a probability that falls as the move worsens the objective and as the search cools. A
+[`SamplingInteraction`](../core_components/interactions.md#samplinginteraction) built with `cooling` anneals. Its
+`cooling` is a function of the time symbol that multiplies one over the intensity, here `1 / (1 + t)`. The candidates
+form a [`GroupElement`](../core_components/elements.md#groupelement) on the sites of a one-dimensional
+[`LatticeSpace`](../core_components/spaces.md#latticespace), and a
+[`DiscreteTime`](../core_components/spaces.md#discretetime) counts the steps.
 
 ```python
 from typing import Annotated
@@ -36,18 +46,26 @@ values = simulate(system, until=200, random_state=0).get_values('candidates.x')
 round(float(abs(values[0] - 2).mean()), 2), round(float(abs(values[-1] - 2).mean()), 2)
 ```
 
-Twenty candidates anneal towards the minimum of `(x - 2)^2`. Each proposes a Gaussian move, and a Metropolis
-acceptance keeps it with a probability that falls as the intensity rises with the cooling. The objective reads no
-neighbours, so every candidate searches alone.
+The mean distance of the candidates from 2 falls from 2.0 at the start to 0.04 after 200 steps. Each candidate proposes
+a Gaussian move, and a Metropolis acceptance keeps it with a probability that falls as the intensity rises with the
+cooling. The objective reads no neighbours, so every candidate searches alone, with one interaction per state.
+
+The solver of sampling takes no other laws. So what tracks a run, such as the lowest energy so far, sits in a nested
+system, as in `EvolutionaryOptimisersSystem(algorithm='annealing')`.
+
+## Logical constraints
 
 A search that needs a solver of its own is a recipe of the field that uses it. `SatisfiabilityInteraction` reveals
 logical constraints step by step to one PySAT solver, which keeps what it learned, as in
-`PerceptronSatisfiabilitySystem` of `skcomplex.systems.computer_science.neural_networks`. Each constraint is a clause
-or a cardinality over literals, and the interaction reports at every step whether the constraints so far are
-satisfiable.
+`PerceptronSatisfiabilitySystem` of `skcomplex.systems.computer_science.neural_networks`. Each constraint is a clause,
+a disjunction of literals, or a cardinality constraint, a bound on how many literals hold. The interaction reports at
+every step whether the constraints so far are satisfiable.
 
-`OptimizationInteraction` of `EvolutionaryOptimisersSystem` moves a group of candidates through pymoo, one generation per
-step. Each candidate is a vector state in the box `bounds`.
+## Populations of candidates
+
+This section optimises an objective with a population of candidates that moves through the library pymoo, one
+generation per step. `OptimizationInteraction` of `EvolutionaryOptimisersSystem` holds each candidate as a vector state
+in the box `bounds`. Here a particle swarm searches for 20 steps.
 
 ```python
 from skcomplex.core.engine.runtime import simulate
@@ -57,14 +75,10 @@ system = EvolutionaryOptimisersSystem(algorithm='particle-swarm', random_state=1
 simulate(system, until=20, random_state=1).get_values('search.best')[-1] < 20
 ```
 
+The block returns `True`, so the best objective after 20 steps lies below 20. The interaction follows these rules.
+
 - The `objective` takes the array of candidates.
 - The algorithm is a spec: `DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, or
   `CovarianceAdaptationSpec`.
 - It reports `best` and `mean` at every step. Once the algorithm stops itself, the candidates stay.
 - Runs with the same seed repeat.
-
-`SamplingInteraction(cooling=)` anneals. Its `cooling` is a function of the time symbol that multiplies one over the
-intensity. So a Metropolis acceptance with the `'gaussian'` move anneals a group of candidates on a one-dimensional
-`LatticeSpace` whose objective reads no neighbours, with one interaction per state. The solver of sampling takes no
-other laws. So what tracks a run, such as the lowest energy so far, sits in a nested system, as in
-`EvolutionaryOptimisersSystem(algorithm='annealing')`.
