@@ -48,9 +48,14 @@ The potential SHALL be invariant under permutations of the particles and rotatio
 - **THEN** the three values agree within 1e-10
 
 ### Requirement: Learned Hamiltonians run symplectically
-The result of `hamiltonian_network` SHALL hold `system`, a particle group under continuous time whose accelerations are
-minus the gradient of the learned potential over the masses, which the velocity Verlet and fourth-order symplectic
-solvers accept.
+The result of `hamiltonian_network` SHALL hold `system`, a particle group under continuous time with a pair interaction
+whose potential is the learned network called through `learned_function` of `add-learning-foundation`, so its
+accelerations are minus the gradient of the learned potential over the masses, it runs on the NumPy and JAX backends,
+and the velocity Verlet and fourth-order symplectic solvers accept it.
+
+#### Scenario: Learned pair potential on JAX
+- **WHEN** the `system` of the result is compiled on the NumPy and JAX backends
+- **THEN** both give the same accelerations within 1e-10, and the JAX run is differentiable in the weights of the network
 
 #### Scenario: Bounded energy error
 - **WHEN** the `system` of a network trained on a chain of masses and springs runs for 10,000 steps with
