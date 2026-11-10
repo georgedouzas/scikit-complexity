@@ -37,8 +37,9 @@ state components.
 
 ### Requirement: The census reads the numeric drift
 The census SHALL evaluate the compiled drift or next value of a system and its Jacobian numerically, from the exact
-Jacobian of the laws when it exists and by finite differences otherwise. It SHALL accept groups of any size and
-callable laws, and SHALL reject other forms with a named error.
+Jacobian of the symbolic laws, from automatic differentiation on JAX for laws with learned functions of
+`add-learning-foundation`, and by finite differences otherwise. It SHALL accept groups of any size, callable laws, and
+learned laws, and SHALL reject other forms with a named error.
 
 #### Scenario: Group above the symbolic limit
 - **WHEN** a user takes the census of a group of 200 uncoupled members that each relax to 0
@@ -47,6 +48,11 @@ callable laws, and SHALL reject other forms with a named error.
 #### Scenario: Callable law
 - **WHEN** a user takes the census of a system whose rate law calls a NumPy function of the state
 - **THEN** it returns its fixed points and their indices
+
+#### Scenario: Identified system with a learned law
+- **WHEN** a user takes the census of the hybrid form of `UniversalLotkaVolterraSystem` after `identify`
+- **THEN** the Jacobian at every point equals central finite differences of the drift within 1e-6, and the census
+  returns the extinction point and the coexistence point that the fitted flow has
 
 #### Scenario: Stochastic system
 - **WHEN** a user takes the census of an SDE system
