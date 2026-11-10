@@ -67,3 +67,13 @@ the expected coverage curve of the TARP test to the coverage per level.
 #### Scenario: Training losses
 - **WHEN** a user calibrates with `method='nre'`
 - **THEN** `diagnostics` holds the training and validation loss of every epoch
+
+### Requirement: Physics-informed calibration of fields
+`calibrate(method='pinn')` SHALL fit parameters of a field system to observed runs by training a physics-informed
+network whose residuals come from the declared laws, with the parameters as trainable variables within their bounds
+and the observations as point constraints.
+
+#### Scenario: Diffusion coefficient from sparse samples
+- **WHEN** the diffusion coefficient of a one-dimensional heat equation with true value 0.1 is calibrated within
+  `[0.01, 1]` from 200 noisy samples at random positions and times
+- **THEN** the estimate is within 5% of 0.1

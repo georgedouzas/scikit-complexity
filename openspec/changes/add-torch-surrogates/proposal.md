@@ -29,7 +29,9 @@ these methods can wrap the libraries the papers use instead of reimplementing th
 - **Coarse-grained network potentials.** `force_matching` of `add-neural-particle-simulators` gains
   `kind='equivariant'`, which fits an equivariant network potential plus a prior to mapped forces.
 - **Physics-informed solver.** New solver `PinnSolver` (deepxde) solves field systems from their declared rate laws by
-  a physics-informed network, with Fourier features and periodic or fixed boundaries (2308.08468).
+  a physics-informed network, with Fourier features and periodic or fixed boundaries (2308.08468). Its inverse mode is
+  `calibrate(method='pinn')`, which fits parameters of a field system to sparse observed runs with the same network,
+  the main use of physics-informed networks in the review of Cuomo et al. (2201.05624).
 - **Systems.** New `MaceWaterSystem` (`mace_water_md`, physics/statistical_mechanics) after 2401.00096, and
   `CgProteinFoldingSystem` (`cg_protein_folding`, physics/soft_matter) after 2310.18278.
 - **Dependencies.** torch, sbi, neuraloperator, chronos-forecasting, mace-torch, and deepxde become runtime
@@ -43,7 +45,7 @@ None.
 
 ### Modified Capabilities
 
-- `experiments`: neural posterior, likelihood, and ratio calibration, amortized reuse, sequential refinement, and
+- `experiments`: neural posterior, likelihood, and ratio calibration, physics-informed calibration of fields, amortized reuse, sequential refinement, and
   neural coverage diagnostics.
 - `data-driven-dynamics`: neural-operator surrogates of field systems.
 - `trajectory-analysis`: zero-shot forecasts by pretrained models compared by attractor statistics.
@@ -61,7 +63,7 @@ None.
   `add-neural-particle-simulators`), new `core/engine/solvers/_pinn.py`, and `core/engine/solvers/_lammps.py`.
 - Systems: new modules `physics/statistical_mechanics/_mace_water.py` and `physics/soft_matter/_cg_proteins.py`, with
   inventory entries and gallery examples.
-- API: `calibrate` gains three methods and the arguments `estimator`, `rounds`, and `embedding`. `CalibrationResult`
+- API: `calibrate` gains four methods, the three neural ones and `'pinn'`, and the arguments `estimator`, `rounds`, and `embedding`. `CalibrationResult`
   gains `estimator`.
 - Dependencies: torch 2.15.0, sbi 0.27.0, neuraloperator 2.0.0, chronos-forecasting 2.3.2, mace-torch 0.3.17, and
   deepxde 1.15.1, with a CPU-only torch source for the lock file. The install grows by several hundred megabytes on

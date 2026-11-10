@@ -208,6 +208,11 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   check, as `LammpsSolver` rejects unsupported laws.
 - **Fourier features** follow 2308.08468 as a fixed random feature layer applied to the space inputs through
   deepxde's `apply_feature_transform`. Causal weighting is left out, see the open questions.
+- **Inverse mode.** `calibrate(method='pinn')` builds the same network and residuals for a field system, declares the
+  calibrated parameters as `dde.Variable` within their bounds, adds the observed runs as `PointSetBC` constraints at
+  their positions and times, and trains both, after the inverse problems of Cuomo et al. (2201.05624, sect. 2.4). The
+  result holds the trained values as the estimates and the loss history as diagnostics, with no posterior. It is a
+  method of `calibrate` and not an option of the solver, since fitting parameters to data is an experiment.
 - **Probes.** `HeatDiffusionSystem` and `AllenCahnSystem` in one dimension for the tests. A short window of
   `GrayScottSystem` and of `KuramotoSivashinskySystem` in the gallery, compared with the spectral run.
 
