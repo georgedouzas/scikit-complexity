@@ -36,14 +36,21 @@
   `tests/core/analysis/test_phase_indicator.py` on a Gaussian family with a known Fisher information and by the doctest
 - [ ] 4.2 Add the Ising probe tests of the critical value and of the bound below `Var(E) / T^4`
 
-## 5. Documentation
+## 5. Rolling indicators
 
-- [ ] 5.1 Export both functions from `skcomplex.core.analysis`, check that `applicable_analyses` lists them for series,
+- [ ] 5.1 Add the kinds `'kurtosis'`, `'return-rate'`, `'standard-deviation'`, and `'coefficient-of-variation'` and
+  `bandwidth` to `rolling` in `src/skcomplex/core/analysis/_rolling.py`, and verify the return-rate-of-an-autoregression,
+  kurtosis-of-Gaussian-noise, slow-trend-removed, and defaults-unchanged scenarios in
+  `tests/core/analysis/test_rolling.py`
+
+## 6. Documentation
+
+- [ ] 6.1 Export both functions from `skcomplex.core.analysis`, check that `applicable_analyses` lists them for series,
   and verify `tests/core/analysis/test_discovery.py` passes
-- [ ] 5.2 Add a section on learned indicators to `docs/overview/user_guide/analyse.md` and verify its code blocks run
-- [ ] 5.3 Add gallery examples for the three systems, the Fox example classifying its runs and the normal-form example
+- [ ] 6.2 Add a section on learned indicators to `docs/overview/user_guide/analyse.md` and verify its code blocks run
+- [ ] 6.3 Add gallery examples for the three systems, the Fox example classifying its runs and the normal-form example
   building the training library with `sweep`, verified by `gallery_tools coverage --strict` and a run of each example
 
-## 6. Checks
+## 7. Checks
 
-- [ ] 6.1 Run `nox -s checks` and `nox -s tests` with the thread limits set to 1, and verify they pass
+- [ ] 7.1 Run `nox -s checks` and `nox -s tests` with the thread limits set to 1, and verify they pass

@@ -27,6 +27,12 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
 - New system `WesterhoffBusinessCycleSystem` (`economics/macroeconomics`), the consumer-sentiment model of national
   income, which starts business cycles through a Neimark-Sacker bifurcation as autonomous expenditure rises.
 
+- `rolling` gains the early warning indicators of Dakos et al. (2012) that it lacks: the kinds `'kurtosis'`,
+  `'return-rate'`, the inverse of the lag-one autoregression coefficient, `'standard-deviation'`, and
+  `'coefficient-of-variation'`, and `bandwidth`, which removes a Gaussian kernel smoothing of the whole series before
+  the windows, the detrending of that paper. Classifiers and the indicators of `rolling` then read the same filtered
+  series.
+
 ## Capabilities
 
 ### New Capabilities
@@ -36,13 +42,15 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
 
 ### Modified Capabilities
 
+- `trajectory-analysis`: more rolling indicators and Gaussian kernel detrending.
 - `model-library`: the discrete normal forms, the Fox cardiac alternans map, and the Westerhoff business-cycle model,
   with their inventory entries and gallery examples.
 
 ## Impact
 
 - Core: two new modules in `skcomplex.core.analysis` with their results, exported from the package and listed by
-  `applicable_analyses`. No change to existing analyses. `early_warning` stays in `systems/physics/climate`.
+  `applicable_analyses`. `rolling` gains kinds and `bandwidth` in `core/analysis/_rolling.py`, with its
+  defaults unchanged. `early_warning` stays in `systems/physics/climate`.
 - Systems: `skcomplex.systems.mathematics.dynamical_systems`, `skcomplex.systems.biology.physiology`, and
   `skcomplex.systems.economics.macroeconomics`, each with a new self-contained module.
 - Dependencies: none new. Equinox comes with `add-learning-foundation`, and jax and optax are already runtime

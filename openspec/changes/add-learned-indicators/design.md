@@ -85,6 +85,15 @@ validation and early stopping.
   alternans), economics (business cycles), statistical physics (phase transitions). The three systems are one system
   each, step 3, in their subfields.
 
+- **Rolling indicators.** `rolling` gains `'kurtosis'` (the standardised fourth moment, 3 for Gaussian windows),
+  `'return-rate'` (`1 / a1` of the least squares AR(1) fit of the window), `'standard-deviation'`, and
+  `'coefficient-of-variation'`, the indicators of Dakos et al. (2012, `references/papers/Dakos et al. - 2012 - Methods
+  for Detecting Early Warnings of Critical Transitions.pdf`, Table 1). `bandwidth`, in units of time, subtracts the
+  Gaussian kernel smoothing of the whole series before the windows, as that paper filters its records, and is
+  independent of `detrend`, the linear trend of every window. Both are kinds and settings of an existing analysis of
+  the core, step 2, used by climate, ecology, physiology, finance, and the learned classifiers here. SciPy's
+  `ndimage.gaussian_filter1d` and `stats.kurtosis` compute them, so no dependency is added.
+
 ## Risks / Trade-offs
 
 - [Training time in tests] → Tests use a few hundred short runs, a scikit-learn model or a few epochs of the CNN-LSTM,
